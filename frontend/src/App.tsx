@@ -38,6 +38,7 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import { ComingSoon } from './pages/ComingSoon';
 import ApiTestComponent from './components/ApiTestComponent';
+import { WorkflowList, WorkflowRunner } from './pages/Workflows';
 
 const App: React.FC = () => {
   // Dynamic favicon and title based on environment
@@ -146,6 +147,10 @@ const App: React.FC = () => {
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
+                
+                {/* Workflows */}
+                <Route path="workflows" element={<WorkflowList />} />
+                <Route path="workflows/run/:runId" element={<WorkflowRunner />} />
               </Route>
             </Routes>
           </NavigationProvider>
