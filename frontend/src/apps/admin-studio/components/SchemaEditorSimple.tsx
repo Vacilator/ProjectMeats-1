@@ -62,16 +62,18 @@ const Td = styled.td`
   border-bottom: 1px solid #e9ecef;
 `;
 
-const Input = styled.input`
+const Input = styled.input<{ hasError?: boolean }>`
   width: 100%;
   padding: 8px;
-  border: 1px solid #ced4da;
+  border: 1px solid ${props => props.hasError ? '#ef4444' : '#ced4da'};
   border-radius: 4px;
   font-size: 14px;
+  background: ${props => props.hasError ? '#fef2f2' : 'white'};
 
   &:focus {
     outline: none;
-    border-color: #4dabf7;
+    border-color: ${props => props.hasError ? '#ef4444' : '#4dabf7'};
+    box-shadow: ${props => props.hasError ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : 'none'};
   }
 `;
 
@@ -159,6 +161,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<number, string[]>>({});
 
   // Fetch schema on mount
   useEffect(() => {
@@ -211,6 +214,54 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
     }
   };
 
+  // Validation functions
+  const validateFields = (): { valid: boolean; errors: string[]; fieldErrors: Record<number, string[]> } => {
+    const errors: string[] = [];
+    const newFieldErrors: Record<number, string[]> = {};
+    const keys = new Set<string>();
+
+    fields.forEach((field, index) => {
+      const fieldErrorList: string[] = [];
+
+      // Check for empty labels
+      if (!field.label || field.label.trim() === '') {
+        fieldErrorList.push('Label is required');
+        errors.push(`Field ${index + 1}: Label is required`);
+      }
+
+      // Check for empty keys
+      if (!field.key || field.key.trim() === '') {
+        fieldErrorList.push('Field key is required');
+        errors.push(`Field ${index + 1}: Field key is required`);
+      } else {
+        // Check for duplicate keys
+        if (keys.has(field.key)) {
+          fieldErrorList.push(`Duplicate field key "${field.key}"`);
+          errors.push(`Field ${index + 1}: Duplicate field key "${field.key}"`);
+        }
+        keys.add(field.key);
+
+        // Check for invalid key format (must be alphanumeric + underscores only)
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field.key)) {
+          fieldErrorList.push('Invalid key format. Must start with letter or underscore.');
+          errors.push(`Field ${index + 1}: Invalid key format "${field.key}". Must start with letter or underscore, contain only letters, numbers, and underscores.`);
+        }
+      }
+
+      // Check for options on select/radio fields
+      if ((field.type === 'select' || field.type === 'radio') && (!field.options || field.options.trim() === '')) {
+        fieldErrorList.push('Options are required for this field type');
+        errors.push(`Field ${index + 1}: Options are required for ${field.type} type`);
+      }
+
+      if (fieldErrorList.length > 0) {
+        newFieldErrors[index] = fieldErrorList;
+      }
+    });
+
+    return { valid: errors.length === 0, errors, fieldErrors: newFieldErrors };
+  };
+
   const handleAddField = () => {
     const newField: FieldDefinition = {
       id: `field_${Date.now()}`,
@@ -225,11 +276,47 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   const handleUpdateField = (index: number, key: keyof FieldDefinition, value: any) => {
     const updated = [...fields];
     updated[index] = { ...updated[index], [key]: value };
+    
+    // Auto-generate key from label if key is being set from a new field
+    if (key === 'label' && updated[index].label === 'New Field') {
+      const sanitizedKey = value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      updated[index].key = sanitizedKey || `field_${Date.now()}`;
+    }
+    
     setFields(updated);
+    
+    // Clear errors for this field when user makes changes
+    if (fieldErrors[index]) {
+      const newErrors = { ...fieldErrors };
+      delete newErrors[index];
+      setFieldErrors(newErrors);
+    }
   };
 
   const handleDeleteField = (index: number) => {
-    setFields(fields.filter((_, i) => i !== index));
+    if (confirm('Delete this field? This action cannot be undone.')) {
+      setFields(fields.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleSaveWithValidation = async () => {
+    const validation = validateFields();
+    
+    if (!validation.valid) {
+      setFieldErrors(validation.fieldErrors);
+      setMessage({
+        type: 'error',
+        text: `Validation failed: ${validation.errors.length} error(s) found. Please fix the highlighted fields.`
+      });
+      setTimeout(() => setMessage(null), 5000);
+      return;
+    }
+
+    setFieldErrors({});
+    await handleSave();
   };
 
   if (loading) {
@@ -247,7 +334,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
         <Button variant="secondary" onClick={handleAddField}>
           ➕ Add Field
         </Button>
-        <Button variant="primary" onClick={handleSave} disabled={saving}>
+        <Button variant="primary" onClick={handleSaveWithValidation} disabled={saving}>
           {saving ? '💾 Saving...' : '💾 Save Changes'}
         </Button>
         <Button variant="secondary" onClick={fetchSchema}>
@@ -274,14 +361,22 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                   value={field.label}
                   onChange={(e) => handleUpdateField(index, 'label', e.target.value)}
                   placeholder="Field Label"
+                  hasError={fieldErrors[index]?.some(e => e.includes('Label'))}
                 />
+                {fieldErrors[index]?.filter(e => e.includes('Label')).map((err, i) => (
+                  <div key={i} style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{err}</div>
+                ))}
               </Td>
               <Td>
                 <Input
                   value={field.key}
                   onChange={(e) => handleUpdateField(index, 'key', e.target.value)}
                   placeholder="field_key"
+                  hasError={fieldErrors[index]?.some(e => e.includes('key') || e.includes('Duplicate') || e.includes('Invalid'))}
                 />
+                {fieldErrors[index]?.filter(e => e.includes('key') || e.includes('Duplicate') || e.includes('Invalid')).map((err, i) => (
+                  <div key={i} style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{err}</div>
+                ))}
               </Td>
               <Td>
                 <Select
@@ -303,8 +398,12 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                   value={field.options || ''}
                   onChange={(e) => handleUpdateField(index, 'options', e.target.value)}
                   placeholder="option1, option2"
-                  disabled={field.type !== 'select'}
+                  disabled={field.type !== 'select' && field.type !== 'radio'}
+                  hasError={fieldErrors[index]?.some(e => e.includes('Options'))}
                 />
+                {fieldErrors[index]?.filter(e => e.includes('Options')).map((err, i) => (
+                  <div key={i} style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{err}</div>
+                ))}
               </Td>
               <Td>
                 <input
