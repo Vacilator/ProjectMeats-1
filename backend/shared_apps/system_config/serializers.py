@@ -35,9 +35,9 @@ class WorkflowRunSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'tenant', 'workflow_slug', 'status',
             'current_step_index', 'data_context',
-            'created_at', 'updated_at'
+            'created_on', 'modified_on'
         ]
-        read_only_fields = ['id', 'tenant', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'tenant', 'created_on', 'modified_on']
 
 
 class StartWorkflowSerializer(serializers.Serializer):
