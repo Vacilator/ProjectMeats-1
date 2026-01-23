@@ -1,6 +1,17 @@
+/**
+ * Workflow Monitor - Real-time Execution Tracking
+ * 
+ * Displays active and historical workflow runs with live status updates,
+ * progress tracking, and filtering capabilities.
+ */
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Activity, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
+import { Activity, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, RefreshCw, Play, Filter } from 'lucide-react';
+import styled from 'styled-components';
+import { PageContainer } from '../../components/ui/PageContainer';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://dev.meatscentral.com';
 
@@ -19,18 +30,350 @@ interface WorkflowMonitorProps {
   tenantId?: string;
 }
 
+/* === Styled Components === */
+
+const MonitorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+`;
+
+const ControlsBar = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background-color: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+`;
+
+const FilterGroup = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+`;
+
+const FilterButton = styled.button<{ active?: boolean }>`
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+  background-color: ${props => props.active 
+    ? 'rgb(var(--color-primary))' 
+    : 'rgb(var(--color-surface))'};
+  color: ${props => props.active 
+    ? 'rgb(var(--color-primary-foreground))' 
+    : 'rgb(var(--color-text-primary))'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: ${props => props.active 
+      ? 'rgb(var(--color-primary-hover))' 
+      : 'rgb(var(--color-surface-hover))'};
+    box-shadow: var(--shadow-sm);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+`;
+
+const ActionGroup = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+`;
+
+const RefreshButton = styled.button<{ active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+  background-color: ${props => props.active 
+    ? 'rgba(var(--color-success), 0.1)' 
+    : 'rgb(var(--color-surface))'};
+  color: ${props => props.active 
+    ? 'rgb(var(--color-success))' 
+    : 'rgb(var(--color-text-primary))'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: ${props => props.active 
+      ? 'rgba(var(--color-success), 0.15)' 
+      : 'rgb(var(--color-surface-hover))'};
+  }
+
+  svg {
+    animation: ${props => props.active ? 'spin 2s linear infinite' : 'none'};
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+
+const WorkflowGrid = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const WorkflowCard = styled.div`
+  background-color: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const WorkflowHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+`;
+
+const WorkflowInfo = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const WorkflowTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+`;
+
+const WorkflowName = styled.h3`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0;
+`;
+
+const StatusBadge = styled.span<{ status: string }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-radius: var(--radius-full);
+  background-color: ${props => {
+    switch (props.status) {
+      case 'COMPLETED': return 'rgba(var(--color-success), 0.1)';
+      case 'FAILED': return 'rgba(var(--color-danger), 0.1)';
+      case 'IN_PROGRESS': return 'rgba(var(--color-info), 0.1)';
+      case 'CANCELLED': return 'rgba(var(--color-text-secondary), 0.1)';
+      default: return 'rgba(var(--color-text-secondary), 0.1)';
+    }
+  }};
+  color: ${props => {
+    switch (props.status) {
+      case 'COMPLETED': return 'rgb(var(--color-success))';
+      case 'FAILED': return 'rgb(var(--color-danger))';
+      case 'IN_PROGRESS': return 'rgb(var(--color-info))';
+      case 'CANCELLED': return 'rgb(var(--color-text-secondary))';
+      default: return 'rgb(var(--color-text-secondary))';
+    }
+  }};
+`;
+
+const MetaInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const MetaItem = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+`;
+
+const ProgressSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
+const ProgressHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ProgressBar = styled.div`
+  width: 100%;
+  height: 8px;
+  background-color: rgb(var(--color-border-light));
+  border-radius: var(--radius-full);
+  overflow: hidden;
+`;
+
+const ProgressFill = styled.div<{ percentage: number }>`
+  height: 100%;
+  width: ${props => props.percentage}%;
+  background: linear-gradient(90deg, rgb(var(--color-info)), rgb(var(--color-primary)));
+  border-radius: var(--radius-full);
+  transition: width 0.5s ease;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+`;
+
+const StatusMessage = styled.div<{ status: string }>`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: ${props => {
+    switch (props.status) {
+      case 'COMPLETED': return 'rgb(var(--color-success))';
+      case 'FAILED': return 'rgb(var(--color-danger))';
+      default: return 'rgb(var(--color-text-secondary))';
+    }
+  }};
+`;
+
+const ChevronIcon = styled(ChevronRight)`
+  color: rgb(var(--color-text-secondary));
+  opacity: 0.5;
+  transition: all 0.2s ease;
+
+  ${WorkflowCard}:hover & {
+    opacity: 1;
+    transform: translateX(4px);
+  }
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 4rem 2rem;
+`;
+
+const EmptyIcon = styled.div`
+  display: inline-flex;
+  padding: 1.5rem;
+  background-color: rgb(var(--color-surface-hover));
+  border-radius: 50%;
+  margin-bottom: 1.5rem;
+  
+  svg {
+    color: rgb(var(--color-text-secondary));
+    opacity: 0.5;
+  }
+`;
+
+const EmptyTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 0.5rem;
+`;
+
+const EmptyDescription = styled.p`
+  font-size: 0.875rem;
+  color: rgb(var(--color-text-secondary));
+  max-width: 400px;
+  margin: 0 auto;
+`;
+
+const LoadingState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1rem;
+`;
+
+const Spinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgb(var(--color-border));
+  border-top-color: rgb(var(--color-primary));
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
+/* === Main Component === */
+
 export const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({ tenantId }) => {
+  const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
-  const [selectedRun, setSelectedRun] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   useEffect(() => {
     fetchWorkflows();
     
     if (autoRefresh) {
-      const interval = setInterval(fetchWorkflows, 5000); // Refresh every 5 seconds
+      const interval = setInterval(fetchWorkflows, 5000);
       return () => clearInterval(interval);
     }
   }, [filter, autoRefresh]);
@@ -60,28 +403,19 @@ export const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({ tenantId }) =>
   };
 
   const getStatusIcon = (status: string) => {
+    const size = 18;
     switch (status) {
       case 'COMPLETED':
-        return <CheckCircle size={20} className="text-green-500" />;
+        return <CheckCircle size={size} />;
       case 'FAILED':
-        return <XCircle size={20} className="text-red-500" />;
+        return <XCircle size={size} />;
       case 'IN_PROGRESS':
-        return <Activity size={20} className="text-blue-500 animate-pulse" />;
+        return <Activity size={size} />;
       case 'CANCELLED':
-        return <AlertCircle size={20} className="text-gray-500" />;
+        return <AlertCircle size={size} />;
       default:
-        return <Clock size={20} className="text-gray-400" />;
+        return <Clock size={size} />;
     }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      COMPLETED: 'bg-green-100 text-green-800',
-      FAILED: 'bg-red-100 text-red-800',
-      IN_PROGRESS: 'bg-blue-100 text-blue-800',
-      CANCELLED: 'bg-gray-100 text-gray-800',
-    };
-    return styles[status as keyof typeof styles] || 'bg-gray-100 text-gray-600';
   };
 
   const formatDate = (isoString: string) => {
@@ -98,185 +432,155 @@ export const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({ tenantId }) =>
     return `${diffDays}d ago`;
   };
 
+  const handleWorkflowClick = (runId: string) => {
+    navigate(`/workflows/run/${runId}`);
+  };
+
   if (loading) {
     return (
-      <div className="p-8 text-center">
-        <div className="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        <p className="mt-4 text-gray-600">Loading workflow runs...</p>
-      </div>
+      <PageContainer
+        title="Workflow Monitor"
+        description="Real-time execution tracking and debugging"
+        maxWidth="xl"
+      >
+        <Card>
+          <LoadingState>
+            <Spinner />
+            <span style={{ color: 'rgb(var(--color-text-secondary))' }}>
+              Loading workflow runs...
+            </span>
+          </LoadingState>
+        </Card>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Activity size={28} />
-              Workflow Monitor
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Real-time execution tracking and debugging
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
+    <PageContainer
+      title="Workflow Monitor"
+      description="Real-time execution tracking and debugging"
+      maxWidth="xl"
+      actions={
+        <Button
+          variant="primary"
+          size="md"
+          onClick={() => navigate('/workflows')}
+        >
+          <Play size={16} />
+          Start New Workflow
+        </Button>
+      }
+    >
+      <MonitorContainer>
+        {/* Controls Bar */}
+        <ControlsBar>
+          <FilterGroup>
+            <Filter size={18} style={{ color: 'rgb(var(--color-text-secondary))' }} />
+            {['all', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELLED'].map((status) => (
+              <FilterButton
+                key={status}
+                active={filter === status}
+                onClick={() => setFilter(status)}
+              >
+                {status === 'all' ? 'All' : status.replace('_', ' ')}
+              </FilterButton>
+            ))}
+          </FilterGroup>
+
+          <ActionGroup>
+            <RefreshButton
+              active={autoRefresh}
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`px-3 py-2 rounded flex items-center gap-2 text-sm font-medium ${
-                autoRefresh
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
             >
-              <RefreshCw size={16} className={autoRefresh ? 'animate-spin' : ''} />
+              <RefreshCw size={16} />
               {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
-            </button>
-            <button
+            </RefreshButton>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={fetchWorkflows}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium"
             >
               Refresh Now
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </ActionGroup>
+        </ControlsBar>
 
-      {/* Filters */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
-        <div className="flex gap-2">
-          {['all', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELLED'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
-                filter === status
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {status === 'all' ? 'All' : status.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Workflow List */}
-      <div className="flex-1 overflow-auto p-6">
+        {/* Workflow List */}
         {workflows.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <Activity size={48} className="mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No workflow runs found</p>
-            <p className="text-sm mt-2">
-              {filter === 'all'
-                ? 'Start a workflow to see it here'
-                : `No ${filter.replace('_', ' ').toLowerCase()} workflows`}
-            </p>
-          </div>
+          <Card>
+            <EmptyState>
+              <EmptyIcon>
+                <Activity size={48} />
+              </EmptyIcon>
+              <EmptyTitle>No workflow runs found</EmptyTitle>
+              <EmptyDescription>
+                {filter === 'all'
+                  ? 'Start a workflow to see it here. Click "Start New Workflow" to begin.'
+                  : `No ${filter.replace('_', ' ').toLowerCase()} workflows found. Try adjusting your filters.`}
+              </EmptyDescription>
+            </EmptyState>
+          </Card>
         ) : (
-          <div className="space-y-3">
+          <WorkflowGrid>
             {workflows.map((run) => (
-              <div
+              <WorkflowCard
                 key={run.id}
-                className="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-all cursor-pointer"
-                onClick={() => setSelectedRun(run.id)}
+                onClick={() => handleWorkflowClick(run.id)}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      {getStatusIcon(run.status)}
-                      <h3 className="font-semibold text-gray-900">{run.workflow_name}</h3>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(run.status)}`}>
+                <WorkflowHeader>
+                  <WorkflowInfo>
+                    <WorkflowTitle>
+                      <WorkflowName>{run.workflow_name}</WorkflowName>
+                      <StatusBadge status={run.status}>
+                        {getStatusIcon(run.status)}
                         {run.status.replace('_', ' ')}
-                      </span>
-                    </div>
+                      </StatusBadge>
+                    </WorkflowTitle>
 
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                      <span className="flex items-center gap-1">
+                    <MetaInfo>
+                      <MetaItem>
                         <Clock size={14} />
-                        {formatDate(run.created_on)}
-                      </span>
-                      <span>Run ID: {run.id.slice(0, 8)}...</span>
-                    </div>
+                        Started {formatDate(run.created_on)}
+                      </MetaItem>
+                      <MetaItem>
+                        Run ID: {run.id.slice(0, 8)}...
+                      </MetaItem>
+                    </MetaInfo>
 
-                    {/* Progress Bar */}
                     {run.status === 'IN_PROGRESS' && (
-                      <div className="mb-2">
-                        <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                      <ProgressSection>
+                        <ProgressHeader>
                           <span>Progress</span>
                           <span>{run.progress_percentage}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${run.progress_percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
+                        </ProgressHeader>
+                        <ProgressBar>
+                          <ProgressFill percentage={run.progress_percentage} />
+                        </ProgressBar>
+                      </ProgressSection>
                     )}
 
                     {run.status === 'COMPLETED' && (
-                      <div className="text-sm text-green-600 font-medium">
-                        ✓ Completed {formatDate(run.modified_on)}
-                      </div>
+                      <StatusMessage status="COMPLETED">
+                        <CheckCircle size={16} />
+                        Completed {formatDate(run.modified_on)}
+                      </StatusMessage>
                     )}
 
                     {run.status === 'FAILED' && (
-                      <div className="text-sm text-red-600 font-medium">
-                        ✗ Failed - Click to view error details
-                      </div>
+                      <StatusMessage status="FAILED">
+                        <XCircle size={16} />
+                        Failed - Click to view error details
+                      </StatusMessage>
                     )}
-                  </div>
+                  </WorkflowInfo>
 
-                  <ChevronRight size={20} className="text-gray-400 mt-1" />
-                </div>
-              </div>
+                  <ChevronIcon size={24} />
+                </WorkflowHeader>
+              </WorkflowCard>
             ))}
-          </div>
+          </WorkflowGrid>
         )}
-      </div>
-
-      {/* Selected Run Details Modal - simplified for now */}
-      {selectedRun && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => setSelectedRun(null)}
-        >
-          <div
-            className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Workflow Run Details</h2>
-              <button
-                onClick={() => setSelectedRun(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-gray-600">
-              Detailed view will open at{' '}
-              <a
-                href={`/workflows/run/${selectedRun}`}
-                className="text-blue-600 hover:underline"
-                target="_blank"
-              >
-                /workflows/run/{selectedRun}
-              </a>
-            </p>
-            <button
-              onClick={() => {
-                window.location.href = `/workflows/run/${selectedRun}`;
-              }}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Open Full Details
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+      </MonitorContainer>
+    </PageContainer>
   );
 };
