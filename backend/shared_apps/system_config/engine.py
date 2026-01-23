@@ -80,6 +80,20 @@ class WorkflowEngine:
                     status=WorkflowRun.StatusChoices.IN_PROGRESS,
                     current_step_index=0,
                     data_context={
+                        'initial_data': initial_data or {},
+                        'steps': [],
+                        '_execution_history': [{
+                            'timestamp': WorkflowRun.objects.model._meta.get_field('created_on').get_prep_value(None),
+                            'event': 'workflow_started',
+                            'step_index': 0,
+                            'message': f'Workflow "{blueprint.name}" started by user {user.username}',
+                            'user': str(user.id)
+                        }],
+                        '_error_log': []
+                    }
+                )
+                    current_step_index=0,
+                    data_context={
                         'steps': [],
                         'metadata': {
                             'user_id': str(user.id),
@@ -148,6 +162,20 @@ class WorkflowEngine:
             with transaction.atomic():
                 if 'steps' not in run.data_context:
                     run.data_context['steps'] = []
+                if '_execution_history' not in run.data_context:
+                    run.data_context['_execution_history'] = []
+                if '_error_log' not in run.data_context:
+                    run.data_context['_error_log'] = []
+                
+                # Add execution history entry
+                from django.utils import timezone
+                run.data_context['_execution_history'].append({
+                    'timestamp': timezone.now().isoformat(),
+                    'event': 'step_completed',
+                    'step_index': current_step_index,
+                    'step_name': schema.get('name', f'Step {current_step_index}'),
+                    'data_summary': {k: '***' if 'password' in k.lower() else str(v)[:50] for k, v in step_data.items()}
+                })
                 
                 run.data_context['steps'].append({
                     'step_index': current_step_index,

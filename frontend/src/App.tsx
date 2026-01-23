@@ -51,6 +51,8 @@ import Settings from './pages/Settings';
 import { ComingSoon } from './pages/ComingSoon';
 import ApiTestComponent from './components/ApiTestComponent';
 import { WorkflowList, WorkflowRunner } from './pages/Workflows';
+import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
+import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
 
 const App: React.FC = () => {
   // Dynamic favicon and title based on environment
@@ -163,7 +165,9 @@ const App: React.FC = () => {
                 
                 {/* Workflows */}
                 <Route path="workflows" element={<WorkflowList />} />
+                <Route path="workflows/monitor" element={<WorkflowMonitor />} />
                 <Route path="workflows/run/:runId" element={<WorkflowRunner />} />
+                <Route path="workflows/details/:runId" element={<WorkflowExecutionDetails />} />
               </Route>
             </Routes>
           </NavigationProvider>

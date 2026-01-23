@@ -190,7 +190,7 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
     
     def retrieve(self, request, *args, **kwargs):
         """
-        Get workflow run details.
+        Get workflow run details with enhanced monitoring data.
         
         Response:
         {
@@ -200,19 +200,186 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
             "current_step_index": 0,
             "data_context": {...},
             "created_on": "2026-01-23T...",
-            "modified_on": "2026-01-23T..."
+            "modified_on": "2026-01-23T...",
+            "workflow_name": "Customer Onboarding",
+            "total_steps": 5,
+            "progress_percentage": 40,
+            "execution_history": [...],
+            "error_log": [...]
         }
         """
         run = self.get_object()
         
+        # Get the blueprint to fetch workflow steps
+        try:
+            blueprint = EntityBlueprint.objects.get(slug=run.workflow_slug)
+            published_version = blueprint.published_version
+            
+            if published_version and published_version.workflow_config:
+                workflow_steps = published_version.workflow_config.get('steps', [])
+                total_steps = len(workflow_steps)
+                progress_percentage = int((run.current_step_index / total_steps * 100)) if total_steps > 0 else 0
+                
+                # Build step details
+                step_details = []
+                for idx, step in enumerate(workflow_steps):
+                    step_status = 'completed' if idx < run.current_step_index else ('current' if idx == run.current_step_index else 'pending')
+                    step_details.append({
+                        'index': idx,
+                        'id': step.get('id'),
+                        'label': step.get('label', f'Step {idx + 1}'),
+                        'type': step.get('type'),
+                        'status': step_status
+                    })
+            else:
+                total_steps = 0
+                progress_percentage = 0
+                step_details = []
+                workflow_steps = []
+        except EntityBlueprint.DoesNotExist:
+            total_steps = 0
+            progress_percentage = 0
+            step_details = []
+            workflow_steps = []
+        
+        # Extract execution history from data_context
+        execution_history = run.data_context.get('_execution_history', [])
+        error_log = run.data_context.get('_error_log', [])
+        
         return Response({
             'id': str(run.id),
             'workflow_slug': run.workflow_slug,
+            'workflow_name': blueprint.name if 'blueprint' in locals() else run.workflow_slug,
             'status': run.status,
             'current_step_index': run.current_step_index,
+            'total_steps': total_steps,
+            'progress_percentage': progress_percentage,
+            'step_details': step_details,
             'data_context': run.data_context,
+            'execution_history': execution_history,
+            'error_log': error_log,
             'created_on': run.created_on.isoformat(),
             'modified_on': run.modified_on.isoformat()
+        })
+    
+    @action(detail=True, methods=['get'], url_path='execution-log')
+    def execution_log(self, request, pk=None):
+        """
+        Get detailed execution log for debugging.
+        
+        GET /api/system-config/runs/{id}/execution-log/
+        
+        Response:
+        {
+            "run_id": "uuid",
+            "workflow_slug": "customer-onboarding",
+            "status": "IN_PROGRESS",
+            "timeline": [
+                {
+                    "timestamp": "2026-01-23T19:30:00Z",
+                    "event": "workflow_started",
+                    "step_index": 0,
+                    "message": "Workflow execution started"
+                },
+                {
+                    "timestamp": "2026-01-23T19:30:15Z",
+                    "event": "step_completed",
+                    "step_index": 0,
+                    "step_name": "Personal Info",
+                    "data": {...}
+                }
+            ],
+            "errors": [...],
+            "current_state": {...}
+        }
+        """
+        run = self.get_object()
+        
+        # Build timeline from execution history
+        timeline = run.data_context.get('_execution_history', [])
+        errors = run.data_context.get('_error_log', [])
+        
+        return Response({
+            'run_id': str(run.id),
+            'workflow_slug': run.workflow_slug,
+            'status': run.status,
+            'timeline': timeline,
+            'errors': errors,
+            'current_state': {
+                'current_step_index': run.current_step_index,
+                'status': run.status,
+                'last_updated': run.modified_on.isoformat()
+            }
+        })
+    
+    @action(detail=False, methods=['get'], url_path='my-workflows')
+    def my_workflows(self, request):
+        """
+        Get all workflow runs for the current user's tenant.
+        
+        GET /api/system-config/runs/my-workflows/
+        
+        Query params:
+        - status: Filter by status (IN_PROGRESS, COMPLETED, FAILED)
+        - limit: Number of results (default 20)
+        
+        Response:
+        {
+            "count": 25,
+            "results": [
+                {
+                    "id": "uuid",
+                    "workflow_slug": "customer-onboarding",
+                    "workflow_name": "Customer Onboarding",
+                    "status": "IN_PROGRESS",
+                    "progress_percentage": 60,
+                    "created_on": "2026-01-23T19:30:00Z"
+                }
+            ]
+        }
+        """
+        queryset = self.get_queryset()
+        
+        # Apply filters
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        # Limit results
+        limit = int(request.query_params.get('limit', 20))
+        queryset = queryset[:limit]
+        
+        results = []
+        for run in queryset:
+            try:
+                blueprint = EntityBlueprint.objects.get(slug=run.workflow_slug)
+                workflow_name = blueprint.name
+                
+                # Calculate progress
+                published_version = blueprint.published_version
+                if published_version and published_version.workflow_config:
+                    total_steps = len(published_version.workflow_config.get('steps', []))
+                    progress = int((run.current_step_index / total_steps * 100)) if total_steps > 0 else 0
+                else:
+                    progress = 0
+            except EntityBlueprint.DoesNotExist:
+                workflow_name = run.workflow_slug
+                progress = 0
+            
+            results.append({
+                'id': str(run.id),
+                'workflow_slug': run.workflow_slug,
+                'workflow_name': workflow_name,
+                'status': run.status,
+                'progress_percentage': progress,
+                'current_step_index': run.current_step_index,
+                'created_on': run.created_on.isoformat(),
+                'modified_on': run.modified_on.isoformat()
+            })
+        
+        return Response({
+            'count': len(results),
+            'results': results
         })
 
 
