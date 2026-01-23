@@ -77,6 +77,51 @@ class TenantMiddleware:
         tenant = None
         resolution_method = None  # Track how tenant was resolved for logging
         
+        # GLOBAL SYSTEM ADMINS: Special handling for cross-tenant administration
+        # Check if user is in 'Global System Admins' group and assign System Root tenant
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            if request.user.groups.filter(name='Global System Admins').exists():
+                try:
+                    # Assign the System Root tenant (zero-UUID)
+                    tenant = Tenant.objects.get(id='00000000-0000-0000-0000-000000000000')
+                    resolution_method = "Global System Admin (System Root)"
+                    
+                    logger.info(
+                        f"Global System Admin access: user={request.user.username}, "
+                        f"tenant={tenant.slug}, path={request.path}"
+                    )
+                    
+                    # Set tenant in request
+                    request.tenant = tenant
+                    request.tenant_user = None
+                    
+                    # Set PostgreSQL session variable for Row-Level Security (RLS)
+                    if tenant:
+                        try:
+                            with connection.cursor() as cursor:
+                                cursor.execute(
+                                    "SET LOCAL app.current_tenant_id = %s",
+                                    [str(tenant.id)]
+                                )
+                            logger.debug(
+                                f"RLS: Set current_tenant_id={tenant.id} for Global Admin"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to set RLS session variable for Global Admin: "
+                                f"{type(e).__name__}: {str(e)}"
+                            )
+                    
+                    # Return early - skip standard tenant resolution for Global Admins
+                    return self.get_response(request)
+                    
+                except Tenant.DoesNotExist:
+                    logger.error(
+                        f"System Root tenant not found for Global System Admin: "
+                        f"user={request.user.username}. Run Phase 1.2 migrations."
+                    )
+                    # Fall through to standard resolution if System Root doesn't exist
+        
         # Temporary debugging for staging.meatscentral.com and uat.meatscentral.com
         host = request.get_host().split(":")[0]
         is_debug_host = host in ["staging.meatscentral.com", "uat.meatscentral.com"]
