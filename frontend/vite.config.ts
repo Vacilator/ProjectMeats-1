@@ -62,9 +62,26 @@ export default defineConfig({
         // Main app entry point
         main: path.resolve(__dirname, 'index.html'),
         // Admin Studio entry point for Django integration
-        admin_studio: path.resolve(__dirname, 'src/apps/admin-studio/main.tsx'),
+        studio: path.resolve(__dirname, 'studio.html'),
       },
       output: {
+        // Different output directories for different apps
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/\.(css)$/.test(assetInfo.name)) {
+            return `css/[name]-[hash][extname]`;
+          }
+          return `assets/[name]-[hash][extname]`;
+        },
+        chunkFileNames: 'js/[name]-[hash].js',
+        entryFileNames: (chunkInfo) => {
+          // Studio app gets its own entry
+          if (chunkInfo.name === 'studio') {
+            return 'studio/[name]-[hash].js';
+          }
+          return 'js/[name]-[hash].js';
+        },
         manualChunks: {
           // Vendor chunk for React and related
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
