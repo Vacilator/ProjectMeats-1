@@ -58,6 +58,12 @@ export default defineConfig({
     sourcemap: true,
     // Split chunks for better caching
     rollupOptions: {
+      input: {
+        // Main app entry point
+        main: path.resolve(__dirname, 'index.html'),
+        // Admin Studio entry point for Django integration
+        admin_studio: path.resolve(__dirname, 'src/apps/admin-studio/main.tsx'),
+      },
       output: {
         manualChunks: {
           // Vendor chunk for React and related

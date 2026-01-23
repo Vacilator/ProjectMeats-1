@@ -22,6 +22,8 @@ urlpatterns = [
     path("api/v1/ready/", ready_check, name="ready-check"),
     # Admin interface
     path("admin/", admin.site.urls),
+    # System Configuration Studio (Blueprint Editor)
+    path("admin/system-config/", include("shared_apps.system_config.urls")),
     # API v1 endpoints
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
     path("api/v1/", include("tenant_apps.accounts_receivables.urls")),
