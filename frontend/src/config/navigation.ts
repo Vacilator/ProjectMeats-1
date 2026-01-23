@@ -44,6 +44,11 @@ export const navigation: NavigationItem[] = [
     ],
   },
   {
+    label: 'Workflows',
+    icon: '⚡',
+    path: '/workflows',
+  },
+  {
     label: 'Suppliers',
     icon: '🏭',
     path: '/suppliers',

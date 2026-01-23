@@ -49,3 +49,17 @@ class StartWorkflowSerializer(serializers.Serializer):
 class SubmitStepSerializer(serializers.Serializer):
     """Serializer for submitting step data."""
     step_data = serializers.JSONField(required=True, help_text='Data for the current step')
+
+
+class BlueprintListSerializer(serializers.ModelSerializer):
+    """
+    Simplified serializer for listing available workflows.
+    
+    Used by the public catalog endpoint to show published blueprints
+    to tenant users without exposing internal configuration details.
+    """
+    
+    class Meta:
+        model = EntityBlueprint
+        fields = ['id', 'name', 'slug', 'created_at']
+        read_only_fields = ['id', 'name', 'slug', 'created_at']

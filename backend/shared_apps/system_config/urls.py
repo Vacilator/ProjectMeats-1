@@ -1,12 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import StudioView, WorkflowRunViewSet
+from .views import StudioView, WorkflowRunViewSet, AvailableWorkflowsViewSet
 
 app_name = 'system_config'
 
 # API Router for ViewSets
 router = DefaultRouter()
 router.register(r'runs', WorkflowRunViewSet, basename='workflow-run')
+router.register(r'available-workflows', AvailableWorkflowsViewSet, basename='available-workflows')
 
 urlpatterns = [
     # Blueprint Studio view (admin interface)

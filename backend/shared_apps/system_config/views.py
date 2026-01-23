@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.conf import settings
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -12,6 +12,7 @@ from .serializers import (
     WorkflowRunSerializer,
     StartWorkflowSerializer,
     SubmitStepSerializer,
+    BlueprintListSerializer,
 )
 
 
@@ -210,4 +211,42 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
             'created_on': run.created_on.isoformat(),
             'modified_on': run.modified_on.isoformat()
         })
+
+
+class AvailableWorkflowsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    Public catalog of available workflows for tenant users.
+    
+    Provides read-only access to published blueprints that can be
+    started by any authenticated user. This is the "App Store" view
+    where users discover and launch workflows.
+    
+    Permissions:
+    - IsAuthenticated: Any logged-in tenant user
+    - No admin privileges required
+    
+    Response:
+    [
+        {
+            "id": "uuid",
+            "name": "Customer Onboarding",
+            "slug": "customer-onboarding",
+            "created_at": "2026-01-23T..."
+        },
+        ...
+    ]
+    """
+    serializer_class = BlueprintListSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Return only published blueprints.
+        
+        Filters to blueprints that have a published_version set,
+        meaning they are ready for execution by tenant users.
+        """
+        return EntityBlueprint.objects.filter(
+            published_version__isnull=False
+        ).select_related('published_version')
 
