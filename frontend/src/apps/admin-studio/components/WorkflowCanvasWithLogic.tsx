@@ -1,18 +1,31 @@
 /**
  * WorkflowCanvasWithLogic Component
  * 
- * Enhanced workflow designer with data mapping and entity orchestration.
+ * Enhanced workflow designer with data mapping, entity orchestration, and visual data ports.
  * The "Logic Panel" transforms this from a shape drawer into a workflow orchestrator.
  * 
  * Key Features:
- * - Node-based workflow visualization
+ * - ReactFlow canvas with custom nodes
+ * - Visual data ports (input/output handles) for each field
  * - Side panel for step configuration
  * - Entity selection per step
  * - Field mapping between steps
- * - Data flow visualization
+ * - Data flow visualization with connections
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import ReactFlow, {
+  Node,
+  Edge,
+  Connection,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  Handle,
+  Position,
+  NodeProps,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 
 interface WorkflowCanvasWithLogicProps {
   blueprintId: string;
@@ -40,12 +53,85 @@ interface FieldMapping {
 
 // Mock entity definitions (will come from backend later)
 const ENTITY_TYPES = [
-  { value: 'customer', label: '👤 Customer', fields: ['name', 'email', 'phone', 'address'] },
-  { value: 'supplier', label: '🏭 Supplier', fields: ['company_name', 'contact_person', 'tax_id'] },
-  { value: 'sales_order', label: '📦 Sales Order', fields: ['order_number', 'customer_id', 'total_amount', 'delivery_date'] },
-  { value: 'purchase_order', label: '🛒 Purchase Order', fields: ['po_number', 'supplier_id', 'items', 'payment_terms'] },
-  { value: 'payment', label: '💰 Payment', fields: ['amount', 'payment_method', 'transaction_id', 'reference'] },
+  { value: 'customer', label: '👤 Customer', fields: ['id', 'name', 'email', 'phone', 'address'] },
+  { value: 'supplier', label: '🏭 Supplier', fields: ['id', 'company_name', 'contact_person', 'tax_id'] },
+  { value: 'sales_order', label: '📦 Sales Order', fields: ['id', 'order_number', 'customer_id', 'total_amount', 'delivery_date'] },
+  { value: 'purchase_order', label: '🛒 Purchase Order', fields: ['id', 'po_number', 'supplier_id', 'items', 'payment_terms'] },
+  { value: 'payment', label: '💰 Payment', fields: ['id', 'amount', 'payment_method', 'transaction_id', 'reference'] },
 ];
+
+// Custom Entity Node with Input/Output Ports
+interface EntityNodeData {
+  label: string;
+  entityType?: string;
+  fields: string[];
+  onClick?: () => void;
+}
+
+const EntityNode: React.FC<NodeProps<EntityNodeData>> = ({ data }) => {
+  const entity = ENTITY_TYPES.find(e => e.value === data.entityType);
+  const entityLabel = entity?.label || '📄 Generic';
+  const fields = data.fields && data.fields.length > 0 ? data.fields : ['id', 'created_at'];
+
+  return (
+    <div
+      onClick={data.onClick}
+      className="bg-white rounded-lg shadow-lg border-2 border-gray-300 hover:border-blue-500 transition-all cursor-pointer min-w-[220px]"
+      style={{ padding: 0 }}
+    >
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-t-lg">
+        <div className="text-sm font-semibold">{data.label}</div>
+        <div className="text-xs opacity-90 mt-1">{entityLabel}</div>
+      </div>
+
+      {/* Body - Field List with Ports */}
+      <div className="py-2">
+        {fields.map((field, index) => (
+          <div
+            key={field}
+            className="relative flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors"
+          >
+            {/* Input Port (Left) */}
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={`${field}-target`}
+              className="!w-3 !h-3 !bg-green-500 !border-2 !border-white hover:!w-4 hover:!h-4 transition-all"
+              style={{ left: -6 }}
+            />
+
+            {/* Field Name */}
+            <span className="text-sm text-gray-700 font-mono select-none">
+              {field}
+            </span>
+
+            {/* Output Port (Right) */}
+            <Handle
+              type="source"
+              position={Position.Right}
+              id={`${field}-source`}
+              className="!w-3 !h-3 !bg-blue-500 !border-2 !border-white hover:!w-4 hover:!h-4 transition-all"
+              style={{ right: -6 }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 py-2 bg-gray-50 rounded-b-lg border-t border-gray-200">
+        <div className="text-xs text-gray-500 text-center">
+          {fields.length} field{fields.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Register custom node types
+const nodeTypes = {
+  entityNode: EntityNode,
+};
 
 const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ blueprintId, csrfToken }) => {
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
@@ -53,6 +139,68 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
+
+  // ReactFlow state for visual canvas
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Sync steps to ReactFlow nodes
+  useEffect(() => {
+    const reactFlowNodes: Node<EntityNodeData>[] = steps.map((step, index) => {
+      const entity = ENTITY_TYPES.find(e => e.value === step.entityType);
+      const fields = entity?.fields || ['id', 'created_at'];
+
+      return {
+        id: step.id,
+        type: 'entityNode',
+        position: { x: 100 + index * 280, y: 100 },
+        data: {
+          label: step.label,
+          entityType: step.entityType,
+          fields,
+          onClick: () => setSelectedStepIndex(index),
+        },
+      };
+    });
+
+    setNodes(reactFlowNodes);
+  }, [steps, setNodes]);
+
+  // Handle ReactFlow connections (when user draws edges between ports)
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      // Extract field names from handle IDs
+      const sourceField = connection.sourceHandle?.replace('-source', '');
+      const targetField = connection.targetHandle?.replace('-target', '');
+
+      if (!sourceField || !targetField) return;
+
+      // Find target step index
+      const targetStepIndex = steps.findIndex(s => s.id === connection.target);
+      if (targetStepIndex === -1) return;
+
+      // Add field mapping
+      const newMapping: FieldMapping = {
+        targetField,
+        sourceStep: connection.source || '',
+        sourceField,
+      };
+
+      const targetStep = steps[targetStepIndex];
+      const updatedMappings = [...(targetStep.config?.field_mappings || []), newMapping];
+
+      handleUpdateStep(targetStepIndex, {
+        config: {
+          ...targetStep.config,
+          field_mappings: updatedMappings,
+        },
+      });
+
+      // Add visual edge
+      setEdges((eds) => addEdge({ ...connection, animated: true }, eds));
+    },
+    [steps, setEdges]
+  );
 
   // Fetch workflow config from API
   useEffect(() => {
