@@ -28,8 +28,10 @@
     {% else %}
     <!-- Production mode: Static build -->
     {% load static %}
-    <link rel="stylesheet" href="{% static 'admin/js/studio/admin_studio.css' %}">
-    <script type="module" src="{% static 'admin/js/studio/admin_studio.js' %}"></script>
+    <!-- Note: Asset filenames include content hashes. Update these after each build -->
+    <!-- Or implement a manifest.json loader in production -->
+    <link rel="stylesheet" href="{% static 'frontend/admin_studio.css' %}">
+    <script type="module" src="{% static 'frontend/admin_studio.js' %}"></script>
     {% endif %}
 </head>
 <body>
