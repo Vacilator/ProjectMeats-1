@@ -47,6 +47,18 @@ export const navigation: NavigationItem[] = [
     label: 'Workflows',
     icon: '⚡',
     path: '/workflows',
+    children: [
+      {
+        label: 'Catalog',
+        icon: '📋',
+        path: '/workflows',
+      },
+      {
+        label: 'Monitor',
+        icon: '📊',
+        path: '/workflows/monitor',
+      },
+    ],
   },
   {
     label: 'Suppliers',

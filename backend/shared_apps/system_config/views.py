@@ -212,7 +212,7 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
         
         # Get the blueprint to fetch workflow steps
         try:
-            blueprint = EntityBlueprint.objects.get(slug=run.workflow_slug)
+            blueprint = EntityBlueprint.objects.select_related('published_version').get(slug=run.workflow_slug)
             published_version = blueprint.published_version
             
             if published_version and published_version.workflow_config:
@@ -349,10 +349,17 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
         limit = int(request.query_params.get('limit', 20))
         queryset = queryset[:limit]
         
+        # Prefetch blueprints to avoid N+1 queries
+        workflow_slugs = list(queryset.values_list('workflow_slug', flat=True).distinct())
+        blueprints_map = {
+            bp.slug: bp 
+            for bp in EntityBlueprint.objects.filter(slug__in=workflow_slugs).select_related('published_version')
+        }
+        
         results = []
         for run in queryset:
-            try:
-                blueprint = EntityBlueprint.objects.get(slug=run.workflow_slug)
+            blueprint = blueprints_map.get(run.workflow_slug)
+            if blueprint:
                 workflow_name = blueprint.name
                 
                 # Calculate progress
@@ -362,7 +369,7 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
                     progress = int((run.current_step_index / total_steps * 100)) if total_steps > 0 else 0
                 else:
                     progress = 0
-            except EntityBlueprint.DoesNotExist:
+            else:
                 workflow_name = run.workflow_slug
                 progress = 0
             
