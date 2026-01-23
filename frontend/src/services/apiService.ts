@@ -9,6 +9,9 @@ import { config } from '../config/runtime';
 // API Configuration
 const API_BASE_URL = config.API_BASE_URL;
 
+// Extract base URL without /api/v1/ suffix for admin endpoints
+const BASE_DOMAIN = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -20,7 +23,19 @@ const apiClient = axios.create({
   xsrfHeaderName: 'X-CSRFToken', // Django's expected CSRF header
 });
 
-// Request interceptor for authentication and tenant context
+// Admin client for /admin/* endpoints (no /api/v1/ prefix)
+const adminClient = axios.create({
+  baseURL: BASE_DOMAIN,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true,
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
+});
+
+// Request interceptor for authentication and tenant context (apiClient)
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
@@ -39,8 +54,39 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// Request interceptor for authentication and tenant context (adminClient)
+adminClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Token ${token}`;
+    }
+    
+    // Add tenant ID header if available
+    const tenantId = localStorage.getItem('tenantId');
+    if (tenantId) {
+      config.headers['X-Tenant-ID'] = tenantId;
+    }
+    
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor for error handling (apiClient)
 apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for error handling (adminClient)
+adminClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
@@ -542,4 +588,4 @@ export class ApiService {
 export const apiService = new ApiService();
 
 // Export apiClient for direct axios usage in components
-export { apiClient };
+export { apiClient, adminClient };

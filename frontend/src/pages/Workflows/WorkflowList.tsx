@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiClient } from '../../services/apiService';
+import { adminClient } from '../../services/apiService';
 import styled from 'styled-components';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
@@ -113,7 +113,7 @@ export const WorkflowList: React.FC = () => {
   } = useQuery<Blueprint[]>({
     queryKey: ['availableWorkflows'],
     queryFn: async () => {
-      const response = await apiClient.get<Blueprint[]>(
+      const response = await adminClient.get<Blueprint[]>(
         '/admin/system-config/api/available-workflows/'
       );
       return response.data;
@@ -123,7 +123,7 @@ export const WorkflowList: React.FC = () => {
   // Start workflow mutation
   const startWorkflowMutation = useMutation({
     mutationFn: async (blueprintSlug: string) => {
-      const response = await apiClient.post<StartWorkflowResponse>(
+      const response = await adminClient.post<StartWorkflowResponse>(
         '/admin/system-config/api/runs/',
         { blueprint_slug: blueprintSlug }
       );
