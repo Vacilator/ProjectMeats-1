@@ -17,6 +17,9 @@ from .serializers import (
     UpdateSchemaConfigSerializer,
     UpdateWorkflowConfigSerializer,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class IsGlobalSystemAdminMixin(UserPassesTestMixin):
@@ -338,6 +341,14 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
             ]
         }
         """
+        # Check if tenant exists
+        if not hasattr(request, 'tenant') or request.tenant is None:
+            return Response({
+                'count': 0,
+                'results': [],
+                'message': 'No tenant context found'
+            })
+        
         queryset = self.get_queryset()
         
         # Apply filters
@@ -346,43 +357,55 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_filter)
         
         # Limit results
-        limit = int(request.query_params.get('limit', 20))
+        try:
+            limit = int(request.query_params.get('limit', 20))
+        except (ValueError, TypeError):
+            limit = 20
+        
         queryset = queryset[:limit]
         
         # Prefetch blueprints to avoid N+1 queries
-        workflow_slugs = list(queryset.values_list('workflow_slug', flat=True).distinct())
-        blueprints_map = {
-            bp.slug: bp 
-            for bp in EntityBlueprint.objects.filter(slug__in=workflow_slugs).select_related('published_version')
-        }
+        try:
+            workflow_slugs = list(queryset.values_list('workflow_slug', flat=True).distinct())
+            blueprints_map = {
+                bp.slug: bp 
+                for bp in EntityBlueprint.objects.filter(slug__in=workflow_slugs).select_related('published_version')
+            }
+        except Exception as e:
+            logger.error(f"Error fetching blueprints: {e}")
+            blueprints_map = {}
         
         results = []
         for run in queryset:
-            blueprint = blueprints_map.get(run.workflow_slug)
-            if blueprint:
-                workflow_name = blueprint.name
-                
-                # Calculate progress
-                published_version = blueprint.published_version
-                if published_version and published_version.workflow_config:
-                    total_steps = len(published_version.workflow_config.get('steps', []))
-                    progress = int((run.current_step_index / total_steps * 100)) if total_steps > 0 else 0
+            try:
+                blueprint = blueprints_map.get(run.workflow_slug)
+                if blueprint:
+                    workflow_name = blueprint.name
+                    
+                    # Calculate progress
+                    published_version = blueprint.published_version
+                    if published_version and published_version.workflow_config:
+                        total_steps = len(published_version.workflow_config.get('steps', []))
+                        progress = int((run.current_step_index / total_steps * 100)) if total_steps > 0 else 0
+                    else:
+                        progress = 0
                 else:
+                    workflow_name = run.workflow_slug
                     progress = 0
-            else:
-                workflow_name = run.workflow_slug
-                progress = 0
-            
-            results.append({
-                'id': str(run.id),
-                'workflow_slug': run.workflow_slug,
-                'workflow_name': workflow_name,
-                'status': run.status,
-                'progress_percentage': progress,
-                'current_step_index': run.current_step_index,
-                'created_on': run.created_on.isoformat(),
-                'modified_on': run.modified_on.isoformat()
-            })
+                
+                results.append({
+                    'id': str(run.id),
+                    'workflow_slug': run.workflow_slug,
+                    'workflow_name': workflow_name,
+                    'status': run.status,
+                    'progress_percentage': progress,
+                    'current_step_index': run.current_step_index,
+                    'created_on': run.created_on.isoformat(),
+                    'modified_on': run.modified_on.isoformat()
+                })
+            except Exception as e:
+                logger.error(f"Error processing workflow run {run.id}: {e}")
+                continue
         
         return Response({
             'count': len(results),
