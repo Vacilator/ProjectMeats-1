@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import { apiClient } from '../../services/apiService';
 import styled from 'styled-components';
 import { DynamicFormEngine } from '../../features/system/DynamicFormEngine';
 import { Card } from '../../components/ui/Card';
@@ -123,8 +123,8 @@ export const WorkflowRunner: React.FC = () => {
   const { data: workflowRun, isLoading, refetch } = useQuery({
     queryKey: ['workflowRun', runId],
     queryFn: async () => {
-      const response = await axios.get<WorkflowRunResponse>(
-        `/api/v1/system-config/api/runs/${runId}/`
+      const response = await apiClient.get<WorkflowRunResponse>(
+        `/admin/system-config/api/runs/${runId}/`
       );
       return response.data;
     },
@@ -134,8 +134,8 @@ export const WorkflowRunner: React.FC = () => {
   // Submit step mutation
   const submitStepMutation = useMutation({
     mutationFn: async (stepData: Record<string, any>) => {
-      const response = await axios.post<SubmitStepResponse>(
-        `/api/v1/system-config/api/runs/${runId}/submit_step/`,
+      const response = await apiClient.post<SubmitStepResponse>(
+        `/admin/system-config/api/runs/${runId}/submit_step/`,
         { step_data: stepData }
       );
       return response.data;

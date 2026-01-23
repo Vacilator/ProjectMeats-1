@@ -6,10 +6,22 @@
  */
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout/Layout';
+
+// Create QueryClient for data fetching (React Query)
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 import Dashboard from './pages/Dashboard';
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
@@ -93,16 +105,17 @@ const App: React.FC = () => {
   }, []); // Run once on mount
 
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <Router
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <NavigationProvider>
-            <Routes>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ThemeProvider>
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
+            <NavigationProvider>
+              <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<SignUp />} />
               <Route path="/" element={<Layout />}>
@@ -157,6 +170,7 @@ const App: React.FC = () => {
         </Router>
       </ThemeProvider>
     </AuthProvider>
+    </QueryClientProvider>
   );
 };
 
