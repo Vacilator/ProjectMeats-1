@@ -13,6 +13,9 @@ from .serializers import (
     StartWorkflowSerializer,
     SubmitStepSerializer,
     BlueprintListSerializer,
+    BlueprintVersionDetailSerializer,
+    UpdateSchemaConfigSerializer,
+    UpdateWorkflowConfigSerializer,
 )
 
 
@@ -289,8 +292,6 @@ class BlueprintVersionViewSet(viewsets.GenericViewSet,
         PATCH /api/studio/versions/{id}/schema/
         Body: {"schema_config": [...]}
         """
-        from .serializers import UpdateSchemaConfigSerializer
-        
         version = self.get_object()
         serializer = UpdateSchemaConfigSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -311,8 +312,6 @@ class BlueprintVersionViewSet(viewsets.GenericViewSet,
         PATCH /api/studio/versions/{id}/workflow/
         Body: {"workflow_config": [...]}
         """
-        from .serializers import UpdateWorkflowConfigSerializer
-        
         version = self.get_object()
         serializer = UpdateWorkflowConfigSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
