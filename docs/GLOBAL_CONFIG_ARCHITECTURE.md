@@ -2,9 +2,9 @@
 
 **System Blueprint Engine - Architecture Documentation**
 
-Version: 1.0  
+Version: 2.0  
 Last Updated: January 23, 2026  
-Status: Phase 1 Complete (Foundation)
+Status: Phase 3 Complete (Runtime Engine + Integration)
 
 ---
 
@@ -478,9 +478,306 @@ interface DataContext {
 
 ---
 
-## 5. API Endpoints (Future - Phase 3)
+## 5. The Runtime Engine (Phase 3 Complete)
 
-**Planned Endpoints** (not yet implemented):
+### 5.1 Architecture Overview
+
+The Runtime Engine transforms static blueprints into executable workflows through a multi-step form interface. It consists of three components:
+
+1. **Backend Execution Engine** (`backend/shared_apps/system_config/engine.py`)
+2. **Dynamic Form Renderer** (`frontend/src/features/system/DynamicFormEngine.tsx`)
+3. **Workflow Center UI** (`frontend/src/pages/Workflows/`)
+
+### 5.2 API Endpoints (Implemented)
+
+#### Public Catalog Endpoint
+
+```
+GET /admin/system-config/api/available-workflows/
+```
+
+**Purpose**: List published workflows available to tenant users  
+**Permission**: `IsAuthenticated` (any logged-in user)  
+**Returns**: Array of published blueprints
+
+**Response**:
+```json
+[
+  {
+    "id": "uuid-here",
+    "name": "Customer Onboarding",
+    "slug": "customer-onboarding",
+    "created_at": "2026-01-23T13:00:00Z"
+  }
+]
+```
+
+**Security**:
+- ✅ Filters to `published_version__isnull=False`
+- ✅ Read-only (no mutations)
+- ✅ No admin privileges required
+- ✅ Safe metadata exposure only
+
+#### Start Workflow Endpoint
+
+```
+POST /admin/system-config/api/runs/
+```
+
+**Purpose**: Initiate a new workflow execution  
+**Permission**: `IsAuthenticated`  
+**Body**:
+```json
+{
+  "blueprint_slug": "customer-onboarding",
+  "initial_data": {}  // Optional
+}
+```
+
+**Response**:
+```json
+{
+  "run_id": "uuid-workflow-run",
+  "step_schema": {
+    "fields": [...],  // DynamicFormEngine schema
+    "step_title": "Step 1: Basic Information",
+    "step_description": "Enter customer details"
+  },
+  "message": "Workflow started successfully"
+}
+```
+
+**What Happens**:
+1. ✅ Creates `WorkflowRun` record with `tenant=request.tenant`
+2. ✅ Initializes `data_context` with user/tenant info
+3. ✅ Returns first step schema for rendering
+4. ✅ Sets `status=IN_PROGRESS`, `current_step_index=0`
+
+#### Submit Step Endpoint
+
+```
+POST /admin/system-config/api/runs/:run_id/submit_step/
+```
+
+**Purpose**: Submit current step data and advance workflow  
+**Permission**: `IsAuthenticated` + tenant owns the run  
+**Body**:
+```json
+{
+  "step_data": {
+    "customer_name": "Acme Corp",
+    "customer_email": "contact@acme.com"
+  }
+}
+```
+
+**Response (Not Complete)**:
+```json
+{
+  "complete": false,
+  "next_step_schema": {
+    "fields": [...],  // Next step fields
+    "step_title": "Step 2: Address Details"
+  },
+  "initial_data": {},  // Pre-populated values if any
+  "current_step_index": 1
+}
+```
+
+**Response (Complete)**:
+```json
+{
+  "complete": true,
+  "run_id": "uuid-workflow-run",
+  "message": "Workflow completed successfully"
+}
+```
+
+**What Happens**:
+1. ✅ Validates step data against schema
+2. ✅ Merges data into `WorkflowRun.data_context`
+3. ✅ Increments `current_step_index`
+4. ✅ Returns next step schema or completion message
+5. ✅ Sets `status=COMPLETED` if final step
+
+#### Retrieve Workflow Run
+
+```
+GET /admin/system-config/api/runs/:run_id/
+```
+
+**Purpose**: Get workflow run details  
+**Permission**: `IsAuthenticated` + tenant owns the run  
+**Response**:
+```json
+{
+  "id": "uuid-workflow-run",
+  "workflow_slug": "customer-onboarding",
+  "status": "IN_PROGRESS",
+  "current_step_index": 1,
+  "data_context": {
+    "step_0": { "customer_name": "Acme Corp" },
+    "tenant_id": "uuid-tenant",
+    "user_id": "uuid-user"
+  },
+  "created_on": "2026-01-23T10:00:00Z",
+  "modified_on": "2026-01-23T10:05:00Z"
+}
+```
+
+### 5.3 Frontend Integration
+
+#### Workflow Center (`/workflows`)
+
+**Component**: `WorkflowList.tsx`  
+**Purpose**: "App Store" catalog of available workflows
+
+**Features**:
+- ✅ Card grid layout (responsive)
+- ✅ Loading, error, and empty states
+- ✅ "Start Workflow" button
+- ✅ React Query caching
+- ✅ Automatic redirect to runner
+
+**User Flow**:
+1. User clicks "Workflows" (⚡) in sidebar
+2. Sees grid of published workflow cards
+3. Clicks "Start Workflow" on desired card
+4. Redirects to `/workflows/run/:runId`
+
+#### Workflow Runner (`/workflows/run/:runId`)
+
+**Component**: `WorkflowRunner.tsx` + `DynamicFormEngine.tsx`  
+**Purpose**: Execute multi-step workflows
+
+**Features**:
+- ✅ Dynamic form rendering based on step schema
+- ✅ Progress bar showing completion percentage
+- ✅ Step indicator (e.g., "Step 2 of 5")
+- ✅ Form validation before submission
+- ✅ Auto-advance to next step
+- ✅ Success message on completion
+
+**Supported Field Types**:
+- `text` - Single-line text input
+- `textarea` - Multi-line text
+- `number` - Numeric input
+- `date` - Date picker
+- `select` - Dropdown menu
+- `checkbox` - Boolean toggle
+- `email` - Email with validation
+
+**Example Step Schema**:
+```json
+{
+  "fields": [
+    {
+      "name": "customer_name",
+      "type": "text",
+      "label": "Customer Name",
+      "required": true,
+      "placeholder": "Enter customer name"
+    },
+    {
+      "name": "customer_email",
+      "type": "email",
+      "label": "Email Address",
+      "required": true,
+      "validation": {
+        "pattern": "^[^@]+@[^@]+\\.[^@]+$",
+        "message": "Please enter a valid email"
+      }
+    },
+    {
+      "name": "priority",
+      "type": "select",
+      "label": "Priority Level",
+      "required": false,
+      "options": ["Low", "Medium", "High"],
+      "default": "Medium"
+    }
+  ]
+}
+```
+
+### 5.4 Execution Engine
+
+**Location**: `backend/shared_apps/system_config/engine.py`
+
+**Singleton Pattern**:
+```python
+# Global instance
+engine = WorkflowEngine()
+
+# Usage in views
+run_id, step_schema = engine.start_workflow(
+    tenant=request.tenant,
+    blueprint_slug='customer-onboarding',
+    user=request.user
+)
+```
+
+**Key Methods**:
+
+1. **`start_workflow()`**
+   - Creates WorkflowRun
+   - Loads published blueprint version
+   - Returns first step schema
+   - Initializes data_context
+
+2. **`submit_step()`**
+   - Validates data against step schema
+   - Merges into data_context
+   - Advances step index
+   - Returns next step or completion
+
+3. **`get_step_schema()`**
+   - Extracts current step from logic_config
+   - Returns formatted schema for frontend
+   - Handles initial_data for pre-population
+
+**Error Handling**:
+- ✅ `WorkflowEngineError` - Workflow-specific errors
+- ✅ `ValidationError` - Data validation failures
+- ✅ Detailed error messages
+- ✅ HTTP 400 for client errors
+- ✅ HTTP 500 for server errors
+
+### 5.5 Security Model
+
+**Blueprint Access**:
+- ✅ Public read (published blueprints only)
+- ✅ No modification by tenant users
+- ✅ Global Admins can create/edit drafts
+- ✅ Superusers can publish
+
+**Workflow Runs**:
+- ✅ Tenant-isolated (via `TenantAwareModel`)
+- ✅ Users only see their tenant's runs
+- ✅ Auto-assign `tenant=request.tenant`
+- ✅ Cannot access other tenant's runs
+
+**Data Context**:
+- ✅ Stored securely in `data_context` JSONField
+- ✅ Never exposed to other tenants
+- ✅ Cleared on workflow completion (optional)
+- ✅ Audit trail preserved
+
+### 5.6 Navigation
+
+**Sidebar Menu**:
+- Icon: ⚡ (Lightning bolt)
+- Label: "Workflows"
+- Route: `/workflows`
+- Permission: Any authenticated user
+
+**Routes**:
+- `/workflows` → WorkflowList (catalog)
+- `/workflows/run/:runId` → WorkflowRunner (execution)
+
+---
+
+## 6. API Endpoints (Legacy - Now Implemented)
 
 ```
 GET    /api/v1/system-config/blueprints/          # List all blueprints
@@ -585,5 +882,7 @@ Before deploying to production:
 
 ---
 
-**Status**: ✅ Phase 1 Complete (Foundation)  
-**Next**: Phase 2 - API Integration & ViewSets
+**Status**: ✅ Phase 3 Complete (Runtime Engine + Integration)  
+**Implemented**: Workflow execution, public catalog, dynamic forms, tenant UI  
+**Production Ready**: Yes  
+**Next**: Phase 4 - Polish & Release
