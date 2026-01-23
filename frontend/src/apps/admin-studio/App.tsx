@@ -16,14 +16,20 @@ const App: React.FC<AppProps> = () => {
   const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
-    // Get blueprint ID from root element data attribute
-    const rootElement = document.getElementById('root');
-    const bpId = rootElement?.getAttribute('data-blueprint-id');
+    // Get blueprint ID from URL path or data attribute
+    const pathMatch = window.location.pathname.match(/\/studio\/([^\/]+)\/?$/);
+    const bpId = pathMatch?.[1] || document.getElementById('root')?.getAttribute('data-blueprint-id');
     setBlueprintId(bpId || null);
 
-    // Get CSRF token from meta tag
-    const metaTag = document.querySelector('meta[name="csrf-token"]');
-    const token = metaTag?.getAttribute('content');
+    // Get CSRF token from cookie
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+    const token = getCookie('csrftoken') || 
+                  document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     setCsrfToken(token || null);
 
     // Fetch blueprint status
