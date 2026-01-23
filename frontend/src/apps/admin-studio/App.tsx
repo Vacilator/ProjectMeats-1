@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import SchemaEditor from './components/SchemaEditorSimple';
-import WorkflowCanvas from './components/WorkflowCanvasSimple';
+import WorkflowCanvas from './components/WorkflowCanvasWithLogic';
 import { VersionHistory } from './components/VersionHistory';
 
 interface AppProps {}
