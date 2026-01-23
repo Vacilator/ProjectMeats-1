@@ -9,9 +9,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import styled from 'styled-components';
-import { DynamicFormEngine } from '../features/system/DynamicFormEngine';
-import { Card } from '../components/ui/Card';
-import PageContainer from '../components/ui/PageContainer';
+import { DynamicFormEngine } from '../../features/system/DynamicFormEngine';
+import { Card } from '../../components/ui/Card';
+import { PageContainer } from '../../components/ui/PageContainer';
 
 interface WorkflowRunResponse {
   id: string;
