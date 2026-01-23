@@ -12,7 +12,7 @@
  * - Field mapping between steps
  * - Data flow visualization with connections
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import ReactFlow, {
   Node,
@@ -54,14 +54,14 @@ interface FieldMapping {
   transformFunction?: string; // Optional: data transformation
 }
 
-// Mock entity definitions (will come from backend later)
-const ENTITY_TYPES = [
-  { value: 'customer', label: '👤 Customer', fields: ['id', 'name', 'email', 'phone', 'address'] },
-  { value: 'supplier', label: '🏭 Supplier', fields: ['id', 'company_name', 'contact_person', 'tax_id'] },
-  { value: 'sales_order', label: '📦 Sales Order', fields: ['id', 'order_number', 'customer_id', 'total_amount', 'delivery_date'] },
-  { value: 'purchase_order', label: '🛒 Purchase Order', fields: ['id', 'po_number', 'supplier_id', 'items', 'payment_terms'] },
-  { value: 'payment', label: '💰 Payment', fields: ['id', 'amount', 'payment_method', 'transaction_id', 'reference'] },
-];
+interface EntityType {
+  value: string;
+  label: string;
+  fields: string[];
+  app_label?: string;
+  model_name?: string;
+}
+
 
 // Custom Entity Node with Input/Output Ports
 interface EntityNodeData {
@@ -69,24 +69,27 @@ interface EntityNodeData {
   entityType?: string;
   fields: string[];
   onClick?: () => void;
+  entityTypes?: EntityType[];  // NEW: Pass entity types to node
 }
 
-const EntityNode: React.FC<NodeProps<EntityNodeData>> = ({ data }) => {
-  const entity = ENTITY_TYPES.find(e => e.value === data.entityType);
-  const entityLabel = entity?.label || '📄 Generic';
-  const fields = data.fields && data.fields.length > 0 ? data.fields : ['id', 'created_at'];
+// Create a factory function to create EntityNode with entity types
+const createEntityNode = (entityTypes: EntityType[]) => {
+  const EntityNode: React.FC<NodeProps<EntityNodeData>> = ({ data }) => {
+    const entity = entityTypes.find(e => e.value === data.entityType);
+    const entityLabel = entity?.label || '📄 Generic';
+    const fields = data.fields && data.fields.length > 0 ? data.fields : ['id', 'created_at'];
 
-  return (
-    <div
-      onClick={data.onClick}
-      className="bg-white rounded-lg shadow-lg border-2 border-gray-300 hover:border-blue-500 transition-all cursor-pointer min-w-[220px]"
-      style={{ padding: 0 }}
-    >
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-t-lg">
-        <div className="text-sm font-semibold">{data.label}</div>
-        <div className="text-xs opacity-90 mt-1">{entityLabel}</div>
-      </div>
+    return (
+      <div
+        onClick={data.onClick}
+        className="bg-white rounded-lg shadow-lg border-2 border-gray-300 hover:border-blue-500 transition-all cursor-pointer min-w-[220px]"
+        style={{ padding: 0 }}
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-t-lg">
+          <div className="text-sm font-semibold">{data.label}</div>
+          <div className="text-xs opacity-90 mt-1">{entityLabel}</div>
+        </div>
 
       {/* Body - Field List with Ports */}
       <div className="py-2">
@@ -129,11 +132,9 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = ({ data }) => {
       </div>
     </div>
   );
-};
-
-// Register custom node types
-const nodeTypes = {
-  entityNode: EntityNode,
+  };
+  
+  return EntityNode;
 };
 
 const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ blueprintId, csrfToken }) => {
@@ -142,15 +143,24 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
+  
+  // NEW: Dynamic entity types from backend
+  const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
+  const [loadingEntities, setLoadingEntities] = useState(true);
 
   // ReactFlow state for visual canvas
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  
+  // Register custom node types (recreate when entityTypes changes)
+  const nodeTypes = useMemo(() => ({
+    entityNode: createEntityNode(entityTypes),
+  }), [entityTypes]);
 
   // Sync steps to ReactFlow nodes
   useEffect(() => {
     const reactFlowNodes: Node<EntityNodeData>[] = steps.map((step, index) => {
-      const entity = ENTITY_TYPES.find(e => e.value === step.entityType);
+      const entity = entityTypes.find(e => e.value === step.entityType);
       const fields = entity?.fields || ['id', 'created_at'];
 
       return {
@@ -167,7 +177,7 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
     });
 
     setNodes(reactFlowNodes);
-  }, [steps, setNodes]);
+  }, [steps, entityTypes, setNodes]);
 
   // Handle ReactFlow connections (when user draws edges between ports)
   const onConnect = useCallback(
@@ -204,6 +214,36 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
     },
     [steps, setEdges]
   );
+
+  // Fetch available entity types from backend
+  useEffect(() => {
+    const fetchEntityTypes = async () => {
+      try {
+        setLoadingEntities(true);
+        const response = await axios.get(
+          '/admin/system-config/api/studio/versions/available-entities/',
+          {
+            headers: {
+              'X-CSRFToken': csrfToken,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        
+        if (response.data.entities) {
+          setEntityTypes(response.data.entities);
+        }
+      } catch (error) {
+        console.error('Failed to fetch entity types:', error);
+        // Fallback to empty array if API fails
+        setEntityTypes([]);
+      } finally {
+        setLoadingEntities(false);
+      }
+    };
+    
+    fetchEntityTypes();
+  }, [csrfToken]);
 
   // Fetch workflow config from API
   useEffect(() => {
@@ -398,7 +438,7 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
   // Get entity fields for selected entity type
   const getEntityFields = (entityType: string | undefined) => {
     if (!entityType) return [];
-    const entity = ENTITY_TYPES.find(e => e.value === entityType);
+    const entity = entityTypes.find(e => e.value === entityType);
     return entity?.fields || [];
   };
 
@@ -419,7 +459,7 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
   }
 
   const selectedStep = selectedStepIndex !== null ? steps[selectedStepIndex] : null;
-  const selectedEntity = selectedStep?.entityType ? ENTITY_TYPES.find(e => e.value === selectedStep.entityType) : null;
+  const selectedEntity = selectedStep?.entityType ? entityTypes.find(e => e.value === selectedStep.entityType) : null;
 
   return (
     <div className="relative h-full flex">
@@ -568,7 +608,7 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">-- Select Entity --</option>
-                  {ENTITY_TYPES.map(entity => (
+                  {entityTypes.map(entity => (
                     <option key={entity.value} value={entity.value}>
                       {entity.label}
                     </option>
@@ -619,7 +659,7 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
                   ) : (
                     (selectedStep.config?.field_mappings || []).map((mapping, mapIndex) => {
                       const sourceStep = steps.find(s => s.id === mapping.sourceStep);
-                      const sourceEntity = sourceStep?.entityType ? ENTITY_TYPES.find(e => e.value === sourceStep.entityType) : null;
+                      const sourceEntity = sourceStep?.entityType ? entityTypes.find(e => e.value === sourceStep.entityType) : null;
                       
                       return (
                         <div key={mapIndex} className="p-4 bg-gray-50 rounded-lg border border-gray-200">

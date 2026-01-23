@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.conf import settings
+from django.apps import apps
 from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -825,4 +826,70 @@ class BlueprintVersionViewSet(viewsets.GenericViewSet,
             'new_version_number': new_version.version,
             'source_version': source_version.version
         }, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'], url_path='available-entities')
+    def available_entities(self, request):
+        """
+        Get list of available entities (models) for workflow configuration.
+        
+        GET /api/studio/versions/available-entities/
+        
+        Returns a list of entities with their fields for use in the Studio UI.
+        Format: [
+            {
+                "value": "customer",
+                "label": "👤 Customer", 
+                "fields": ["id", "name", "email", "phone"],
+                "app_label": "core"
+            },
+            ...
+        ]
+        
+        This replaces hardcoded entity lists in the frontend with dynamic data
+        from the actual Django models in the system.
+        """
+        # Define core business entities to expose
+        # Format: (app_label, model_name, emoji, display_name)
+        EXPOSED_MODELS = [
+            ('core', 'Protein', '🥩', 'Protein'),
+            ('tenants', 'Tenant', '🏢', 'Tenant'),
+            ('tenants', 'TenantUser', '👤', 'User'),
+            ('auth', 'User', '👤', 'System User'),
+            # Add more models as they're created in the system
+        ]
+        
+        entities = []
+        
+        for app_label, model_name, emoji, display_name in EXPOSED_MODELS:
+            try:
+                model = apps.get_model(app_label, model_name)
+                
+                # Extract field names from the model
+                fields = []
+                for field in model._meta.get_fields():
+                    # Include only concrete fields (not reverse relations)
+                    if field.concrete and not field.many_to_many:
+                        fields.append(field.name)
+                
+                # Build entity definition
+                entity = {
+                    'value': model_name.lower(),
+                    'label': f'{emoji} {display_name}',
+                    'fields': fields[:10],  # Limit to first 10 fields for UI
+                    'app_label': app_label,
+                    'model_name': model_name
+                }
+                
+                entities.append(entity)
+                
+            except LookupError:
+                # Model doesn't exist, skip it
+                logger.warning(f"Model {app_label}.{model_name} not found")
+                continue
+        
+        return Response({
+            'count': len(entities),
+            'entities': entities
+        })
+
 
