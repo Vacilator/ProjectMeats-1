@@ -92,16 +92,6 @@ class WorkflowEngine:
                         '_error_log': []
                     }
                 )
-                    current_step_index=0,
-                    data_context={
-                        'steps': [],
-                        'metadata': {
-                            'user_id': str(user.id),
-                            'blueprint_id': str(blueprint.id),
-                            'version_id': str(version.id),
-                        }
-                    }
-                )
             
             # Get schema for step 0
             schema = self._get_step_schema(version, 0)
