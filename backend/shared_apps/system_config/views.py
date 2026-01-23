@@ -2,6 +2,17 @@ from django.shortcuts import render
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.conf import settings
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from .models import WorkflowRun, EntityBlueprint, BlueprintVersion
+from .engine import engine, WorkflowEngineError, ValidationError
+from .serializers import (
+    WorkflowRunSerializer,
+    StartWorkflowSerializer,
+    SubmitStepSerializer,
+)
 
 
 class IsGlobalSystemAdminMixin(UserPassesTestMixin):
@@ -37,4 +48,166 @@ class StudioView(LoginRequiredMixin, IsGlobalSystemAdminMixin, TemplateView):
         context['blueprint_id'] = kwargs.get('blueprint_id')
         context['debug'] = settings.DEBUG
         return context
+
+
+class WorkflowRunViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing workflow execution.
+    
+    Provides endpoints for:
+    - Starting workflows (create)
+    - Submitting step data (submit_step action)
+    - Retrieving workflow status (retrieve, list)
+    
+    Permissions:
+    - IsAuthenticated: All tenant users
+    - Tenant isolation: Users only see their tenant's workflows
+    """
+    queryset = WorkflowRun.objects.all()
+    serializer_class = WorkflowRunSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter workflows by tenant."""
+        return WorkflowRun.objects.filter(tenant=self.request.tenant)
+    
+    def get_serializer_class(self):
+        """Dynamic serializer based on action."""
+        if self.action == 'create':
+            return StartWorkflowSerializer
+        elif self.action == 'submit_step':
+            return SubmitStepSerializer
+        return WorkflowRunSerializer
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Start a new workflow execution.
+        
+        Request Body:
+        {
+            "blueprint_slug": "customer-onboarding",
+            "initial_data": {...}  // Optional
+        }
+        
+        Response:
+        {
+            "run_id": "uuid",
+            "step_schema": {...}
+        }
+        """
+        try:
+            blueprint_slug = request.data.get('blueprint_slug')
+            initial_data = request.data.get('initial_data', {})
+            
+            if not blueprint_slug:
+                return Response(
+                    {'error': 'blueprint_slug is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            run_id, step_schema = engine.start_workflow(
+                tenant=request.tenant,
+                blueprint_slug=blueprint_slug,
+                user=request.user,
+                initial_data=initial_data
+            )
+            
+            return Response({
+                'run_id': run_id,
+                'step_schema': step_schema,
+                'message': 'Workflow started successfully'
+            }, status=status.HTTP_201_CREATED)
+            
+        except WorkflowEngineError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Internal error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['post'])
+    def submit_step(self, request, pk=None):
+        """
+        Submit data for the current step and advance workflow.
+        
+        Request Body:
+        {
+            "step_data": {...}
+        }
+        
+        Response (not complete):
+        {
+            "complete": false,
+            "next_step_schema": {...},
+            "initial_data": {...},
+            "current_step_index": 1
+        }
+        
+        Response (complete):
+        {
+            "complete": true,
+            "run_id": "uuid",
+            "message": "Workflow completed successfully"
+        }
+        """
+        try:
+            run = self.get_object()
+            step_data = request.data.get('step_data', {})
+            
+            if not step_data:
+                return Response(
+                    {'error': 'step_data is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            result = engine.submit_step(run, step_data)
+            
+            return Response(result, status=status.HTTP_200_OK)
+            
+        except ValidationError as e:
+            return Response(
+                {'error': str(e), 'type': 'validation'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except WorkflowEngineError as e:
+            return Response(
+                {'error': str(e), 'type': 'workflow'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Internal error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Get workflow run details.
+        
+        Response:
+        {
+            "id": "uuid",
+            "workflow_slug": "customer-onboarding",
+            "status": "IN_PROGRESS",
+            "current_step_index": 0,
+            "data_context": {...},
+            "created_on": "2026-01-23T...",
+            "modified_on": "2026-01-23T..."
+        }
+        """
+        run = self.get_object()
+        
+        return Response({
+            'id': str(run.id),
+            'workflow_slug': run.workflow_slug,
+            'status': run.status,
+            'current_step_index': run.current_step_index,
+            'data_context': run.data_context,
+            'created_on': run.created_on.isoformat(),
+            'modified_on': run.modified_on.isoformat()
+        })
 

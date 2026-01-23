@@ -1,9 +1,17 @@
-from django.urls import path
-from .views import StudioView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import StudioView, WorkflowRunViewSet
 
 app_name = 'system_config'
 
+# API Router for ViewSets
+router = DefaultRouter()
+router.register(r'runs', WorkflowRunViewSet, basename='workflow-run')
+
 urlpatterns = [
-    # Blueprint Studio view
+    # Blueprint Studio view (admin interface)
     path('studio/<uuid:blueprint_id>/', StudioView.as_view(), name='studio'),
+    
+    # API endpoints for workflow execution
+    path('api/', include(router.urls)),
 ]
