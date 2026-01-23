@@ -20,24 +20,13 @@ from apps.core.models import (
     OriginChoices,
     Protein,
     ProteinTypeChoices,
-    TimestampModel,
-    TenantManager,
+    TenantAwareModel,
 )
 from tenant_apps.plants.models import Plant
 
 
-class Customer(TimestampModel):
+class Customer(TenantAwareModel):
     """Customer model for managing customer information."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="customers",
-        help_text="Tenant this customer belongs to"
-    )
 
     # Basic information - keeping existing fields with same names
     name = models.CharField(max_length=255, help_text="Customer company name")

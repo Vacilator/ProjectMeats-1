@@ -9,9 +9,8 @@ from django.db import models
 from apps.tenants.models import Tenant
 from apps.core.models import (
     CarrierReleaseFormatChoices,
-    TimestampModel,
+    TenantAwareModel,
     WeightUnitChoices,
-    TenantManager,
 )
 
 
@@ -33,18 +32,9 @@ class PaymentStatus(models.TextChoices):
     PAID = "paid", "Paid"
 
 
-class SalesOrder(TimestampModel):
+class SalesOrder(TenantAwareModel):
     """Sales Order model for managing customer sales orders."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="sales_orders",
-        help_text="Tenant this salesorder belongs to"
-    )
-
+    
     # Order identification
     our_sales_order_num = models.CharField(
         max_length=100,

@@ -26,25 +26,13 @@ from apps.core.models import (
     Protein,
     ProteinTypeChoices,
     ShippingOfferedChoices,
-    TenantManager,
-    TimestampModel,
+    TenantAwareModel,
 )
 from tenant_apps.plants.models import Plant
 
 
-class Supplier(TimestampModel):
+class Supplier(TenantAwareModel):
     """Supplier model for managing supplier information."""
-
-    # Use the custom TenantManager to support .for_tenant() queries
-    objects = TenantManager()
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="suppliers",
-        help_text="Tenant this supplier belongs to"
-    )
 
     # Basic information - keeping existing fields with same names
     name = models.CharField(max_length=255, help_text="Supplier company name")
