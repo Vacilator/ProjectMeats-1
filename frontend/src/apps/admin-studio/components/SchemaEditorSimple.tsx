@@ -193,6 +193,119 @@ const AVAILABLE_ENTITIES = [
   { value: 'payment', label: 'Payment' },
 ];
 
+// Available sources for lookup filters
+const AVAILABLE_SOURCES = [
+  { value: 'Step1', label: 'Step 1: Supplier Selection' },
+  { value: 'Step2', label: 'Step 2: Location' },
+  { value: 'Step3', label: 'Step 3: Product' },
+  { value: 'CurrentTenant', label: 'User: Current Tenant' },
+  { value: 'CurrentUser', label: 'User: Current User' },
+];
+
+// Query Builder Component Styles
+const QueryBuilderContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+`;
+
+const QueryBuilderInput = styled(Input)`
+  flex: 1;
+  min-width: 80px;
+  font-family: monospace;
+  font-size: 12px;
+`;
+
+const OperatorBadge = styled.span`
+  padding: 4px 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  color: #495057;
+  user-select: none;
+`;
+
+const QueryBuilderSelect = styled(Select)`
+  flex: 1.5;
+  min-width: 120px;
+  font-size: 12px;
+`;
+
+// QueryBuilder Component
+interface QueryBuilderProps {
+  value: string;
+  onChange: (newValue: string) => void;
+}
+
+const QueryBuilder: React.FC<QueryBuilderProps> = ({ value, onChange }) => {
+  // Parse existing value: "target=source" -> ["target", "source"]
+  const parseValue = (val: string): { target: string; source: string } => {
+    if (!val || !val.includes('=')) {
+      return { target: '', source: '' };
+    }
+    const [target, source] = val.split('=');
+    return { target: target.trim(), source: source.trim() };
+  };
+
+  const parsed = parseValue(value);
+  const [target, setTarget] = React.useState(parsed.target);
+  const [source, setSource] = React.useState(parsed.source);
+
+  // Update parent when either input changes
+  const handleTargetChange = (newTarget: string) => {
+    setTarget(newTarget);
+    if (newTarget && source) {
+      onChange(`${newTarget}=${source}`);
+    } else if (newTarget || source) {
+      onChange(`${newTarget}=${source}`);
+    } else {
+      onChange('');
+    }
+  };
+
+  const handleSourceChange = (newSource: string) => {
+    setSource(newSource);
+    if (target && newSource) {
+      onChange(`${target}=${newSource}`);
+    } else if (target || newSource) {
+      onChange(`${target}=${newSource}`);
+    } else {
+      onChange('');
+    }
+  };
+
+  // Prevent row drag when clicking inputs
+  const stopPropagation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  return (
+    <QueryBuilderContainer onClick={stopPropagation}>
+      <QueryBuilderInput
+        value={target}
+        onChange={(e) => handleTargetChange(e.target.value)}
+        placeholder="target_field"
+        title="Target field name (e.g., supplier_id)"
+      />
+      <OperatorBadge>=</OperatorBadge>
+      <QueryBuilderSelect
+        value={source}
+        onChange={(e) => handleSourceChange(e.target.value)}
+        title="Source step or context"
+      >
+        <option value="">-- Select Source --</option>
+        {AVAILABLE_SOURCES.map(src => (
+          <option key={src.value} value={src.value}>
+            {src.label}
+          </option>
+        ))}
+      </QueryBuilderSelect>
+    </QueryBuilderContainer>
+  );
+};
+
 const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   const [fields, setFields] = useState<FieldDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -473,14 +586,12 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                 )}
                 
                 {field.type === 'lookup' && (
-                  <Input
+                  <QueryBuilder
                     value={field.lookupFilter || ''}
-                    onChange={(e) => {
-                      const updated = { ...field, lookupFilter: e.target.value };
+                    onChange={(newValue) => {
+                      const updated = { ...field, lookupFilter: newValue };
                       setFields(fields.map((f, i) => i === index ? updated : f));
                     }}
-                    placeholder="e.g., supplier_id=Step1.id"
-                    style={{ fontFamily: 'monospace', fontSize: '12px' }}
                   />
                 )}
                 
