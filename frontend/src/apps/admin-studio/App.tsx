@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import SchemaEditor from './components/SchemaEditor';
-import WorkflowCanvas from './components/WorkflowCanvas';
+import SchemaEditor from './components/SchemaEditorSimple';
+import WorkflowCanvas from './components/WorkflowCanvasSimple';
 
 interface AppProps {}
 
