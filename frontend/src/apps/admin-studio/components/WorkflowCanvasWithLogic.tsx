@@ -24,6 +24,9 @@ import ReactFlow, {
   Handle,
   Position,
   NodeProps,
+  Background,
+  Controls,
+  BackgroundVariant,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -462,130 +465,39 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
           )}
         </div>
 
-        {/* Workflow Steps as Cards */}
-        <div className="space-y-6">
-          {steps.length === 0 ? (
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-              <div className="text-gray-400 text-6xl mb-4">🔄</div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No workflow steps defined</h3>
-              <p className="text-gray-500 mb-4">
-                Create a multi-entity workflow by adding your first step
-              </p>
-              <button
-                onClick={handleAddStep}
-                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-              >
-                ➕ Add First Step
-              </button>
+        {/* ReactFlow Canvas with Visual Data Ports */}
+        <div style={{ height: 'calc(100vh - 180px)' }} className="bg-gray-50 rounded-lg border-2 border-gray-200 overflow-hidden">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            fitView
+            className="bg-gray-50"
+          >
+            <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#ddd" />
+            <Controls />
+          </ReactFlow>
+
+          {/* Empty State Overlay */}
+          {steps.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-white/80 backdrop-blur-sm">
+              <div className="text-center pointer-events-auto">
+                <div className="text-gray-400 text-6xl mb-4">🔄</div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">No workflow steps defined</h3>
+                <p className="text-gray-500 mb-4">
+                  Create a multi-entity workflow by adding your first step
+                </p>
+                <button
+                  onClick={handleAddStep}
+                  className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  ➕ Add First Step
+                </button>
+              </div>
             </div>
-          ) : (
-            steps.map((step, index) => {
-              const entity = ENTITY_TYPES.find(e => e.value === step.entityType);
-              const isSelected = selectedStepIndex === index;
-              
-              return (
-                <div key={step.id}>
-                  {/* Step Card */}
-                  <div
-                    onClick={() => setSelectedStepIndex(index)}
-                    className={`bg-white border-2 rounded-lg p-6 cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-blue-500 shadow-lg'
-                        : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
-                    }`}
-                  >
-                    {/* Step Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveStep(index, 'up');
-                            }}
-                            disabled={index === 0}
-                            className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            ⬆️
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveStep(index, 'down');
-                            }}
-                            disabled={index === steps.length - 1}
-                            className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            ⬇️
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-700 font-bold rounded-full text-lg">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div className="text-xl font-semibold text-gray-900">{step.label}</div>
-                          {entity && (
-                            <div className="text-sm text-gray-600 mt-1">
-                              {entity.label}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteStep(index);
-                        }}
-                        className="text-red-500 hover:text-red-700 p-2"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-
-                    {/* Step Info */}
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className={`px-3 py-1 rounded-full font-medium ${
-                        step.type === 'form'
-                          ? 'bg-blue-100 text-blue-800'
-                          : step.type === 'approval'
-                          ? 'bg-green-100 text-green-800'
-                          : step.type === 'notification'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {step.type === 'form' && '📝 Form'}
-                        {step.type === 'approval' && '✅ Approval'}
-                        {step.type === 'notification' && '📧 Notification'}
-                        {step.type === 'action' && '⚡ Action'}
-                      </span>
-                      
-                      {step.config?.field_mappings && step.config.field_mappings.length > 0 && (
-                        <span className="text-gray-600">
-                          🔗 {step.config.field_mappings.length} field mapping{step.config.field_mappings.length > 1 ? 's' : ''}
-                        </span>
-                      )}
-                      
-                      {!step.entityType && (
-                        <span className="text-orange-600">⚠️ No entity selected</span>
-                      )}
-                    </div>
-
-                    {isSelected && (
-                      <div className="mt-4 text-sm text-blue-600 font-medium">
-                        👉 Configure this step in the Logic Panel →
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Connector Arrow */}
-                  {index < steps.length - 1 && (
-                    <div className="flex justify-center py-4">
-                      <div className="text-3xl text-gray-400">↓</div>
-                    </div>
-                  )}
-                </div>
-              );
-            })
           )}
         </div>
       </div>
