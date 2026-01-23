@@ -238,6 +238,7 @@ class AvailableWorkflowsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     """
     serializer_class = BlueprintListSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for simple catalog view
     
     def get_queryset(self):
         """
