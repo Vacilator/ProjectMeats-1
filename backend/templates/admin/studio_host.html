@@ -6,8 +6,25 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Blueprint Studio - {{ blueprint_id }}</title>
     
-    <!-- Tailwind CSS CDN for immediate styling -->
+    <!-- React, ReactDOM, and Axios from CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/axios@1.6.0/dist/axios.min.js"></script>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#8b5cf6',
+                    }
+                }
+            }
+        }
+    </script>
     
     <style>
         body {
@@ -15,25 +32,175 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
+        .tab-active {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
     </style>
 </head>
 <body>
-    <!-- React mount point with data attributes -->
+    <!-- React mount point -->
     <div 
         id="root" 
         data-blueprint-id="{{ blueprint_id }}"
-        class="h-screen w-screen bg-gray-50 text-gray-900"
     ></div>
     
-    <!-- Load React app from main frontend build -->
-    <script type="module" crossorigin src="/static/js/main.js"></script>
-    <link rel="stylesheet" href="/static/css/main.css">
-    
-    <!-- Initialize Studio App -->
-    <script type="module">
-        // The main app will detect the studio context from the route
-        // and render the Studio component instead of the full app
-        console.log('Studio page loaded for blueprint:', document.getElementById('root').dataset.blueprintId);
+    <!-- Studio App Script -->
+    <script type="text/babel" data-type="module">
+        const { useState, useEffect } = React;
+        
+        function StudioApp() {
+            const blueprintId = document.getElementById('root').dataset.blueprintId;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            const [activeTab, setActiveTab] = useState('schema');
+            const [loading, setLoading] = useState(true);
+            const [blueprint, setBlueprint] = useState(null);
+            const [message, setMessage] = useState(null);
+            
+            useEffect(() => {
+                fetchBlueprint();
+            }, []);
+            
+            const fetchBlueprint = async () => {
+                try {
+                    const response = await axios.get(`/admin/system-config/api/studio/versions/${blueprintId}/`, {
+                        headers: { 'X-CSRFToken': csrfToken }
+                    });
+                    setBlueprint(response.data);
+                } catch (error) {
+                    console.error('Error fetching blueprint:', error);
+                    setMessage({ type: 'error', text: 'Failed to load blueprint' });
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            if (loading) {
+                return (
+                    <div className="flex items-center justify-center h-screen">
+                        <div className="text-center">
+                            <div className="text-4xl mb-4">⏳</div>
+                            <div className="text-gray-600">Loading Studio...</div>
+                        </div>
+                    </div>
+                );
+            }
+            
+            if (!blueprint) {
+                return (
+                    <div className="flex items-center justify-center h-screen">
+                        <div className="text-center">
+                            <div className="text-4xl mb-4">❌</div>
+                            <div className="text-gray-800 font-semibold mb-2">Blueprint not found</div>
+                            <a href="/admin/system_config/blueprintversion/" className="text-blue-600 hover:underline">
+                                ← Back to Blueprints
+                            </a>
+                        </div>
+                    </div>
+                );
+            }
+            
+            return (
+                <div className="h-screen flex flex-col bg-white">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 shadow-lg">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h1 className="text-2xl font-bold">Blueprint Studio</h1>
+                                <p className="text-blue-100 text-sm mt-1">Version {blueprint.version} • {blueprint.status}</p>
+                            </div>
+                            <a 
+                                href="/admin/system_config/blueprintversion/"
+                                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-md text-sm font-medium transition"
+                            >
+                                ← Back to Admin
+                            </a>
+                        </div>
+                    </div>
+                    
+                    {/* Tab Navigation */}
+                    <div className="border-b border-gray-200 bg-white px-6">
+                        <nav className="flex space-x-8">
+                            {['schema', 'workflow', 'history'].map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`py-4 px-2 font-medium text-sm capitalize transition ${
+                                        activeTab === tab 
+                                            ? 'tab-active' 
+                                            : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                                >
+                                    {tab === 'schema' && '📋'} 
+                                    {tab === 'workflow' && '⚙️'} 
+                                    {tab === 'history' && '📜'} 
+                                    {' '}{tab}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+                    
+                    {/* Message Banner */}
+                    {message && (
+                        <div className={`px-6 py-3 ${message.type === 'success' ? 'bg-green-50 text-green-800 border-b border-green-200' : 'bg-red-50 text-red-800 border-b border-red-200'}`}>
+                            {message.text}
+                        </div>
+                    )}
+                    
+                    {/* Content Area */}
+                    <div className="flex-1 overflow-auto p-6 bg-gray-50">
+                        {activeTab === 'schema' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-xl font-semibold mb-4">Data Schema Editor</h2>
+                                <p className="text-gray-600 mb-4">
+                                    Define the data fields for this workflow.
+                                </p>
+                                <div className="text-center py-12 text-gray-400">
+                                    <div className="text-6xl mb-4">🏗️</div>
+                                    <p>Full Schema Editor component loading...</p>
+                                    <p className="text-sm mt-2">React app needs to be built with proper bundler</p>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {activeTab === 'workflow' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-xl font-semibold mb-4">Workflow Designer</h2>
+                                <p className="text-gray-600 mb-4">
+                                    Design the workflow steps and logic.
+                                </p>
+                                <div className="text-center py-12 text-gray-400">
+                                    <div className="text-6xl mb-4">🏗️</div>
+                                    <p>Full Workflow Canvas component loading...</p>
+                                    <p className="text-sm mt-2">React app needs to be built with proper bundler</p>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {activeTab === 'history' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-xl font-semibold mb-4">Version History</h2>
+                                <p className="text-gray-600 mb-4">
+                                    View and manage blueprint versions.
+                                </p>
+                                <div className="text-center py-12 text-gray-400">
+                                    <div className="text-6xl mb-4">🏗️</div>
+                                    <p>Full Version History component loading...</p>
+                                    <p className="text-sm mt-2">React app needs to be built with proper bundler</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+        
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<StudioApp />);
     </script>
+    
+    <!-- Babel Standalone for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </body>
 </html>
