@@ -27,6 +27,9 @@ import ReactFlow, {
   Background,
   Controls,
   BackgroundVariant,
+  MarkerType,
+  EdgeLabelRenderer,
+  getBezierPath,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -157,6 +160,42 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
     entityNode: createEntityNode(entityTypes),
   }), [entityTypes]);
 
+  // Connection validation: prevent invalid connections
+  const isValidConnection = useCallback((connection: Connection) => {
+    // Rule 1: Cannot connect node to itself
+    if (connection.source === connection.target) {
+      console.warn('Cannot connect a node to itself');
+      return false;
+    }
+
+    // Rule 2: Cannot create duplicate connections
+    const isDuplicate = edges.some(edge => 
+      edge.source === connection.source &&
+      edge.target === connection.target &&
+      edge.sourceHandle === connection.sourceHandle &&
+      edge.targetHandle === connection.targetHandle
+    );
+    
+    if (isDuplicate) {
+      console.warn('Connection already exists');
+      return false;
+    }
+
+    // Rule 3: Verify nodes exist
+    const sourceNode = nodes.find(n => n.id === connection.source);
+    const targetNode = nodes.find(n => n.id === connection.target);
+    
+    if (!sourceNode || !targetNode) {
+      console.warn('Source or target node not found');
+      return false;
+    }
+
+    // Future: Add field type validation here
+    // e.g., ensure string fields only connect to string fields
+    
+    return true;
+  }, [edges, nodes]);
+
   // Sync steps to ReactFlow nodes
   useEffect(() => {
     const reactFlowNodes: Node<EntityNodeData>[] = steps.map((step, index) => {
@@ -209,8 +248,36 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
         },
       });
 
+      // Add visual edge with animation, styling, and label
+      const newEdge: Edge = {
+        id: `${connection.source}-${sourceField}-${connection.target}-${targetField}`,
+        source: connection.source!,
+        target: connection.target!,
+        sourceHandle: connection.sourceHandle!,
+        targetHandle: connection.targetHandle!,
+        animated: true, // ✨ ANIMATED!
+        style: { 
+          stroke: '#6366f1', 
+          strokeWidth: 2 
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#6366f1',
+        },
+        label: sourceField, // Show source field name
+        labelStyle: { 
+          fill: '#6366f1', 
+          fontWeight: 600,
+          fontSize: 12,
+        },
+        labelBgStyle: {
+          fill: 'white',
+          fillOpacity: 0.9,
+        },
+      };
+
       // Add visual edge
-      setEdges((eds) => addEdge({ ...connection, animated: true }, eds));
+      setEdges((eds) => addEdge(newEdge, eds));
     },
     [steps, setEdges]
   );
@@ -513,6 +580,7 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            isValidConnection={isValidConnection}
             nodeTypes={nodeTypes}
             fitView
             className="bg-gray-50"
