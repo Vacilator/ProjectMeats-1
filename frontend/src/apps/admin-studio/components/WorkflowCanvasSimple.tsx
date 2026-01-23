@@ -16,7 +16,27 @@ interface WorkflowStep {
   id: string;
   label: string;
   type: 'form' | 'approval' | 'notification' | 'action';
-  config?: Record<string, any>;
+  config?: {
+    // Form config
+    form_fields?: string[];  // Field IDs from schema
+    submit_button_text?: string;
+    
+    // Approval config
+    approver_role?: string;
+    approval_message?: string;
+    auto_approve_after_hours?: number;
+    
+    // Notification config
+    notification_type?: 'email' | 'sms' | 'in_app';
+    recipients?: string[];
+    subject?: string;
+    message?: string;
+    
+    // Action config
+    action_type?: 'create_record' | 'update_record' | 'send_webhook' | 'custom';
+    target_model?: string;
+    field_mappings?: Record<string, string>;
+  };
 }
 
 const WorkflowCanvasSimple: React.FC<WorkflowCanvasSimpleProps> = ({ blueprintId, csrfToken }) => {
@@ -24,6 +44,7 @@ const WorkflowCanvasSimple: React.FC<WorkflowCanvasSimpleProps> = ({ blueprintId
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [expandedStep, setExpandedStep] = useState<number | null>(null);
 
   // Fetch workflow config from API
   useEffect(() => {
@@ -291,7 +312,7 @@ const WorkflowCanvasSimple: React.FC<WorkflowCanvasSimpleProps> = ({ blueprintId
               </div>
 
               {/* Type Badge */}
-              <div className="mt-3">
+              <div className="mt-3 flex items-center justify-between">
                 <span
                   className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                     step.type === 'form'
@@ -308,7 +329,248 @@ const WorkflowCanvasSimple: React.FC<WorkflowCanvasSimpleProps> = ({ blueprintId
                   {step.type === 'notification' && '📧 Sends notification'}
                   {step.type === 'action' && '⚡ Triggers automated action'}
                 </span>
+                <button
+                  onClick={() => setExpandedStep(expandedStep === index ? null : index)}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  {expandedStep === index ? '▼ Hide Configuration' : '▶ Configure Step'}
+                </button>
               </div>
+
+              {/* Expandable Configuration Panel */}
+              {expandedStep === index && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    Step Configuration
+                  </h4>
+
+                  {/* Form Configuration */}
+                  {step.type === 'form' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Submit Button Text
+                        </label>
+                        <input
+                          type="text"
+                          value={step.config?.submit_button_text || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            submit_button_text: e.target.value
+                          })}
+                          placeholder="Submit, Next, Continue..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Form Fields (comma-separated field IDs)
+                        </label>
+                        <input
+                          type="text"
+                          value={step.config?.form_fields?.join(', ') || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            form_fields: e.target.value.split(',').map(f => f.trim()).filter(Boolean)
+                          })}
+                          placeholder="customer_name, email, phone"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Leave empty to show all fields from schema
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Approval Configuration */}
+                  {step.type === 'approval' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Approver Role
+                        </label>
+                        <select
+                          value={step.config?.approver_role || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            approver_role: e.target.value
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="">Select role...</option>
+                          <option value="manager">Manager</option>
+                          <option value="admin">Admin</option>
+                          <option value="supervisor">Supervisor</option>
+                          <option value="director">Director</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Approval Message
+                        </label>
+                        <textarea
+                          value={step.config?.approval_message || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            approval_message: e.target.value
+                          })}
+                          placeholder="Please review and approve this request..."
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Auto-Approve After (hours)
+                        </label>
+                        <input
+                          type="number"
+                          value={step.config?.auto_approve_after_hours || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            auto_approve_after_hours: parseInt(e.target.value) || undefined
+                          })}
+                          placeholder="24, 48, 72..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Leave empty to require manual approval
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notification Configuration */}
+                  {step.type === 'notification' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Notification Type
+                        </label>
+                        <select
+                          value={step.config?.notification_type || 'email'}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            notification_type: e.target.value as 'email' | 'sms' | 'in_app'
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="email">📧 Email</option>
+                          <option value="sms">📱 SMS</option>
+                          <option value="in_app">🔔 In-App Notification</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Recipients (comma-separated emails/phones)
+                        </label>
+                        <input
+                          type="text"
+                          value={step.config?.recipients?.join(', ') || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            recipients: e.target.value.split(',').map(r => r.trim()).filter(Boolean)
+                          })}
+                          placeholder="user@example.com, admin@example.com"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Subject
+                        </label>
+                        <input
+                          type="text"
+                          value={step.config?.subject || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            subject: e.target.value
+                          })}
+                          placeholder="Workflow notification..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Message
+                        </label>
+                        <textarea
+                          value={step.config?.message || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            message: e.target.value
+                          })}
+                          placeholder="Your notification message..."
+                          rows={4}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Configuration */}
+                  {step.type === 'action' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Action Type
+                        </label>
+                        <select
+                          value={step.config?.action_type || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            action_type: e.target.value
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="">Select action...</option>
+                          <option value="create_record">➕ Create Record</option>
+                          <option value="update_record">✏️ Update Record</option>
+                          <option value="send_webhook">🌐 Send Webhook</option>
+                          <option value="custom">⚡ Custom Script</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Target Model/Endpoint
+                        </label>
+                        <input
+                          type="text"
+                          value={step.config?.target_model || ''}
+                          onChange={(e) => handleUpdateStep(index, 'config', {
+                            ...step.config,
+                            target_model: e.target.value
+                          })}
+                          placeholder="Customer, Order, https://api.example.com/webhook"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Field Mappings (JSON)
+                        </label>
+                        <textarea
+                          value={JSON.stringify(step.config?.field_mappings || {}, null, 2)}
+                          onChange={(e) => {
+                            try {
+                              handleUpdateStep(index, 'config', {
+                                ...step.config,
+                                field_mappings: JSON.parse(e.target.value)
+                              });
+                            } catch (err) {
+                              // Invalid JSON, don't update
+                            }
+                          }}
+                          placeholder='{"db_field": "form_field"}'
+                          rows={4}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
