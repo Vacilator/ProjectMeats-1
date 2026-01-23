@@ -1,7 +1,7 @@
 /**
  * Authentication service for managing user authentication state.
  */
-import axios from 'axios';
+import { apiClient } from './apiService';
 import { config } from '../config/runtime';
 import { UserProfile } from '../types';
 
@@ -47,7 +47,7 @@ export class AuthService {
 
   async login(credentials: LoginCredentials): Promise<UserProfile> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/login/`, credentials);
+      const response = await apiClient.post('/auth/login/', credentials);
       const { token, user, tenants } = response.data;
 
       this.token = token;
@@ -66,11 +66,8 @@ export class AuthService {
       }
 
       return user;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(error.response?.data?.error || 'Login failed');
-      }
-      throw new Error('Login failed');
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Login failed');
     }
   }
 
@@ -78,8 +75,8 @@ export class AuthService {
     try {
       // Determine endpoint based on presence of token
       const endpoint = credentials.token 
-        ? `${API_BASE_URL}/auth/signup-with-invitation/` 
-        : `${API_BASE_URL}/auth/signup/`;
+        ? '/auth/signup-with-invitation/' 
+        : '/auth/signup/';
 
       // Construct payload with correct field mapping
       // Backend expects snake_case and 'invitation_token'
@@ -92,7 +89,7 @@ export class AuthService {
         ...(credentials.token ? { invitation_token: credentials.token } : {}), // Fix: Map 'token' to 'invitation_token'
       };
 
-      const response = await axios.post(endpoint, payload);
+      const response = await apiClient.post(endpoint, payload);
 
       // EXTRACT TENANT INFO HERE
       const { token, user, tenant } = response.data;
@@ -112,39 +109,30 @@ export class AuthService {
       }
 
       return user;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        // Enhanced error handling to capture validation errors
-        const serverData = error.response?.data;
-        let errorMessage = 'Sign up failed';
-        
-        if (serverData) {
-            if (serverData.error) {
-                errorMessage = serverData.error;
-            } else if (typeof serverData === 'object') {
-                // Combine validation errors into a string
-                // e.g. {"invitation_token": ["This field is required."]}
-                errorMessage = Object.entries(serverData)
-                    .map(([key, msgs]) => `${key}: ${(Array.isArray(msgs) ? msgs : [msgs]).join(' ')}`)
-                    .join(' | ');
-            }
-        }
-        throw new Error(errorMessage);
+    } catch (error: any) {
+      // Enhanced error handling to capture validation errors
+      const serverData = error.response?.data;
+      let errorMessage = 'Sign up failed';
+      
+      if (serverData) {
+          if (serverData.error) {
+              errorMessage = serverData.error;
+          } else if (typeof serverData === 'object') {
+              // Combine validation errors into a string
+              // e.g. {"invitation_token": ["This field is required."]}
+              errorMessage = Object.entries(serverData)
+                  .map(([key, msgs]) => `${key}: ${(Array.isArray(msgs) ? msgs : [msgs]).join(' ')}`)
+                  .join(' | ');
+          }
       }
-      throw new Error('Sign up failed');
+      throw new Error(errorMessage);
     }
   }
 
   async logout(): Promise<void> {
     try {
       if (this.token) {
-        await axios.post(
-          `${API_BASE_URL}/auth/logout/`,
-          {},
-          {
-            headers: { Authorization: `Token ${this.token}` },
-          }
-        );
+        await apiClient.post('/auth/logout/', {});
       }
     } catch (error) {
       console.error('Logout error:', error);
