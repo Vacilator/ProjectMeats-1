@@ -3,6 +3,9 @@ from django.utils.html import mark_safe
 from .models import EntityBlueprint, BlueprintVersion, WorkflowRun
 
 
+# Force reload timestamp: 2026-01-23 18:30 UTC
+
+
 @admin.register(EntityBlueprint)
 class EntityBlueprintAdmin(admin.ModelAdmin):
     """Admin interface for Entity Blueprints."""
