@@ -12,10 +12,10 @@ class EntityBlueprintAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'name', 'slug', 'description')
+            'fields': ('id', 'name', 'slug')
         }),
-        ('Configuration', {
-            'fields': ('logic_config', 'metadata', 'published_version')
+        ('Publication', {
+            'fields': ('published_version',)
         }),
         ('Timestamps', {
             'fields': ('created_at',),
@@ -37,7 +37,8 @@ class BlueprintVersionAdmin(admin.ModelAdmin):
             'fields': ('id', 'blueprint', 'version', 'status')
         }),
         ('Configuration', {
-            'fields': ('logic_config', 'change_summary')
+            'fields': ('schema_config', 'workflow_config', 'logic_config'),
+            'classes': ('collapse',)
         }),
         ('Timestamps', {
             'fields': ('created_at',),
