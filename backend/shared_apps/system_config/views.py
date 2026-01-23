@@ -31,6 +31,52 @@ class IsGlobalSystemAdminMixin(UserPassesTestMixin):
         return self.request.user.groups.filter(name='Global System Admins').exists()
 
 
+class StudioLandingView(LoginRequiredMixin, IsGlobalSystemAdminMixin, TemplateView):
+    """
+    Blueprint Studio landing page - lists all blueprints.
+    
+    This view provides a dashboard where admins can:
+    - See all existing blueprints
+    - Create new blueprints
+    - Navigate to Studio editor for specific blueprints
+    
+    Permissions:
+    - User must be authenticated
+    - User must be a member of 'Global System Admins' group
+    """
+    template_name = 'admin/studio_landing.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get all blueprints with their latest version
+        blueprints = []
+        for bp in EntityBlueprint.objects.all().prefetch_related('versions'):
+            latest_version = bp.versions.order_by('-version').first()
+            
+            bp_data = {
+                'id': bp.id,
+                'name': bp.name,
+                'slug': bp.slug,
+                'published_version': bp.published_version,
+                'latest_version': None,
+            }
+            
+            if latest_version:
+                bp_data['latest_version'] = {
+                    'id': latest_version.id,
+                    'version': latest_version.version,
+                    'status': latest_version.status,
+                    'schema_field_count': len(latest_version.schema_config),
+                    'workflow_step_count': len(latest_version.workflow_config),
+                }
+            
+            blueprints.append(bp_data)
+        
+        context['blueprints'] = blueprints
+        return context
+
+
 class StudioView(LoginRequiredMixin, IsGlobalSystemAdminMixin, TemplateView):
     """
     Blueprint Studio host view.
