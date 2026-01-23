@@ -20,10 +20,10 @@ urlpatterns = [
     path("api/v1/health/", health_check, name="health-check"),
     path("api/v1/health/detailed/", health_detailed, name="health-detailed"),
     path("api/v1/ready/", ready_check, name="ready-check"),
+    # System Configuration Studio (Blueprint Editor) - MUST come before admin/
+    path("admin/system-config/", include("shared_apps.system_config.urls")),
     # Admin interface
     path("admin/", admin.site.urls),
-    # System Configuration Studio (Blueprint Editor)
-    path("admin/system-config/", include("shared_apps.system_config.urls")),
     # API v1 endpoints
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
     path("api/v1/", include("tenant_apps.accounts_receivables.urls")),
