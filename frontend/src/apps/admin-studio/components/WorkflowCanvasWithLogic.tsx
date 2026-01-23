@@ -95,7 +95,7 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
     fetchWorkflow();
   }, [blueprintId, csrfToken]);
 
-  // Save workflow config to API
+  // Save workflow config and logic config to API
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -109,9 +109,22 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
         config: step.config,
       }));
 
+      // Extract field mappings from each step's config to build logic_config
+      const logicConfig = {
+        field_mappings: steps.map(step => ({
+          step_id: step.id,
+          entity_type: step.entityType,
+          mappings: step.config?.field_mappings || [],
+        })),
+      };
+
+      // Use the combined PATCH endpoint to update both configs at once
       await axios.patch(
-        `/admin/system-config/api/studio/versions/${blueprintId}/workflow/`,
-        { workflow_config: workflowConfig },
+        `/admin/system-config/api/studio/versions/${blueprintId}/`,
+        { 
+          workflow_config: workflowConfig,
+          logic_config: logicConfig,
+        },
         {
           headers: {
             'X-CSRFToken': csrfToken,

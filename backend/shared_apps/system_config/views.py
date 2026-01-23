@@ -499,14 +499,14 @@ class AvailableWorkflowsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
 
 class BlueprintVersionViewSet(viewsets.GenericViewSet,
-                               mixins.RetrieveModelMixin):
+                               mixins.RetrieveModelMixin,
+                               mixins.UpdateModelMixin):
     """
     ViewSet for Blueprint Version management in Studio.
     
     Provides endpoints for:
     - GET: Retrieve full blueprint version details
-    - PATCH: Update schema_config
-    - PATCH: Update workflow_config
+    - PATCH: Partial update (schema_config, workflow_config, logic_config)
     - POST: Publish version (make available to users)
     - POST: Unpublish version (remove from catalog)
     
@@ -526,6 +526,29 @@ class BlueprintVersionViewSet(viewsets.GenericViewSet,
         if not request.user.groups.filter(name='Global System Admins').exists():
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Only Global System Admins can access the Studio API')
+    
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Partial update for blueprint version configuration.
+        
+        PATCH /api/system-config/api/studio/versions/{id}/
+        
+        Accepts any combination of:
+        - schema_config: List of field definitions
+        - workflow_config: Workflow step definitions
+        - logic_config: Field mappings and orchestration logic
+        
+        Returns the updated version data.
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        return Response({
+            'message': 'Configuration updated successfully',
+            'data': serializer.data
+        })
     
     @action(detail=True, methods=['patch'], url_path='schema')
     def update_schema(self, request, pk=None):

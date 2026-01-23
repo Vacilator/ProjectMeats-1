@@ -232,7 +232,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
     try {
       setSaving(true);
       await axios.patch(
-        `/admin/system-config/api/studio/versions/${blueprintId}/schema/`,
+        `/admin/system-config/api/studio/versions/${blueprintId}/`,
         { schema_config: fields },
         {
           headers: {
