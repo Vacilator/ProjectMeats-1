@@ -50,6 +50,7 @@ _THIRD_PARTY_APPS = [
 _PROJECT_APPS = [
     "apps.core",
     "apps.tenants",  # Tenant management (shared-schema approach)
+    "shared_apps.system_config",  # System Blueprint Engine (global configuration)
     # Business apps (all use tenant_id for data isolation)
     "tenant_apps.accounts_receivables",
     "tenant_apps.ai_assistant",
