@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import SchemaEditor from './components/SchemaEditorSimple';
 import WorkflowCanvas from './components/WorkflowCanvasSimple';
+import { VersionHistory } from './components/VersionHistory';
 
 interface AppProps {}
 
 const App: React.FC<AppProps> = () => {
   const [blueprintId, setBlueprintId] = useState<string | null>(null);
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'schema' | 'canvas'>('schema');
+  const [activeTab, setActiveTab] = useState<'schema' | 'canvas' | 'history'>('schema');
   const [isPublished, setIsPublished] = useState<boolean>(false);
   const [blueprintName, setBlueprintName] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -190,6 +191,16 @@ const App: React.FC<AppProps> = () => {
           >
             🔄 Workflow Canvas (Visual)
           </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'history'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            📜 Version History
+          </button>
         </div>
       </nav>
 
@@ -200,6 +211,19 @@ const App: React.FC<AppProps> = () => {
         )}
         {activeTab === 'canvas' && (
           <WorkflowCanvas blueprintId={blueprintId} csrfToken={csrfToken || ''} />
+        )}
+        {activeTab === 'history' && blueprintId && (
+          <VersionHistory
+            blueprintId={blueprintId}
+            currentVersionId={blueprintId}
+            onVersionSelect={(versionId) => {
+              window.location.href = `/admin/system-config/studio/${versionId}/`;
+            }}
+            onRollback={(newVersionId) => {
+              alert('Rolled back successfully! Redirecting to new version...');
+              window.location.href = `/admin/system-config/studio/${newVersionId}/`;
+            }}
+          />
         )}
       </main>
     </div>

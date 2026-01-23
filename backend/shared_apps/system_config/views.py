@@ -400,4 +400,163 @@ class BlueprintVersionViewSet(viewsets.GenericViewSet,
             'blueprint_name': blueprint.name,
             'blueprint_slug': blueprint.slug
         })
+    
+    @action(detail=False, methods=['get'], url_path='history')
+    def version_history(self, request):
+        """
+        Get version history for a blueprint.
+        
+        GET /api/studio/versions/history/?blueprint_id={uuid}
+        
+        Returns list of all versions with metadata.
+        """
+        blueprint_id = request.query_params.get('blueprint_id')
+        if not blueprint_id:
+            return Response(
+                {'error': 'blueprint_id parameter required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            blueprint = EntityBlueprint.objects.get(id=blueprint_id)
+        except EntityBlueprint.DoesNotExist:
+            return Response(
+                {'error': 'Blueprint not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        versions = blueprint.versions.all().order_by('-created_at')
+        
+        history = []
+        for version in versions:
+            history.append({
+                'id': str(version.id),
+                'version': version.version,
+                'status': version.status,
+                'created_at': version.created_at.isoformat(),
+                'is_published': blueprint.published_version_id == version.id,
+                'field_count': len(version.schema_config) if version.schema_config else 0,
+                'step_count': len(version.workflow_config.get('steps', [])) if version.workflow_config else 0
+            })
+        
+        return Response({
+            'blueprint_id': str(blueprint.id),
+            'blueprint_name': blueprint.name,
+            'blueprint_slug': blueprint.slug,
+            'versions': history
+        })
+    
+    @action(detail=True, methods=['get'], url_path='compare')
+    def compare_versions(self, request, pk=None):
+        """
+        Compare two versions to see what changed.
+        
+        GET /api/studio/versions/{id}/compare/?with={other_id}
+        """
+        version_a = self.get_object()
+        other_id = request.query_params.get('with')
+        
+        if not other_id:
+            return Response(
+                {'error': 'with parameter required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            version_b = BlueprintVersion.objects.get(id=other_id)
+        except BlueprintVersion.DoesNotExist:
+            return Response(
+                {'error': 'Comparison version not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Compare schemas
+        schema_a = {field.get('key'): field for field in (version_a.schema_config or [])}
+        schema_b = {field.get('key'): field for field in (version_b.schema_config or [])}
+        
+        added_fields = [schema_b[k] for k in schema_b.keys() - schema_a.keys()]
+        removed_fields = [schema_a[k] for k in schema_a.keys() - schema_b.keys()]
+        modified_fields = []
+        
+        for key in schema_a.keys() & schema_b.keys():
+            if schema_a[key] != schema_b[key]:
+                modified_fields.append({
+                    'key': key,
+                    'before': schema_a[key],
+                    'after': schema_b[key]
+                })
+        
+        # Compare workflows
+        steps_a = {s.get('id'): s for s in version_a.workflow_config.get('steps', [])} if version_a.workflow_config else {}
+        steps_b = {s.get('id'): s for s in version_b.workflow_config.get('steps', [])} if version_b.workflow_config else {}
+        
+        added_steps = [steps_b[k] for k in steps_b.keys() - steps_a.keys()]
+        removed_steps = [steps_a[k] for k in steps_a.keys() - steps_b.keys()]
+        modified_steps = []
+        
+        for step_id in steps_a.keys() & steps_b.keys():
+            if steps_a[step_id] != steps_b[step_id]:
+                modified_steps.append({
+                    'id': step_id,
+                    'before': steps_a[step_id],
+                    'after': steps_b[step_id]
+                })
+        
+        return Response({
+            'version_a': {
+                'id': str(version_a.id),
+                'version': version_a.version,
+                'created_at': version_a.created_at.isoformat(),
+                'status': version_a.status
+            },
+            'version_b': {
+                'id': str(version_b.id),
+                'version': version_b.version,
+                'created_at': version_b.created_at.isoformat(),
+                'status': version_b.status
+            },
+            'differences': {
+                'schema': {
+                    'added_fields': added_fields,
+                    'removed_fields': removed_fields,
+                    'modified_fields': modified_fields
+                },
+                'workflow': {
+                    'added_steps': added_steps,
+                    'removed_steps': removed_steps,
+                    'modified_steps': modified_steps
+                }
+            }
+        })
+    
+    @action(detail=True, methods=['post'], url_path='rollback')
+    def rollback(self, request, pk=None):
+        """
+        Rollback to this version by creating a new version.
+        
+        POST /api/studio/versions/{id}/rollback/
+        """
+        source_version = self.get_object()
+        blueprint = source_version.blueprint
+        
+        # Get the latest version number
+        latest_version = blueprint.versions.order_by('-version').first()
+        new_version_number = latest_version.version + 1 if latest_version else 1
+        
+        # Create new version with source version's config
+        new_version = BlueprintVersion.objects.create(
+            blueprint=blueprint,
+            version=new_version_number,
+            status=BlueprintVersion.StatusChoices.DRAFT,
+            schema_config=source_version.schema_config,
+            workflow_config=source_version.workflow_config,
+            logic_config=source_version.logic_config
+        )
+        
+        return Response({
+            'message': f'Rolled back to version {source_version.version}',
+            'new_version_id': str(new_version.id),
+            'new_version_number': new_version.version,
+            'source_version': source_version.version
+        }, status=status.HTTP_201_CREATED)
 
