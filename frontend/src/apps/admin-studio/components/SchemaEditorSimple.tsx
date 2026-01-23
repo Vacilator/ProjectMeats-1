@@ -16,6 +16,8 @@ interface FieldDefinition {
   type: string;
   options?: string;
   required: boolean;
+  referenceEntity?: string;  // NEW: For reference fields
+  lookupFilter?: string;      // NEW: For lookup fields
 }
 
 interface Props {
@@ -138,6 +140,30 @@ const StatusMessage = styled.div<{ type: 'success' | 'error' }>`
   `}
 `;
 
+const TypeBadge = styled.span<{ fieldType: string }>`
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+  
+  ${props => {
+    if (props.fieldType === 'reference') return `
+      background: #dbe4ff;
+      color: #3b5bdb;
+    `;
+    if (props.fieldType === 'lookup') return `
+      background: #e5dbff;
+      color: #7048e8;
+    `;
+    return `
+      background: #e9ecef;
+      color: #495057;
+    `;
+  }}
+`;
+
 const GhostRow = styled.tr`
   background: #f8f9fa;
   cursor: pointer;
@@ -154,6 +180,18 @@ const GhostRow = styled.tr`
     border: 2px dashed #ced4da;
   }
 `;
+
+// Available entities for reference fields (will come from API later)
+const AVAILABLE_ENTITIES = [
+  { value: 'customer', label: 'Customer' },
+  { value: 'supplier', label: 'Supplier' },
+  { value: 'sales_order', label: 'Sales Order' },
+  { value: 'purchase_order', label: 'Purchase Order' },
+  { value: 'plant', label: 'Plant' },
+  { value: 'product', label: 'Product' },
+  { value: 'invoice', label: 'Invoice' },
+  { value: 'payment', label: 'Payment' },
+];
 
 const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   const [fields, setFields] = useState<FieldDefinition[]>([]);
@@ -390,20 +428,70 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                   <option value="date">Date</option>
                   <option value="select">Select</option>
                   <option value="checkbox">Checkbox</option>
+                  <option value="radio">Radio</option>
                   <option value="textarea">Textarea</option>
+                  <option value="reference">🔗 Reference</option>
+                  <option value="lookup">🔍 Dynamic Lookup</option>
                 </Select>
+                {(field.type === 'reference' || field.type === 'lookup') && (
+                  <TypeBadge fieldType={field.type}>
+                    {field.type === 'reference' ? 'SMART' : 'DYNAMIC'}
+                  </TypeBadge>
+                )}
               </Td>
               <Td>
-                <Input
-                  value={field.options || ''}
-                  onChange={(e) => handleUpdateField(index, 'options', e.target.value)}
-                  placeholder="option1, option2"
-                  disabled={field.type !== 'select' && field.type !== 'radio'}
-                  hasError={fieldErrors[index]?.some(e => e.includes('Options'))}
-                />
-                {fieldErrors[index]?.filter(e => e.includes('Options')).map((err, i) => (
-                  <div key={i} style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{err}</div>
-                ))}
+                {/* Conditional rendering based on field type */}
+                {(field.type === 'select' || field.type === 'radio' || field.type === 'checkbox') && (
+                  <>
+                    <Input
+                      value={field.options || ''}
+                      onChange={(e) => handleUpdateField(index, 'options', e.target.value)}
+                      placeholder="option1, option2, option3"
+                      hasError={fieldErrors[index]?.some(e => e.includes('Options'))}
+                    />
+                    {fieldErrors[index]?.filter(e => e.includes('Options')).map((err, i) => (
+                      <div key={i} style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{err}</div>
+                    ))}
+                  </>
+                )}
+                
+                {field.type === 'reference' && (
+                  <Select
+                    value={field.referenceEntity || ''}
+                    onChange={(e) => {
+                      const updated = { ...field, referenceEntity: e.target.value };
+                      setFields(fields.map((f, i) => i === index ? updated : f));
+                    }}
+                  >
+                    <option value="">-- Select Entity --</option>
+                    {AVAILABLE_ENTITIES.map(entity => (
+                      <option key={entity.value} value={entity.value}>
+                        {entity.label}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+                
+                {field.type === 'lookup' && (
+                  <Input
+                    value={field.lookupFilter || ''}
+                    onChange={(e) => {
+                      const updated = { ...field, lookupFilter: e.target.value };
+                      setFields(fields.map((f, i) => i === index ? updated : f));
+                    }}
+                    placeholder="e.g., supplier_id=Step1.id"
+                    style={{ fontFamily: 'monospace', fontSize: '12px' }}
+                  />
+                )}
+                
+                {!['select', 'radio', 'checkbox', 'reference', 'lookup'].includes(field.type) && (
+                  <Input
+                    value=""
+                    disabled
+                    placeholder="—"
+                    style={{ background: '#f1f3f5', cursor: 'not-allowed' }}
+                  />
+                )}
               </Td>
               <Td>
                 <input
