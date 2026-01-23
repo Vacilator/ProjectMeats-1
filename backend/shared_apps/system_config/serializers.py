@@ -63,3 +63,45 @@ class BlueprintListSerializer(serializers.ModelSerializer):
         model = EntityBlueprint
         fields = ['id', 'name', 'slug', 'created_at']
         read_only_fields = ['id', 'name', 'slug', 'created_at']
+
+
+class BlueprintVersionDetailSerializer(serializers.ModelSerializer):
+    """
+    Full serializer for blueprint version details.
+    
+    Used by the Studio API to load complete version data for editing.
+    Includes all configuration fields (schema, workflow, logic).
+    """
+    blueprint_name = serializers.CharField(source='blueprint.name', read_only=True)
+    blueprint_slug = serializers.CharField(source='blueprint.slug', read_only=True)
+    is_published = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = BlueprintVersion
+        fields = [
+            'id', 'blueprint', 'blueprint_name', 'blueprint_slug',
+            'version', 'status', 'is_published',
+            'schema_config', 'workflow_config', 'logic_config',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'blueprint', 'created_at']
+    
+    def get_is_published(self, obj):
+        """Check if this version is the published version."""
+        return obj.blueprint.published_version == obj
+
+
+class UpdateSchemaConfigSerializer(serializers.Serializer):
+    """Serializer for updating schema_config only."""
+    schema_config = serializers.JSONField(
+        required=True,
+        help_text='List of field definitions for the form schema'
+    )
+
+
+class UpdateWorkflowConfigSerializer(serializers.Serializer):
+    """Serializer for updating workflow_config only."""
+    workflow_config = serializers.JSONField(
+        required=True,
+        help_text='Workflow step definitions'
+    )

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import SchemaEditor from './components/SchemaEditorSimple';
 import WorkflowCanvas from './components/WorkflowCanvasSimple';
 
@@ -8,6 +9,10 @@ const App: React.FC<AppProps> = () => {
   const [blueprintId, setBlueprintId] = useState<string | null>(null);
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'schema' | 'canvas'>('schema');
+  const [isPublished, setIsPublished] = useState<boolean>(false);
+  const [blueprintName, setBlueprintName] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     // Get blueprint ID from root element data attribute
@@ -19,7 +24,87 @@ const App: React.FC<AppProps> = () => {
     const metaTag = document.querySelector('meta[name="csrf-token"]');
     const token = metaTag?.getAttribute('content');
     setCsrfToken(token || null);
+
+    // Fetch blueprint status
+    if (bpId && token) {
+      fetchBlueprintStatus(bpId, token);
+    }
   }, []);
+
+  const fetchBlueprintStatus = async (id: string, token: string) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(
+        `/admin/system-config/api/studio/versions/${id}/`,
+        {
+          headers: {
+            'X-CSRFToken': token,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      setIsPublished(response.data.is_published || false);
+      setBlueprintName(response.data.blueprint_name || '');
+    } catch (error) {
+      console.error('Error fetching blueprint status:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!blueprintId || !csrfToken) return;
+
+    if (confirm('Publish this workflow? It will become available to all tenant users.')) {
+      try {
+        setPublishing(true);
+        await axios.post(
+          `/admin/system-config/api/studio/versions/${blueprintId}/publish/`,
+          {},
+          {
+            headers: {
+              'X-CSRFToken': csrfToken,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        setIsPublished(true);
+        alert('✅ Workflow published successfully!');
+      } catch (error: any) {
+        console.error('Error publishing:', error);
+        alert(`❌ Failed to publish: ${error.message}`);
+      } finally {
+        setPublishing(false);
+      }
+    }
+  };
+
+  const handleUnpublish = async () => {
+    if (!blueprintId || !csrfToken) return;
+
+    if (confirm('Unpublish this workflow? It will be removed from the catalog.')) {
+      try {
+        setPublishing(true);
+        await axios.post(
+          `/admin/system-config/api/studio/versions/${blueprintId}/unpublish/`,
+          {},
+          {
+            headers: {
+              'X-CSRFToken': csrfToken,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        setIsPublished(false);
+        alert('✅ Workflow unpublished successfully!');
+      } catch (error: any) {
+        console.error('Error unpublishing:', error);
+        alert(`❌ Failed to unpublish: ${error.message}`);
+      } finally {
+        setPublishing(false);
+      }
+    }
+  };
 
   if (!blueprintId) {
     return (
@@ -42,14 +127,42 @@ const App: React.FC<AppProps> = () => {
               System Blueprint Studio
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Editing Version: <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{blueprintId}</code>
+              {blueprintName && <span className="font-medium">{blueprintName}</span>}
+              {blueprintName && ' · '}
+              Version: <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{blueprintId.slice(0, 8)}...</code>
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-green-600">✅ CSRF Token Active</span>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-              💾 Save Changes
-            </button>
+          <div className="flex items-center gap-3">
+            {!loading && (
+              <>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    isPublished
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {isPublished ? '✅ Published' : '📝 Draft'}
+                </span>
+                {isPublished ? (
+                  <button
+                    onClick={handleUnpublish}
+                    disabled={publishing}
+                    className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {publishing ? '⏳ Unpublishing...' : '🔒 Unpublish'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handlePublish}
+                    disabled={publishing}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {publishing ? '⏳ Publishing...' : '🚀 Publish Workflow'}
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
       </header>

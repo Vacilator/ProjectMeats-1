@@ -251,3 +251,154 @@ class AvailableWorkflowsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             published_version__isnull=False
         ).select_related('published_version')
 
+
+class BlueprintVersionViewSet(viewsets.GenericViewSet,
+                               mixins.RetrieveModelMixin):
+    """
+    ViewSet for Blueprint Version management in Studio.
+    
+    Provides endpoints for:
+    - GET: Retrieve full blueprint version details
+    - PATCH: Update schema_config
+    - PATCH: Update workflow_config
+    - POST: Publish version (make available to users)
+    - POST: Unpublish version (remove from catalog)
+    
+    Permissions:
+    - Global System Admins only
+    
+    Used by the Visual Studio frontend for loading and saving
+    blueprint configurations.
+    """
+    queryset = BlueprintVersion.objects.all()
+    serializer_class = BlueprintVersionDetailSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def check_permissions(self, request):
+        """Verify user is Global System Admin."""
+        super().check_permissions(request)
+        if not request.user.groups.filter(name='Global System Admins').exists():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only Global System Admins can access the Studio API')
+    
+    @action(detail=True, methods=['patch'], url_path='schema')
+    def update_schema(self, request, pk=None):
+        """
+        Update schema_config only.
+        
+        PATCH /api/studio/versions/{id}/schema/
+        Body: {"schema_config": [...]}
+        """
+        from .serializers import UpdateSchemaConfigSerializer
+        
+        version = self.get_object()
+        serializer = UpdateSchemaConfigSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        version.schema_config = serializer.validated_data['schema_config']
+        version.save(update_fields=['schema_config'])
+        
+        return Response({
+            'message': 'Schema configuration updated successfully',
+            'schema_config': version.schema_config
+        })
+    
+    @action(detail=True, methods=['patch'], url_path='workflow')
+    def update_workflow(self, request, pk=None):
+        """
+        Update workflow_config only.
+        
+        PATCH /api/studio/versions/{id}/workflow/
+        Body: {"workflow_config": [...]}
+        """
+        from .serializers import UpdateWorkflowConfigSerializer
+        
+        version = self.get_object()
+        serializer = UpdateWorkflowConfigSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        version.workflow_config = serializer.validated_data['workflow_config']
+        version.save(update_fields=['workflow_config'])
+        
+        return Response({
+            'message': 'Workflow configuration updated successfully',
+            'workflow_config': version.workflow_config
+        })
+    
+    @action(detail=True, methods=['post'], url_path='publish')
+    def publish(self, request, pk=None):
+        """
+        Publish this version, making it available to tenant users.
+        
+        POST /api/studio/versions/{id}/publish/
+        
+        This action:
+        1. Sets version status to PUBLISHED
+        2. Sets this version as the blueprint's published_version
+        3. Makes the workflow appear in the /workflows catalog
+        
+        Response:
+        {
+            "message": "Version published successfully",
+            "status": "PUBLISHED",
+            "published_version_id": "uuid",
+            "blueprint_name": "Customer Onboarding"
+        }
+        """
+        version = self.get_object()
+        blueprint = version.blueprint
+        
+        # Update version status to PUBLISHED
+        version.status = BlueprintVersion.StatusChoices.PUBLISHED
+        version.save(update_fields=['status'])
+        
+        # Set this version as the published_version on the blueprint
+        blueprint.published_version = version
+        blueprint.save(update_fields=['published_version'])
+        
+        return Response({
+            'message': f'Version {version.version} published successfully',
+            'status': version.status,
+            'published_version_id': str(version.id),
+            'blueprint_name': blueprint.name,
+            'blueprint_slug': blueprint.slug
+        })
+    
+    @action(detail=True, methods=['post'], url_path='unpublish')
+    def unpublish(self, request, pk=None):
+        """
+        Unpublish this version, removing it from the catalog.
+        
+        POST /api/studio/versions/{id}/unpublish/
+        
+        This action:
+        1. Removes this version as the published_version (if it is)
+        2. Sets version status back to DRAFT
+        3. Removes the workflow from the /workflows catalog
+        
+        Response:
+        {
+            "message": "Version unpublished successfully",
+            "status": "DRAFT",
+            "blueprint_name": "Customer Onboarding"
+        }
+        """
+        version = self.get_object()
+        blueprint = version.blueprint
+        
+        # Only unpublish if this is the currently published version
+        if blueprint.published_version == version:
+            blueprint.published_version = None
+            blueprint.save(update_fields=['published_version'])
+        
+        # Update version status back to DRAFT
+        version.status = BlueprintVersion.StatusChoices.DRAFT
+        version.save(update_fields=['status'])
+        
+        return Response({
+            'message': f'Version {version.version} unpublished successfully',
+            'status': version.status,
+            'blueprint_name': blueprint.name,
+            'blueprint_slug': blueprint.slug
+        })
+
