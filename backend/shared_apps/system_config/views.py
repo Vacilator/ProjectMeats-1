@@ -1,5 +1,6 @@
 import logging
 from django.shortcuts import render
+from django.http import Http404
 from django.core.exceptions import MultipleObjectsReturned
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -324,6 +325,8 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
                 'modified_on': run.modified_on.isoformat()
             })
             
+        except Http404:
+            raise
         except Exception as e:
             logger.error(f"Error retrieving workflow run {kwargs.get('pk')}: {e}", exc_info=True)
             return Response(
