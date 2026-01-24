@@ -128,19 +128,31 @@ const DragHandle = styled.div`
   }
 `;
 
-const ActionButton = styled.button`
+const ActionButton = styled.button<{ variant?: 'danger' | 'default' }>`
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
-  color: rgb(var(--color-danger));
+  color: ${props => props.variant === 'danger' ? 'rgb(var(--color-danger))' : 'rgb(var(--color-text-secondary))'};
   background: transparent;
   border: none;
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: background-color 0.2s;
+  margin-right: 0.25rem;
 
   &:hover {
-    background-color: rgba(var(--color-danger), 0.1);
+    background-color: ${props => props.variant === 'danger' ? 'rgba(var(--color-danger), 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+`;
+
+const ActionsCell = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 `;
 
 const GhostRow = styled.tr`
@@ -158,7 +170,11 @@ const SortableRow: React.FC<{
   row: any;
   onUpdate: (id: string, field: string, value: any) => void;
   onDelete: (id: string) => void;
-}> = ({ row, onUpdate, onDelete }) => {
+  onMoveUp: (id: string) => void;
+  onMoveDown: (id: string) => void;
+  isFirst: boolean;
+  isLast: boolean;
+}> = ({ row, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) => {
   const {
     attributes,
     listeners,
@@ -249,9 +265,33 @@ const SortableRow: React.FC<{
               />
             )}
             {columnId === 'actions' && (
-              <ActionButton onClick={() => onDelete(row.original.id)}>
-                Delete
-              </ActionButton>
+              <ActionsCell>
+                <ActionButton 
+                  onClick={() => onMoveUp(row.original.id)}
+                  disabled={isFirst}
+                  title="Move Up"
+                >
+                  ↑
+                </ActionButton>
+                <ActionButton 
+                  onClick={() => onMoveDown(row.original.id)}
+                  disabled={isLast}
+                  title="Move Down"
+                >
+                  ↓
+                </ActionButton>
+                <ActionButton 
+                  variant="danger"
+                  onClick={() => {
+                    if (window.confirm(`Delete field "${row.original.label}"? This cannot be undone.`)) {
+                      onDelete(row.original.id);
+                    }
+                  }}
+                  title="Delete"
+                >
+                  Delete
+                </ActionButton>
+              </ActionsCell>
             )}
           </TableCell>
         );
@@ -350,6 +390,26 @@ const SchemaEditor: React.FC = () => {
     // TODO: Save to API
   };
 
+  const handleMoveUp = (id: string) => {
+    setFields((prev) => {
+      const index = prev.findIndex((f) => f.id === id);
+      if (index > 0) {
+        return arrayMove(prev, index, index - 1);
+      }
+      return prev;
+    });
+  };
+
+  const handleMoveDown = (id: string) => {
+    setFields((prev) => {
+      const index = prev.findIndex((f) => f.id === id);
+      if (index < prev.length - 1) {
+        return arrayMove(prev, index, index + 1);
+      }
+      return prev;
+    });
+  };
+
   const handleAddField = () => {
     const newField: FieldDefinition = {
       id: `field_${Date.now()}`,
@@ -414,12 +474,16 @@ const SchemaEditor: React.FC = () => {
                   strategy={verticalListSortingStrategy}
                 >
                   <TableBody>
-                    {table.getRowModel().rows.map((row) => (
+                    {table.getRowModel().rows.map((row, index) => (
                       <SortableRow
                         key={row.original.id}
                         row={row}
                         onUpdate={handleUpdate}
                         onDelete={handleDelete}
+                        onMoveUp={handleMoveUp}
+                        onMoveDown={handleMoveDown}
+                        isFirst={index === 0}
+                        isLast={index === fields.length - 1}
                       />
                     ))}
                     <GhostRow onClick={handleAddField}>

@@ -26,7 +26,13 @@ import { Button } from '../../../components/ui/Button';
 // Entity node type
 interface EntityNodeData {
   label: string;
-  fields: Array<{ key: string; label: string; type: string }>;
+  fields: Array<{ 
+    key: string; 
+    label: string; 
+    type: string;
+    mapping?: { sourceNodeId: string; sourceField: string };
+    filter?: { targetField: string; sourcePath: string };
+  }>;
   mappings?: Record<string, { sourceNodeId: string; sourceField: string }>;
   entityContext?: string;
   [key: string]: unknown;
@@ -160,37 +166,91 @@ const Select = styled.select`
   }
 `;
 
-const MappingRow = styled.div`
+const FieldConfigSection = styled.div<{ isExpanded: boolean }>`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+  transition: all 0.2s;
+`;
+
+const FieldConfigHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background-color: rgb(var(--color-background));
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: rgb(var(--color-surface-hover));
+  }
+`;
+
+const FieldConfigBody = styled.div<{ isExpanded: boolean }>`
+  max-height: ${props => props.isExpanded ? '500px' : '0'};
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out;
+  padding: ${props => props.isExpanded ? '1rem' : '0 1rem'};
+  background-color: rgb(var(--color-surface));
+`;
+
+const ConfigSubSection = styled.div`
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgb(var(--color-border-light));
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+`;
+
+const SubSectionLabel = styled.div`
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+`;
+
+const ConfigRow = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem;
   margin-bottom: 0.5rem;
-  background-color: rgb(var(--color-background));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
 `;
 
-const FieldLabel = styled.div`
+const ConfigLabel = styled.label`
+  flex: 0 0 120px;
+  font-size: 0.75rem;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ConfigSelect = styled.select`
   flex: 1;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-`;
-
-const MappingSelect = styled.select`
-  flex: 2;
-  padding: 0.375rem;
+  padding: 0.5rem;
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-sm);
   background-color: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   font-size: 0.75rem;
-  
+
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
+`;
+
+const HelpText = styled.div`
+  font-size: 0.7rem;
+  color: rgb(var(--color-text-secondary));
+  font-style: italic;
+  margin-top: 0.25rem;
 `;
 
 const Header = styled.div`
@@ -355,6 +415,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ blueprintId }) => {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [availableEntities, setAvailableEntities] = useState<any[]>([]);
   const [selectedNode, setSelectedNode] = useState<Node<EntityNodeData> | null>(null);
+  const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({});
 
   // Mock data - in production, fetch from API
   useEffect(() => {
@@ -475,18 +536,6 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ blueprintId }) => {
     }
   };
 
-  const handleMappingChange = (fieldKey: string, sourcePath: string) => {
-    if (selectedNode) {
-      const [sourceNodeId, sourceField] = sourcePath.split('.');
-      const currentMappings = selectedNode.data.mappings || {};
-      const updatedMappings = {
-        ...currentMappings,
-        [fieldKey]: { sourceNodeId, sourceField },
-      };
-      updateNodeData(selectedNode.id, { mappings: updatedMappings });
-    }
-  };
-
   // Get available source nodes (nodes that come before the selected node)
   const getAvailableSourceNodes = useCallback((): Node<EntityNodeData>[] => {
     if (!selectedNode) return [];
@@ -498,6 +547,37 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ blueprintId }) => {
     
     return nodes.filter((node) => sourceNodeIds.includes(node.id));
   }, [selectedNode, nodes, edges]);
+
+  const toggleFieldExpanded = (fieldKey: string) => {
+    setExpandedFields(prev => ({
+      ...prev,
+      [fieldKey]: !prev[fieldKey]
+    }));
+  };
+
+  const handleFieldMappingChange = (fieldKey: string, sourceNodeId: string, sourceField: string) => {
+    if (!selectedNode) return;
+    
+    const updatedFields = selectedNode.data.fields.map(field =>
+      field.key === fieldKey
+        ? { ...field, mapping: sourceNodeId && sourceField ? { sourceNodeId, sourceField } : undefined }
+        : field
+    );
+    
+    updateNodeData(selectedNode.id, { fields: updatedFields });
+  };
+
+  const handleFieldFilterChange = (fieldKey: string, targetField: string, sourcePath: string) => {
+    if (!selectedNode) return;
+    
+    const updatedFields = selectedNode.data.fields.map(field =>
+      field.key === fieldKey
+        ? { ...field, filter: targetField && sourcePath ? { targetField, sourcePath } : undefined }
+        : field
+    );
+    
+    updateNodeData(selectedNode.id, { fields: updatedFields });
+  };
 
   return (
     <Container>
@@ -581,46 +661,157 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ blueprintId }) => {
                 </Section>
 
                 <Section>
-                  <SectionLabel>Field Mappings</SectionLabel>
+                  <SectionLabel>Field Configuration</SectionLabel>
                   <div style={{ fontSize: '0.75rem', color: 'rgb(var(--color-text-secondary))', marginBottom: '1rem' }}>
-                    Map fields from previous steps to auto-fill this step's data
+                    Configure data sources and filters for each field
                   </div>
                   
                   {selectedNode.data.fields.map((field) => {
-                    const currentMapping = selectedNode.data.mappings?.[field.key];
+                    const isExpanded = expandedFields[field.key] || false;
                     const sourceNodes = getAvailableSourceNodes();
+                    const isReferenceType = field.type === 'select' || field.type === 'radio';
                     
                     return (
-                      <MappingRow key={field.key}>
-                        <FieldLabel>{field.label}</FieldLabel>
-                        <MappingSelect
-                          value={
-                            currentMapping
-                              ? `${currentMapping.sourceNodeId}.${currentMapping.sourceField}`
-                              : ''
-                          }
-                          onChange={(e) => handleMappingChange(field.key, e.target.value)}
-                        >
-                          <option value="">No mapping</option>
-                          {sourceNodes.map((sourceNode) =>
-                            sourceNode.data.fields.map((sourceField: { key: string; label: string; type: string }) => {
-                              const matchScore = 
-                                sourceField.label.toLowerCase().includes(field.label.toLowerCase()) ||
-                                field.label.toLowerCase().includes(sourceField.label.toLowerCase())
-                                  ? ' ⭐'
-                                  : '';
-                              return (
-                                <option
-                                  key={`${sourceNode.id}.${sourceField.key}`}
-                                  value={`${sourceNode.id}.${sourceField.key}`}
+                      <FieldConfigSection key={field.key} isExpanded={isExpanded}>
+                        <FieldConfigHeader onClick={() => toggleFieldExpanded(field.key)}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontWeight: 600 }}>{field.label}</span>
+                            <span style={{ 
+                              fontSize: '0.7rem', 
+                              color: 'rgb(var(--color-text-secondary))',
+                              fontFamily: 'var(--font-mono)'
+                            }}>
+                              {field.type}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '1rem' }}>
+                            {isExpanded ? '▼' : '▶'}
+                          </span>
+                        </FieldConfigHeader>
+                        
+                        <FieldConfigBody isExpanded={isExpanded}>
+                          {/* Data Mapping Section */}
+                          <ConfigSubSection>
+                            <SubSectionLabel>📥 Data Mapping (Auto-fill Value)</SubSectionLabel>
+                            <HelpText>Pre-fill this field with data from a previous step</HelpText>
+                            
+                            <ConfigRow>
+                              <ConfigLabel>Source Step:</ConfigLabel>
+                              <ConfigSelect
+                                value={field.mapping?.sourceNodeId || ''}
+                                onChange={(e) => {
+                                  const sourceNodeId = e.target.value;
+                                  const sourceField = field.mapping?.sourceField || '';
+                                  handleFieldMappingChange(field.key, sourceNodeId, sourceField);
+                                }}
+                              >
+                                <option value="">None</option>
+                                {sourceNodes.map((node) => (
+                                  <option key={node.id} value={node.id}>
+                                    {node.data.label}
+                                  </option>
+                                ))}
+                              </ConfigSelect>
+                            </ConfigRow>
+                            
+                            {field.mapping?.sourceNodeId && (
+                              <ConfigRow>
+                                <ConfigLabel>Source Field:</ConfigLabel>
+                                <ConfigSelect
+                                  value={field.mapping.sourceField || ''}
+                                  onChange={(e) => {
+                                    const sourceField = e.target.value;
+                                    handleFieldMappingChange(
+                                      field.key,
+                                      field.mapping!.sourceNodeId,
+                                      sourceField
+                                    );
+                                  }}
                                 >
-                                  {sourceNode.data.label} → {sourceField.label}{matchScore}
-                                </option>
-                              );
-                            })
+                                  <option value="">Select field...</option>
+                                  {sourceNodes
+                                    .find((n) => n.id === field.mapping?.sourceNodeId)
+                                    ?.data.fields.map((sourceField) => {
+                                      const matchScore =
+                                        sourceField.label.toLowerCase().includes(field.label.toLowerCase()) ||
+                                        field.label.toLowerCase().includes(sourceField.label.toLowerCase())
+                                          ? ' ⭐'
+                                          : '';
+                                      return (
+                                        <option key={sourceField.key} value={sourceField.key}>
+                                          {sourceField.label}{matchScore}
+                                        </option>
+                                      );
+                                    })}
+                                </ConfigSelect>
+                              </ConfigRow>
+                            )}
+                          </ConfigSubSection>
+                          
+                          {/* Chain Filter Section (only for select/reference types) */}
+                          {isReferenceType && (
+                            <ConfigSubSection>
+                              <SubSectionLabel>🔗 Chain Filter (Dynamic Options)</SubSectionLabel>
+                              <HelpText>
+                                Filter dropdown options based on a previous selection
+                              </HelpText>
+                              
+                              <ConfigRow>
+                                <ConfigLabel>Filter Where:</ConfigLabel>
+                                <ConfigSelect
+                                  value={field.filter?.targetField || ''}
+                                  onChange={(e) => {
+                                    const targetField = e.target.value;
+                                    const sourcePath = field.filter?.sourcePath || '';
+                                    handleFieldFilterChange(field.key, targetField, sourcePath);
+                                  }}
+                                >
+                                  <option value="">No filter</option>
+                                  <option value="supplier_id">Supplier ID</option>
+                                  <option value="customer_id">Customer ID</option>
+                                  <option value="category_id">Category ID</option>
+                                  <option value="plant_id">Plant ID</option>
+                                </ConfigSelect>
+                              </ConfigRow>
+                              
+                              {field.filter?.targetField && (
+                                <ConfigRow>
+                                  <ConfigLabel>Matches:</ConfigLabel>
+                                  <ConfigSelect
+                                    value={field.filter.sourcePath || ''}
+                                    onChange={(e) => {
+                                      const sourcePath = e.target.value;
+                                      handleFieldFilterChange(
+                                        field.key,
+                                        field.filter!.targetField,
+                                        sourcePath
+                                      );
+                                    }}
+                                  >
+                                    <option value="">Select source...</option>
+                                    {sourceNodes.map((sourceNode) =>
+                                      sourceNode.data.fields.map((sourceField) => (
+                                        <option
+                                          key={`${sourceNode.id}.${sourceField.key}`}
+                                          value={`${sourceNode.id}.${sourceField.key}`}
+                                        >
+                                          {sourceNode.data.label} → {sourceField.label}
+                                        </option>
+                                      ))
+                                    )}
+                                  </ConfigSelect>
+                                </ConfigRow>
+                              )}
+                              
+                              {field.filter?.targetField && field.filter?.sourcePath && (
+                                <HelpText style={{ marginTop: '0.5rem', color: 'rgb(var(--color-success))' }}>
+                                  ✓ Active: Options will filter where {field.filter.targetField} matches the value from {field.filter.sourcePath.split('.').pop()}
+                                </HelpText>
+                              )}
+                            </ConfigSubSection>
                           )}
-                        </MappingSelect>
-                      </MappingRow>
+                        </FieldConfigBody>
+                      </FieldConfigSection>
                     );
                   })}
                 </Section>
