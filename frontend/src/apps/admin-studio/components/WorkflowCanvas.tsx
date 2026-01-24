@@ -276,6 +276,107 @@ const Title = styled.h1`
   color: rgb(var(--color-text-primary));
 `;
 
+const TestRunModal = styled.div<{ isOpen: boolean }>`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: ${props => props.isOpen ? 'flex' : 'none'};
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const TestRunContent = styled.div`
+  background-color: rgb(var(--color-surface));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+`;
+
+const TestRunHeader = styled.div`
+  padding: 1.5rem;
+  border-bottom: 1px solid rgb(var(--color-border));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const TestRunBody = styled.div`
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+`;
+
+const TestStepCard = styled.div`
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  background-color: rgb(var(--color-background));
+`;
+
+const MagicWandButton = styled.button`
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background: linear-gradient(135deg, rgb(168, 85, 247) 0%, rgb(236, 72, 153) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.2s;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(168, 85, 247, 0.3);
+  }
+`;
+
+const VariablePickerPopover = styled.div<{ isOpen: boolean }>`
+  display: ${props => props.isOpen ? 'block' : 'none'};
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.5rem;
+  background-color: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 0.5rem;
+  min-width: 250px;
+  z-index: 100;
+  max-height: 300px;
+  overflow-y: auto;
+`;
+
+const VariableOption = styled.div`
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: rgba(var(--color-primary), 0.1);
+  }
+  
+  strong {
+    color: rgb(var(--color-primary));
+    font-family: var(--font-mono));
+    font-size: 0.75rem;
+  }
+`;
+
 // Custom Entity Node Component
 const EntityNode: React.FC<{ data: EntityNodeData }> = ({ data }) => {
   return (
@@ -416,6 +517,9 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ blueprintId }) => {
   const [availableEntities, setAvailableEntities] = useState<any[]>([]);
   const [selectedNode, setSelectedNode] = useState<Node<EntityNodeData> | null>(null);
   const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({});
+  const [isTestRunOpen, setIsTestRunOpen] = useState(false);
+  const [testRunData, setTestRunData] = useState<Record<string, any>>({});
+  const [magicWandField, setMagicWandField] = useState<string | null>(null);
 
   // Mock data - in production, fetch from API
   useEffect(() => {
@@ -599,6 +703,9 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ blueprintId }) => {
         <Header>
           <Title>Workflow Designer</Title>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button variant="outline" onClick={() => setIsTestRunOpen(true)} style={{ background: 'linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(22, 163, 74) 100%)', color: 'white' }}>
+              ▶ Test Run
+            </Button>
             <Button variant="outline" onClick={handleAutoLayout}>
               Auto Layout
             </Button>
@@ -610,6 +717,78 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ blueprintId }) => {
             </Button>
           </div>
         </Header>
+
+        {/* Test Run Modal */}
+        <TestRunModal isOpen={isTestRunOpen} onClick={() => setIsTestRunOpen(false)}>
+          <TestRunContent onClick={(e) => e.stopPropagation()}>
+            <TestRunHeader>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Test Run Workflow</h2>
+              <button
+                onClick={() => setIsTestRunOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: 'rgb(var(--color-text-secondary))'
+                }}
+              >
+                ×
+              </button>
+            </TestRunHeader>
+            <TestRunBody>
+              <p style={{ marginBottom: '1rem', color: 'rgb(var(--color-text-secondary))' }}>
+                Simulate workflow execution step-by-step. Fill in test data for each step.
+              </p>
+              {nodes.map((node, index) => (
+                <TestStepCard key={node.id}>
+                  <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+                    Step {index + 1}: {node.data.label}
+                  </div>
+                  {node.data.fields.map((field) => (
+                    <div key={field.key} style={{ marginBottom: '0.5rem' }}>
+                      <label style={{ fontSize: '0.875rem', display: 'block', marginBottom: '0.25rem' }}>
+                        {field.label}
+                        {field.mapping && (
+                          <span style={{ color: 'rgb(var(--color-primary))', fontSize: '0.75rem', marginLeft: '0.5rem' }}>
+                            (Auto-filled from previous step)
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        value={testRunData[`${node.id}.${field.key}`] || ''}
+                        onChange={(e) => setTestRunData(prev => ({
+                          ...prev,
+                          [`${node.id}.${field.key}`]: e.target.value
+                        }))}
+                        placeholder={`Enter ${field.label.toLowerCase()}...`}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem',
+                          border: '1px solid rgb(var(--color-border))',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.875rem'
+                        }}
+                        disabled={!!field.mapping}
+                      />
+                    </div>
+                  ))}
+                </TestStepCard>
+              ))}
+              <Button
+                variant="primary"
+                onClick={() => {
+                  console.log('Test Run Data:', testRunData);
+                  alert('Test run complete! Check console for data.');
+                }}
+                style={{ width: '100%', marginTop: '1rem' }}
+              >
+                Execute Test
+              </Button>
+            </TestRunBody>
+          </TestRunContent>
+        </TestRunModal>
 
         <ReactFlow
           nodes={nodes}
@@ -692,7 +871,52 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ blueprintId }) => {
                         <FieldConfigBody isExpanded={isExpanded}>
                           {/* Data Mapping Section */}
                           <ConfigSubSection>
-                            <SubSectionLabel>📥 Data Mapping (Auto-fill Value)</SubSectionLabel>
+                            <SubSectionLabel>
+                              📥 Data Mapping (Auto-fill Value)
+                              <div style={{ position: 'relative', display: 'inline-block', marginLeft: '0.5rem' }}>
+                                <MagicWandButton
+                                  onClick={() => setMagicWandField(magicWandField === field.key ? null : field.key)}
+                                  type="button"
+                                >
+                                  🪄 Variables
+                                </MagicWandButton>
+                                <VariablePickerPopover isOpen={magicWandField === field.key}>
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'rgb(var(--color-text-secondary))' }}>
+                                    Available Variables
+                                  </div>
+                                  {sourceNodes.map((node) => (
+                                    <div key={node.id}>
+                                      <div style={{ 
+                                        fontSize: '0.7rem', 
+                                        fontWeight: 600, 
+                                        marginTop: '0.5rem', 
+                                        marginBottom: '0.25rem',
+                                        color: 'rgb(var(--color-primary))'
+                                      }}>
+                                        {node.data.label}
+                                      </div>
+                                      {node.data.fields.map((sourceField) => (
+                                        <VariableOption
+                                          key={sourceField.key}
+                                          onClick={() => {
+                                            handleFieldMappingChange(field.key, node.id, sourceField.key);
+                                            setMagicWandField(null);
+                                          }}
+                                        >
+                                          <div>{sourceField.label}</div>
+                                          <strong>{`{{${node.id}.${sourceField.key}}}`}</strong>
+                                        </VariableOption>
+                                      ))}
+                                    </div>
+                                  ))}
+                                  {sourceNodes.length === 0 && (
+                                    <div style={{ fontSize: '0.75rem', color: 'rgb(var(--color-text-secondary))', padding: '0.5rem' }}>
+                                      No previous steps available
+                                    </div>
+                                  )}
+                                </VariablePickerPopover>
+                              </div>
+                            </SubSectionLabel>
                             <HelpText>Pre-fill this field with data from a previous step</HelpText>
                             
                             <ConfigRow>

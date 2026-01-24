@@ -40,9 +40,16 @@ export interface FieldDefinition {
   id: string;
   label: string;
   key: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'email' | 'phone' | 'url' | 'textarea' | 'checkbox' | 'radio' | 'file' | 'datetime';
+  type: 'text' | 'number' | 'date' | 'select' | 'email' | 'phone' | 'url' | 'textarea' | 'checkbox' | 'radio' | 'file' | 'datetime' | 'reference';
   options?: string[];
+  referenceEntity?: string;
   required: boolean;
+  unique?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  minValue?: number;
+  maxValue?: number;
+  pattern?: string;
 }
 
 const Container = styled.div`
@@ -155,6 +162,82 @@ const ActionsCell = styled.div`
   gap: 0.25rem;
 `;
 
+const TypeBadge = styled.span<{ fieldType: string }>`
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: ${props => {
+    const colors: Record<string, string> = {
+      text: 'rgba(59, 130, 246, 0.1)',
+      number: 'rgba(34, 197, 94, 0.1)',
+      date: 'rgba(249, 115, 22, 0.1)',
+      datetime: 'rgba(249, 115, 22, 0.1)',
+      select: 'rgba(168, 85, 247, 0.1)',
+      reference: 'rgba(236, 72, 153, 0.1)',
+      email: 'rgba(14, 165, 233, 0.1)',
+      phone: 'rgba(14, 165, 233, 0.1)',
+      url: 'rgba(14, 165, 233, 0.1)',
+      textarea: 'rgba(100, 116, 139, 0.1)',
+      checkbox: 'rgba(34, 197, 94, 0.1)',
+      radio: 'rgba(168, 85, 247, 0.1)',
+      file: 'rgba(234, 179, 8, 0.1)',
+    };
+    return colors[props.fieldType] || 'rgba(100, 116, 139, 0.1)';
+  }};
+  color: ${props => {
+    const colors: Record<string, string> = {
+      text: 'rgb(59, 130, 246)',
+      number: 'rgb(34, 197, 94)',
+      date: 'rgb(249, 115, 22)',
+      datetime: 'rgb(249, 115, 22)',
+      select: 'rgb(168, 85, 247)',
+      reference: 'rgb(236, 72, 153)',
+      email: 'rgb(14, 165, 233)',
+      phone: 'rgb(14, 165, 233)',
+      url: 'rgb(14, 165, 233)',
+      textarea: 'rgb(100, 116, 139)',
+      checkbox: 'rgb(34, 197, 94)',
+      radio: 'rgb(168, 85, 247)',
+      file: 'rgb(234, 179, 8)',
+    };
+    return colors[props.fieldType] || 'rgb(100, 116, 139)';
+  }};
+`;
+
+const ValidationSection = styled.div`
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: rgba(var(--color-info), 0.05);
+  border: 1px solid rgba(var(--color-info), 0.2);
+  border-radius: var(--radius-md);
+`;
+
+const ValidationRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const ValidationLabel = styled.label`
+  flex: 0 0 80px;
+  font-size: 0.75rem;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ValidationInput = styled(Input)`
+  flex: 1;
+  font-size: 0.75rem;
+`;
+
 const GhostRow = styled.tr`
   background-color: rgba(var(--color-primary), 0.05);
   cursor: pointer;
@@ -174,7 +257,10 @@ const SortableRow: React.FC<{
   onMoveDown: (id: string) => void;
   isFirst: boolean;
   isLast: boolean;
-}> = ({ row, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) => {
+  availableEntities: Array<{ id: string; name: string }>;
+  expandedValidation: Record<string, boolean>;
+  setExpandedValidation: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}> = ({ row, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast, availableEntities, expandedValidation, setExpandedValidation }) => {
   const {
     attributes,
     listeners,
@@ -226,43 +312,159 @@ const SortableRow: React.FC<{
               />
             )}
             {columnId === 'type' && (
-              <Select
-                value={value || 'text'}
-                onChange={(newValue) => onUpdate(row.original.id, 'type', newValue)}
-                options={[
-                  { value: 'text', label: 'Text' },
-                  { value: 'number', label: 'Number' },
-                  { value: 'date', label: 'Date' },
-                  { value: 'select', label: 'Select' },
-                  { value: 'email', label: 'Email' },
-                  { value: 'phone', label: 'Phone' },
-                  { value: 'url', label: 'URL' },
-                  { value: 'textarea', label: 'Text Area' },
-                  { value: 'checkbox', label: 'Checkbox' },
-                  { value: 'radio', label: 'Radio' },
-                  { value: 'file', label: 'File' },
-                  { value: 'datetime', label: 'Date/Time' },
-                ]}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <TypeBadge fieldType={value || 'text'}>
+                  {value || 'text'}
+                </TypeBadge>
+                <Select
+                  value={value || 'text'}
+                  onChange={(newValue) => onUpdate(row.original.id, 'type', newValue)}
+                  options={[
+                    { value: 'text', label: 'Text' },
+                    { value: 'number', label: 'Number' },
+                    { value: 'date', label: 'Date' },
+                    { value: 'datetime', label: 'Date/Time' },
+                    { value: 'select', label: 'Select' },
+                    { value: 'reference', label: 'Reference' },
+                    { value: 'email', label: 'Email' },
+                    { value: 'phone', label: 'Phone' },
+                    { value: 'url', label: 'URL' },
+                    { value: 'textarea', label: 'Text Area' },
+                    { value: 'checkbox', label: 'Checkbox' },
+                    { value: 'radio', label: 'Radio' },
+                    { value: 'file', label: 'File' },
+                  ]}
+                />
+              </div>
             )}
             {columnId === 'options' && (
-              <Input
-                value={Array.isArray(value) ? value.join(', ') : ''}
-                onChange={(e) => {
-                  const options = e.target.value.split(',').map(o => o.trim()).filter(Boolean);
-                  onUpdate(row.original.id, 'options', options);
-                }}
-                placeholder="Option 1, Option 2, ..."
-                disabled={row.original.type !== 'select' && row.original.type !== 'radio'}
-              />
+              <>
+                {row.original.type === 'reference' ? (
+                  <Select
+                    value={row.original.referenceEntity || ''}
+                    onChange={(newValue) => onUpdate(row.original.id, 'referenceEntity', newValue)}
+                    options={[
+                      { value: '', label: 'Select entity...' },
+                      ...availableEntities.map(entity => ({
+                        value: entity.id,
+                        label: entity.name
+                      }))
+                    ]}
+                  />
+                ) : (
+                  <Input
+                    value={Array.isArray(value) ? value.join(', ') : ''}
+                    onChange={(e) => {
+                      const options = e.target.value.split(',').map(o => o.trim()).filter(Boolean);
+                      onUpdate(row.original.id, 'options', options);
+                    }}
+                    placeholder="Option 1, Option 2, ..."
+                    disabled={row.original.type !== 'select' && row.original.type !== 'radio'}
+                  />
+                )}
+              </>
             )}
             {columnId === 'required' && (
-              <input
-                type="checkbox"
-                checked={value || false}
-                onChange={(e) => onUpdate(row.original.id, 'required', e.target.checked)}
-                style={{ cursor: 'pointer' }}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={value || false}
+                    onChange={(e) => onUpdate(row.original.id, 'required', e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '0.75rem' }}>Required</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpandedValidation(prev => ({
+                        ...prev,
+                        [row.original.id]: !prev[row.original.id]
+                      }));
+                    }}
+                    style={{
+                      marginLeft: 'auto',
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.7rem',
+                      background: 'none',
+                      border: '1px solid rgb(var(--color-border))',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {expandedValidation[row.original.id] ? '▼ Hide' : '▶ More'}
+                  </button>
+                </div>
+                
+                {expandedValidation[row.original.id] && (
+                  <ValidationSection>
+                    <ValidationRow>
+                      <input
+                        type="checkbox"
+                        checked={row.original.unique || false}
+                        onChange={(e) => onUpdate(row.original.id, 'unique', e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '0.75rem' }}>Unique</span>
+                    </ValidationRow>
+                    
+                    {(row.original.type === 'text' || row.original.type === 'textarea') && (
+                      <>
+                        <ValidationRow>
+                          <ValidationLabel>Min Length:</ValidationLabel>
+                          <ValidationInput
+                            type="number"
+                            value={row.original.minLength || ''}
+                            onChange={(e) => onUpdate(row.original.id, 'minLength', e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="No min"
+                          />
+                        </ValidationRow>
+                        <ValidationRow>
+                          <ValidationLabel>Max Length:</ValidationLabel>
+                          <ValidationInput
+                            type="number"
+                            value={row.original.maxLength || ''}
+                            onChange={(e) => onUpdate(row.original.id, 'maxLength', e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="No max"
+                          />
+                        </ValidationRow>
+                        <ValidationRow>
+                          <ValidationLabel>Pattern:</ValidationLabel>
+                          <ValidationInput
+                            type="text"
+                            value={row.original.pattern || ''}
+                            onChange={(e) => onUpdate(row.original.id, 'pattern', e.target.value)}
+                            placeholder="Regex pattern"
+                          />
+                        </ValidationRow>
+                      </>
+                    )}
+                    
+                    {row.original.type === 'number' && (
+                      <>
+                        <ValidationRow>
+                          <ValidationLabel>Min Value:</ValidationLabel>
+                          <ValidationInput
+                            type="number"
+                            value={row.original.minValue || ''}
+                            onChange={(e) => onUpdate(row.original.id, 'minValue', e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="No min"
+                          />
+                        </ValidationRow>
+                        <ValidationRow>
+                          <ValidationLabel>Max Value:</ValidationLabel>
+                          <ValidationInput
+                            type="number"
+                            value={row.original.maxValue || ''}
+                            onChange={(e) => onUpdate(row.original.id, 'maxValue', e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="No max"
+                          />
+                        </ValidationRow>
+                      </>
+                    )}
+                  </ValidationSection>
+                )}
+              </div>
             )}
             {columnId === 'actions' && (
               <ActionsCell>
@@ -303,10 +505,21 @@ const SortableRow: React.FC<{
 const SchemaEditor: React.FC = () => {
   const { blueprintId } = useParams<{ blueprintId: string }>();
   const [fields, setFields] = useState<FieldDefinition[]>([]);
+  const [availableEntities, setAvailableEntities] = useState<Array<{ id: string; name: string }>>([]);
+  const [expandedValidation, setExpandedValidation] = useState<Record<string, boolean>>({});
 
   // Mock initial data - in production, fetch from API
   useEffect(() => {
-    // Simulated API fetch
+    // Simulated API fetch for entities
+    setAvailableEntities([
+      { id: 'customer', name: 'Customer' },
+      { id: 'supplier', name: 'Supplier' },
+      { id: 'plant', name: 'Plant' },
+      { id: 'product', name: 'Product' },
+      { id: 'order', name: 'Order' },
+    ]);
+
+    // Simulated API fetch for fields
     setFields([
       {
         id: '1',
@@ -484,6 +697,9 @@ const SchemaEditor: React.FC = () => {
                         onMoveDown={handleMoveDown}
                         isFirst={index === 0}
                         isLast={index === fields.length - 1}
+                        availableEntities={availableEntities}
+                        expandedValidation={expandedValidation}
+                        setExpandedValidation={setExpandedValidation}
                       />
                     ))}
                     <GhostRow onClick={handleAddField}>
