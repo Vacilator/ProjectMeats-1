@@ -104,7 +104,8 @@ class StudioView(LoginRequiredMixin, IsGlobalSystemAdminMixin, TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['blueprint_id'] = kwargs.get('blueprint_id')
+        # Handle optional blueprint_id (it will be empty string for root studio)
+        context['blueprint_id'] = kwargs.get('blueprint_id', '')
         context['debug'] = settings.DEBUG
         return context
 

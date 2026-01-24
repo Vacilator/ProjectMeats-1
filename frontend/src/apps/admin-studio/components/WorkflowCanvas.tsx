@@ -118,7 +118,7 @@ const Title = styled.h1`
 // Custom Entity Node Component
 const EntityNode: React.FC<{ data: EntityNodeData }> = ({ data }) => {
   return (
-    <Card padding="none" style={{ minWidth: '200px' }}>
+    <Card padding="none" style={{ width: '100%', minWidth: '250px', boxShadow: 'var(--shadow-md)', borderRadius: 'var(--radius-lg)' }}>
       <div
         style={{
           padding: '0.75rem',
@@ -141,7 +141,7 @@ const EntityNode: React.FC<{ data: EntityNodeData }> = ({ data }) => {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '0.5rem',
-              fontSize: '0.75rem',
+              fontSize: '0.875rem',
               borderBottom:
                 idx < data.fields.length - 1
                   ? '1px solid rgb(var(--color-border-light))'
@@ -154,11 +154,12 @@ const EntityNode: React.FC<{ data: EntityNodeData }> = ({ data }) => {
                 style={{
                   position: 'relative',
                   transform: 'none',
-                  width: '8px',
-                  height: '8px',
+                  width: '12px',
+                  height: '12px',
                   backgroundColor: 'rgb(var(--color-info))',
                   border: '1px solid rgb(var(--color-surface))',
                   borderRadius: '50%',
+                  cursor: 'crosshair',
                 }}
               />
               <span style={{ color: 'rgb(var(--color-text-primary))' }}>
@@ -170,7 +171,7 @@ const EntityNode: React.FC<{ data: EntityNodeData }> = ({ data }) => {
                 style={{
                   color: 'rgb(var(--color-text-secondary))',
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '0.7rem',
+                  fontSize: '0.75rem',
                 }}
               >
                 {field.type}
@@ -180,11 +181,12 @@ const EntityNode: React.FC<{ data: EntityNodeData }> = ({ data }) => {
                 style={{
                   position: 'relative',
                   transform: 'none',
-                  width: '8px',
-                  height: '8px',
+                  width: '12px',
+                  height: '12px',
                   backgroundColor: 'rgb(var(--color-success))',
                   border: '1px solid rgb(var(--color-surface))',
                   borderRadius: '50%',
+                  cursor: 'crosshair',
                 }}
               />
             </div>
@@ -207,7 +209,7 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
   dagreGraph.setGraph({ rankdir: direction });
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: 250, height: 150 });
+    dagreGraph.setNode(node.id, { width: 300, height: 200 });
   });
 
   edges.forEach((edge) => {
@@ -377,6 +379,13 @@ const WorkflowCanvas: React.FC = () => {
           onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           fitView
+          nodesDraggable={true}
+          nodesConnectable={true}
+          elementsSelectable={true}
+          zoomOnScroll={true}
+          panOnDrag={true}
+          minZoom={0.2}
+          maxZoom={2.0}
         >
           <Controls />
           <MiniMap />
