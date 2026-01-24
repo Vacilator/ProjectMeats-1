@@ -1,4 +1,6 @@
+import logging
 from django.shortcuts import render
+from django.core.exceptions import MultipleObjectsReturned
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.conf import settings
@@ -18,6 +20,8 @@ from .serializers import (
     UpdateSchemaConfigSerializer,
     UpdateWorkflowConfigSerializer,
 )
+
+logger = logging.getLogger(__name__)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -258,59 +262,74 @@ class WorkflowRunViewSet(viewsets.ModelViewSet):
             "error_log": [...]
         }
         """
-        run = self.get_object()
-        
-        # Get the blueprint to fetch workflow steps
         try:
-            blueprint = EntityBlueprint.objects.select_related('published_version').get(slug=run.workflow_slug)
-            published_version = blueprint.published_version
+            run = self.get_object()
             
-            if published_version and published_version.workflow_config:
-                workflow_steps = published_version.workflow_config.get('steps', [])
-                total_steps = len(workflow_steps)
-                progress_percentage = int((run.current_step_index / total_steps * 100)) if total_steps > 0 else 0
-                
-                # Build step details
-                step_details = []
-                for idx, step in enumerate(workflow_steps):
-                    step_status = 'completed' if idx < run.current_step_index else ('current' if idx == run.current_step_index else 'pending')
-                    step_details.append({
-                        'index': idx,
-                        'id': step.get('id'),
-                        'label': step.get('label', f'Step {idx + 1}'),
-                        'type': step.get('type'),
-                        'status': step_status
-                    })
-            else:
-                total_steps = 0
-                progress_percentage = 0
-                step_details = []
-                workflow_steps = []
-        except EntityBlueprint.DoesNotExist:
+            # Defaults
             total_steps = 0
             progress_percentage = 0
             step_details = []
-            workflow_steps = []
-        
-        # Extract execution history from data_context
-        execution_history = run.data_context.get('_execution_history', [])
-        error_log = run.data_context.get('_error_log', [])
-        
-        return Response({
-            'id': str(run.id),
-            'workflow_slug': run.workflow_slug,
-            'workflow_name': blueprint.name if 'blueprint' in locals() else run.workflow_slug,
-            'status': run.status,
-            'current_step_index': run.current_step_index,
-            'total_steps': total_steps,
-            'progress_percentage': progress_percentage,
-            'step_details': step_details,
-            'data_context': run.data_context,
-            'execution_history': execution_history,
-            'error_log': error_log,
-            'created_on': run.created_on.isoformat(),
-            'modified_on': run.modified_on.isoformat()
-        })
+            blueprint_name = run.workflow_slug
+
+            # Get the blueprint to fetch workflow steps
+            try:
+                blueprint = EntityBlueprint.objects.select_related('published_version').get(slug=run.workflow_slug)
+                blueprint_name = blueprint.name
+                published_version = blueprint.published_version
+                
+                if published_version and isinstance(published_version.workflow_config, dict):
+                    workflow_steps = published_version.workflow_config.get('steps', [])
+                    if isinstance(workflow_steps, list):
+                        total_steps = len(workflow_steps)
+                        progress_percentage = int((run.current_step_index / total_steps * 100)) if total_steps > 0 else 0
+                        
+                        # Build step details
+                        for idx, step in enumerate(workflow_steps):
+                            if not isinstance(step, dict): continue
+                            step_status = 'completed' if idx < run.current_step_index else ('current' if idx == run.current_step_index else 'pending')
+                            step_details.append({
+                                'index': idx,
+                                'id': step.get('id'),
+                                'label': step.get('label', f'Step {idx + 1}'),
+                                'type': step.get('type'),
+                                'status': step_status
+                            })
+            except (EntityBlueprint.DoesNotExist, MultipleObjectsReturned):
+                # Fallback to defaults
+                pass
+            except Exception as e:
+                logger.warning(f"Error fetching blueprint for run {run.id}: {e}")
+            
+            # Extract execution history from data_context safely
+            execution_history = []
+            error_log = []
+            
+            if isinstance(run.data_context, dict):
+                execution_history = run.data_context.get('_execution_history', [])
+                error_log = run.data_context.get('_error_log', [])
+            
+            return Response({
+                'id': str(run.id),
+                'workflow_slug': run.workflow_slug,
+                'workflow_name': blueprint_name,
+                'status': run.status,
+                'current_step_index': run.current_step_index,
+                'total_steps': total_steps,
+                'progress_percentage': progress_percentage,
+                'step_details': step_details,
+                'data_context': run.data_context if isinstance(run.data_context, dict) else {},
+                'execution_history': execution_history,
+                'error_log': error_log,
+                'created_on': run.created_on.isoformat(),
+                'modified_on': run.modified_on.isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error retrieving workflow run {kwargs.get('pk')}: {e}", exc_info=True)
+            return Response(
+                {'error': 'Internal server error retrieving workflow run.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=True, methods=['get'], url_path='execution-log')
     def execution_log(self, request, pk=None):
