@@ -5,7 +5,6 @@
  * Allows drag-and-drop of entity blueprints onto a canvas and connecting them.
  */
 import React, { useState, useCallback, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import {
   ReactFlow,
@@ -232,8 +231,12 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
   return { nodes: layoutedNodes, edges };
 };
 
-const WorkflowCanvas: React.FC = () => {
-  const { blueprintId } = useParams<{ blueprintId: string }>();
+interface WorkflowCanvasProps {
+  blueprintId: string;
+  csrfToken: string;
+}
+
+const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ blueprintId, csrfToken }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [availableEntities, setAvailableEntities] = useState<any[]>([]);
