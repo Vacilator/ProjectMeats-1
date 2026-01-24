@@ -12,8 +12,8 @@ router.register(r'studio/versions', BlueprintVersionViewSet, basename='studio-ve
 
 urlpatterns = [
     # Blueprint Studio views (admin interface)
-    path('studio/', StudioLandingView.as_view(), name='studio-landing'),
-    path('studio/<uuid:blueprint_id>/', StudioView.as_view(), name='studio'),
+    path('studio/', StudioView.as_view(), name='studio-root'),
+    path('studio/<uuid:blueprint_id>/', StudioView.as_view(), name='studio-detail'),
     
     # API endpoints for workflow execution and studio
     path('api/', include(router.urls)),
