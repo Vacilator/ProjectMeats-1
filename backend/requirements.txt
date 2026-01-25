@@ -14,7 +14,7 @@ django-filter>=23.3  # Ensure latest compatible with Django 5.x
 # All tenant isolation is via tenant_id foreign keys on business models
 
 # Admin Enhancements (Bundle One: Custom System Data)
-django-modal-actions>=0.4.0  # Modal dialogs for Django Admin actions
+django-modal-actions==0.1.6  # Modal dialogs for Django Admin actions
 
 # Database
 psycopg[binary]>=3.2.0  # Modern PostgreSQL adapter (psycopg3)

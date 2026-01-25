@@ -460,3 +460,153 @@ class FieldOptionList(models.Model):
     
     def __str__(self):
         return f"{self.name} ({len(self.options)} options)"
+
+
+class DynamicEntity(models.Model):
+    """
+    Dynamic Entity model for storing custom data.
+    
+    Uses a single table with a JSONB field to store custom data,
+    driven by the Schema Metadata. This is the metadata-driven architecture
+    that avoids generating hard database migrations for every user change.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Link to the schema that defines this entity's structure
+    schema = models.ForeignKey(
+        DataSchema,
+        on_delete=models.PROTECT,
+        related_name='entities',
+        help_text="Schema that defines this entity's structure"
+    )
+    
+    # The actual custom data stored as JSONB
+    data = models.JSONField(
+        default=dict,
+        help_text="Custom field data stored as JSON, validated against schema"
+    )
+    
+    # Tenant isolation (for tenant-specific entities)
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='dynamic_entities',
+        help_text="Tenant this entity belongs to (null for system entities)"
+    )
+    
+    # Searchable fields cache (denormalized for performance)
+    search_text = models.TextField(
+        blank=True,
+        default='',
+        help_text="Concatenated searchable field values for full-text search"
+    )
+    
+    # Audit fields
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dynamic_entities_created'
+    )
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dynamic_entities_updated'
+    )
+    
+    class Meta:
+        verbose_name = "Dynamic Entity"
+        verbose_name_plural = "Dynamic Entities"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['schema', 'tenant']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        # Try to get a display name from data
+        name = self.data.get('name') or self.data.get('title') or str(self.id)[:8]
+        return f"{self.schema.name}: {name}"
+    
+    def save(self, *args, **kwargs):
+        # Build search text from searchable fields
+        self._build_search_text()
+        super().save(*args, **kwargs)
+    
+    def _build_search_text(self):
+        """Build search text from searchable fields in the schema."""
+        search_parts = []
+        
+        for field in self.schema.fields.filter(is_searchable=True):
+            value = self.data.get(field.key)
+            if value:
+                if isinstance(value, list):
+                    search_parts.extend(str(v) for v in value)
+                else:
+                    search_parts.append(str(value))
+        
+        self.search_text = ' '.join(search_parts)
+    
+    def validate_data(self):
+        """
+        Validate data against schema field definitions.
+        
+        Returns a dict of {field_key: [errors]} for any validation failures.
+        """
+        errors = {}
+        
+        for field in self.schema.fields.all():
+            value = self.data.get(field.key)
+            field_errors = []
+            
+            # Required check
+            if field.is_required and (value is None or value == ''):
+                field_errors.append(f"{field.label} is required")
+            
+            # Type validation
+            if value is not None and value != '':
+                if field.field_type == 'integer':
+                    try:
+                        int(value)
+                    except (ValueError, TypeError):
+                        field_errors.append(f"{field.label} must be an integer")
+                
+                elif field.field_type == 'decimal':
+                    try:
+                        float(value)
+                    except (ValueError, TypeError):
+                        field_errors.append(f"{field.label} must be a number")
+                
+                elif field.field_type in ['dropdown', 'multiselect']:
+                    valid_values = [opt.get('value') for opt in field.options]
+                    if field.field_type == 'multiselect':
+                        if isinstance(value, list):
+                            for v in value:
+                                if v not in valid_values:
+                                    field_errors.append(f"Invalid option: {v}")
+                        else:
+                            field_errors.append(f"{field.label} must be a list")
+                    else:
+                        if value not in valid_values:
+                            field_errors.append(f"Invalid option: {value}")
+            
+            if field_errors:
+                errors[field.key] = field_errors
+        
+        return errors
+    
+    def get_field_value(self, key):
+        """Get a field value with type coercion based on schema."""
+        return self.data.get(key)
+    
+    def set_field_value(self, key, value):
+        """Set a field value."""
+        self.data[key] = value
