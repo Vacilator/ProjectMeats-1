@@ -1,0 +1,698 @@
+"""
+Tenant Workflows Models.
+
+Bundle Two: System → Tenant Workflows & New Data Entities
+
+This module provides models for:
+1. TenantForm - Custom forms for creating/editing entity records
+2. TenantWorkflow - Automation rules triggered by events
+3. TenantList - Tenant-specific option lists
+
+Architecture: Hybrid approach
+- Frontend: UI logic (field visibility, filtering options, form flow)
+- Backend: Actions (send email, run workflow, save data, notifications)
+"""
+import uuid
+from django.contrib.auth.models import User
+from django.db import models
+from django.utils import timezone
+
+from apps.tenants.models import Tenant
+
+
+# =============================================================================
+# CHOICES AND CONSTANTS
+# =============================================================================
+
+class TriggerType(models.TextChoices):
+    """Types of workflow triggers."""
+    SCHEDULED = 'scheduled', 'Scheduled Task'
+    RECORD_CREATED = 'record_created', 'New Record Created'
+    RECORD_UPDATED = 'record_updated', 'Record Field Updated'
+    MANUAL = 'manual', 'Manual Run'
+
+
+class OperatorType(models.TextChoices):
+    """Operators for conditional rules."""
+    EQUALS = 'eq', 'Equals (=)'
+    NOT_EQUALS = 'neq', 'Not Equal To (≠)'
+    GREATER_THAN = 'gt', 'Greater Than (>)'
+    LESS_THAN = 'lt', 'Less Than (<)'
+    GREATER_OR_EQUAL = 'gte', 'Greater Than or Equal (≥)'
+    LESS_OR_EQUAL = 'lte', 'Less Than or Equal (≤)'
+    CONTAINS = 'contains', 'Contains'
+    NOT_CONTAINS = 'not_contains', 'Does Not Contain'
+    IS_EMPTY = 'is_empty', 'Is Empty'
+    IS_NOT_EMPTY = 'is_not_empty', 'Is Not Empty'
+
+
+class ActionType(models.TextChoices):
+    """Types of actions that can be performed."""
+    DISPLAY_FIELDS = 'display_fields', 'Display Field(s)'
+    HIDE_FIELDS = 'hide_fields', 'Hide Field(s)'
+    FILTER_OPTIONS = 'filter_options', 'Filter Field Options'
+    SET_FIELD_VALUE = 'set_value', 'Set Field Value'
+    RUN_WORKFLOW = 'run_workflow', 'Run Custom Workflow'
+    DISPLAY_ENTITIES = 'display_entities', 'Display Entities'
+    SEND_EMAIL = 'send_email', 'Send Email'
+    SEND_NOTIFICATION = 'send_notification', 'Send In-App Notification'
+    SEND_TEAMS_SLACK = 'send_teams_slack', 'Send to Teams/Slack'
+    SEND_SMS = 'send_sms', 'Send Text Message'
+    CREATE_RECORD = 'create_record', 'Create Record'
+    UPDATE_RECORD = 'update_record', 'Update Record'
+
+
+class FormStatus(models.TextChoices):
+    """Status of a tenant form."""
+    DRAFT = 'draft', 'Draft'
+    ACTIVE = 'active', 'Active'
+    INACTIVE = 'inactive', 'Inactive'
+
+
+class WorkflowStatus(models.TextChoices):
+    """Status of a workflow."""
+    DRAFT = 'draft', 'Draft'
+    ACTIVE = 'active', 'Active'
+    PAUSED = 'paused', 'Paused'
+    INACTIVE = 'inactive', 'Inactive'
+
+
+# =============================================================================
+# TENANT LIST MODEL
+# =============================================================================
+
+class TenantList(models.Model):
+    """
+    Tenant-specific option list for dropdown/multi-select fields.
+    
+    Unlike FieldOptionList (system-level), these are scoped to a single tenant
+    and only visible to users of that tenant.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='custom_lists',
+        help_text="Tenant this list belongs to"
+    )
+    
+    name = models.CharField(
+        max_length=255,
+        help_text="Name of the option list"
+    )
+    description = models.TextField(
+        blank=True,
+        default='',
+        help_text="Description of the list"
+    )
+    
+    # Options stored as JSON array of {value, label} objects
+    options = models.JSONField(
+        default=list,
+        help_text="List of options [{value: 'v1', label: 'Label 1'}, ...]"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this list is active"
+    )
+    
+    # Audit
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tenant_lists_created',
+        help_text="User who created this list"
+    )
+    
+    class Meta:
+        verbose_name = "Tenant List"
+        verbose_name_plural = "Tenant Lists"
+        ordering = ['tenant', 'name']
+        unique_together = [['tenant', 'name']]
+    
+    def __str__(self):
+        return f"{self.name} ({len(self.options)} options)"
+
+
+# =============================================================================
+# TENANT FORM MODELS
+# =============================================================================
+
+class TenantForm(models.Model):
+    """
+    Custom form definition for a tenant.
+    
+    Allows tenants to create custom forms for entity record creation/editing.
+    Can be single-entity or multi-entity (progressive/wizard) forms.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='custom_forms',
+        help_text="Tenant this form belongs to"
+    )
+    
+    # Form identification
+    name = models.CharField(
+        max_length=255,
+        help_text="Name of the form"
+    )
+    description = models.TextField(
+        blank=True,
+        default='',
+        help_text="Description of the form's purpose"
+    )
+    
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=FormStatus.choices,
+        default=FormStatus.DRAFT,
+        help_text="Current status of the form"
+    )
+    
+    # If true, this form is used as the default when creating records
+    # Only applicable for single-entity forms
+    is_default = models.BooleanField(
+        default=False,
+        help_text="Use as default form for entity creation (single-entity forms only)"
+    )
+    
+    # Icon and styling
+    icon = models.CharField(
+        max_length=50,
+        blank=True,
+        default='file-text',
+        help_text="Icon identifier for UI"
+    )
+    
+    # Audit
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tenant_forms_created',
+        help_text="User who created this form"
+    )
+    
+    class Meta:
+        verbose_name = "Tenant Form"
+        verbose_name_plural = "Tenant Forms"
+        ordering = ['tenant', 'name']
+    
+    def __str__(self):
+        entity_count = self.entities.count()
+        suffix = f" ({entity_count} entities)" if entity_count > 1 else ""
+        return f"{self.name}{suffix}"
+    
+    @property
+    def is_multi_entity(self):
+        """Returns True if this is a multi-entity (progressive) form."""
+        return self.entities.count() > 1
+    
+    @property
+    def can_be_default(self):
+        """Returns True if this form can be set as default (single entity only)."""
+        return self.entities.count() == 1
+
+
+class TenantFormEntity(models.Model):
+    """
+    Entity included in a tenant form.
+    
+    For multi-entity forms, each entity becomes a "step" in the progressive form.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    form = models.ForeignKey(
+        TenantForm,
+        on_delete=models.CASCADE,
+        related_name='entities',
+        help_text="Form this entity belongs to"
+    )
+    
+    # Reference to the entity type (e.g., 'supplier', 'customer', 'purchase_order')
+    entity_type = models.CharField(
+        max_length=100,
+        help_text="Type of entity (model name in snake_case)"
+    )
+    
+    # Display name for this step
+    step_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Custom name for this step (defaults to entity name)"
+    )
+    
+    # Order in the form (for multi-entity progressive forms)
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Order of this entity in the form (step number)"
+    )
+    
+    class Meta:
+        verbose_name = "Form Entity"
+        verbose_name_plural = "Form Entities"
+        ordering = ['form', 'order']
+        unique_together = [['form', 'entity_type']]
+    
+    def __str__(self):
+        return f"Step {self.order + 1}: {self.step_name or self.entity_type}"
+
+
+class TenantFormField(models.Model):
+    """
+    Field configuration within a form entity.
+    
+    Defines which fields are visible, their order, and any custom settings.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    form_entity = models.ForeignKey(
+        TenantFormEntity,
+        on_delete=models.CASCADE,
+        related_name='fields',
+        help_text="Form entity this field belongs to"
+    )
+    
+    # Reference to the actual field
+    field_key = models.CharField(
+        max_length=100,
+        help_text="Field key/name from the entity model"
+    )
+    
+    # Display settings
+    is_visible = models.BooleanField(
+        default=True,
+        help_text="Whether this field is visible in the form"
+    )
+    is_required = models.BooleanField(
+        default=False,
+        help_text="Override: make this field required"
+    )
+    
+    # Order in the form
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Display order of the field"
+    )
+    
+    # Custom label override
+    custom_label = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Custom label (overrides default field label)"
+    )
+    
+    # Custom help text override
+    custom_help_text = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        help_text="Custom help text"
+    )
+    
+    # Default value override
+    default_value = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Default value for this field in this form"
+    )
+    
+    class Meta:
+        verbose_name = "Form Field"
+        verbose_name_plural = "Form Fields"
+        ordering = ['form_entity', 'order']
+        unique_together = [['form_entity', 'field_key']]
+    
+    def __str__(self):
+        visibility = "👁" if self.is_visible else "🚫"
+        return f"{visibility} {self.custom_label or self.field_key}"
+
+
+class TenantFormRule(models.Model):
+    """
+    Conditional rule for a form.
+    
+    Implements the "When/Operator/Then" pattern for dynamic form behavior.
+    Rules are evaluated on the frontend for immediate UI feedback.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    form = models.ForeignKey(
+        TenantForm,
+        on_delete=models.CASCADE,
+        related_name='rules',
+        help_text="Form this rule belongs to"
+    )
+    
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Optional name for this rule"
+    )
+    
+    # Rule is active/inactive
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this rule is active"
+    )
+    
+    # Order of rule evaluation
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Order in which rules are evaluated"
+    )
+    
+    # WHEN: The condition(s) to check
+    # Format: [{"field": "step1.field_name", "operator": "eq", "value": "xyz"}, ...]
+    conditions = models.JSONField(
+        default=list,
+        help_text="Conditions to evaluate (AND logic between conditions)"
+    )
+    
+    # Condition logic (AND/OR between multiple conditions)
+    condition_logic = models.CharField(
+        max_length=10,
+        choices=[('and', 'AND - All must match'), ('or', 'OR - Any must match')],
+        default='and',
+        help_text="Logic for combining multiple conditions"
+    )
+    
+    # THEN: The action(s) to perform
+    # Format: [{"action": "display_fields", "params": {"fields": ["field1", "field2"]}}, ...]
+    actions = models.JSONField(
+        default=list,
+        help_text="Actions to perform when conditions are met"
+    )
+    
+    class Meta:
+        verbose_name = "Form Rule"
+        verbose_name_plural = "Form Rules"
+        ordering = ['form', 'order']
+    
+    def __str__(self):
+        return self.name or f"Rule {self.order + 1}"
+
+
+# =============================================================================
+# TENANT WORKFLOW MODELS
+# =============================================================================
+
+class TenantWorkflow(models.Model):
+    """
+    Workflow definition for a tenant.
+    
+    Workflows are automation rules that execute based on triggers.
+    They run on the backend for security and reliability.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='workflows',
+        help_text="Tenant this workflow belongs to"
+    )
+    
+    # Workflow identification
+    name = models.CharField(
+        max_length=255,
+        help_text="Name of the workflow"
+    )
+    description = models.TextField(
+        blank=True,
+        default='',
+        help_text="Description of what this workflow does"
+    )
+    
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=WorkflowStatus.choices,
+        default=WorkflowStatus.DRAFT,
+        help_text="Current status of the workflow"
+    )
+    
+    # Trigger type
+    trigger_type = models.CharField(
+        max_length=30,
+        choices=TriggerType.choices,
+        help_text="What triggers this workflow"
+    )
+    
+    # Trigger configuration (depends on trigger_type)
+    # For scheduled: {"cron": "0 9 * * 1", "timezone": "America/New_York"}
+    # For record_created: {"entity_type": "purchase_order"}
+    # For record_updated: {"entity_type": "purchase_order", "fields": ["status", "total"]}
+    trigger_config = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Configuration specific to the trigger type"
+    )
+    
+    # Entity type this workflow applies to (if applicable)
+    entity_type = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Entity type this workflow operates on"
+    )
+    
+    # Icon for display
+    icon = models.CharField(
+        max_length=50,
+        blank=True,
+        default='zap',
+        help_text="Icon identifier for UI"
+    )
+    
+    # Audit
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='workflows_created',
+        help_text="User who created this workflow"
+    )
+    
+    # Execution stats
+    last_run_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this workflow last ran"
+    )
+    run_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of times this workflow has run"
+    )
+    
+    class Meta:
+        verbose_name = "Workflow"
+        verbose_name_plural = "Workflows"
+        ordering = ['tenant', 'name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_trigger_type_display()})"
+
+
+class TenantWorkflowCondition(models.Model):
+    """
+    Condition that must be met for workflow actions to execute.
+    
+    Evaluated at runtime before actions are performed.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workflow = models.ForeignKey(
+        TenantWorkflow,
+        on_delete=models.CASCADE,
+        related_name='conditions',
+        help_text="Workflow this condition belongs to"
+    )
+    
+    # Field to check
+    field_path = models.CharField(
+        max_length=255,
+        help_text="Path to field (e.g., 'status', 'customer.name')"
+    )
+    
+    # Operator
+    operator = models.CharField(
+        max_length=20,
+        choices=OperatorType.choices,
+        help_text="Comparison operator"
+    )
+    
+    # Value to compare against
+    compare_value = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Value to compare against"
+    )
+    
+    # Order
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Order of condition evaluation"
+    )
+    
+    class Meta:
+        verbose_name = "Workflow Condition"
+        verbose_name_plural = "Workflow Conditions"
+        ordering = ['workflow', 'order']
+    
+    def __str__(self):
+        return f"{self.field_path} {self.operator} {self.compare_value}"
+
+
+class TenantWorkflowAction(models.Model):
+    """
+    Action to perform when workflow triggers and conditions are met.
+    
+    Actions are executed on the backend in order.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workflow = models.ForeignKey(
+        TenantWorkflow,
+        on_delete=models.CASCADE,
+        related_name='actions',
+        help_text="Workflow this action belongs to"
+    )
+    
+    # Action type
+    action_type = models.CharField(
+        max_length=30,
+        choices=ActionType.choices,
+        help_text="Type of action to perform"
+    )
+    
+    # Action-specific configuration
+    # Examples:
+    # send_email: {"to": "{{customer.email}}", "subject": "...", "body": "..."}
+    # send_notification: {"title": "...", "message": "...", "users": ["owner"]}
+    # set_value: {"field": "status", "value": "approved"}
+    # run_workflow: {"workflow_id": "uuid-here"}
+    config = models.JSONField(
+        default=dict,
+        help_text="Configuration specific to the action type"
+    )
+    
+    # Order of execution
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Order in which actions are executed"
+    )
+    
+    # Whether to continue on error
+    continue_on_error = models.BooleanField(
+        default=False,
+        help_text="Continue executing subsequent actions if this one fails"
+    )
+    
+    class Meta:
+        verbose_name = "Workflow Action"
+        verbose_name_plural = "Workflow Actions"
+        ordering = ['workflow', 'order']
+    
+    def __str__(self):
+        return f"{self.order + 1}. {self.get_action_type_display()}"
+
+
+class WorkflowExecutionLog(models.Model):
+    """
+    Log of workflow executions for auditing and debugging.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workflow = models.ForeignKey(
+        TenantWorkflow,
+        on_delete=models.CASCADE,
+        related_name='execution_logs',
+        help_text="Workflow that was executed"
+    )
+    
+    # Trigger info
+    trigger_type = models.CharField(
+        max_length=30,
+        help_text="What triggered this execution"
+    )
+    trigger_data = models.JSONField(
+        default=dict,
+        help_text="Data that triggered the workflow"
+    )
+    
+    # Execution status
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('started', 'Started'),
+            ('success', 'Success'),
+            ('failed', 'Failed'),
+            ('partial', 'Partial Success'),
+        ],
+        default='started',
+        help_text="Execution status"
+    )
+    
+    # Timing
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Results
+    actions_executed = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of actions executed"
+    )
+    actions_failed = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of actions that failed"
+    )
+    
+    # Error info
+    error_message = models.TextField(
+        blank=True,
+        default='',
+        help_text="Error message if execution failed"
+    )
+    
+    # Detailed log
+    execution_log = models.JSONField(
+        default=list,
+        help_text="Detailed log of each action's execution"
+    )
+    
+    # Who/what triggered it
+    triggered_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="User who triggered the workflow (if manual)"
+    )
+    
+    class Meta:
+        verbose_name = "Execution Log"
+        verbose_name_plural = "Execution Logs"
+        ordering = ['-started_at']
+    
+    def __str__(self):
+        return f"{self.workflow.name} - {self.status} ({self.started_at})"

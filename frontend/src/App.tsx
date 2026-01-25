@@ -5,7 +5,7 @@
  * Full Business Management System with AI Assistant
  */
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
@@ -42,7 +42,6 @@ import Claims from './pages/Accounting/Claims';
 import PayablePOs from './pages/Accounting/PayablePOs';
 import ReceivableSOs from './pages/Accounting/ReceivableSOs';
 import Invoices from './pages/Accounting/Invoices';
-import Processes from './pages/Processes';
 import Reports from './pages/Reports';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -157,7 +156,7 @@ const App: React.FC = () => {
                 <Route path="contacts" element={<Contacts />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="call-log" element={<CallLog />} />
-                <Route path="processes" element={<Processes />} />
+                <Route path="processes" element={<Navigate to="/workflows" replace />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />

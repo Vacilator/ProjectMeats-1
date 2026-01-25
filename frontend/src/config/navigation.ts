@@ -32,11 +32,6 @@ export const navigation: NavigationItem[] = [
         path: '/call-log',
       },
       {
-        label: 'Processes',
-        icon: '⚙️',
-        path: '/processes',
-      },
-      {
         label: 'Reports',
         icon: '📈',
         path: '/reports',

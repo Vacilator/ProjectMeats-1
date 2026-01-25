@@ -68,6 +68,7 @@ _PROJECT_APPS = [
     "tenant_apps.purchase_orders",
     "tenant_apps.sales_orders",
     "tenant_apps.suppliers",
+    "tenant_apps.workflows",  # Bundle Two: Tenant Workflows & New Data Entities
 ]
 
 # All apps in one shared schema
