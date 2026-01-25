@@ -3,6 +3,12 @@ Django Admin for Tenant Workflows.
 
 Bundle Two: System → Tenant Workflows & New Data Entities
 Provides admin interface for managing Tenant Forms, Workflows, and Lists.
+
+UX Enhancements:
+- User-friendly forms with intuitive field layouts
+- Visual status badges and icons
+- Inline editing for nested entities
+- Quick action buttons
 """
 from django.contrib import admin, messages
 from django.db.models import Count
@@ -14,6 +20,11 @@ from .models import (
     TenantWorkflow, TenantWorkflowCondition, TenantWorkflowAction,
     WorkflowExecutionLog, FormStatus, WorkflowStatus, TriggerType, ActionType
 )
+from .forms import (
+    TenantListForm, TenantFormAdminForm, TenantFormEntityForm,
+    TenantFormFieldForm, TenantFormRuleForm,
+    TenantWorkflowAdminForm, TenantWorkflowConditionForm, TenantWorkflowActionForm
+)
 
 
 # =============================================================================
@@ -24,6 +35,7 @@ from .models import (
 class TenantListAdmin(TenantFilteredAdmin):
     """Admin for tenant-specific option lists."""
     
+    form = TenantListForm
     list_display = ['name', 'tenant', 'option_count', 'is_active', 'created_at']
     list_filter = ['tenant', 'is_active', 'created_at']
     search_fields = ['name', 'description', 'tenant__name']
@@ -32,11 +44,12 @@ class TenantListAdmin(TenantFilteredAdmin):
     
     fieldsets = [
         ('List Information', {
-            'fields': ('tenant', 'name', 'description', 'is_active')
+            'fields': ('tenant', 'name', 'description', 'is_active'),
+            'description': 'Create a custom list of options for dropdown and multi-select fields.'
         }),
         ('Options', {
-            'fields': ('options',),
-            'description': 'Enter options as JSON: [{"value": "v1", "label": "Label 1"}, ...]'
+            'fields': ('options_text',),
+            'description': 'Enter each option on a new line. Options will be available in forms using this list.'
         }),
         ('Metadata', {
             'fields': ('id', 'created_by', 'created_at', 'updated_at'),
@@ -65,37 +78,57 @@ class TenantListAdmin(TenantFilteredAdmin):
 class TenantFormEntityInline(admin.TabularInline):
     """Inline for form entities (steps)."""
     model = TenantFormEntity
+    form = TenantFormEntityForm
     extra = 1
     ordering = ['order']
     fields = ['order', 'entity_type', 'step_name']
+    verbose_name = "Form Step"
+    verbose_name_plural = "Form Steps (Entities)"
 
 
 class TenantFormFieldInline(admin.TabularInline):
     """Inline for form fields."""
     model = TenantFormField
+    form = TenantFormFieldForm
     extra = 0
     ordering = ['order']
     fields = ['order', 'field_key', 'is_visible', 'is_required', 'custom_label']
+    verbose_name = "Field"
+    verbose_name_plural = "Field Configuration"
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('form_entity')
 
 
-class TenantFormRuleInline(admin.TabularInline):
-    """Inline for form rules."""
+class TenantFormRuleInline(admin.StackedInline):
+    """Inline for form rules - stacked for better UX."""
     model = TenantFormRule
+    form = TenantFormRuleForm
     extra = 0
     ordering = ['order']
-    fields = ['order', 'name', 'is_active', 'condition_logic']
-    readonly_fields = ['conditions', 'actions']
+    verbose_name = "Conditional Rule"
+    verbose_name_plural = "Conditional Rules (When/Then Logic)"
     
-    classes = ['collapse']
+    fieldsets = [
+        (None, {
+            'fields': ('name', 'is_active', 'order'),
+        }),
+        ('Condition (When)', {
+            'fields': ('condition_field', 'condition_operator', 'condition_value', 'condition_logic'),
+            'classes': ['wide'],
+        }),
+        ('Action (Then)', {
+            'fields': ('action_type', 'action_target_fields'),
+            'classes': ['wide'],
+        }),
+    ]
 
 
 @admin.register(TenantForm)
 class TenantFormAdmin(TenantFilteredAdmin):
     """Admin for tenant custom forms."""
     
+    form = TenantFormAdminForm
     list_display = [
         'name', 'tenant', 'status_badge', 'entity_count', 
         'is_default', 'created_at'
@@ -110,10 +143,12 @@ class TenantFormAdmin(TenantFilteredAdmin):
     
     fieldsets = [
         ('Form Information', {
-            'fields': ('tenant', 'name', 'description', 'icon')
+            'fields': ('tenant', 'name', 'description', 'icon'),
+            'description': 'Create a custom form for data entry. Add entities (steps) below to define what data this form collects.'
         }),
         ('Status & Settings', {
-            'fields': ('status', 'is_default')
+            'fields': ('status', 'is_default'),
+            'description': 'Active forms are available for use. Default forms are used automatically when creating new records.'
         }),
         ('Metadata', {
             'fields': ('id', 'created_by', 'created_at', 'updated_at'),
@@ -200,24 +235,48 @@ class TenantFormEntityAdmin(admin.ModelAdmin):
 class TenantWorkflowConditionInline(admin.TabularInline):
     """Inline for workflow conditions."""
     model = TenantWorkflowCondition
+    form = TenantWorkflowConditionForm
     extra = 0
     ordering = ['order']
     fields = ['order', 'field_path', 'operator', 'compare_value']
+    verbose_name = "Condition"
+    verbose_name_plural = "Conditions (All must be true)"
 
 
-class TenantWorkflowActionInline(admin.TabularInline):
-    """Inline for workflow actions."""
+class TenantWorkflowActionInline(admin.StackedInline):
+    """Inline for workflow actions - stacked for better config editing."""
     model = TenantWorkflowAction
+    form = TenantWorkflowActionForm
     extra = 0
     ordering = ['order']
-    fields = ['order', 'action_type', 'continue_on_error']
-    readonly_fields = ['config']
+    verbose_name = "Action"
+    verbose_name_plural = "Actions (Executed in order)"
+    
+    fieldsets = [
+        (None, {
+            'fields': ('action_type', 'order', 'continue_on_error'),
+        }),
+        ('Email Settings', {
+            'fields': ('email_to', 'email_subject', 'email_body'),
+            'classes': ['collapse'],
+            'description': 'Configure email settings. Use {{field}} for dynamic values.'
+        }),
+        ('Notification Settings', {
+            'fields': ('notification_title', 'notification_message'),
+            'classes': ['collapse'],
+        }),
+        ('Set Value Settings', {
+            'fields': ('set_field', 'set_value'),
+            'classes': ['collapse'],
+        }),
+    ]
 
 
 @admin.register(TenantWorkflow)
 class TenantWorkflowAdmin(TenantFilteredAdmin):
     """Admin for tenant workflows."""
     
+    form = TenantWorkflowAdminForm
     list_display = [
         'name', 'tenant', 'status_badge', 'trigger_badge', 
         'entity_type', 'run_count', 'last_run_at'
@@ -232,13 +291,16 @@ class TenantWorkflowAdmin(TenantFilteredAdmin):
     
     fieldsets = [
         ('Workflow Information', {
-            'fields': ('tenant', 'name', 'description', 'icon')
+            'fields': ('tenant', 'name', 'description', 'icon'),
+            'description': 'Create an automation workflow that runs when certain events occur.'
         }),
         ('Trigger Configuration', {
-            'fields': ('trigger_type', 'entity_type', 'trigger_config')
+            'fields': ('trigger_type', 'entity_type', 'schedule_description', 'watch_fields'),
+            'description': 'Define what triggers this workflow. Add conditions below to filter when it runs.'
         }),
         ('Status', {
-            'fields': ('status',)
+            'fields': ('status',),
+            'description': 'Only Active workflows will run automatically. Draft and Paused workflows are disabled.'
         }),
         ('Execution Stats', {
             'fields': ('run_count', 'last_run_at'),
