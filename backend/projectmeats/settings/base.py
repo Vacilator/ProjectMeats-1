@@ -44,12 +44,14 @@ _THIRD_PARTY_APPS = [
     "corsheaders",
     "drf_spectacular",
     "django_filters",
+    "django_modal_actions",  # Modal dialogs for Django Admin actions
 ]
 
 # ProjectMeats apps (all in shared schema with tenant_id isolation)
 _PROJECT_APPS = [
     "apps.core",
     "apps.tenants",  # Tenant management (shared-schema approach)
+    "apps.schema_builder",  # Bundle One: Custom System Data - Django Admin Enhancements
     "shared_apps.system_config",  # System Blueprint Engine (global configuration)
     # Business apps (all use tenant_id for data isolation)
     "tenant_apps.accounts_receivables",
