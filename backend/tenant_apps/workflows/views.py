@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 from django.db.models import Count, Prefetch, Max
 from django.utils import timezone
-from django.db import models, transaction
+from django.db import transaction
 
 from .models import (
     TenantList, TenantForm, TenantFormEntity, TenantFormField, TenantFormRule,
@@ -574,7 +574,7 @@ class FormRulesAPIView(APIView):
             )
         
         # Get next order (handle None when no rules exist, but 0 is valid)
-        max_order = form.rules.aggregate(max_order=models.Max('order'))['max_order']
+        max_order = form.rules.aggregate(max_order=Max('order'))['max_order']
         next_order = 0 if max_order is None else max_order + 1
         
         rule = TenantFormRule.objects.create(
