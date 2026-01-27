@@ -1143,3 +1143,296 @@ class WorkflowExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(status=status_filter)
         
         return qs.select_related('workflow', 'triggered_by').order_by('-started_at')
+
+
+# =============================================================================
+# FORM SUBMISSION API VIEWS
+# =============================================================================
+
+from .models import FormSubmission, FormStepSubmission, FormSubmissionStatus, StepSubmissionStatus
+from .serializers import (
+    FormSubmissionListSerializer, FormSubmissionDetailSerializer,
+    FormSubmissionCreateSerializer, FormSubmissionAutoSaveSerializer,
+    FormStepSubmissionSerializer, AvailableFormSerializer,
+    QuickActionsSerializer
+)
+
+
+class FormSubmissionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing form submissions.
+    
+    Endpoints:
+    - GET /form-submissions/ - List user's submissions
+    - POST /form-submissions/ - Create new submission
+    - GET /form-submissions/{id}/ - Get submission details
+    - PATCH /form-submissions/{id}/ - Update submission
+    - DELETE /form-submissions/{id}/ - Cancel/delete submission
+    - POST /form-submissions/{id}/auto-save/ - Auto-save field value
+    - POST /form-submissions/{id}/complete-step/ - Mark step as complete
+    - POST /form-submissions/{id}/submit/ - Final submission
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return FormSubmissionListSerializer
+        elif self.action == 'create':
+            return FormSubmissionCreateSerializer
+        return FormSubmissionDetailSerializer
+    
+    def get_queryset(self):
+        qs = FormSubmission.objects.filter(tenant=self.request.tenant)
+        
+        # Non-admin users only see their own submissions
+        if not self.request.user.is_staff:
+            qs = qs.filter(created_by=self.request.user)
+        
+        # Filter by status
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        
+        # Filter by form
+        form_id = self.request.query_params.get('form')
+        if form_id:
+            qs = qs.filter(form_id=form_id)
+        
+        return qs.select_related('form', 'created_by', 'current_step').prefetch_related(
+            'step_submissions__step',
+            'step_submissions__completed_by'
+        )
+    
+    @action(detail=True, methods=['post'])
+    def auto_save(self, request, pk=None):
+        """Auto-save a single field value."""
+        submission = self.get_object()
+        
+        # Check submission is editable
+        if submission.status in [FormSubmissionStatus.COMPLETED, FormSubmissionStatus.CANCELLED]:
+            return Response(
+                {'error': 'Cannot modify a completed or cancelled submission'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = FormSubmissionAutoSaveSerializer(
+            data=request.data,
+            context={'request': request, 'submission': submission}
+        )
+        serializer.is_valid(raise_exception=True)
+        
+        step_id = str(serializer.validated_data['step_id'])
+        field_key = serializer.validated_data['field_key']
+        value = serializer.validated_data['value']
+        
+        # Update data structure
+        if step_id not in submission.data:
+            submission.data[step_id] = {}
+        
+        submission.data[step_id][field_key] = value
+        submission.data[step_id]['_meta'] = {
+            'last_updated': timezone.now().isoformat(),
+            'updated_by': str(request.user.id)
+        }
+        
+        # Update status to in_progress if draft
+        if submission.status == FormSubmissionStatus.DRAFT:
+            submission.status = FormSubmissionStatus.IN_PROGRESS
+        
+        submission.save(update_fields=['data', 'status', 'updated_at'])
+        
+        # Update step submission status
+        step_submission = submission.step_submissions.filter(step_id=step_id).first()
+        if step_submission and step_submission.status == StepSubmissionStatus.NOT_STARTED:
+            step_submission.status = StepSubmissionStatus.IN_PROGRESS
+            step_submission.save(update_fields=['status', 'updated_at'])
+        
+        return Response({
+            'success': True,
+            'step_id': step_id,
+            'field_key': field_key,
+            'saved_at': timezone.now().isoformat()
+        })
+    
+    @action(detail=True, methods=['post'])
+    def complete_step(self, request, pk=None):
+        """Mark a step as complete."""
+        submission = self.get_object()
+        step_id = request.data.get('step_id')
+        
+        if not step_id:
+            return Response(
+                {'error': 'step_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        step_submission = submission.step_submissions.filter(step_id=step_id).first()
+        if not step_submission:
+            return Response(
+                {'error': 'Step not found in this submission'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Mark complete
+        step_submission.mark_completed(user=request.user)
+        
+        # Move to next step if available
+        current_order = step_submission.step.order
+        next_step = submission.form.entities.filter(order__gt=current_order).order_by('order').first()
+        
+        if next_step:
+            submission.current_step = next_step
+            # Mark next step as in_progress
+            next_step_submission = submission.step_submissions.filter(step=next_step).first()
+            if next_step_submission:
+                next_step_submission.status = StepSubmissionStatus.IN_PROGRESS
+                next_step_submission.save(update_fields=['status', 'updated_at'])
+        
+        submission.save(update_fields=['current_step', 'updated_at'])
+        
+        return Response({
+            'success': True,
+            'step_id': step_id,
+            'step_status': step_submission.status,
+            'next_step_id': str(next_step.id) if next_step else None
+        })
+    
+    @action(detail=True, methods=['post'])
+    def submit(self, request, pk=None):
+        """Final submission of the form."""
+        submission = self.get_object()
+        
+        if submission.status == FormSubmissionStatus.COMPLETED:
+            return Response(
+                {'error': 'Submission already completed'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check all required steps are complete (optional - can be configured)
+        incomplete_steps = submission.step_submissions.exclude(
+            status__in=[StepSubmissionStatus.COMPLETED, StepSubmissionStatus.SKIPPED]
+        )
+        
+        if incomplete_steps.exists() and not request.data.get('force', False):
+            return Response({
+                'error': 'Some steps are not complete',
+                'incomplete_steps': [
+                    {'id': str(s.step_id), 'name': s.step.step_name, 'status': s.status}
+                    for s in incomplete_steps
+                ]
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Mark as completed
+        submission.status = FormSubmissionStatus.COMPLETED
+        submission.completed_at = timezone.now()
+        submission.save(update_fields=['status', 'completed_at', 'updated_at'])
+        
+        return Response({
+            'success': True,
+            'status': submission.status,
+            'completed_at': submission.completed_at.isoformat()
+        })
+    
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        """Cancel a submission."""
+        submission = self.get_object()
+        
+        if submission.status == FormSubmissionStatus.COMPLETED:
+            return Response(
+                {'error': 'Cannot cancel a completed submission'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        submission.status = FormSubmissionStatus.CANCELLED
+        submission.save(update_fields=['status', 'updated_at'])
+        
+        return Response({
+            'success': True,
+            'status': submission.status
+        })
+
+
+class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for listing forms available for Quick Actions.
+    
+    Only returns forms that are:
+    - Active (status=active)
+    - Quick action enabled
+    - Belonging to the user's tenant
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = AvailableFormSerializer
+    
+    def get_queryset(self):
+        return TenantForm.objects.filter(
+            tenant=self.request.tenant,
+            status=FormStatus.ACTIVE,
+            is_quick_action_enabled=True
+        ).prefetch_related('entities').order_by('name')
+
+
+class QuickActionsAPIView(APIView):
+    """
+    API endpoint for managing user's quick actions.
+    
+    GET - Get user's current quick actions
+    PUT - Update user's quick actions
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get user's quick actions from preferences."""
+        try:
+            prefs = request.user.preferences
+            quick_actions = prefs.quick_menu_items or []
+        except Exception:
+            quick_actions = []
+        
+        return Response({
+            'items': quick_actions
+        })
+    
+    def put(self, request):
+        """Update user's quick actions."""
+        serializer = QuickActionsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        items = serializer.validated_data['items']
+        
+        # Validate that referenced forms exist and are available
+        for item in items:
+            if item['type'] == 'form' and item.get('form_id'):
+                form_exists = TenantForm.objects.filter(
+                    id=item['form_id'],
+                    tenant=request.tenant,
+                    is_quick_action_enabled=True
+                ).exists()
+                if not form_exists:
+                    return Response(
+                        {'error': f'Form {item["form_id"]} is not available for quick actions'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+        
+        # Update preferences
+        from apps.core.models import UserPreferences
+        prefs, created = UserPreferences.objects.get_or_create(user=request.user)
+        
+        # Convert UUID objects to strings for JSON storage
+        serializable_items = []
+        for item in items:
+            serializable_item = dict(item)
+            if 'form_id' in serializable_item and serializable_item['form_id']:
+                serializable_item['form_id'] = str(serializable_item['form_id'])
+            if 'workflow_id' in serializable_item and serializable_item['workflow_id']:
+                serializable_item['workflow_id'] = str(serializable_item['workflow_id'])
+            serializable_items.append(serializable_item)
+        
+        prefs.quick_menu_items = serializable_items
+        prefs.save(update_fields=['quick_menu_items', 'updated_at'])
+        
+        return Response({
+            'success': True,
+            'items': serializable_items
+        })

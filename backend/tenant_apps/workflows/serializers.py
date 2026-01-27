@@ -249,3 +249,185 @@ class WorkflowExecutionLogSerializer(serializers.ModelSerializer):
             delta = obj.completed_at - obj.started_at
             return int(delta.total_seconds() * 1000)
         return None
+
+
+# =============================================================================
+# FORM SUBMISSION SERIALIZERS
+# =============================================================================
+
+from .models import FormSubmission, FormStepSubmission
+
+
+class FormStepSubmissionSerializer(serializers.ModelSerializer):
+    """Serializer for individual step submissions."""
+    
+    step_name = serializers.CharField(source='step.step_name', read_only=True)
+    step_order = serializers.IntegerField(source='step.order', read_only=True)
+    entity_type = serializers.CharField(source='step.entity_type', read_only=True)
+    completed_by_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FormStepSubmission
+        fields = [
+            'id', 'step', 'step_name', 'step_order', 'entity_type',
+            'status', 'data', 'completed_at', 'completed_by', 'completed_by_name',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'step', 'step_name', 'step_order', 'entity_type',
+                           'completed_at', 'completed_by', 'completed_by_name',
+                           'created_at', 'updated_at']
+    
+    def get_completed_by_name(self, obj):
+        if obj.completed_by:
+            return obj.completed_by.get_full_name() or obj.completed_by.username
+        return None
+
+
+class FormSubmissionListSerializer(serializers.ModelSerializer):
+    """Light serializer for listing form submissions."""
+    
+    form_name = serializers.CharField(source='form.name', read_only=True)
+    form_icon = serializers.CharField(source='form.icon', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FormSubmission
+        fields = [
+            'id', 'form', 'form_name', 'form_icon', 'status',
+            'created_by', 'created_by_name', 'progress',
+            'created_at', 'updated_at', 'completed_at'
+        ]
+        read_only_fields = '__all__'
+    
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            return obj.created_by.get_full_name() or obj.created_by.username
+        return None
+    
+    def get_progress(self, obj):
+        completed, total = obj.progress
+        return {
+            'completed': completed,
+            'total': total,
+            'percent': obj.progress_percent
+        }
+
+
+class FormSubmissionDetailSerializer(serializers.ModelSerializer):
+    """Full serializer for form submission details."""
+    
+    form_name = serializers.CharField(source='form.name', read_only=True)
+    form_description = serializers.CharField(source='form.description', read_only=True)
+    form_icon = serializers.CharField(source='form.icon', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    step_submissions = FormStepSubmissionSerializer(many=True, read_only=True)
+    current_step_name = serializers.CharField(source='current_step.step_name', read_only=True)
+    progress = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FormSubmission
+        fields = [
+            'id', 'tenant', 'form', 'form_name', 'form_description', 'form_icon',
+            'status', 'current_step', 'current_step_name',
+            'data', 'form_snapshot', 'step_submissions', 'progress',
+            'created_by', 'created_by_name',
+            'created_at', 'updated_at', 'completed_at'
+        ]
+        read_only_fields = [
+            'id', 'tenant', 'form_name', 'form_description', 'form_icon',
+            'form_snapshot', 'step_submissions', 'progress',
+            'created_by_name', 'created_at', 'updated_at', 'completed_at'
+        ]
+    
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            return obj.created_by.get_full_name() or obj.created_by.username
+        return None
+    
+    def get_progress(self, obj):
+        completed, total = obj.progress
+        return {
+            'completed': completed,
+            'total': total,
+            'percent': obj.progress_percent
+        }
+
+
+class FormSubmissionCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating new form submissions."""
+    
+    class Meta:
+        model = FormSubmission
+        fields = ['form']
+    
+    def create(self, validated_data):
+        request = self.context.get('request')
+        validated_data['tenant'] = request.tenant
+        validated_data['created_by'] = request.user
+        return super().create(validated_data)
+
+
+class FormSubmissionAutoSaveSerializer(serializers.Serializer):
+    """Serializer for auto-saving field values."""
+    
+    step_id = serializers.UUIDField()
+    field_key = serializers.CharField(max_length=100)
+    value = serializers.JSONField(allow_null=True)
+    
+    def validate_step_id(self, value):
+        submission = self.context.get('submission')
+        if not submission:
+            raise serializers.ValidationError("No submission context provided")
+        
+        # Check step exists in form
+        if not submission.form.entities.filter(id=value).exists():
+            raise serializers.ValidationError("Step not found in this form")
+        
+        return value
+    
+    def validate_field_key(self, value):
+        # Field validation happens in the view where we have step context
+        return value
+
+
+class AvailableFormSerializer(serializers.ModelSerializer):
+    """Serializer for forms available for Quick Actions."""
+    
+    step_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TenantForm
+        fields = [
+            'id', 'name', 'description', 'icon', 'status',
+            'is_default', 'is_quick_action_enabled', 'step_count'
+        ]
+        read_only_fields = '__all__'
+    
+    def get_step_count(self, obj):
+        return obj.entities.count()
+
+
+class QuickActionItemSerializer(serializers.Serializer):
+    """Serializer for a single quick action item."""
+    
+    id = serializers.CharField()
+    type = serializers.ChoiceField(choices=['form', 'workflow'])
+    form_id = serializers.UUIDField(required=False, allow_null=True)
+    workflow_id = serializers.UUIDField(required=False, allow_null=True)
+    label = serializers.CharField(max_length=100)
+    icon = serializers.CharField(max_length=50, required=False, default='📄')
+    order = serializers.IntegerField(min_value=0)
+    
+    def validate(self, data):
+        if data['type'] == 'form' and not data.get('form_id'):
+            raise serializers.ValidationError("form_id is required for form type")
+        if data['type'] == 'workflow' and not data.get('workflow_id'):
+            raise serializers.ValidationError("workflow_id is required for workflow type")
+        return data
+
+
+class QuickActionsSerializer(serializers.Serializer):
+    """Serializer for user's quick actions list."""
+    
+    items = QuickActionItemSerializer(many=True)

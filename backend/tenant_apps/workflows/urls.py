@@ -16,7 +16,9 @@ from .views import (
     EntityFieldsAPIView, AvailableEntitiesAPIView,
     FormStepFieldsAPIView, FormStepReorderAPIView, SmartFieldMatchAPIView,
     FieldConfigAPIView, FormRulesAPIView, FormRuleDetailAPIView,
-    FormStepsAPIView, FormStepDetailAPIView
+    FormStepsAPIView, FormStepDetailAPIView,
+    # Form Submission API Views
+    FormSubmissionViewSet, AvailableFormsViewSet, QuickActionsAPIView
 )
 
 app_name = 'workflows'
@@ -38,6 +40,10 @@ router.register(r'workflow-conditions', TenantWorkflowConditionViewSet, basename
 router.register(r'workflow-actions', TenantWorkflowActionViewSet, basename='tenant-workflow-action')
 router.register(r'execution-logs', WorkflowExecutionLogViewSet, basename='workflow-execution-log')
 
+# Form Submissions
+router.register(r'form-submissions', FormSubmissionViewSet, basename='form-submission')
+router.register(r'available-forms', AvailableFormsViewSet, basename='available-form')
+
 urlpatterns = [
     path('', include(router.urls)),
     
@@ -52,4 +58,7 @@ urlpatterns = [
     path('admin/fields/<uuid:field_id>/config/', FieldConfigAPIView.as_view(), name='admin-field-config'),
     path('admin/forms/<uuid:form_id>/rules/', FormRulesAPIView.as_view(), name='admin-form-rules'),
     path('admin/rules/<uuid:rule_id>/', FormRuleDetailAPIView.as_view(), name='admin-rule-detail'),
+    
+    # Quick Actions API endpoints
+    path('quick-actions/', QuickActionsAPIView.as_view(), name='quick-actions'),
 ]
