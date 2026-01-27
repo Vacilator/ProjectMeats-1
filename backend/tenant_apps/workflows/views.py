@@ -1433,43 +1433,52 @@ class QuickActionsAPIView(APIView):
     
     def put(self, request):
         """Update user's quick actions."""
-        serializer = QuickActionsSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        items = serializer.validated_data['items']
-        
-        # Validate that referenced forms exist and are available
-        for item in items:
-            if item['type'] == 'form' and item.get('form_id'):
-                form_exists = TenantForm.objects.filter(
-                    id=item['form_id'],
-                    tenant=request.tenant,
-                    is_quick_action_enabled=True
-                ).exists()
-                if not form_exists:
-                    return Response(
-                        {'error': f'Form {item["form_id"]} is not available for quick actions'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-        
-        # Update preferences
-        from apps.core.models import UserPreferences
-        prefs, created = UserPreferences.objects.get_or_create(user=request.user)
-        
-        # Convert UUID objects to strings for JSON storage
-        serializable_items = []
-        for item in items:
-            serializable_item = dict(item)
-            if 'form_id' in serializable_item and serializable_item['form_id']:
-                serializable_item['form_id'] = str(serializable_item['form_id'])
-            if 'workflow_id' in serializable_item and serializable_item['workflow_id']:
-                serializable_item['workflow_id'] = str(serializable_item['workflow_id'])
-            serializable_items.append(serializable_item)
-        
-        prefs.quick_menu_items = serializable_items
-        prefs.save(update_fields=['quick_menu_items', 'updated_at'])
-        
-        return Response({
-            'success': True,
-            'items': serializable_items
-        })
+        try:
+            serializer = QuickActionsSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            items = serializer.validated_data['items']
+            
+            # Validate that referenced forms exist and are available
+            for item in items:
+                if item['type'] == 'form' and item.get('form_id'):
+                    form_exists = TenantForm.objects.filter(
+                        id=item['form_id'],
+                        tenant=request.tenant,
+                        is_quick_action_enabled=True
+                    ).exists()
+                    if not form_exists:
+                        return Response(
+                            {'error': f'Form {item["form_id"]} is not available for quick actions'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+            
+            # Update preferences
+            from apps.core.models import UserPreferences
+            prefs, created = UserPreferences.objects.get_or_create(user=request.user)
+            
+            # Convert UUID objects to strings for JSON storage
+            serializable_items = []
+            for item in items:
+                serializable_item = dict(item)
+                if 'form_id' in serializable_item and serializable_item['form_id']:
+                    serializable_item['form_id'] = str(serializable_item['form_id'])
+                if 'workflow_id' in serializable_item and serializable_item['workflow_id']:
+                    serializable_item['workflow_id'] = str(serializable_item['workflow_id'])
+                serializable_items.append(serializable_item)
+            
+            prefs.quick_menu_items = serializable_items
+            prefs.save(update_fields=['quick_menu_items', 'updated_at'])
+            
+            return Response({
+                'success': True,
+                'items': serializable_items
+            })
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Error updating quick actions: {e}")
+            return Response(
+                {'error': f'Failed to update quick actions: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

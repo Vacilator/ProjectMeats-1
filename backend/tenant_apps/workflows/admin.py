@@ -132,9 +132,9 @@ class TenantFormAdmin(TenantFilteredAdmin):
     form = TenantFormAdminForm
     list_display = [
         'name', 'tenant', 'status_badge', 'entity_count', 
-        'is_default', 'created_at'
+        'is_default', 'quick_action_badge', 'created_at'
     ]
-    list_filter = ['tenant', 'status', 'is_default', 'created_at']
+    list_filter = ['tenant', 'status', 'is_default', 'is_quick_action_enabled', 'created_at']
     search_fields = ['name', 'description', 'tenant__name']
     readonly_fields = ['id', 'created_at', 'updated_at']
     ordering = ['tenant', 'name']
@@ -143,7 +143,7 @@ class TenantFormAdmin(TenantFilteredAdmin):
     # Custom template for visual form builder
     change_form_template = 'admin/workflows/tenantform/change_form.html'
     
-    actions = ['activate_forms', 'deactivate_forms']
+    actions = ['activate_forms', 'deactivate_forms', 'enable_quick_action', 'disable_quick_action']
     
     fieldsets = [
         ('Form Information', {
@@ -151,8 +151,8 @@ class TenantFormAdmin(TenantFilteredAdmin):
             'description': 'Create a custom form for data entry. Add entities (steps) below to define what data this form collects.'
         }),
         ('Status & Settings', {
-            'fields': ('status', 'is_default'),
-            'description': 'Active forms are available for use. Default forms are used automatically when creating new records.'
+            'fields': ('status', 'is_default', 'is_quick_action_enabled'),
+            'description': 'Active forms are available for use. Default forms are used automatically when creating new records. Quick Action enabled forms can be added to user\'s Quick Actions menu.'
         }),
         ('Metadata', {
             'fields': ('id', 'created_by', 'created_at', 'updated_at'),
@@ -198,6 +198,19 @@ class TenantFormAdmin(TenantFilteredAdmin):
     status_badge.short_description = 'Status'
     status_badge.admin_order_field = 'status'
     
+    def quick_action_badge(self, obj):
+        if obj.is_quick_action_enabled:
+            return format_html(
+                '<span style="background: #28a745; color: white; padding: 2px 8px; '
+                'border-radius: 10px; font-size: 11px;">⚡ Enabled</span>'
+            )
+        return format_html(
+            '<span style="background: #6c757d; color: white; padding: 2px 8px; '
+            'border-radius: 10px; font-size: 11px;">Disabled</span>'
+        )
+    quick_action_badge.short_description = 'Quick Action'
+    quick_action_badge.admin_order_field = 'is_quick_action_enabled'
+    
     @admin.action(description="✅ Activate selected forms")
     def activate_forms(self, request, queryset):
         updated = queryset.filter(status=FormStatus.DRAFT).update(status=FormStatus.ACTIVE)
@@ -207,6 +220,16 @@ class TenantFormAdmin(TenantFilteredAdmin):
     def deactivate_forms(self, request, queryset):
         updated = queryset.exclude(status=FormStatus.INACTIVE).update(status=FormStatus.INACTIVE)
         self.message_user(request, f"Deactivated {updated} form(s).", messages.SUCCESS)
+    
+    @admin.action(description="⚡ Enable Quick Action for selected forms")
+    def enable_quick_action(self, request, queryset):
+        updated = queryset.update(is_quick_action_enabled=True)
+        self.message_user(request, f"Enabled Quick Action for {updated} form(s).", messages.SUCCESS)
+    
+    @admin.action(description="🚫 Disable Quick Action for selected forms")
+    def disable_quick_action(self, request, queryset):
+        updated = queryset.update(is_quick_action_enabled=False)
+        self.message_user(request, f"Disabled Quick Action for {updated} form(s).", messages.SUCCESS)
     
     def save_model(self, request, obj, form, change):
         if not change:

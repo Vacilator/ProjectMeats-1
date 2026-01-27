@@ -197,7 +197,7 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div<{ $theme: Theme }>`
-  background: ${({ $theme }) => $theme.surface};
+  background: ${({ $theme }) => $theme.colors.surface};
   border-radius: 12px;
   width: 90%;
   max-width: 600px;
@@ -212,12 +212,12 @@ const ModalHeader = styled.div<{ $theme: Theme }>`
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid ${({ $theme }) => $theme.border};
+  border-bottom: 1px solid ${({ $theme }) => $theme.colors.border};
 
   h2 {
     margin: 0;
     font-size: 18px;
-    color: ${({ $theme }) => $theme.text};
+    color: ${({ $theme }) => $theme.colors.textPrimary};
   }
 `;
 
@@ -226,12 +226,12 @@ const CloseButton = styled.button<{ $theme: Theme }>`
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: ${({ $theme }) => $theme.textSecondary};
+  color: ${({ $theme }) => $theme.colors.textSecondary};
   padding: 4px 8px;
   border-radius: 4px;
 
   &:hover {
-    background: ${({ $theme }) => $theme.hover};
+    background: ${({ $theme }) => $theme.colors.surfaceHover};
   }
 `;
 
@@ -253,13 +253,13 @@ const SectionTitle = styled.h3<{ $theme: Theme }>`
   margin: 0 0 12px 0;
   font-size: 14px;
   font-weight: 600;
-  color: ${({ $theme }) => $theme.textSecondary};
+  color: ${({ $theme }) => $theme.colors.textSecondary};
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
 
 const ActionsList = styled.div<{ $theme: Theme }>`
-  border: 1px solid ${({ $theme }) => $theme.border};
+  border: 1px solid ${({ $theme }) => $theme.colors.border};
   border-radius: 8px;
   overflow: hidden;
 `;
@@ -268,15 +268,15 @@ const ActionItem = styled.div<{ $theme: Theme }>`
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid ${({ $theme }) => $theme.border};
-  background: ${({ $theme }) => $theme.surface};
+  border-bottom: 1px solid ${({ $theme }) => $theme.colors.border};
+  background: ${({ $theme }) => $theme.colors.surface};
 
   &:last-child {
     border-bottom: none;
   }
 
   &:hover {
-    background: ${({ $theme }) => $theme.hover};
+    background: ${({ $theme }) => $theme.colors.surfaceHover};
   }
 `;
 
@@ -296,12 +296,12 @@ const ActionControls = styled.div`
 `;
 
 const ControlButton = styled.button<{ $theme: Theme }>`
-  background: ${({ $theme }) => $theme.hover};
-  border: 1px solid ${({ $theme }) => $theme.border};
+  background: ${({ $theme }) => $theme.colors.surfaceHover};
+  border: 1px solid ${({ $theme }) => $theme.colors.border};
   border-radius: 4px;
   padding: 4px 8px;
   cursor: pointer;
-  color: ${({ $theme }) => $theme.text};
+  color: ${({ $theme }) => $theme.colors.textPrimary};
 
   &:disabled {
     opacity: 0.3;
@@ -309,7 +309,7 @@ const ControlButton = styled.button<{ $theme: Theme }>`
   }
 
   &:not(:disabled):hover {
-    background: ${({ $theme }) => $theme.border};
+    background: ${({ $theme }) => $theme.colors.border};
   }
 `;
 
@@ -322,7 +322,7 @@ const RemoveButton = styled(ControlButton)`
 `;
 
 const AvailableList = styled.div<{ $theme: Theme }>`
-  border: 1px solid ${({ $theme }) => $theme.border};
+  border: 1px solid ${({ $theme }) => $theme.colors.border};
   border-radius: 8px;
   max-height: 200px;
   overflow-y: auto;
@@ -332,16 +332,16 @@ const AvailableItem = styled.div<{ $theme: Theme }>`
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid ${({ $theme }) => $theme.border};
+  border-bottom: 1px solid ${({ $theme }) => $theme.colors.border};
   cursor: pointer;
-  background: ${({ $theme }) => $theme.surface};
+  background: ${({ $theme }) => $theme.colors.surface};
 
   &:last-child {
     border-bottom: none;
   }
 
   &:hover {
-    background: ${({ $theme }) => $theme.hover};
+    background: ${({ $theme }) => $theme.colors.surfaceHover};
   }
 `;
 
@@ -359,7 +359,7 @@ const FormMeta = styled.div`
 `;
 
 const AddButton = styled.button<{ $theme: Theme }>`
-  background: ${({ $theme }) => $theme.primary};
+  background: ${({ $theme }) => $theme.colors.primary};
   color: white;
   border: none;
   border-radius: 4px;
@@ -375,7 +375,7 @@ const AddButton = styled.button<{ $theme: Theme }>`
 const EmptyMessage = styled.div<{ $theme: Theme }>`
   padding: 24px;
   text-align: center;
-  color: ${({ $theme }) => $theme.textSecondary};
+  color: ${({ $theme }) => $theme.colors.textSecondary};
   font-style: italic;
 `;
 
@@ -393,13 +393,13 @@ const ModalFooter = styled.div<{ $theme: Theme }>`
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid ${({ $theme }) => $theme.border};
+  border-top: 1px solid ${({ $theme }) => $theme.colors.border};
 `;
 
 const CancelButton = styled.button<{ $theme: Theme }>`
-  background: ${({ $theme }) => $theme.hover};
-  color: ${({ $theme }) => $theme.text};
-  border: 1px solid ${({ $theme }) => $theme.border};
+  background: ${({ $theme }) => $theme.colors.surfaceHover};
+  color: ${({ $theme }) => $theme.colors.textPrimary};
+  border: 1px solid ${({ $theme }) => $theme.colors.border};
   border-radius: 6px;
   padding: 10px 20px;
   font-size: 14px;
@@ -411,12 +411,12 @@ const CancelButton = styled.button<{ $theme: Theme }>`
   }
 
   &:not(:disabled):hover {
-    background: ${({ $theme }) => $theme.border};
+    background: ${({ $theme }) => $theme.colors.border};
   }
 `;
 
 const SaveButton = styled.button<{ $theme: Theme }>`
-  background: ${({ $theme }) => $theme.primary};
+  background: ${({ $theme }) => $theme.colors.primary};
   color: white;
   border: none;
   border-radius: 6px;
