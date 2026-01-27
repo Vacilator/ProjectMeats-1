@@ -363,6 +363,7 @@ POST /api/v1/workflows/form-submissions/{id}/complete-step/
 | #2071 | Jan 2026 | Form Execution UI and MySubmissions page | ✅ Merged |
 | #2074 | Jan 2026 | Conditional Rules Engine and Step Notes | ✅ Merged |
 | #2075 | Jan 2026 | Critical bug fixes for form execution | ✅ Merged |
+| #2079 | Jan 2026 | Phase 7 - UX polish with notifications and request cancellation | ✅ Merged |
 
 ---
 
@@ -397,6 +398,12 @@ POST /api/v1/workflows/form-submissions/{id}/complete-step/
    - Rules captured in form_snapshot for version safety
    - Null-safe comparisons
 
+5. **UX Polish (Phase 7)** ✅ (PR #2079)
+   - **Notification System**: Centralized `notify` utility using Ant Design message
+   - **Request Cancellation**: CancelTokenManager for API request management
+   - **Auto-cancel Duplicate Saves**: Rapid field changes don't cause race conditions
+   - **Better Error Handling**: Toast notifications instead of browser alerts
+
 ### Future Enhancements
 
 - Split path conditional logic (path A vs path B based on field value)
@@ -406,7 +413,7 @@ POST /api/v1/workflows/form-submissions/{id}/complete-step/
 - Form templates
 - Analytics/reporting
 - File attachments for step notes
-- Request cancellation with AbortController (performance optimization)
+- Skeleton loaders for improved loading UX
 
 ---
 
@@ -418,4 +425,4 @@ POST /api/v1/workflows/form-submissions/{id}/complete-step/
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: January 27, 2026*
