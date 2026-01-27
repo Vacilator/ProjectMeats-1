@@ -111,6 +111,12 @@ class FormStepFieldsAPIView(APIView):
                 'visible': field.is_visible,
                 'order': field.order,
                 'help_text': field.custom_help_text,
+                # Phase 3: Include auto-populate indicator
+                'hasAutoPopulate': bool(field.auto_populate_source_step and field.auto_populate_source_field),
+                'autoPopulateSource': (
+                    f"{field.auto_populate_source_step.step_name or field.auto_populate_source_step.entity_type}.{field.auto_populate_source_field}"
+                    if field.auto_populate_source_step else None
+                ),
             })
         
         # Mark which available fields are already selected
@@ -224,6 +230,136 @@ class SmartFieldMatchAPIView(APIView):
             'source_field': source_field,
             'target_entity_type': target_entity_type,
             'matches': matches,
+        })
+
+
+class FieldConfigAPIView(APIView):
+    """
+    API endpoint for configuring individual field settings.
+    Used by the field configuration modal in form builder.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, field_id):
+        """Get field configuration including auto-populate settings."""
+        try:
+            field = TenantFormField.objects.select_related(
+                'form_entity', 
+                'form_entity__form',
+                'auto_populate_source_step'
+            ).get(pk=field_id)
+        except TenantFormField.DoesNotExist:
+            return Response(
+                {'error': 'Field not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get available source steps (all steps before this field's step)
+        current_step = field.form_entity
+        form = current_step.form
+        available_source_steps = []
+        
+        for step in form.entities.filter(order__lt=current_step.order).order_by('order'):
+            step_fields = get_entity_fields(step.entity_type)
+            available_source_steps.append({
+                'id': str(step.id),
+                'name': step.step_name or step.entity_type.replace('_', ' ').title(),
+                'entity_type': step.entity_type,
+                'order': step.order,
+                'fields': step_fields,
+            })
+        
+        # Get smart match suggestions if there are source steps
+        suggestions = []
+        if available_source_steps:
+            # Get this field's metadata
+            field_meta = next(
+                (f for f in get_entity_fields(current_step.entity_type) 
+                 if f['key'] == field.field_key),
+                {'key': field.field_key, 'type': 'text'}
+            )
+            
+            # Find matches in all prior steps
+            for source_step in available_source_steps:
+                matches = FieldRegistry.find_matching_fields(
+                    field_meta, 
+                    source_step['entity_type']
+                )
+                for match in matches[:3]:  # Top 3 matches per step
+                    suggestions.append({
+                        'source_step_id': source_step['id'],
+                        'source_step_name': source_step['name'],
+                        'source_field_key': match['field']['key'],
+                        'source_field_label': match['field']['label'],
+                        'score': match['score'],
+                        'reasons': match['reasons'],
+                    })
+            
+            # Sort by score descending
+            suggestions.sort(key=lambda x: x['score'], reverse=True)
+        
+        return Response({
+            'field_id': str(field_id),
+            'field_key': field.field_key,
+            'custom_label': field.custom_label,
+            'custom_help_text': field.custom_help_text,
+            'is_required': field.is_required,
+            'is_visible': field.is_visible,
+            'default_value': field.default_value,
+            'auto_populate': {
+                'source_step': str(field.auto_populate_source_step.id) if field.auto_populate_source_step else None,
+                'source_step_name': (field.auto_populate_source_step.step_name or field.auto_populate_source_step.entity_type) if field.auto_populate_source_step else None,
+                'source_field': field.auto_populate_source_field,
+                'mode': field.auto_populate_mode,
+            },
+            'available_source_steps': available_source_steps,
+            'suggestions': suggestions[:5],  # Top 5 suggestions overall
+        })
+    
+    def post(self, request, field_id):
+        """Update field configuration including auto-populate settings."""
+        try:
+            field = TenantFormField.objects.get(pk=field_id)
+        except TenantFormField.DoesNotExist:
+            return Response(
+                {'error': 'Field not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Update basic settings
+        if 'custom_label' in request.data:
+            field.custom_label = request.data['custom_label']
+        if 'custom_help_text' in request.data:
+            field.custom_help_text = request.data['custom_help_text']
+        if 'is_required' in request.data:
+            field.is_required = request.data['is_required']
+        if 'is_visible' in request.data:
+            field.is_visible = request.data['is_visible']
+        if 'default_value' in request.data:
+            field.default_value = request.data['default_value']
+        
+        # Update auto-populate settings
+        auto_populate = request.data.get('auto_populate', {})
+        if auto_populate:
+            source_step_id = auto_populate.get('source_step')
+            if source_step_id:
+                try:
+                    source_step = TenantFormEntity.objects.get(pk=source_step_id)
+                    field.auto_populate_source_step = source_step
+                except TenantFormEntity.DoesNotExist:
+                    pass
+            else:
+                field.auto_populate_source_step = None
+            
+            field.auto_populate_source_field = auto_populate.get('source_field', '')
+            field.auto_populate_mode = auto_populate.get('mode', '')
+        
+        field.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Field configuration saved',
+            'field_id': str(field_id),
         })
 
 

@@ -41,13 +41,23 @@ class TenantListSerializer(serializers.ModelSerializer):
 class TenantFormFieldSerializer(serializers.ModelSerializer):
     """Serializer for TenantFormField model."""
     
+    # Include source step name for display
+    auto_populate_source_step_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = TenantFormField
         fields = [
             'id', 'field_key', 'is_visible', 'is_required', 'order',
-            'custom_label', 'custom_help_text', 'default_value'
+            'custom_label', 'custom_help_text', 'default_value',
+            'auto_populate_source_step', 'auto_populate_source_field',
+            'auto_populate_mode', 'auto_populate_source_step_name'
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'auto_populate_source_step_name']
+    
+    def get_auto_populate_source_step_name(self, obj):
+        if obj.auto_populate_source_step:
+            return obj.auto_populate_source_step.step_name or obj.auto_populate_source_step.entity_type
+        return None
 
 
 class TenantFormEntitySerializer(serializers.ModelSerializer):

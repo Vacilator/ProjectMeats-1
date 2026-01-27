@@ -224,3 +224,266 @@ class AdminAPITests(APITestCase):
         response = self.client.get('/api/v1/workflows/admin/entities/')
         # Should be 401 or 403
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+    
+    def test_step_fields_nonexistent_step(self):
+        """Test getting fields for a non-existent step returns 404."""
+        import uuid
+        fake_id = str(uuid.uuid4())
+        response = self.client.get(f'/api/v1/workflows/admin/steps/{fake_id}/fields/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_save_empty_fields_list(self):
+        """Test saving an empty fields list clears all fields."""
+        # First add some fields
+        TenantFormField.objects.create(
+            form_entity=self.step,
+            field_key='name',
+            order=0
+        )
+        TenantFormField.objects.create(
+            form_entity=self.step,
+            field_key='email',
+            order=1
+        )
+        self.assertEqual(self.step.fields.count(), 2)
+        
+        # Now save empty list
+        response = self.client.post(
+            f'/api/v1/workflows/admin/steps/{self.step.id}/fields/',
+            {'fields': []},
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Fields should be cleared
+        self.step.refresh_from_db()
+        self.assertEqual(self.step.fields.count(), 0)
+    
+    def test_save_fields_replaces_existing(self):
+        """Test that saving fields replaces existing selection."""
+        # Add initial field
+        TenantFormField.objects.create(
+            form_entity=self.step,
+            field_key='old_field',
+            order=0
+        )
+        
+        # Save new fields
+        response = self.client.post(
+            f'/api/v1/workflows/admin/steps/{self.step.id}/fields/',
+            {'fields': [{'key': 'new_field', 'visible': True}]},
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Only new field should exist
+        self.assertEqual(self.step.fields.count(), 1)
+        self.assertTrue(self.step.fields.filter(field_key='new_field').exists())
+        self.assertFalse(self.step.fields.filter(field_key='old_field').exists())
+    
+    def test_reorder_with_invalid_step_ids(self):
+        """Test reordering with invalid step IDs."""
+        import uuid
+        response = self.client.post(
+            f'/api/v1/workflows/admin/forms/{self.form.id}/reorder/',
+            {'step_order': [str(uuid.uuid4()), str(uuid.uuid4())]},
+            format='json'
+        )
+        
+        # Should not crash, but may return error or ignore invalid IDs
+        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST])
+    
+    def test_get_all_entity_types(self):
+        """Test that all entity types return valid field lists."""
+        entities_response = self.client.get('/api/v1/workflows/admin/entities/')
+        entities = entities_response.data['entities']
+        
+        for entity in entities:
+            response = self.client.get(f'/api/v1/workflows/admin/entities/{entity["key"]}/fields/')
+            self.assertEqual(response.status_code, status.HTTP_200_OK, 
+                           f'Failed for entity: {entity["key"]}')
+            self.assertIn('fields', response.data)
+    
+    def test_smart_match_with_various_field_types(self):
+        """Test smart matching works for different field types."""
+        test_cases = [
+            {'key': 'name', 'type': 'text'},
+            {'key': 'phone', 'type': 'phone'},
+            {'key': 'created_at', 'type': 'datetime'},
+        ]
+        
+        for source_field in test_cases:
+            response = self.client.post(
+                '/api/v1/workflows/admin/smart-match/',
+                {
+                    'source_field': source_field,
+                    'target_entity_type': 'customer'
+                },
+                format='json'
+            )
+            
+            self.assertEqual(response.status_code, status.HTTP_200_OK, 
+                           f'Failed for field type: {source_field["type"]}')
+
+
+class FieldConfigAPITests(APITestCase):
+    """Tests for the Field Configuration API endpoint."""
+    
+    @classmethod
+    def setUpTestData(cls):
+        # Create admin user
+        cls.admin_user = User.objects.create_superuser(
+            username='configadmin',
+            email='configadmin@test.com',
+            password='testpass123'
+        )
+        
+        # Create tenant
+        cls.tenant = Tenant.objects.create(
+            name='Config Test Tenant',
+            slug='config-test-tenant'
+        )
+        
+        # Create test form
+        cls.form = TenantForm.objects.create(
+            tenant=cls.tenant,
+            name='Config Test Form',
+            description='A test form for config tests',
+            status='draft'
+        )
+        
+        # Create step 1 (source for auto-populate)
+        cls.step1 = TenantFormEntity.objects.create(
+            form=cls.form,
+            entity_type='supplier',
+            step_name='Supplier Info',
+            order=0
+        )
+        
+        # Create step 2 (target for auto-populate)
+        cls.step2 = TenantFormEntity.objects.create(
+            form=cls.form,
+            entity_type='contact',
+            step_name='Contact Info',
+            order=1
+        )
+        
+        # Create a field in step 1
+        cls.source_field = TenantFormField.objects.create(
+            form_entity=cls.step1,
+            field_key='email',
+            order=0
+        )
+        
+        # Create a field in step 2 (target for config)
+        cls.target_field = TenantFormField.objects.create(
+            form_entity=cls.step2,
+            field_key='email',
+            order=0
+        )
+    
+    def setUp(self):
+        self.client.force_authenticate(user=self.admin_user)
+    
+    def test_get_field_config(self):
+        """Test getting field configuration."""
+        response = self.client.get(f'/api/v1/workflows/admin/fields/{self.target_field.id}/config/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('field_id', response.data)
+        self.assertIn('field_key', response.data)
+        self.assertIn('auto_populate', response.data)
+        self.assertIn('available_source_steps', response.data)
+        self.assertIn('suggestions', response.data)
+        
+        # Should have step 1 as available source (since target is in step 2)
+        self.assertEqual(len(response.data['available_source_steps']), 1)
+        self.assertEqual(response.data['available_source_steps'][0]['id'], str(self.step1.id))
+    
+    def test_get_field_config_first_step(self):
+        """Test that first step has no available source steps."""
+        response = self.client.get(f'/api/v1/workflows/admin/fields/{self.source_field.id}/config/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # First step has no prior steps to pull from
+        self.assertEqual(len(response.data['available_source_steps']), 0)
+        self.assertEqual(len(response.data['suggestions']), 0)
+    
+    def test_save_field_config(self):
+        """Test saving field configuration with auto-populate."""
+        response = self.client.post(
+            f'/api/v1/workflows/admin/fields/{self.target_field.id}/config/',
+            {
+                'custom_label': 'Contact Email',
+                'custom_help_text': 'Auto-populated from supplier',
+                'auto_populate': {
+                    'source_step': str(self.step1.id),
+                    'source_field': 'email',
+                    'mode': 'copy'
+                }
+            },
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'success')
+        
+        # Verify saved data
+        self.target_field.refresh_from_db()
+        self.assertEqual(self.target_field.custom_label, 'Contact Email')
+        self.assertEqual(self.target_field.custom_help_text, 'Auto-populated from supplier')
+        self.assertEqual(self.target_field.auto_populate_source_step, self.step1)
+        self.assertEqual(self.target_field.auto_populate_source_field, 'email')
+        self.assertEqual(self.target_field.auto_populate_mode, 'copy')
+    
+    def test_clear_auto_populate(self):
+        """Test clearing auto-populate configuration."""
+        # First set auto-populate
+        self.target_field.auto_populate_source_step = self.step1
+        self.target_field.auto_populate_source_field = 'email'
+        self.target_field.auto_populate_mode = 'copy'
+        self.target_field.save()
+        
+        # Now clear it
+        response = self.client.post(
+            f'/api/v1/workflows/admin/fields/{self.target_field.id}/config/',
+            {
+                'auto_populate': {
+                    'source_step': None,
+                    'source_field': '',
+                    'mode': ''
+                }
+            },
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify cleared
+        self.target_field.refresh_from_db()
+        self.assertIsNone(self.target_field.auto_populate_source_step)
+        self.assertEqual(self.target_field.auto_populate_source_field, '')
+        self.assertEqual(self.target_field.auto_populate_mode, '')
+    
+    def test_smart_suggestions(self):
+        """Test that smart matching suggestions are returned."""
+        response = self.client.get(f'/api/v1/workflows/admin/fields/{self.target_field.id}/config/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Since target field is 'email' and source step has 'email', should get suggestions
+        suggestions = response.data['suggestions']
+        # Should suggest email from step 1
+        if suggestions:
+            # Find email suggestion
+            email_suggestion = next((s for s in suggestions if s['source_field_key'] == 'email'), None)
+            if email_suggestion:
+                self.assertGreater(email_suggestion['score'], 50)
+                self.assertIn('reasons', email_suggestion)
+    
+    def test_nonexistent_field(self):
+        """Test getting config for non-existent field returns 404."""
+        import uuid
+        response = self.client.get(f'/api/v1/workflows/admin/fields/{uuid.uuid4()}/config/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

@@ -332,6 +332,33 @@ class TenantFormField(models.Model):
         help_text="Default value for this field in this form"
     )
     
+    # Auto-population configuration (Phase 3)
+    auto_populate_source_step = models.ForeignKey(
+        TenantFormEntity,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fields_that_use_as_source',
+        help_text="Step to pull auto-populate value from"
+    )
+    auto_populate_source_field = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Field key from source step to use for auto-population"
+    )
+    auto_populate_mode = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        choices=[
+            ('', 'None'),
+            ('copy', 'Copy Value'),
+            ('lookup', 'Lookup Reference'),
+        ],
+        help_text="How to populate: copy=direct value, lookup=fetch related record"
+    )
+    
     class Meta:
         verbose_name = "Form Field"
         verbose_name_plural = "Form Fields"
