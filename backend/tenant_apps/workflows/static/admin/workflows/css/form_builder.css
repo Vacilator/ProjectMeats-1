@@ -29,11 +29,50 @@
     --fb-darkened-bg: var(--darkened-bg, #f8f8f8);
     --fb-selected-bg: var(--selected-bg, #e4e4e4);
     
+    /* Input-specific colors for light mode */
+    --fb-input-bg: var(--body-bg, #fff);
+    --fb-input-fg: var(--body-fg, #333);
+    --fb-input-border: var(--border-color, #ccc);
+    --fb-input-placeholder: var(--body-quiet-color, #999);
+    
     /* UI constants */
     --fb-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     --fb-radius: 8px;
     --fb-radius-sm: 4px;
     --fb-transition: all 0.2s ease;
+}
+
+/* Dark mode support - Django Admin 4.1+ uses prefers-color-scheme */
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* Override with dark mode colors when Django Admin variables aren't available */
+        --fb-primary: var(--secondary, #4a9bc8);
+        --fb-primary-dark: var(--button-hover-bg, #3a7ca5);
+        --fb-secondary: var(--primary, #5a8fa8);
+        --fb-success: #2ea043;
+        --fb-warning: #d29922;
+        --fb-danger: var(--delete-button-bg, #cf6679);
+        --fb-info: var(--link-fg, #58a6ff);
+        
+        /* Dark theme backgrounds and text */
+        --fb-bg: var(--body-bg, #121212);
+        --fb-fg: var(--body-fg, #e0e0e0);
+        --fb-fg-quiet: var(--body-quiet-color, #a0a0a0);
+        --fb-fg-medium: var(--body-medium-color, #b0b0b0);
+        --fb-border: var(--border-color, #404040);
+        --fb-hairline: var(--hairline-color, #333);
+        --fb-darkened-bg: var(--darkened-bg, #1e1e1e);
+        --fb-selected-bg: var(--selected-bg, #2d2d2d);
+        
+        /* Input-specific colors for dark mode */
+        --fb-input-bg: var(--body-bg, #1e1e1e);
+        --fb-input-fg: var(--body-fg, #e0e0e0);
+        --fb-input-border: var(--border-color, #555);
+        --fb-input-placeholder: var(--body-quiet-color, #888);
+        
+        /* Adjusted shadow for dark mode */
+        --fb-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
 }
 
 /* ==========================================================================
@@ -577,16 +616,16 @@ kbd {
 .field-search {
     width: 100%;
     padding: 8px 12px;
-    border: 1px solid var(--fb-border);
+    border: 1px solid var(--fb-input-border);
     border-radius: var(--fb-radius-sm);
     margin-bottom: 12px;
     font-size: 13px;
-    background: var(--fb-bg);
-    color: var(--fb-fg);
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
 }
 
 .field-search::placeholder {
-    color: var(--fb-fg-quiet);
+    color: var(--fb-input-placeholder);
 }
 
 .field-list {
@@ -719,11 +758,11 @@ kbd {
 .action-builder select,
 .action-builder input {
     padding: 10px 12px;
-    border: 1px solid var(--fb-border);
+    border: 1px solid var(--fb-input-border);
     border-radius: var(--fb-radius-sm);
     font-size: 14px;
-    background: var(--fb-bg);
-    color: var(--fb-fg);
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
     min-height: 42px;
     line-height: 1.4;
 }
@@ -741,14 +780,19 @@ kbd {
 .action-builder input:focus {
     outline: none;
     border-color: var(--fb-primary);
-    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.1);
+    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.2);
 }
 
 .condition-builder select option,
 .action-builder select option {
     padding: 8px 12px;
-    background: var(--fb-bg);
-    color: var(--fb-fg);
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
+}
+
+.condition-builder input::placeholder,
+.action-builder input::placeholder {
+    color: var(--fb-input-placeholder);
 }
 
 .condition-step,
@@ -915,17 +959,21 @@ kbd {
     flex: 1;
     min-width: 150px;
     padding: 8px 12px;
-    border: 1px solid var(--fb-border);
+    border: 1px solid var(--fb-input-border);
     border-radius: var(--fb-radius-sm);
     font-size: 13px;
-    background: var(--fb-bg);
-    color: var(--fb-fg);
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
+}
+
+.field-value-input::placeholder {
+    color: var(--fb-input-placeholder);
 }
 
 .field-value-input:focus {
     outline: none;
     border-color: var(--fb-primary);
-    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.1);
+    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.2);
 }
 
 /* Preview Submit Button */
@@ -987,11 +1035,16 @@ kbd {
 .form-group textarea {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid var(--fb-border);
+    border: 1px solid var(--fb-input-border);
     border-radius: var(--fb-radius-sm);
     font-size: 14px;
-    background: var(--fb-bg);
-    color: var(--fb-fg);
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--fb-input-placeholder);
 }
 
 .form-group input:focus,
@@ -999,7 +1052,7 @@ kbd {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--fb-primary);
-    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.1);
+    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.2);
 }
 
 .form-group small {
@@ -1012,11 +1065,11 @@ kbd {
 .entity-select {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid var(--fb-border);
+    border: 1px solid var(--fb-input-border);
     border-radius: var(--fb-radius-sm);
     font-size: 14px;
-    background: var(--fb-bg);
-    color: var(--fb-fg);
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
     min-height: 42px;
     appearance: auto;
     cursor: pointer;
@@ -1025,13 +1078,13 @@ kbd {
 .entity-select:focus {
     outline: none;
     border-color: var(--fb-primary);
-    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.1);
+    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.2);
 }
 
 .entity-select option {
     padding: 8px 12px;
-    background: var(--fb-bg);
-    color: var(--fb-fg);
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
 }
 
 .btn {
@@ -1461,11 +1514,16 @@ kbd {
 .preview-textarea {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid var(--fb-border);
+    border: 1px solid var(--fb-input-border);
     border-radius: var(--fb-radius-sm);
     font-size: 14px;
-    background: var(--fb-darkened-bg);
-    color: var(--fb-fg-quiet);
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
+}
+
+.preview-input::placeholder,
+.preview-textarea::placeholder {
+    color: var(--fb-input-placeholder);
 }
 
 .preview-textarea {
