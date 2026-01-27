@@ -198,6 +198,153 @@ class FormStepReorderAPIView(APIView):
         })
 
 
+class FormStepsAPIView(APIView):
+    """
+    API endpoint for managing form steps (create/delete).
+    Used by the form builder admin interface.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, form_id):
+        """Get all steps for a form."""
+        try:
+            form = TenantForm.objects.get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        steps = form.entities.all().order_by('order')
+        steps_data = [{
+            'id': str(step.id),
+            'entity_type': step.entity_type,
+            'step_name': step.step_name or '',
+            'order': step.order,
+            'field_count': step.fields.count()
+        } for step in steps]
+        
+        return Response({
+            'form_id': str(form_id),
+            'form_name': form.name,
+            'steps': steps_data,
+            'count': len(steps_data)
+        })
+    
+    def post(self, request, form_id):
+        """Create a new step for a form."""
+        try:
+            form = TenantForm.objects.get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        entity_type = request.data.get('entity_type')
+        step_name = request.data.get('step_name', '')
+        
+        if not entity_type:
+            return Response(
+                {'error': 'entity_type is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get the next order number
+        max_order = form.entities.aggregate(Max('order'))['order__max']
+        next_order = 0 if max_order is None else max_order + 1
+        
+        # Create the step
+        step = TenantFormEntity.objects.create(
+            form=form,
+            entity_type=entity_type,
+            step_name=step_name,
+            order=next_order
+        )
+        
+        return Response({
+            'status': 'success',
+            'message': 'Step created',
+            'step': {
+                'id': str(step.id),
+                'entity_type': step.entity_type,
+                'step_name': step.step_name or '',
+                'order': step.order,
+                'field_count': 0
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+class FormStepDetailAPIView(APIView):
+    """
+    API endpoint for managing individual form steps (get/update/delete).
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, step_id):
+        """Get a single step."""
+        try:
+            step = TenantFormEntity.objects.get(pk=step_id)
+        except TenantFormEntity.DoesNotExist:
+            return Response(
+                {'error': 'Step not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        return Response({
+            'id': str(step.id),
+            'form_id': str(step.form_id),
+            'entity_type': step.entity_type,
+            'step_name': step.step_name or '',
+            'order': step.order,
+            'field_count': step.fields.count()
+        })
+    
+    def put(self, request, step_id):
+        """Update a step."""
+        try:
+            step = TenantFormEntity.objects.get(pk=step_id)
+        except TenantFormEntity.DoesNotExist:
+            return Response(
+                {'error': 'Step not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Update allowed fields
+        if 'entity_type' in request.data:
+            step.entity_type = request.data['entity_type']
+        if 'step_name' in request.data:
+            step.step_name = request.data['step_name']
+        if 'order' in request.data:
+            step.order = request.data['order']
+        
+        step.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Step updated',
+            'step': {
+                'id': str(step.id),
+                'entity_type': step.entity_type,
+                'step_name': step.step_name or '',
+                'order': step.order
+            }
+        })
+    
+    def delete(self, request, step_id):
+        """Delete a step."""
+        try:
+            step = TenantFormEntity.objects.get(pk=step_id)
+        except TenantFormEntity.DoesNotExist:
+            return Response(
+                {'error': 'Step not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        step.delete()
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 class SmartFieldMatchAPIView(APIView):
     """
     API endpoint for smart field matching suggestions.
@@ -361,6 +508,10 @@ class FieldConfigAPIView(APIView):
             'message': 'Field configuration saved',
             'field_id': str(field_id),
         })
+    
+    # Allow PUT as an alias for POST (RESTful convention)
+    def put(self, request, field_id):
+        return self.post(request, field_id)
 
 
 class FormRulesAPIView(APIView):

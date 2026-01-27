@@ -518,7 +518,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>Entity Type</label>
-                    <select x-model="newStep.entityType" class="entity-select">
+                    <select x-model="newStep.entityType" class="entity-select" :disabled="newStep.saving">
                         <option value="">-- Select Entity --</option>
                         <option value="supplier">Supplier</option>
                         <option value="customer">Customer</option>
@@ -534,13 +534,16 @@
                 </div>
                 <div class="form-group">
                     <label>Step Name (optional)</label>
-                    <input type="text" x-model="newStep.stepName" placeholder="e.g., Supplier Information">
+                    <input type="text" x-model="newStep.stepName" placeholder="e.g., Supplier Information" :disabled="newStep.saving">
                     <small>Leave blank to use entity name</small>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" @click="closeAddStepModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" @click="addStep()">➕ Add Step</button>
+                <button type="button" class="btn btn-secondary" @click="closeAddStepModal()" :disabled="newStep.saving">Cancel</button>
+                <button type="button" class="btn btn-primary" @click="addStep()" :disabled="newStep.saving">
+                    <span x-show="!newStep.saving">➕ Add Step</span>
+                    <span x-show="newStep.saving">⏳ Adding...</span>
+                </button>
             </div>
         </div>
     </div>

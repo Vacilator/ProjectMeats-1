@@ -1134,7 +1134,7 @@ function formBuilder() {
         // ==================== ADD STEP ====================
         
         openAddStepModal() {
-            this.newStep = { entityType: '', stepName: '' };
+            this.newStep = { entityType: '', stepName: '', saving: false };
             this.showAddStepModal = true;
         },
         
@@ -1144,39 +1144,85 @@ function formBuilder() {
         
         async addStep() {
             if (!this.newStep.entityType) {
-                alert('Please select an entity type');
+                this.showNotification('Please select an entity type', 'error');
                 return;
             }
             
-            // TODO: Add step via AJAX or Django inline management
-            console.log('Add step:', this.newStep);
-            
-            // For now, we'll need to use Django's inline formset management
-            // This requires clicking the "Add another" button in the hidden inlines
-            const addButton = document.querySelector('.add-row a, .inline-group .add-row');
-            if (addButton) {
-                addButton.click();
-                
-                // Then populate the new inline form
-                setTimeout(() => {
-                    const inlines = document.querySelectorAll('.inline-related:not(.empty-form)');
-                    const lastInline = inlines[inlines.length - 1];
-                    if (lastInline) {
-                        const entityTypeInput = lastInline.querySelector('[name$="-entity_type"]');
-                        const stepNameInput = lastInline.querySelector('[name$="-step_name"]');
-                        const orderInput = lastInline.querySelector('[name$="-order"]');
-                        
-                        if (entityTypeInput) entityTypeInput.value = this.newStep.entityType;
-                        if (stepNameInput) stepNameInput.value = this.newStep.stepName;
-                        if (orderInput) orderInput.value = this.stepCount;
-                    }
-                }, 100);
+            const formId = this.getFormId();
+            if (!formId) {
+                this.showNotification('Could not determine form ID', 'error');
+                return;
             }
             
-            this.closeAddStepModal();
+            this.newStep.saving = true;
             
-            // Reload the page to see changes (temporary until full AJAX implementation)
-            alert('Step added! Save the form to see the new step.\n\n(In future versions, this will update instantly)');
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/forms/${formId}/steps/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        entity_type: this.newStep.entityType,
+                        step_name: this.newStep.stepName || ''
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to add step');
+                }
+                
+                const data = await response.json();
+                console.log('Step created:', data);
+                
+                this.closeAddStepModal();
+                this.showNotification(`Step "${data.step.entity_type}" added successfully!`, 'success');
+                
+                // Reload the page to show the new step card
+                // (Django admin needs full reload to render the new inline)
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error adding step:', error);
+                this.showNotification(error.message || 'Failed to add step', 'error');
+            } finally {
+                this.newStep.saving = false;
+            }
+        },
+        
+        async deleteStep(stepId) {
+            if (!confirm('Are you sure you want to delete this step? All field configurations will be lost.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/steps/${stepId}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                });
+                
+                if (!response.ok && response.status !== 204) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to delete step');
+                }
+                
+                this.showNotification('Step deleted successfully', 'success');
+                
+                // Reload to reflect changes
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error deleting step:', error);
+                this.showNotification(error.message || 'Failed to delete step', 'error');
+            }
         }
     };
 }

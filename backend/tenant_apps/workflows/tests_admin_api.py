@@ -695,3 +695,142 @@ class FormRulesAPITests(APITestCase):
         import uuid
         response = self.client.delete(f'/api/v1/workflows/admin/rules/{uuid.uuid4()}/')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class FormStepsAPITests(APITestCase):
+    """Tests for the Form Steps API endpoints (create/delete steps)."""
+    
+    @classmethod
+    def setUpTestData(cls):
+        # Create admin user
+        cls.admin_user = User.objects.create_superuser(
+            username='stepsadmin',
+            email='stepsadmin@test.com',
+            password='testpass123'
+        )
+        
+        # Create tenant
+        cls.tenant = Tenant.objects.create(
+            name='Steps Test Tenant',
+            slug='steps-test-tenant'
+        )
+        
+        # Create test form
+        cls.form = TenantForm.objects.create(
+            tenant=cls.tenant,
+            name='Steps Test Form',
+            description='A test form for steps tests',
+            status='draft'
+        )
+    
+    def setUp(self):
+        self.client.force_authenticate(user=self.admin_user)
+    
+    def test_get_form_steps(self):
+        """Test getting steps for a form."""
+        # Create some steps first
+        TenantFormEntity.objects.create(
+            form=self.form,
+            entity_type='supplier',
+            step_name='Step 1',
+            order=0
+        )
+        TenantFormEntity.objects.create(
+            form=self.form,
+            entity_type='customer',
+            step_name='Step 2',
+            order=1
+        )
+        
+        response = self.client.get(f'/api/v1/workflows/admin/forms/{self.form.id}/steps/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['form_id'], str(self.form.id))
+        self.assertEqual(response.data['count'], 2)
+        self.assertEqual(len(response.data['steps']), 2)
+    
+    def test_create_step(self):
+        """Test creating a new step via API."""
+        initial_count = TenantFormEntity.objects.filter(form=self.form).count()
+        
+        response = self.client.post(
+            f'/api/v1/workflows/admin/forms/{self.form.id}/steps/',
+            {
+                'entity_type': 'product',
+                'step_name': 'Product Details'
+            },
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['step']['entity_type'], 'product')
+        self.assertEqual(response.data['step']['step_name'], 'Product Details')
+        
+        # Verify step was created
+        new_count = TenantFormEntity.objects.filter(form=self.form).count()
+        self.assertEqual(new_count, initial_count + 1)
+    
+    def test_create_step_auto_order(self):
+        """Test that new steps get auto-incrementing order."""
+        # Create first step
+        response1 = self.client.post(
+            f'/api/v1/workflows/admin/forms/{self.form.id}/steps/',
+            {'entity_type': 'supplier'},
+            format='json'
+        )
+        self.assertEqual(response1.data['step']['order'], 0)
+        
+        # Create second step
+        response2 = self.client.post(
+            f'/api/v1/workflows/admin/forms/{self.form.id}/steps/',
+            {'entity_type': 'customer'},
+            format='json'
+        )
+        self.assertEqual(response2.data['step']['order'], 1)
+        
+        # Create third step
+        response3 = self.client.post(
+            f'/api/v1/workflows/admin/forms/{self.form.id}/steps/',
+            {'entity_type': 'product'},
+            format='json'
+        )
+        self.assertEqual(response3.data['step']['order'], 2)
+    
+    def test_create_step_missing_entity_type(self):
+        """Test that creating step without entity_type returns error."""
+        response = self.client.post(
+            f'/api/v1/workflows/admin/forms/{self.form.id}/steps/',
+            {'step_name': 'No Entity'},
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+    
+    def test_delete_step(self):
+        """Test deleting a step via API."""
+        step = TenantFormEntity.objects.create(
+            form=self.form,
+            entity_type='carrier',
+            step_name='To Delete',
+            order=0
+        )
+        
+        response = self.client.delete(f'/api/v1/workflows/admin/steps/{step.id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        # Verify step was deleted
+        self.assertFalse(TenantFormEntity.objects.filter(id=step.id).exists())
+    
+    def test_delete_nonexistent_step(self):
+        """Test deleting non-existent step returns 404."""
+        import uuid
+        response = self.client.delete(f'/api/v1/workflows/admin/steps/{uuid.uuid4()}/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_get_nonexistent_form_steps(self):
+        """Test getting steps for non-existent form returns 404."""
+        import uuid
+        response = self.client.get(f'/api/v1/workflows/admin/forms/{uuid.uuid4()}/steps/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
