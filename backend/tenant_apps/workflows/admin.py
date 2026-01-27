@@ -450,3 +450,140 @@ class WorkflowExecutionLogAdmin(admin.ModelAdmin):
                 return f"{int(seconds // 60)}m {int(seconds % 60)}s"
         return "Running..."
     duration.short_description = 'Duration'
+
+
+# =============================================================================
+# FORM SUBMISSION ADMIN
+# =============================================================================
+
+from .models import FormSubmission, FormStepSubmission
+
+
+class FormStepSubmissionInline(admin.TabularInline):
+    """Inline admin for step submissions within a form submission."""
+    model = FormStepSubmission
+    extra = 0
+    readonly_fields = ['step', 'status', 'completed_at', 'completed_by', 'created_at']
+    fields = ['step', 'status', 'completed_at', 'completed_by']
+    can_delete = False
+    
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(FormSubmission)
+class FormSubmissionAdmin(TenantFilteredAdmin):
+    """Admin for form submissions."""
+    
+    list_display = ['form_name', 'status_badge', 'created_by', 'progress_display', 'created_at', 'updated_at']
+    list_filter = ['status', 'form', 'tenant', 'created_at']
+    search_fields = ['form__name', 'created_by__username', 'created_by__first_name', 'created_by__last_name']
+    readonly_fields = ['id', 'form_snapshot', 'created_at', 'updated_at', 'completed_at']
+    ordering = ['-updated_at']
+    inlines = [FormStepSubmissionInline]
+    
+    fieldsets = [
+        ('Submission Details', {
+            'fields': ('tenant', 'form', 'status', 'created_by'),
+        }),
+        ('Progress', {
+            'fields': ('current_step',),
+        }),
+        ('Data', {
+            'fields': ('data',),
+            'classes': ['collapse'],
+        }),
+        ('Metadata', {
+            'fields': ('id', 'form_snapshot', 'created_at', 'updated_at', 'completed_at'),
+            'classes': ['collapse'],
+        }),
+    ]
+    
+    def form_name(self, obj):
+        return obj.form.name
+    form_name.short_description = 'Form'
+    form_name.admin_order_field = 'form__name'
+    
+    def status_badge(self, obj):
+        colors = {
+            'draft': '#6c757d',
+            'in_progress': '#0d6efd',
+            'completed': '#198754',
+            'cancelled': '#dc3545',
+        }
+        color = colors.get(obj.status, '#6c757d')
+        return format_html(
+            '<span style="background: {}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    status_badge.short_description = 'Status'
+    status_badge.admin_order_field = 'status'
+    
+    def progress_display(self, obj):
+        completed, total = obj.progress
+        if total == 0:
+            return '-'
+        percent = obj.progress_percent
+        return format_html(
+            '<span title="{}% complete">{}/{} steps</span>',
+            percent, completed, total
+        )
+    progress_display.short_description = 'Progress'
+
+
+@admin.register(FormStepSubmission)
+class FormStepSubmissionAdmin(TenantFilteredAdmin):
+    """Admin for step submissions (usually accessed via inline)."""
+    
+    list_display = ['submission_form', 'step_name', 'status_badge', 'completed_at', 'completed_by']
+    list_filter = ['status', 'submission__form', 'completed_at']
+    search_fields = ['submission__form__name', 'step__step_name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    ordering = ['-updated_at']
+    
+    fieldsets = [
+        ('Step Details', {
+            'fields': ('submission', 'step', 'status'),
+        }),
+        ('Completion', {
+            'fields': ('completed_at', 'completed_by'),
+        }),
+        ('Data', {
+            'fields': ('data',),
+            'classes': ['collapse'],
+        }),
+        ('Metadata', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ['collapse'],
+        }),
+    ]
+    
+    def submission_form(self, obj):
+        return obj.submission.form.name
+    submission_form.short_description = 'Form'
+    
+    def step_name(self, obj):
+        return obj.step.step_name
+    step_name.short_description = 'Step'
+    
+    def status_badge(self, obj):
+        colors = {
+            'not_started': '#6c757d',
+            'in_progress': '#0d6efd',
+            'action_needed': '#ffc107',
+            'completed': '#198754',
+            'skipped': '#adb5bd',
+        }
+        color = colors.get(obj.status, '#6c757d')
+        text_color = 'black' if obj.status == 'action_needed' else 'white'
+        return format_html(
+            '<span style="background: {}; color: {}; padding: 3px 8px; border-radius: 4px; font-size: 11px;">{}</span>',
+            color, text_color, obj.get_status_display()
+        )
+    status_badge.short_description = 'Status'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'submission', 'submission__form', 'step', 'completed_by'
+        )

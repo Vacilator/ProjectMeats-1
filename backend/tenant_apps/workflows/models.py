@@ -199,6 +199,12 @@ class TenantForm(models.Model):
         help_text="Icon identifier for UI"
     )
     
+    # Quick Actions availability
+    is_quick_action_enabled = models.BooleanField(
+        default=False,
+        help_text="Allow this form to be added to user Quick Actions menu"
+    )
+    
     # Audit
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -363,6 +369,13 @@ class TenantFormField(models.Model):
             ('lookup', 'Lookup Reference'),
         ],
         help_text="How to populate: copy=direct value, lookup=fetch related record"
+    )
+    
+    # Validation rules (client and server side)
+    validation_rules = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Validation rules: min_length, max_length, pattern, min, max, etc."
     )
     
     class Meta:
@@ -729,3 +742,204 @@ class WorkflowExecutionLog(models.Model):
     
     def __str__(self):
         return f"{self.workflow.name} - {self.status} ({self.started_at})"
+
+
+# =============================================================================
+# FORM SUBMISSION MODELS
+# =============================================================================
+
+class FormSubmissionStatus(models.TextChoices):
+    """Status choices for form submissions."""
+    DRAFT = 'draft', 'Draft'
+    IN_PROGRESS = 'in_progress', 'In Progress'
+    COMPLETED = 'completed', 'Completed'
+    CANCELLED = 'cancelled', 'Cancelled'
+
+
+class StepSubmissionStatus(models.TextChoices):
+    """Status choices for individual step submissions."""
+    NOT_STARTED = 'not_started', 'Not Started'
+    IN_PROGRESS = 'in_progress', 'In Progress'
+    ACTION_NEEDED = 'action_needed', 'Action Needed'
+    COMPLETED = 'completed', 'Completed'
+    SKIPPED = 'skipped', 'Skipped'
+
+
+class FormSubmission(models.Model):
+    """
+    Tracks a single execution/submission of a TenantForm.
+    
+    Created when a user starts filling out a form from Quick Actions.
+    Supports auto-save (draft mode) and step-by-step completion tracking.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='form_submissions',
+        help_text="Tenant this submission belongs to"
+    )
+    form = models.ForeignKey(
+        TenantForm,
+        on_delete=models.CASCADE,
+        related_name='submissions',
+        help_text="The form being submitted"
+    )
+    
+    # Status tracking
+    status = models.CharField(
+        max_length=20,
+        choices=FormSubmissionStatus.choices,
+        default=FormSubmissionStatus.DRAFT,
+        help_text="Current status of the submission"
+    )
+    
+    # Current step (for multi-step forms)
+    current_step = models.ForeignKey(
+        TenantFormEntity,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='current_submissions',
+        help_text="The step the user is currently on"
+    )
+    
+    # All submitted data (keyed by step_id.field_key)
+    data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="All field values: { step_id: { field_key: value } }"
+    )
+    
+    # Snapshot of form structure at creation time (for versioning)
+    form_snapshot = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Snapshot of form structure at submission creation"
+    )
+    
+    # Audit fields
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='form_submissions',
+        help_text="User who created this submission"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when submission was completed"
+    )
+    
+    class Meta:
+        verbose_name = "Form Submission"
+        verbose_name_plural = "Form Submissions"
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['tenant', 'status']),
+            models.Index(fields=['created_by', 'status']),
+            models.Index(fields=['form', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.form.name} - {self.status} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
+    
+    @property
+    def progress(self):
+        """Returns completion progress as (completed_steps, total_steps)."""
+        total = self.step_submissions.count()
+        completed = self.step_submissions.filter(
+            status=StepSubmissionStatus.COMPLETED
+        ).count()
+        return (completed, total)
+    
+    @property
+    def progress_percent(self):
+        """Returns completion percentage."""
+        completed, total = self.progress
+        if total == 0:
+            return 0
+        return int((completed / total) * 100)
+
+
+class FormStepSubmission(models.Model):
+    """
+    Tracks the status and data for a single step in a form submission.
+    
+    Each step can have its own status (action_needed, completed, etc.)
+    and supports notes via ActivityLog (GenericForeignKey).
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submission = models.ForeignKey(
+        FormSubmission,
+        on_delete=models.CASCADE,
+        related_name='step_submissions',
+        help_text="Parent form submission"
+    )
+    step = models.ForeignKey(
+        TenantFormEntity,
+        on_delete=models.CASCADE,
+        related_name='step_submissions',
+        help_text="The form step/entity"
+    )
+    
+    # Step-specific status
+    status = models.CharField(
+        max_length=20,
+        choices=StepSubmissionStatus.choices,
+        default=StepSubmissionStatus.NOT_STARTED,
+        help_text="Current status of this step"
+    )
+    
+    # Step-specific data (subset of FormSubmission.data for this step)
+    data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Field values for this step: { field_key: value }"
+    )
+    
+    # Completion tracking
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when step was marked complete"
+    )
+    completed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='completed_step_submissions',
+        help_text="User who completed this step"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Step Submission"
+        verbose_name_plural = "Step Submissions"
+        ordering = ['submission', 'step__order']
+        unique_together = [['submission', 'step']]
+    
+    def __str__(self):
+        return f"{self.submission.form.name} - {self.step.step_name} ({self.status})"
+    
+    def mark_completed(self, user=None):
+        """Mark this step as completed."""
+        self.status = StepSubmissionStatus.COMPLETED
+        self.completed_at = timezone.now()
+        self.completed_by = user
+        self.save(update_fields=['status', 'completed_at', 'completed_by', 'updated_at'])
+    
+    def mark_action_needed(self, reason=None):
+        """Mark this step as needing action."""
+        self.status = StepSubmissionStatus.ACTION_NEEDED
+        self.save(update_fields=['status', 'updated_at'])
