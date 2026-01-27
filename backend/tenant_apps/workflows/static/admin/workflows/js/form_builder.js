@@ -1133,7 +1133,7 @@ function formBuilder() {
         
         // ==================== ADD STEP ====================
         
-        showAddStepModal() {
+        openAddStepModal() {
             this.newStep = { entityType: '', stepName: '' };
             this.showAddStepModal = true;
         },
