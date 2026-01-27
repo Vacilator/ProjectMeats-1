@@ -106,10 +106,42 @@ function formBuilder() {
             // Update hidden form fields for Django
             this.updateInlineOrder(newOrder);
             
-            // Optionally save via AJAX
-            // await this.saveStepOrder(newOrder);
+            // Save via AJAX
+            await this.saveStepOrder(newOrder);
             
             console.log('Steps reordered:', newOrder);
+        },
+        
+        async saveStepOrder(newOrder) {
+            // Get form ID from URL
+            const pathParts = window.location.pathname.split('/');
+            const formIdIndex = pathParts.findIndex(p => p === 'tenantform') + 1;
+            const formId = pathParts[formIdIndex];
+            
+            if (!formId || formId === 'add') {
+                console.log('New form - order will be saved with form submission');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/forms/${formId}/reorder/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ step_order: newOrder.map(s => s.id) })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                console.log('Step order saved');
+            } catch (error) {
+                console.error('Error saving step order:', error);
+            }
         },
         
         // Update Django inline form order fields
@@ -143,13 +175,13 @@ function formBuilder() {
         
         // ==================== FIELD EDITOR ====================
         
-        openFieldEditor(stepId) {
+        async openFieldEditor(stepId) {
             this.currentStepId = stepId;
             const step = this.formSteps.find(s => s.id === stepId);
             this.currentStepName = step ? step.name : 'Unknown Step';
             
-            // Load fields for this step's entity type
-            this.loadFieldsForEntity(step?.entityType || 'supplier');
+            // Load fields from API
+            await this.loadFieldsFromAPI(stepId);
             
             this.showFieldModal = true;
         },
@@ -160,8 +192,42 @@ function formBuilder() {
             this.fieldSearch = '';
         },
         
+        async loadFieldsFromAPI(stepId) {
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/steps/${stepId}/fields/`, {
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                this.selectedFields = data.selected_fields || [];
+                this.availableFields = data.available_fields || [];
+                this.filteredAvailableFields = [...this.availableFields];
+                this.currentStepName = data.step_name;
+                
+                console.log('Loaded fields:', {
+                    selected: this.selectedFields.length,
+                    available: this.availableFields.length
+                });
+            } catch (error) {
+                console.error('Error loading fields:', error);
+                // Fallback to showing empty state
+                this.selectedFields = [];
+                this.availableFields = [];
+                this.filteredAvailableFields = [];
+            }
+        },
+        
+        // Fallback for when API is not available (during development)
         loadFieldsForEntity(entityType) {
-            // Entity field definitions (will be fetched from API in production)
+            // Entity field definitions (fallback - will be fetched from API in production)
             const entityFields = {
                 supplier: [
                     { key: 'name', label: 'Name', type: 'text', required: true },
@@ -304,15 +370,77 @@ function formBuilder() {
         },
         
         async saveFieldSelection() {
-            // TODO: Save via AJAX to backend
-            console.log('Saving field selection for step:', this.currentStepId);
-            console.log('Selected fields:', this.selectedFields.map(f => f.key));
+            if (!this.currentStepId) {
+                console.error('No step ID set');
+                return;
+            }
             
-            // For now, close the modal
-            this.closeFieldModal();
+            try {
+                // Prepare field data
+                const fieldsData = this.selectedFields.map((f, index) => ({
+                    key: f.key,
+                    visible: true,
+                    required: f.required || false,
+                    custom_label: '',
+                    help_text: '',
+                }));
+                
+                const response = await fetch(`/api/v1/workflows/admin/steps/${this.currentStepId}/fields/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ fields: fieldsData })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Saved field selection:', result);
+                
+                // Update the step card to show new field count
+                const stepCard = document.querySelector(`.step-card[data-step-id="${this.currentStepId}"]`);
+                if (stepCard) {
+                    const fieldCountEl = stepCard.querySelector('.stat strong');
+                    if (fieldCountEl) {
+                        fieldCountEl.textContent = this.selectedFields.length;
+                    }
+                }
+                
+                // Close modal
+                this.closeFieldModal();
+                
+                // Show success feedback
+                this.showNotification('Fields saved successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Error saving fields:', error);
+                this.showNotification('Error saving fields. Please try again.', 'error');
+            }
+        },
+        
+        showNotification(message, type = 'info') {
+            // Simple notification using Django admin style
+            const container = document.querySelector('.messagelist') || this.createMessageList();
+            const li = document.createElement('li');
+            li.className = type === 'error' ? 'error' : 'success';
+            li.textContent = message;
+            container.appendChild(li);
             
-            // Show success message
-            alert('Field selection saved! (AJAX save coming soon)');
+            // Auto-remove after 5 seconds
+            setTimeout(() => li.remove(), 5000);
+        },
+        
+        createMessageList() {
+            const container = document.createElement('ul');
+            container.className = 'messagelist';
+            const content = document.querySelector('#content') || document.body;
+            content.insertBefore(container, content.firstChild);
+            return container;
         },
         
         // ==================== RULE EDITOR ====================
