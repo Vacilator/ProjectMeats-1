@@ -2,8 +2,9 @@
  * Quick Actions Service
  *
  * Handles API calls for Quick Actions and Form Submissions.
+ * Supports request cancellation via AbortController.
  */
-import axios from 'axios';
+import axios, { CancelTokenSource } from 'axios';
 import { config } from '../config/runtime';
 
 const API_BASE_URL = config.API_BASE_URL;
@@ -31,6 +32,41 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Cancel token manager for request cancellation
+class CancelTokenManager {
+  private tokens: Map<string, CancelTokenSource> = new Map();
+
+  create(key: string): CancelTokenSource {
+    // Cancel existing request with same key
+    this.cancel(key);
+    
+    const source = axios.CancelToken.source();
+    this.tokens.set(key, source);
+    return source;
+  }
+
+  cancel(key: string, message?: string): void {
+    const source = this.tokens.get(key);
+    if (source) {
+      source.cancel(message || `Request ${key} cancelled`);
+      this.tokens.delete(key);
+    }
+  }
+
+  cancelAll(message?: string): void {
+    this.tokens.forEach((source, key) => {
+      source.cancel(message || `Request ${key} cancelled`);
+    });
+    this.tokens.clear();
+  }
+
+  remove(key: string): void {
+    this.tokens.delete(key);
+  }
+}
+
+export const cancelTokenManager = new CancelTokenManager();
 
 // Types
 export interface QuickActionItem {
@@ -116,9 +152,14 @@ export interface FormSubmissionListItem {
 export const quickActionsService = {
   /**
    * Get user's current quick actions
+   * @param cancelKey - Optional key for cancellation tracking
    */
-  async getQuickActions(): Promise<{ items: QuickActionItem[] }> {
-    const response = await apiClient.get('/workflows/quick-actions/');
+  async getQuickActions(cancelKey?: string): Promise<{ items: QuickActionItem[] }> {
+    const config = cancelKey 
+      ? { cancelToken: cancelTokenManager.create(cancelKey).token }
+      : {};
+    const response = await apiClient.get('/workflows/quick-actions/', config);
+    if (cancelKey) cancelTokenManager.remove(cancelKey);
     return response.data;
   },
 
@@ -132,9 +173,14 @@ export const quickActionsService = {
 
   /**
    * Get forms available for Quick Actions
+   * @param cancelKey - Optional key for cancellation tracking
    */
-  async getAvailableForms(): Promise<AvailableForm[]> {
-    const response = await apiClient.get('/workflows/available-forms/');
+  async getAvailableForms(cancelKey?: string): Promise<AvailableForm[]> {
+    const config = cancelKey 
+      ? { cancelToken: cancelTokenManager.create(cancelKey).token }
+      : {};
+    const response = await apiClient.get('/workflows/available-forms/', config);
+    if (cancelKey) cancelTokenManager.remove(cancelKey);
     return response.data;
   },
 };
@@ -143,9 +189,14 @@ export const quickActionsService = {
 export const formSubmissionService = {
   /**
    * List user's form submissions
+   * @param cancelKey - Optional key for cancellation tracking
    */
-  async list(params?: { status?: string; form?: string }): Promise<FormSubmissionListItem[]> {
-    const response = await apiClient.get('/workflows/form-submissions/', { params });
+  async list(params?: { status?: string; form?: string }, cancelKey?: string): Promise<FormSubmissionListItem[]> {
+    const config = cancelKey 
+      ? { params, cancelToken: cancelTokenManager.create(cancelKey).token }
+      : { params };
+    const response = await apiClient.get('/workflows/form-submissions/', config);
+    if (cancelKey) cancelTokenManager.remove(cancelKey);
     return response.data;
   },
 
@@ -159,14 +210,20 @@ export const formSubmissionService = {
 
   /**
    * Get submission details
+   * @param cancelKey - Optional key for cancellation tracking
    */
-  async get(submissionId: string): Promise<FormSubmission> {
-    const response = await apiClient.get(`/workflows/form-submissions/${submissionId}/`);
+  async get(submissionId: string, cancelKey?: string): Promise<FormSubmission> {
+    const config = cancelKey 
+      ? { cancelToken: cancelTokenManager.create(cancelKey).token }
+      : {};
+    const response = await apiClient.get(`/workflows/form-submissions/${submissionId}/`, config);
+    if (cancelKey) cancelTokenManager.remove(cancelKey);
     return response.data;
   },
 
   /**
    * Auto-save a field value
+   * Uses cancel token keyed by submission+step+field to prevent duplicate saves
    */
   async autoSave(
     submissionId: string,
@@ -174,12 +231,26 @@ export const formSubmissionService = {
     fieldKey: string,
     value: any
   ): Promise<{ success: boolean; saved_at: string }> {
-    const response = await apiClient.post(`/workflows/form-submissions/${submissionId}/auto-save/`, {
-      step_id: stepId,
-      field_key: fieldKey,
-      value,
-    });
-    return response.data;
+    // Cancel any pending save for this field
+    const cancelKey = `autosave-${submissionId}-${stepId}-${fieldKey}`;
+    const source = cancelTokenManager.create(cancelKey);
+    
+    try {
+      const response = await apiClient.post(
+        `/workflows/form-submissions/${submissionId}/auto-save/`, 
+        { step_id: stepId, field_key: fieldKey, value },
+        { cancelToken: source.token }
+      );
+      cancelTokenManager.remove(cancelKey);
+      return response.data;
+    } catch (err) {
+      if (!axios.isCancel(err)) {
+        cancelTokenManager.remove(cancelKey);
+        throw err;
+      }
+      // If cancelled, return a cancelled result
+      throw err;
+    }
   },
 
   /**
@@ -224,4 +295,7 @@ export const formSubmissionService = {
   },
 };
 
-export default { quickActionsService, formSubmissionService };
+// Utility to check if an error is a cancellation
+export const isRequestCancelled = axios.isCancel;
+
+export default { quickActionsService, formSubmissionService, cancelTokenManager, isRequestCancelled };

@@ -4,14 +4,16 @@
  * Main modal for executing a form submission with multi-step support.
  * Includes conditional rules engine for dynamic field/step visibility.
  */
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import FormStep, { StepConfig } from './FormStep';
 import { FieldConfig } from './FormField';
 import { 
   FormSubmission, 
   StepSubmission,
-  formSubmissionService 
+  formSubmissionService,
+  cancelTokenManager,
+  isRequestCancelled,
 } from '../../services/quickActionsService';
 import {
   ConditionalRule,
@@ -22,6 +24,7 @@ import {
   VisibilityState,
   FormData as RuleFormData,
 } from '../../utils/formRuleEngine';
+import { notify } from '../../utils/notify';
 
 interface FormSubmissionModalProps {
   submission: FormSubmission;
@@ -443,6 +446,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
     try {
       await formSubmissionService.autoSave(submission.id, stepId, fieldKey, value);
+      
+      if (!isMounted) return;
+      
       setLastSaved(new Date());
       
       // Update local submission data
@@ -457,6 +463,13 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         },
       }));
     } catch (err: any) {
+      // Don't show error if request was cancelled (likely due to rapid field changes)
+      if (isRequestCancelled(err)) {
+        return;
+      }
+      
+      if (!isMounted) return;
+      
       console.error('Auto-save failed:', err);
       setErrors(prev => ({
         ...prev,
@@ -466,13 +479,15 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         },
       }));
     } finally {
-      setSavingFields(prev => {
-        const stepFields = new Set(prev[stepId] || []);
-        stepFields.delete(fieldKey);
-        return { ...prev, [stepId]: stepFields };
-      });
+      if (isMounted) {
+        setSavingFields(prev => {
+          const stepFields = new Set(prev[stepId] || []);
+          stepFields.delete(fieldKey);
+          return { ...prev, [stepId]: stepFields };
+        });
+      }
     }
-  }, [localValues, submission.id]);
+  }, [localValues, submission.id, isMounted]);
 
   const handleCompleteStep = useCallback(async (stepId: string) => {
     try {
@@ -502,7 +517,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       }
     } catch (err: any) {
       console.error('Failed to complete step:', err);
-      alert(err.response?.data?.error || 'Failed to complete step');
+      notify.handleApiError(err, 'Failed to complete step');
     }
   }, [submission.id, visibleSteps]);
 
@@ -521,6 +536,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       
       setSubmission(updatedSubmission);
       onSubmissionUpdate?.(updatedSubmission);
+      
+      notify.success('Form submitted successfully!');
 
       // Close after short delay to show success (with cleanup guard)
       const timeoutId = setTimeout(() => {
@@ -540,10 +557,11 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         );
         if (confirmForce) {
           await formSubmissionService.submit(submission.id, true);
+          notify.success('Form submitted successfully!');
           if (isMounted) onClose();
         }
       } else {
-        alert(err.response?.data?.error || 'Failed to submit form');
+        notify.handleApiError(err, 'Failed to submit form');
       }
     } finally {
       if (isMounted) setIsSubmitting(false);
@@ -559,10 +577,11 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     setIsCancelling(true);
     try {
       await formSubmissionService.cancel(submission.id);
+      notify.info('Form cancelled');
       onClose();
     } catch (err: any) {
       console.error('Failed to cancel form:', err);
-      alert(err.response?.data?.error || 'Failed to cancel form');
+      notify.handleApiError(err, 'Failed to cancel form');
     } finally {
       setIsCancelling(false);
     }
@@ -570,6 +589,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   const handleSaveAndClose = useCallback(() => {
     // Auto-save already handles saving, just close
+    notify.success('Progress saved');
     onClose();
   }, [onClose]);
 
