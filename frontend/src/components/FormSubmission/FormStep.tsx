@@ -1,11 +1,12 @@
 /**
  * FormStep Component
  * 
- * Renders a single step within a form submission with fields.
+ * Renders a single step within a form submission with fields and notes.
  */
 import React, { useCallback, useState, useMemo } from 'react';
 import styled from 'styled-components';
 import FormField, { FieldConfig } from './FormField';
+import StepNotes from './StepNotes';
 import { StepSubmission } from '../../services/quickActionsService';
 
 export interface StepConfig {
@@ -19,6 +20,7 @@ export interface StepConfig {
 interface FormStepProps {
   step: StepConfig;
   stepSubmission: StepSubmission;
+  submissionId: string;
   values: Record<string, any>;
   onFieldChange: (fieldKey: string, value: any) => void;
   onFieldBlur: (fieldKey: string) => void;
@@ -27,6 +29,7 @@ interface FormStepProps {
   errors: Record<string, string>;
   disabled?: boolean;
   isActive?: boolean;
+  showNotes?: boolean;
 }
 
 const StepContainer = styled.div<{ isActive?: boolean }>`
@@ -230,6 +233,7 @@ const getStatusLabel = (status: string): string => {
 const FormStep: React.FC<FormStepProps> = ({
   step,
   stepSubmission,
+  submissionId,
   values,
   onFieldChange,
   onFieldBlur,
@@ -238,6 +242,7 @@ const FormStep: React.FC<FormStepProps> = ({
   errors,
   disabled = false,
   isActive = false,
+  showNotes = true,
 }) => {
   const [isCompleting, setIsCompleting] = useState(false);
 
@@ -313,6 +318,16 @@ const FormStep: React.FC<FormStepProps> = ({
             {isCompleting ? 'Completing...' : '✓ Complete Step'}
           </Button>
         </StepFooter>
+      )}
+
+      {/* Step Notes */}
+      {showNotes && (
+        <StepNotes
+          submissionId={submissionId}
+          stepId={step.id}
+          stepName={step.name}
+          disabled={disabled}
+        />
       )}
     </StepContainer>
   );

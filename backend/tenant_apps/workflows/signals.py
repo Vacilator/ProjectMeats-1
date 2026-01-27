@@ -66,7 +66,8 @@ def _build_form_snapshot(form):
         'name': form.name,
         'description': form.description,
         'icon': form.icon,
-        'steps': []
+        'steps': [],
+        'rules': []  # Conditional rules for dynamic behavior
     }
     
     for entity in form.entities.all().order_by('order'):
@@ -123,5 +124,17 @@ def _build_form_snapshot(form):
             step_data['fields'].append(field_data)
         
         snapshot['steps'].append(step_data)
+    
+    # Include active conditional rules
+    for rule in form.rules.filter(is_active=True).order_by('order'):
+        rule_data = {
+            'id': str(rule.id),
+            'name': rule.name,
+            'order': rule.order,
+            'conditions': rule.conditions,
+            'condition_logic': rule.condition_logic,
+            'actions': rule.actions,
+        }
+        snapshot['rules'].append(rule_data)
     
     return snapshot

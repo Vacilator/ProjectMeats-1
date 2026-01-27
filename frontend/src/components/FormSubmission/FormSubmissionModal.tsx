@@ -2,6 +2,7 @@
  * FormSubmissionModal Component
  * 
  * Main modal for executing a form submission with multi-step support.
+ * Includes conditional rules engine for dynamic field/step visibility.
  */
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
@@ -12,6 +13,15 @@ import {
   StepSubmission,
   formSubmissionService 
 } from '../../services/quickActionsService';
+import {
+  ConditionalRule,
+  evaluateRules,
+  isFieldVisible,
+  isStepVisible,
+  getFilteredOptions,
+  VisibilityState,
+  FormData as RuleFormData,
+} from '../../utils/formRuleEngine';
 
 interface FormSubmissionModalProps {
   submission: FormSubmission;
@@ -304,6 +314,33 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       }));
   }, [submission.form_snapshot]);
 
+  // Parse conditional rules from snapshot
+  const rules: ConditionalRule[] = useMemo(() => {
+    const snapshot = submission.form_snapshot;
+    if (!snapshot?.rules) return [];
+    return snapshot.rules as ConditionalRule[];
+  }, [submission.form_snapshot]);
+
+  // Compute visibility state based on rules and current values
+  const visibilityState: VisibilityState = useMemo(() => {
+    if (rules.length === 0) {
+      return {
+        hiddenFields: new Set<string>(),
+        hiddenSteps: new Set<string>(),
+        filteredOptions: new Map<string, string[]>(),
+        setValues: new Map<string, unknown>(),
+      };
+    }
+    // Convert localValues to RuleFormData format
+    const formData: RuleFormData = localValues;
+    return evaluateRules(rules, formData);
+  }, [rules, localValues]);
+
+  // Filter visible steps based on rules
+  const visibleSteps: StepConfig[] = useMemo(() => {
+    return steps.filter(step => isStepVisible(step.id, visibilityState));
+  }, [steps, visibilityState]);
+
   // Get step submission map
   const stepSubmissionMap: Record<string, StepSubmission> = useMemo(() => {
     const map: Record<string, StepSubmission> = {};
@@ -325,15 +362,46 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   // Find current step based on submission or navigation
   useEffect(() => {
     if (submission.current_step) {
-      const idx = steps.findIndex(s => s.id === submission.current_step);
+      const idx = visibleSteps.findIndex(s => s.id === submission.current_step);
       if (idx >= 0) {
         setCurrentStepIndex(idx);
       }
     }
-  }, [submission.current_step, steps]);
+  }, [submission.current_step, visibleSteps]);
 
-  const currentStep = steps[currentStepIndex];
+  // Ensure current step index is valid within visible steps
+  useEffect(() => {
+    if (currentStepIndex >= visibleSteps.length && visibleSteps.length > 0) {
+      setCurrentStepIndex(visibleSteps.length - 1);
+    }
+  }, [currentStepIndex, visibleSteps.length]);
+
+  const currentStep = visibleSteps[currentStepIndex];
   const currentStepSubmission = currentStep ? stepSubmissionMap[currentStep.id] : null;
+
+  // Filter visible fields for current step based on rules
+  const visibleFields: FieldConfig[] = useMemo(() => {
+    if (!currentStep) return [];
+    return currentStep.fields.filter(field => 
+      isFieldVisible(currentStep.id, field.key, visibilityState)
+    );
+  }, [currentStep, visibilityState]);
+
+  // Apply filtered options to visible fields
+  const fieldsWithFilteredOptions: FieldConfig[] = useMemo(() => {
+    return visibleFields.map(field => {
+      if (field.options && field.options.length > 0) {
+        const filtered = getFilteredOptions(
+          currentStep?.id || '', 
+          field.key, 
+          field.options,
+          visibilityState
+        );
+        return { ...field, options: filtered };
+      }
+      return field;
+    });
+  }, [visibleFields, currentStep?.id, visibilityState]);
 
   const handleFieldChange = useCallback((stepId: string, fieldKey: string, value: any) => {
     setLocalValues(prev => ({
@@ -416,7 +484,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
       // Navigate to next step if available
       if (result.next_step_id) {
-        const nextIdx = steps.findIndex(s => s.id === result.next_step_id);
+        const nextIdx = visibleSteps.findIndex(s => s.id === result.next_step_id);
         if (nextIdx >= 0) {
           setCurrentStepIndex(nextIdx);
         }
@@ -425,7 +493,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       console.error('Failed to complete step:', err);
       alert(err.response?.data?.error || 'Failed to complete step');
     }
-  }, [submission.id, steps]);
+  }, [submission.id, visibleSteps]);
 
   const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
@@ -491,8 +559,12 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   }, [onClose]);
 
   const allStepsCompleted = useMemo(() => {
-    return submission.step_submissions.every(ss => ss.status === 'completed');
-  }, [submission.step_submissions]);
+    // Only check visible steps for completion
+    return visibleSteps.every(step => {
+      const stepSub = stepSubmissionMap[step.id];
+      return stepSub?.status === 'completed';
+    });
+  }, [visibleSteps, stepSubmissionMap]);
 
   const formatLastSaved = useCallback((date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -521,15 +593,15 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             <ProgressFill percent={submission.progress.percent} />
           </ProgressTrack>
           <ProgressText>
-            <span>{submission.progress.completed} of {submission.progress.total} steps completed</span>
+            <span>{submission.progress.completed} of {visibleSteps.length} steps completed</span>
             <span>{submission.progress.percent}%</span>
           </ProgressText>
         </ProgressBar>
 
         <ModalBody>
-          {steps.length > 1 && (
+          {visibleSteps.length > 1 && (
             <StepNavigation>
-              {steps.map((step, idx) => {
+              {visibleSteps.map((step, idx) => {
                 const stepSub = stepSubmissionMap[step.id];
                 const isCompleted = stepSub?.status === 'completed';
                 const isActive = idx === currentStepIndex;
@@ -550,8 +622,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
           {currentStep && currentStepSubmission && (
             <FormStep
-              step={currentStep}
+              step={{ ...currentStep, fields: fieldsWithFilteredOptions }}
               stepSubmission={currentStepSubmission}
+              submissionId={submission.id}
               values={localValues[currentStep.id] || {}}
               onFieldChange={(fieldKey, value) => 
                 handleFieldChange(currentStep.id, fieldKey, value)
@@ -566,7 +639,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             />
           )}
 
-          {steps.length === 0 && (
+          {visibleSteps.length === 0 && (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
               No steps configured for this form.
             </p>
@@ -596,7 +669,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                 ← Previous
               </Button>
             )}
-            {currentStepIndex < steps.length - 1 && (
+            {currentStepIndex < visibleSteps.length - 1 && (
               <Button 
                 variant="primary" 
                 onClick={() => setCurrentStepIndex(prev => prev + 1)}
@@ -604,7 +677,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                 Next →
               </Button>
             )}
-            {currentStepIndex === steps.length - 1 && (
+            {currentStepIndex === visibleSteps.length - 1 && (
               <Button
                 variant="success"
                 onClick={handleSubmit}
