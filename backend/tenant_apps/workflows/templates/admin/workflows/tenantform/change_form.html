@@ -20,7 +20,7 @@
         {% block object-tools-items %}
         {% change_form_object_tools %}
         <li>
-            <a href="#" @click.prevent="togglePreview()" class="viewlink">
+            <a href="#" @click.prevent="openPreview()" class="viewlink">
                 👁️ {% translate "Preview Form" %}
             </a>
         </li>
@@ -57,9 +57,17 @@
             <!-- Custom Visual Form Builder Section -->
             {% if change %}
             <fieldset class="module form-builder-section">
-                <h2>📊 Form Steps</h2>
+                <h2>📊 Form Steps 
+                    <span class="help-tooltip" title="Each step represents an entity (like Supplier, Customer, etc.) that users will fill out. Steps are completed in order from left to right.">ℹ️</span>
+                </h2>
                 <div class="form-builder-description">
                     <p>Design your form by adding steps (entities) and configuring which fields appear in each step. Drag steps to reorder them.</p>
+                    <ul class="help-list">
+                        <li><strong>Edit Fields</strong> - Select which fields from the entity to include in this step</li>
+                        <li><strong>Rules</strong> - Create conditional visibility rules (show/hide fields based on values)</li>
+                        <li><strong>Settings</strong> - Configure advanced step settings</li>
+                    </ul>
+                    <p class="keyboard-hint">💡 <strong>Tip:</strong> Press <kbd>Esc</kbd> to close modals, <kbd>Ctrl+P</kbd> for preview</p>
                 </div>
                 
                 <!-- Step Cards Container -->
@@ -140,9 +148,17 @@
             
             <!-- Form-Wide Rules Section -->
             <fieldset class="module form-rules-section">
-                <h2>📜 Conditional Rules <span class="rules-count-badge" x-show="formRules.length > 0">(<span class="rules-count" x-text="formRules.length"></span>)</span></h2>
+                <h2>📜 Conditional Rules 
+                    <span class="rules-count-badge" x-show="formRules.length > 0">(<span class="rules-count" x-text="formRules.length"></span>)</span>
+                    <span class="help-tooltip" title="Rules control when fields are shown or hidden based on values entered in other fields.">ℹ️</span>
+                </h2>
                 <div class="form-builder-description">
                     <p>Define rules that show/hide fields based on values from other steps.</p>
+                    <ul class="help-list">
+                        <li><strong>WHEN</strong> - Select a step, field, and condition (e.g., "when order_type equals wholesale")</li>
+                        <li><strong>THEN</strong> - Choose to show or hide specific fields</li>
+                        <li>Rules are evaluated in real-time as users fill out the form</li>
+                    </ul>
                 </div>
                 
                 <!-- Loading indicator -->
@@ -260,8 +276,14 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" @click="closeFieldModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" @click="saveFieldSelection()">💾 Save Selection</button>
+                <button type="button" class="btn btn-secondary" @click="closeFieldModal()" :disabled="fieldsSaving">Cancel</button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @click="saveFieldSelection()"
+                        :disabled="fieldsSaving">
+                    <span x-show="!fieldsSaving">💾 Save Selection</span>
+                    <span x-show="fieldsSaving">Saving...</span>
+                </button>
             </div>
         </div>
     </div>
@@ -531,9 +553,114 @@
                 <button type="button" class="modal-close" @click="closePreview()">✕</button>
             </div>
             <div class="modal-body">
-                <div class="form-preview-container">
-                    <!-- Preview content rendered here -->
-                    <p class="preview-placeholder">Form preview will be rendered here showing how the form will appear to end users.</p>
+                <!-- Loading state -->
+                <div x-show="previewData.loading" class="preview-loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading form preview...</p>
+                </div>
+                
+                <!-- Preview content -->
+                <div class="form-preview-container" x-show="!previewData.loading">
+                    <!-- Empty state -->
+                    <div x-show="previewData.steps.length === 0" class="preview-empty">
+                        <p>📋 No steps configured yet. Add steps and fields to see a preview.</p>
+                    </div>
+                    
+                    <!-- Step progress indicator -->
+                    <div class="preview-progress" x-show="previewData.steps.length > 0">
+                        <template x-for="(step, idx) in previewData.steps" :key="step.id">
+                            <div class="progress-step" 
+                                 :class="{ 'active': idx === previewData.currentStep, 'completed': idx < previewData.currentStep }"
+                                 @click="previewData.currentStep = idx">
+                                <span class="progress-number" x-text="idx + 1"></span>
+                                <span class="progress-label" x-text="step.name"></span>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Current step preview -->
+                    <div class="preview-step-content" x-show="currentPreviewStep">
+                        <div class="preview-step-header">
+                            <h4 x-text="currentPreviewStep?.name"></h4>
+                            <span class="preview-entity-badge" x-text="currentPreviewStep?.entityType?.replace('_', ' ')"></span>
+                        </div>
+                        
+                        <!-- Fields list -->
+                        <div class="preview-fields">
+                            <template x-for="field in (currentPreviewStep?.fields || [])" :key="field.key">
+                                <div class="preview-field">
+                                    <div class="preview-field-header">
+                                        <span class="field-icon" x-text="getFieldTypeIcon(field.type)"></span>
+                                        <label class="preview-field-label">
+                                            <span x-text="field.config?.custom_label || field.label"></span>
+                                            <span class="required-indicator" x-show="field.required || field.config?.is_required">*</span>
+                                        </label>
+                                        <span class="field-type-badge" x-text="field.type"></span>
+                                    </div>
+                                    
+                                    <!-- Field input placeholder -->
+                                    <div class="preview-field-input">
+                                        <template x-if="field.type === 'boolean'">
+                                            <label class="preview-checkbox">
+                                                <input type="checkbox" disabled>
+                                                <span x-text="field.label"></span>
+                                            </label>
+                                        </template>
+                                        <template x-if="field.type === 'textarea'">
+                                            <textarea class="preview-textarea" disabled :placeholder="field.config?.custom_help_text || 'Enter text...'"></textarea>
+                                        </template>
+                                        <template x-if="field.type === 'select' || field.type === 'foreignkey'">
+                                            <select class="preview-select" disabled>
+                                                <option x-text="'Select ' + field.label + '...'"></option>
+                                            </select>
+                                        </template>
+                                        <template x-if="!['boolean', 'textarea', 'select', 'foreignkey'].includes(field.type)">
+                                            <input type="text" class="preview-input" disabled 
+                                                   :placeholder="field.config?.custom_help_text || 'Enter ' + field.label.toLowerCase() + '...'">
+                                        </template>
+                                    </div>
+                                    
+                                    <!-- Field indicators -->
+                                    <div class="preview-field-indicators">
+                                        <span class="indicator auto-populate" 
+                                              x-show="field.config?.auto_populate?.source_step"
+                                              title="Auto-populated from previous step">
+                                            🔗 Auto-fill
+                                        </span>
+                                        <span class="indicator conditional" 
+                                              x-show="getRulesForField(currentPreviewStep?.id, field.key).length > 0"
+                                              title="Has conditional visibility rule">
+                                            👁️ Conditional
+                                        </span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <!-- No fields message -->
+                            <div class="preview-no-fields" x-show="(currentPreviewStep?.fields || []).length === 0">
+                                <p>No fields selected for this step. Click "Edit Fields" on the step card to add fields.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <div class="preview-navigation" x-show="previewData.steps.length > 1">
+                        <button type="button" 
+                                class="btn btn-secondary" 
+                                @click="prevPreviewStep()"
+                                :disabled="previewData.currentStep === 0">
+                            ← Previous
+                        </button>
+                        <span class="step-indicator">
+                            Step <span x-text="previewData.currentStep + 1"></span> of <span x-text="previewData.steps.length"></span>
+                        </span>
+                        <button type="button" 
+                                class="btn btn-primary" 
+                                @click="nextPreviewStep()"
+                                :disabled="previewData.currentStep >= previewData.steps.length - 1">
+                            Next →
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

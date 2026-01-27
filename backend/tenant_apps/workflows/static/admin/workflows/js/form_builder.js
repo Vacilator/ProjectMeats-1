@@ -69,6 +69,13 @@ function formBuilder() {
         actionFields: [],
         ruleSaving: false,
         
+        // Preview state (Phase 5)
+        previewData: {
+            loading: false,
+            steps: [],
+            currentStep: 0
+        },
+        
         // Add step state
         newStep: {
             entityType: '',
@@ -80,6 +87,10 @@ function formBuilder() {
             this.loadFormSteps();
             this.initSortable();
             this.loadFormRules();
+            
+            // Add keyboard event listener
+            document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+            
             console.log('Form Builder initialized');
         },
         
@@ -189,13 +200,119 @@ function formBuilder() {
             });
         },
         
-        // Toggle preview modal
-        togglePreview() {
-            this.showPreviewModal = !this.showPreviewModal;
+        // ==================== FORM PREVIEW ====================
+        
+        async openPreview() {
+            this.previewData.loading = true;
+            this.previewData.currentStep = 0;
+            this.showPreviewModal = true;
+            
+            // Load preview data for all steps
+            await this.loadPreviewData();
+        },
+        
+        async loadPreviewData() {
+            this.previewData.steps = [];
+            
+            for (const step of this.formSteps) {
+                try {
+                    // Get fields for this step
+                    const response = await fetch(`/api/v1/workflows/admin/steps/${step.id}/fields/`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const selectedFields = (data.fields || []).filter(f => f.selected);
+                        
+                        // Get auto-populate info for each field
+                        const fieldsWithConfig = await Promise.all(
+                            selectedFields.map(async (field) => {
+                                if (field.id) {
+                                    try {
+                                        const configRes = await fetch(`/api/v1/workflows/admin/fields/${field.id}/config/`, {
+                                            method: 'GET',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            credentials: 'same-origin'
+                                        });
+                                        if (configRes.ok) {
+                                            const config = await configRes.json();
+                                            return { ...field, config };
+                                        }
+                                    } catch (e) { /* ignore */ }
+                                }
+                                return field;
+                            })
+                        );
+                        
+                        this.previewData.steps.push({
+                            id: step.id,
+                            name: step.name,
+                            entityType: step.entityType,
+                            order: step.order,
+                            fields: fieldsWithConfig
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading preview for step:', step.id, error);
+                }
+            }
+            
+            this.previewData.loading = false;
         },
         
         closePreview() {
             this.showPreviewModal = false;
+        },
+        
+        nextPreviewStep() {
+            if (this.previewData.currentStep < this.previewData.steps.length - 1) {
+                this.previewData.currentStep++;
+            }
+        },
+        
+        prevPreviewStep() {
+            if (this.previewData.currentStep > 0) {
+                this.previewData.currentStep--;
+            }
+        },
+        
+        get currentPreviewStep() {
+            return this.previewData.steps[this.previewData.currentStep] || null;
+        },
+        
+        getFieldTypeIcon(type) {
+            const icons = {
+                'text': '📝',
+                'email': '📧',
+                'phone': '📞',
+                'url': '🔗',
+                'number': '🔢',
+                'decimal': '💰',
+                'integer': '🔢',
+                'boolean': '☑️',
+                'date': '📅',
+                'datetime': '📅',
+                'time': '🕐',
+                'textarea': '📄',
+                'select': '📋',
+                'foreignkey': '🔗',
+                'file': '📎',
+                'image': '🖼️'
+            };
+            return icons[type] || '📝';
+        },
+        
+        getRulesForField(stepId, fieldKey) {
+            return this.formRules.filter(rule => {
+                // Check if any action targets this field
+                return rule.actions?.some(action => {
+                    const fields = action.params?.fields || [];
+                    return fields.some(f => f.includes(fieldKey));
+                });
+            });
         },
         
         // ==================== FIELD EDITOR ====================
@@ -532,11 +649,21 @@ function formBuilder() {
         
         // ==================== FIELD SELECTION SAVE ====================
         
+        fieldsSaving: false,
+        
         async saveFieldSelection() {
             if (!this.currentStepId) {
-                console.error('No step ID set');
+                this.showNotification('No step selected.', 'error');
                 return;
             }
+            
+            if (this.selectedFields.length === 0) {
+                if (!confirm('No fields selected. This will remove all fields from this step. Continue?')) {
+                    return;
+                }
+            }
+            
+            this.fieldsSaving = true;
             
             try {
                 // Prepare field data
@@ -559,7 +686,8 @@ function formBuilder() {
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
                 
                 const result = await response.json();
@@ -578,24 +706,42 @@ function formBuilder() {
                 this.closeFieldModal();
                 
                 // Show success feedback
-                this.showNotification('Fields saved successfully!', 'success');
+                this.showNotification(`${this.selectedFields.length} field(s) saved successfully!`, 'success');
                 
             } catch (error) {
                 console.error('Error saving fields:', error);
-                this.showNotification('Error saving fields. Please try again.', 'error');
+                this.showNotification(`Error saving fields: ${error.message}`, 'error');
+            } finally {
+                this.fieldsSaving = false;
             }
         },
         
         showNotification(message, type = 'info') {
-            // Simple notification using Django admin style
+            // Create enhanced notification with icon
             const container = document.querySelector('.messagelist') || this.createMessageList();
             const li = document.createElement('li');
             li.className = type === 'error' ? 'error' : 'success';
-            li.textContent = message;
+            
+            // Add icon based on type
+            const icons = {
+                'success': '✓',
+                'error': '✕',
+                'info': 'ℹ️',
+                'warning': '⚠️'
+            };
+            
+            li.innerHTML = `<span class="notification-icon">${icons[type] || icons.info}</span> ${message}`;
             container.appendChild(li);
             
-            // Auto-remove after 5 seconds
-            setTimeout(() => li.remove(), 5000);
+            // Scroll notification into view
+            li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
+            // Auto-remove with fade
+            setTimeout(() => {
+                li.style.opacity = '0';
+                li.style.transition = 'opacity 0.3s';
+                setTimeout(() => li.remove(), 300);
+            }, 4700);
         },
         
         createMessageList() {
@@ -604,6 +750,30 @@ function formBuilder() {
             const content = document.querySelector('#content') || document.body;
             content.insertBefore(container, content.firstChild);
             return container;
+        },
+        
+        // ==================== KEYBOARD SHORTCUTS ====================
+        
+        handleKeyboard(event) {
+            // Escape key closes any open modal
+            if (event.key === 'Escape') {
+                if (this.showFieldModal) this.closeFieldModal();
+                if (this.showRuleModal) this.closeRuleModal();
+                if (this.showPreviewModal) this.closePreview();
+                if (this.showFieldConfigModal) this.closeFieldConfigModal();
+                if (this.showAddStepModal) this.closeAddStepModal();
+            }
+            
+            // Ctrl+P to open preview (when not in an input)
+            if (event.ctrlKey && event.key === 'p' && !this.isInputFocused()) {
+                event.preventDefault();
+                this.openPreview();
+            }
+        },
+        
+        isInputFocused() {
+            const active = document.activeElement;
+            return active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT');
         },
         
         // ==================== RULE EDITOR ====================
