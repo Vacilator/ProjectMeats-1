@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { QuickActionsProvider } from './contexts/QuickActionsContext';
 import Layout from './components/Layout/Layout';
 
 // Create QueryClient for data fetching (React Query)
@@ -109,16 +110,17 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
-          <Router
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true,
-            }}
-          >
-            <NavigationProvider>
-              <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<SignUp />} />
+          <QuickActionsProvider>
+            <Router
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true,
+              }}
+            >
+              <NavigationProvider>
+                <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<SignUp />} />
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />
                 
@@ -171,6 +173,7 @@ const App: React.FC = () => {
             </Routes>
           </NavigationProvider>
         </Router>
+      </QuickActionsProvider>
       </ThemeProvider>
     </AuthProvider>
     </QueryClientProvider>

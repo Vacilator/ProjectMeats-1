@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import ProfileDropdown from '../ProfileDropdown';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { Theme } from '../../config/theme';
+import { useQuickActions } from '../../contexts/QuickActionsContext';
+import QuickActionsEditor from '../QuickActions/QuickActionsEditor';
 
 interface HeaderProps {
   // No props needed currently
@@ -31,31 +33,73 @@ const Header: React.FC<HeaderProps> = () => {
   const navigate = useNavigate();
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const quickMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Quick Actions context
+  const {
+    quickActions,
+    isLoading: quickActionsLoading,
+    openFormModal,
+    isEditorOpen,
+    openEditor,
+    closeEditor,
+  } = useQuickActions();
   
   // Get tenant name from localStorage
   const tenantName = localStorage.getItem('tenantName') || 'Meats Central';
 
-  const quickMenuItems = [
+  // Default quick menu items (fallback when no custom actions)
+  const defaultMenuItems = [
     { label: 'New Supplier', path: '/suppliers/new', icon: '🏭' },
     { label: 'New Customer', path: '/customers/new', icon: '👥' },
     { label: 'New Purchase Order', path: '/purchase-orders/new', icon: '📋' },
     { label: 'View Dashboard', path: '/', icon: '📊' },
   ];
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (quickMenuRef.current && !quickMenuRef.current.contains(event.target as Node)) {
+        setShowQuickMenu(false);
+      }
+    };
+    
+    if (showQuickMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showQuickMenu]);
+
   const handleQuickMenuClick = (path: string) => {
     navigate(path);
     setShowQuickMenu(false);
+  };
+  
+  const handleQuickActionClick = (action: typeof quickActions[0]) => {
+    if (action.type === 'form' && action.form_id) {
+      openFormModal(action.form_id);
+      setShowQuickMenu(false);
+    }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // TODO: Implement global search functionality
       console.log('Search query:', searchQuery);
-      // Navigate to search results page or filter current page
-      // navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
   };
+  
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowQuickMenu(false);
+    openEditor();
+  };
+
+  // Use custom quick actions if available, otherwise default items
+  const hasCustomActions = quickActions.length > 0;
 
   return (
     <HeaderContainer $theme={theme}>
@@ -80,7 +124,7 @@ const Header: React.FC<HeaderProps> = () => {
       
       <HeaderActions>
         {/* Quick Menu */}
-        <QuickMenuContainer>
+        <QuickMenuContainer ref={quickMenuRef}>
           <QuickMenuButton
             onClick={() => setShowQuickMenu(!showQuickMenu)}
             $theme={theme}
@@ -91,19 +135,61 @@ const Header: React.FC<HeaderProps> = () => {
           </QuickMenuButton>
           {showQuickMenu && (
             <QuickMenuDropdown $theme={theme}>
-              {quickMenuItems.map((item) => (
-                <QuickMenuItem
-                  key={item.path}
-                  onClick={() => handleQuickMenuClick(item.path)}
-                  $theme={theme}
+              {/* Header with Edit Button */}
+              <QuickMenuHeader $theme={theme}>
+                <span>Quick Actions</span>
+                <EditButton 
+                  $theme={theme} 
+                  onClick={handleEditClick}
+                  title="Edit Quick Actions"
                 >
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
+                  ✏️
+                </EditButton>
+              </QuickMenuHeader>
+              
+              {quickActionsLoading ? (
+                <QuickMenuItem $theme={theme} style={{ justifyContent: 'center' }}>
+                  <span>Loading...</span>
                 </QuickMenuItem>
-              ))}
+              ) : hasCustomActions ? (
+                /* Custom Quick Actions from API */
+                quickActions.map((action) => (
+                  <QuickMenuItem
+                    key={action.id}
+                    onClick={() => handleQuickActionClick(action)}
+                    $theme={theme}
+                  >
+                    <span>{action.icon}</span>
+                    <span>{action.label}</span>
+                  </QuickMenuItem>
+                ))
+              ) : (
+                /* Default Menu Items */
+                defaultMenuItems.map((item) => (
+                  <QuickMenuItem
+                    key={item.path}
+                    onClick={() => handleQuickMenuClick(item.path)}
+                    $theme={theme}
+                  >
+                    <span>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </QuickMenuItem>
+                ))
+              )}
+              
+              {/* Customize Link */}
+              {!hasCustomActions && (
+                <QuickMenuFooter $theme={theme} onClick={handleEditClick}>
+                  <span>⚙️</span>
+                  <span>Customize Quick Actions</span>
+                </QuickMenuFooter>
+              )}
             </QuickMenuDropdown>
           )}
         </QuickMenuContainer>
+        
+        {/* Quick Actions Editor Modal */}
+        <QuickActionsEditor isOpen={isEditorOpen} onClose={closeEditor} />
 
         {/* Theme Toggle */}
         <ThemeToggleButton
@@ -249,6 +335,56 @@ const QuickMenuItem = styled.button<{ $theme: Theme }>`
 
   span:first-child {
     font-size: 18px;
+  }
+`;
+
+const QuickMenuHeader = styled.div<{ $theme: Theme }>`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid ${(props) => props.$theme.colors.border};
+  font-size: 12px;
+  font-weight: 600;
+  color: ${(props) => props.$theme.colors.textSecondary};
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const EditButton = styled.button<{ $theme: Theme }>`
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  
+  &:hover {
+    background: ${(props) => props.$theme.colors.surfaceHover};
+  }
+`;
+
+const QuickMenuFooter = styled.button<{ $theme: Theme }>`
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-top: 1px solid ${(props) => props.$theme.colors.border};
+  background: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  color: ${(props) => props.$theme.colors.textSecondary};
+  font-size: 13px;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: ${(props) => props.$theme.colors.surfaceHover};
+    color: ${(props) => props.$theme.colors.textPrimary};
+  }
+
+  span:first-child {
+    font-size: 16px;
   }
 `;
 
