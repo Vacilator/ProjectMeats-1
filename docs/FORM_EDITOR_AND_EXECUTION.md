@@ -240,6 +240,55 @@ class QuickActionsAPIView(APIView):
 
 ---
 
+### PR #2071: Form Execution UI and MySubmissions
+
+**Date**: January 2026
+
+**New Components**:
+
+1. **FormSubmissionModal** (`frontend/src/components/FormSubmission/FormSubmissionModal.tsx`)
+   - Main form execution modal with multi-step navigation
+   - Step sidebar with status badges
+   - Progress tracking
+   - Auto-save indicator
+   - Final submit with validation
+
+2. **FormStep** (`frontend/src/components/FormSubmission/FormStep.tsx`)
+   - Renders individual step with fields
+   - Step completion button with validation
+   - Status badge display
+
+3. **FormField** (`frontend/src/components/FormSubmission/FormField.tsx`)
+   - Renders all field types: text, number, select, multiselect, date, checkbox, textarea
+   - Debounced onChange (300ms) and immediate onBlur for auto-save
+   - CSS variable styling for theme support
+   - Error display and required field indicators
+
+4. **MySubmissions** (`frontend/src/pages/MySubmissions/index.tsx`)
+   - Lists user's form submissions
+   - Status filters: draft, in_progress, completed, cancelled
+   - Resume, cancel, and delete actions
+   - Progress bar visualization
+
+**Backend Improvements**:
+
+- Enhanced `_build_form_snapshot()` in `signals.py` to use FieldRegistry
+- Includes proper field types, options, and labels from entity metadata
+- Maps Django field types to form types via FIELD_TYPE_MAP
+
+**Files Created**:
+- `frontend/src/components/FormSubmission/FormField.tsx`
+- `frontend/src/components/FormSubmission/FormStep.tsx`
+- `frontend/src/components/FormSubmission/FormSubmissionModal.tsx`
+- `frontend/src/components/FormSubmission/index.ts`
+- `frontend/src/pages/MySubmissions/index.tsx`
+
+**Files Modified**:
+- `frontend/src/App.tsx` - Added FormSubmissionWrapper and /my-submissions route
+- `backend/tenant_apps/workflows/signals.py` - Enhanced form snapshot generation
+
+---
+
 ## API Reference
 
 ### Form Submissions
@@ -311,29 +360,38 @@ POST /api/v1/workflows/form-submissions/{id}/complete-step/
 | #2064 | Jan 2026 | Form submission backend models | ✅ Merged |
 | #2065 | Jan 2026 | Form submission API endpoints | ✅ Merged |
 | #2067 | Jan 2026 | Frontend quick actions integration | ✅ Merged |
+| #2071 | Jan 2026 | Form Execution UI and MySubmissions page | ✅ Merged |
 
 ---
 
 ## Known Issues & Future Work
 
+### Completed Implementation
+
+1. **Form Execution UI (Phase 4)** ✅
+   - FormSubmissionModal component with multi-step navigation
+   - FormStep and FormField components supporting all field types
+   - Auto-save on blur with debouncing (300ms)
+   - Step navigation (prev/next/jump)
+   - Step status indicators and progress tracking
+   - Final submit functionality
+
+2. **Submissions List (Phase 6)** ✅
+   - MySubmissions page at `/my-submissions`
+   - Resume/cancel/delete submissions
+   - Filter by status (draft, in_progress, completed, cancelled)
+   - Progress bar visualization
+
 ### Pending Implementation
 
-1. **Form Execution UI (Phase 4)**
-   - FormSubmissionModal component
-   - FormStep and FormField components
-   - Auto-save on blur
-   - Conditional rules engine
-   - Step navigation
-
-2. **Step Notes (Phase 5)**
+1. **Step Notes (Phase 5)**
    - Notes panel per step
    - ActivityLog integration
    - File attachment support
 
-3. **Submissions List (Phase 6)**
-   - "My Forms" page
-   - Resume/cancel submissions
-   - Filter by status
+2. **Conditional Rules Engine**
+   - Evaluate show/hide rules on field change
+   - Dynamic field/step visibility
 
 ### Future Enhancements
 
