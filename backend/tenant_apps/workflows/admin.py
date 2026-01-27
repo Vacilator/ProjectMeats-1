@@ -198,18 +198,19 @@ class TenantFormAdmin(TenantFilteredAdmin):
     status_badge.short_description = 'Status'
     status_badge.admin_order_field = 'status'
     
+    @admin.display(description='Quick Action', ordering='is_quick_action_enabled')
     def quick_action_badge(self, obj):
         if obj.is_quick_action_enabled:
             return format_html(
-                '<span style="background: #28a745; color: white; padding: 2px 8px; '
-                'border-radius: 10px; font-size: 11px;">⚡ Enabled</span>'
+                '<span style="background: {}; color: white; padding: 2px 8px; '
+                'border-radius: 10px; font-size: 11px;">{}</span>',
+                '#28a745', '⚡ Enabled'
             )
         return format_html(
-            '<span style="background: #6c757d; color: white; padding: 2px 8px; '
-            'border-radius: 10px; font-size: 11px;">Disabled</span>'
+            '<span style="background: {}; color: white; padding: 2px 8px; '
+            'border-radius: 10px; font-size: 11px;">{}</span>',
+            '#6c757d', 'Disabled'
         )
-    quick_action_badge.short_description = 'Quick Action'
-    quick_action_badge.admin_order_field = 'is_quick_action_enabled'
     
     @admin.action(description="✅ Activate selected forms")
     def activate_forms(self, request, queryset):
