@@ -208,7 +208,8 @@ function formBuilder() {
                 const data = await response.json();
                 
                 this.selectedFields = data.selected_fields || [];
-                this.availableFields = data.available_fields || [];
+                // Filter out already selected fields from available list
+                this.availableFields = (data.available_fields || []).filter(f => !f.selected);
                 this.filteredAvailableFields = [...this.availableFields];
                 this.currentStepName = data.step_name;
                 
@@ -338,12 +339,14 @@ function formBuilder() {
         
         toggleField(fieldKey) {
             if (this.isFieldSelected(fieldKey)) {
-                // Remove from selected
+                // Remove from selected - first get the field data
+                const field = this.selectedFields.find(f => f.key === fieldKey);
                 this.selectedFields = this.selectedFields.filter(f => f.key !== fieldKey);
                 // Add back to available
-                const field = [...this.selectedFields, ...this.availableFields].find(f => f.key === fieldKey);
                 if (field && !this.availableFields.some(f => f.key === fieldKey)) {
-                    this.availableFields.push(field);
+                    this.availableFields.push({ ...field });
+                    // Sort available fields by label
+                    this.availableFields.sort((a, b) => a.label.localeCompare(b.label));
                     this.filterFields();
                 }
             } else {

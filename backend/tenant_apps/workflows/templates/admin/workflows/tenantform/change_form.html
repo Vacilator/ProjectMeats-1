@@ -68,10 +68,11 @@
                         {% if inline.opts.verbose_name == "Form Step" or inline.formset.prefix == "entities" %}
                             <!-- Render step cards from entities inline -->
                             {% for form in inline.formset %}
-                                {% if form.instance.pk %}
+                                {% if form.instance.pk and form.instance.entity_type %}
                                 <div class="step-card" 
                                      data-step-id="{{ form.instance.pk }}"
                                      data-order="{{ form.instance.order }}"
+                                     data-entity-type="{{ form.instance.entity_type }}"
                                      x-data="{ expanded: false }">
                                     <div class="step-card-header">
                                         <span class="drag-handle" title="Drag to reorder">≡</span>
