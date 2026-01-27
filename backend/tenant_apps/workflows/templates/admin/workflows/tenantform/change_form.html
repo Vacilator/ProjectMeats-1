@@ -140,39 +140,38 @@
             
             <!-- Form-Wide Rules Section -->
             <fieldset class="module form-rules-section">
-                <h2>📜 Conditional Rules (Form-Wide)</h2>
+                <h2>📜 Conditional Rules <span class="rules-count-badge" x-show="formRules.length > 0">(<span class="rules-count" x-text="formRules.length"></span>)</span></h2>
                 <div class="form-builder-description">
                     <p>Define rules that show/hide fields based on values from other steps.</p>
                 </div>
                 
-                <div class="rules-list" id="form-rules">
-                    {% for inline in inline_admin_formsets %}
-                        {% if inline.opts.verbose_name == "Conditional Rule" or inline.formset.prefix == "rules" %}
-                            {% for form in inline.formset %}
-                                {% if form.instance.pk %}
-                                <div class="rule-item" data-rule-id="{{ form.instance.pk }}">
-                                    <div class="rule-content">
-                                        <span class="rule-status {% if form.instance.is_active %}active{% else %}inactive{% endif %}">
-                                            {% if form.instance.is_active %}✓{% else %}○{% endif %}
-                                        </span>
-                                        <span class="rule-name">
-                                            {{ form.instance.name|default:"Unnamed Rule" }}
-                                        </span>
-                                        <span class="rule-summary">
-                                            <!-- Will be populated by JS based on conditions/actions -->
-                                        </span>
-                                    </div>
-                                    <div class="rule-actions">
-                                        <button type="button" class="rule-edit-btn" @click="editRule('{{ form.instance.pk }}')">Edit</button>
-                                        <button type="button" class="rule-delete-btn" @click="deleteRule('{{ form.instance.pk }}')">Delete</button>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            {% empty %}
-                                <p class="no-rules-message">No rules configured. Add a rule to create conditional field visibility.</p>
-                            {% endfor %}
-                        {% endif %}
-                    {% endfor %}
+                <!-- Loading indicator -->
+                <div x-show="rulesLoading" class="rules-loading">
+                    Loading rules...
+                </div>
+                
+                <div class="rules-list" id="form-rules" x-show="!rulesLoading">
+                    <!-- Dynamic rules from Alpine.js state -->
+                    <template x-for="rule in formRules" :key="rule.id">
+                        <div class="rule-item" :data-rule-id="rule.id">
+                            <div class="rule-content">
+                                <span class="rule-status" :class="rule.is_active ? 'active' : 'inactive'">
+                                    <span x-show="rule.is_active">✓</span>
+                                    <span x-show="!rule.is_active">○</span>
+                                </span>
+                                <span class="rule-name" x-text="rule.name || 'Unnamed Rule'"></span>
+                            </div>
+                            <div class="rule-actions">
+                                <button type="button" class="rule-edit-btn" @click="editRule(rule.id)">Edit</button>
+                                <button type="button" class="rule-delete-btn" @click="deleteRule(rule.id)">Delete</button>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- No rules message -->
+                    <p class="no-rules-message" x-show="formRules.length === 0 && !rulesLoading">
+                        No rules configured. Add a rule to create conditional field visibility.
+                    </p>
                 </div>
                 
                 <div class="rules-toolbar">
@@ -405,10 +404,10 @@
                     <div class="rule-section">
                         <h4>WHEN (Conditions)</h4>
                         <div class="condition-builder">
-                            <select x-model="ruleForm.conditionStep" class="condition-step">
+                            <select x-model="ruleForm.conditionStep" @change="loadConditionFields()" class="condition-step">
                                 <option value="">-- Select Step --</option>
                                 <template x-for="step in formSteps" :key="step.id">
-                                    <option :value="step.id" x-text="'Step ' + step.order + ': ' + step.name"></option>
+                                    <option :value="step.id" x-text="'Step ' + (step.order + 1) + ': ' + step.name"></option>
                                 </template>
                             </select>
                             <span class="condition-dot">.</span>
@@ -445,13 +444,13 @@
                                 <option value="set_value">Set Field Value</option>
                             </select>
                             <span class="action-arrow">→</span>
-                            <select x-model="ruleForm.actionStep" class="action-step">
+                            <select x-model="ruleForm.actionStep" @change="loadActionFields()" class="action-step">
                                 <option value="">-- Select Step --</option>
                                 <template x-for="step in formSteps" :key="step.id">
-                                    <option :value="step.id" x-text="'Step ' + step.order + ': ' + step.name"></option>
+                                    <option :value="step.id" x-text="'Step ' + (step.order + 1) + ': ' + step.name"></option>
                                 </template>
                             </select>
-                            <div class="action-fields-select">
+                            <div class="action-fields-select" x-show="actionFields.length > 0">
                                 <!-- Multi-select for target fields -->
                                 <template x-for="field in actionFields" :key="field.key">
                                     <label class="field-checkbox">
@@ -462,6 +461,9 @@
                                     </label>
                                 </template>
                             </div>
+                            <p x-show="actionFields.length === 0 && ruleForm.actionStep" class="no-fields-message">
+                                Select a step to see available fields...
+                            </p>
                         </div>
                     </div>
                     
@@ -473,7 +475,13 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @click="closeRuleModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" @click="saveRule()">💾 Save Rule</button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @click="saveRule()"
+                        :disabled="ruleSaving">
+                    <span x-show="!ruleSaving">💾 Save Rule</span>
+                    <span x-show="ruleSaving">Saving...</span>
+                </button>
             </div>
         </div>
     </div>

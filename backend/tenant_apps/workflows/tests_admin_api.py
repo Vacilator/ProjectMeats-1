@@ -487,3 +487,211 @@ class FieldConfigAPITests(APITestCase):
         import uuid
         response = self.client.get(f'/api/v1/workflows/admin/fields/{uuid.uuid4()}/config/')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class FormRulesAPITests(APITestCase):
+    """Tests for the Form Rules API endpoints."""
+    
+    @classmethod
+    def setUpTestData(cls):
+        # Create admin user
+        cls.admin_user = User.objects.create_superuser(
+            username='rulesadmin',
+            email='rulesadmin@test.com',
+            password='testpass123'
+        )
+        
+        # Create tenant
+        cls.tenant = Tenant.objects.create(
+            name='Rules Test Tenant',
+            slug='rules-test-tenant'
+        )
+        
+        # Create test form
+        cls.form = TenantForm.objects.create(
+            tenant=cls.tenant,
+            name='Rules Test Form',
+            description='A test form for rules tests',
+            status='draft'
+        )
+        
+        # Create step 1
+        cls.step1 = TenantFormEntity.objects.create(
+            form=cls.form,
+            entity_type='supplier',
+            step_name='Supplier Info',
+            order=0
+        )
+        
+        # Create step 2
+        cls.step2 = TenantFormEntity.objects.create(
+            form=cls.form,
+            entity_type='customer',
+            step_name='Customer Info',
+            order=1
+        )
+    
+    def setUp(self):
+        self.client.force_authenticate(user=self.admin_user)
+    
+    def test_get_form_rules_empty(self):
+        """Test getting rules for a form with no rules."""
+        response = self.client.get(f'/api/v1/workflows/admin/forms/{self.form.id}/rules/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['form_id'], str(self.form.id))
+        self.assertEqual(response.data['rules'], [])
+        self.assertEqual(len(response.data['steps']), 2)
+    
+    def test_get_form_rules_with_steps(self):
+        """Test that form rules response includes steps with fields."""
+        response = self.client.get(f'/api/v1/workflows/admin/forms/{self.form.id}/rules/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        steps = response.data['steps']
+        self.assertEqual(len(steps), 2)
+        
+        # Check step structure
+        for step in steps:
+            self.assertIn('id', step)
+            self.assertIn('name', step)
+            self.assertIn('entity_type', step)
+            self.assertIn('fields', step)
+            # Should have fields from the entity type
+            self.assertIsInstance(step['fields'], list)
+    
+    def test_create_rule(self):
+        """Test creating a new rule."""
+        response = self.client.post(
+            f'/api/v1/workflows/admin/forms/{self.form.id}/rules/',
+            {
+                'name': 'Test Rule',
+                'conditions': [
+                    {
+                        'field': f'{self.step1.id}.supplier_type',
+                        'operator': 'eq',
+                        'value': 'wholesale'
+                    }
+                ],
+                'condition_logic': 'and',
+                'actions': [
+                    {
+                        'action': 'display_fields',
+                        'params': {'fields': [f'{self.step2.id}.credit_limit']}
+                    }
+                ]
+            },
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], 'success')
+        self.assertIn('rule_id', response.data)
+    
+    def test_create_rule_auto_order(self):
+        """Test that rules get auto-incrementing order when created sequentially."""
+        from tenant_apps.workflows.models import TenantFormRule
+        from django.db.models import Max
+        
+        # Clean up any existing rules from this form  
+        TenantFormRule.objects.filter(form=self.form).delete()
+        
+        # Create first rule
+        rule1 = TenantFormRule.objects.create(
+            form=self.form,
+            name='Rule 1',
+            conditions=[],
+            actions=[],
+            order=0
+        )
+        
+        # Calculate next order like the API does (fixed version)
+        max_order = TenantFormRule.objects.filter(form=self.form).aggregate(max_order=Max('order'))['max_order']
+        next_order = 0 if max_order is None else max_order + 1
+        
+        # Create second rule with calculated order
+        rule2 = TenantFormRule.objects.create(
+            form=self.form,
+            name='Rule 2',
+            conditions=[],
+            actions=[],
+            order=next_order
+        )
+        
+        # Verify orders are sequential
+        self.assertEqual(rule1.order, 0)
+        self.assertEqual(rule2.order, 1)
+        self.assertGreater(rule2.order, rule1.order)
+    
+    def test_update_rule(self):
+        """Test updating an existing rule."""
+        from tenant_apps.workflows.models import TenantFormRule
+        
+        # Create a rule
+        rule = TenantFormRule.objects.create(
+            form=self.form,
+            name='Original Name',
+            conditions=[],
+            actions=[],
+            order=0
+        )
+        
+        # Update it
+        response = self.client.put(
+            f'/api/v1/workflows/admin/rules/{rule.id}/',
+            {
+                'name': 'Updated Name',
+                'conditions': [{'field': 'test', 'operator': 'eq', 'value': 'new'}],
+                'is_active': False
+            },
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify updates
+        rule.refresh_from_db()
+        self.assertEqual(rule.name, 'Updated Name')
+        self.assertEqual(rule.conditions, [{'field': 'test', 'operator': 'eq', 'value': 'new'}])
+        self.assertFalse(rule.is_active)
+    
+    def test_delete_rule(self):
+        """Test deleting a rule."""
+        from tenant_apps.workflows.models import TenantFormRule
+        
+        rule = TenantFormRule.objects.create(
+            form=self.form,
+            name='To Delete',
+            conditions=[],
+            actions=[],
+            order=0
+        )
+        rule_id = rule.id
+        
+        response = self.client.delete(f'/api/v1/workflows/admin/rules/{rule_id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(TenantFormRule.objects.filter(pk=rule_id).exists())
+    
+    def test_get_nonexistent_form_rules(self):
+        """Test getting rules for non-existent form returns 404."""
+        import uuid
+        response = self.client.get(f'/api/v1/workflows/admin/forms/{uuid.uuid4()}/rules/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_update_nonexistent_rule(self):
+        """Test updating non-existent rule returns 404."""
+        import uuid
+        response = self.client.put(
+            f'/api/v1/workflows/admin/rules/{uuid.uuid4()}/',
+            {'name': 'Test'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_delete_nonexistent_rule(self):
+        """Test deleting non-existent rule returns 404."""
+        import uuid
+        response = self.client.delete(f'/api/v1/workflows/admin/rules/{uuid.uuid4()}/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

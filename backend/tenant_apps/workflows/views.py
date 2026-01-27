@@ -9,9 +9,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Max
 from django.utils import timezone
-from django.db import transaction
+from django.db import models, transaction
 
 from .models import (
     TenantList, TenantForm, TenantFormEntity, TenantFormField, TenantFormRule,
@@ -360,6 +360,161 @@ class FieldConfigAPIView(APIView):
             'status': 'success',
             'message': 'Field configuration saved',
             'field_id': str(field_id),
+        })
+
+
+class FormRulesAPIView(APIView):
+    """
+    API endpoint for managing form conditional rules.
+    Used by the rule builder in the form builder admin interface.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, form_id):
+        """Get all rules for a form with step/field context."""
+        try:
+            form = TenantForm.objects.prefetch_related('entities', 'rules').get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get all steps with their fields for condition/action selection
+        steps_data = []
+        for step in form.entities.all().order_by('order'):
+            fields = get_entity_fields(step.entity_type)
+            steps_data.append({
+                'id': str(step.id),
+                'name': step.step_name or step.entity_type.replace('_', ' ').title(),
+                'entity_type': step.entity_type,
+                'order': step.order,
+                'fields': fields,
+            })
+        
+        # Get existing rules
+        rules_data = []
+        for rule in form.rules.all().order_by('order'):
+            rules_data.append({
+                'id': str(rule.id),
+                'name': rule.name,
+                'is_active': rule.is_active,
+                'order': rule.order,
+                'conditions': rule.conditions,
+                'condition_logic': rule.condition_logic,
+                'actions': rule.actions,
+            })
+        
+        return Response({
+            'form_id': str(form_id),
+            'form_name': form.name,
+            'steps': steps_data,
+            'rules': rules_data,
+        })
+    
+    def post(self, request, form_id):
+        """Create a new rule for a form."""
+        try:
+            form = TenantForm.objects.get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get next order (handle None when no rules exist, but 0 is valid)
+        max_order = form.rules.aggregate(max_order=models.Max('order'))['max_order']
+        next_order = 0 if max_order is None else max_order + 1
+        
+        rule = TenantFormRule.objects.create(
+            form=form,
+            name=request.data.get('name', ''),
+            is_active=request.data.get('is_active', True),
+            order=next_order,
+            conditions=request.data.get('conditions', []),
+            condition_logic=request.data.get('condition_logic', 'and'),
+            actions=request.data.get('actions', []),
+        )
+        
+        return Response({
+            'status': 'success',
+            'message': 'Rule created',
+            'rule_id': str(rule.id),
+            'order': rule.order,
+        }, status=status.HTTP_201_CREATED)
+
+
+class FormRuleDetailAPIView(APIView):
+    """
+    API endpoint for managing individual form rules.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, rule_id):
+        """Get a single rule."""
+        try:
+            rule = TenantFormRule.objects.select_related('form').get(pk=rule_id)
+        except TenantFormRule.DoesNotExist:
+            return Response(
+                {'error': 'Rule not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        return Response({
+            'id': str(rule.id),
+            'form_id': str(rule.form.id),
+            'name': rule.name,
+            'is_active': rule.is_active,
+            'order': rule.order,
+            'conditions': rule.conditions,
+            'condition_logic': rule.condition_logic,
+            'actions': rule.actions,
+        })
+    
+    def put(self, request, rule_id):
+        """Update a rule."""
+        try:
+            rule = TenantFormRule.objects.get(pk=rule_id)
+        except TenantFormRule.DoesNotExist:
+            return Response(
+                {'error': 'Rule not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if 'name' in request.data:
+            rule.name = request.data['name']
+        if 'is_active' in request.data:
+            rule.is_active = request.data['is_active']
+        if 'conditions' in request.data:
+            rule.conditions = request.data['conditions']
+        if 'condition_logic' in request.data:
+            rule.condition_logic = request.data['condition_logic']
+        if 'actions' in request.data:
+            rule.actions = request.data['actions']
+        
+        rule.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Rule updated',
+            'rule_id': str(rule_id),
+        })
+    
+    def delete(self, request, rule_id):
+        """Delete a rule."""
+        try:
+            rule = TenantFormRule.objects.get(pk=rule_id)
+        except TenantFormRule.DoesNotExist:
+            return Response(
+                {'error': 'Rule not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        rule.delete()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Rule deleted',
         })
 
 
