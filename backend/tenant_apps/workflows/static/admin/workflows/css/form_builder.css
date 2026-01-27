@@ -37,6 +37,26 @@
 }
 
 /* ==========================================================================
+   Global Rules - No Horizontal Scrollbars
+   ========================================================================== */
+.form-builder-section,
+.form-builder-section *,
+.form-rules-section,
+.form-rules-section *,
+.modal-content,
+.modal-content * {
+    box-sizing: border-box;
+}
+
+/* Prevent horizontal overflow globally in form builder containers */
+.form-builder-section,
+.form-rules-section,
+.modal-body,
+.modal-content {
+    overflow-x: hidden;
+}
+
+/* ==========================================================================
    Form Builder Section
    ========================================================================== */
 .form-builder-section,
@@ -130,9 +150,9 @@ kbd {
    ========================================================================== */
 .step-cards-container {
     display: flex;
+    flex-wrap: wrap;
     gap: 16px;
     padding: 20px 0;
-    overflow-x: auto;
     min-height: 200px;
 }
 
@@ -512,6 +532,7 @@ kbd {
 .modal-body {
     padding: 20px;
     overflow-y: auto;
+    overflow-x: hidden;
     flex: 1;
     background: var(--fb-bg);
 }
@@ -532,6 +553,14 @@ kbd {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+    overflow: hidden;
+}
+
+/* Responsive: stack on smaller screens */
+@media (max-width: 700px) {
+    .field-editor-container {
+        grid-template-columns: 1fr;
+    }
 }
 
 .field-list-section h4 {
@@ -563,6 +592,7 @@ kbd {
 .field-list {
     max-height: 300px;
     overflow-y: auto;
+    overflow-x: hidden;
     border: 1px solid var(--fb-border);
     border-radius: var(--fb-radius-sm);
     background: var(--fb-bg);
@@ -571,11 +601,13 @@ kbd {
 .field-item {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 10px 12px;
     border-bottom: 1px solid var(--fb-hairline);
     transition: background 0.15s;
     color: var(--fb-fg);
+    word-break: break-word;
 }
 
 .field-item:last-child {
@@ -598,8 +630,10 @@ kbd {
 
 .field-name {
     flex: 1;
+    min-width: 0;
     font-size: 13px;
     color: var(--fb-fg);
+    word-break: break-word;
 }
 
 .field-type-badge {
