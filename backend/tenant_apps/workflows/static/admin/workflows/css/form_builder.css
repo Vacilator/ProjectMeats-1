@@ -872,6 +872,81 @@ kbd {
     font-style: italic;
 }
 
+/* Set Value Action - Field-Value Pairs */
+.action-set-value-container {
+    width: 100%;
+    margin-top: 12px;
+}
+
+.action-set-value-container .select-hint {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: var(--fb-fg-quiet);
+}
+
+.field-value-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--fb-bg);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.field-value-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--fb-darkened-bg);
+    border: 1px solid var(--fb-hairline);
+    border-radius: var(--fb-radius-sm);
+}
+
+.field-value-row .field-checkbox {
+    min-width: 150px;
+}
+
+.field-value-input {
+    flex: 1;
+    min-width: 150px;
+    padding: 8px 12px;
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    font-size: 13px;
+    background: var(--fb-bg);
+    color: var(--fb-fg);
+}
+
+.field-value-input:focus {
+    outline: none;
+    border-color: var(--fb-primary);
+    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.1);
+}
+
+/* Preview Submit Button */
+.preview-submit-btn {
+    background: var(--fb-success);
+    color: var(--primary-fg, #fff);
+}
+
+.preview-submit-btn:hover {
+    background: #218838;
+}
+
+.btn-success {
+    background: var(--fb-success);
+    color: var(--primary-fg, #fff);
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
 .rule-preview {
     padding: 16px;
     background: var(--message-success-bg, #dfd);

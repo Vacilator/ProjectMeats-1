@@ -64,7 +64,8 @@ function formBuilder() {
             actionType: 'display_fields',
             actionStep: '',
             actionTargetFields: [],
-            actionTargetSteps: []
+            actionTargetSteps: [],
+            fieldValues: {}  // For set_value action: { fieldKey: 'value', ... }
         },
         conditionFields: [],
         actionFields: [],
@@ -871,7 +872,8 @@ function formBuilder() {
                 actionType: 'display_fields',
                 actionStep: '',
                 actionTargetFields: [],
-                actionTargetSteps: []
+                actionTargetSteps: [],
+                fieldValues: {}
             };
             this.conditionFields = [];
             this.actionFields = [];
@@ -891,9 +893,32 @@ function formBuilder() {
             if (this.isStepAction()) {
                 this.ruleForm.actionTargetFields = [];
                 this.ruleForm.actionStep = '';
+                this.ruleForm.fieldValues = {};
             } else {
                 this.ruleForm.actionTargetSteps = [];
             }
+            // Clear field values when switching away from set_value
+            if (this.ruleForm.actionType !== 'set_value') {
+                this.ruleForm.fieldValues = {};
+            }
+        },
+        
+        // Initialize field value when checkbox is toggled
+        initFieldValue(fieldKey) {
+            if (this.ruleForm.actionTargetFields.includes(fieldKey)) {
+                // Field was just selected, ensure it has an entry in fieldValues
+                if (!(fieldKey in this.ruleForm.fieldValues)) {
+                    this.ruleForm.fieldValues[fieldKey] = '';
+                }
+            } else {
+                // Field was deselected, remove its value
+                delete this.ruleForm.fieldValues[fieldKey];
+            }
+        },
+        
+        // Show preview submit message (since this is just a preview)
+        showPreviewSubmitMessage() {
+            this.showNotification('This is a preview. In the actual form, this would submit the data.', 'info');
         },
         
         async loadConditionFields() {
@@ -987,6 +1012,7 @@ function formBuilder() {
             let actionStep = '';
             let actionTargetFields = [];
             let actionTargetSteps = [];
+            let fieldValues = {};
             
             if (isStepActionType) {
                 // Step-based action
@@ -996,6 +1022,11 @@ function formBuilder() {
                 const actionFieldParts = (action.params?.fields?.[0] || '').split('.');
                 actionStep = actionFieldParts[0] || '';
                 actionTargetFields = (action.params?.fields || []).map(f => f.split('.')[1]).filter(Boolean);
+                
+                // Load field values if this is a set_value action
+                if (actionType === 'set_value' && action.params?.values) {
+                    fieldValues = action.params.values;
+                }
             }
             
             this.ruleForm = {
@@ -1008,7 +1039,8 @@ function formBuilder() {
                 actionType: actionType,
                 actionStep: actionStep,
                 actionTargetFields: actionTargetFields,
-                actionTargetSteps: actionTargetSteps
+                actionTargetSteps: actionTargetSteps,
+                fieldValues: fieldValues
             };
             
             // Load fields for the selected steps
@@ -1071,7 +1103,7 @@ function formBuilder() {
             const actions = {
                 'display_fields': 'show fields',
                 'hide_fields': 'hide fields',
-                'set_value': 'set value for',
+                'set_value': 'set values for',
                 'display_steps': 'show steps',
                 'hide_steps': 'hide steps'
             };
@@ -1084,8 +1116,20 @@ function formBuilder() {
             
             preview += `, then ${actions[this.ruleForm.actionType] || 'show'}`;
             
-            // Handle field-based actions
-            if (this.isFieldAction()) {
+            // Handle set_value action with field-value pairs
+            if (this.ruleForm.actionType === 'set_value') {
+                if (this.ruleForm.actionTargetFields.length > 0) {
+                    const fieldValuePairs = this.ruleForm.actionTargetFields.map(f => {
+                        const value = this.ruleForm.fieldValues[f] || '(no value)';
+                        return `${f}="${value}"`;
+                    });
+                    preview += `: ${fieldValuePairs.join(', ')}`;
+                } else {
+                    preview += ' [select target fields]';
+                }
+            }
+            // Handle other field-based actions
+            else if (this.isFieldAction()) {
                 if (this.ruleForm.actionTargetFields.length > 0) {
                     preview += `: ${this.ruleForm.actionTargetFields.join(', ')}`;
                 } else {
@@ -1116,7 +1160,19 @@ function formBuilder() {
             }
             
             // Validate action targets based on action type
-            if (this.isFieldAction()) {
+            if (this.ruleForm.actionType === 'set_value') {
+                if (!this.ruleForm.actionStep || this.ruleForm.actionTargetFields.length === 0) {
+                    this.showNotification('Please select an action step and at least one field to set.', 'error');
+                    return;
+                }
+                // Check that all selected fields have values
+                for (const fieldKey of this.ruleForm.actionTargetFields) {
+                    if (!this.ruleForm.fieldValues[fieldKey]) {
+                        this.showNotification(`Please enter a value for field "${fieldKey}".`, 'error');
+                        return;
+                    }
+                }
+            } else if (this.isFieldAction()) {
                 if (!this.ruleForm.actionStep || this.ruleForm.actionTargetFields.length === 0) {
                     this.showNotification('Please select an action step and target fields.', 'error');
                     return;
@@ -1146,7 +1202,17 @@ function formBuilder() {
                 
                 // Build the actions array based on action type
                 let actionParams = {};
-                if (this.isFieldAction()) {
+                if (this.ruleForm.actionType === 'set_value') {
+                    // For set_value, include field-value pairs
+                    actionParams = {
+                        fields: this.ruleForm.actionTargetFields.map(f => `${this.ruleForm.actionStep}.${f}`),
+                        values: {}
+                    };
+                    // Add values for each selected field
+                    for (const fieldKey of this.ruleForm.actionTargetFields) {
+                        actionParams.values[fieldKey] = this.ruleForm.fieldValues[fieldKey] || '';
+                    }
+                } else if (this.isFieldAction()) {
                     actionParams = {
                         fields: this.ruleForm.actionTargetFields.map(f => `${this.ruleForm.actionStep}.${f}`)
                     };

@@ -483,8 +483,8 @@
                                 </select>
                             </template>
                             
-                            <!-- Field checkboxes (for field actions) -->
-                            <div class="action-fields-select" x-show="isFieldAction() && actionFields.length > 0">
+                            <!-- Field checkboxes (for show/hide field actions) -->
+                            <div class="action-fields-select" x-show="isFieldAction() && ruleForm.actionType !== 'set_value' && actionFields.length > 0">
                                 <template x-for="field in actionFields" :key="field.key">
                                     <label class="field-checkbox">
                                         <input type="checkbox" 
@@ -494,6 +494,30 @@
                                     </label>
                                 </template>
                             </div>
+                            
+                            <!-- Field-Value pairs (for set_value action) -->
+                            <div class="action-set-value-container" x-show="ruleForm.actionType === 'set_value' && ruleForm.actionStep && actionFields.length > 0">
+                                <p class="select-hint">Select fields and set their values:</p>
+                                <div class="field-value-list">
+                                    <template x-for="field in actionFields" :key="field.key">
+                                        <div class="field-value-row">
+                                            <label class="field-checkbox">
+                                                <input type="checkbox" 
+                                                       :value="field.key" 
+                                                       x-model="ruleForm.actionTargetFields"
+                                                       @change="initFieldValue(field.key)">
+                                                <span x-text="field.label"></span>
+                                            </label>
+                                            <input type="text" 
+                                                   class="field-value-input"
+                                                   x-show="ruleForm.actionTargetFields.includes(field.key)"
+                                                   :placeholder="'Value for ' + field.label"
+                                                   x-model="ruleForm.fieldValues[field.key]">
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
                             <p x-show="isFieldAction() && actionFields.length === 0 && ruleForm.actionStep" class="no-fields-message">
                                 Select a step to see available fields...
                             </p>
@@ -675,21 +699,30 @@
                     </div>
                     
                     <!-- Navigation -->
-                    <div class="preview-navigation" x-show="previewData.steps.length > 1">
+                    <div class="preview-navigation">
                         <button type="button" 
                                 class="btn btn-secondary" 
                                 @click="prevPreviewStep()"
-                                :disabled="previewData.currentStep === 0">
+                                :disabled="previewData.currentStep === 0"
+                                x-show="previewData.steps.length > 1">
                             ← Previous
                         </button>
-                        <span class="step-indicator">
+                        <span class="step-indicator" x-show="previewData.steps.length > 1">
                             Step <span x-text="previewData.currentStep + 1"></span> of <span x-text="previewData.steps.length"></span>
                         </span>
+                        <!-- Next button (not on last step) -->
                         <button type="button" 
                                 class="btn btn-primary" 
                                 @click="nextPreviewStep()"
-                                :disabled="previewData.currentStep >= previewData.steps.length - 1">
+                                x-show="previewData.steps.length > 1 && previewData.currentStep < previewData.steps.length - 1">
                             Next →
+                        </button>
+                        <!-- Submit button (on last step or single-step form) -->
+                        <button type="button" 
+                                class="btn btn-success preview-submit-btn" 
+                                x-show="previewData.steps.length === 1 || previewData.currentStep >= previewData.steps.length - 1"
+                                @click="showPreviewSubmitMessage()">
+                            ✓ Submit Form
                         </button>
                     </div>
                 </div>
