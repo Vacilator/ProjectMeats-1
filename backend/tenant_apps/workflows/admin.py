@@ -126,7 +126,7 @@ class TenantFormRuleInline(admin.StackedInline):
 
 @admin.register(TenantForm)
 class TenantFormAdmin(TenantFilteredAdmin):
-    """Admin for tenant custom forms."""
+    """Admin for tenant custom forms with visual form builder."""
     
     form = TenantFormAdminForm
     list_display = [
@@ -138,6 +138,9 @@ class TenantFormAdmin(TenantFilteredAdmin):
     readonly_fields = ['id', 'created_at', 'updated_at']
     ordering = ['tenant', 'name']
     inlines = [TenantFormEntityInline, TenantFormRuleInline]
+    
+    # Custom template for visual form builder
+    change_form_template = 'admin/workflows/tenantform/change_form.html'
     
     actions = ['activate_forms', 'deactivate_forms']
     
@@ -155,6 +158,12 @@ class TenantFormAdmin(TenantFilteredAdmin):
             'classes': ['collapse']
         }),
     ]
+    
+    class Media:
+        css = {
+            'all': ('admin/workflows/css/form_builder.css',)
+        }
+        js = ('admin/workflows/js/form_builder.js',)
     
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
