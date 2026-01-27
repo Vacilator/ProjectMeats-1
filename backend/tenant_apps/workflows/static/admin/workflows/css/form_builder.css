@@ -804,6 +804,27 @@ kbd {
 
 .entity-select {
     width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    font-size: 14px;
+    background: var(--fb-bg);
+    color: var(--fb-fg);
+    min-height: 42px;
+    appearance: auto;
+    cursor: pointer;
+}
+
+.entity-select:focus {
+    outline: none;
+    border-color: var(--fb-primary);
+    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.1);
+}
+
+.entity-select option {
+    padding: 8px 12px;
+    background: var(--fb-bg);
+    color: var(--fb-fg);
 }
 
 .btn {
