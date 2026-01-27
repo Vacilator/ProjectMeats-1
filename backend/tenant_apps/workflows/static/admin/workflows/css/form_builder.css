@@ -356,6 +356,25 @@
     padding: 20px;
 }
 
+.rules-loading {
+    color: #888;
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+}
+
+.rules-count-badge {
+    font-weight: 400;
+    color: #666;
+}
+
+.no-fields-message {
+    color: #888;
+    font-size: 13px;
+    font-style: italic;
+    margin: 0;
+}
+
 /* ==========================================================================
    Modal Styles
    ========================================================================== */

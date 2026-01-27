@@ -15,7 +15,7 @@ from .views import (
     # Admin Form Builder API Views
     EntityFieldsAPIView, AvailableEntitiesAPIView,
     FormStepFieldsAPIView, FormStepReorderAPIView, SmartFieldMatchAPIView,
-    FieldConfigAPIView
+    FieldConfigAPIView, FormRulesAPIView, FormRuleDetailAPIView
 )
 
 app_name = 'workflows'
@@ -47,4 +47,6 @@ urlpatterns = [
     path('admin/forms/<uuid:form_id>/reorder/', FormStepReorderAPIView.as_view(), name='admin-form-reorder'),
     path('admin/smart-match/', SmartFieldMatchAPIView.as_view(), name='admin-smart-match'),
     path('admin/fields/<uuid:field_id>/config/', FieldConfigAPIView.as_view(), name='admin-field-config'),
+    path('admin/forms/<uuid:form_id>/rules/', FormRulesAPIView.as_view(), name='admin-form-rules'),
+    path('admin/rules/<uuid:rule_id>/', FormRuleDetailAPIView.as_view(), name='admin-rule-detail'),
 ]

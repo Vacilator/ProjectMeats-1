@@ -51,6 +51,8 @@ function formBuilder() {
         },
         
         // Rule builder state
+        formRules: [],
+        rulesLoading: false,
         editingRuleId: null,
         ruleForm: {
             name: '',
@@ -58,12 +60,14 @@ function formBuilder() {
             conditionField: '',
             conditionOperator: 'eq',
             conditionValue: '',
+            conditionLogic: 'and',
             actionType: 'display_fields',
             actionStep: '',
             actionTargetFields: []
         },
         conditionFields: [],
         actionFields: [],
+        ruleSaving: false,
         
         // Add step state
         newStep: {
@@ -75,6 +79,7 @@ function formBuilder() {
         init() {
             this.loadFormSteps();
             this.initSortable();
+            this.loadFormRules();
             console.log('Form Builder initialized');
         },
         
@@ -603,10 +608,71 @@ function formBuilder() {
         
         // ==================== RULE EDITOR ====================
         
+        getFormId() {
+            // Extract form ID from URL path
+            const pathParts = window.location.pathname.split('/');
+            const formIdIndex = pathParts.findIndex(p => p === 'tenantform') + 1;
+            const formId = pathParts[formIdIndex];
+            return (formId && formId !== 'add') ? formId : null;
+        },
+        
+        async loadFormRules() {
+            const formId = this.getFormId();
+            if (!formId) {
+                console.log('New form - no rules to load');
+                return;
+            }
+            
+            this.rulesLoading = true;
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/forms/${formId}/rules/`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                this.formRules = data.rules || [];
+                
+                // Enrich formSteps with fields data if available
+                if (data.steps) {
+                    data.steps.forEach(stepData => {
+                        const step = this.formSteps.find(s => s.id === stepData.id);
+                        if (step) {
+                            step.fields = stepData.fields || [];
+                            step.entityType = stepData.entity_type;
+                        }
+                    });
+                }
+                
+                console.log('Loaded rules:', this.formRules.length);
+                this.updateRuleCountDisplay();
+            } catch (error) {
+                console.error('Error loading rules:', error);
+            } finally {
+                this.rulesLoading = false;
+            }
+        },
+        
+        updateRuleCountDisplay() {
+            // Update step cards with rule count
+            const ruleCountEl = document.querySelector('.rules-count');
+            if (ruleCountEl) {
+                ruleCountEl.textContent = this.formRules.length;
+            }
+        },
+        
         openRuleEditor(stepId) {
-            // Load rules for this step
-            console.log('Open rule editor for step:', stepId);
+            // Pre-select the step for condition
             this.resetRuleForm();
+            this.ruleForm.conditionStep = stepId;
+            this.loadConditionFields();
             this.showRuleModal = true;
         },
         
@@ -619,6 +685,7 @@ function formBuilder() {
         closeRuleModal() {
             this.showRuleModal = false;
             this.editingRuleId = null;
+            this.ruleSaving = false;
         },
         
         resetRuleForm() {
@@ -628,6 +695,7 @@ function formBuilder() {
                 conditionField: '',
                 conditionOperator: 'eq',
                 conditionValue: '',
+                conditionLogic: 'and',
                 actionType: 'display_fields',
                 actionStep: '',
                 actionTargetFields: []
@@ -636,16 +704,136 @@ function formBuilder() {
             this.actionFields = [];
         },
         
-        editRule(ruleId) {
+        async loadConditionFields() {
+            const step = this.formSteps.find(s => s.id === this.ruleForm.conditionStep);
+            if (!step) {
+                this.conditionFields = [];
+                return;
+            }
+            
+            // If step already has fields loaded, use them
+            if (step.fields && step.fields.length > 0) {
+                this.conditionFields = step.fields;
+                return;
+            }
+            
+            // Otherwise fetch from API
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/entities/${step.entityType}/fields/`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.conditionFields = data.fields || [];
+                    step.fields = this.conditionFields; // Cache for later
+                }
+            } catch (error) {
+                console.error('Error loading condition fields:', error);
+                this.conditionFields = [];
+            }
+        },
+        
+        async loadActionFields() {
+            const step = this.formSteps.find(s => s.id === this.ruleForm.actionStep);
+            if (!step) {
+                this.actionFields = [];
+                return;
+            }
+            
+            // If step already has fields loaded, use them
+            if (step.fields && step.fields.length > 0) {
+                this.actionFields = step.fields;
+                return;
+            }
+            
+            // Otherwise fetch from API
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/entities/${step.entityType}/fields/`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.actionFields = data.fields || [];
+                    step.fields = this.actionFields; // Cache for later
+                }
+            } catch (error) {
+                console.error('Error loading action fields:', error);
+                this.actionFields = [];
+            }
+        },
+        
+        async editRule(ruleId) {
+            const rule = this.formRules.find(r => r.id === ruleId);
+            if (!rule) {
+                console.error('Rule not found:', ruleId);
+                return;
+            }
+            
             this.editingRuleId = ruleId;
-            // TODO: Load rule data from DOM/API
+            
+            // Parse conditions
+            const condition = rule.conditions?.[0] || {};
+            const fieldParts = (condition.field || '').split('.');
+            
+            // Parse actions
+            const action = rule.actions?.[0] || {};
+            const actionFieldParts = (action.params?.fields?.[0] || '').split('.');
+            
+            this.ruleForm = {
+                name: rule.name || '',
+                conditionStep: fieldParts[0] || '',
+                conditionField: fieldParts[1] || '',
+                conditionOperator: condition.operator || 'eq',
+                conditionValue: condition.value || '',
+                conditionLogic: rule.condition_logic || 'and',
+                actionType: action.action || 'display_fields',
+                actionStep: actionFieldParts[0] || '',
+                actionTargetFields: (action.params?.fields || []).map(f => f.split('.')[1]).filter(Boolean)
+            };
+            
+            // Load fields for the selected steps
+            await this.loadConditionFields();
+            await this.loadActionFields();
+            
             this.showRuleModal = true;
         },
         
-        deleteRule(ruleId) {
-            if (confirm('Are you sure you want to delete this rule?')) {
-                // TODO: Delete via AJAX
-                console.log('Delete rule:', ruleId);
+        async deleteRule(ruleId) {
+            if (!confirm('Are you sure you want to delete this rule?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/rules/${ruleId}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Remove from local state
+                this.formRules = this.formRules.filter(r => r.id !== ruleId);
+                this.updateRuleCountDisplay();
+                this.showNotification('Rule deleted successfully!', 'success');
+            } catch (error) {
+                console.error('Error deleting rule:', error);
+                this.showNotification('Error deleting rule. Please try again.', 'error');
             }
         },
         
@@ -692,10 +880,85 @@ function formBuilder() {
         },
         
         async saveRule() {
-            // TODO: Save via AJAX
-            console.log('Save rule:', this.ruleForm);
-            this.closeRuleModal();
-            alert('Rule saved! (AJAX save coming soon)');
+            // Validate
+            if (!this.ruleForm.conditionStep || !this.ruleForm.conditionField) {
+                this.showNotification('Please select a condition step and field.', 'error');
+                return;
+            }
+            if (!this.ruleForm.actionStep || this.ruleForm.actionTargetFields.length === 0) {
+                this.showNotification('Please select an action step and target fields.', 'error');
+                return;
+            }
+            
+            const formId = this.getFormId();
+            if (!formId) {
+                this.showNotification('Please save the form first before adding rules.', 'error');
+                return;
+            }
+            
+            this.ruleSaving = true;
+            
+            try {
+                // Build the conditions array
+                const conditions = [{
+                    field: `${this.ruleForm.conditionStep}.${this.ruleForm.conditionField}`,
+                    operator: this.ruleForm.conditionOperator,
+                    value: this.ruleForm.conditionValue
+                }];
+                
+                // Build the actions array
+                const actions = [{
+                    action: this.ruleForm.actionType,
+                    params: {
+                        fields: this.ruleForm.actionTargetFields.map(f => `${this.ruleForm.actionStep}.${f}`)
+                    }
+                }];
+                
+                const payload = {
+                    name: this.ruleForm.name || this.rulePreviewText,
+                    conditions: conditions,
+                    condition_logic: this.ruleForm.conditionLogic,
+                    actions: actions,
+                    is_active: true
+                };
+                
+                let url, method;
+                if (this.editingRuleId) {
+                    url = `/api/v1/workflows/admin/rules/${this.editingRuleId}/`;
+                    method = 'PUT';
+                } else {
+                    url = `/api/v1/workflows/admin/forms/${formId}/rules/`;
+                    method = 'POST';
+                }
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Rule saved:', result);
+                
+                // Reload rules to get updated list
+                await this.loadFormRules();
+                
+                this.closeRuleModal();
+                this.showNotification(`Rule ${this.editingRuleId ? 'updated' : 'created'} successfully!`, 'success');
+            } catch (error) {
+                console.error('Error saving rule:', error);
+                this.showNotification('Error saving rule. Please try again.', 'error');
+            } finally {
+                this.ruleSaving = false;
+            }
         },
         
         // ==================== ADD STEP ====================
