@@ -226,7 +226,8 @@ function formBuilder() {
                     
                     if (response.ok) {
                         const data = await response.json();
-                        const selectedFields = (data.fields || []).filter(f => f.selected);
+                        // API returns selected_fields (already saved fields) and available_fields
+                        const selectedFields = data.selected_fields || [];
                         
                         // Get auto-populate info for each field
                         const fieldsWithConfig = await Promise.all(
