@@ -180,6 +180,15 @@ const FormField: React.FC<FormFieldProps> = ({
     setLocalValue(value);
   }, [value]);
 
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
   const handleChange = useCallback((newValue: any) => {
     setLocalValue(newValue);
     

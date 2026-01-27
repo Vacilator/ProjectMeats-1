@@ -195,9 +195,14 @@ export const formSubmissionService = {
     const config = cancelKey 
       ? { params, cancelToken: cancelTokenManager.create(cancelKey).token }
       : { params };
-    const response = await apiClient.get('/workflows/form-submissions/', config);
-    if (cancelKey) cancelTokenManager.remove(cancelKey);
-    return response.data;
+    try {
+      const response = await apiClient.get('/workflows/form-submissions/', config);
+      if (cancelKey) cancelTokenManager.remove(cancelKey);
+      return response.data;
+    } catch (err) {
+      if (cancelKey) cancelTokenManager.remove(cancelKey);
+      throw err;
+    }
   },
 
   /**
@@ -216,9 +221,14 @@ export const formSubmissionService = {
     const config = cancelKey 
       ? { cancelToken: cancelTokenManager.create(cancelKey).token }
       : {};
-    const response = await apiClient.get(`/workflows/form-submissions/${submissionId}/`, config);
-    if (cancelKey) cancelTokenManager.remove(cancelKey);
-    return response.data;
+    try {
+      const response = await apiClient.get(`/workflows/form-submissions/${submissionId}/`, config);
+      if (cancelKey) cancelTokenManager.remove(cancelKey);
+      return response.data;
+    } catch (err) {
+      if (cancelKey) cancelTokenManager.remove(cancelKey);
+      throw err;
+    }
   },
 
   /**

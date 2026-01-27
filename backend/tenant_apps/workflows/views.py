@@ -1208,6 +1208,14 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         """Auto-save a single field value."""
         submission = self.get_object()
         
+        # Explicit tenant check for security
+        request_tenant = getattr(request, 'tenant', None)
+        if not request_tenant or submission.tenant_id != request_tenant.id:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         # Check submission is editable
         if submission.status in [FormSubmissionStatus.COMPLETED, FormSubmissionStatus.CANCELLED]:
             return Response(
@@ -1225,27 +1233,29 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         field_key = serializer.validated_data['field_key']
         value = serializer.validated_data['value']
         
-        # Update data structure
-        if step_id not in submission.data:
-            submission.data[step_id] = {}
-        
-        submission.data[step_id][field_key] = value
-        submission.data[step_id]['_meta'] = {
-            'last_updated': timezone.now().isoformat(),
-            'updated_by': str(request.user.id)
-        }
-        
-        # Update status to in_progress if draft
-        if submission.status == FormSubmissionStatus.DRAFT:
-            submission.status = FormSubmissionStatus.IN_PROGRESS
-        
-        submission.save(update_fields=['data', 'status', 'updated_at'])
-        
-        # Update step submission status
-        step_submission = submission.step_submissions.filter(step_id=step_id).first()
-        if step_submission and step_submission.status == StepSubmissionStatus.NOT_STARTED:
-            step_submission.status = StepSubmissionStatus.IN_PROGRESS
-            step_submission.save(update_fields=['status', 'updated_at'])
+        # Use transaction for atomicity
+        with transaction.atomic():
+            # Update data structure
+            if step_id not in submission.data:
+                submission.data[step_id] = {}
+            
+            submission.data[step_id][field_key] = value
+            submission.data[step_id]['_meta'] = {
+                'last_updated': timezone.now().isoformat(),
+                'updated_by': str(request.user.id)
+            }
+            
+            # Update status to in_progress if draft
+            if submission.status == FormSubmissionStatus.DRAFT:
+                submission.status = FormSubmissionStatus.IN_PROGRESS
+            
+            submission.save(update_fields=['data', 'status', 'updated_at'])
+            
+            # Update step submission status
+            step_submission = submission.step_submissions.filter(step_id=step_id).first()
+            if step_submission and step_submission.status == StepSubmissionStatus.NOT_STARTED:
+                step_submission.status = StepSubmissionStatus.IN_PROGRESS
+                step_submission.save(update_fields=['status', 'updated_at'])
         
         return Response({
             'success': True,
@@ -1258,6 +1268,15 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
     def complete_step(self, request, pk=None):
         """Mark a step as complete."""
         submission = self.get_object()
+        
+        # Explicit tenant check for security
+        request_tenant = getattr(request, 'tenant', None)
+        if not request_tenant or submission.tenant_id != request_tenant.id:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         step_id = request.data.get('step_id')
         
         if not step_id:
@@ -1273,22 +1292,24 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Mark complete
-        step_submission.mark_completed(user=request.user)
-        
-        # Move to next step if available
-        current_order = step_submission.step.order
-        next_step = submission.form.entities.filter(order__gt=current_order).order_by('order').first()
-        
-        if next_step:
-            submission.current_step = next_step
-            # Mark next step as in_progress
-            next_step_submission = submission.step_submissions.filter(step=next_step).first()
-            if next_step_submission:
-                next_step_submission.status = StepSubmissionStatus.IN_PROGRESS
-                next_step_submission.save(update_fields=['status', 'updated_at'])
-        
-        submission.save(update_fields=['current_step', 'updated_at'])
+        # Use transaction for atomicity
+        with transaction.atomic():
+            # Mark complete
+            step_submission.mark_completed(user=request.user)
+            
+            # Move to next step if available
+            current_order = step_submission.step.order
+            next_step = submission.form.entities.filter(order__gt=current_order).order_by('order').first()
+            
+            if next_step:
+                submission.current_step = next_step
+                # Mark next step as in_progress
+                next_step_submission = submission.step_submissions.filter(step=next_step).first()
+                if next_step_submission:
+                    next_step_submission.status = StepSubmissionStatus.IN_PROGRESS
+                    next_step_submission.save(update_fields=['status', 'updated_at'])
+            
+            submission.save(update_fields=['current_step', 'updated_at'])
         
         return Response({
             'success': True,
@@ -1301,6 +1322,14 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
     def submit(self, request, pk=None):
         """Final submission of the form."""
         submission = self.get_object()
+        
+        # Explicit tenant check for security
+        request_tenant = getattr(request, 'tenant', None)
+        if not request_tenant or submission.tenant_id != request_tenant.id:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         if submission.status == FormSubmissionStatus.COMPLETED:
             return Response(
@@ -1337,6 +1366,14 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         """Cancel a submission."""
         submission = self.get_object()
+        
+        # Explicit tenant check for security
+        request_tenant = getattr(request, 'tenant', None)
+        if not request_tenant or submission.tenant_id != request_tenant.id:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         if submission.status == FormSubmissionStatus.COMPLETED:
             return Response(
