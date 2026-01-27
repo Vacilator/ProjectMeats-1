@@ -718,30 +718,65 @@ kbd {
 .condition-builder input,
 .action-builder select,
 .action-builder input {
-    padding: 8px 12px;
+    padding: 10px 12px;
     border: 1px solid var(--fb-border);
     border-radius: var(--fb-radius-sm);
-    font-size: 13px;
+    font-size: 14px;
+    background: var(--fb-bg);
+    color: var(--fb-fg);
+    min-height: 42px;
+    line-height: 1.4;
+}
+
+/* Ensure select dropdowns are properly styled and readable */
+.condition-builder select,
+.action-builder select {
+    appearance: auto;
+    cursor: pointer;
+}
+
+.condition-builder select:focus,
+.condition-builder input:focus,
+.action-builder select:focus,
+.action-builder input:focus {
+    outline: none;
+    border-color: var(--fb-primary);
+    box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.1);
+}
+
+.condition-builder select option,
+.action-builder select option {
+    padding: 8px 12px;
     background: var(--fb-bg);
     color: var(--fb-fg);
 }
 
 .condition-step,
 .action-step {
-    min-width: 150px;
+    min-width: 180px;
+    flex: 1 1 180px;
+    max-width: 250px;
 }
 
-.condition-field,
+.condition-field {
+    min-width: 200px;
+    flex: 1 1 200px;
+    max-width: 280px;
+}
+
 .action-type {
     min-width: 150px;
+    flex: 0 0 auto;
 }
 
 .condition-operator {
-    min-width: 130px;
+    min-width: 150px;
+    flex: 0 0 auto;
 }
 
 .condition-value {
-    min-width: 120px;
+    min-width: 140px;
+    flex: 1 1 140px;
 }
 
 .condition-dot {
@@ -1069,8 +1104,22 @@ kbd {
     
     .condition-builder select,
     .condition-builder input,
-    .action-builder select {
+    .action-builder select,
+    .action-builder input {
         width: 100%;
+        max-width: none;
+        min-width: 100%;
+    }
+    
+    .condition-step,
+    .action-step,
+    .condition-field,
+    .action-type,
+    .condition-operator,
+    .condition-value {
+        min-width: 100%;
+        max-width: none;
+        flex: none;
     }
 }
 
