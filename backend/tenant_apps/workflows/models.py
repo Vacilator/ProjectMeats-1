@@ -266,7 +266,8 @@ class TenantFormEntity(models.Model):
         verbose_name = "Form Entity"
         verbose_name_plural = "Form Entities"
         ordering = ['form', 'order']
-        unique_together = [['form', 'entity_type']]
+        # Note: Removed unique_together constraint to allow multiple steps 
+        # with the same entity type (e.g., two "Sales Order" steps in one form)
     
     def __str__(self):
         return f"Step {self.order + 1}: {self.step_name or self.entity_type}"
