@@ -364,6 +364,7 @@ POST /api/v1/workflows/form-submissions/{id}/complete-step/
 | #2074 | Jan 2026 | Conditional Rules Engine and Step Notes | ✅ Merged |
 | #2075 | Jan 2026 | Critical bug fixes for form execution | ✅ Merged |
 | #2079 | Jan 2026 | Phase 7 - UX polish with notifications and request cancellation | ✅ Merged |
+| #2082 | Jan 2026 | Bug fixes round 2 - transaction safety and tenant isolation | ✅ Merged |
 
 ---
 
