@@ -8,6 +8,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from .models import FormSubmission, FormStepSubmission, StepSubmissionStatus
+from .services import FieldRegistry
 
 
 @receiver(post_save, sender=FormSubmission)
@@ -69,21 +70,45 @@ def _build_form_snapshot(form):
     }
     
     for entity in form.entities.all().order_by('order'):
+        # Get field metadata for this entity type from registry
+        entity_fields_meta = {}
+        try:
+            entity_fields = FieldRegistry.get_fields(entity.entity_type)
+            for ef in entity_fields:
+                entity_fields_meta[ef['key']] = ef
+        except Exception:
+            pass  # If registry fails, we'll use defaults
+        
         step_data = {
             'id': str(entity.id),
             'entity_type': entity.entity_type,
+            'name': entity.step_name or entity.entity_type.replace('_', ' ').title(),
             'step_name': entity.step_name,
             'order': entity.order,
             'fields': []
         }
         
         for field in entity.fields.filter(is_visible=True).order_by('order'):
+            # Get type from registry metadata if available
+            field_meta = entity_fields_meta.get(field.field_key, {})
+            field_type = field_meta.get('type', 'text')
+            
+            # Get options from choices if available
+            options = []
+            if field_meta.get('choices'):
+                options = field_meta['choices']
+            elif field.validation_rules and field.validation_rules.get('options'):
+                options = field.validation_rules['options']
+            
             field_data = {
                 'key': field.field_key,
-                'label': field.custom_label or field.field_key,
-                'is_required': field.is_required,
+                'label': field.custom_label or field_meta.get('label', field.field_key.replace('_', ' ').title()),
+                'type': field_type,
+                'required': field.is_required,
                 'default_value': field.default_value,
-                'help_text': field.custom_help_text,
+                'placeholder': field.custom_help_text or field_meta.get('help_text', ''),
+                'help_text': field.custom_help_text or field_meta.get('help_text', ''),
+                'options': options,
                 'validation_rules': field.validation_rules,
             }
             

@@ -53,6 +53,24 @@ import ApiTestComponent from './components/ApiTestComponent';
 import { WorkflowList, WorkflowRunner } from './pages/Workflows';
 import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
 import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
+import { FormSubmissionModal } from './components/FormSubmission';
+import { useQuickActions } from './contexts/QuickActionsContext';
+import MySubmissions from './pages/MySubmissions';
+
+// Wrapper component to access QuickActions context
+const FormSubmissionWrapper: React.FC = () => {
+  const { activeSubmission, isFormModalOpen, closeFormModal } = useQuickActions();
+  
+  if (!activeSubmission || !isFormModalOpen) return null;
+  
+  return (
+    <FormSubmissionModal
+      submission={activeSubmission}
+      isOpen={isFormModalOpen}
+      onClose={closeFormModal}
+    />
+  );
+};
 
 const App: React.FC = () => {
   // Dynamic favicon and title based on environment
@@ -169,8 +187,13 @@ const App: React.FC = () => {
                 <Route path="workflows/monitor" element={<WorkflowMonitor />} />
                 <Route path="workflows/run/:runId" element={<WorkflowRunner />} />
                 <Route path="workflows/details/:runId" element={<WorkflowExecutionDetails />} />
+                
+                {/* Form Submissions */}
+                <Route path="my-submissions" element={<MySubmissions />} />
               </Route>
             </Routes>
+            {/* Form Submission Modal - rendered at app level */}
+            <FormSubmissionWrapper />
           </NavigationProvider>
         </Router>
       </QuickActionsProvider>
