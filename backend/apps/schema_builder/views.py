@@ -4,12 +4,13 @@ API ViewSets for Schema Builder.
 Bundle One: Custom System Data
 Provides REST API endpoints for DataSchema, Fields, and Versions.
 """
-from django.db.models import Count
+from django.db.models import Count, Max
 from django.core.cache import cache
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.views import APIView
 
 from .models import DataSchema, DataSchemaField, DataSchemaVersion, FieldOptionList, SchemaStatus
 from .serializers import (
@@ -17,6 +18,286 @@ from .serializers import (
     DataSchemaVersionSerializer, FieldOptionListSerializer, SchemaDefinitionSerializer
 )
 from .permissions import can_submit_schema, can_publish_schema
+
+
+# =============================================================================
+# ADMIN SCHEMA EDITOR API VIEWS
+# =============================================================================
+
+class SchemaFieldsAPIView(APIView):
+    """
+    API endpoint for managing schema fields (list/create).
+    Used by the schema editor admin interface.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, schema_id):
+        """Get all fields for a schema."""
+        try:
+            schema = DataSchema.objects.get(pk=schema_id)
+        except DataSchema.DoesNotExist:
+            return Response(
+                {'error': 'Schema not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        fields = schema.fields.all().order_by('order')
+        fields_data = [{
+            'id': str(field.id),
+            'key': field.key,
+            'label': field.label,
+            'field_type': field.field_type,
+            'is_required': field.is_required,
+            'is_visible': field.is_visible,
+            'is_searchable': field.is_searchable,
+            'order': field.order,
+            'help_text': field.help_text,
+            'placeholder': field.placeholder,
+            'options': field.options,
+            'default_value': field.default_value,
+            'validation_rules': field.validation_rules,
+            'decimal_places': field.decimal_places
+        } for field in fields]
+        
+        return Response({
+            'schema_id': str(schema_id),
+            'schema_name': schema.name,
+            'fields': fields_data,
+            'count': len(fields_data)
+        })
+    
+    def post(self, request, schema_id):
+        """Create a new field for a schema."""
+        try:
+            schema = DataSchema.objects.get(pk=schema_id)
+        except DataSchema.DoesNotExist:
+            return Response(
+                {'error': 'Schema not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        label = request.data.get('label')
+        key = request.data.get('key')
+        field_type = request.data.get('field_type', 'text')
+        
+        if not label:
+            return Response(
+                {'error': 'label is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Auto-generate key if not provided
+        if not key:
+            from django.utils.text import slugify
+            key = slugify(label).replace('-', '_')
+        
+        # Check for duplicate key
+        if schema.fields.filter(key=key).exists():
+            return Response(
+                {'error': f'Field with key "{key}" already exists'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get next order number
+        max_order = schema.fields.aggregate(Max('order'))['order__max']
+        next_order = 0 if max_order is None else max_order + 1
+        
+        # Create the field
+        field = DataSchemaField.objects.create(
+            schema=schema,
+            key=key,
+            label=label,
+            field_type=field_type,
+            is_required=request.data.get('is_required', False),
+            is_visible=request.data.get('is_visible', True),
+            is_searchable=request.data.get('is_searchable', True),
+            order=next_order,
+            help_text=request.data.get('help_text', ''),
+            placeholder=request.data.get('placeholder', ''),
+            options=request.data.get('options', []),
+            default_value=request.data.get('default_value'),
+            validation_rules=request.data.get('validation_rules', {}),
+            decimal_places=request.data.get('decimal_places', 2)
+        )
+        
+        return Response({
+            'status': 'success',
+            'message': 'Field created',
+            'field': {
+                'id': str(field.id),
+                'key': field.key,
+                'label': field.label,
+                'field_type': field.field_type,
+                'is_required': field.is_required,
+                'is_visible': field.is_visible,
+                'is_searchable': field.is_searchable,
+                'order': field.order,
+                'help_text': field.help_text,
+                'placeholder': field.placeholder,
+                'options': field.options,
+                'default_value': field.default_value,
+                'validation_rules': field.validation_rules,
+                'decimal_places': field.decimal_places
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+class SchemaFieldDetailAPIView(APIView):
+    """
+    API endpoint for managing individual schema fields (get/update/delete).
+    Used by the schema editor admin interface.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, field_id):
+        """Get a single field."""
+        try:
+            field = DataSchemaField.objects.get(pk=field_id)
+        except DataSchemaField.DoesNotExist:
+            return Response(
+                {'error': 'Field not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        return Response({
+            'id': str(field.id),
+            'schema_id': str(field.schema_id),
+            'key': field.key,
+            'label': field.label,
+            'field_type': field.field_type,
+            'is_required': field.is_required,
+            'is_visible': field.is_visible,
+            'is_searchable': field.is_searchable,
+            'order': field.order,
+            'help_text': field.help_text,
+            'placeholder': field.placeholder,
+            'options': field.options,
+            'default_value': field.default_value,
+            'validation_rules': field.validation_rules,
+            'decimal_places': field.decimal_places
+        })
+    
+    def put(self, request, field_id):
+        """Update a field."""
+        try:
+            field = DataSchemaField.objects.get(pk=field_id)
+        except DataSchemaField.DoesNotExist:
+            return Response(
+                {'error': 'Field not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Update allowed fields (key cannot be changed)
+        if 'label' in request.data:
+            field.label = request.data['label']
+        if 'field_type' in request.data:
+            field.field_type = request.data['field_type']
+        if 'is_required' in request.data:
+            field.is_required = request.data['is_required']
+        if 'is_visible' in request.data:
+            field.is_visible = request.data['is_visible']
+        if 'is_searchable' in request.data:
+            field.is_searchable = request.data['is_searchable']
+        if 'help_text' in request.data:
+            field.help_text = request.data['help_text']
+        if 'placeholder' in request.data:
+            field.placeholder = request.data['placeholder']
+        if 'options' in request.data:
+            field.options = request.data['options']
+        if 'default_value' in request.data:
+            field.default_value = request.data['default_value']
+        if 'validation_rules' in request.data:
+            field.validation_rules = request.data['validation_rules']
+        if 'decimal_places' in request.data:
+            field.decimal_places = request.data['decimal_places']
+        
+        field.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Field updated',
+            'field': {
+                'id': str(field.id),
+                'key': field.key,
+                'label': field.label,
+                'field_type': field.field_type,
+                'is_required': field.is_required,
+                'is_visible': field.is_visible,
+                'is_searchable': field.is_searchable,
+                'order': field.order,
+                'help_text': field.help_text,
+                'placeholder': field.placeholder,
+                'options': field.options,
+                'default_value': field.default_value,
+                'validation_rules': field.validation_rules,
+                'decimal_places': field.decimal_places
+            }
+        })
+    
+    def delete(self, request, field_id):
+        """Delete a field."""
+        try:
+            field = DataSchemaField.objects.get(pk=field_id)
+        except DataSchemaField.DoesNotExist:
+            return Response(
+                {'error': 'Field not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        field_label = field.label
+        field.delete()
+        
+        return Response({
+            'status': 'success',
+            'message': f'Field "{field_label}" deleted'
+        })
+
+
+class SchemaReorderAPIView(APIView):
+    """
+    API endpoint for reordering schema fields.
+    Used by the schema editor admin interface (drag-drop).
+    """
+    permission_classes = [IsAdminUser]
+    
+    def post(self, request, schema_id):
+        """Reorder fields within a schema."""
+        try:
+            schema = DataSchema.objects.get(pk=schema_id)
+        except DataSchema.DoesNotExist:
+            return Response(
+                {'error': 'Schema not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        field_order = request.data.get('field_order', [])
+        
+        if not field_order:
+            return Response(
+                {'error': 'field_order is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update order for each field
+        for item in field_order:
+            field_id = item.get('id')
+            order = item.get('order', 0)
+            if field_id:
+                DataSchemaField.objects.filter(
+                    id=field_id,
+                    schema=schema
+                ).update(order=order)
+        
+        return Response({
+            'status': 'success',
+            'message': 'Field order updated'
+        })
+
+
+# =============================================================================
+# STANDARD VIEWSETS
+# =============================================================================
+
 
 
 class DataSchemaViewSet(viewsets.ModelViewSet):

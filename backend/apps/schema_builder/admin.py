@@ -139,10 +139,14 @@ class DataSchemaAdmin(DataSchemaAdminBase):
     - Status workflow (Draft → Submitted → Published)
     - Version history
     - Role-based permissions
+    - Visual field editor (Phase 1)
     """
     
     form = DataSchemaForm
     inlines = [DataSchemaFieldInline]
+    
+    # Custom template with visual field editor
+    change_form_template = 'admin/schema_builder/dataschema/change_form.html'
     
     list_display = [
         'name', 'status_badge', 'version', 'field_count',
@@ -187,6 +191,13 @@ class DataSchemaAdmin(DataSchemaAdminBase):
             'classes': ['collapse']
         }),
     ]
+    
+    class Media:
+        """Load CSS and JS for schema editor."""
+        css = {
+            'all': ('admin/schema_builder/css/schema_editor.css',)
+        }
+        js = ('admin/schema_builder/js/schema_editor.js',)
     
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
