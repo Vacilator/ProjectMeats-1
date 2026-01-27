@@ -1,0 +1,414 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}
+{{ block.super }}
+<!-- Alpine.js for reactivity -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<!-- Sortable.js for drag-drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<!-- Form Builder CSS -->
+<link rel="stylesheet" href="{% static 'admin/workflows/css/form_builder.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main" x-data="formBuilder()" x-init="init()">
+    
+    {% block object-tools %}
+    {% if change and not is_popup %}
+    <ul class="object-tools">
+        {% block object-tools-items %}
+        {% change_form_object_tools %}
+        <li>
+            <a href="#" @click.prevent="togglePreview()" class="viewlink">
+                👁️ {% translate "Preview Form" %}
+            </a>
+        </li>
+        {% endblock %}
+    </ul>
+    {% endif %}
+    {% endblock %}
+
+    <form {% if has_file_field %}enctype="multipart/form-data" {% endif %}{% if form_url %}action="{{ form_url }}" {% endif %}method="post" id="{{ opts.model_name }}_form" novalidate>
+        {% csrf_token %}
+        {% block form_top %}{% endblock %}
+        
+        <div>
+            {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+            {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+            {% if save_on_top %}{% block submit_buttons_top %}{% submit_row %}{% endblock %}{% endif %}
+            
+            {% if errors %}
+            <p class="errornote">
+                {% blocktranslate count counter=errors|length %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}
+            </p>
+            {{ adminform.form.non_field_errors }}
+            {% endif %}
+
+            <!-- Standard fieldsets (Form Information, Status, etc.) -->
+            {% block field_sets %}
+            {% for fieldset in adminform %}
+                {% include "admin/includes/fieldset.html" with heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=forloop.counter0 %}
+            {% endfor %}
+            {% endblock %}
+
+            {% block after_field_sets %}{% endblock %}
+
+            <!-- Custom Visual Form Builder Section -->
+            {% if change %}
+            <fieldset class="module form-builder-section">
+                <h2>📊 Form Steps</h2>
+                <div class="form-builder-description">
+                    <p>Design your form by adding steps (entities) and configuring which fields appear in each step. Drag steps to reorder them.</p>
+                </div>
+                
+                <!-- Step Cards Container -->
+                <div class="step-cards-container" id="step-cards" x-ref="stepCards">
+                    {% for inline in inline_admin_formsets %}
+                        {% if inline.opts.verbose_name == "Form Step" or inline.formset.prefix == "entities" %}
+                            <!-- Render step cards from entities inline -->
+                            {% for form in inline.formset %}
+                                {% if form.instance.pk %}
+                                <div class="step-card" 
+                                     data-step-id="{{ form.instance.pk }}"
+                                     data-order="{{ form.instance.order }}"
+                                     x-data="{ expanded: false }">
+                                    <div class="step-card-header">
+                                        <span class="drag-handle" title="Drag to reorder">≡</span>
+                                        <span class="step-number">Step {{ forloop.counter }}</span>
+                                        <h3 class="step-title">
+                                            {% if form.instance.step_name %}
+                                                {{ form.instance.step_name }}
+                                            {% else %}
+                                                {{ form.instance.entity_type|title }}
+                                            {% endif %}
+                                        </h3>
+                                        <span class="step-entity-badge">{{ form.instance.entity_type }}</span>
+                                    </div>
+                                    <div class="step-card-body">
+                                        <div class="step-stats">
+                                            <span class="stat">
+                                                <strong>{{ form.instance.fields.count }}</strong> fields selected
+                                            </span>
+                                            <span class="stat">
+                                                <strong>{{ form.instance.form.rules.count }}</strong> rules
+                                            </span>
+                                        </div>
+                                        <div class="step-actions">
+                                            <button type="button" 
+                                                    class="step-action-btn"
+                                                    @click="openFieldEditor('{{ form.instance.pk }}')"
+                                                    title="Edit Fields">
+                                                ✏️ Edit Fields
+                                            </button>
+                                            <button type="button" 
+                                                    class="step-action-btn"
+                                                    @click="openRuleEditor('{{ form.instance.pk }}')"
+                                                    title="Configure Rules">
+                                                📜 Rules
+                                            </button>
+                                            <a href="{% url 'admin:workflows_tenantformentity_change' form.instance.pk %}" 
+                                               class="step-action-btn"
+                                               title="Advanced Settings">
+                                                ⚙️ Settings
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% empty %}
+                                <!-- No steps yet -->
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Add Step Card (Ghost) -->
+                    <div class="step-card step-card-add" @click="showAddStepModal()">
+                        <div class="add-step-content">
+                            <span class="add-icon">➕</span>
+                            <span class="add-text">Add Step</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Connection Lines (visual flow) -->
+                <div class="step-flow-indicator" x-show="stepCount > 1">
+                    <span class="flow-text">Form flows from left to right →</span>
+                </div>
+            </fieldset>
+            
+            <!-- Form-Wide Rules Section -->
+            <fieldset class="module form-rules-section">
+                <h2>📜 Conditional Rules (Form-Wide)</h2>
+                <div class="form-builder-description">
+                    <p>Define rules that show/hide fields based on values from other steps.</p>
+                </div>
+                
+                <div class="rules-list" id="form-rules">
+                    {% for inline in inline_admin_formsets %}
+                        {% if inline.opts.verbose_name == "Conditional Rule" or inline.formset.prefix == "rules" %}
+                            {% for form in inline.formset %}
+                                {% if form.instance.pk %}
+                                <div class="rule-item" data-rule-id="{{ form.instance.pk }}">
+                                    <div class="rule-content">
+                                        <span class="rule-status {% if form.instance.is_active %}active{% else %}inactive{% endif %}">
+                                            {% if form.instance.is_active %}✓{% else %}○{% endif %}
+                                        </span>
+                                        <span class="rule-name">
+                                            {{ form.instance.name|default:"Unnamed Rule" }}
+                                        </span>
+                                        <span class="rule-summary">
+                                            <!-- Will be populated by JS based on conditions/actions -->
+                                        </span>
+                                    </div>
+                                    <div class="rule-actions">
+                                        <button type="button" class="rule-edit-btn" @click="editRule('{{ form.instance.pk }}')">Edit</button>
+                                        <button type="button" class="rule-delete-btn" @click="deleteRule('{{ form.instance.pk }}')">Delete</button>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% empty %}
+                                <p class="no-rules-message">No rules configured. Add a rule to create conditional field visibility.</p>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <div class="rules-toolbar">
+                    <button type="button" class="add-rule-btn" @click="showAddRuleModal()">
+                        ➕ Add Rule
+                    </button>
+                </div>
+            </fieldset>
+            {% endif %}
+
+            <!-- Original Django inlines (hidden, for form submission) -->
+            <div class="original-inlines" style="display: none;">
+                {% block inline_field_sets %}
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% include inline_admin_formset.opts.template %}
+                {% endfor %}
+                {% endblock %}
+            </div>
+
+            {% block after_related_objects %}{% endblock %}
+
+            {% block submit_buttons_bottom %}{% submit_row %}{% endblock %}
+
+            {% block admin_change_form_document_ready %}
+            <script id="django-admin-form-add-constants"
+                    src="{% static 'admin/js/change_form.js' %}"
+                    {% if adminform and add %}
+                        data-model-name="{{ opts.model_name }}"
+                    {% endif %}
+                    async>
+            </script>
+            {% endblock %}
+
+            {% prepopulated_fields_js %}
+        </div>
+    </form>
+    
+    <!-- Field Editor Modal -->
+    <div class="modal-overlay" x-show="showFieldModal" x-cloak @click.self="closeFieldModal()">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>✏️ Edit Fields for <span x-text="currentStepName"></span></h3>
+                <button type="button" class="modal-close" @click="closeFieldModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="field-editor-container">
+                    <!-- Selected Fields (draggable) -->
+                    <div class="field-list-section">
+                        <h4>Selected Fields <span class="field-count" x-text="'(' + selectedFields.length + ')'"></span></h4>
+                        <div class="field-list selected-fields" id="selected-fields-list" x-ref="selectedFieldsList">
+                            <template x-for="field in selectedFields" :key="field.key">
+                                <div class="field-item" :data-field-key="field.key">
+                                    <span class="drag-handle">≡</span>
+                                    <input type="checkbox" checked @change="toggleField(field.key)">
+                                    <span class="field-name" x-text="field.label"></span>
+                                    <span class="field-type-badge" x-text="field.type"></span>
+                                    <span class="field-required" x-show="field.required">Required</span>
+                                    <button type="button" class="field-config-btn" @click="configureField(field.key)">⚙️</button>
+                                </div>
+                            </template>
+                            <p x-show="selectedFields.length === 0" class="no-fields-message">
+                                No fields selected. Click fields below to add them.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Available Fields -->
+                    <div class="field-list-section">
+                        <h4>Available Fields</h4>
+                        <input type="text" 
+                               class="field-search" 
+                               placeholder="Search fields..."
+                               x-model="fieldSearch"
+                               @input="filterFields()">
+                        <div class="field-list available-fields">
+                            <template x-for="field in filteredAvailableFields" :key="field.key">
+                                <div class="field-item available" @click="addField(field.key)">
+                                    <input type="checkbox" :checked="isFieldSelected(field.key)" @click.stop="toggleField(field.key)">
+                                    <span class="field-name" x-text="field.label"></span>
+                                    <span class="field-type-badge" x-text="field.type"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeFieldModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" @click="saveFieldSelection()">💾 Save Selection</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Rule Builder Modal -->
+    <div class="modal-overlay" x-show="showRuleModal" x-cloak @click.self="closeRuleModal()">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>📜 <span x-text="editingRuleId ? 'Edit' : 'Add'"></span> Conditional Rule</h3>
+                <button type="button" class="modal-close" @click="closeRuleModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="rule-builder">
+                    <div class="form-group">
+                        <label>Rule Name (optional)</label>
+                        <input type="text" x-model="ruleForm.name" placeholder="e.g., Show shipping fields when delivery selected">
+                    </div>
+                    
+                    <div class="rule-section">
+                        <h4>WHEN (Conditions)</h4>
+                        <div class="condition-builder">
+                            <select x-model="ruleForm.conditionStep" class="condition-step">
+                                <option value="">-- Select Step --</option>
+                                <template x-for="step in formSteps" :key="step.id">
+                                    <option :value="step.id" x-text="'Step ' + step.order + ': ' + step.name"></option>
+                                </template>
+                            </select>
+                            <span class="condition-dot">.</span>
+                            <select x-model="ruleForm.conditionField" class="condition-field">
+                                <option value="">-- Select Field --</option>
+                                <template x-for="field in conditionFields" :key="field.key">
+                                    <option :value="field.key" x-text="field.label"></option>
+                                </template>
+                            </select>
+                            <select x-model="ruleForm.conditionOperator" class="condition-operator">
+                                <option value="eq">equals</option>
+                                <option value="neq">does not equal</option>
+                                <option value="contains">contains</option>
+                                <option value="not_contains">does not contain</option>
+                                <option value="gt">is greater than</option>
+                                <option value="lt">is less than</option>
+                                <option value="is_empty">is empty</option>
+                                <option value="is_not_empty">is not empty</option>
+                            </select>
+                            <input type="text" 
+                                   x-model="ruleForm.conditionValue" 
+                                   class="condition-value"
+                                   placeholder="value"
+                                   x-show="!['is_empty', 'is_not_empty'].includes(ruleForm.conditionOperator)">
+                        </div>
+                    </div>
+                    
+                    <div class="rule-section">
+                        <h4>THEN (Action)</h4>
+                        <div class="action-builder">
+                            <select x-model="ruleForm.actionType" class="action-type">
+                                <option value="display_fields">Show Fields</option>
+                                <option value="hide_fields">Hide Fields</option>
+                                <option value="set_value">Set Field Value</option>
+                            </select>
+                            <span class="action-arrow">→</span>
+                            <select x-model="ruleForm.actionStep" class="action-step">
+                                <option value="">-- Select Step --</option>
+                                <template x-for="step in formSteps" :key="step.id">
+                                    <option :value="step.id" x-text="'Step ' + step.order + ': ' + step.name"></option>
+                                </template>
+                            </select>
+                            <div class="action-fields-select">
+                                <!-- Multi-select for target fields -->
+                                <template x-for="field in actionFields" :key="field.key">
+                                    <label class="field-checkbox">
+                                        <input type="checkbox" 
+                                               :value="field.key" 
+                                               x-model="ruleForm.actionTargetFields">
+                                        <span x-text="field.label"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-preview">
+                        <h4>Preview</h4>
+                        <p class="preview-text" x-text="rulePreviewText"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeRuleModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" @click="saveRule()">💾 Save Rule</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Step Modal -->
+    <div class="modal-overlay" x-show="showAddStepModal" x-cloak @click.self="closeAddStepModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Add Form Step</h3>
+                <button type="button" class="modal-close" @click="closeAddStepModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Entity Type</label>
+                    <select x-model="newStep.entityType" class="entity-select">
+                        <option value="">-- Select Entity --</option>
+                        <option value="supplier">Supplier</option>
+                        <option value="customer">Customer</option>
+                        <option value="purchase_order">Purchase Order</option>
+                        <option value="sales_order">Sales Order</option>
+                        <option value="product">Product</option>
+                        <option value="plant">Plant</option>
+                        <option value="location">Location</option>
+                        <option value="contact">Contact</option>
+                        <option value="carrier">Carrier</option>
+                        <option value="invoice">Invoice</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Step Name (optional)</label>
+                    <input type="text" x-model="newStep.stepName" placeholder="e.g., Supplier Information">
+                    <small>Leave blank to use entity name</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeAddStepModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" @click="addStep()">➕ Add Step</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Form Preview Modal -->
+    <div class="modal-overlay" x-show="showPreviewModal" x-cloak @click.self="closePreview()">
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h3>👁️ Form Preview</h3>
+                <button type="button" class="modal-close" @click="closePreview()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-preview-container">
+                    <!-- Preview content rendered here -->
+                    <p class="preview-placeholder">Form preview will be rendered here showing how the form will appear to end users.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Form Builder JavaScript -->
+<script src="{% static 'admin/workflows/js/form_builder.js' %}"></script>
+{% endblock %}
