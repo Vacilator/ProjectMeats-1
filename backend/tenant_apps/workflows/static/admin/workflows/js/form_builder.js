@@ -63,7 +63,8 @@ function formBuilder() {
             conditionLogic: 'and',
             actionType: 'display_fields',
             actionStep: '',
-            actionTargetFields: []
+            actionTargetFields: [],
+            actionTargetSteps: []
         },
         conditionFields: [],
         actionFields: [],
@@ -868,10 +869,30 @@ function formBuilder() {
                 conditionLogic: 'and',
                 actionType: 'display_fields',
                 actionStep: '',
-                actionTargetFields: []
+                actionTargetFields: [],
+                actionTargetSteps: []
             };
             this.conditionFields = [];
             this.actionFields = [];
+        },
+        
+        // Helper methods for action type checking
+        isFieldAction() {
+            return ['display_fields', 'hide_fields', 'set_value'].includes(this.ruleForm.actionType);
+        },
+        
+        isStepAction() {
+            return ['display_steps', 'hide_steps'].includes(this.ruleForm.actionType);
+        },
+        
+        onActionTypeChange() {
+            // Clear targets when switching between field and step actions
+            if (this.isStepAction()) {
+                this.ruleForm.actionTargetFields = [];
+                this.ruleForm.actionStep = '';
+            } else {
+                this.ruleForm.actionTargetSteps = [];
+            }
         },
         
         async loadConditionFields() {
@@ -957,7 +978,24 @@ function formBuilder() {
             
             // Parse actions
             const action = rule.actions?.[0] || {};
-            const actionFieldParts = (action.params?.fields?.[0] || '').split('.');
+            const actionType = action.action || 'display_fields';
+            
+            // Determine if this is a field action or step action
+            const isStepActionType = ['display_steps', 'hide_steps'].includes(actionType);
+            
+            let actionStep = '';
+            let actionTargetFields = [];
+            let actionTargetSteps = [];
+            
+            if (isStepActionType) {
+                // Step-based action
+                actionTargetSteps = action.params?.steps || [];
+            } else {
+                // Field-based action
+                const actionFieldParts = (action.params?.fields?.[0] || '').split('.');
+                actionStep = actionFieldParts[0] || '';
+                actionTargetFields = (action.params?.fields || []).map(f => f.split('.')[1]).filter(Boolean);
+            }
             
             this.ruleForm = {
                 name: rule.name || '',
@@ -966,14 +1004,17 @@ function formBuilder() {
                 conditionOperator: condition.operator || 'eq',
                 conditionValue: condition.value || '',
                 conditionLogic: rule.condition_logic || 'and',
-                actionType: action.action || 'display_fields',
-                actionStep: actionFieldParts[0] || '',
-                actionTargetFields: (action.params?.fields || []).map(f => f.split('.')[1]).filter(Boolean)
+                actionType: actionType,
+                actionStep: actionStep,
+                actionTargetFields: actionTargetFields,
+                actionTargetSteps: actionTargetSteps
             };
             
             // Load fields for the selected steps
             await this.loadConditionFields();
-            await this.loadActionFields();
+            if (!isStepActionType) {
+                await this.loadActionFields();
+            }
             
             this.showRuleModal = true;
         },
@@ -1027,9 +1068,11 @@ function formBuilder() {
             };
             
             const actions = {
-                'display_fields': 'show',
-                'hide_fields': 'hide',
-                'set_value': 'set value for'
+                'display_fields': 'show fields',
+                'hide_fields': 'hide fields',
+                'set_value': 'set value for',
+                'display_steps': 'show steps',
+                'hide_steps': 'hide steps'
             };
             
             let preview = `When ${this.ruleForm.conditionField} in ${stepName} ${operators[this.ruleForm.conditionOperator] || 'equals'}`;
@@ -1040,24 +1083,48 @@ function formBuilder() {
             
             preview += `, then ${actions[this.ruleForm.actionType] || 'show'}`;
             
-            if (this.ruleForm.actionTargetFields.length > 0) {
-                preview += ` ${this.ruleForm.actionTargetFields.join(', ')}`;
-            } else {
-                preview += ' [select target fields]';
+            // Handle field-based actions
+            if (this.isFieldAction()) {
+                if (this.ruleForm.actionTargetFields.length > 0) {
+                    preview += `: ${this.ruleForm.actionTargetFields.join(', ')}`;
+                } else {
+                    preview += ' [select target fields]';
+                }
+            }
+            // Handle step-based actions
+            else if (this.isStepAction()) {
+                if (this.ruleForm.actionTargetSteps.length > 0) {
+                    const stepNames = this.ruleForm.actionTargetSteps.map(stepId => {
+                        const s = this.formSteps.find(fs => fs.id === stepId);
+                        return s ? `Step ${s.order + 1}: ${s.name}` : stepId;
+                    });
+                    preview += `: ${stepNames.join(', ')}`;
+                } else {
+                    preview += ' [select target steps]';
+                }
             }
             
             return preview;
         },
         
         async saveRule() {
-            // Validate
+            // Validate condition
             if (!this.ruleForm.conditionStep || !this.ruleForm.conditionField) {
                 this.showNotification('Please select a condition step and field.', 'error');
                 return;
             }
-            if (!this.ruleForm.actionStep || this.ruleForm.actionTargetFields.length === 0) {
-                this.showNotification('Please select an action step and target fields.', 'error');
-                return;
+            
+            // Validate action targets based on action type
+            if (this.isFieldAction()) {
+                if (!this.ruleForm.actionStep || this.ruleForm.actionTargetFields.length === 0) {
+                    this.showNotification('Please select an action step and target fields.', 'error');
+                    return;
+                }
+            } else if (this.isStepAction()) {
+                if (this.ruleForm.actionTargetSteps.length === 0) {
+                    this.showNotification('Please select at least one target step.', 'error');
+                    return;
+                }
             }
             
             const formId = this.getFormId();
@@ -1076,12 +1143,21 @@ function formBuilder() {
                     value: this.ruleForm.conditionValue
                 }];
                 
-                // Build the actions array
+                // Build the actions array based on action type
+                let actionParams = {};
+                if (this.isFieldAction()) {
+                    actionParams = {
+                        fields: this.ruleForm.actionTargetFields.map(f => `${this.ruleForm.actionStep}.${f}`)
+                    };
+                } else if (this.isStepAction()) {
+                    actionParams = {
+                        steps: this.ruleForm.actionTargetSteps
+                    };
+                }
+                
                 const actions = [{
                     action: this.ruleForm.actionType,
-                    params: {
-                        fields: this.ruleForm.actionTargetFields.map(f => `${this.ruleForm.actionStep}.${f}`)
-                    }
+                    params: actionParams
                 }];
                 
                 const payload = {

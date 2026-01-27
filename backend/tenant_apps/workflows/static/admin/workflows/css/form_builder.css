@@ -809,6 +809,69 @@ kbd {
     color: var(--fb-fg);
 }
 
+/* Step Selection UI for Step Actions */
+.action-steps-select {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.action-steps-select .select-hint {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: var(--fb-fg-quiet);
+}
+
+.step-checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--fb-bg);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.step-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--fb-darkened-bg);
+    border: 1px solid var(--fb-hairline);
+    border-radius: var(--fb-radius-sm);
+    cursor: pointer;
+    transition: var(--fb-transition);
+}
+
+.step-checkbox:hover {
+    background: var(--fb-selected-bg);
+    border-color: var(--fb-primary);
+}
+
+.step-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+.step-checkbox .step-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--fb-primary);
+    color: var(--primary-fg, #fff);
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: var(--fb-radius-sm);
+}
+
+.step-checkbox .entity-type {
+    color: var(--fb-fg-quiet);
+    font-size: 12px;
+    font-style: italic;
+}
+
 .rule-preview {
     padding: 16px;
     background: var(--message-success-bg, #dfd);

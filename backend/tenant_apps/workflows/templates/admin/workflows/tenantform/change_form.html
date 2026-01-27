@@ -460,20 +460,31 @@
                     <div class="rule-section">
                         <h4>THEN (Action)</h4>
                         <div class="action-builder">
-                            <select x-model="ruleForm.actionType" class="action-type">
-                                <option value="display_fields">Show Fields</option>
-                                <option value="hide_fields">Hide Fields</option>
-                                <option value="set_value">Set Field Value</option>
+                            <select x-model="ruleForm.actionType" @change="onActionTypeChange()" class="action-type">
+                                <optgroup label="Field Actions">
+                                    <option value="display_fields">Show Fields</option>
+                                    <option value="hide_fields">Hide Fields</option>
+                                    <option value="set_value">Set Field Value</option>
+                                </optgroup>
+                                <optgroup label="Step Actions">
+                                    <option value="display_steps">Show Steps</option>
+                                    <option value="hide_steps">Hide Steps</option>
+                                </optgroup>
                             </select>
                             <span class="action-arrow">→</span>
-                            <select x-model="ruleForm.actionStep" @change="loadActionFields()" class="action-step">
-                                <option value="">-- Select Step --</option>
-                                <template x-for="step in formSteps" :key="step.id">
-                                    <option :value="step.id" x-text="'Step ' + (step.order + 1) + ': ' + step.name"></option>
-                                </template>
-                            </select>
-                            <div class="action-fields-select" x-show="actionFields.length > 0">
-                                <!-- Multi-select for target fields -->
+                            
+                            <!-- Step selection (for field actions) -->
+                            <template x-if="isFieldAction()">
+                                <select x-model="ruleForm.actionStep" @change="loadActionFields()" class="action-step">
+                                    <option value="">-- Select Step --</option>
+                                    <template x-for="step in formSteps" :key="step.id">
+                                        <option :value="step.id" x-text="'Step ' + (step.order + 1) + ': ' + step.name"></option>
+                                    </template>
+                                </select>
+                            </template>
+                            
+                            <!-- Field checkboxes (for field actions) -->
+                            <div class="action-fields-select" x-show="isFieldAction() && actionFields.length > 0">
                                 <template x-for="field in actionFields" :key="field.key">
                                     <label class="field-checkbox">
                                         <input type="checkbox" 
@@ -483,9 +494,26 @@
                                     </label>
                                 </template>
                             </div>
-                            <p x-show="actionFields.length === 0 && ruleForm.actionStep" class="no-fields-message">
+                            <p x-show="isFieldAction() && actionFields.length === 0 && ruleForm.actionStep" class="no-fields-message">
                                 Select a step to see available fields...
                             </p>
+                            
+                            <!-- Step checkboxes (for step actions) -->
+                            <div class="action-steps-select" x-show="isStepAction()">
+                                <p class="select-hint">Select step(s) to show/hide:</p>
+                                <div class="step-checkbox-list">
+                                    <template x-for="step in formSteps" :key="step.id">
+                                        <label class="step-checkbox">
+                                            <input type="checkbox" 
+                                                   :value="step.id" 
+                                                   x-model="ruleForm.actionTargetSteps">
+                                            <span class="step-badge" x-text="'Step ' + (step.order + 1)"></span>
+                                            <span x-text="step.name"></span>
+                                            <span class="entity-type" x-text="'(' + step.entityType + ')'"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     

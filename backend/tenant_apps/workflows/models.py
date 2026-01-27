@@ -48,12 +48,17 @@ class OperatorType(models.TextChoices):
 
 class ActionType(models.TextChoices):
     """Types of actions that can be performed."""
+    # Field-level actions
     DISPLAY_FIELDS = 'display_fields', 'Display Field(s)'
     HIDE_FIELDS = 'hide_fields', 'Hide Field(s)'
     FILTER_OPTIONS = 'filter_options', 'Filter Field Options'
     SET_FIELD_VALUE = 'set_value', 'Set Field Value'
+    # Step/Entity-level actions
+    DISPLAY_STEPS = 'display_steps', 'Display Step(s)'
+    HIDE_STEPS = 'hide_steps', 'Hide Step(s)'
+    DISPLAY_ENTITIES = 'display_entities', 'Display Entities'  # Legacy alias
+    # Workflow actions
     RUN_WORKFLOW = 'run_workflow', 'Run Custom Workflow'
-    DISPLAY_ENTITIES = 'display_entities', 'Display Entities'
     SEND_EMAIL = 'send_email', 'Send Email'
     SEND_NOTIFICATION = 'send_notification', 'Send In-App Notification'
     SEND_TEAMS_SLACK = 'send_teams_slack', 'Send to Teams/Slack'
