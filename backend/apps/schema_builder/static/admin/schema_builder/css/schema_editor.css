@@ -37,6 +37,23 @@
 }
 
 /* ==========================================================================
+   Global Rules - No Horizontal Scrollbars
+   ========================================================================== */
+.schema-editor-container,
+.schema-editor-container *,
+.se-modal,
+.se-modal * {
+    box-sizing: border-box;
+}
+
+/* Prevent horizontal overflow globally in schema editor containers */
+.schema-editor-container,
+.se-modal-body,
+.se-modal-content {
+    overflow-x: hidden;
+}
+
+/* ==========================================================================
    Main Container
    ========================================================================== */
 .schema-editor-container {
