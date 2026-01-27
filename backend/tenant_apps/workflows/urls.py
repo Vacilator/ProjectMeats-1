@@ -11,7 +11,10 @@ from .views import (
     TenantFormViewSet, TenantFormEntityViewSet, 
     TenantFormFieldViewSet, TenantFormRuleViewSet,
     TenantWorkflowViewSet, TenantWorkflowConditionViewSet,
-    TenantWorkflowActionViewSet, WorkflowExecutionLogViewSet
+    TenantWorkflowActionViewSet, WorkflowExecutionLogViewSet,
+    # Admin Form Builder API Views
+    EntityFieldsAPIView, AvailableEntitiesAPIView,
+    FormStepFieldsAPIView, FormStepReorderAPIView, SmartFieldMatchAPIView
 )
 
 app_name = 'workflows'
@@ -35,4 +38,11 @@ router.register(r'execution-logs', WorkflowExecutionLogViewSet, basename='workfl
 
 urlpatterns = [
     path('', include(router.urls)),
+    
+    # Admin Form Builder API endpoints
+    path('admin/entities/', AvailableEntitiesAPIView.as_view(), name='admin-available-entities'),
+    path('admin/entities/<str:entity_type>/fields/', EntityFieldsAPIView.as_view(), name='admin-entity-fields'),
+    path('admin/steps/<uuid:step_id>/fields/', FormStepFieldsAPIView.as_view(), name='admin-step-fields'),
+    path('admin/forms/<uuid:form_id>/reorder/', FormStepReorderAPIView.as_view(), name='admin-form-reorder'),
+    path('admin/smart-match/', SmartFieldMatchAPIView.as_view(), name='admin-smart-match'),
 ]

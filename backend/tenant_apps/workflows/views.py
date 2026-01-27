@@ -7,9 +7,11 @@ Provides REST API endpoints for Forms, Workflows, and Lists.
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.views import APIView
 from django.db.models import Count, Prefetch
 from django.utils import timezone
+from django.db import transaction
 
 from .models import (
     TenantList, TenantForm, TenantFormEntity, TenantFormField, TenantFormRule,
@@ -24,6 +26,205 @@ from .serializers import (
     TenantWorkflowConditionSerializer, TenantWorkflowActionSerializer,
     WorkflowExecutionLogSerializer
 )
+from .services import FieldRegistry, get_entity_fields, get_available_entities
+
+
+# =============================================================================
+# ADMIN FORM BUILDER API VIEWS
+# =============================================================================
+
+class EntityFieldsAPIView(APIView):
+    """
+    API endpoint for getting available fields for an entity type.
+    Used by the form builder admin interface.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, entity_type):
+        """Get all available fields for an entity type."""
+        fields = get_entity_fields(entity_type)
+        if not fields:
+            return Response(
+                {'error': f'Unknown entity type: {entity_type}'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return Response({
+            'entity_type': entity_type,
+            'fields': fields,
+            'count': len(fields),
+        })
+
+
+class AvailableEntitiesAPIView(APIView):
+    """
+    API endpoint for getting available entity types.
+    Used by the form builder admin interface.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request):
+        """Get all available entity types."""
+        entities = get_available_entities()
+        return Response({
+            'entities': entities,
+            'count': len(entities),
+        })
+
+
+class FormStepFieldsAPIView(APIView):
+    """
+    API endpoint for managing fields in a form step (TenantFormEntity).
+    Used by the form builder admin interface.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, step_id):
+        """Get selected and available fields for a form step."""
+        try:
+            step = TenantFormEntity.objects.select_related('form').get(pk=step_id)
+        except TenantFormEntity.DoesNotExist:
+            return Response(
+                {'error': 'Form step not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get available fields for this entity type
+        available_fields = get_entity_fields(step.entity_type)
+        
+        # Get currently selected fields
+        selected = step.fields.all().order_by('order')
+        selected_keys = {f.field_key for f in selected}
+        
+        selected_fields = []
+        for field in selected:
+            # Find matching field metadata
+            field_meta = next(
+                (f for f in available_fields if f['key'] == field.field_key),
+                None
+            )
+            selected_fields.append({
+                'id': str(field.id),
+                'key': field.field_key,
+                'label': field.custom_label or (field_meta['label'] if field_meta else field.field_key),
+                'type': field_meta['type'] if field_meta else 'text',
+                'required': field.is_required,
+                'visible': field.is_visible,
+                'order': field.order,
+                'help_text': field.custom_help_text,
+            })
+        
+        # Mark which available fields are already selected
+        for field in available_fields:
+            field['selected'] = field['key'] in selected_keys
+        
+        return Response({
+            'step_id': str(step_id),
+            'step_name': step.step_name or step.entity_type.replace('_', ' ').title(),
+            'entity_type': step.entity_type,
+            'selected_fields': selected_fields,
+            'available_fields': available_fields,
+        })
+    
+    def post(self, request, step_id):
+        """Save field selection for a form step."""
+        try:
+            step = TenantFormEntity.objects.get(pk=step_id)
+        except TenantFormEntity.DoesNotExist:
+            return Response(
+                {'error': 'Form step not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        fields_data = request.data.get('fields', [])
+        
+        with transaction.atomic():
+            # Delete existing fields
+            step.fields.all().delete()
+            
+            # Create new fields in order
+            for order, field_data in enumerate(fields_data):
+                TenantFormField.objects.create(
+                    form_entity=step,
+                    field_key=field_data['key'],
+                    is_visible=field_data.get('visible', True),
+                    is_required=field_data.get('required', False),
+                    order=order,
+                    custom_label=field_data.get('custom_label', ''),
+                    custom_help_text=field_data.get('help_text', ''),
+                )
+        
+        return Response({
+            'status': 'success',
+            'message': f'Saved {len(fields_data)} fields',
+            'step_id': str(step_id),
+        })
+
+
+class FormStepReorderAPIView(APIView):
+    """
+    API endpoint for reordering form steps.
+    Used by the form builder admin interface for drag-drop.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def post(self, request, form_id):
+        """Reorder steps in a form."""
+        try:
+            form = TenantForm.objects.get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        step_order = request.data.get('step_order', [])
+        
+        with transaction.atomic():
+            for order, step_id in enumerate(step_order):
+                TenantFormEntity.objects.filter(
+                    id=step_id,
+                    form=form
+                ).update(order=order)
+        
+        return Response({
+            'status': 'success',
+            'message': f'Reordered {len(step_order)} steps',
+        })
+
+
+class SmartFieldMatchAPIView(APIView):
+    """
+    API endpoint for smart field matching suggestions.
+    Used by the auto-populate configuration in form builder.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def post(self, request):
+        """
+        Find matching fields for auto-population.
+        
+        Request body:
+        {
+            "source_field": {"key": "email", "type": "email"},
+            "target_entity_type": "contact"
+        }
+        """
+        source_field = request.data.get('source_field')
+        target_entity_type = request.data.get('target_entity_type')
+        
+        if not source_field or not target_entity_type:
+            return Response(
+                {'error': 'source_field and target_entity_type are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        matches = FieldRegistry.find_matching_fields(source_field, target_entity_type)
+        
+        return Response({
+            'source_field': source_field,
+            'target_entity_type': target_entity_type,
+            'matches': matches,
+        })
 
 
 class TenantFilteredModelViewSet(viewsets.ModelViewSet):
