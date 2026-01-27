@@ -1163,6 +1163,7 @@ function formBuilder() {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': getCsrfToken()
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         entity_type: this.newStep.entityType,
                         step_name: this.newStep.stepName || ''
@@ -1204,7 +1205,8 @@ function formBuilder() {
                     method: 'DELETE',
                     headers: {
                         'X-CSRFToken': getCsrfToken()
-                    }
+                    },
+                    credentials: 'same-origin'
                 });
                 
                 if (!response.ok && response.status !== 204) {
