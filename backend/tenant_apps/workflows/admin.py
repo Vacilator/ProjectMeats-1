@@ -90,6 +90,7 @@ class TenantFormFieldInline(admin.TabularInline):
     """Inline for form fields."""
     model = TenantFormField
     form = TenantFormFieldForm
+    fk_name = 'form_entity'  # Specify which FK to use (not auto_populate_source_step)
     extra = 0
     ordering = ['order']
     fields = ['order', 'field_key', 'is_visible', 'is_required', 'custom_label']

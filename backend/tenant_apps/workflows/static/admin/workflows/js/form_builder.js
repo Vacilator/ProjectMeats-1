@@ -21,6 +21,7 @@ function formBuilder() {
         showRuleModal: false,
         showAddStepModal: false,
         showPreviewModal: false,
+        showFieldConfigModal: false,
         
         // Field editor state
         currentStepId: null,
@@ -29,6 +30,25 @@ function formBuilder() {
         availableFields: [],
         filteredAvailableFields: [],
         fieldSearch: '',
+        
+        // Field config state (Phase 3)
+        fieldConfig: {
+            fieldId: null,
+            fieldKey: '',
+            customLabel: '',
+            customHelpText: '',
+            isRequired: false,
+            defaultValue: null,
+            autoPopulate: {
+                sourceStep: null,
+                sourceField: '',
+                mode: ''
+            },
+            availableSourceSteps: [],
+            suggestions: [],
+            loading: false,
+            saving: false
+        },
         
         // Rule builder state
         editingRuleId: null,
@@ -366,11 +386,146 @@ function formBuilder() {
             }
         },
         
-        configureField(fieldKey) {
-            // TODO: Open field configuration modal (auto-populate, conditional visibility)
-            console.log('Configure field:', fieldKey);
-            alert('Field configuration coming in Phase 3!\n\nThis will allow:\n- Auto-populate from previous steps\n- Conditional visibility\n- Custom labels and help text');
+        // ==================== FIELD CONFIGURATION (Phase 3) ====================
+        
+        async configureField(fieldKey) {
+            // Find the field in selected fields to get its ID
+            const field = this.selectedFields.find(f => f.key === fieldKey);
+            if (!field || !field.id) {
+                // Field hasn't been saved yet - need to save first
+                this.showNotification('Please save field selection first before configuring.', 'info');
+                return;
+            }
+            
+            this.fieldConfig.loading = true;
+            this.fieldConfig.fieldId = field.id;
+            this.fieldConfig.fieldKey = fieldKey;
+            this.showFieldConfigModal = true;
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/fields/${field.id}/config/`, {
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Populate field config state
+                this.fieldConfig.customLabel = data.custom_label || '';
+                this.fieldConfig.customHelpText = data.custom_help_text || '';
+                this.fieldConfig.isRequired = data.is_required || false;
+                this.fieldConfig.defaultValue = data.default_value;
+                this.fieldConfig.autoPopulate = {
+                    sourceStep: data.auto_populate?.source_step || '',
+                    sourceField: data.auto_populate?.source_field || '',
+                    mode: data.auto_populate?.mode || ''
+                };
+                this.fieldConfig.availableSourceSteps = data.available_source_steps || [];
+                this.fieldConfig.suggestions = data.suggestions || [];
+                
+                console.log('Loaded field config:', this.fieldConfig);
+                
+            } catch (error) {
+                console.error('Error loading field config:', error);
+                this.showNotification('Error loading field configuration.', 'error');
+                this.showFieldConfigModal = false;
+            } finally {
+                this.fieldConfig.loading = false;
+            }
         },
+        
+        closeFieldConfigModal() {
+            this.showFieldConfigModal = false;
+            this.fieldConfig.fieldId = null;
+            this.fieldConfig.fieldKey = '';
+            this.fieldConfig.suggestions = [];
+        },
+        
+        getSourceStepFields() {
+            // Get fields for the currently selected source step
+            if (!this.fieldConfig.autoPopulate.sourceStep) {
+                return [];
+            }
+            const step = this.fieldConfig.availableSourceSteps.find(
+                s => s.id === this.fieldConfig.autoPopulate.sourceStep
+            );
+            return step ? step.fields : [];
+        },
+        
+        applySuggestion(suggestion) {
+            // Apply a smart match suggestion
+            this.fieldConfig.autoPopulate.sourceStep = suggestion.source_step_id;
+            this.fieldConfig.autoPopulate.sourceField = suggestion.source_field_key;
+            this.fieldConfig.autoPopulate.mode = 'copy'; // Default to copy
+            
+            this.showNotification(`Applied suggestion: ${suggestion.source_field_label} from ${suggestion.source_step_name}`, 'success');
+        },
+        
+        async saveFieldConfig() {
+            if (!this.fieldConfig.fieldId) {
+                return;
+            }
+            
+            this.fieldConfig.saving = true;
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/fields/${this.fieldConfig.fieldId}/config/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        custom_label: this.fieldConfig.customLabel,
+                        custom_help_text: this.fieldConfig.customHelpText,
+                        is_required: this.fieldConfig.isRequired,
+                        default_value: this.fieldConfig.defaultValue,
+                        auto_populate: {
+                            source_step: this.fieldConfig.autoPopulate.sourceStep || null,
+                            source_field: this.fieldConfig.autoPopulate.sourceField || '',
+                            mode: this.fieldConfig.autoPopulate.mode || ''
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Saved field config:', result);
+                
+                // Update the field in selectedFields array
+                const fieldIndex = this.selectedFields.findIndex(f => f.id === this.fieldConfig.fieldId);
+                if (fieldIndex !== -1) {
+                    this.selectedFields[fieldIndex].custom_label = this.fieldConfig.customLabel;
+                    this.selectedFields[fieldIndex].required = this.fieldConfig.isRequired;
+                    // Add visual indicator for auto-populate
+                    this.selectedFields[fieldIndex].hasAutoPopulate = !!(
+                        this.fieldConfig.autoPopulate.sourceStep && 
+                        this.fieldConfig.autoPopulate.sourceField
+                    );
+                }
+                
+                this.closeFieldConfigModal();
+                this.showNotification('Field configuration saved!', 'success');
+                
+            } catch (error) {
+                console.error('Error saving field config:', error);
+                this.showNotification('Error saving field configuration.', 'error');
+            } finally {
+                this.fieldConfig.saving = false;
+            }
+        },
+        
+        // ==================== FIELD SELECTION SAVE ====================
         
         async saveFieldSelection() {
             if (!this.currentStepId) {

@@ -230,7 +230,8 @@
                                     <span class="field-name" x-text="field.label"></span>
                                     <span class="field-type-badge" x-text="field.type"></span>
                                     <span class="field-required" x-show="field.required">Required</span>
-                                    <button type="button" class="field-config-btn" @click="configureField(field.key)">⚙️</button>
+                                    <span class="field-auto-populate" x-show="field.hasAutoPopulate" :title="'Auto-populated from: ' + field.autoPopulateSource">🔄</span>
+                                    <button type="button" class="field-config-btn" @click="configureField(field.key)" title="Configure field">⚙️</button>
                                 </div>
                             </template>
                             <p x-show="selectedFields.length === 0" class="no-fields-message">
@@ -262,6 +263,127 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @click="closeFieldModal()">Cancel</button>
                 <button type="button" class="btn btn-primary" @click="saveFieldSelection()">💾 Save Selection</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Field Configuration Modal (Phase 3) -->
+    <div class="modal-overlay" x-show="showFieldConfigModal" x-cloak @click.self="closeFieldConfigModal()">
+        <div class="modal-content modal-md">
+            <div class="modal-header">
+                <h3>⚙️ Configure Field: <span x-text="fieldConfig.fieldKey"></span></h3>
+                <button type="button" class="modal-close" @click="closeFieldConfigModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div x-show="fieldConfig.loading" class="loading-spinner">
+                    Loading configuration...
+                </div>
+                
+                <div x-show="!fieldConfig.loading" class="field-config-form">
+                    <!-- Basic Settings -->
+                    <div class="config-section">
+                        <h4>Display Settings</h4>
+                        
+                        <div class="form-group">
+                            <label for="customLabel">Custom Label</label>
+                            <input type="text" id="customLabel" 
+                                   x-model="fieldConfig.customLabel"
+                                   placeholder="Leave blank to use default label">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="customHelpText">Help Text</label>
+                            <input type="text" id="customHelpText" 
+                                   x-model="fieldConfig.customHelpText"
+                                   placeholder="Appears below the field">
+                        </div>
+                        
+                        <div class="form-group checkbox-group">
+                            <label>
+                                <input type="checkbox" x-model="fieldConfig.isRequired">
+                                Make this field required
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Auto-Population Settings -->
+                    <div class="config-section">
+                        <h4>🔄 Auto-Population</h4>
+                        <p class="section-description">
+                            Automatically fill this field with a value from a previous step.
+                        </p>
+                        
+                        <template x-if="fieldConfig.availableSourceSteps.length > 0">
+                            <div>
+                                <!-- Smart Suggestions -->
+                                <div x-show="fieldConfig.suggestions.length > 0" class="suggestions-panel">
+                                    <h5>✨ Smart Suggestions</h5>
+                                    <div class="suggestion-list">
+                                        <template x-for="suggestion in fieldConfig.suggestions" :key="suggestion.source_step_id + suggestion.source_field_key">
+                                            <div class="suggestion-item" @click="applySuggestion(suggestion)">
+                                                <span class="suggestion-score" x-text="suggestion.score + '%'"></span>
+                                                <span class="suggestion-text">
+                                                    <strong x-text="suggestion.source_field_label"></strong>
+                                                    from <em x-text="suggestion.source_step_name"></em>
+                                                </span>
+                                                <span class="suggestion-reasons" x-text="suggestion.reasons.join(', ')"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                                
+                                <!-- Manual Configuration -->
+                                <div class="form-group">
+                                    <label>Source Step</label>
+                                    <select x-model="fieldConfig.autoPopulate.sourceStep">
+                                        <option value="">-- No Auto-Population --</option>
+                                        <template x-for="step in fieldConfig.availableSourceSteps" :key="step.id">
+                                            <option :value="step.id" x-text="'Step ' + (step.order + 1) + ': ' + step.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group" x-show="fieldConfig.autoPopulate.sourceStep">
+                                    <label>Source Field</label>
+                                    <select x-model="fieldConfig.autoPopulate.sourceField">
+                                        <option value="">-- Select Field --</option>
+                                        <template x-for="field in getSourceStepFields()" :key="field.key">
+                                            <option :value="field.key" x-text="field.label + ' (' + field.type + ')'"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group" x-show="fieldConfig.autoPopulate.sourceStep && fieldConfig.autoPopulate.sourceField">
+                                    <label>Auto-Population Mode</label>
+                                    <select x-model="fieldConfig.autoPopulate.mode">
+                                        <option value="copy">Copy Value (direct copy)</option>
+                                        <option value="lookup">Lookup Reference (fetch related record)</option>
+                                    </select>
+                                    <small class="help-text" x-show="fieldConfig.autoPopulate.mode === 'copy'">
+                                        The value will be copied directly from the source field.
+                                    </small>
+                                    <small class="help-text" x-show="fieldConfig.autoPopulate.mode === 'lookup'">
+                                        The value will be used to look up a related record.
+                                    </small>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <div x-show="fieldConfig.availableSourceSteps.length === 0" class="no-sources-message">
+                            <p>ℹ️ This field is in the first step. Auto-population requires prior steps to pull from.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeFieldConfigModal()">Cancel</button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @click="saveFieldConfig()"
+                        :disabled="fieldConfig.saving">
+                    <span x-show="!fieldConfig.saving">💾 Save Configuration</span>
+                    <span x-show="fieldConfig.saving">Saving...</span>
+                </button>
             </div>
         </div>
     </div>
