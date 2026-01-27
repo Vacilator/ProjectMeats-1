@@ -361,6 +361,8 @@ POST /api/v1/workflows/form-submissions/{id}/complete-step/
 | #2065 | Jan 2026 | Form submission API endpoints | ✅ Merged |
 | #2067 | Jan 2026 | Frontend quick actions integration | ✅ Merged |
 | #2071 | Jan 2026 | Form Execution UI and MySubmissions page | ✅ Merged |
+| #2074 | Jan 2026 | Conditional Rules Engine and Step Notes | ✅ Merged |
+| #2075 | Jan 2026 | Critical bug fixes for form execution | ✅ Merged |
 
 ---
 
@@ -382,16 +384,18 @@ POST /api/v1/workflows/form-submissions/{id}/complete-step/
    - Filter by status (draft, in_progress, completed, cancelled)
    - Progress bar visualization
 
-### Pending Implementation
+3. **Step Notes (Phase 5)** ✅
+   - Collapsible notes panel per step
+   - ActivityLog integration (entity_type='form_step_submission')
+   - Note creation with loading/error states
+   - Relative time formatting
 
-1. **Step Notes (Phase 5)**
-   - Notes panel per step
-   - ActivityLog integration
-   - File attachment support
-
-2. **Conditional Rules Engine**
-   - Evaluate show/hide rules on field change
-   - Dynamic field/step visibility
+4. **Conditional Rules Engine** ✅
+   - Frontend rule evaluation engine (`formRuleEngine.ts`)
+   - Supported operators: eq, neq, gt, lt, gte, lte, contains, not_contains, is_empty, is_not_empty
+   - Supported actions: display_fields, hide_fields, display_steps, hide_steps, filter_options, set_value
+   - Rules captured in form_snapshot for version safety
+   - Null-safe comparisons
 
 ### Future Enhancements
 
@@ -401,6 +405,8 @@ POST /api/v1/workflows/form-submissions/{id}/complete-step/
 - Dynamic email sending
 - Form templates
 - Analytics/reporting
+- File attachments for step notes
+- Request cancellation with AbortController (performance optimization)
 
 ---
 
