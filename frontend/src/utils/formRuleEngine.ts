@@ -115,16 +115,16 @@ function evaluateCondition(
       return !isEqual(fieldValue, conditionValue);
     
     case 'gt':
-      return toNumber(fieldValue) > toNumber(conditionValue);
+      return compareNumbers(fieldValue, conditionValue, (a, b) => a > b);
     
     case 'lt':
-      return toNumber(fieldValue) < toNumber(conditionValue);
+      return compareNumbers(fieldValue, conditionValue, (a, b) => a < b);
     
     case 'gte':
-      return toNumber(fieldValue) >= toNumber(conditionValue);
+      return compareNumbers(fieldValue, conditionValue, (a, b) => a >= b);
     
     case 'lte':
-      return toNumber(fieldValue) <= toNumber(conditionValue);
+      return compareNumbers(fieldValue, conditionValue, (a, b) => a <= b);
     
     case 'contains':
       return toString(fieldValue).toLowerCase().includes(
@@ -329,8 +329,13 @@ export function getAutoSetValue(
 
 // Helper functions
 function isEqual(a: unknown, b: unknown): boolean {
+  // Handle null/undefined comparison
+  if (a === null || a === undefined || b === null || b === undefined) {
+    return a === b;
+  }
   if (Array.isArray(a) && Array.isArray(b)) {
-    return a.length === b.length && a.every((v, i) => v === b[i]);
+    if (a.length !== b.length) return false;
+    return a.every((v, i) => isEqual(v, b[i])); // Recursive for nested arrays
   }
   // Handle case-insensitive string comparison
   if (typeof a === 'string' && typeof b === 'string') {
@@ -339,13 +344,26 @@ function isEqual(a: unknown, b: unknown): boolean {
   return a === b;
 }
 
-function toNumber(value: unknown): number {
+function toNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
+    if (value.trim() === '') return null;
     const parsed = parseFloat(value);
-    return isNaN(parsed) ? 0 : parsed;
+    return isNaN(parsed) ? null : parsed;
   }
-  return 0;
+  return null;
+}
+
+/**
+ * Safe numeric comparison that handles null/undefined.
+ * Returns false if either value cannot be converted to a number.
+ */
+function compareNumbers(a: unknown, b: unknown, comparator: (x: number, y: number) => boolean): boolean {
+  const numA = toNumber(a);
+  const numB = toNumber(b);
+  if (numA === null || numB === null) return false;
+  return comparator(numA, numB);
 }
 
 function toString(value: unknown): string {
@@ -359,6 +377,7 @@ function isEmpty(value: unknown): boolean {
   if (typeof value === 'string') return value.trim() === '';
   if (Array.isArray(value)) return value.length === 0;
   if (typeof value === 'object') return Object.keys(value).length === 0;
+  if (typeof value === 'number') return false; // Numbers are never "empty"
   return false;
 }
 

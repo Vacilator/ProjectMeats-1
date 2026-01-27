@@ -224,27 +224,41 @@ export const StepNotes: React.FC<StepNotesProps> = ({
   const [newNote, setNewNote] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadedFor, setLoadedFor] = useState<string>(''); // Track which step notes were loaded for
 
-  // Load notes when expanded
+  // Load notes when expanded or step changes
   useEffect(() => {
-    if (isExpanded && notes.length === 0 && !isLoading) {
+    const currentKey = `${submissionId}_${stepId}`;
+    if (isExpanded && loadedFor !== currentKey && !isLoading) {
       loadNotes();
     }
-  }, [isExpanded]);
+  }, [isExpanded, submissionId, stepId, loadedFor, isLoading]);
+
+  // Reset notes when step changes
+  useEffect(() => {
+    setLoadedFor('');
+    setNotes([]);
+    setError(null);
+  }, [submissionId, stepId]);
 
   const loadNotes = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    const currentKey = `${submissionId}_${stepId}`;
     try {
       // Query activity logs for this step submission
       const response = await apiClient.get('/api/cockpit/activity-logs/', {
         params: {
           entity_type: 'form_step_submission',
-          entity_id: `${submissionId}_${stepId}`,
+          entity_id: currentKey,
           ordering: '-created_on',
         },
       });
-      setNotes(response.data.results || response.data || []);
+      // Validate response structure
+      const data = response.data;
+      const notesList = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
+      setNotes(notesList);
+      setLoadedFor(currentKey);
     } catch (err) {
       console.error('Failed to load step notes:', err);
       setError('Failed to load notes');

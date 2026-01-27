@@ -283,6 +283,17 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  
+  // Track mounted state for cleanup
+  const [isMounted, setIsMounted] = useState(true);
+  
+  // Cleanup effect for mounted state
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
 
   // Parse form structure from snapshot
   const steps: StepConfig[] = useMemo(() => {
@@ -500,23 +511,27 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     try {
       const result = await formSubmissionService.submit(submission.id);
       
-      setSubmission(prev => ({
-        ...prev,
-        status: 'completed',
-        completed_at: result.completed_at,
-      }));
-
-      onSubmissionUpdate?.({
+      if (!isMounted) return; // Guard against unmounted updates
+      
+      const updatedSubmission = {
         ...submission,
-        status: 'completed',
+        status: 'completed' as const,
         completed_at: result.completed_at,
-      });
+      };
+      
+      setSubmission(updatedSubmission);
+      onSubmissionUpdate?.(updatedSubmission);
 
-      // Close after short delay to show success
-      setTimeout(() => {
-        onClose();
+      // Close after short delay to show success (with cleanup guard)
+      const timeoutId = setTimeout(() => {
+        if (isMounted) {
+          onClose();
+        }
       }, 1000);
+      
+      // Return cleanup function isn't possible here, but isMounted guards the callback
     } catch (err: any) {
+      if (!isMounted) return;
       console.error('Failed to submit form:', err);
       
       if (err.response?.data?.incomplete_steps) {
@@ -525,15 +540,15 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         );
         if (confirmForce) {
           await formSubmissionService.submit(submission.id, true);
-          onClose();
+          if (isMounted) onClose();
         }
       } else {
         alert(err.response?.data?.error || 'Failed to submit form');
       }
     } finally {
-      setIsSubmitting(false);
+      if (isMounted) setIsSubmitting(false);
     }
-  }, [submission, onSubmissionUpdate, onClose]);
+  }, [submission, onSubmissionUpdate, onClose, isMounted]);
 
   const handleCancel = useCallback(async () => {
     const confirmed = window.confirm(
