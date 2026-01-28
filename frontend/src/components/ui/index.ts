@@ -11,3 +11,4 @@ export { PageContainer } from './PageContainer';
 export { Select } from './Select';
 export type { SelectOption } from './Select';
 export { PhoneInput } from './PhoneInput';
+export { default as Icon, AVAILABLE_ICONS, ICON_CATEGORIES } from './Icon';

@@ -116,7 +116,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       type: 'form',
       form_id: form.id,
       label: form.name,
-      icon: form.icon || '📄',
+      icon: form.icon || 'file-text',  // Keep original icon or default to file-text
       order: quickActions.length,
     };
     
@@ -157,10 +157,16 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
 
   const openFormModal = useCallback(async (formId: string) => {
     try {
-      await startFormSubmission(formId);
+      setError(null);
+      console.log('[QuickActions] Opening form modal for formId:', formId);
+      const submission = await startFormSubmission(formId);
+      console.log('[QuickActions] Form submission created:', submission?.id);
     } catch (err: any) {
-      console.error('Failed to start form submission:', err);
-      setError(err.message || 'Failed to start form');
+      console.error('[QuickActions] Failed to start form submission:', err);
+      const errorMsg = err?.response?.data?.error || err?.message || 'Failed to start form';
+      setError(errorMsg);
+      // Alert the user since the modal won't open
+      alert(`Error: ${errorMsg}`);
     }
   }, [startFormSubmission]);
 

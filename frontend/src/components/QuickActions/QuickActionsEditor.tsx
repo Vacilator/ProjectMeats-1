@@ -10,6 +10,7 @@ import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { QuickActionItem, AvailableForm } from '../../services/quickActionsService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
+import { Icon } from '../ui';
 
 interface QuickActionsEditorProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
       type: 'form',
       form_id: form.id,
       label: form.name,
-      icon: form.icon || '📄',
+      icon: form.icon || 'file-text',  // Keep original icon or default
       order: localActions.length,
     };
 
@@ -78,11 +79,19 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
     try {
       setIsSaving(true);
       setError(null);
+      console.log('[QuickActionsEditor] Saving actions:', localActions);
       await updateQuickActions(localActions);
       await refreshQuickActions();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to save quick actions');
+      console.error('[QuickActionsEditor] Save failed:', err);
+      // Extract detailed error from response
+      const errorMsg = err?.response?.data?.error || 
+                       err?.response?.data?.details || 
+                       err?.message || 
+                       'Failed to save quick actions';
+      const errorDetails = typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg;
+      setError(errorDetails);
     } finally {
       setIsSaving(false);
     }
@@ -113,7 +122,9 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
               ) : (
                 localActions.map((action, index) => (
                   <ActionItem key={action.id} $theme={theme}>
-                    <ActionIcon>{action.icon}</ActionIcon>
+                    <ActionIconWrapper>
+                      <Icon name={action.icon} size={20} />
+                    </ActionIconWrapper>
                     <ActionLabel>{action.label}</ActionLabel>
                     <ActionControls>
                       <ControlButton
@@ -156,7 +167,9 @@ const QuickActionsEditor: React.FC<QuickActionsEditorProps> = ({ isOpen, onClose
               ) : (
                 availableToAdd.map((form) => (
                   <AvailableItem key={form.id} $theme={theme} onClick={() => handleAddForm(form)}>
-                    <ActionIcon>{form.icon || '📄'}</ActionIcon>
+                    <ActionIconWrapper>
+                      <Icon name={form.icon || 'file-text'} size={20} />
+                    </ActionIconWrapper>
                     <FormInfo>
                       <FormName>{form.name}</FormName>
                       <FormMeta>{form.step_count} step{form.step_count !== 1 ? 's' : ''}</FormMeta>
@@ -280,9 +293,14 @@ const ActionItem = styled.div<{ $theme: Theme }>`
   }
 `;
 
-const ActionIcon = styled.span`
-  font-size: 20px;
+const ActionIconWrapper = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   margin-right: 12px;
+  color: inherit;
 `;
 
 const ActionLabel = styled.span`

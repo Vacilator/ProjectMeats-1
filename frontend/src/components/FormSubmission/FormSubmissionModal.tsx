@@ -11,6 +11,7 @@ import {
   entityOptionsService,
 } from '../../services/quickActionsService';
 import { notify } from '../../utils/notify';
+import { Icon } from '../ui';
 
 // ============================================================================
 // Types
@@ -391,7 +392,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">{submission.form_icon || '📋'}</span>
+            <div className="text-2xl flex items-center justify-center">
+              <Icon name={submission.form_icon || 'clipboard-list'} size={28} />
+            </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{submission.form_name}</h2>
               {submission.form_description && (
