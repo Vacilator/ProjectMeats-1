@@ -24,6 +24,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
+import { CreateInquiryModal } from '../Inquiry';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -190,7 +191,8 @@ const ModalFooter = styled.div`
   padding: 1.5rem;
   border-top: 1px solid rgb(var(--color-border));
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 0.75rem;
 `;
 
@@ -244,6 +246,40 @@ const HelpText = styled.p`
   margin-top: 0.25rem;
 `;
 
+const NewInquiryButton = styled.button`
+  padding: 0.625rem 1.25rem;
+  border: 2px solid rgb(var(--color-primary));
+  border-radius: var(--radius-md);
+  background: rgba(var(--color-primary), 0.1);
+  color: rgb(var(--color-primary));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  
+  &:hover:not(:disabled) {
+    background: rgba(var(--color-primary), 0.2);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ModalFooterLeft = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+const ModalFooterRight = styled.div`
+  display: flex;
+  gap: 0.75rem;
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -266,6 +302,9 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   const [outcome, setOutcome] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Inquiry modal state
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
 
   // Dynamic entity options
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
@@ -532,15 +571,44 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
           </ModalBody>
 
           <ModalFooter>
-            <CancelButton type="button" onClick={handleClose} disabled={submitting}>
-              Cancel
-            </CancelButton>
-            <SubmitButton type="submit" disabled={submitting}>
-              {submitting ? (isEditMode ? 'Updating...' : 'Scheduling...') : (isEditMode ? 'Update Call' : 'Schedule Call')}
-            </SubmitButton>
+            <ModalFooterLeft>
+              {isEditMode && initialData?.id && entityId && (
+                <NewInquiryButton
+                  type="button"
+                  onClick={() => setShowInquiryModal(true)}
+                  disabled={submitting}
+                >
+                  📋 New Inquiry
+                </NewInquiryButton>
+              )}
+            </ModalFooterLeft>
+            <ModalFooterRight>
+              <CancelButton type="button" onClick={handleClose} disabled={submitting}>
+                Cancel
+              </CancelButton>
+              <SubmitButton type="submit" disabled={submitting}>
+                {submitting ? (isEditMode ? 'Updating...' : 'Scheduling...') : (isEditMode ? 'Update Call' : 'Schedule Call')}
+              </SubmitButton>
+            </ModalFooterRight>
           </ModalFooter>
         </form>
       </Modal>
+
+      {/* Inquiry Modal */}
+      {showInquiryModal && initialData?.id && (
+        <CreateInquiryModal
+          isOpen={showInquiryModal}
+          onClose={() => setShowInquiryModal(false)}
+          onSuccess={(inquiry) => {
+            setShowInquiryModal(false);
+            // Optionally close the call modal and trigger refresh
+            console.log('Inquiry created:', inquiry.inquiry_number);
+          }}
+          scheduledCallId={String(initialData.id)}
+          entityType={entityType as 'supplier' | 'customer'}
+          entityId={entityId}
+        />
+      )}
     </Overlay>
   );
 };
