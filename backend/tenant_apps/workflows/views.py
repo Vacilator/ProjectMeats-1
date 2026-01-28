@@ -1664,3 +1664,229 @@ class QuickActionsAPIView(APIView):
                 {'error': f'Failed to update quick actions: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class EntityOptionsAPIView(APIView):
+    """
+    API endpoint for getting entity options for select fields.
+    
+    Returns the actual records for a given entity type, suitable for
+    populating select/dropdown fields in forms.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, entity_type):
+        """Get options for an entity type."""
+        from .services.field_registry import FieldRegistry
+        
+        # Get the model for this entity type
+        model = FieldRegistry.get_model_for_entity(entity_type)
+        if not model:
+            return Response(
+                {'error': f'Unknown entity type: {entity_type}'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Filter by tenant
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Query records - filter by tenant if the model has tenant field
+        try:
+            if hasattr(model, 'tenant'):
+                queryset = model.objects.filter(tenant=tenant)
+            else:
+                queryset = model.objects.all()
+            
+            # Limit results for performance
+            queryset = queryset[:100]
+            
+            # Build options list
+            options = []
+            for obj in queryset:
+                # Try to get a display label
+                label = str(obj)
+                if hasattr(obj, 'name'):
+                    label = obj.name
+                elif hasattr(obj, 'title'):
+                    label = obj.title
+                elif hasattr(obj, 'code'):
+                    label = obj.code
+                
+                options.append({
+                    'value': str(obj.pk),
+                    'label': label
+                })
+            
+            # Determine if user can create new records
+            can_create = request.user.has_perm(f'{model._meta.app_label}.add_{model._meta.model_name}')
+            
+            return Response({
+                'entity_type': entity_type,
+                'options': options,
+                'count': len(options),
+                'can_create': can_create,
+                'entity_label': entity_type.replace('_', ' ').title()
+            })
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Error fetching entity options: {e}")
+            return Response(
+                {'error': f'Failed to fetch options: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class QuickCreateEntityAPIView(APIView):
+    """
+    API endpoint for quick-creating entity records from within forms.
+    
+    Accepts minimal required fields and creates a new record,
+    returning the ID and label for immediate use in the form.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, entity_type):
+        """Get the required fields for quick-creating an entity."""
+        from .services.field_registry import FieldRegistry
+        
+        model = FieldRegistry.get_model_for_entity(entity_type)
+        if not model:
+            return Response(
+                {'error': f'Unknown entity type: {entity_type}'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get required fields (excluding system fields)
+        required_fields = []
+        excluded = {'id', 'pk', 'tenant', 'created_on', 'modified_on', 'created_at', 
+                   'updated_at', 'created_by', 'modified_by', 'custom_data', 'uuid'}
+        
+        for field in model._meta.get_fields():
+            if not hasattr(field, 'name') or field.name in excluded:
+                continue
+            
+            # Check if required
+            if hasattr(field, 'null') and not field.null and not getattr(field, 'blank', True):
+                # Skip auto fields
+                if getattr(field, 'auto_now', False) or getattr(field, 'auto_now_add', False):
+                    continue
+                
+                # Skip fields with defaults
+                if field.has_default():
+                    continue
+                
+                field_type = type(field).__name__
+                form_type = 'text'
+                if field_type in ('IntegerField', 'DecimalField', 'FloatField'):
+                    form_type = 'number'
+                elif field_type == 'EmailField':
+                    form_type = 'email'
+                elif field_type == 'BooleanField':
+                    form_type = 'checkbox'
+                elif field_type == 'DateField':
+                    form_type = 'date'
+                
+                required_fields.append({
+                    'key': field.name,
+                    'label': str(getattr(field, 'verbose_name', field.name)).replace('_', ' ').title(),
+                    'type': form_type,
+                    'required': True
+                })
+        
+        # If no required fields, use 'name' or first text field as minimum
+        if not required_fields:
+            for field in model._meta.get_fields():
+                if hasattr(field, 'name') and field.name == 'name':
+                    required_fields.append({
+                        'key': 'name',
+                        'label': 'Name',
+                        'type': 'text',
+                        'required': True
+                    })
+                    break
+        
+        return Response({
+            'entity_type': entity_type,
+            'entity_label': entity_type.replace('_', ' ').title(),
+            'fields': required_fields
+        })
+    
+    def post(self, request, entity_type):
+        """Quick-create an entity record."""
+        from .services.field_registry import FieldRegistry
+        
+        model = FieldRegistry.get_model_for_entity(entity_type)
+        if not model:
+            return Response(
+                {'error': f'Unknown entity type: {entity_type}'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check permission
+        if not request.user.has_perm(f'{model._meta.app_label}.add_{model._meta.model_name}'):
+            return Response(
+                {'error': 'Permission denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            # Build kwargs from request data
+            create_kwargs = {}
+            data = request.data
+            
+            for field in model._meta.get_fields():
+                if not hasattr(field, 'name'):
+                    continue
+                if field.name in data:
+                    create_kwargs[field.name] = data[field.name]
+            
+            # Add tenant if model has it
+            if hasattr(model, 'tenant'):
+                create_kwargs['tenant'] = tenant
+            
+            # Add created_by if model has it
+            if hasattr(model, 'created_by'):
+                create_kwargs['created_by'] = request.user
+            
+            # Create the record
+            with transaction.atomic():
+                obj = model.objects.create(**create_kwargs)
+            
+            # Get display label
+            label = str(obj)
+            if hasattr(obj, 'name'):
+                label = obj.name
+            elif hasattr(obj, 'title'):
+                label = obj.title
+            elif hasattr(obj, 'code'):
+                label = obj.code
+            
+            return Response({
+                'success': True,
+                'id': str(obj.pk),
+                'value': str(obj.pk),
+                'label': label,
+                'entity_type': entity_type
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Error quick-creating entity: {e}")
+            return Response(
+                {'error': f'Failed to create {entity_type}: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )

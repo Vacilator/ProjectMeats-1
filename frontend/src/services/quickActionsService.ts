@@ -307,7 +307,68 @@ export const formSubmissionService = {
   },
 };
 
+// Entity Options API (for dynamic select fields)
+export interface EntityOption {
+  value: string;
+  label: string;
+}
+
+export interface EntityOptionsResponse {
+  entity_type: string;
+  options: EntityOption[];
+  count: number;
+  can_create: boolean;
+  entity_label: string;
+}
+
+export interface QuickCreateField {
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+}
+
+export interface QuickCreateFieldsResponse {
+  entity_type: string;
+  entity_label: string;
+  fields: QuickCreateField[];
+}
+
+export interface QuickCreateResponse {
+  success: boolean;
+  id: string;
+  value: string;
+  label: string;
+  entity_type: string;
+}
+
+export const entityOptionsService = {
+  /**
+   * Get options for an entity type (for select fields)
+   */
+  async getOptions(entityType: string): Promise<EntityOptionsResponse> {
+    const response = await apiClient.get(`/workflows/entity-options/${entityType}/`);
+    return response.data;
+  },
+
+  /**
+   * Get required fields for quick-creating an entity
+   */
+  async getQuickCreateFields(entityType: string): Promise<QuickCreateFieldsResponse> {
+    const response = await apiClient.get(`/workflows/quick-create/${entityType}/`);
+    return response.data;
+  },
+
+  /**
+   * Quick-create an entity record
+   */
+  async quickCreate(entityType: string, data: Record<string, any>): Promise<QuickCreateResponse> {
+    const response = await apiClient.post(`/workflows/quick-create/${entityType}/`, data);
+    return response.data;
+  },
+};
+
 // Utility to check if an error is a cancellation
 export const isRequestCancelled = axios.isCancel;
 
-export default { quickActionsService, formSubmissionService, cancelTokenManager, isRequestCancelled };
+export default { quickActionsService, formSubmissionService, entityOptionsService, cancelTokenManager, isRequestCancelled };

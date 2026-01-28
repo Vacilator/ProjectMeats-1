@@ -19,7 +19,9 @@ from .views import (
     FormStepsAPIView, FormStepDetailAPIView,
     FormMappingsAPIView, FormAutoMapAPIView, FieldMappingAPIView,
     # Form Submission API Views
-    FormSubmissionViewSet, AvailableFormsViewSet, QuickActionsAPIView
+    FormSubmissionViewSet, AvailableFormsViewSet, QuickActionsAPIView,
+    # Entity Options API Views
+    EntityOptionsAPIView, QuickCreateEntityAPIView
 )
 
 app_name = 'workflows'
@@ -67,4 +69,8 @@ urlpatterns = [
     
     # Quick Actions API endpoints
     path('quick-actions/', QuickActionsAPIView.as_view(), name='quick-actions'),
+    
+    # Entity Options API endpoints (for select fields in forms)
+    path('entity-options/<str:entity_type>/', EntityOptionsAPIView.as_view(), name='entity-options'),
+    path('quick-create/<str:entity_type>/', QuickCreateEntityAPIView.as_view(), name='quick-create'),
 ]

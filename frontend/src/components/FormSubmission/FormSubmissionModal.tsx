@@ -8,10 +8,12 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import styled from 'styled-components';
 import FormStep, { StepConfig } from './FormStep';
 import { FieldConfig } from './FormField';
+import QuickCreateModal from './QuickCreateModal';
 import { 
   FormSubmission, 
   StepSubmission,
   formSubmissionService,
+  entityOptionsService,
   cancelTokenManager,
   isRequestCancelled,
 } from '../../services/quickActionsService';
@@ -313,6 +315,10 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const [isCancelling, setIsCancelling] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   
+  // Quick Create Modal state
+  const [quickCreateEntityType, setQuickCreateEntityType] = useState<string | null>(null);
+  const [quickCreateFieldKey, setQuickCreateFieldKey] = useState<string | null>(null);
+  
   // Track mounted state for cleanup
   const [isMounted, setIsMounted] = useState(true);
   
@@ -350,6 +356,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           rows: f.rows,
           autoPopulateSource: f.auto_populate_source,
           validationRules: f.validation_rules,
+          related_entity_type: f.related_entity_type,
+          related_model: f.related_model,
         })),
       }));
   }, [submission.form_snapshot]);
@@ -621,6 +629,50 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     onClose();
   }, [onClose]);
 
+  // Handle creating a new entity from within a form field
+  const handleCreateEntity = useCallback((entityType: string) => {
+    setQuickCreateEntityType(entityType);
+  }, []);
+
+  // Handle when an entity is created via QuickCreateModal
+  const handleEntityCreated = useCallback(async (newEntity: { value: string; label: string }) => {
+    if (!quickCreateEntityType || !currentStep) return;
+    
+    // Refresh options for fields of this entity type
+    try {
+      const response = await entityOptionsService.getOptions(quickCreateEntityType);
+      
+      // Update the form snapshot with new options for all fields of this entity type
+      setSubmission(prev => {
+        const newSnapshot = { ...prev.form_snapshot };
+        newSnapshot.steps = newSnapshot.steps.map((step: any) => ({
+          ...step,
+          fields: step.fields.map((field: any) => {
+            if (field.related_entity_type === quickCreateEntityType) {
+              return { ...field, options: response.options };
+            }
+            return field;
+          }),
+        }));
+        return { ...prev, form_snapshot: newSnapshot };
+      });
+      
+      // Find the field that triggered this and set its value
+      const fieldToUpdate = currentStep.fields.find(
+        f => f.related_entity_type === quickCreateEntityType
+      );
+      if (fieldToUpdate) {
+        handleFieldChange(currentStep.id, fieldToUpdate.key, newEntity.value);
+      }
+      
+      notify.success(`${quickCreateEntityType.replace('_', ' ')} created successfully!`);
+    } catch (err) {
+      console.error('Failed to refresh options:', err);
+    }
+    
+    setQuickCreateEntityType(null);
+  }, [quickCreateEntityType, currentStep, handleFieldChange]);
+
   const allStepsCompleted = useMemo(() => {
     // Only check visible steps for completion
     return visibleSteps.every(step => {
@@ -701,6 +753,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
               savingFields={savingFields[currentStep.id] || new Set()}
               errors={errors[currentStep.id] || {}}
               isActive
+              onCreateEntity={handleCreateEntity}
             />
           )}
 
@@ -754,6 +807,16 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           </FooterRight>
         </ModalFooter>
       </ModalContainer>
+
+      {/* Quick Create Modal for creating entities inline */}
+      {quickCreateEntityType && (
+        <QuickCreateModal
+          entityType={quickCreateEntityType}
+          isOpen={!!quickCreateEntityType}
+          onClose={() => setQuickCreateEntityType(null)}
+          onCreated={handleEntityCreated}
+        />
+      )}
     </Overlay>
   );
 };

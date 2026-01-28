@@ -12,8 +12,26 @@ from django.dispatch import receiver
 
 from .models import FormSubmission, FormStepSubmission, StepSubmissionStatus
 from .services import FieldRegistry
+from .services.field_registry import ENTITY_MODEL_MAP
 
 logger = logging.getLogger(__name__)
+
+
+def _get_entity_type_from_model(app_label: str, model_name: str) -> str:
+    """
+    Get the entity type key from app_label and model_name.
+    Reverse lookup from ENTITY_MODEL_MAP.
+    """
+    if not app_label or not model_name:
+        return None
+    
+    model_name_lower = model_name.lower()
+    for entity_type, (app, model) in ENTITY_MODEL_MAP.items():
+        if app == app_label and model.lower() == model_name_lower:
+            return entity_type
+    
+    # Fallback: use model name as entity type
+    return model_name_lower
 
 
 @receiver(post_save, sender=FormSubmission)
@@ -124,6 +142,14 @@ def _build_form_snapshot(form):
                 'options': options,
                 'validation_rules': field.validation_rules,
             }
+            
+            # Include related_model info for ForeignKey fields (for dynamic option fetching)
+            if field_meta.get('related_model'):
+                related = field_meta['related_model']
+                field_data['related_entity_type'] = _get_entity_type_from_model(
+                    related.get('app'), related.get('model')
+                )
+                field_data['related_model'] = related
             
             # Include auto-populate config
             if field.auto_populate_source_step:

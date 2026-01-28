@@ -30,6 +30,7 @@ interface FormStepProps {
   disabled?: boolean;
   isActive?: boolean;
   showNotes?: boolean;
+  onCreateEntity?: (entityType: string) => void;
 }
 
 const StepContainer = styled.div<{ isActive?: boolean }>`
@@ -245,6 +246,7 @@ const FormStep: React.FC<FormStepProps> = ({
   disabled = false,
   isActive = false,
   showNotes = true,
+  onCreateEntity,
 }) => {
   const [isCompleting, setIsCompleting] = useState(false);
 
@@ -301,6 +303,7 @@ const FormStep: React.FC<FormStepProps> = ({
               disabled={disabled || isCompleted}
               error={errors[field.key]}
               isSaving={savingFields.has(field.key)}
+              onCreateEntity={onCreateEntity}
             />
           ))}
         </FieldsList>

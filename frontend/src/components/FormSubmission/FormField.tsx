@@ -20,6 +20,8 @@ export interface FieldConfig {
   rows?: number;
   autoPopulateSource?: string;
   validationRules?: Record<string, any>;
+  related_entity_type?: string;  // For ForeignKey fields - used to fetch options dynamically
+  related_model?: { app: string; model: string; label: string };
 }
 
 interface FormFieldProps {
@@ -30,6 +32,7 @@ interface FormFieldProps {
   disabled?: boolean;
   error?: string;
   isSaving?: boolean;
+  onCreateEntity?: (entityType: string) => void;  // Callback when user wants to create entity
 }
 
 const FieldContainer = styled.div`
@@ -190,6 +193,49 @@ const MultiSelectOption = styled.label<{ selected?: boolean }>`
   }
 `;
 
+// Empty state container for select fields with no options
+const EmptyOptionsContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-secondary, #f8f9fa);
+  border: 1px dashed var(--border-color, #dee2e6);
+  border-radius: 0.375rem;
+  text-align: center;
+`;
+
+const EmptyOptionsText = styled.p`
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6c757d);
+`;
+
+const CreateEntityButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background: var(--color-primary, #0d6efd);
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(--color-primary-hover, #0b5ed7);
+  }
+
+  &:disabled {
+    background: var(--text-secondary, #6c757d);
+    cursor: not-allowed;
+  }
+`;
+
 // Helper function to get field type icons (matching admin preview)
 const getFieldTypeIcon = (fieldType: string): string => {
   const icons: Record<string, string> = {
@@ -222,6 +268,7 @@ const FormField: React.FC<FormFieldProps> = ({
   disabled = false,
   error,
   isSaving = false,
+  onCreateEntity,
 }) => {
   const [localValue, setLocalValue] = useState(value);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -358,6 +405,28 @@ const FormField: React.FC<FormFieldProps> = ({
 
       case 'select':
       case 'dropdown':
+        // Check if options are empty and this is a related entity field
+        const hasOptions = field.options && field.options.length > 0;
+        const canCreate = field.related_entity_type && onCreateEntity;
+        const entityLabel = field.related_model?.label || field.related_entity_type?.replace('_', ' ') || field.label;
+        
+        if (!hasOptions && canCreate) {
+          return (
+            <EmptyOptionsContainer>
+              <EmptyOptionsText>
+                No {entityLabel.toLowerCase()}s found.
+              </EmptyOptionsText>
+              <CreateEntityButton
+                type="button"
+                onClick={() => onCreateEntity(field.related_entity_type!)}
+                disabled={disabled}
+              >
+                ➕ Create {entityLabel}
+              </CreateEntityButton>
+            </EmptyOptionsContainer>
+          );
+        }
+        
         return (
           <Select
             {...commonProps}
