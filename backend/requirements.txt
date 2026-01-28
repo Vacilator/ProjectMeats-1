@@ -50,3 +50,6 @@ requests>=2.31.0  # For GitHub API integration in bug reports
 # Email (SendGrid Web API)
 sendgrid>=6.11.0
 django-sendgrid-v5>=1.2.3
+
+# PDF Generation
+reportlab>=4.0.0  # For generating PDF quotes and invoices
