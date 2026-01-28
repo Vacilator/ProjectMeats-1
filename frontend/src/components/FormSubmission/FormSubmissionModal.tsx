@@ -44,9 +44,10 @@ const Overlay = styled.div<{ isOpen: boolean }>`
   display: ${({ isOpen }) => (isOpen ? 'flex' : 'none')};
   align-items: flex-start;
   justify-content: center;
-  padding: 2rem;
+  padding: 2rem 5rem; /* Extra horizontal padding for arrows */
   z-index: 1000;
   overflow-y: auto;
+  overflow-x: visible;
 `;
 
 const ModalContainer = styled.div`
@@ -59,6 +60,7 @@ const ModalContainer = styled.div`
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   margin: auto;
+  position: relative;
   
   @media (max-width: 1200px) {
     max-width: 95%;
@@ -149,28 +151,30 @@ const CurrentStepIndicator = styled.div`
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: var(--color-primary-light, #cfe2ff);
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, var(--color-primary, #0d6efd) 0%, var(--color-primary-dark, #0b5ed7) 100%);
   border-bottom: 1px solid var(--border-color, #dee2e6);
+  color: white;
 `;
 
 const CurrentStepNumber = styled.span`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
-  background: var(--color-primary, #0d6efd);
+  background: rgba(255, 255, 255, 0.25);
   color: white;
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: 700;
+  font-size: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.5);
 `;
 
 const CurrentStepTitle = styled.span`
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary, #1a1a2e);
+  color: white;
 `;
 
 const ModalBody = styled.div`
@@ -267,38 +271,39 @@ const ProgressLabel = styled.span<{ active?: boolean; completed?: boolean }>`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Explicit colors to prevent inheritance issues */
   color: ${({ active, completed }) => 
-    active ? 'white' : 
-    completed ? 'var(--color-success-dark, #0f5132)' :
-    'var(--text-secondary, #6c757d)'
+    active ? '#ffffff !important' : 
+    completed ? '#0f5132 !important' :
+    '#6c757d !important'
   };
 `;
 
 const StepNavArrow = styled.button<{ direction: 'left' | 'right'; visible: boolean }>`
-  position: fixed;
+  position: absolute;
   top: 50%;
-  ${({ direction }) => direction === 'left' ? 'left: 2rem;' : 'right: 2rem;'}
+  ${({ direction }) => direction === 'left' ? 'left: -70px;' : 'right: -70px;'}
   transform: translateY(-50%);
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   display: ${({ visible }) => visible ? 'flex' : 'none'};
   align-items: center;
   justify-content: center;
   background: var(--color-primary, #0d6efd);
   color: white;
-  border: none;
+  border: 3px solid white;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: bold;
-  box-shadow: 0 4px 16px rgba(13, 110, 253, 0.4);
+  box-shadow: 0 4px 20px rgba(13, 110, 253, 0.5);
   transition: all 0.2s ease;
-  z-index: 1100;
+  z-index: 10;
 
   &:hover {
     background: var(--color-primary-dark, #0b5ed7);
     transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.5);
+    box-shadow: 0 6px 24px rgba(13, 110, 253, 0.6);
   }
 
   &:focus {
@@ -311,14 +316,19 @@ const StepNavArrow = styled.button<{ direction: 'left' | 'right'; visible: boole
   }
 
   @media (max-width: 1400px) {
-    ${({ direction }) => direction === 'left' ? 'left: 1rem;' : 'right: 1rem;'}
+    ${({ direction }) => direction === 'left' ? 'left: -60px;' : 'right: -60px;'}
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1200px) {
+    /* Move inside modal on smaller screens */
+    ${({ direction }) => direction === 'left' ? 'left: 10px;' : 'right: 10px;'}
     width: 44px;
     height: 44px;
     font-size: 1.25rem;
-    ${({ direction }) => direction === 'left' ? 'left: 0.5rem;' : 'right: 0.5rem;'}
+    opacity: 0.9;
   }
 `;
 
@@ -529,15 +539,21 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       values[step.id] = (submission.data || {})[step.id] || {};
     });
     setLocalValues(values);
-  }, [steps, submission.data]);
+    // Only run on initial mount and when steps structure changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps]);
 
-  // Find current step based on submission or navigation
+  // Find current step based on submission - ONLY on initial mount
+  // We track this via a ref to avoid resetting when submission updates during auto-save
+  const hasInitializedStepRef = React.useRef(false);
   useEffect(() => {
-    if (submission.current_step) {
+    // Only set from server value once on initial load
+    if (!hasInitializedStepRef.current && submission.current_step && visibleSteps.length > 0) {
       const idx = visibleSteps.findIndex(s => s.id === submission.current_step);
       if (idx >= 0) {
         setCurrentStepIndex(idx);
       }
+      hasInitializedStepRef.current = true;
     }
   }, [submission.current_step, visibleSteps]);
 
