@@ -402,7 +402,11 @@ class AvailableFormSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'icon', 'status',
             'is_default', 'is_quick_action_enabled', 'step_count'
         ]
-        read_only_fields = '__all__'
+        # Note: Used with ReadOnlyModelViewSet, so all fields are read-only by design
+        read_only_fields = [
+            'id', 'name', 'description', 'icon', 'status',
+            'is_default', 'is_quick_action_enabled'
+        ]
     
     def get_step_count(self, obj):
         return obj.entities.count()
