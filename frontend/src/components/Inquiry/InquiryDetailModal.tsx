@@ -6,6 +6,7 @@
  * - View inquiry information and products
  * - Status workflow actions (update status)
  * - Create fulfillment from accepted inquiry
+ * - Clone inquiry
  * - Edit contact and notes
  */
 import React, { useState } from 'react';
@@ -27,6 +28,7 @@ interface InquiryDetailModalProps {
   onClose: () => void;
   inquiry: Inquiry | null;
   onUpdate?: (inquiry: Inquiry) => void;
+  onClone?: (inquiry: Inquiry) => void;
 }
 
 // ============================================================================
@@ -376,6 +378,7 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
   onClose,
   inquiry,
   onUpdate,
+  onClone,
 }) => {
   const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -623,6 +626,14 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                   onClick={() => setShowFulfillmentModal(true)}
                 >
                   📦 Create Fulfillment
+                </ActionButton>
+              )}
+              {onClone && (
+                <ActionButton
+                  variant="secondary"
+                  onClick={() => onClone(inquiry)}
+                >
+                  📋 Clone
                 </ActionButton>
               )}
             </FooterLeft>

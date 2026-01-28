@@ -8,12 +8,15 @@
  * - Create new inquiry
  * - View inquiry details
  * - Create fulfillment from accepted inquiries
+ * - Clone existing inquiries
+ * - Create from templates
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/apiService';
-import { InquiryListItem, InquiryStatus } from '../types';
-import { CreateInquiryModal, InquiryDetailModal } from '../components/Inquiry';
+import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
+import { CreateInquiryModal, InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
 
 // ============================================================================
 // Styled Components
@@ -66,6 +69,75 @@ const CreateButton = styled.button`
   &:hover {
     opacity: 0.9;
   }
+`;
+
+const SecondaryButton = styled.button`
+  padding: 0.625rem 1.25rem;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &:hover {
+    background: rgba(var(--color-primary), 0.05);
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const DropdownContainer = styled.div`
+  position: relative;
+`;
+
+const DropdownMenu = styled.div<{ $isOpen: boolean }>`
+  display: ${props => props.$isOpen ? 'block' : 'none'};
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 100;
+`;
+
+const DropdownItem = styled.button`
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 0.875rem;
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  
+  &:hover {
+    background: rgba(var(--color-primary), 0.1);
+  }
+  
+  &:not(:last-child) {
+    border-bottom: 1px solid rgb(var(--color-border));
+  }
+`;
+
+const DropdownLabel = styled.div`
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(var(--color-primary), 0.05);
 `;
 
 const FiltersBar = styled.div`
@@ -286,6 +358,7 @@ const PaginationButton = styled.button`
 // ============================================================================
 
 const Inquiries: React.FC = () => {
+  const navigate = useNavigate();
   const [inquiries, setInquiries] = useState<InquiryListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -304,6 +377,11 @@ const Inquiries: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  
+  // Templates
+  const [templates, setTemplates] = useState<InquiryTemplateListItem[]>([]);
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
 
   const fetchInquiries = useCallback(async () => {
     setLoading(true);
@@ -331,6 +409,13 @@ const Inquiries: React.FC = () => {
       setLoading(false);
     }
   }, [page, search, statusFilter, entityTypeFilter]);
+  
+  // Fetch templates on mount
+  useEffect(() => {
+    apiClient.get('inquiry-templates/', { params: { is_active: true } })
+      .then(res => setTemplates(res.data.results || res.data))
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     fetchInquiries();
@@ -356,6 +441,33 @@ const Inquiries: React.FC = () => {
     setSelectedInquiry(updatedInquiry);
     fetchInquiries();
   };
+  
+  const handleClone = (inquiry: any) => {
+    setSelectedInquiry(inquiry);
+    setShowDetailModal(false);
+    setShowCloneModal(true);
+  };
+  
+  const handleCloned = (newInquiry: any) => {
+    setShowCloneModal(false);
+    fetchInquiries();
+    // Open the newly cloned inquiry
+    setSelectedInquiry(newInquiry);
+    setShowDetailModal(true);
+  };
+  
+  const handleCreateFromTemplate = async (templateId: string) => {
+    setShowTemplateMenu(false);
+    try {
+      const response = await apiClient.post(`inquiries/from-template/${templateId}/`, {});
+      setSelectedInquiry(response.data);
+      setShowDetailModal(true);
+      fetchInquiries();
+    } catch (err) {
+      console.error('Failed to create inquiry from template:', err);
+      alert('Failed to create inquiry from template');
+    }
+  };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString();
@@ -373,6 +485,30 @@ const Inquiries: React.FC = () => {
       <Header>
         <Title>📋 Inquiries</Title>
         <HeaderActions>
+          {templates.length > 0 && (
+            <DropdownContainer>
+              <SecondaryButton onClick={() => setShowTemplateMenu(!showTemplateMenu)}>
+                📝 From Template ▾
+              </SecondaryButton>
+              <DropdownMenu $isOpen={showTemplateMenu}>
+                <DropdownLabel>Templates</DropdownLabel>
+                {templates.map(template => (
+                  <DropdownItem 
+                    key={template.id}
+                    onClick={() => handleCreateFromTemplate(template.id)}
+                  >
+                    {template.name}
+                    <span style={{ fontSize: '0.75rem', color: 'gray', marginLeft: '8px' }}>
+                      ({template.product_count} products)
+                    </span>
+                  </DropdownItem>
+                ))}
+                <DropdownItem onClick={() => navigate('/inquiries/templates')}>
+                  ⚙️ Manage Templates...
+                </DropdownItem>
+              </DropdownMenu>
+            </DropdownContainer>
+          )}
           <CreateButton onClick={() => setShowCreateModal(true)}>
             + New Inquiry
           </CreateButton>
@@ -518,7 +654,18 @@ const Inquiries: React.FC = () => {
         onClose={() => setShowDetailModal(false)}
         inquiry={selectedInquiry}
         onUpdate={handleUpdateInquiry}
+        onClone={handleClone}
       />
+      
+      {/* Clone Inquiry Modal */}
+      {selectedInquiry && (
+        <CloneInquiryModal
+          isOpen={showCloneModal}
+          onClose={() => setShowCloneModal(false)}
+          onCloned={handleCloned}
+          inquiry={selectedInquiry}
+        />
+      )}
     </Container>
   );
 };

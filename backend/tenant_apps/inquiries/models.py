@@ -463,3 +463,130 @@ class InquiryProduct(models.Model):
         if self.margin and self.desired_total and self.desired_total != 0:
             return (self.margin / self.desired_total) * 100
         return None
+
+
+class InquiryTemplate(TenantAwareModel):
+    """
+    Reusable inquiry templates with pre-configured products and settings.
+    
+    Allows quick creation of common inquiry types (e.g., "Weekly Beef Order",
+    "Standard Pork Inquiry") with pre-selected products and default pricing.
+    """
+    
+    name = models.CharField(
+        max_length=100,
+        help_text="Template name (e.g., 'Weekly Beef Order')"
+    )
+    description = models.TextField(
+        blank=True,
+        default='',
+        help_text="Description of this template's purpose"
+    )
+    entity_type = models.CharField(
+        max_length=20,
+        choices=InquiryEntityTypeChoices.choices,
+        help_text="Whether this template is for suppliers or customers"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this template is available for use"
+    )
+    
+    # Default settings
+    default_valid_days = models.PositiveIntegerField(
+        default=7,
+        help_text="Default number of days quote is valid"
+    )
+    default_notes = models.TextField(
+        blank=True,
+        default='',
+        help_text="Default notes to include in inquiry"
+    )
+    
+    # Usage tracking
+    use_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of times this template has been used"
+    )
+    
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_inquiry_templates'
+    )
+    
+    class Meta:
+        verbose_name = "Inquiry Template"
+        verbose_name_plural = "Inquiry Templates"
+        ordering = ['-use_count', 'name']
+        indexes = [
+            models.Index(fields=['tenant', 'entity_type', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} ({self.entity_type})"
+
+
+class InquiryTemplateProduct(models.Model):
+    """Products included in an inquiry template with default values."""
+    
+    objects = TenantManager()
+    
+    template = models.ForeignKey(
+        InquiryTemplate,
+        on_delete=models.CASCADE,
+        related_name='products'
+    )
+    product = models.ForeignKey(
+        'products.Product',
+        on_delete=models.CASCADE,
+        related_name='template_lines'
+    )
+    
+    # Default values for this product in this template
+    default_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text="Default quantity to request"
+    )
+    default_uom = models.CharField(
+        max_length=10,
+        choices=UOMChoices.choices,
+        default=UOMChoices.LBS,
+        help_text="Default unit of measure"
+    )
+    default_price_per_unit = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Default price per unit (if known)"
+    )
+    notes = models.TextField(
+        blank=True,
+        default='',
+        help_text="Notes for this product in this template"
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Display order in template"
+    )
+    
+    class Meta:
+        verbose_name = "Template Product"
+        verbose_name_plural = "Template Products"
+        ordering = ['sort_order', 'id']
+        unique_together = [['template', 'product']]
+    
+    def __str__(self):
+        return f"{self.template.name} - {self.product.description_of_product_item[:30]}"
+    
+    @property
+    def tenant(self):
+        """Inherit tenant from parent template."""
+        return self.template.tenant

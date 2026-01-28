@@ -1,6 +1,6 @@
 """Admin configuration for Inquiries."""
 from django.contrib import admin
-from .models import Inquiry, InquiryProduct
+from .models import Inquiry, InquiryProduct, InquiryTemplate, InquiryTemplateProduct
 
 
 class InquiryProductInline(admin.TabularInline):
@@ -70,3 +70,49 @@ class InquiryAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related(
             'tenant', 'supplier', 'customer', 'contact', 'source_call', 'created_by'
         )
+
+
+class InquiryTemplateProductInline(admin.TabularInline):
+    """Inline admin for template products."""
+    model = InquiryTemplateProduct
+    extra = 1
+    fields = ['product', 'default_quantity', 'default_uom', 'default_price_per_unit', 'sort_order', 'notes']
+
+
+@admin.register(InquiryTemplate)
+class InquiryTemplateAdmin(admin.ModelAdmin):
+    """Admin for InquiryTemplate model."""
+    list_display = [
+        'name', 'entity_type', 'is_active', 'use_count', 
+        'get_product_count', 'default_valid_days', 'created_on'
+    ]
+    list_filter = ['entity_type', 'is_active', 'tenant']
+    search_fields = ['name', 'description']
+    readonly_fields = ['use_count', 'created_on', 'modified_on']
+    inlines = [InquiryTemplateProductInline]
+    
+    fieldsets = (
+        ('Template Info', {
+            'fields': ('tenant', 'name', 'description', 'entity_type', 'is_active')
+        }),
+        ('Defaults', {
+            'fields': ('default_valid_days', 'default_notes')
+        }),
+        ('Usage', {
+            'fields': ('use_count',),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_on', 'modified_on'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_product_count(self, obj):
+        """Count products in template."""
+        return obj.products.count()
+    get_product_count.short_description = 'Products'
+    
+    def get_queryset(self, request):
+        """Optimize queryset."""
+        return super().get_queryset(request).select_related('tenant', 'created_by').prefetch_related('products')

@@ -58,6 +58,7 @@ import { useQuickActions } from './contexts/QuickActionsContext';
 import MySubmissions from './pages/MySubmissions';
 import Inquiries from './pages/Inquiries';
 import Fulfillments from './pages/Fulfillments';
+import InquiryTemplates from './pages/InquiryTemplates';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -186,6 +187,7 @@ const App: React.FC = () => {
                 
                 {/* Inquiries & Fulfillments */}
                 <Route path="inquiries" element={<Inquiries />} />
+                <Route path="inquiries/templates" element={<InquiryTemplates />} />
                 <Route path="fulfillments" element={<Fulfillments />} />
                 
                 {/* Workflows */}
