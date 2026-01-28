@@ -1,6 +1,9 @@
 """Serializers for Inquiries app."""
 from rest_framework import serializers
-from .models import Inquiry, InquiryProduct, InquiryStatusChoices
+from .models import (
+    Inquiry, InquiryProduct, InquiryStatusChoices,
+    InquiryTemplate, InquiryTemplateProduct
+)
 
 
 class InquiryProductSerializer(serializers.ModelSerializer):
@@ -199,3 +202,115 @@ class FromCallSerializer(serializers.Serializer):
     """Serializer for pre-populating inquiry from a call."""
     
     call_id = serializers.UUIDField(required=True)
+
+
+# ============================================================================
+# TEMPLATE SERIALIZERS
+# ============================================================================
+
+class InquiryTemplateProductSerializer(serializers.ModelSerializer):
+    """Serializer for template products."""
+    
+    product_code = serializers.CharField(source='product.product_code', read_only=True)
+    product_description = serializers.CharField(
+        source='product.description_of_product_item', read_only=True
+    )
+    
+    class Meta:
+        model = InquiryTemplateProduct
+        fields = [
+            'id', 'product', 'product_code', 'product_description',
+            'default_quantity', 'default_uom', 'default_price_per_unit',
+            'notes', 'sort_order'
+        ]
+        read_only_fields = ['id']
+
+
+class InquiryTemplateListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for template list views."""
+    
+    product_count = serializers.IntegerField(source='products.count', read_only=True)
+    
+    class Meta:
+        model = InquiryTemplate
+        fields = [
+            'id', 'name', 'description', 'entity_type', 'is_active',
+            'default_valid_days', 'use_count', 'product_count',
+            'created_on', 'modified_on'
+        ]
+
+
+class InquiryTemplateDetailSerializer(serializers.ModelSerializer):
+    """Full serializer for template detail views."""
+    
+    products = InquiryTemplateProductSerializer(many=True, read_only=True)
+    created_by_name = serializers.CharField(
+        source='created_by.get_full_name', read_only=True
+    )
+    
+    class Meta:
+        model = InquiryTemplate
+        fields = [
+            'id', 'name', 'description', 'entity_type', 'is_active',
+            'default_valid_days', 'default_notes', 'use_count',
+            'products', 'created_by', 'created_by_name',
+            'created_on', 'modified_on'
+        ]
+        read_only_fields = ['id', 'use_count', 'created_on', 'modified_on']
+
+
+class InquiryTemplateCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating templates with nested products."""
+    
+    products = InquiryTemplateProductSerializer(many=True, required=False)
+    
+    class Meta:
+        model = InquiryTemplate
+        fields = [
+            'name', 'description', 'entity_type', 'is_active',
+            'default_valid_days', 'default_notes', 'products'
+        ]
+    
+    def create(self, validated_data):
+        """Create template with nested products."""
+        products_data = validated_data.pop('products', [])
+        
+        request = self.context.get('request')
+        if request:
+            validated_data['tenant'] = request.tenant
+            validated_data['created_by'] = request.user
+        
+        template = InquiryTemplate.objects.create(**validated_data)
+        
+        for idx, product_data in enumerate(products_data):
+            product_data['sort_order'] = product_data.get('sort_order', idx)
+            InquiryTemplateProduct.objects.create(template=template, **product_data)
+        
+        return template
+    
+    def update(self, instance, validated_data):
+        """Update template with nested products."""
+        products_data = validated_data.pop('products', None)
+        
+        # Update template fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        # If products provided, replace them
+        if products_data is not None:
+            instance.products.all().delete()
+            for idx, product_data in enumerate(products_data):
+                product_data['sort_order'] = product_data.get('sort_order', idx)
+                InquiryTemplateProduct.objects.create(template=instance, **product_data)
+        
+        return instance
+
+
+class CloneInquirySerializer(serializers.Serializer):
+    """Serializer for cloning an existing inquiry."""
+    
+    include_products = serializers.BooleanField(default=True)
+    include_pricing = serializers.BooleanField(default=False)
+    new_entity_id = serializers.UUIDField(required=False, allow_null=True)
+    new_contact_id = serializers.UUIDField(required=False, allow_null=True)

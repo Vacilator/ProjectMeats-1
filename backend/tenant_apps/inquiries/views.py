@@ -4,14 +4,19 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
+from django.db.models import F
 
-from .models import Inquiry, InquiryProduct
+from .models import Inquiry, InquiryProduct, InquiryTemplate, InquiryTemplateProduct
 from .serializers import (
     InquiryListSerializer,
     InquiryDetailSerializer,
     InquiryCreateSerializer,
     InquiryProductSerializer,
     AddProductsSerializer,
+    InquiryTemplateListSerializer,
+    InquiryTemplateDetailSerializer,
+    InquiryTemplateCreateSerializer,
+    CloneInquirySerializer,
 )
 
 
@@ -193,6 +198,129 @@ class InquiryViewSet(viewsets.ModelViewSet):
         inquiry.save()
         
         return Response(InquiryDetailSerializer(inquiry).data)
+    
+    @action(detail=True, methods=['post'])
+    def clone(self, request, pk=None):
+        """Clone an existing inquiry, optionally with products and pricing."""
+        inquiry = self.get_object()
+        serializer = CloneInquirySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        include_products = serializer.validated_data.get('include_products', True)
+        include_pricing = serializer.validated_data.get('include_pricing', False)
+        new_entity_id = serializer.validated_data.get('new_entity_id')
+        new_contact_id = serializer.validated_data.get('new_contact_id')
+        
+        # Clone inquiry (without products first)
+        new_inquiry = Inquiry.objects.create(
+            tenant=inquiry.tenant,
+            status='draft',
+            source_type=inquiry.source_type,
+            entity_type=inquiry.entity_type,
+            supplier_id=new_entity_id if new_entity_id and inquiry.entity_type == 'supplier' else inquiry.supplier_id,
+            customer_id=new_entity_id if new_entity_id and inquiry.entity_type == 'customer' else inquiry.customer_id,
+            contact_id=new_contact_id or inquiry.contact_id,
+            contact_name=inquiry.contact_name,
+            contact_email=inquiry.contact_email,
+            contact_phone=inquiry.contact_phone,
+            contact_company=inquiry.contact_company,
+            contact_position=inquiry.contact_position,
+            notes=f"Cloned from {inquiry.inquiry_number}\n{inquiry.notes}",
+            created_by=request.user
+        )
+        
+        # Clone products if requested
+        if include_products:
+            for ip in inquiry.products.all():
+                product_data = {
+                    'inquiry': new_inquiry,
+                    'product': ip.product,
+                    'quantity': ip.quantity,
+                    'desired_uom': ip.desired_uom,
+                    'desired_uom_value': ip.desired_uom_value,
+                    'notes': ip.notes,
+                }
+                
+                # Include pricing if requested
+                if include_pricing:
+                    product_data.update({
+                        'desired_total': ip.desired_total,
+                        'desired_price_per_unit': ip.desired_price_per_unit,
+                    })
+                
+                InquiryProduct.objects.create(**product_data)
+        
+        return Response(
+            InquiryDetailSerializer(new_inquiry).data,
+            status=status.HTTP_201_CREATED
+        )
+    
+    @action(detail=False, methods=['post'], url_path='from-template/(?P<template_id>[^/.]+)')
+    def from_template(self, request, template_id=None):
+        """Create a new inquiry from a template."""
+        try:
+            template = InquiryTemplate.objects.get(
+                id=template_id,
+                tenant=request.tenant,
+                is_active=True
+            )
+        except InquiryTemplate.DoesNotExist:
+            return Response(
+                {'error': 'Template not found or inactive'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get entity and contact from request
+        entity_id = request.data.get('entity_id')
+        contact_id = request.data.get('contact_id')
+        
+        # Build inquiry data
+        inquiry_data = {
+            'tenant': request.tenant,
+            'status': 'draft',
+            'entity_type': template.entity_type,
+            'notes': template.default_notes,
+            'created_by': request.user,
+        }
+        
+        # Set valid_until from template
+        if template.default_valid_days:
+            inquiry_data['valid_until'] = (
+                timezone.now().date() + timezone.timedelta(days=template.default_valid_days)
+            )
+        
+        # Set entity based on type
+        if template.entity_type == 'supplier' and entity_id:
+            inquiry_data['supplier_id'] = entity_id
+        elif template.entity_type == 'customer' and entity_id:
+            inquiry_data['customer_id'] = entity_id
+        
+        if contact_id:
+            inquiry_data['contact_id'] = contact_id
+        
+        # Create inquiry
+        inquiry = Inquiry.objects.create(**inquiry_data)
+        
+        # Create products from template
+        for tp in template.products.all():
+            InquiryProduct.objects.create(
+                inquiry=inquiry,
+                product=tp.product,
+                quantity=tp.default_quantity,
+                desired_uom=tp.default_uom,
+                desired_price_per_unit=tp.default_price_per_unit,
+                notes=tp.notes
+            )
+        
+        # Increment template use count
+        InquiryTemplate.objects.filter(id=template_id).update(
+            use_count=F('use_count') + 1
+        )
+        
+        return Response(
+            InquiryDetailSerializer(inquiry).data,
+            status=status.HTTP_201_CREATED
+        )
 
 
 class InquiryProductViewSet(viewsets.ModelViewSet):
@@ -206,3 +334,66 @@ class InquiryProductViewSet(viewsets.ModelViewSet):
         return InquiryProduct.objects.filter(
             inquiry__tenant=self.request.tenant
         ).select_related('product', 'inquiry')
+
+
+class InquiryTemplateViewSet(viewsets.ModelViewSet):
+    """ViewSet for InquiryTemplate CRUD operations."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter by tenant."""
+        queryset = InquiryTemplate.objects.filter(
+            tenant=self.request.tenant
+        ).prefetch_related('products')
+        
+        # Filter by entity_type if provided
+        entity_type = self.request.query_params.get('entity_type')
+        if entity_type:
+            queryset = queryset.filter(entity_type=entity_type)
+        
+        # Filter by is_active if provided
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        return queryset
+    
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action."""
+        if self.action == 'list':
+            return InquiryTemplateListSerializer
+        elif self.action in ('create', 'update', 'partial_update'):
+            return InquiryTemplateCreateSerializer
+        return InquiryTemplateDetailSerializer
+    
+    def perform_create(self, serializer):
+        """Set tenant and created_by on create."""
+        serializer.save(
+            tenant=self.request.tenant,
+            created_by=self.request.user
+        )
+    
+    @action(detail=True, methods=['post'])
+    def add_products(self, request, pk=None):
+        """Add products to an existing template."""
+        template = self.get_object()
+        products_data = request.data.get('products', [])
+        
+        created_products = []
+        for product_data in products_data:
+            product = InquiryTemplateProduct.objects.create(
+                template=template,
+                product_id=product_data.get('product'),
+                default_quantity=product_data.get('default_quantity', 0),
+                default_uom=product_data.get('default_uom', 'LBS'),
+                default_price_per_unit=product_data.get('default_price_per_unit'),
+                notes=product_data.get('notes', ''),
+                sort_order=product_data.get('sort_order', 0)
+            )
+            created_products.append(product)
+        
+        return Response(
+            InquiryTemplateDetailSerializer(template).data,
+            status=status.HTTP_201_CREATED
+        )

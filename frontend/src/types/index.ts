@@ -587,3 +587,69 @@ export interface FulfillmentListItem {
   is_partial?: boolean;
   created_on: string;
 }
+
+// ============================================================================
+// Inquiry Templates (Phase 5)
+// ============================================================================
+
+/**
+ * Inquiry template product - default values for quick inquiry creation
+ */
+export interface InquiryTemplateProduct {
+  id: string;
+  product: string;
+  product_code?: string;
+  product_description?: string;
+  default_quantity: number;
+  default_uom: string;
+  default_price_per_unit?: number;
+  notes?: string;
+  sort_order: number;
+}
+
+/**
+ * Inquiry template for reusable inquiry configurations
+ */
+export interface InquiryTemplate {
+  id: string;
+  tenant: string;
+  name: string;
+  description?: string;
+  entity_type: InquiryEntityType;
+  is_active: boolean;
+  default_valid_days: number;
+  default_notes?: string;
+  use_count: number;
+  products: InquiryTemplateProduct[];
+  product_count?: number;
+  created_by?: string;
+  created_by_name?: string;
+  created_on: string;
+  modified_on: string;
+}
+
+/**
+ * Inquiry template list item (lightweight)
+ */
+export interface InquiryTemplateListItem {
+  id: string;
+  name: string;
+  description?: string;
+  entity_type: InquiryEntityType;
+  is_active: boolean;
+  default_valid_days: number;
+  use_count: number;
+  product_count: number;
+  created_on: string;
+  modified_on: string;
+}
+
+/**
+ * Clone inquiry request payload
+ */
+export interface CloneInquiryPayload {
+  include_products?: boolean;
+  include_pricing?: boolean;
+  new_entity_id?: string;
+  new_contact_id?: string;
+}
