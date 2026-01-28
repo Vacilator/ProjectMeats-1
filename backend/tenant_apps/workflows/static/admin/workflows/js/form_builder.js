@@ -84,11 +84,20 @@ function formBuilder() {
             stepName: ''
         },
         
+        // Field Mappings state
+        fieldMappings: [],
+        mappingsLoading: false,
+        autoMapSuggestions: [],
+        autoMapLoading: false,
+        showMappingModal: false,
+        editingMapping: null,
+        
         // Initialization
         init() {
             this.loadFormSteps();
             this.initSortable();
             this.loadFormRules();
+            this.loadFieldMappings();
             
             // Add keyboard event listener
             document.addEventListener('keydown', (e) => this.handleKeyboard(e));
@@ -1368,6 +1377,185 @@ function formBuilder() {
                 console.error('Error deleting step:', error);
                 this.showNotification(error.message || 'Failed to delete step', 'error');
             }
+        },
+        
+        // ==================== FIELD MAPPINGS ====================
+        
+        async loadFieldMappings() {
+            const formId = this.getFormId();
+            if (!formId) {
+                console.log('No form ID - skipping mappings load');
+                return;
+            }
+            
+            this.mappingsLoading = true;
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/forms/${formId}/mappings/`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.fieldMappings = data.mappings || [];
+                    console.log('Loaded field mappings:', this.fieldMappings.length);
+                } else {
+                    console.error('Failed to load mappings:', response.status);
+                }
+            } catch (error) {
+                console.error('Error loading field mappings:', error);
+            } finally {
+                this.mappingsLoading = false;
+            }
+        },
+        
+        async computeAutoMappings() {
+            const formId = this.getFormId();
+            if (!formId) return;
+            
+            this.autoMapLoading = true;
+            this.autoMapSuggestions = [];
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/forms/${formId}/auto-map/?min_score=50`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.autoMapSuggestions = data.suggestions || [];
+                    
+                    if (this.autoMapSuggestions.length === 0) {
+                        this.showNotification('No matching fields found. Try adding more fields with similar names.', 'info');
+                    } else {
+                        this.showNotification(`Found ${this.autoMapSuggestions.length} potential mapping(s)`, 'success');
+                    }
+                } else {
+                    const errorData = await response.json();
+                    this.showNotification(errorData.error || 'Failed to compute mappings', 'error');
+                }
+            } catch (error) {
+                console.error('Error computing auto-mappings:', error);
+                this.showNotification('Failed to compute auto-mappings', 'error');
+            } finally {
+                this.autoMapLoading = false;
+            }
+        },
+        
+        async applyAllSuggestions() {
+            const formId = this.getFormId();
+            if (!formId || this.autoMapSuggestions.length === 0) return;
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/forms/${formId}/auto-map/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ mappings: this.autoMapSuggestions })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.showNotification(`Applied ${data.applied} mapping(s)`, 'success');
+                    this.autoMapSuggestions = [];
+                    await this.loadFieldMappings();
+                } else {
+                    const errorData = await response.json();
+                    this.showNotification(errorData.error || 'Failed to apply mappings', 'error');
+                }
+            } catch (error) {
+                console.error('Error applying suggestions:', error);
+                this.showNotification('Failed to apply mappings', 'error');
+            }
+        },
+        
+        async applySingleSuggestion(suggestion) {
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/fields/${suggestion.target_field_id}/mapping/`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        source_step_id: suggestion.source_step_id,
+                        source_field_key: suggestion.source_field_key,
+                        mode: suggestion.mode || 'copy'
+                    })
+                });
+                
+                if (response.ok) {
+                    // Remove from suggestions
+                    const index = this.autoMapSuggestions.findIndex(
+                        s => s.target_field_id === suggestion.target_field_id
+                    );
+                    if (index > -1) {
+                        this.autoMapSuggestions.splice(index, 1);
+                    }
+                    await this.loadFieldMappings();
+                    this.showNotification('Mapping applied', 'success');
+                } else {
+                    const errorData = await response.json();
+                    this.showNotification(errorData.error || 'Failed to apply mapping', 'error');
+                }
+            } catch (error) {
+                console.error('Error applying single suggestion:', error);
+                this.showNotification('Failed to apply mapping', 'error');
+            }
+        },
+        
+        dismissSuggestion(index) {
+            this.autoMapSuggestions.splice(index, 1);
+        },
+        
+        clearSuggestions() {
+            this.autoMapSuggestions = [];
+        },
+        
+        editMapping(mapping) {
+            // Open the field config modal for this field
+            this.configureField(mapping.target_field_key);
+        },
+        
+        async deleteMapping(fieldId) {
+            if (!confirm('Remove this field mapping?')) return;
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/fields/${fieldId}/mapping/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    await this.loadFieldMappings();
+                    this.showNotification('Mapping removed', 'success');
+                } else {
+                    const errorData = await response.json();
+                    this.showNotification(errorData.error || 'Failed to remove mapping', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting mapping:', error);
+                this.showNotification('Failed to remove mapping', 'error');
+            }
+        },
+        
+        // Helper to get form ID from URL
+        getFormId() {
+            const pathParts = window.location.pathname.split('/');
+            const formIdIndex = pathParts.findIndex(p => p === 'tenantform') + 1;
+            const formId = pathParts[formIdIndex];
+            return (formId && formId !== 'add') ? formId : null;
         }
     };
 }

@@ -196,6 +196,141 @@
                     </button>
                 </div>
             </fieldset>
+            
+            <!-- Field Mappings Section -->
+            <fieldset class="module form-mappings-section">
+                <h2>🔗 Field Mappings 
+                    <span class="mappings-count-badge" x-show="fieldMappings.length > 0">(<span class="mappings-count" x-text="fieldMappings.length"></span>)</span>
+                    <span class="help-tooltip" title="Field mappings auto-populate fields with values from previous steps. Use Auto-Map to automatically detect and configure mappings.">ℹ️</span>
+                </h2>
+                <div class="form-builder-description">
+                    <p>Configure how data flows between steps. Mapped fields are automatically populated with values from earlier steps.</p>
+                    <ul class="help-list">
+                        <li><strong>Auto-Map</strong> - Automatically detect matching fields based on name and type</li>
+                        <li><strong>Manual</strong> - Click a mapping to edit source step and field</li>
+                        <li>Mappings copy values when users move between steps</li>
+                    </ul>
+                </div>
+                
+                <!-- Loading indicator -->
+                <div x-show="mappingsLoading" class="mappings-loading">
+                    Loading mappings...
+                </div>
+                
+                <!-- Auto-Map Toolbar -->
+                <div class="mappings-toolbar" x-show="formSteps.length > 1 && !mappingsLoading">
+                    <button type="button" 
+                            class="auto-map-btn" 
+                            @click="computeAutoMappings()"
+                            :disabled="autoMapLoading">
+                        <span x-show="!autoMapLoading">✨ Auto-Map Fields</span>
+                        <span x-show="autoMapLoading">⏳ Analyzing...</span>
+                    </button>
+                    <span class="auto-map-hint">Finds matching fields across steps using fuzzy matching</span>
+                </div>
+                
+                <!-- Auto-Map Suggestions (shown when computed) -->
+                <div class="auto-map-suggestions" x-show="autoMapSuggestions.length > 0 && !mappingsLoading">
+                    <div class="suggestions-header">
+                        <h4>✨ Suggested Mappings (<span x-text="autoMapSuggestions.length"></span>)</h4>
+                        <div class="suggestions-actions">
+                            <button type="button" class="btn btn-primary btn-sm" @click="applyAllSuggestions()">
+                                ✓ Apply All
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" @click="clearSuggestions()">
+                                ✕ Dismiss
+                            </button>
+                        </div>
+                    </div>
+                    <div class="suggestions-list">
+                        <template x-for="(suggestion, index) in autoMapSuggestions" :key="index">
+                            <div class="suggestion-item">
+                                <div class="suggestion-flow">
+                                    <div class="flow-source">
+                                        <span class="step-badge" x-text="suggestion.source_step_name"></span>
+                                        <span class="field-badge" x-text="suggestion.source_field_label"></span>
+                                    </div>
+                                    <span class="flow-arrow">→</span>
+                                    <div class="flow-target">
+                                        <span class="step-badge" x-text="suggestion.target_step_name"></span>
+                                        <span class="field-badge" x-text="suggestion.target_field_label"></span>
+                                    </div>
+                                </div>
+                                <div class="suggestion-meta">
+                                    <span class="score-badge" :class="suggestion.score >= 80 ? 'high' : (suggestion.score >= 60 ? 'medium' : 'low')">
+                                        <span x-text="suggestion.score + '%'"></span> match
+                                    </span>
+                                    <span class="reasons-text" x-text="suggestion.reasons.join(', ')"></span>
+                                </div>
+                                <div class="suggestion-actions">
+                                    <button type="button" class="btn-apply-single" @click="applySingleSuggestion(suggestion)" title="Apply this mapping">✓</button>
+                                    <button type="button" class="btn-dismiss-single" @click="dismissSuggestion(index)" title="Dismiss">✕</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Current Mappings List -->
+                <div class="mappings-list" id="field-mappings" x-show="!mappingsLoading">
+                    <template x-for="mapping in fieldMappings" :key="mapping.target_field_id">
+                        <div class="mapping-item" :data-field-id="mapping.target_field_id">
+                            <div class="mapping-flow">
+                                <div class="flow-source">
+                                    <span class="step-name" x-text="mapping.source_step_name"></span>
+                                    <span class="dot">.</span>
+                                    <span class="field-name" x-text="mapping.source_field_label"></span>
+                                </div>
+                                <span class="flow-arrow">→</span>
+                                <div class="flow-target">
+                                    <span class="step-name" x-text="mapping.target_step_name"></span>
+                                    <span class="dot">.</span>
+                                    <span class="field-name" x-text="mapping.target_field_label"></span>
+                                </div>
+                            </div>
+                            <div class="mapping-mode" x-show="mapping.mode">
+                                <span class="mode-badge" x-text="mapping.mode === 'copy' ? '📋 Copy' : '🔍 Lookup'"></span>
+                            </div>
+                            <div class="mapping-actions">
+                                <button type="button" class="mapping-edit-btn" @click="editMapping(mapping)" title="Edit mapping">✏️</button>
+                                <button type="button" class="mapping-delete-btn" @click="deleteMapping(mapping.target_field_id)" title="Remove mapping">🗑️</button>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- No mappings message -->
+                    <p class="no-mappings-message" x-show="fieldMappings.length === 0 && autoMapSuggestions.length === 0 && !mappingsLoading && formSteps.length > 1">
+                        No field mappings configured. Click "Auto-Map Fields" to detect potential mappings.
+                    </p>
+                    
+                    <!-- Single step message -->
+                    <p class="no-mappings-message" x-show="formSteps.length <= 1 && !mappingsLoading">
+                        ℹ️ Field mappings require at least 2 steps. Add another step to enable data flow between steps.
+                    </p>
+                </div>
+                
+                <!-- Data Flow Visualization -->
+                <div class="data-flow-viz" x-show="fieldMappings.length > 0 && !mappingsLoading">
+                    <h4>📊 Data Flow</h4>
+                    <div class="flow-diagram">
+                        <template x-for="mapping in fieldMappings" :key="mapping.target_field_id">
+                            <div class="flow-line">
+                                <div class="flow-box source">
+                                    <span class="box-step" x-text="mapping.source_step_name"></span>
+                                    <span class="box-field" x-text="mapping.source_field_key"></span>
+                                </div>
+                                <div class="flow-connector">
+                                    <span class="connector-arrow">→</span>
+                                </div>
+                                <div class="flow-box target">
+                                    <span class="box-step" x-text="mapping.target_step_name"></span>
+                                    <span class="box-field" x-text="mapping.target_field_key"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </fieldset>
             {% endif %}
 
             <!-- Original Django inlines (hidden, for form submission) -->

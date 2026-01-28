@@ -33,7 +33,8 @@ interface FormFieldProps {
 }
 
 const FieldContainer = styled.div`
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  min-width: 0;
 `;
 
 const Label = styled.label<{ required?: boolean }>`

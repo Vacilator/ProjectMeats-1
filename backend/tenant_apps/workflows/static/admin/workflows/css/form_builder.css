@@ -1591,3 +1591,442 @@ kbd {
     font-size: 14px;
     color: var(--fb-fg-quiet);
 }
+
+/* ==========================================================================
+   Field Mappings Section
+   ========================================================================== */
+
+.form-mappings-section {
+    margin-top: 20px;
+}
+
+.form-mappings-section h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mappings-count-badge {
+    font-size: 14px;
+    font-weight: normal;
+    color: var(--fb-fg-quiet);
+}
+
+.mappings-loading {
+    padding: 20px;
+    text-align: center;
+    color: var(--fb-fg-quiet);
+}
+
+/* Auto-Map Toolbar */
+.mappings-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--fb-hairline);
+    margin-bottom: 12px;
+}
+
+.auto-map-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: var(--fb-radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--fb-transition);
+}
+
+.auto-map-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.auto-map-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.auto-map-hint {
+    font-size: 12px;
+    color: var(--fb-fg-quiet);
+}
+
+/* Auto-Map Suggestions */
+.auto-map-suggestions {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border: 1px solid #c4b5fd;
+    border-radius: var(--fb-radius);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .auto-map-suggestions {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+        border-color: #4c1d95;
+    }
+}
+
+.suggestions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.suggestions-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #5b21b6;
+}
+
+@media (prefers-color-scheme: dark) {
+    .suggestions-header h4 {
+        color: #c4b5fd;
+    }
+}
+
+.suggestions-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.suggestions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--fb-bg);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    padding: 10px 12px;
+}
+
+.suggestion-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.flow-source, .flow-target {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.step-badge {
+    background: var(--fb-primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.field-badge {
+    background: var(--fb-darkened-bg);
+    color: var(--fb-fg);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-family: monospace;
+}
+
+.flow-arrow {
+    color: var(--fb-fg-quiet);
+    font-size: 16px;
+}
+
+.suggestion-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.score-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.score-badge.high {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.score-badge.medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.score-badge.low {
+    background: #fce7f3;
+    color: #9d174d;
+}
+
+@media (prefers-color-scheme: dark) {
+    .score-badge.high {
+        background: #166534;
+        color: #dcfce7;
+    }
+    .score-badge.medium {
+        background: #92400e;
+        color: #fef3c7;
+    }
+    .score-badge.low {
+        background: #9d174d;
+        color: #fce7f3;
+    }
+}
+
+.reasons-text {
+    font-size: 11px;
+    color: var(--fb-fg-quiet);
+}
+
+.suggestion-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.btn-apply-single, .btn-dismiss-single {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    transition: var(--fb-transition);
+}
+
+.btn-apply-single {
+    background: var(--fb-success);
+    color: white;
+}
+
+.btn-apply-single:hover {
+    background: #218838;
+}
+
+.btn-dismiss-single {
+    background: var(--fb-darkened-bg);
+    color: var(--fb-fg-quiet);
+}
+
+.btn-dismiss-single:hover {
+    background: var(--fb-danger);
+    color: white;
+}
+
+/* Mappings List */
+.mappings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.mapping-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--fb-bg);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    padding: 12px 16px;
+    transition: var(--fb-transition);
+}
+
+.mapping-item:hover {
+    border-color: var(--fb-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mapping-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    font-size: 13px;
+}
+
+.mapping-flow .step-name {
+    font-weight: 500;
+    color: var(--fb-primary);
+}
+
+.mapping-flow .dot {
+    color: var(--fb-fg-quiet);
+}
+
+.mapping-flow .field-name {
+    font-family: monospace;
+    color: var(--fb-fg);
+}
+
+.mapping-mode {
+    flex-shrink: 0;
+}
+
+.mode-badge {
+    background: var(--fb-darkened-bg);
+    color: var(--fb-fg-quiet);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+}
+
+.mapping-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.mapping-edit-btn, .mapping-delete-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    background: var(--fb-bg);
+    cursor: pointer;
+    font-size: 14px;
+    transition: var(--fb-transition);
+}
+
+.mapping-edit-btn:hover {
+    background: var(--fb-primary);
+    color: white;
+    border-color: var(--fb-primary);
+}
+
+.mapping-delete-btn:hover {
+    background: var(--fb-danger);
+    color: white;
+    border-color: var(--fb-danger);
+}
+
+.no-mappings-message {
+    text-align: center;
+    padding: 20px;
+    color: var(--fb-fg-quiet);
+    font-style: italic;
+}
+
+/* Data Flow Visualization */
+.data-flow-viz {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border: 1px solid #a7f3d0;
+    border-radius: var(--fb-radius);
+    padding: 16px;
+    margin-top: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .data-flow-viz {
+        background: linear-gradient(135deg, #022c22 0%, #064e3b 100%);
+        border-color: #065f46;
+    }
+}
+
+.data-flow-viz h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #065f46;
+}
+
+@media (prefers-color-scheme: dark) {
+    .data-flow-viz h4 {
+        color: #a7f3d0;
+    }
+}
+
+.flow-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.flow-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.flow-box {
+    background: var(--fb-bg);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 120px;
+}
+
+.flow-box .box-step {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--fb-fg-quiet);
+}
+
+.flow-box .box-field {
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--fb-fg);
+}
+
+.flow-box.source {
+    border-color: var(--fb-primary);
+}
+
+.flow-box.target {
+    border-color: var(--fb-success);
+}
+
+.flow-connector {
+    color: var(--fb-fg-quiet);
+    font-size: 18px;
+}
+
+.connector-arrow {
+    display: inline-block;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Button styles */
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+}

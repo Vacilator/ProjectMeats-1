@@ -514,6 +514,164 @@ class FieldConfigAPIView(APIView):
         return self.post(request, field_id)
 
 
+class FormMappingsAPIView(APIView):
+    """
+    API endpoint for managing field mappings in a form.
+    Used by the Field Mappings section in the form builder admin interface.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, form_id):
+        """Get all field mappings for a form."""
+        from .services import FieldMappingService
+        
+        try:
+            form = TenantForm.objects.prefetch_related('entities').get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        mappings = FieldMappingService.get_current_mappings(form)
+        
+        # Get step info for context
+        steps_data = []
+        for step in form.entities.all().order_by('order'):
+            steps_data.append({
+                'id': str(step.id),
+                'name': step.step_name or step.entity_type.replace('_', ' ').title(),
+                'entity_type': step.entity_type,
+                'order': step.order,
+            })
+        
+        return Response({
+            'form_id': str(form_id),
+            'form_name': form.name,
+            'steps': steps_data,
+            'mappings': mappings,
+            'count': len(mappings)
+        })
+
+
+class FormAutoMapAPIView(APIView):
+    """
+    API endpoint for computing and applying auto-mappings.
+    Uses fuzzy matching to suggest field mappings between steps.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, form_id):
+        """Compute auto-mapping suggestions without applying them."""
+        from .services import FieldMappingService
+        
+        try:
+            form = TenantForm.objects.prefetch_related('entities').get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        min_score = float(request.query_params.get('min_score', 50.0))
+        suggestions = FieldMappingService.compute_auto_mappings(form, min_score)
+        
+        return Response({
+            'form_id': str(form_id),
+            'suggestions': suggestions,
+            'count': len(suggestions)
+        })
+    
+    def post(self, request, form_id):
+        """Apply auto-mappings (either suggested or provided)."""
+        from .services import FieldMappingService
+        
+        try:
+            form = TenantForm.objects.prefetch_related('entities').get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # If mappings are provided, use those; otherwise compute them
+        mappings = request.data.get('mappings')
+        if not mappings:
+            min_score = float(request.data.get('min_score', 50.0))
+            mappings = FieldMappingService.compute_auto_mappings(form, min_score)
+        
+        result = FieldMappingService.apply_auto_mappings(form, mappings)
+        
+        return Response({
+            'status': 'success',
+            'applied': result['applied'],
+            'errors': result['errors'],
+            'message': f"Applied {result['applied']} field mappings"
+        })
+
+
+class FieldMappingAPIView(APIView):
+    """
+    API endpoint for managing a single field's mapping.
+    """
+    permission_classes = [IsAdminUser]
+    
+    def put(self, request, field_id):
+        """Update a field's mapping."""
+        from .services import FieldMappingService
+        
+        try:
+            field = TenantFormField.objects.get(pk=field_id)
+        except TenantFormField.DoesNotExist:
+            return Response(
+                {'error': 'Field not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        source_step_id = request.data.get('source_step_id')
+        source_field_key = request.data.get('source_field_key')
+        mode = request.data.get('mode', 'copy')
+        
+        if source_step_id and source_field_key:
+            success = FieldMappingService.apply_mapping(
+                field, source_step_id, source_field_key, mode
+            )
+            if success:
+                return Response({
+                    'status': 'success',
+                    'message': 'Mapping applied'
+                })
+            else:
+                return Response(
+                    {'error': 'Failed to apply mapping'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            return Response(
+                {'error': 'source_step_id and source_field_key are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    def delete(self, request, field_id):
+        """Remove a field's mapping."""
+        from .services import FieldMappingService
+        
+        try:
+            field = TenantFormField.objects.get(pk=field_id)
+        except TenantFormField.DoesNotExist:
+            return Response(
+                {'error': 'Field not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        FieldMappingService.remove_mapping(field)
+        
+        return Response({
+            'status': 'success',
+            'message': 'Mapping removed'
+        })
+
+
 class FormRulesAPIView(APIView):
     """
     API endpoint for managing form conditional rules.
@@ -1180,6 +1338,30 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         elif self.action == 'create':
             return FormSubmissionCreateSerializer
         return FormSubmissionDetailSerializer
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Override create to return full submission details.
+        Uses CreateSerializer for input validation, DetailSerializer for response.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+        
+        # Refresh with prefetched relations for detail response
+        instance = FormSubmission.objects.select_related(
+            'form', 'created_by', 'current_step'
+        ).prefetch_related(
+            'step_submissions__step',
+            'step_submissions__completed_by'
+        ).get(pk=instance.pk)
+        
+        # Return full details
+        detail_serializer = FormSubmissionDetailSerializer(
+            instance, context=self.get_serializer_context()
+        )
+        headers = self.get_success_headers(detail_serializer.data)
+        return Response(detail_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     def get_queryset(self):
         qs = FormSubmission.objects.filter(tenant=self.request.tenant)

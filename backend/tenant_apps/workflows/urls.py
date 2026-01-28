@@ -17,6 +17,7 @@ from .views import (
     FormStepFieldsAPIView, FormStepReorderAPIView, SmartFieldMatchAPIView,
     FieldConfigAPIView, FormRulesAPIView, FormRuleDetailAPIView,
     FormStepsAPIView, FormStepDetailAPIView,
+    FormMappingsAPIView, FormAutoMapAPIView, FieldMappingAPIView,
     # Form Submission API Views
     FormSubmissionViewSet, AvailableFormsViewSet, QuickActionsAPIView
 )
@@ -58,6 +59,11 @@ urlpatterns = [
     path('admin/fields/<uuid:field_id>/config/', FieldConfigAPIView.as_view(), name='admin-field-config'),
     path('admin/forms/<uuid:form_id>/rules/', FormRulesAPIView.as_view(), name='admin-form-rules'),
     path('admin/rules/<uuid:rule_id>/', FormRuleDetailAPIView.as_view(), name='admin-rule-detail'),
+    
+    # Field Mappings API endpoints
+    path('admin/forms/<uuid:form_id>/mappings/', FormMappingsAPIView.as_view(), name='admin-form-mappings'),
+    path('admin/forms/<uuid:form_id>/auto-map/', FormAutoMapAPIView.as_view(), name='admin-form-auto-map'),
+    path('admin/fields/<uuid:field_id>/mapping/', FieldMappingAPIView.as_view(), name='admin-field-mapping'),
     
     # Quick Actions API endpoints
     path('quick-actions/', QuickActionsAPIView.as_view(), name='quick-actions'),

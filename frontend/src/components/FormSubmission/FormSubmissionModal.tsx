@@ -52,12 +52,16 @@ const ModalContainer = styled.div`
   background: var(--modal-bg, #ffffff);
   border-radius: 0.75rem;
   width: 100%;
-  max-width: 900px;
+  max-width: 1100px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   margin: auto;
+  
+  @media (max-width: 1200px) {
+    max-width: 95%;
+  }
 `;
 
 const ModalHeader = styled.div`
@@ -358,7 +362,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   // Get step submission map
   const stepSubmissionMap: Record<string, StepSubmission> = useMemo(() => {
     const map: Record<string, StepSubmission> = {};
-    submission.step_submissions.forEach(ss => {
+    // Defensive check - step_submissions might be undefined or null
+    (submission.step_submissions || []).forEach(ss => {
       map[ss.step] = ss;
     });
     return map;
@@ -368,7 +373,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   useEffect(() => {
     const values: Record<string, Record<string, any>> = {};
     steps.forEach(step => {
-      values[step.id] = submission.data[step.id] || {};
+      // Defensive check - submission.data might be undefined
+      values[step.id] = (submission.data || {})[step.id] || {};
     });
     setLocalValues(values);
   }, [steps, submission.data]);
@@ -625,11 +631,11 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
         <ProgressBar>
           <ProgressTrack>
-            <ProgressFill percent={submission.progress.percent} />
+            <ProgressFill percent={submission.progress?.percent || 0} />
           </ProgressTrack>
           <ProgressText>
-            <span>{submission.progress.completed} of {visibleSteps.length} steps completed</span>
-            <span>{submission.progress.percent}%</span>
+            <span>{submission.progress?.completed || 0} of {visibleSteps.length} steps completed</span>
+            <span>{submission.progress?.percent || 0}%</span>
           </ProgressText>
         </ProgressBar>
 
