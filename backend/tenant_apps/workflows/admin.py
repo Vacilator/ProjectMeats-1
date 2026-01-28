@@ -162,9 +162,15 @@ class TenantFormAdmin(TenantFilteredAdmin):
     
     class Media:
         css = {
-            'all': ('admin/workflows/css/form_builder.css',)
+            'all': (
+                'admin/workflows/css/form_builder.css',
+                'admin/workflows/css/icon_selector.css',
+            )
         }
-        js = ('admin/workflows/js/form_builder.js',)
+        js = (
+            'admin/workflows/js/form_builder.js',
+            'admin/workflows/js/icon_selector.js',
+        )
     
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(

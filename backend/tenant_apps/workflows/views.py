@@ -1615,23 +1615,38 @@ class QuickActionsAPIView(APIView):
     
     def put(self, request):
         """Update user's quick actions."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
+            logger.info(f"Quick actions update request: {request.data}")
             serializer = QuickActionsSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
+            if not serializer.is_valid():
+                logger.error(f"Quick actions serializer errors: {serializer.errors}")
+                return Response(
+                    {'error': 'Validation failed', 'details': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             items = serializer.validated_data['items']
             
             # Validate that referenced forms exist and are available
             for item in items:
                 if item['type'] == 'form' and item.get('form_id'):
-                    form_exists = TenantForm.objects.filter(
+                    form = TenantForm.objects.filter(
                         id=item['form_id'],
                         tenant=request.tenant,
-                        is_quick_action_enabled=True
-                    ).exists()
-                    if not form_exists:
+                    ).first()
+                    if not form:
+                        logger.warning(f"Form {item['form_id']} not found for tenant {request.tenant}")
                         return Response(
-                            {'error': f'Form {item["form_id"]} is not available for quick actions'},
+                            {'error': f'Form {item["form_id"]} not found'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    if not form.is_quick_action_enabled:
+                        logger.warning(f"Form {item['form_id']} is not enabled for quick actions")
+                        return Response(
+                            {'error': f'Form "{form.name}" is not enabled for quick actions'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
             

@@ -15,6 +15,132 @@ from .models import (
 
 
 # =============================================================================
+# CUSTOM WIDGETS
+# =============================================================================
+
+class IconSelectorWidget(forms.TextInput):
+    """Widget for selecting icons with visual preview and picker."""
+    
+    AVAILABLE_ICONS = [
+        # Documents
+        ('file-text', 'Document', 'documents'),
+        ('file', 'File', 'documents'),
+        ('file-plus', 'New File', 'documents'),
+        ('file-check', 'Approved', 'documents'),
+        ('clipboard', 'Clipboard', 'documents'),
+        ('clipboard-list', 'Checklist', 'documents'),
+        ('clipboard-check', 'Completed', 'documents'),
+        ('folder', 'Folder', 'documents'),
+        ('folder-open', 'Open Folder', 'documents'),
+        
+        # People
+        ('user', 'Person', 'people'),
+        ('users', 'Team', 'people'),
+        ('building', 'Company', 'people'),
+        
+        # Business
+        ('briefcase', 'Business', 'business'),
+        ('shopping-cart', 'Order', 'business'),
+        ('shopping-bag', 'Purchase', 'business'),
+        ('dollar-sign', 'Money', 'business'),
+        ('credit-card', 'Payment', 'business'),
+        ('receipt', 'Invoice', 'business'),
+        ('percent', 'Discount', 'business'),
+        ('tag', 'Price Tag', 'business'),
+        
+        # Logistics
+        ('truck', 'Shipping', 'logistics'),
+        ('box', 'Box', 'logistics'),
+        ('package', 'Package', 'logistics'),
+        ('map-pin', 'Location', 'logistics'),
+        ('globe', 'Global', 'logistics'),
+        
+        # Communication
+        ('mail', 'Email', 'communication'),
+        ('phone', 'Phone', 'communication'),
+        ('message-square', 'Message', 'communication'),
+        ('send', 'Send', 'communication'),
+        ('bell', 'Notification', 'communication'),
+        
+        # Time
+        ('calendar', 'Calendar', 'time'),
+        ('clock', 'Time', 'time'),
+        
+        # Status
+        ('check-circle', 'Success', 'status'),
+        ('x-circle', 'Error', 'status'),
+        ('alert-circle', 'Warning', 'status'),
+        ('info', 'Info', 'status'),
+        ('star', 'Favorite', 'status'),
+        ('activity', 'Activity', 'status'),
+        
+        # Actions
+        ('edit', 'Edit', 'actions'),
+        ('trash', 'Delete', 'actions'),
+        ('plus', 'Add', 'actions'),
+        ('search', 'Search', 'actions'),
+        ('filter', 'Filter', 'actions'),
+        ('download', 'Download', 'actions'),
+        ('upload', 'Upload', 'actions'),
+        ('refresh-cw', 'Refresh', 'actions'),
+        ('copy', 'Copy', 'actions'),
+        ('link', 'Link', 'actions'),
+        ('external-link', 'External', 'actions'),
+        
+        # Security
+        ('lock', 'Locked', 'security'),
+        ('unlock', 'Unlocked', 'security'),
+        ('key', 'Key', 'security'),
+        ('eye', 'View', 'security'),
+        ('eye-off', 'Hidden', 'security'),
+        
+        # Charts
+        ('bar-chart', 'Bar Chart', 'charts'),
+        ('pie-chart', 'Pie Chart', 'charts'),
+        ('trending-up', 'Growth', 'charts'),
+        ('trending-down', 'Decline', 'charts'),
+        
+        # Tech
+        ('settings', 'Settings', 'tech'),
+        ('database', 'Database', 'tech'),
+        ('server', 'Server', 'tech'),
+        ('code', 'Code', 'tech'),
+        ('terminal', 'Terminal', 'tech'),
+        ('layers', 'Layers', 'tech'),
+        ('zap', 'Power', 'tech'),
+    ]
+    
+    ICON_CATEGORIES = [
+        ('documents', '📄 Documents'),
+        ('people', '👥 People'),
+        ('business', '💼 Business'),
+        ('logistics', '📦 Logistics'),
+        ('communication', '💬 Communication'),
+        ('time', '⏰ Time'),
+        ('status', '✅ Status'),
+        ('actions', '⚡ Actions'),
+        ('security', '🔒 Security'),
+        ('charts', '📊 Charts'),
+        ('tech', '💻 Tech'),
+    ]
+    
+    template_name = 'admin/workflows/widgets/icon_selector.html'
+    
+    class Media:
+        css = {
+            'all': ('admin/workflows/css/icon_selector.css',)
+        }
+        js = ('admin/workflows/js/icon_selector.js',)
+    
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context['icons'] = self.AVAILABLE_ICONS
+        context['categories'] = self.ICON_CATEGORIES
+        context['current_value'] = value or 'file-text'
+        return context
+
+
+# =============================================================================
 # SYSTEM FIELDS (available in all entities)
 # =============================================================================
 
@@ -106,6 +232,7 @@ class TenantFormAdminForm(forms.ModelForm):
         fields = ['name', 'description', 'status', 'is_default', 'icon']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 2}),
+            'icon': IconSelectorWidget(attrs={'class': 'vTextField'}),
         }
         help_texts = {
             'is_default': 'If checked, this form will be used by default when creating new records. Only works for single-entity forms.',

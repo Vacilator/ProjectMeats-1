@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Theme } from '../../config/theme';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import QuickActionsEditor from '../QuickActions/QuickActionsEditor';
+import { Icon } from '../ui';
 
 interface HeaderProps {
   // No props needed currently
@@ -159,7 +160,7 @@ const Header: React.FC<HeaderProps> = () => {
                     onClick={() => handleQuickActionClick(action)}
                     $theme={theme}
                   >
-                    <span>{action.icon}</span>
+                    <IconWrapper><Icon name={action.icon} size={18} /></IconWrapper>
                     <span>{action.label}</span>
                   </QuickMenuItem>
                 ))
@@ -171,7 +172,7 @@ const Header: React.FC<HeaderProps> = () => {
                     onClick={() => handleQuickMenuClick(item.path)}
                     $theme={theme}
                   >
-                    <span>{item.icon}</span>
+                    <IconWrapper><Icon name={item.icon} size={18} /></IconWrapper>
                     <span>{item.label}</span>
                   </QuickMenuItem>
                 ))
@@ -386,6 +387,14 @@ const QuickMenuFooter = styled.button<{ $theme: Theme }>`
   span:first-child {
     font-size: 16px;
   }
+`;
+
+const IconWrapper = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
 `;
 
 const ThemeToggleButton = styled.button<{ $theme: Theme }>`
