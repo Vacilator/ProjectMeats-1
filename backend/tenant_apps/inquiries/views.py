@@ -255,6 +255,27 @@ class InquiryViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
     
+    @action(detail=True, methods=['get'], url_path='download-quote')
+    def download_quote(self, request, pk=None):
+        """Generate and download a PDF quote for the inquiry."""
+        from django.http import HttpResponse
+        from .services.pdf_generator import InquiryPDFGenerator
+        
+        inquiry = self.get_object()
+        
+        # Generate PDF
+        generator = InquiryPDFGenerator(inquiry)
+        pdf_buffer = generator.generate()
+        
+        # Create response
+        response = HttpResponse(
+            pdf_buffer.read(),
+            content_type='application/pdf'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{generator.get_filename()}"'
+        
+        return response
+    
     @action(detail=False, methods=['post'], url_path='from-template/(?P<template_id>[^/.]+)')
     def from_template(self, request, template_id=None):
         """Create a new inquiry from a template."""

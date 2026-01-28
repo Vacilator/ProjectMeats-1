@@ -636,6 +636,15 @@ export const InquiryDetailModal: React.FC<InquiryDetailModalProps> = ({
                   📋 Clone
                 </ActionButton>
               )}
+              <ActionButton
+                variant="secondary"
+                onClick={() => {
+                  // Download PDF quote
+                  window.open(`/api/v1/inquiries/${inquiry.id}/download-quote/`, '_blank');
+                }}
+              >
+                📄 Download Quote
+              </ActionButton>
             </FooterLeft>
             <FooterRight>
               <CloseModalButton onClick={onClose}>
