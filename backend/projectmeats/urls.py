@@ -41,6 +41,8 @@ urlpatterns = [
     path("api/v1/", include("apps.core.urls")),  # Core shared utilities
     path("api/v1/bug-reports/", include("tenant_apps.bug_reports.urls")),
     path("api/v1/cockpit/", include("tenant_apps.cockpit.urls")),
+    path("api/v1/", include("tenant_apps.inquiries.urls")),  # Inquiry management
+    path("api/v1/", include("tenant_apps.fulfillments.urls")),  # Fulfillment tracking
     path("api/v1/workflows/", include("tenant_apps.workflows.urls")),  # Bundle Two: Tenant Workflows
     path("api/v1/schema-builder/", include("apps.schema_builder.urls")),  # Bundle One: Schema Builder API
     # API Documentation

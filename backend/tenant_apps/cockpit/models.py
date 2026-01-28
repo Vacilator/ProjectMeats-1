@@ -25,6 +25,8 @@ class EntityTypeChoices(models.TextChoices):
     PRODUCT = "product", "Product"
     INVOICE = "invoice", "Invoice"
     CONTACT = "contact", "Contact"
+    INQUIRY = "inquiry", "Inquiry"
+    FULFILLMENT = "fulfillment", "Fulfillment"
 
 
 class ActivityLog(TimestampModel):

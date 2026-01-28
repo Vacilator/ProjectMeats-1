@@ -13,9 +13,18 @@
 - [x] Gap analysis completed (TenantManager, M2M filters, UOM alignment)
 - [x] Improvements incorporated (source tracking, quote expiration, competitor tracking)
 - [x] Plan approved for implementation
+- [x] FormSubmissionModal fixes (PR #2106 merged)
+- [x] Plan added to repo: `docs/INQUIRY_FULFILLMENT_IMPLEMENTATION.md`
 
 ### 🚧 In Progress
 - [ ] Phase 1: Backend Foundation
+  - [x] Create `tenant_apps/inquiries/` directory
+  - [x] Create `tenant_apps/fulfillments/` directory
+  - [ ] Inquiry and InquiryProduct models
+  - [ ] Fulfillment and FulfillmentProduct models
+  - [ ] Serializers and ViewSets
+  - [ ] Activity log signals
+  - [ ] Migrations
 
 ### ⏳ Pending
 - [ ] Phase 2: Inquiry UI
