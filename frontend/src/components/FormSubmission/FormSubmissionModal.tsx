@@ -149,47 +149,69 @@ const ModalBody = styled.div`
   padding: 1.5rem;
 `;
 
-const StepNavigation = styled.div`
+const StepProgress = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color, #dee2e6);
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: var(--bg-secondary, #f8f9fa);
+  border-radius: 0.5rem;
+  flex-wrap: wrap;
 `;
 
-const StepNavButton = styled.button<{ active?: boolean; completed?: boolean }>`
-  padding: 0.5rem 1rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  border: 1px solid var(--border-color, #dee2e6);
-  cursor: pointer;
-  transition: all 0.15s ease;
+const ProgressStep = styled.button<{ active?: boolean; completed?: boolean }>`
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.375rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 100px;
+  border: none;
+  background: transparent;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
 
   ${({ active }) => active && `
     background: var(--color-primary, #0d6efd);
     color: white;
-    border-color: var(--color-primary, #0d6efd);
+    
+    &:hover {
+      background: var(--color-primary-dark, #0b5ed7);
+    }
   `}
 
   ${({ completed, active }) => completed && !active && `
     background: var(--color-success-light, #d1e7dd);
-    color: var(--color-success, #198754);
-    border-color: var(--color-success-light, #d1e7dd);
+    color: var(--color-success-dark, #0f5132);
   `}
+`;
 
-  ${({ active, completed }) => !active && !completed && `
-    background: var(--bg-secondary, #f8f9fa);
-    color: var(--text-primary, #1a1a2e);
-    
-    &:hover {
-      background: var(--bg-tertiary, #e9ecef);
-    }
-  `}
+const ProgressNumber = styled.span`
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.3);
+`;
+
+const ProgressLabel = styled.span`
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const ModalFooter = styled.div`
@@ -641,24 +663,26 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
         <ModalBody>
           {visibleSteps.length > 1 && (
-            <StepNavigation>
+            <StepProgress>
               {visibleSteps.map((step, idx) => {
                 const stepSub = stepSubmissionMap[step.id];
                 const isCompleted = stepSub?.status === 'completed';
                 const isActive = idx === currentStepIndex;
                 
                 return (
-                  <StepNavButton
+                  <ProgressStep
                     key={step.id}
                     active={isActive}
                     completed={isCompleted}
                     onClick={() => setCurrentStepIndex(idx)}
+                    type="button"
                   >
-                    {isCompleted ? '✓' : idx + 1}. {step.name}
-                  </StepNavButton>
+                    <ProgressNumber>{isCompleted ? '✓' : idx + 1}</ProgressNumber>
+                    <ProgressLabel>{step.name}</ProgressLabel>
+                  </ProgressStep>
                 );
               })}
-            </StepNavigation>
+            </StepProgress>
           )}
 
           {currentStep && currentStepSubmission && (

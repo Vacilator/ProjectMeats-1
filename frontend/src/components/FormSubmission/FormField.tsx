@@ -34,13 +34,30 @@ interface FormFieldProps {
 
 const FieldContainer = styled.div`
   margin-bottom: 1.25rem;
-  min-width: 0;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-color, #dee2e6);
+  
+  &:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+`;
+
+const FieldHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+`;
+
+const FieldIcon = styled.span`
+  font-size: 1rem;
 `;
 
 const Label = styled.label<{ required?: boolean }>`
-  display: block;
+  flex: 1;
   font-weight: 500;
-  margin-bottom: 0.375rem;
   color: var(--text-primary, #1a1a2e);
   font-size: 0.875rem;
 
@@ -50,6 +67,15 @@ const Label = styled.label<{ required?: boolean }>`
       color: var(--color-error, #dc3545);
     }
   `}
+`;
+
+const FieldTypeBadge = styled.span`
+  padding: 0.125rem 0.5rem;
+  background: var(--bg-secondary, #f8f9fa);
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  color: var(--text-secondary, #6c757d);
+  text-transform: uppercase;
 `;
 
 const HelpText = styled.span`
@@ -163,6 +189,30 @@ const MultiSelectOption = styled.label<{ selected?: boolean }>`
     background: var(--color-primary-light, #cfe2ff);
   }
 `;
+
+// Helper function to get field type icons (matching admin preview)
+const getFieldTypeIcon = (fieldType: string): string => {
+  const icons: Record<string, string> = {
+    text: '📝',
+    textarea: '📄',
+    number: '#️⃣',
+    decimal: '🔢',
+    currency: '💵',
+    email: '📧',
+    phone: '📞',
+    url: '🔗',
+    date: '📅',
+    datetime: '🕐',
+    time: '⏰',
+    select: '📋',
+    dropdown: '📋',
+    multiselect: '☑️',
+    checkbox: '✅',
+    boolean: '✅',
+    foreignkey: '🔗',
+  };
+  return icons[fieldType] || '📝';
+};
 
 const FormField: React.FC<FormFieldProps> = ({
   field,
@@ -392,6 +442,14 @@ const FormField: React.FC<FormFieldProps> = ({
   if (field.type === 'checkbox' || field.type === 'boolean') {
     return (
       <FieldContainer>
+        <FieldHeader>
+          <FieldIcon>{getFieldTypeIcon(field.type)}</FieldIcon>
+          <Label required={field.required} htmlFor={field.key}>
+            {field.label}
+            {isSaving && <SavingIndicator>Saving...</SavingIndicator>}
+          </Label>
+          <FieldTypeBadge>{field.type}</FieldTypeBadge>
+        </FieldHeader>
         {renderField()}
         {error && <ErrorText>{error}</ErrorText>}
         {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}
@@ -401,10 +459,14 @@ const FormField: React.FC<FormFieldProps> = ({
 
   return (
     <FieldContainer>
-      <Label required={field.required} htmlFor={field.key}>
-        {field.label}
-        {isSaving && <SavingIndicator>Saving...</SavingIndicator>}
-      </Label>
+      <FieldHeader>
+        <FieldIcon>{getFieldTypeIcon(field.type)}</FieldIcon>
+        <Label required={field.required} htmlFor={field.key}>
+          {field.label}
+          {isSaving && <SavingIndicator>Saving...</SavingIndicator>}
+        </Label>
+        <FieldTypeBadge>{field.type}</FieldTypeBadge>
+      </FieldHeader>
       {renderField()}
       {error && <ErrorText>{error}</ErrorText>}
       {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}

@@ -147,14 +147,12 @@ const StatusBadge = styled.span<{ status: string }>`
   }}
 `;
 
-const FieldsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.25rem;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
+const FieldsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 700px;
+  margin: 0 auto;
 `;
 
 const NoFieldsMessage = styled.p`
@@ -292,7 +290,7 @@ const FormStep: React.FC<FormStepProps> = ({
       </StepHeader>
 
       {step.fields.length > 0 ? (
-        <FieldsGrid>
+        <FieldsList>
           {step.fields.map((field) => (
             <FormField
               key={field.key}
@@ -305,7 +303,7 @@ const FormStep: React.FC<FormStepProps> = ({
               isSaving={savingFields.has(field.key)}
             />
           ))}
-        </FieldsGrid>
+        </FieldsList>
       ) : (
         <NoFieldsMessage>
           No fields configured for this step.
