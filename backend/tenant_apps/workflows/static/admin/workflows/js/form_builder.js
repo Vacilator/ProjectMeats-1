@@ -90,7 +90,18 @@ function formBuilder() {
         autoMapSuggestions: [],
         autoMapLoading: false,
         showMappingModal: false,
+        showManualMappingModal: false,
         editingMapping: null,
+        manualMapping: {
+            targetStep: '',
+            targetField: '',
+            sourceStep: '',
+            sourceField: '',
+            mode: 'copy',
+            targetStepFields: [],
+            sourceStepFields: [],
+            saving: false
+        },
         
         // Initialization
         init() {
@@ -1521,8 +1532,144 @@ function formBuilder() {
         },
         
         editMapping(mapping) {
-            // Open the field config modal for this field
-            this.configureField(mapping.target_field_key);
+            // Open the manual mapping modal pre-filled with existing mapping data
+            this.editingMapping = mapping;
+            this.manualMapping.targetStep = mapping.target_step_id;
+            this.manualMapping.targetField = mapping.target_field_id;
+            this.manualMapping.sourceStep = mapping.source_step_id;
+            this.manualMapping.sourceField = mapping.source_field_key;
+            this.manualMapping.mode = mapping.mode || 'copy';
+            
+            // Load fields for the selected steps
+            this.loadTargetFieldsForStep(mapping.target_step_id);
+            this.loadSourceFieldsForStep(mapping.source_step_id);
+            
+            this.showManualMappingModal = true;
+        },
+        
+        openManualMappingModal() {
+            // Reset the manual mapping state for a new mapping
+            this.editingMapping = null;
+            this.manualMapping.targetStep = '';
+            this.manualMapping.targetField = '';
+            this.manualMapping.sourceStep = '';
+            this.manualMapping.sourceField = '';
+            this.manualMapping.mode = 'copy';
+            this.manualMapping.targetStepFields = [];
+            this.manualMapping.sourceStepFields = [];
+            
+            this.showManualMappingModal = true;
+        },
+        
+        closeManualMappingModal() {
+            this.showManualMappingModal = false;
+            this.editingMapping = null;
+        },
+        
+        async loadTargetFieldsForStep(stepId) {
+            if (!stepId) {
+                this.manualMapping.targetStepFields = [];
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/steps/${stepId}/fields/`, {
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.manualMapping.targetStepFields = data.fields || [];
+                }
+            } catch (error) {
+                console.error('Error loading target fields:', error);
+            }
+        },
+        
+        async loadSourceFieldsForStep(stepId) {
+            if (!stepId) {
+                this.manualMapping.sourceStepFields = [];
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/steps/${stepId}/fields/`, {
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.manualMapping.sourceStepFields = data.fields || [];
+                }
+            } catch (error) {
+                console.error('Error loading source fields:', error);
+            }
+        },
+        
+        getTargetStepsForMapping() {
+            // Return steps that can receive mappings (steps after the first one)
+            return this.formSteps.filter((step, index) => index > 0);
+        },
+        
+        getSourceStepsForMapping(targetStepId) {
+            // Return steps that can be sources (steps before the target step)
+            if (!targetStepId) return [];
+            const targetIndex = this.formSteps.findIndex(s => s.id === targetStepId);
+            if (targetIndex <= 0) return [];
+            return this.formSteps.slice(0, targetIndex);
+        },
+        
+        async saveManualMapping() {
+            const { targetField, sourceStep, sourceField, mode } = this.manualMapping;
+            
+            if (!targetField || !sourceStep || !sourceField) {
+                this.showNotification('Please select all fields for the mapping', 'error');
+                return;
+            }
+            
+            this.manualMapping.saving = true;
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/admin/fields/${targetField}/mapping/`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        source_step_id: sourceStep,
+                        source_field_key: sourceField,
+                        mode: mode
+                    })
+                });
+                
+                if (response.ok) {
+                    await this.loadFieldMappings();
+                    this.showNotification(this.editingMapping ? 'Mapping updated' : 'Mapping created', 'success');
+                    this.closeManualMappingModal();
+                } else {
+                    const errorData = await response.json();
+                    this.showNotification(errorData.error || 'Failed to save mapping', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving manual mapping:', error);
+                this.showNotification('Failed to save mapping', 'error');
+            } finally {
+                this.manualMapping.saving = false;
+            }
+        },
+        
+        copyMappingToClipboard(mapping) {
+            const text = `${mapping.source_step_name}.${mapping.source_field_label} → ${mapping.target_step_name}.${mapping.target_field_label}`;
+            navigator.clipboard.writeText(text).then(() => {
+                this.showNotification('Mapping copied to clipboard', 'success');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                this.showNotification('Failed to copy to clipboard', 'error');
+            });
         },
         
         async deleteMapping(fieldId) {

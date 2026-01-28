@@ -144,6 +144,35 @@ const ProgressText = styled.div`
   color: var(--text-secondary, #6c757d);
 `;
 
+const CurrentStepIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-primary-light, #cfe2ff);
+  border-bottom: 1px solid var(--border-color, #dee2e6);
+`;
+
+const CurrentStepNumber = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-primary, #0d6efd);
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+`;
+
+const CurrentStepTitle = styled.span`
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #1a1a2e);
+`;
+
 const ModalBody = styled.div`
   flex: 1;
   overflow-y: auto;
@@ -230,7 +259,7 @@ const ProgressNumber = styled.span<{ active?: boolean; completed?: boolean }>`
   };
 `;
 
-const ProgressLabel = styled.span`
+const ProgressLabel = styled.span<{ active?: boolean }>`
   font-size: 0.75rem;
   font-weight: 500;
   text-align: center;
@@ -238,6 +267,44 @@ const ProgressLabel = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: inherit;
+`;
+
+const StepNavArrow = styled.button<{ direction: 'left' | 'right'; visible: boolean }>`
+  position: fixed;
+  top: 50%;
+  ${({ direction }) => direction === 'left' ? 'left: 1rem;' : 'right: 1rem;'}
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  display: ${({ visible }) => visible ? 'flex' : 'none'};
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary, #0d6efd);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.15s ease;
+  z-index: 1010;
+
+  &:hover {
+    background: var(--color-primary-dark, #0b5ed7);
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  &:focus {
+    outline: 2px solid var(--color-primary-dark, #0b5ed7);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 768px) {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
 `;
 
 const ModalFooter = styled.div`
@@ -496,6 +563,17 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const handleFieldBlur = useCallback(async (stepId: string, fieldKey: string) => {
     const value = localValues[stepId]?.[fieldKey];
     
+    // Don't auto-save if value is undefined (field hasn't been touched)
+    if (value === undefined) {
+      return;
+    }
+    
+    // Ensure we have a valid submission ID
+    if (!submission?.id) {
+      console.warn('Auto-save skipped: no submission ID');
+      return;
+    }
+    
     // Mark as saving
     setSavingFields(prev => {
       const stepFields = new Set(prev[stepId] || []);
@@ -516,7 +594,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         data: {
           ...prev.data,
           [stepId]: {
-            ...prev.data[stepId],
+            ...(prev.data?.[stepId] || {}),
             [fieldKey]: value,
           },
         },
@@ -528,6 +606,15 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       }
       
       if (!isMounted) return;
+      
+      // Don't show error for network issues or if component unmounting
+      const isNetworkError = err?.message?.includes('Network') || err?.code === 'ERR_NETWORK';
+      const isAborted = err?.name === 'AbortError' || err?.code === 'ECONNABORTED';
+      
+      if (isNetworkError || isAborted) {
+        console.warn('Auto-save network issue:', err);
+        return;
+      }
       
       console.error('Auto-save failed:', err);
       setErrors(prev => ({
@@ -546,7 +633,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         });
       }
     }
-  }, [localValues, submission.id, isMounted]);
+  }, [localValues, submission?.id, isMounted]);
 
   const handleCompleteStep = useCallback(async (stepId: string) => {
     try {
@@ -726,6 +813,14 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           </ProgressText>
         </ProgressBar>
 
+        {/* Current Step Indicator - always visible */}
+        {currentStep && (
+          <CurrentStepIndicator>
+            <CurrentStepNumber>{currentStepIndex + 1}</CurrentStepNumber>
+            <CurrentStepTitle>{currentStep.name}</CurrentStepTitle>
+          </CurrentStepIndicator>
+        )}
+
         <ModalBody>
           {visibleSteps.length > 1 && (
             <StepProgress>
@@ -745,7 +840,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                     <ProgressNumber active={isActive} completed={isCompleted}>
                       {isCompleted ? '✓' : idx + 1}
                     </ProgressNumber>
-                    <ProgressLabel>{step.name}</ProgressLabel>
+                    <ProgressLabel active={isActive}>{step.name}</ProgressLabel>
                   </ProgressStep>
                 );
               })}
@@ -778,6 +873,26 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             </p>
           )}
         </ModalBody>
+
+        {/* Navigation Arrows */}
+        <StepNavArrow 
+          direction="left" 
+          visible={currentStepIndex > 0}
+          onClick={() => setCurrentStepIndex(prev => prev - 1)}
+          title="Previous Step"
+          type="button"
+        >
+          ←
+        </StepNavArrow>
+        <StepNavArrow 
+          direction="right" 
+          visible={currentStepIndex < visibleSteps.length - 1}
+          onClick={() => setCurrentStepIndex(prev => prev + 1)}
+          title="Next Step"
+          type="button"
+        >
+          →
+        </StepNavArrow>
 
         <ModalFooter>
           <FooterLeft>

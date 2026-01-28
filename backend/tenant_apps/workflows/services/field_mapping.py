@@ -67,6 +67,57 @@ def get_name_tokens(name: str) -> set:
     return tokens - stopwords
 
 
+# Fields that should NOT be auto-mapped unless they're from the same entity type
+# or from a lookup/foreignkey relationship. These are too generic and almost always
+# different between entities.
+GENERIC_FIELDS_EXCLUDE_FROM_AUTO_MAP = {
+    'name', 'title', 'description', 'notes', 'comments', 'status',
+    'created_at', 'updated_at', 'created_by', 'modified_by',
+    'is_active', 'active', 'enabled', 'order', 'sequence',
+}
+
+
+def is_generic_field(field_key: str) -> bool:
+    """
+    Check if a field is too generic to be auto-mapped between different entities.
+    """
+    normalized = normalize_field_name(field_key).strip().lower()
+    return normalized in GENERIC_FIELDS_EXCLUDE_FROM_AUTO_MAP
+
+
+def should_skip_auto_mapping(
+    source_entity_type: str,
+    target_entity_type: str,
+    source_field_key: str,
+    target_field_key: str,
+    source_field_type: str = 'text',
+    target_field_type: str = 'text'
+) -> bool:
+    """
+    Determine if a field mapping should be skipped because:
+    1. The field is too generic (like 'name') AND
+    2. The source and target entities are different types AND
+    3. Neither field is a lookup/foreignkey type
+    
+    Returns True if this mapping should be skipped.
+    """
+    # If either field is a foreignkey/lookup, allow mapping (it's a relationship)
+    lookup_types = {'foreignkey', 'lookup', 'select', 'reference'}
+    if source_field_type.lower() in lookup_types or target_field_type.lower() in lookup_types:
+        return False
+    
+    # If entities are the same type, allow mapping
+    if source_entity_type and target_entity_type:
+        if source_entity_type.lower() == target_entity_type.lower():
+            return False
+    
+    # Check if either field is generic
+    if is_generic_field(source_field_key) or is_generic_field(target_field_key):
+        return True
+    
+    return False
+
+
 def calculate_name_similarity(name1: str, name2: str) -> float:
     """
     Calculate similarity score between two field names.
@@ -318,6 +369,9 @@ class FieldMappingService:
         # Get all steps ordered
         steps = form.entities.order_by('order')
         
+        # Build a map of step_id -> entity_type for checking generic fields
+        step_entity_map = {str(s.id): s.entity_type for s in steps}
+        
         for step in steps:
             if step.order == 0:
                 # First step has no prior steps to map from
@@ -350,12 +404,47 @@ class FieldMappingService:
                     'label': field.custom_label or field_meta.get('label', field.field_key),
                     'type': field_meta.get('type', 'text'),
                     'options': field_meta.get('options', []),
+                    'entity_type': step.entity_type,
                 }
                 
-                # Find best mapping
-                best_match = find_best_mapping(target_field, source_fields, min_score)
+                # Find best mapping, filtering out generic fields from different entities
+                best_match = None
+                best_score = min_score - 1
                 
-                if best_match:
+                for source in source_fields:
+                    source_entity_type = step_entity_map.get(source.get('step_id'), '')
+                    
+                    # Skip if this is a generic field from a different entity type
+                    if should_skip_auto_mapping(
+                        source_entity_type=source_entity_type,
+                        target_entity_type=step.entity_type,
+                        source_field_key=source.get('key', ''),
+                        target_field_key=field.field_key,
+                        source_field_type=source.get('type', 'text'),
+                        target_field_type=target_field.get('type', 'text')
+                    ):
+                        continue
+                    
+                    step_distance = source.get('step_distance', 1)
+                    score, reasons = calculate_mapping_score(target_field, source, step_distance)
+                    
+                    if score > best_score:
+                        best_score = score
+                        best_match = {
+                            **source,
+                            'score': score,
+                            'reasons': reasons
+                        }
+                    elif score == best_score and best_match:
+                        # Tie-breaker: prefer more recent step (lower distance)
+                        if source.get('step_distance', 999) < best_match.get('step_distance', 999):
+                            best_match = {
+                                **source,
+                                'score': score,
+                                'reasons': reasons
+                            }
+                
+                if best_match and best_match['score'] >= min_score:
                     mappings.append({
                         'target_step_id': str(step.id),
                         'target_step_name': step.step_name or step.entity_type.replace('_', ' ').title(),

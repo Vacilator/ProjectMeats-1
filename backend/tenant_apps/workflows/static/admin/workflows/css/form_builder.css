@@ -1656,6 +1656,26 @@ kbd {
     cursor: not-allowed;
 }
 
+.manual-map-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: var(--fb-radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--fb-transition);
+}
+
+.manual-map-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
 .auto-map-hint {
     font-size: 12px;
     color: var(--fb-fg-quiet);
@@ -1905,7 +1925,7 @@ kbd {
     flex-shrink: 0;
 }
 
-.mapping-edit-btn, .mapping-delete-btn {
+.mapping-edit-btn, .mapping-delete-btn, .mapping-copy-btn {
     width: 32px;
     height: 32px;
     display: flex;
@@ -1923,6 +1943,12 @@ kbd {
     background: var(--fb-primary);
     color: white;
     border-color: var(--fb-primary);
+}
+
+.mapping-copy-btn:hover {
+    background: var(--fb-info);
+    color: white;
+    border-color: var(--fb-info);
 }
 
 .mapping-delete-btn:hover {
@@ -2029,4 +2055,171 @@ kbd {
 .btn-sm {
     padding: 4px 10px;
     font-size: 12px;
+}
+
+/* Manual Mapping Modal Styles */
+.mapping-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.mapping-section {
+    background: var(--fb-darkened-bg);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius);
+    padding: 16px;
+}
+
+.mapping-section h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fb-fg);
+}
+
+.mapping-section .form-group {
+    margin-bottom: 12px;
+}
+
+.mapping-section .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.mapping-section label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fb-fg-medium);
+}
+
+.mapping-section select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    font-size: 14px;
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
+}
+
+.mapping-section small {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--fb-fg-quiet);
+}
+
+/* Mode options */
+.mode-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mode-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--fb-bg);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    cursor: pointer;
+    transition: var(--fb-transition);
+}
+
+.mode-option:hover {
+    border-color: var(--fb-primary);
+}
+
+.mode-option input[type="radio"] {
+    margin-top: 2px;
+}
+
+.mode-label {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--fb-fg);
+}
+
+.mode-desc {
+    display: block;
+    font-size: 12px;
+    color: var(--fb-fg-quiet);
+    margin-top: 2px;
+}
+
+/* Mapping Preview */
+.mapping-preview {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border: 1px solid #a7f3d0;
+    border-radius: var(--fb-radius);
+    padding: 16px;
+    text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+    .mapping-preview {
+        background: linear-gradient(135deg, #022c22 0%, #064e3b 100%);
+        border-color: #065f46;
+    }
+}
+
+.mapping-preview h4 {
+    margin: 0 0 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #065f46;
+}
+
+@media (prefers-color-scheme: dark) {
+    .mapping-preview h4 {
+        color: #a7f3d0;
+    }
+}
+
+.preview-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 16px;
+}
+
+.preview-source {
+    padding: 8px 12px;
+    background: var(--fb-primary);
+    color: white;
+    border-radius: var(--fb-radius-sm);
+    font-weight: 500;
+}
+
+.preview-arrow {
+    font-size: 24px;
+    color: #059669;
+}
+
+.preview-target {
+    padding: 8px 12px;
+    background: var(--fb-success);
+    color: white;
+    border-radius: var(--fb-radius-sm);
+    font-weight: 500;
+}
+
+.step-select, .field-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-sm);
+    font-size: 14px;
+    background: var(--fb-input-bg);
+    color: var(--fb-input-fg);
+}
+
+.step-select:disabled, .field-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
