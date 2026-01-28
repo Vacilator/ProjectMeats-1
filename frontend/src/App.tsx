@@ -56,6 +56,8 @@ import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDet
 import { FormSubmissionModal } from './components/FormSubmission';
 import { useQuickActions } from './contexts/QuickActionsContext';
 import MySubmissions from './pages/MySubmissions';
+import Inquiries from './pages/Inquiries';
+import Fulfillments from './pages/Fulfillments';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -181,6 +183,10 @@ const App: React.FC = () => {
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
+                
+                {/* Inquiries & Fulfillments */}
+                <Route path="inquiries" element={<Inquiries />} />
+                <Route path="fulfillments" element={<Fulfillments />} />
                 
                 {/* Workflows */}
                 <Route path="workflows" element={<WorkflowList />} />
