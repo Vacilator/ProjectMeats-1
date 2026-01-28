@@ -181,7 +181,9 @@ export const quickActionsService = {
       : {};
     const response = await apiClient.get('/workflows/available-forms/', config);
     if (cancelKey) cancelTokenManager.remove(cancelKey);
-    return response.data;
+    // Handle both paginated {results: []} and non-paginated [] responses
+    const data = response.data;
+    return Array.isArray(data) ? data : (data.results || []);
   },
 };
 

@@ -78,7 +78,8 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
       ]);
       
       setQuickActions(actionsResponse.items || []);
-      setAvailableForms(formsResponse || []);
+      // Ensure formsResponse is always an array
+      setAvailableForms(Array.isArray(formsResponse) ? formsResponse : []);
     } catch (err: any) {
       console.error('Failed to load quick actions:', err);
       setError(err.message || 'Failed to load quick actions');
