@@ -1,31 +1,20 @@
 /**
- * FormSubmissionModal Component
+ * FormSubmissionModal - Clean rebuild based on FormPreview
  * 
- * Main modal for executing a form submission with multi-step support.
- * Includes conditional rules engine for dynamic field/step visibility.
+ * A simple, functional form viewer that matches the Django admin preview modal
+ * styling while being fully functional for form submission.
  */
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import styled from 'styled-components';
-import FormStep, { StepConfig } from './FormStep';
-import { FieldConfig } from './FormField';
-import QuickCreateModal from './QuickCreateModal';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  FormSubmission, 
-  StepSubmission,
+  FormSubmission,
   formSubmissionService,
   entityOptionsService,
-  isRequestCancelled,
 } from '../../services/quickActionsService';
-import {
-  ConditionalRule,
-  evaluateRules,
-  isFieldVisible,
-  isStepVisible,
-  getFilteredOptions,
-  VisibilityState,
-  FormData as RuleFormData,
-} from '../../utils/formRuleEngine';
 import { notify } from '../../utils/notify';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface FormSubmissionModalProps {
   submission: FormSubmission;
@@ -34,404 +23,31 @@ interface FormSubmissionModalProps {
   onSubmissionUpdate?: (submission: FormSubmission) => void;
 }
 
-const Overlay = styled.div<{ isOpen: boolean }>`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: ${({ isOpen }) => (isOpen ? 'flex' : 'none')};
-  align-items: flex-start;
-  justify-content: center;
-  padding: 2rem 5rem; /* Extra horizontal padding for arrows */
-  z-index: 1000;
-  overflow-y: auto;
-  overflow-x: visible;
-`;
+interface StepData {
+  id: string;
+  name: string;
+  order: number;
+  entity_type: string;
+  fields: FieldData[];
+}
 
-const ModalContainer = styled.div`
-  background: var(--modal-bg, #ffffff);
-  border-radius: 0.75rem;
-  width: 100%;
-  max-width: 1100px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  margin: auto;
-  position: relative;
-  
-  @media (max-width: 1200px) {
-    max-width: 95%;
-  }
-`;
+interface FieldData {
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+  placeholder?: string;
+  help_text?: string;
+  options?: string[] | { value: string; label: string }[];
+  related_entity_type?: string;
+  min?: number;
+  max?: number;
+  rows?: number;
+}
 
-const ModalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border-color, #dee2e6);
-  background: var(--card-bg, #f8f9fa);
-  border-radius: 0.75rem 0.75rem 0 0;
-`;
-
-const HeaderLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-`;
-
-const FormIcon = styled.span`
-  font-size: 1.5rem;
-`;
-
-const HeaderInfo = styled.div``;
-
-const FormTitle = styled.h2`
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary, #1a1a2e);
-`;
-
-const FormDescription = styled.p`
-  margin: 0.25rem 0 0;
-  font-size: 0.8125rem;
-  color: var(--text-secondary, #6c757d);
-`;
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-secondary, #6c757d);
-  padding: 0.25rem;
-  line-height: 1;
-  transition: color 0.15s ease;
-
-  &:hover {
-    color: var(--text-primary, #1a1a2e);
-  }
-`;
-
-const ProgressBar = styled.div`
-  padding: 1rem 1.5rem;
-  background: var(--bg-secondary, #f8f9fa);
-  border-bottom: 1px solid var(--border-color, #dee2e6);
-`;
-
-const ProgressTrack = styled.div`
-  height: 0.5rem;
-  background: var(--bg-tertiary, #e9ecef);
-  border-radius: 0.25rem;
-  overflow: hidden;
-`;
-
-const ProgressFill = styled.div<{ percent: number }>`
-  height: 100%;
-  width: ${({ percent }) => `${percent}%`};
-  background: var(--color-success, #198754);
-  border-radius: 0.25rem;
-  transition: width 0.3s ease;
-`;
-
-const ProgressText = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.5rem;
-  font-size: 0.8125rem;
-  color: var(--text-secondary, #6c757d);
-`;
-
-const CurrentStepIndicator = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  background: linear-gradient(135deg, var(--color-primary, #0d6efd) 0%, var(--color-primary-dark, #0b5ed7) 100%);
-  border-bottom: 1px solid var(--border-color, #dee2e6);
-  color: white;
-`;
-
-const CurrentStepNumber = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.25);
-  color: white;
-  font-weight: 700;
-  font-size: 1rem;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-`;
-
-const CurrentStepTitle = styled.span`
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: white;
-`;
-
-const ModalBody = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
-`;
-
-const StepProgress = styled.div`
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: var(--bg-secondary, #f8f9fa);
-  border-radius: 0.5rem;
-  flex-wrap: wrap;
-`;
-
-const ProgressStep = styled.button<{ active?: boolean; completed?: boolean }>`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  min-width: 100px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary, #6c757d);
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--text-primary, #1a1a2e);
-  }
-
-  &:focus {
-    outline: 2px solid var(--color-primary, #0d6efd);
-    outline-offset: 2px;
-  }
-
-  ${({ active }) => active && `
-    background: var(--color-primary, #0d6efd);
-    color: white;
-    
-    &:hover {
-      background: var(--color-primary-dark, #0b5ed7);
-      color: white;
-    }
-    
-    &:focus {
-      outline: 2px solid var(--color-primary-dark, #0b5ed7);
-    }
-  `}
-
-  ${({ completed, active }) => completed && !active && `
-    background: var(--color-success-light, #d1e7dd);
-    color: var(--color-success-dark, #0f5132);
-    
-    &:hover {
-      background: rgba(25, 135, 84, 0.25);
-    }
-  `}
-`;
-
-const ProgressNumber = styled.span<{ active?: boolean; completed?: boolean }>`
-  width: 1.75rem;
-  height: 1.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-size: 0.875rem;
-  font-weight: 600;
-  background: ${({ active, completed }) => 
-    active ? 'rgba(255, 255, 255, 0.3)' : 
-    completed ? 'var(--color-success, #198754)' :
-    'var(--bg-tertiary, #e9ecef)'
-  };
-  color: ${({ active, completed }) => 
-    active ? 'white' : 
-    completed ? 'white' :
-    'var(--text-primary, #1a1a2e)'
-  };
-`;
-
-const ProgressLabel = styled.span<{ active?: boolean; completed?: boolean }>`
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-align: center;
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  /* Explicit colors to prevent inheritance issues */
-  color: ${({ active, completed }) => 
-    active ? '#ffffff !important' : 
-    completed ? '#0f5132 !important' :
-    '#6c757d !important'
-  };
-`;
-
-const StepNavArrow = styled.button<{ direction: 'left' | 'right'; visible: boolean }>`
-  position: absolute;
-  top: 50%;
-  ${({ direction }) => direction === 'left' ? 'left: -70px;' : 'right: -70px;'}
-  transform: translateY(-50%);
-  width: 56px;
-  height: 56px;
-  display: ${({ visible }) => visible ? 'flex' : 'none'};
-  align-items: center;
-  justify-content: center;
-  background: var(--color-primary, #0d6efd);
-  color: white;
-  border: 3px solid white;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.75rem;
-  font-weight: bold;
-  box-shadow: 0 4px 20px rgba(13, 110, 253, 0.5);
-  transition: all 0.2s ease;
-  z-index: 10;
-
-  &:hover {
-    background: var(--color-primary-dark, #0b5ed7);
-    transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 6px 24px rgba(13, 110, 253, 0.6);
-  }
-
-  &:focus {
-    outline: 3px solid rgba(13, 110, 253, 0.5);
-    outline-offset: 2px;
-  }
-
-  &:active {
-    transform: translateY(-50%) scale(0.95);
-  }
-
-  @media (max-width: 1400px) {
-    ${({ direction }) => direction === 'left' ? 'left: -60px;' : 'right: -60px;'}
-    width: 50px;
-    height: 50px;
-    font-size: 1.5rem;
-  }
-
-  @media (max-width: 1200px) {
-    /* Move inside modal on smaller screens */
-    ${({ direction }) => direction === 'left' ? 'left: 10px;' : 'right: 10px;'}
-    width: 44px;
-    height: 44px;
-    font-size: 1.25rem;
-    opacity: 0.9;
-  }
-`;
-
-const ModalFooter = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border-color, #dee2e6);
-  background: var(--card-bg, #f8f9fa);
-  border-radius: 0 0 0.75rem 0.75rem;
-`;
-
-const FooterLeft = styled.div`
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-`;
-
-const FooterCenter = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-`;
-
-const StepIndicatorText = styled.span`
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-secondary, #6c757d);
-  padding: 0.5rem 1rem;
-  background: var(--bg-secondary, #f8f9fa);
-  border-radius: 1rem;
-`;
-
-const FooterRight = styled.div`
-  display: flex;
-  gap: 0.75rem;
-`;
-
-const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'success' | 'danger' }>`
-  padding: 0.625rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s ease-in-out;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  ${({ variant }) => {
-    switch (variant) {
-      case 'success':
-        return `
-          background: var(--color-success, #198754);
-          color: white;
-          &:hover:not(:disabled) {
-            background: var(--color-success-dark, #157347);
-          }
-        `;
-      case 'danger':
-        return `
-          background: var(--color-error, #dc3545);
-          color: white;
-          &:hover:not(:disabled) {
-            background: #bb2d3b;
-          }
-        `;
-      case 'secondary':
-        return `
-          background: var(--bg-secondary, #f8f9fa);
-          color: var(--text-primary, #1a1a2e);
-          border-color: var(--border-color, #dee2e6);
-          &:hover:not(:disabled) {
-            background: var(--bg-tertiary, #e9ecef);
-          }
-        `;
-      default:
-        return `
-          background: var(--color-primary, #0d6efd);
-          color: white;
-          &:hover:not(:disabled) {
-            background: var(--color-primary-dark, #0b5ed7);
-          }
-        `;
-    }
-  }}
-
-  &:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-  }
-`;
-
-const AutoSaveIndicator = styled.span`
-  font-size: 0.75rem;
-  color: var(--text-secondary, #6c757d);
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-`;
+// ============================================================================
+// Component
+// ============================================================================
 
 const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   submission: initialSubmission,
@@ -439,34 +55,22 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   onClose,
   onSubmissionUpdate,
 }) => {
+  // Core state
   const [submission, setSubmission] = useState<FormSubmission>(initialSubmission);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [localValues, setLocalValues] = useState<Record<string, Record<string, any>>>({});
-  const [savingFields, setSavingFields] = useState<Record<string, Set<string>>>({});
-  const [errors, setErrors] = useState<Record<string, Record<string, string>>>({});
+  const [formData, setFormData] = useState<Record<string, Record<string, any>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [savingField, setSavingField] = useState<string | null>(null);
   
-  // Quick Create Modal state
-  const [quickCreateEntityType, setQuickCreateEntityType] = useState<string | null>(null);
-  
-  // Track mounted state for cleanup
-  const [isMounted, setIsMounted] = useState(true);
-  
-  // Cleanup effect for mounted state
-  useEffect(() => {
-    setIsMounted(true);
-    return () => {
-      setIsMounted(false);
-    };
-  }, []);
+  // Entity options cache for lookups
+  const [entityOptions, setEntityOptions] = useState<Record<string, { value: string; label: string }[]>>({});
 
-  // Parse form structure from snapshot
-  const steps: StepConfig[] = useMemo(() => {
+  // Parse steps from form snapshot
+  const steps: StepData[] = useMemo(() => {
     const snapshot = submission.form_snapshot;
     if (!snapshot?.steps) return [];
-
+    
     return snapshot.steps
       .sort((a: any, b: any) => a.order - b.order)
       .map((step: any) => ({
@@ -480,546 +84,510 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           type: f.type || 'text',
           required: f.required || false,
           placeholder: f.placeholder,
-          helpText: f.help_text,
+          help_text: f.help_text,
           options: f.options,
+          related_entity_type: f.related_entity_type,
           min: f.min,
           max: f.max,
-          step: f.step,
           rows: f.rows,
-          autoPopulateSource: f.auto_populate_source,
-          validationRules: f.validation_rules,
-          related_entity_type: f.related_entity_type,
-          related_model: f.related_model,
         })),
       }));
   }, [submission.form_snapshot]);
 
-  // Parse conditional rules from snapshot
-  const rules: ConditionalRule[] = useMemo(() => {
-    const snapshot = submission.form_snapshot;
-    if (!snapshot?.rules) return [];
-    return snapshot.rules as ConditionalRule[];
-  }, [submission.form_snapshot]);
+  const currentStep = steps[currentStepIndex];
+  const isFirstStep = currentStepIndex === 0;
+  const isLastStep = currentStepIndex === steps.length - 1;
+  const hasPrevStep = currentStepIndex > 0;
+  const hasNextStep = currentStepIndex < steps.length - 1;
 
-  // Compute visibility state based on rules and current values
-  const visibilityState: VisibilityState = useMemo(() => {
-    if (rules.length === 0) {
-      return {
-        hiddenFields: new Set<string>(),
-        hiddenSteps: new Set<string>(),
-        filteredOptions: new Map<string, string[]>(),
-        setValues: new Map<string, unknown>(),
-      };
-    }
-    // Convert localValues to RuleFormData format
-    const formData: RuleFormData = localValues;
-    return evaluateRules(rules, formData);
-  }, [rules, localValues]);
-
-  // Filter visible steps based on rules
-  const visibleSteps: StepConfig[] = useMemo(() => {
-    return steps.filter(step => isStepVisible(step.id, visibilityState));
-  }, [steps, visibilityState]);
-
-  // Get step submission map
-  const stepSubmissionMap: Record<string, StepSubmission> = useMemo(() => {
-    const map: Record<string, StepSubmission> = {};
-    // Defensive check - step_submissions might be undefined or null
-    (submission.step_submissions || []).forEach(ss => {
-      map[ss.step] = ss;
-    });
-    return map;
-  }, [submission.step_submissions]);
-
-  // Initialize local values from submission data
+  // Initialize form data from submission
   useEffect(() => {
-    const values: Record<string, Record<string, any>> = {};
-    steps.forEach(step => {
-      // Defensive check - submission.data might be undefined
-      values[step.id] = (submission.data || {})[step.id] || {};
-    });
-    setLocalValues(values);
-    // Only run on initial mount and when steps structure changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [steps]);
+    if (submission.data) {
+      const initialData: Record<string, Record<string, any>> = {};
+      steps.forEach(step => {
+        initialData[step.id] = submission.data?.[step.id] || {};
+      });
+      setFormData(initialData);
+    }
+  }, [submission.data, steps]);
 
-  // Find current step based on submission - ONLY on initial mount
-  // We track this via a ref to avoid resetting when submission updates during auto-save
-  const hasInitializedStepRef = React.useRef(false);
+  // Load entity options for lookup fields
   useEffect(() => {
-    // Only set from server value once on initial load
-    if (!hasInitializedStepRef.current && submission.current_step && visibleSteps.length > 0) {
-      const idx = visibleSteps.findIndex(s => s.id === submission.current_step);
-      if (idx >= 0) {
-        setCurrentStepIndex(idx);
-      }
-      hasInitializedStepRef.current = true;
-    }
-  }, [submission.current_step, visibleSteps]);
-
-  // Ensure current step index is valid within visible steps
-  useEffect(() => {
-    if (currentStepIndex >= visibleSteps.length && visibleSteps.length > 0) {
-      setCurrentStepIndex(visibleSteps.length - 1);
-    }
-  }, [currentStepIndex, visibleSteps.length]);
-
-  const currentStep = visibleSteps[currentStepIndex];
-  const currentStepSubmission = currentStep ? stepSubmissionMap[currentStep.id] : null;
-
-  // Filter visible fields for current step based on rules
-  const visibleFields: FieldConfig[] = useMemo(() => {
-    if (!currentStep) return [];
-    return currentStep.fields.filter(field => 
-      isFieldVisible(currentStep.id, field.key, visibilityState)
-    );
-  }, [currentStep, visibilityState]);
-
-  // Apply filtered options to visible fields
-  const fieldsWithFilteredOptions: FieldConfig[] = useMemo(() => {
-    return visibleFields.map(field => {
-      if (field.options && field.options.length > 0) {
-        const filtered = getFilteredOptions(
-          currentStep?.id || '', 
-          field.key, 
-          field.options,
-          visibilityState
-        );
-        return { ...field, options: filtered };
-      }
-      return field;
-    });
-  }, [visibleFields, currentStep?.id, visibilityState]);
-
-  const handleFieldChange = useCallback((stepId: string, fieldKey: string, value: any) => {
-    setLocalValues(prev => ({
-      ...prev,
-      [stepId]: {
-        ...prev[stepId],
-        [fieldKey]: value,
-      },
-    }));
-    
-    // Clear error on change
-    setErrors(prev => {
-      const stepErrors = { ...prev[stepId] };
-      delete stepErrors[fieldKey];
-      return { ...prev, [stepId]: stepErrors };
-    });
-  }, []);
-
-  const handleFieldBlur = useCallback(async (stepId: string, fieldKey: string) => {
-    const value = localValues[stepId]?.[fieldKey];
-    
-    // Don't auto-save if value is undefined (field hasn't been touched)
-    // But DO save if value is null, empty string, or false (valid intentional values)
-    if (value === undefined) {
-      return;
-    }
-    
-    // Ensure we have a valid submission ID
-    if (!submission?.id) {
-      console.warn('Auto-save skipped: no submission ID');
-      return;
-    }
-    
-    // Ensure stepId is valid
-    if (!stepId) {
-      console.warn('Auto-save skipped: no step ID');
-      return;
-    }
-    
-    // Mark as saving
-    setSavingFields(prev => {
-      const stepFields = new Set(prev[stepId] || []);
-      stepFields.add(fieldKey);
-      return { ...prev, [stepId]: stepFields };
-    });
-
-    try {
-      // Convert undefined to null for API (backend expects null, not undefined)
-      const saveValue = value === undefined ? null : value;
-      await formSubmissionService.autoSave(submission.id, stepId, fieldKey, saveValue);
-      
-      if (!isMounted) return;
-      
-      setLastSaved(new Date());
-      
-      // Update local submission data
-      setSubmission(prev => ({
-        ...prev,
-        data: {
-          ...prev.data,
-          [stepId]: {
-            ...(prev.data?.[stepId] || {}),
-            [fieldKey]: value,
-          },
-        },
-      }));
-    } catch (err: any) {
-      // Don't show error if request was cancelled (likely due to rapid field changes)
-      if (isRequestCancelled(err)) {
-        return;
-      }
-      
-      if (!isMounted) return;
-      
-      // Don't show error for network issues or if component unmounting
-      const isNetworkError = err?.message?.includes('Network') || err?.code === 'ERR_NETWORK';
-      const isAborted = err?.name === 'AbortError' || err?.code === 'ECONNABORTED';
-      const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
-      
-      if (isNetworkError || isAborted || isTimeout) {
-        console.warn('Auto-save network issue:', err);
-        return;
-      }
-      
-      // Log but don't spam user with non-critical errors
-      console.error('Auto-save failed:', err);
-      
-      // Only show error to user for actual server errors (4xx, 5xx)
-      if (err?.response?.status >= 400) {
-        setErrors(prev => ({
-          ...prev,
-          [stepId]: {
-            ...prev[stepId],
-            [fieldKey]: 'Failed to save. Please try again.',
-          },
-        }));
-      }
-    } finally {
-      if (isMounted) {
-        setSavingFields(prev => {
-          const stepFields = new Set(prev[stepId] || []);
-          stepFields.delete(fieldKey);
-          return { ...prev, [stepId]: stepFields };
+    const loadOptions = async () => {
+      const entityTypes = new Set<string>();
+      steps.forEach(step => {
+        step.fields.forEach(field => {
+          if (field.related_entity_type) {
+            entityTypes.add(field.related_entity_type);
+          }
         });
-      }
-    }
-  }, [localValues, submission?.id, isMounted]);
+      });
 
-  const handleCompleteStep = useCallback(async (stepId: string) => {
-    try {
-      const result = await formSubmissionService.completeStep(submission.id, stepId);
-      
-      // Update step submission status
-      setSubmission(prev => ({
-        ...prev,
-        step_submissions: prev.step_submissions.map(ss =>
-          ss.step === stepId
-            ? { ...ss, status: 'completed' as const, completed_at: new Date().toISOString() }
-            : ss
-        ),
-        progress: {
-          ...prev.progress,
-          completed: prev.progress.completed + 1,
-          percent: Math.round(((prev.progress.completed + 1) / prev.progress.total) * 100),
-        },
-      }));
-
-      // Navigate to next step if available
-      if (result.next_step_id) {
-        const nextIdx = visibleSteps.findIndex(s => s.id === result.next_step_id);
-        if (nextIdx >= 0) {
-          setCurrentStepIndex(nextIdx);
+      for (const entityType of entityTypes) {
+        if (!entityOptions[entityType]) {
+          try {
+            const response = await entityOptionsService.getOptions(entityType);
+            setEntityOptions(prev => ({
+              ...prev,
+              [entityType]: response.options || [],
+            }));
+          } catch (err) {
+            console.error(`Failed to load options for ${entityType}:`, err);
+          }
         }
       }
-    } catch (err: any) {
-      console.error('Failed to complete step:', err);
-      notify.handleApiError(err, 'Failed to complete step');
+    };
+    
+    if (steps.length > 0) {
+      loadOptions();
     }
-  }, [submission.id, visibleSteps]);
+  }, [steps, entityOptions]);
 
-  const handleSubmit = useCallback(async () => {
+  // Handle field value change
+  const handleChange = useCallback((stepId: string, key: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [stepId]: {
+        ...(prev[stepId] || {}),
+        [key]: value,
+      },
+    }));
+  }, []);
+
+  // Handle field blur - auto-save
+  const handleBlur = useCallback(async (stepId: string, key: string) => {
+    const value = formData[stepId]?.[key];
+    if (value === undefined) return;
+
+    setSavingField(`${stepId}.${key}`);
+    try {
+      await formSubmissionService.autoSave(submission.id, stepId, key, value);
+      setLastSaved(new Date());
+    } catch (err) {
+      console.error('Auto-save failed:', err);
+    } finally {
+      setSavingField(null);
+    }
+  }, [formData, submission.id]);
+
+  // Navigate to step
+  const goToStep = useCallback((index: number) => {
+    if (index >= 0 && index < steps.length) {
+      setCurrentStepIndex(index);
+    }
+  }, [steps.length]);
+
+  // Submit form
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSubmitting(true);
+    
     try {
       const result = await formSubmissionService.submit(submission.id);
-      
-      if (!isMounted) return; // Guard against unmounted updates
-      
       const updatedSubmission = {
         ...submission,
         status: 'completed' as const,
         completed_at: result.completed_at,
       };
-      
       setSubmission(updatedSubmission);
       onSubmissionUpdate?.(updatedSubmission);
-      
       notify.success('Form submitted successfully!');
-
-      // Close after short delay to show success (with cleanup guard)
-      setTimeout(() => {
-        if (isMounted) {
-          onClose();
-        }
-      }, 1000);
+      setTimeout(onClose, 1000);
     } catch (err: any) {
-      if (!isMounted) return;
-      console.error('Failed to submit form:', err);
-      
+      console.error('Submit failed:', err);
       if (err.response?.data?.incomplete_steps) {
-        const confirmForce = window.confirm(
-          'Some steps are incomplete. Do you want to submit anyway?'
-        );
+        const confirmForce = window.confirm('Some steps are incomplete. Submit anyway?');
         if (confirmForce) {
           await formSubmissionService.submit(submission.id, true);
           notify.success('Form submitted successfully!');
-          if (isMounted) onClose();
+          onClose();
         }
       } else {
         notify.handleApiError(err, 'Failed to submit form');
       }
     } finally {
-      if (isMounted) setIsSubmitting(false);
+      setIsSubmitting(false);
     }
-  }, [submission, onSubmissionUpdate, onClose, isMounted]);
+  }, [submission, onSubmissionUpdate, onClose]);
 
-  const handleCancel = useCallback(async () => {
-    const confirmed = window.confirm(
-      'Are you sure you want to cancel this form? All progress will be marked as cancelled.'
-    );
-    if (!confirmed) return;
-
-    setIsCancelling(true);
-    try {
-      await formSubmissionService.cancel(submission.id);
-      notify.info('Form cancelled');
-      onClose();
-    } catch (err: any) {
-      console.error('Failed to cancel form:', err);
-      notify.handleApiError(err, 'Failed to cancel form');
-    } finally {
-      setIsCancelling(false);
-    }
-  }, [submission.id, onClose]);
-
-  const handleSaveAndClose = useCallback(() => {
-    // Auto-save already handles saving, just close
-    notify.success('Progress saved');
-    onClose();
-  }, [onClose]);
-
-  // Handle creating a new entity from within a form field
-  const handleCreateEntity = useCallback((entityType: string) => {
-    setQuickCreateEntityType(entityType);
-  }, []);
-
-  // Handle when an entity is created via QuickCreateModal
-  const handleEntityCreated = useCallback(async (newEntity: { value: string; label: string }) => {
-    if (!quickCreateEntityType || !currentStep) return;
+  // Render a single field
+  const renderField = (field: FieldData, stepId: string) => {
+    const value = formData[stepId]?.[field.key];
+    const isSaving = savingField === `${stepId}.${field.key}`;
     
-    // Refresh options for fields of this entity type
-    try {
-      const response = await entityOptionsService.getOptions(quickCreateEntityType);
-      
-      // Update the form snapshot with new options for all fields of this entity type
-      setSubmission(prev => {
-        const newSnapshot = { ...prev.form_snapshot };
-        newSnapshot.steps = newSnapshot.steps.map((step: any) => ({
-          ...step,
-          fields: step.fields.map((field: any) => {
-            if (field.related_entity_type === quickCreateEntityType) {
-              return { ...field, options: response.options };
-            }
-            return field;
-          }),
-        }));
-        return { ...prev, form_snapshot: newSnapshot };
-      });
-      
-      // Find the field that triggered this and set its value
-      const fieldToUpdate = currentStep.fields.find(
-        f => f.related_entity_type === quickCreateEntityType
-      );
-      if (fieldToUpdate) {
-        handleFieldChange(currentStep.id, fieldToUpdate.key, newEntity.value);
+    // Get options for select/lookup fields
+    let options: { value: string; label: string }[] = [];
+    if (field.related_entity_type && entityOptions[field.related_entity_type]) {
+      options = entityOptions[field.related_entity_type];
+    } else if (field.options) {
+      if (typeof field.options[0] === 'string') {
+        options = (field.options as string[]).map(opt => ({ value: opt, label: opt }));
+      } else {
+        options = field.options as { value: string; label: string }[];
       }
-      
-      notify.success(`${quickCreateEntityType.replace('_', ' ')} created successfully!`);
-    } catch (err) {
-      console.error('Failed to refresh options:', err);
     }
-    
-    setQuickCreateEntityType(null);
-  }, [quickCreateEntityType, currentStep, handleFieldChange]);
 
-  const formatLastSaved = useCallback((date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }, []);
+    const baseInputClass = "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white";
+    
+    switch (field.type) {
+      case 'text':
+      case 'email':
+      case 'phone':
+      case 'url':
+        return (
+          <input
+            type={field.type === 'phone' ? 'tel' : field.type}
+            value={value || ''}
+            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            required={field.required}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+            className={baseInputClass}
+          />
+        );
+
+      case 'number':
+      case 'decimal':
+      case 'currency':
+        return (
+          <input
+            type="number"
+            value={value || ''}
+            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            required={field.required}
+            min={field.min}
+            max={field.max}
+            step={field.type === 'currency' ? '0.01' : field.type === 'decimal' ? '0.01' : '1'}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+            className={baseInputClass}
+          />
+        );
+
+      case 'date':
+        return (
+          <input
+            type="date"
+            value={value || ''}
+            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            required={field.required}
+            className={baseInputClass}
+          />
+        );
+
+      case 'datetime':
+        return (
+          <input
+            type="datetime-local"
+            value={value || ''}
+            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            required={field.required}
+            className={baseInputClass}
+          />
+        );
+
+      case 'select':
+      case 'lookup':
+        return (
+          <select
+            value={value || ''}
+            onChange={(e) => {
+              handleChange(stepId, field.key, e.target.value);
+              handleBlur(stepId, field.key);
+            }}
+            required={field.required}
+            className={baseInputClass}
+          >
+            <option value="">-- Select {field.label} --</option>
+            {options.map((opt, idx) => (
+              <option key={idx} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        );
+
+      case 'textarea':
+        return (
+          <textarea
+            value={value || ''}
+            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            required={field.required}
+            rows={field.rows || 4}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+            className={baseInputClass + " resize-y"}
+          />
+        );
+
+      case 'checkbox':
+      case 'boolean':
+        return (
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={value || false}
+              onChange={(e) => {
+                handleChange(stepId, field.key, e.target.checked);
+                handleBlur(stepId, field.key);
+              }}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">{field.label}</span>
+          </div>
+        );
+
+      case 'radio':
+        return (
+          <div className="space-y-2">
+            {options.map((opt, idx) => (
+              <div key={idx} className="flex items-center">
+                <input
+                  type="radio"
+                  name={`${stepId}_${field.key}`}
+                  value={opt.value}
+                  checked={value === opt.value}
+                  onChange={(e) => {
+                    handleChange(stepId, field.key, e.target.value);
+                    handleBlur(stepId, field.key);
+                  }}
+                  required={field.required}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <label className="ml-2 text-sm text-gray-700">{opt.label}</label>
+              </div>
+            ))}
+          </div>
+        );
+
+      default:
+        return (
+          <input
+            type="text"
+            value={value || ''}
+            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            required={field.required}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+            className={baseInputClass}
+          />
+        );
+    }
+  };
 
   if (!isOpen) return null;
 
   return (
-    <Overlay isOpen={isOpen} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <ModalContainer onClick={(e) => e.stopPropagation()}>
-        <ModalHeader>
-          <HeaderLeft>
-            <FormIcon>{submission.form_icon || '📋'}</FormIcon>
-            <HeaderInfo>
-              <FormTitle>{submission.form_name}</FormTitle>
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{submission.form_icon || '📋'}</span>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">{submission.form_name}</h2>
               {submission.form_description && (
-                <FormDescription>{submission.form_description}</FormDescription>
+                <p className="text-sm text-gray-500 mt-0.5">{submission.form_description}</p>
               )}
-            </HeaderInfo>
-          </HeaderLeft>
-          <CloseButton onClick={onClose} title="Close">×</CloseButton>
-        </ModalHeader>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 p-2 text-2xl leading-none"
+          >
+            ✕
+          </button>
+        </div>
 
-        <ProgressBar>
-          <ProgressTrack>
-            <ProgressFill percent={submission.progress?.percent || 0} />
-          </ProgressTrack>
-          <ProgressText>
-            <span>{submission.progress?.completed || 0} of {visibleSteps.length} steps completed</span>
-            <span>{submission.progress?.percent || 0}%</span>
-          </ProgressText>
-        </ProgressBar>
-
-        {/* Current Step Indicator - always visible */}
-        {currentStep && (
-          <CurrentStepIndicator>
-            <CurrentStepNumber>{currentStepIndex + 1}</CurrentStepNumber>
-            <CurrentStepTitle>{currentStep.name}</CurrentStepTitle>
-          </CurrentStepIndicator>
+        {/* Step Indicator (if multiple steps) */}
+        {steps.length > 1 && (
+          <div className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white/25 text-white font-bold border-2 border-white/50">
+              {currentStepIndex + 1}
+            </div>
+            <span className="text-lg font-semibold text-white">
+              {currentStep?.name || `Step ${currentStepIndex + 1}`}
+            </span>
+          </div>
         )}
 
-        <ModalBody>
-          {visibleSteps.length > 1 && (
-            <StepProgress>
-              {visibleSteps.map((step, idx) => {
-                const stepSub = stepSubmissionMap[step.id];
-                const isCompleted = stepSub?.status === 'completed';
+        {/* Step Navigation Pills */}
+        {steps.length > 1 && (
+          <div className="px-6 py-3 bg-gray-100 border-b border-gray-200">
+            <div className="flex justify-center gap-2 flex-wrap">
+              {steps.map((step, idx) => {
                 const isActive = idx === currentStepIndex;
+                const isCompleted = idx < currentStepIndex;
                 
                 return (
-                  <ProgressStep
+                  <button
                     key={step.id}
-                    active={isActive}
-                    completed={isCompleted}
-                    onClick={() => setCurrentStepIndex(idx)}
                     type="button"
+                    onClick={() => goToStep(idx)}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all
+                      ${isActive 
+                        ? 'bg-blue-600 text-white' 
+                        : isCompleted 
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                          : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-300'
+                      }
+                    `}
                   >
-                    <ProgressNumber active={isActive} completed={isCompleted}>
+                    <span className={`
+                      w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
+                      ${isActive 
+                        ? 'bg-white/30 text-white' 
+                        : isCompleted 
+                          ? 'bg-green-600 text-white' 
+                          : 'bg-gray-200 text-gray-600'
+                      }
+                    `}>
                       {isCompleted ? '✓' : idx + 1}
-                    </ProgressNumber>
-                    <ProgressLabel active={isActive} completed={isCompleted}>{step.name}</ProgressLabel>
-                  </ProgressStep>
+                    </span>
+                    <span className="hidden sm:inline">{step.name}</span>
+                  </button>
                 );
               })}
-            </StepProgress>
+            </div>
+          </div>
+        )}
+
+        {/* Form Content */}
+        <div className="flex-1 overflow-y-auto p-6 relative">
+          {/* Navigation Arrows */}
+          {hasPrevStep && (
+            <button
+              type="button"
+              onClick={() => goToStep(currentStepIndex - 1)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center text-2xl font-bold z-10 transition-all hover:scale-110"
+              title="Previous Step"
+            >
+              ←
+            </button>
+          )}
+          {hasNextStep && (
+            <button
+              type="button"
+              onClick={() => goToStep(currentStepIndex + 1)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center text-2xl font-bold z-10 transition-all hover:scale-110"
+              title="Next Step"
+            >
+              →
+            </button>
           )}
 
-          {currentStep && currentStepSubmission && (
-            <FormStep
-              step={{ ...currentStep, fields: fieldsWithFilteredOptions }}
-              stepSubmission={currentStepSubmission}
-              submissionId={submission.id}
-              values={localValues[currentStep.id] || {}}
-              onFieldChange={(fieldKey, value) => 
-                handleFieldChange(currentStep.id, fieldKey, value)
-              }
-              onFieldBlur={(fieldKey) => 
-                handleFieldBlur(currentStep.id, fieldKey)
-              }
-              onCompleteStep={() => handleCompleteStep(currentStep.id)}
-              savingFields={savingFields[currentStep.id] || new Set()}
-              errors={errors[currentStep.id] || {}}
-              isActive
-              onCreateEntity={handleCreateEntity}
-            />
+          {currentStep ? (
+            <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
+              {currentStep.fields.map((field) => (
+                <div key={field.key}>
+                  {field.type !== 'checkbox' && field.type !== 'boolean' && (
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {field.label}
+                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                  )}
+                  {renderField(field, currentStep.id)}
+                  {field.help_text && (
+                    <p className="text-xs text-gray-500 mt-1">{field.help_text}</p>
+                  )}
+                </div>
+              ))}
+
+              {/* Submit button only on last step */}
+              {isLastStep && (
+                <div className="pt-4 border-t border-gray-200">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="animate-spin">⏳</span>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        ✓ Submit Form
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </form>
+          ) : (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-6xl mb-4">📋</div>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">No steps configured</h3>
+              <p className="text-gray-500">This form has no steps to display.</p>
+            </div>
           )}
+        </div>
 
-          {visibleSteps.length === 0 && (
-            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-              No steps configured for this form.
-            </p>
-          )}
-        </ModalBody>
-
-        {/* Navigation Arrows */}
-        <StepNavArrow 
-          direction="left" 
-          visible={currentStepIndex > 0}
-          onClick={() => setCurrentStepIndex(prev => prev - 1)}
-          title="Previous Step"
-          type="button"
-        >
-          ←
-        </StepNavArrow>
-        <StepNavArrow 
-          direction="right" 
-          visible={currentStepIndex < visibleSteps.length - 1}
-          onClick={() => setCurrentStepIndex(prev => prev + 1)}
-          title="Next Step"
-          type="button"
-        >
-          →
-        </StepNavArrow>
-
-        <ModalFooter>
-          <FooterLeft>
-            <Button variant="danger" onClick={handleCancel} disabled={isCancelling}>
-              {isCancelling ? 'Cancelling...' : '🗑️ Cancel'}
-            </Button>
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             {lastSaved && (
-              <AutoSaveIndicator>
-                💾 Saved at {formatLastSaved(lastSaved)}
-              </AutoSaveIndicator>
+              <span className="text-xs text-gray-500 flex items-center gap-1">
+                💾 Saved at {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
             )}
-          </FooterLeft>
+            {savingField && (
+              <span className="text-xs text-blue-500 flex items-center gap-1">
+                <span className="animate-spin">⏳</span> Saving...
+              </span>
+            )}
+          </div>
           
-          {/* Step indicator in center */}
-          {visibleSteps.length > 1 && (
-            <FooterCenter>
-              <StepIndicatorText>
-                Step {currentStepIndex + 1} of {visibleSteps.length}
-              </StepIndicatorText>
-            </FooterCenter>
-          )}
-          
-          <FooterRight>
-            <Button variant="secondary" onClick={handleSaveAndClose}>
-              Save & Close
-            </Button>
-            {currentStepIndex > 0 && (
-              <Button 
-                variant="secondary" 
-                onClick={() => setCurrentStepIndex(prev => prev - 1)}
+          <div className="flex items-center gap-3">
+            {/* Step Counter */}
+            {steps.length > 1 && (
+              <span className="text-sm text-gray-500 px-3 py-1 bg-gray-200 rounded-full">
+                Step {currentStepIndex + 1} of {steps.length}
+              </span>
+            )}
+            
+            {/* Navigation Buttons */}
+            {hasPrevStep && (
+              <button
+                type="button"
+                onClick={() => goToStep(currentStepIndex - 1)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
                 ← Previous
-              </Button>
+              </button>
             )}
-            {currentStepIndex < visibleSteps.length - 1 ? (
-              <Button 
-                variant="primary" 
-                onClick={() => setCurrentStepIndex(prev => prev + 1)}
+            
+            {hasNextStep ? (
+              <button
+                type="button"
+                onClick={() => goToStep(currentStepIndex + 1)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
               >
                 Next →
-              </Button>
+              </button>
             ) : (
-              <Button
-                variant="success"
-                onClick={handleSubmit}
-                disabled={isSubmitting}
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
-                {isSubmitting ? 'Submitting...' : '✓ Submit Form'}
-              </Button>
+                Close
+              </button>
             )}
-          </FooterRight>
-        </ModalFooter>
-      </ModalContainer>
-
-      {/* Quick Create Modal for creating entities inline */}
-      {quickCreateEntityType && (
-        <QuickCreateModal
-          entityType={quickCreateEntityType}
-          isOpen={!!quickCreateEntityType}
-          onClose={() => setQuickCreateEntityType(null)}
-          onCreated={handleEntityCreated}
-        />
-      )}
-    </Overlay>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
