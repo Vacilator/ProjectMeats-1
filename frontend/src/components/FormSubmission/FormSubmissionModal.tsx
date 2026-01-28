@@ -4,7 +4,7 @@
  * Main modal for executing a form submission with multi-step support.
  * Includes conditional rules engine for dynamic field/step visibility.
  */
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import FormStep, { StepConfig } from './FormStep';
 import { FieldConfig } from './FormField';
@@ -14,7 +14,6 @@ import {
   StepSubmission,
   formSubmissionService,
   entityOptionsService,
-  cancelTokenManager,
   isRequestCancelled,
 } from '../../services/quickActionsService';
 import {
@@ -174,9 +173,16 @@ const ProgressStep = styled.button<{ active?: boolean; completed?: boolean }>`
   min-width: 100px;
   border: none;
   background: transparent;
+  color: var(--text-secondary, #6c757d);
 
   &:hover {
     background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary, #1a1a2e);
+  }
+
+  &:focus {
+    outline: 2px solid var(--color-primary, #0d6efd);
+    outline-offset: 2px;
   }
 
   ${({ active }) => active && `
@@ -185,16 +191,25 @@ const ProgressStep = styled.button<{ active?: boolean; completed?: boolean }>`
     
     &:hover {
       background: var(--color-primary-dark, #0b5ed7);
+      color: white;
+    }
+    
+    &:focus {
+      outline: 2px solid var(--color-primary-dark, #0b5ed7);
     }
   `}
 
   ${({ completed, active }) => completed && !active && `
     background: var(--color-success-light, #d1e7dd);
     color: var(--color-success-dark, #0f5132);
+    
+    &:hover {
+      background: rgba(25, 135, 84, 0.25);
+    }
   `}
 `;
 
-const ProgressNumber = styled.span`
+const ProgressNumber = styled.span<{ active?: boolean; completed?: boolean }>`
   width: 1.75rem;
   height: 1.75rem;
   display: flex;
@@ -203,7 +218,16 @@ const ProgressNumber = styled.span`
   border-radius: 50%;
   font-size: 0.875rem;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.3);
+  background: ${({ active, completed }) => 
+    active ? 'rgba(255, 255, 255, 0.3)' : 
+    completed ? 'var(--color-success, #198754)' :
+    'var(--bg-tertiary, #e9ecef)'
+  };
+  color: ${({ active, completed }) => 
+    active ? 'white' : 
+    completed ? 'white' :
+    'var(--text-primary, #1a1a2e)'
+  };
 `;
 
 const ProgressLabel = styled.span`
@@ -317,7 +341,6 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   
   // Quick Create Modal state
   const [quickCreateEntityType, setQuickCreateEntityType] = useState<string | null>(null);
-  const [quickCreateFieldKey, setQuickCreateFieldKey] = useState<string | null>(null);
   
   // Track mounted state for cleanup
   const [isMounted, setIsMounted] = useState(true);
@@ -576,13 +599,11 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       notify.success('Form submitted successfully!');
 
       // Close after short delay to show success (with cleanup guard)
-      const timeoutId = setTimeout(() => {
+      setTimeout(() => {
         if (isMounted) {
           onClose();
         }
       }, 1000);
-      
-      // Return cleanup function isn't possible here, but isMounted guards the callback
     } catch (err: any) {
       if (!isMounted) return;
       console.error('Failed to submit form:', err);
@@ -673,14 +694,6 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     setQuickCreateEntityType(null);
   }, [quickCreateEntityType, currentStep, handleFieldChange]);
 
-  const allStepsCompleted = useMemo(() => {
-    // Only check visible steps for completion
-    return visibleSteps.every(step => {
-      const stepSub = stepSubmissionMap[step.id];
-      return stepSub?.status === 'completed';
-    });
-  }, [visibleSteps, stepSubmissionMap]);
-
   const formatLastSaved = useCallback((date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }, []);
@@ -729,7 +742,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                     onClick={() => setCurrentStepIndex(idx)}
                     type="button"
                   >
-                    <ProgressNumber>{isCompleted ? '✓' : idx + 1}</ProgressNumber>
+                    <ProgressNumber active={isActive} completed={isCompleted}>
+                      {isCompleted ? '✓' : idx + 1}
+                    </ProgressNumber>
                     <ProgressLabel>{step.name}</ProgressLabel>
                   </ProgressStep>
                 );

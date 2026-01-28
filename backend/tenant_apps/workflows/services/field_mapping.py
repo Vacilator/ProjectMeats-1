@@ -280,7 +280,7 @@ class FieldMappingService:
             ).select_related('form_entity')
             
             # Get field metadata from registry
-            entity_fields = FieldRegistry.get_fields(step.entity_type) or []
+            entity_fields = FieldRegistry.get_fields_for_entity(step.entity_type) or []
             field_map = {f['key']: f for f in entity_fields}
             
             for field in step_fields:
@@ -339,7 +339,7 @@ class FieldMappingService:
             )
             
             # Get field metadata
-            entity_fields = FieldRegistry.get_fields(step.entity_type) or []
+            entity_fields = FieldRegistry.get_fields_for_entity(step.entity_type) or []
             field_map = {f['key']: f for f in entity_fields}
             
             for field in step_fields:
@@ -401,11 +401,11 @@ class FieldMappingService:
             target_step = field.form_entity
             source_step = field.auto_populate_source_step
             
-            target_entity_fields = FieldRegistry.get_fields(target_step.entity_type) or []
+            target_entity_fields = FieldRegistry.get_fields_for_entity(target_step.entity_type) or []
             target_field_map = {f['key']: f for f in target_entity_fields}
             target_field_meta = target_field_map.get(field.field_key, {})
             
-            source_entity_fields = FieldRegistry.get_fields(source_step.entity_type) or []
+            source_entity_fields = FieldRegistry.get_fields_for_entity(source_step.entity_type) or []
             source_field_map = {f['key']: f for f in source_entity_fields}
             source_field_meta = source_field_map.get(field.auto_populate_source_field, {})
             
