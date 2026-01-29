@@ -68,11 +68,15 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   // Entity options cache for lookups
   const [entityOptions, setEntityOptions] = useState<Record<string, { value: string; label: string }[]>>({});
 
+  // Debug: Log every render
+  console.log('[FormSubmissionModal] Render - isOpen:', isOpen, 'submissionId:', submission?.id);
+
   // Debug logging for form_snapshot
   useEffect(() => {
     console.log('[FormSubmissionModal] Submission received:', submission?.id);
     console.log('[FormSubmissionModal] Form snapshot:', submission?.form_snapshot);
     console.log('[FormSubmissionModal] Form name:', submission?.form_name);
+    console.log('[FormSubmissionModal] Steps count:', submission?.form_snapshot?.steps?.length);
     if (submission?.form_snapshot && (!submission.form_snapshot.steps || submission.form_snapshot.steps.length === 0)) {
       console.warn('[FormSubmissionModal] Form has no steps configured');
       setLoadError('This form has no steps configured. Please contact your administrator.');
@@ -396,7 +400,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      style={{ zIndex: 1100 }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div 

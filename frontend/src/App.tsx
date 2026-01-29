@@ -65,8 +65,19 @@ import InquiryAnalytics from './pages/InquiryAnalytics';
 const FormSubmissionWrapper: React.FC = () => {
   const { activeSubmission, isFormModalOpen, closeFormModal } = useQuickActions();
   
-  if (!activeSubmission || !isFormModalOpen) return null;
+  // Debug logging
+  console.log('[FormSubmissionWrapper] Render check:', {
+    hasActiveSubmission: !!activeSubmission,
+    isFormModalOpen,
+    submissionId: activeSubmission?.id,
+  });
   
+  if (!activeSubmission || !isFormModalOpen) {
+    console.log('[FormSubmissionWrapper] Not rendering modal - conditions not met');
+    return null;
+  }
+  
+  console.log('[FormSubmissionWrapper] Rendering FormSubmissionModal');
   return (
     <FormSubmissionModal
       submission={activeSubmission}
