@@ -22,6 +22,7 @@ import {
 import { notify } from '../../utils/notify';
 import { validateField, mergeValidationRules, ValidationRule } from '../../utils/formValidation';
 import { Icon } from '../ui';
+import QuickCreateModal from './QuickCreateModal';
 
 // ============== Types ==============
 interface FormSubmissionModalProps {
@@ -403,6 +404,56 @@ const SelectInput = styled.select<{ $hasError?: boolean }>`
   padding-right: 40px;
 `;
 
+// Container for select + "Add new" button
+const SelectWithAddContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+`;
+
+const SelectWrapper = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const QuickAddButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 12px;
+  min-width: 44px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  
+  &:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  @media (max-width: 500px) {
+    padding: 0 8px;
+    font-size: 0;
+    
+    &::before {
+      content: '+';
+      font-size: 18px;
+    }
+  }
+`;
+
 const CheckboxWrapper = styled.label`
   display: flex;
   align-items: center;
@@ -755,6 +806,11 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [multiSelectSearch, setMultiSelectSearch] = useState<Record<string, string>>({});
+  const [quickCreateField, setQuickCreateField] = useState<{
+    stepId: string;
+    fieldKey: string;
+    entityType: string;
+  } | null>(null);
   
   const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
   const hasUnsavedChanges = useRef(false);
@@ -1201,8 +1257,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'select':
       case 'lookup':
       case 'dropdown':
-      case 'foreignkey':
-        return (
+      case 'foreignkey': {
+        const selectElement = (
           <SelectInput
             $hasError={hasError}
             value={value}
@@ -1215,6 +1271,29 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             ))}
           </SelectInput>
         );
+        
+        // Show quick add button for fields with related entity type
+        if (field.related_entity_type) {
+          return (
+            <SelectWithAddContainer>
+              <SelectWrapper>{selectElement}</SelectWrapper>
+              <QuickAddButton
+                type="button"
+                onClick={() => setQuickCreateField({
+                  stepId,
+                  fieldKey: field.key,
+                  entityType: field.related_entity_type!,
+                })}
+                title={`Create new ${field.label}`}
+              >
+                + New
+              </QuickAddButton>
+            </SelectWithAddContainer>
+          );
+        }
+        
+        return selectElement;
+      }
         
       case 'multiselect': {
         const searchKey = `${stepId}-${field.key}`;
@@ -1594,6 +1673,30 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
               </ConfirmActions>
             </ConfirmDialog>
           </ConfirmOverlay>
+        )}
+
+        {/* Quick Create Modal */}
+        {quickCreateField && (
+          <QuickCreateModal
+            entityType={quickCreateField.entityType}
+            isOpen={true}
+            onClose={() => setQuickCreateField(null)}
+            onCreated={async (entity) => {
+              // Set the newly created entity as the field value
+              handleChange(quickCreateField.stepId, quickCreateField.fieldKey, entity.value);
+              
+              // Refresh options for this entity type
+              try {
+                const res = await entityOptionsService.getOptions(quickCreateField.entityType);
+                setEntityOptions(prev => ({ ...prev, [quickCreateField.entityType]: res.options || [] }));
+              } catch (e) {
+                console.error('Failed to refresh options:', e);
+              }
+              
+              setQuickCreateField(null);
+              notify.success(`Created new ${entity.label}`);
+            }}
+          />
         )}
       </ModalContent>
     </ModalOverlay>
