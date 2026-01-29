@@ -916,6 +916,20 @@
         <div class="modal-content modal-xl">
             <div class="modal-header">
                 <h3>👁️ Form Preview</h3>
+                <div class="modal-header-actions">
+                    <button type="button" 
+                            class="btn btn-sm btn-test-data" 
+                            @click="fillWithTestData()"
+                            title="Fill all fields with realistic test data">
+                        🎲 Fill with Test Data
+                    </button>
+                    <button type="button" 
+                            class="btn btn-sm btn-clear" 
+                            @click="clearPreviewData()"
+                            title="Clear all field values">
+                        🗑️ Clear
+                    </button>
+                </div>
                 <button type="button" class="modal-close" @click="closePreview()">✕</button>
             </div>
             <div class="modal-body">

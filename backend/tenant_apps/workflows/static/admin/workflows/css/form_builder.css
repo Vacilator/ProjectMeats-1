@@ -2566,3 +2566,70 @@ textarea:focus-visible {
     padding: 2px 6px;
     border-radius: var(--fb-radius-sm);
 }
+
+/* ==================== TEST DATA BUTTONS ==================== */
+.modal-header-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+    margin-right: 16px;
+}
+
+.btn-test-data {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: var(--fb-radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-test-data:hover {
+    background: linear-gradient(135deg, #a86cc1, #9b59b6);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+}
+
+.btn-clear {
+    background: var(--fb-hairline);
+    color: var(--fb-fg);
+    border: 1px solid var(--fb-border);
+    padding: 6px 12px;
+    border-radius: var(--fb-radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-clear:hover {
+    background: var(--fb-selected-bg);
+    border-color: var(--fb-fg-quiet);
+}
+
+/* Test data value display in preview */
+.preview-field-test-value {
+    color: #9b59b6;
+    font-style: italic;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.preview-field-input.has-test-value {
+    background: rgba(155, 89, 182, 0.05);
+    border-color: rgba(155, 89, 182, 0.3);
+}
+
+.preview-field-input.has-test-value input,
+.preview-field-input.has-test-value select,
+.preview-field-input.has-test-value textarea {
+    background: rgba(155, 89, 182, 0.05);
+    color: #9b59b6;
+}

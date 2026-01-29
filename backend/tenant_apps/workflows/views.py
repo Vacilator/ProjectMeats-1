@@ -2369,3 +2369,48 @@ class FormEventAPIView(APIView):
             'status': 'success',
             'event_id': str(event.id),
         }, status=status.HTTP_201_CREATED)
+
+
+class FormTestDataAPIView(APIView):
+    """
+    API endpoint for generating test data for form preview.
+    
+    GET /api/v1/workflows/forms/{form_id}/test-data/
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, form_id):
+        """Generate test data for a form."""
+        from .services.test_data import generate_form_test_data
+        
+        try:
+            form = TenantForm.objects.get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check tenant access
+        if hasattr(request, 'tenant') and request.tenant:
+            if form.tenant_id and form.tenant_id != request.tenant.id:
+                return Response(
+                    {'error': 'Access denied'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Get form snapshot
+        form_snapshot = form.form_snapshot
+        if not form_snapshot:
+            # Build snapshot if not available
+            from .signals import _build_form_snapshot
+            form_snapshot = _build_form_snapshot(form)
+        
+        # Generate test data
+        test_data = generate_form_test_data(form_snapshot)
+        
+        return Response({
+            'form_id': str(form.id),
+            'form_name': form.name,
+            'test_data': test_data,
+        })

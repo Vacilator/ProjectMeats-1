@@ -26,7 +26,9 @@ from .views import (
     # Form Import/Export API Views
     FormExportAPIView, FormImportAPIView, FormDuplicateAPIView,
     # Form Analytics API Views
-    FormAnalyticsAPIView, FormEventAPIView
+    FormAnalyticsAPIView, FormEventAPIView,
+    # Form Test Data API Views
+    FormTestDataAPIView
 )
 
 app_name = 'workflows'
@@ -92,4 +94,7 @@ urlpatterns = [
     path('forms/<uuid:form_id>/analytics/', FormAnalyticsAPIView.as_view(), name='form-analytics'),
     path('analytics/summary/', FormAnalyticsAPIView.as_view(), name='analytics-summary'),
     path('form-submissions/<uuid:submission_id>/events/', FormEventAPIView.as_view(), name='form-events'),
+    
+    # Form Test Data API endpoints
+    path('forms/<uuid:form_id>/test-data/', FormTestDataAPIView.as_view(), name='form-test-data'),
 ]

@@ -345,6 +345,64 @@ function formBuilder() {
             });
         },
         
+        // Test data fill functionality
+        async fillWithTestData() {
+            const formId = this.formId;
+            if (!formId) {
+                console.error('No form ID available');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/forms/${formId}/test-data/`, {
+                    method: 'GET',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const testData = data.test_data || {};
+                    
+                    // Fill preview fields with test data
+                    this.previewData.steps.forEach(step => {
+                        const stepData = testData[step.id] || {};
+                        step.fields.forEach(field => {
+                            if (stepData[field.key] !== undefined) {
+                                field.testValue = stepData[field.key];
+                                // Also update any input elements if they exist
+                                const input = document.querySelector(`[data-field-key="${field.key}"]`);
+                                if (input) {
+                                    input.value = stepData[field.key];
+                                }
+                            }
+                        });
+                    });
+                    
+                    console.log('Filled with test data:', testData);
+                } else {
+                    console.error('Failed to fetch test data');
+                }
+            } catch (error) {
+                console.error('Error fetching test data:', error);
+            }
+        },
+        
+        clearPreviewData() {
+            this.previewData.steps.forEach(step => {
+                step.fields.forEach(field => {
+                    field.testValue = null;
+                    const input = document.querySelector(`[data-field-key="${field.key}"]`);
+                    if (input) {
+                        input.value = '';
+                    }
+                });
+            });
+        },
+        
         // ==================== FIELD EDITOR ====================
         
         async openFieldEditor(stepId) {
