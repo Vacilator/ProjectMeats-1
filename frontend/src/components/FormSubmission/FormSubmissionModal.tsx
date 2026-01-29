@@ -1,10 +1,11 @@
 /**
- * FormSubmissionModal - Simplified Version
+ * FormSubmissionModal - Direct Portal Render
  * 
- * A clean, functional form modal that displays form steps and fields
- * similar to the admin FormPreview but with actual submission capability.
+ * Uses ReactDOM.createPortal to render directly to document.body,
+ * bypassing any React tree issues that could prevent display.
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   FormSubmission,
   formSubmissionService,
@@ -12,10 +13,6 @@ import {
 } from '../../services/quickActionsService';
 import { notify } from '../../utils/notify';
 import { Icon } from '../ui';
-
-// ============================================================================
-// Types
-// ============================================================================
 
 interface FormSubmissionModalProps {
   submission: FormSubmission;
@@ -41,34 +38,23 @@ interface FieldData {
   help_text?: string;
   options?: string[] | { value: string; label: string }[];
   related_entity_type?: string;
-  min?: number;
-  max?: number;
-  rows?: number;
 }
 
-// ============================================================================
-// Component
-// ============================================================================
-
 const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
-  submission: initialSubmission,
+  submission,
   isOpen,
   onClose,
   onSubmissionUpdate,
 }) => {
-  // State
-  const [submission] = useState<FormSubmission>(initialSubmission);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [formData, setFormData] = useState<Record<string, Record<string, any>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [entityOptions, setEntityOptions] = useState<Record<string, { value: string; label: string }[]>>({});
 
-  // Parse steps from form snapshot
+  // Parse steps
   const steps: StepData[] = useMemo(() => {
-    const snapshot = submission?.form_snapshot;
-    if (!snapshot?.steps) return [];
-    
-    return snapshot.steps
+    if (!submission?.form_snapshot?.steps) return [];
+    return submission.form_snapshot.steps
       .sort((a: any, b: any) => a.order - b.order)
       .map((step: any) => ({
         id: step.id,
@@ -77,422 +63,245 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         entity_type: step.entity_type,
         fields: (step.fields || []).map((f: any) => ({
           key: f.key,
-          label: f.label || f.key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          label: f.label || f.key.replace(/_/g, ' '),
           type: f.type || 'text',
           required: f.required || false,
           placeholder: f.placeholder,
           help_text: f.help_text,
           options: f.options,
           related_entity_type: f.related_entity_type,
-          min: f.min,
-          max: f.max,
-          rows: f.rows,
         })),
       }));
   }, [submission?.form_snapshot]);
 
   const currentStep = steps[currentStepIndex];
 
-  // Initialize form data
-  useEffect(() => {
-    if (submission?.data) {
-      const initialData: Record<string, Record<string, any>> = {};
-      steps.forEach(step => {
-        initialData[step.id] = submission.data?.[step.id] || {};
-      });
-      setFormData(initialData);
-    }
-  }, [submission?.data, steps]);
-
-  // Load entity options for lookup fields
+  // Load entity options
   useEffect(() => {
     const loadOptions = async () => {
-      const entityTypes = new Set<string>();
-      steps.forEach(step => {
-        step.fields.forEach(field => {
-          if (field.related_entity_type) {
-            entityTypes.add(field.related_entity_type);
-          }
-        });
-      });
-
-      for (const entityType of entityTypes) {
-        if (!entityOptions[entityType]) {
+      const types = new Set<string>();
+      steps.forEach(s => s.fields.forEach(f => {
+        if (f.related_entity_type) types.add(f.related_entity_type);
+      }));
+      for (const type of types) {
+        if (!entityOptions[type]) {
           try {
-            const response = await entityOptionsService.getOptions(entityType);
-            setEntityOptions(prev => ({
-              ...prev,
-              [entityType]: response.options || [],
-            }));
-          } catch (err) {
-            console.error(`Failed to load options for ${entityType}:`, err);
-          }
+            const res = await entityOptionsService.getOptions(type);
+            setEntityOptions(prev => ({ ...prev, [type]: res.options || [] }));
+          } catch (e) { console.error(e); }
         }
       }
     };
-    
-    if (steps.length > 0) {
-      loadOptions();
-    }
-  }, [steps, entityOptions]);
+    if (steps.length > 0) loadOptions();
+  }, [steps]);
 
-  // Handle field change
   const handleChange = useCallback((stepId: string, key: string, value: any) => {
     setFormData(prev => ({
       ...prev,
-      [stepId]: {
-        ...(prev[stepId] || {}),
-        [key]: value,
-      },
+      [stepId]: { ...(prev[stepId] || {}), [key]: value },
     }));
   }, []);
 
-  // Navigate steps
-  const goToStep = useCallback((index: number) => {
-    if (index >= 0 && index < steps.length) {
-      setCurrentStepIndex(index);
-    }
-  }, [steps.length]);
-
-  // Submit form
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
     try {
-      const result = await formSubmissionService.submit(submission.id);
-      onSubmissionUpdate?.({
-        ...submission,
-        status: 'completed' as const,
-        completed_at: result.completed_at,
-      });
-      notify.success('Form submitted successfully!');
-      setTimeout(onClose, 1000);
+      await formSubmissionService.submit(submission.id);
+      notify.success('Form submitted!');
+      setTimeout(onClose, 500);
     } catch (err: any) {
-      console.error('Submit failed:', err);
-      notify.handleApiError(err, 'Failed to submit form');
+      notify.handleApiError(err, 'Failed to submit');
     } finally {
       setIsSubmitting(false);
     }
-  }, [submission, onSubmissionUpdate, onClose]);
+  }, [submission.id, onClose]);
 
-  // Render field based on type
   const renderField = (field: FieldData, stepId: string) => {
-    const value = formData[stepId]?.[field.key];
+    const value = formData[stepId]?.[field.key] ?? '';
+    const cls = "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
     
-    // Get options for select/lookup fields
-    let options: { value: string; label: string }[] = [];
+    let opts: { value: string; label: string }[] = [];
     if (field.related_entity_type && entityOptions[field.related_entity_type]) {
-      options = entityOptions[field.related_entity_type];
+      opts = entityOptions[field.related_entity_type];
     } else if (field.options) {
-      if (typeof field.options[0] === 'string') {
-        options = (field.options as string[]).map(opt => ({ value: opt, label: opt }));
-      } else {
-        options = field.options as { value: string; label: string }[];
-      }
+      opts = Array.isArray(field.options) 
+        ? (typeof field.options[0] === 'string' 
+            ? (field.options as string[]).map(o => ({ value: o, label: o }))
+            : field.options as { value: string; label: string }[])
+        : [];
     }
 
-    const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
-
     switch (field.type) {
-      case 'text':
-      case 'email':
-      case 'phone':
-      case 'url':
-        return (
-          <input
-            type={field.type === 'phone' ? 'tel' : field.type}
-            value={value || ''}
-            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
-            required={field.required}
-            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-            className={inputClass}
-          />
-        );
-
-      case 'number':
-      case 'decimal':
-      case 'currency':
-        return (
-          <input
-            type="number"
-            value={value || ''}
-            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
-            required={field.required}
-            min={field.min}
-            max={field.max}
-            step={field.type === 'currency' || field.type === 'decimal' ? '0.01' : '1'}
-            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-            className={inputClass}
-          />
-        );
-
-      case 'date':
-        return (
-          <input
-            type="date"
-            value={value || ''}
-            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
-            required={field.required}
-            className={inputClass}
-          />
-        );
-
-      case 'datetime':
-        return (
-          <input
-            type="datetime-local"
-            value={value || ''}
-            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
-            required={field.required}
-            className={inputClass}
-          />
-        );
-
       case 'select':
       case 'lookup':
         return (
-          <select
-            value={value || ''}
-            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
-            required={field.required}
-            className={inputClass}
-          >
-            <option value="">-- Select {field.label} --</option>
-            {options.map((opt, idx) => (
-              <option key={idx} value={opt.value}>{opt.label}</option>
-            ))}
+          <select value={value} onChange={e => handleChange(stepId, field.key, e.target.value)} required={field.required} className={cls}>
+            <option value="">-- Select --</option>
+            {opts.map((o, i) => <option key={i} value={o.value}>{o.label}</option>)}
           </select>
         );
-
       case 'textarea':
-        return (
-          <textarea
-            value={value || ''}
-            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
-            required={field.required}
-            rows={field.rows || 4}
-            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-            className={inputClass + " resize-y"}
-          />
-        );
-
+        return <textarea value={value} onChange={e => handleChange(stepId, field.key, e.target.value)} required={field.required} rows={4} className={cls} />;
       case 'checkbox':
       case 'boolean':
         return (
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              checked={value || false}
-              onChange={(e) => handleChange(stepId, field.key, e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <span className="ml-2 text-sm text-gray-700">{field.label}</span>
-          </div>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={!!value} onChange={e => handleChange(stepId, field.key, e.target.checked)} className="w-4 h-4" />
+            <span>{field.label}</span>
+          </label>
         );
-
-      case 'radio':
-        return (
-          <div className="space-y-2">
-            {options.map((opt, idx) => (
-              <div key={idx} className="flex items-center">
-                <input
-                  type="radio"
-                  name={`${stepId}_${field.key}`}
-                  value={opt.value}
-                  checked={value === opt.value}
-                  onChange={(e) => handleChange(stepId, field.key, e.target.value)}
-                  required={field.required}
-                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                />
-                <label className="ml-2 text-sm text-gray-700">{opt.label}</label>
-              </div>
-            ))}
-          </div>
-        );
-
+      case 'date':
+        return <input type="date" value={value} onChange={e => handleChange(stepId, field.key, e.target.value)} required={field.required} className={cls} />;
+      case 'number':
+      case 'decimal':
+      case 'currency':
+        return <input type="number" value={value} onChange={e => handleChange(stepId, field.key, e.target.value)} required={field.required} step={field.type === 'number' ? '1' : '0.01'} className={cls} />;
       default:
-        return (
-          <input
-            type="text"
-            value={value || ''}
-            onChange={(e) => handleChange(stepId, field.key, e.target.value)}
-            required={field.required}
-            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-            className={inputClass}
-          />
-        );
+        return <input type="text" value={value} onChange={e => handleChange(stepId, field.key, e.target.value)} required={field.required} placeholder={field.placeholder} className={cls} />;
     }
   };
 
-  // Don't render if not open
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
-  const isLastStep = currentStepIndex === steps.length - 1;
-  const hasPrevStep = currentStepIndex > 0;
-  const hasNextStep = currentStepIndex < steps.length - 1;
-
-  return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ 
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  const modalContent = (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999,
+        padding: '16px',
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div 
-        className="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-        style={{ maxWidth: '800px' }}
-        onClick={(e) => e.stopPropagation()}
+      <div
+        style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+          width: '100%',
+          maxWidth: '700px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+        onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-          <div className="flex items-center gap-3">
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Icon name={submission?.form_icon || 'clipboard-list'} size={28} />
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {submission?.form_name || 'Form'}
-              </h2>
-              {submission?.form_description && (
-                <p className="text-sm text-gray-500">{submission.form_description}</p>
-              )}
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700 }}>{submission?.form_name || 'Form'}</h2>
+              {submission?.form_description && <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#6b7280' }}>{submission.form_description}</p>}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-2 text-2xl leading-none"
-          >
-            ✕
-          </button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#9ca3af' }}>×</button>
         </div>
 
-        {/* Step Indicator */}
+        {/* Step indicator */}
         {steps.length > 1 && (
-          <div className="px-6 py-3 bg-blue-600 flex items-center justify-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/25 text-white font-bold">
+          <div style={{ padding: '12px 24px', backgroundColor: '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+            <span style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
               {currentStepIndex + 1}
-            </div>
-            <span className="text-lg font-semibold text-white">
-              {currentStep?.name || `Step ${currentStepIndex + 1}`}
             </span>
+            <span style={{ fontSize: '16px', fontWeight: 600 }}>{currentStep?.name || `Step ${currentStepIndex + 1}`}</span>
           </div>
         )}
 
-        {/* Step Navigation Pills */}
+        {/* Step pills */}
         {steps.length > 1 && (
-          <div className="px-6 py-3 bg-gray-100 border-b border-gray-200">
-            <div className="flex justify-center gap-2 flex-wrap">
-              {steps.map((step, idx) => (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => goToStep(idx)}
-                  className={`
-                    px-4 py-2 rounded-md text-sm font-medium transition-all
-                    ${idx === currentStepIndex 
-                      ? 'bg-blue-600 text-white' 
-                      : idx < currentStepIndex
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-300'
-                    }
-                  `}
-                >
-                  <span className="mr-2">
-                    {idx < currentStepIndex ? '✓' : idx + 1}
-                  </span>
-                  {step.name}
-                </button>
-              ))}
-            </div>
+          <div style={{ padding: '12px 24px', backgroundColor: '#f3f4f6', borderBottom: '1px solid #e5e7eb', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+            {steps.map((step, idx) => (
+              <button
+                key={step.id}
+                onClick={() => setCurrentStepIndex(idx)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: idx === currentStepIndex ? 'none' : '1px solid #d1d5db',
+                  backgroundColor: idx === currentStepIndex ? '#2563eb' : idx < currentStepIndex ? '#dcfce7' : 'white',
+                  color: idx === currentStepIndex ? 'white' : idx < currentStepIndex ? '#166534' : '#4b5563',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
+                {idx < currentStepIndex ? '✓ ' : `${idx + 1}. `}{step.name}
+              </button>
+            ))}
           </div>
         )}
 
-        {/* Form Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Content */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
           {steps.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">📋</div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                No steps configured
-              </h3>
-              <p className="text-gray-500">
-                This form has no steps to display. Please configure steps in the admin panel.
-              </p>
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <div style={{ fontSize: '64px', marginBottom: '16px' }}>📋</div>
+              <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#374151' }}>No steps configured</h3>
+              <p style={{ color: '#6b7280' }}>Please configure form steps in the admin panel.</p>
             </div>
           ) : currentStep ? (
-            <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
-              {currentStep.fields.map((field) => (
-                <div key={field.key}>
+            <form onSubmit={handleSubmit} style={{ maxWidth: '500px', margin: '0 auto' }}>
+              {currentStep.fields.map(field => (
+                <div key={field.key} style={{ marginBottom: '20px' }}>
                   {field.type !== 'checkbox' && field.type !== 'boolean' && (
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {field.label}
-                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: 500, color: '#374151' }}>
+                      {field.label}{field.required && <span style={{ color: '#ef4444', marginLeft: '4px' }}>*</span>}
                     </label>
                   )}
                   {renderField(field, currentStep.id)}
-                  {field.help_text && (
-                    <p className="text-xs text-gray-500 mt-1">{field.help_text}</p>
-                  )}
+                  {field.help_text && <p style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>{field.help_text}</p>}
                 </div>
               ))}
-
-              {/* Submit button only on last step */}
-              {isLastStep && (
-                <div className="pt-4 border-t border-gray-200">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full px-4 py-3 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
-                  >
-                    {isSubmitting ? '⏳ Submitting...' : '✓ Submit Form'}
-                  </button>
-                </div>
+              {currentStepIndex === steps.length - 1 && (
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    backgroundColor: isSubmitting ? '#9ca3af' : '#16a34a',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    marginTop: '16px',
+                  }}
+                >
+                  {isSubmitting ? '⏳ Submitting...' : '✓ Submit Form'}
+                </button>
               )}
             </form>
           ) : null}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-          <div>
-            {steps.length > 1 && (
-              <span className="text-sm text-gray-500 px-3 py-1 bg-gray-200 rounded-full">
-                Step {currentStepIndex + 1} of {steps.length}
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {hasPrevStep && (
-              <button
-                type="button"
-                onClick={() => goToStep(currentStepIndex - 1)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-              >
+        <div style={{ padding: '16px 24px', borderTop: '1px solid #e5e7eb', backgroundColor: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '14px', color: '#6b7280', backgroundColor: '#e5e7eb', padding: '4px 12px', borderRadius: '999px' }}>
+            Step {currentStepIndex + 1} of {steps.length || 1}
+          </span>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            {currentStepIndex > 0 && (
+              <button onClick={() => setCurrentStepIndex(i => i - 1)} style={{ padding: '10px 20px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer' }}>
                 ← Previous
               </button>
             )}
-            
-            {hasNextStep ? (
-              <button
-                type="button"
-                onClick={() => goToStep(currentStepIndex + 1)}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-              >
+            {currentStepIndex < steps.length - 1 ? (
+              <button onClick={() => setCurrentStepIndex(i => i + 1)} style={{ padding: '10px 20px', border: 'none', borderRadius: '6px', backgroundColor: '#2563eb', color: 'white', cursor: 'pointer' }}>
                 Next →
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-              >
+              <button onClick={onClose} style={{ padding: '10px 20px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer' }}>
                 Close
               </button>
             )}
@@ -501,6 +310,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       </div>
     </div>
   );
+
+  // Use portal to render directly to body, bypassing any React tree issues
+  return createPortal(modalContent, document.body);
 };
 
 export default FormSubmissionModal;
