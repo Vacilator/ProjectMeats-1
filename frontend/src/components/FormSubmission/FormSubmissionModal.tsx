@@ -713,6 +713,19 @@ const EmptyState = styled.div`
   }
 `;
 
+// Visually hidden but accessible to screen readers
+const ScreenReaderAnnouncement = styled.div`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+`;
+
 // Exit Confirmation Modal
 const ConfirmOverlay = styled.div`
   position: absolute;
@@ -809,6 +822,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [multiSelectSearch, setMultiSelectSearch] = useState<Record<string, string>>({});
+  const [announcement, setAnnouncement] = useState<string>('');
   const [quickCreateField, setQuickCreateField] = useState<{
     stepId: string;
     fieldKey: string;
@@ -817,6 +831,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   
   const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
   const hasUnsavedChanges = useRef(false);
+  const stepContentRef = useRef<HTMLDivElement>(null);
 
   // Parse steps from submission
   const steps: StepData[] = useMemo(() => {
@@ -905,6 +920,27 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     
     setHiddenFields(newHiddenFields);
   }, [rules, formData]);
+
+  // Announce step changes to screen readers
+  useEffect(() => {
+    if (currentStep) {
+      setAnnouncement(`Step ${currentStepIndex + 1} of ${steps.length}: ${currentStep.name}`);
+    }
+  }, [currentStepIndex, currentStep, steps.length]);
+
+  // Focus first input when step changes
+  useEffect(() => {
+    if (stepContentRef.current && currentStep) {
+      setTimeout(() => {
+        const firstInput = stepContentRef.current?.querySelector<HTMLElement>(
+          'input:not([type="hidden"]), textarea, select, button[role="combobox"]'
+        );
+        if (firstInput) {
+          firstInput.focus();
+        }
+      }, 100);
+    }
+  }, [currentStepIndex, currentStep]);
 
   // Evaluate conditions
   const evaluateConditions = (
@@ -1228,12 +1264,27 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     const opts = getFieldOptions(field);
     const hasError = !!fieldErrors[field.key];
     
+    // Accessibility helpers
+    const fieldId = `field-${stepId}-${field.key}`;
+    const errorId = `${fieldId}-error`;
+    const helpId = `${fieldId}-help`;
+    const ariaProps = {
+      id: fieldId,
+      'aria-required': field.required || undefined,
+      'aria-invalid': hasError || undefined,
+      'aria-describedby': [
+        hasError ? errorId : null,
+        field.help_text ? helpId : null,
+      ].filter(Boolean).join(' ') || undefined,
+    };
+    
     switch (field.type) {
       case 'checkbox':
       case 'boolean':
         return (
           <CheckboxWrapper>
             <input
+              {...ariaProps}
               type="checkbox"
               checked={!!value}
               onChange={e => {
@@ -1248,6 +1299,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'textarea':
         return (
           <TextArea
+            {...ariaProps}
             $hasError={hasError}
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1295,6 +1347,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         // Standard select for static options
         return (
           <SelectInput
+            {...ariaProps}
             $hasError={hasError}
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1317,22 +1370,28 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         const selectedValues = Array.isArray(value) ? value : [];
         
         return (
-          <MultiSelectContainer>
+          <MultiSelectContainer 
+            role="group" 
+            aria-labelledby={`${fieldId}-label`}
+            {...ariaProps}
+          >
             <MultiSelectSearch
               type="text"
               placeholder={`🔍 Search ${field.label.toLowerCase()}...`}
               value={searchTerm}
               onChange={e => setMultiSelectSearch(prev => ({ ...prev, [searchKey]: e.target.value }))}
+              aria-label={`Search ${field.label}`}
             />
-            <MultiSelectOptions>
+            <MultiSelectOptions role="listbox" aria-multiselectable="true">
               {filteredOpts.length === 0 ? (
                 <div style={{ padding: '12px', color: '#9ca3af', textAlign: 'center', fontSize: '14px' }}>
                   No options found
                 </div>
               ) : filteredOpts.map((opt, i) => (
-                <MultiSelectOption key={i} $selected={selectedValues.includes(opt.value)}>
+                <MultiSelectOption key={i} $selected={selectedValues.includes(opt.value)} role="option" aria-selected={selectedValues.includes(opt.value)}>
                   <input
                     type="checkbox"
+                    id={`${fieldId}-opt-${i}`}
                     checked={selectedValues.includes(opt.value)}
                     onChange={e => {
                       const newValue = e.target.checked
@@ -1340,12 +1399,13 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                         : selectedValues.filter(v => v !== opt.value);
                       handleChange(stepId, field.key, newValue);
                     }}
+                    aria-label={opt.label}
                   />
                   <span>{opt.label}</span>
                 </MultiSelectOption>
               ))}
             </MultiSelectOptions>
-            <SelectedCount>
+            <SelectedCount aria-live="polite">
               {selectedValues.length} selected
             </SelectedCount>
           </MultiSelectContainer>
@@ -1355,6 +1415,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'date':
         return (
           <TextInput
+            {...ariaProps}
             $hasError={hasError}
             type="date"
             value={value}
@@ -1366,6 +1427,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'datetime':
         return (
           <TextInput
+            {...ariaProps}
             $hasError={hasError}
             type="datetime-local"
             value={value}
@@ -1377,6 +1439,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'time':
         return (
           <TextInput
+            {...ariaProps}
             $hasError={hasError}
             type="time"
             value={value}
@@ -1389,6 +1452,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'integer':
         return (
           <TextInput
+            {...ariaProps}
             $hasError={hasError}
             type="number"
             value={value}
@@ -1405,6 +1469,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'float':
         return (
           <TextInput
+            {...ariaProps}
             $hasError={hasError}
             type="number"
             value={value}
@@ -1420,8 +1485,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'currency':
         return (
           <CurrencyInputWrapper>
-            <span>$</span>
+            <span aria-hidden="true">$</span>
             <TextInput
+              {...ariaProps}
               $hasError={hasError}
               type="number"
               value={value}
@@ -1431,6 +1497,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
               step="0.01"
               min="0"
               style={{ paddingLeft: '30px' }}
+              aria-label={`${field.label} in dollars`}
             />
           </CurrencyInputWrapper>
         );
@@ -1438,36 +1505,42 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'email':
         return (
           <TextInput
+            {...ariaProps}
             $hasError={hasError}
             type="email"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || 'email@example.com'}
+            autoComplete="email"
           />
         );
         
       case 'phone':
         return (
           <TextInput
+            {...ariaProps}
             $hasError={hasError}
             type="tel"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || '(555) 123-4567'}
+            autoComplete="tel"
           />
         );
         
       case 'url':
         return (
           <TextInput
+            {...ariaProps}
             $hasError={hasError}
             type="url"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || 'https://'}
+            autoComplete="url"
           />
         );
         
@@ -1489,6 +1562,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       default: // text
         return (
           <TextInput
+            {...ariaProps}
             $hasError={hasError}
             type="text"
             value={value}
@@ -1519,17 +1593,26 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
               )}
             </HeaderTitle>
           </HeaderLeft>
-          <CloseButton onClick={handleClose}>✕</CloseButton>
+          <CloseButton onClick={handleClose} aria-label="Close form">✕</CloseButton>
         </ModalHeader>
+
+        {/* Screen reader announcements */}
+        <ScreenReaderAnnouncement aria-live="polite" aria-atomic="true">
+          {announcement}
+        </ScreenReaderAnnouncement>
 
         {/* Step Progress */}
         {steps.length > 1 && (
-          <ProgressContainer>
+          <ProgressContainer role="navigation" aria-label="Form steps">
             {steps.map((step, idx) => (
               <ProgressStep
                 key={step.id}
                 $active={idx === currentStepIndex}
                 $completed={idx < currentStepIndex}
+                role="button"
+                tabIndex={0}
+                aria-label={`Step ${idx + 1}: ${step.name}${idx < currentStepIndex ? ' (completed)' : idx === currentStepIndex ? ' (current)' : ''}`}
+                aria-current={idx === currentStepIndex ? 'step' : undefined}
                 onClick={() => {
                   // Validate before moving forward, but allow going back
                   if (idx > currentStepIndex && !validateCurrentStep()) {
@@ -1541,10 +1624,23 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                     setTimeout(() => autoPopulateFields(idx), 100);
                   }
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (idx > currentStepIndex && !validateCurrentStep()) {
+                      return;
+                    }
+                    setCurrentStepIndex(idx);
+                    if (idx !== currentStepIndex) {
+                      setTimeout(() => autoPopulateFields(idx), 100);
+                    }
+                  }
+                }}
               >
                 <ProgressNumber
                   $active={idx === currentStepIndex}
                   $completed={idx < currentStepIndex}
+                  aria-hidden="true"
                 >
                   {idx < currentStepIndex ? '✓' : idx + 1}
                 </ProgressNumber>
@@ -1560,7 +1656,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         )}
 
         {/* Content */}
-        <StepContent>
+        <StepContent ref={stepContentRef} role="region" aria-label={currentStep?.name || 'Form step'}>
           {steps.length === 0 ? (
             <EmptyState>
               <div className="icon">📋</div>
@@ -1603,13 +1699,21 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                       <FieldWrapper key={field.key} $fullWidth={fullWidth}>
                         <FieldCard>
                           <FieldHeader>
-                            <FieldIcon>{getFieldTypeIcon(field.type)}</FieldIcon>
-                            <FieldLabel>
+                            <FieldIcon aria-hidden="true">{getFieldTypeIcon(field.type)}</FieldIcon>
+                            <FieldLabel 
+                              as="label" 
+                              htmlFor={`field-${currentStep.id}-${field.key}`}
+                              id={`field-${currentStep.id}-${field.key}-label`}
+                            >
                               {!isCheckbox && field.label}
-                              {field.required && !isCheckbox && <RequiredStar>*</RequiredStar>}
+                              {field.required && !isCheckbox && <RequiredStar aria-hidden="true">*</RequiredStar>}
                             </FieldLabel>
-                            <FieldTypeBadge>{field.type}</FieldTypeBadge>
-                            <SaveIndicator $status={status}>
+                            <FieldTypeBadge aria-hidden="true">{field.type}</FieldTypeBadge>
+                            <SaveIndicator $status={status} aria-live="polite" aria-label={
+                              status === 'saving' ? 'Saving...' :
+                              status === 'saved' ? 'Saved' :
+                              status === 'error' ? 'Save failed' : ''
+                            }>
                               {status === 'saving' && '⏳'}
                               {status === 'saved' && '✓'}
                               {status === 'error' && '⚠'}
@@ -1634,11 +1738,19 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                           )}
                           
                           {fieldErrors[field.key] && (
-                            <FieldError>⚠ {fieldErrors[field.key]}</FieldError>
+                            <FieldError 
+                              id={`field-${currentStep.id}-${field.key}-error`}
+                              role="alert"
+                              aria-live="assertive"
+                            >
+                              ⚠ {fieldErrors[field.key]}
+                            </FieldError>
                           )}
                           
                           {field.help_text && !fieldErrors[field.key] && (
-                            <HelpText>{field.help_text}</HelpText>
+                            <HelpText id={`field-${currentStep.id}-${field.key}-help`}>
+                              {field.help_text}
+                            </HelpText>
                           )}
                         </FieldCard>
                       </FieldWrapper>
@@ -1668,17 +1780,29 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             </Button>
             
             {currentStepIndex > 0 && (
-              <Button onClick={() => setCurrentStepIndex(i => i - 1)}>
+              <Button 
+                onClick={() => setCurrentStepIndex(i => i - 1)}
+                aria-label={`Go to previous step: ${steps[currentStepIndex - 1]?.name || 'Previous'}`}
+              >
                 ← Previous
               </Button>
             )}
             
             {currentStepIndex < steps.length - 1 ? (
-              <Button $variant="primary" onClick={goToNextStep}>
+              <Button 
+                $variant="primary" 
+                onClick={goToNextStep}
+                aria-label={`Go to next step: ${steps[currentStepIndex + 1]?.name || 'Next'}`}
+              >
                 Next →
               </Button>
             ) : (
-              <Button $variant="success" onClick={handleSubmit} disabled={isSubmitting}>
+              <Button 
+                $variant="success" 
+                onClick={handleSubmit} 
+                disabled={isSubmitting}
+                aria-busy={isSubmitting}
+              >
                 {isSubmitting ? '⏳ Submitting...' : '✓ Submit Form'}
               </Button>
             )}
@@ -1688,9 +1812,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         {/* Exit Confirmation */}
         {showExitConfirm && (
           <ConfirmOverlay>
-            <ConfirmDialog>
-              <h3>💾 Save your progress?</h3>
-              <p>You have unsaved changes. Would you like to save before exiting?</p>
+            <ConfirmDialog role="alertdialog" aria-labelledby="exit-confirm-title" aria-describedby="exit-confirm-desc">
+              <h3 id="exit-confirm-title">💾 Save your progress?</h3>
+              <p id="exit-confirm-desc">You have unsaved changes. Would you like to save before exiting?</p>
               <ConfirmActions>
                 <Button onClick={() => { setShowExitConfirm(false); onClose(); }}>
                   Discard
