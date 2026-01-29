@@ -1,7 +1,10 @@
 """Signal handlers for Inquiries app activity logging."""
+import logging
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from .models import Inquiry, InquiryProduct
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(pre_save, sender=Inquiry)
@@ -64,6 +67,19 @@ def log_inquiry_activity(sender, instance, created, **kwargs):
                     content=f"Status changed from {old_status} to {instance.status}",
                     created_by=None  # Could be system or user
                 )
+            
+            # Auto-create follow-up call when status changes to 'quoted'
+            if instance.status == 'quoted' and old_status != 'quoted':
+                try:
+                    from .services.auto_followup import create_followup_call
+                    call = create_followup_call(instance, created_by=instance.created_by)
+                    if call:
+                        logger.info(
+                            f"Auto-created follow-up call for inquiry {instance.inquiry_number}: "
+                            f"scheduled for {call.scheduled_for}"
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to create follow-up call for inquiry {instance.inquiry_number}: {e}")
 
 
 @receiver(post_save, sender=InquiryProduct)

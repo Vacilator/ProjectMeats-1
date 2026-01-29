@@ -12,6 +12,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../services/apiService';
 import { FulfillmentListItem, FulfillmentStatus } from '../types';
+import { FulfillmentDetailModal } from '../components/Fulfillment';
 
 // ============================================================================
 // Styled Components
@@ -333,6 +334,9 @@ const Fulfillments: React.FC = () => {
   
   // Action loading
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  
+  // Detail modal
+  const [selectedFulfillmentId, setSelectedFulfillmentId] = useState<string | null>(null);
 
   const fetchFulfillments = useCallback(async () => {
     setLoading(true);
@@ -499,7 +503,10 @@ const Fulfillments: React.FC = () => {
         ) : (
           <>
             {fulfillments.map((fulfillment) => (
-              <TableRow key={fulfillment.id}>
+              <TableRow 
+                key={fulfillment.id}
+                onClick={() => setSelectedFulfillmentId(fulfillment.id)}
+              >
                 <FulfillmentNumber>
                   {fulfillment.fulfillment_number}
                   {fulfillment.is_partial && <PartialBadge>Partial</PartialBadge>}
@@ -555,6 +562,16 @@ const Fulfillments: React.FC = () => {
           </>
         )}
       </Table>
+
+      {/* Fulfillment Detail Modal */}
+      {selectedFulfillmentId && (
+        <FulfillmentDetailModal
+          isOpen={!!selectedFulfillmentId}
+          onClose={() => setSelectedFulfillmentId(null)}
+          fulfillmentId={selectedFulfillmentId}
+          onUpdate={fetchFulfillments}
+        />
+      )}
     </Container>
   );
 };
