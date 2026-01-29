@@ -118,20 +118,24 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [currentTenantId, setCurrentTenantId] = useState<string | null>(null);
   const [currentTenantName, setCurrentTenantName] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);  // Start with loading
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load tenants on mount
   useEffect(() => {
     const loadTenants = async () => {
-      if (!isSuperuser) return;
+      if (!isSuperuser) {
+        setIsLoading(false);
+        return;
+      }
       
       setIsLoading(true);
       try {
         const myTenants = await tenantService.getMyTenants();
+        console.log('[TenantSelector] Loaded tenants:', myTenants);
         setTenants(myTenants);
       } catch (error) {
-        console.error('Failed to load tenants:', error);
+        console.error('[TenantSelector] Failed to load tenants:', error);
       } finally {
         setIsLoading(false);
       }
@@ -144,6 +148,7 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
   useEffect(() => {
     const tenantId = localStorage.getItem('tenantId');
     const tenantName = localStorage.getItem('tenantName');
+    console.log('[TenantSelector] Current tenant from localStorage:', { tenantId, tenantName });
     setCurrentTenantId(tenantId);
     setCurrentTenantName(tenantName || 'Select Tenant');
   }, []);
@@ -165,6 +170,7 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
   }, [isOpen]);
 
   const handleTenantSelect = (tenant: Tenant) => {
+    console.log('[TenantSelector] Switching to tenant:', tenant);
     // Update localStorage
     localStorage.setItem('tenantId', tenant.id);
     localStorage.setItem('tenantName', tenant.name);
@@ -179,8 +185,26 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ theme, isSuperuser }) =
     window.location.reload();
   };
 
-  // Don't render if not a superuser or only has one tenant
-  if (!isSuperuser || tenants.length <= 1) {
+  // Don't render if not a superuser
+  if (!isSuperuser) {
+    return null;
+  }
+  
+  // Show loading state while fetching
+  if (isLoading) {
+    return (
+      <SelectorContainer>
+        <CurrentTenantButton $theme={theme} disabled>
+          <TenantIcon>🏢</TenantIcon>
+          <span>Loading...</span>
+        </CurrentTenantButton>
+      </SelectorContainer>
+    );
+  }
+  
+  // Don't render if only one tenant available
+  if (tenants.length <= 1) {
+    console.log('[TenantSelector] Only one tenant, hiding selector. Tenants:', tenants);
     return null;
   }
 
