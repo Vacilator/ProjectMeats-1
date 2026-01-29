@@ -372,10 +372,43 @@ export interface QuickCreateResponse {
 export const entityOptionsService = {
   /**
    * Get options for an entity type (for select fields)
+   * @param entityType - The entity type to fetch options for
+   * @param search - Optional search query for filtering
+   * @param limit - Optional limit for number of results
    */
-  async getOptions(entityType: string): Promise<EntityOptionsResponse> {
-    const response = await apiClient.get(`/workflows/entity-options/${entityType}/`);
+  async getOptions(
+    entityType: string, 
+    search?: string, 
+    limit?: number
+  ): Promise<EntityOptionsResponse & { total_count: number; has_more: boolean }> {
+    const params: Record<string, string> = {};
+    if (search) params.q = search;
+    if (limit) params.limit = String(limit);
+    
+    const response = await apiClient.get(`/workflows/entity-options/${entityType}/`, { params });
     return response.data;
+  },
+
+  /**
+   * Search options with debounce-friendly API
+   */
+  async searchOptions(
+    entityType: string,
+    query: string,
+    cancelKey?: string
+  ): Promise<EntityOptionsResponse & { total_count: number; has_more: boolean }> {
+    const config = cancelKey 
+      ? { params: { q: query }, cancelToken: cancelTokenManager.create(cancelKey).token }
+      : { params: { q: query } };
+    
+    try {
+      const response = await apiClient.get(`/workflows/entity-options/${entityType}/`, config);
+      if (cancelKey) cancelTokenManager.remove(cancelKey);
+      return response.data;
+    } catch (err) {
+      if (cancelKey) cancelTokenManager.remove(cancelKey);
+      throw err;
+    }
   },
 
   /**

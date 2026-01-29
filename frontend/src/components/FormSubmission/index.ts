@@ -9,5 +9,6 @@ export { default as FormField } from './FormField';
 export { default as StepNotes } from './StepNotes';
 export { default as FileUploadField } from './FileUploadField';
 export { default as QuickCreateModal } from './QuickCreateModal';
+export { default as SearchableSelect } from './SearchableSelect';
 export type { StepConfig } from './FormStep';
 export type { FieldConfig } from './FormField';

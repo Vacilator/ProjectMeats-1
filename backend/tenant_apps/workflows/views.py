@@ -1827,12 +1827,15 @@ class EntityOptionsAPIView(APIView):
     
     Returns the actual records for a given entity type, suitable for
     populating select/dropdown fields in forms.
+    
+    Supports search with ?q= parameter for large datasets.
     """
     permission_classes = [IsAuthenticated]
     
     def get(self, request, entity_type):
         """Get options for an entity type."""
         from .services.field_registry import FieldRegistry
+        from django.db.models import Q
         
         # Get the model for this entity type
         model = FieldRegistry.get_model_for_entity(entity_type)
@@ -1857,8 +1860,27 @@ class EntityOptionsAPIView(APIView):
             else:
                 queryset = model.objects.all()
             
+            # Search functionality
+            search_query = request.query_params.get('q', '').strip()
+            if search_query:
+                # Build search filter based on common fields
+                search_filter = Q()
+                searchable_fields = ['name', 'title', 'code', 'email', 'first_name', 'last_name', 'company_name']
+                for field_name in searchable_fields:
+                    if hasattr(model, field_name):
+                        search_filter |= Q(**{f'{field_name}__icontains': search_query})
+                
+                # Also search the __str__ representation via annotation if possible
+                if search_filter:
+                    queryset = queryset.filter(search_filter)
+            
+            # Get total count before limiting
+            total_count = queryset.count()
+            
             # Limit results for performance
-            queryset = queryset[:100]
+            limit = int(request.query_params.get('limit', 100))
+            limit = min(limit, 500)  # Cap at 500
+            queryset = queryset[:limit]
             
             # Build options list
             options = []
@@ -1884,8 +1906,10 @@ class EntityOptionsAPIView(APIView):
                 'entity_type': entity_type,
                 'options': options,
                 'count': len(options),
+                'total_count': total_count,
                 'can_create': can_create,
-                'entity_label': entity_type.replace('_', ' ').title()
+                'entity_label': entity_type.replace('_', ' ').title(),
+                'has_more': total_count > len(options),
             })
         except Exception as e:
             import logging

@@ -24,6 +24,7 @@ import { validateField, mergeValidationRules, ValidationRule } from '../../utils
 import { Icon } from '../ui';
 import QuickCreateModal from './QuickCreateModal';
 import FileUploadField from './FileUploadField';
+import SearchableSelect from './SearchableSelect';
 
 // ============== Types ==============
 interface FormSubmissionModalProps {
@@ -1260,25 +1261,22 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'lookup':
       case 'dropdown':
       case 'foreignkey': {
-        const selectElement = (
-          <SelectInput
-            $hasError={hasError}
-            value={value}
-            onChange={e => handleChange(stepId, field.key, e.target.value)}
-            onBlur={() => handleBlur(stepId, field.key)}
-          >
-            <option value="">Select {field.label}...</option>
-            {opts.map((opt, i) => (
-              <option key={i} value={opt.value}>{opt.label}</option>
-            ))}
-          </SelectInput>
-        );
-        
-        // Show quick add button for fields with related entity type
+        // Use SearchableSelect for fields with related_entity_type (API-backed)
         if (field.related_entity_type) {
           return (
             <SelectWithAddContainer>
-              <SelectWrapper>{selectElement}</SelectWrapper>
+              <SelectWrapper>
+                <SearchableSelect
+                  entityType={field.related_entity_type}
+                  value={value}
+                  onChange={(newValue) => handleChange(stepId, field.key, newValue)}
+                  onBlur={() => handleBlur(stepId, field.key)}
+                  placeholder={`Select ${field.label}...`}
+                  hasError={hasError}
+                  initialOptions={opts}
+                  threshold={50}
+                />
+              </SelectWrapper>
               <QuickAddButton
                 type="button"
                 onClick={() => setQuickCreateField({
@@ -1294,7 +1292,20 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           );
         }
         
-        return selectElement;
+        // Standard select for static options
+        return (
+          <SelectInput
+            $hasError={hasError}
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+          >
+            <option value="">Select {field.label}...</option>
+            {opts.map((opt, i) => (
+              <option key={i} value={opt.value}>{opt.label}</option>
+            ))}
+          </SelectInput>
+        );
       }
         
       case 'multiselect': {
