@@ -22,7 +22,9 @@ from .views import (
     # Form Submission API Views
     FormSubmissionViewSet, AvailableFormsViewSet, QuickActionsAPIView,
     # Entity Options API Views
-    EntityOptionsAPIView, QuickCreateEntityAPIView
+    EntityOptionsAPIView, QuickCreateEntityAPIView,
+    # Form Import/Export API Views
+    FormExportAPIView, FormImportAPIView, FormDuplicateAPIView
 )
 
 app_name = 'workflows'
@@ -78,4 +80,9 @@ urlpatterns = [
     # Entity Options API endpoints (for select fields in forms)
     path('entity-options/<str:entity_type>/', EntityOptionsAPIView.as_view(), name='entity-options'),
     path('quick-create/<str:entity_type>/', QuickCreateEntityAPIView.as_view(), name='quick-create'),
+    
+    # Form Import/Export API endpoints
+    path('forms/<uuid:form_id>/export/', FormExportAPIView.as_view(), name='form-export'),
+    path('forms/import/', FormImportAPIView.as_view(), name='form-import'),
+    path('forms/<uuid:form_id>/duplicate/', FormDuplicateAPIView.as_view(), name='form-duplicate'),
 ]

@@ -143,8 +143,6 @@ class TenantFormAdmin(TenantFilteredAdmin):
     # Custom template for visual form builder
     change_form_template = 'admin/workflows/tenantform/change_form.html'
     
-    actions = ['activate_forms', 'deactivate_forms', 'enable_quick_action', 'disable_quick_action']
-    
     fieldsets = [
         ('Form Information', {
             'fields': ('tenant', 'name', 'description', 'icon'),
@@ -237,6 +235,54 @@ class TenantFormAdmin(TenantFilteredAdmin):
     def disable_quick_action(self, request, queryset):
         updated = queryset.update(is_quick_action_enabled=False)
         self.message_user(request, f"Disabled Quick Action for {updated} form(s).", messages.SUCCESS)
+    
+    @admin.action(description="📤 Export selected forms to JSON")
+    def export_forms(self, request, queryset):
+        """Export selected forms as JSON download."""
+        from django.http import HttpResponse
+        from .services.import_export import export_form
+        import json
+        
+        if queryset.count() == 1:
+            # Single form export
+            form = queryset.first()
+            export_data = export_form(form, include_metadata=True)
+            response = HttpResponse(
+                json.dumps(export_data, indent=2, ensure_ascii=False),
+                content_type='application/json'
+            )
+            filename = f"{form.name.replace(' ', '_')}_export.json"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+        else:
+            # Multiple forms export
+            exports = []
+            for form in queryset:
+                exports.append(export_form(form, include_metadata=True))
+            response = HttpResponse(
+                json.dumps({'forms': exports}, indent=2, ensure_ascii=False),
+                content_type='application/json'
+            )
+            response['Content-Disposition'] = 'attachment; filename="forms_export.json"'
+            return response
+    
+    @admin.action(description="📋 Duplicate selected forms")
+    def duplicate_forms(self, request, queryset):
+        """Create copies of selected forms."""
+        from .services.import_export import duplicate_form
+        
+        duplicated = 0
+        for form in queryset:
+            try:
+                duplicate_form(form)
+                duplicated += 1
+            except Exception as e:
+                self.message_user(request, f"Failed to duplicate '{form.name}': {e}", messages.ERROR)
+        
+        if duplicated > 0:
+            self.message_user(request, f"Duplicated {duplicated} form(s).", messages.SUCCESS)
+    
+    actions = ['activate_forms', 'deactivate_forms', 'enable_quick_action', 'disable_quick_action', 'export_forms', 'duplicate_forms']
     
     def save_model(self, request, obj, form, change):
         if not change:

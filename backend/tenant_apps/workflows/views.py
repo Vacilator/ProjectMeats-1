@@ -2108,3 +2108,160 @@ class FieldTemplatesAPIView(APIView):
         
         # List all templates
         return Response(get_all_templates())
+
+
+# =============================================================================
+# FORM IMPORT/EXPORT API VIEWS
+# =============================================================================
+
+class FormExportAPIView(APIView):
+    """
+    API endpoint for exporting form configurations.
+    
+    GET /api/v1/workflows/forms/{form_id}/export/
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, form_id):
+        """Export a form configuration as JSON."""
+        from .services.import_export import export_form
+        
+        try:
+            form = TenantForm.objects.get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check tenant access
+        if hasattr(request, 'tenant') and request.tenant:
+            if form.tenant_id and form.tenant_id != request.tenant.id:
+                return Response(
+                    {'error': 'Access denied'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        include_metadata = request.query_params.get('metadata', 'true').lower() == 'true'
+        export_data = export_form(form, include_metadata=include_metadata)
+        
+        return Response(export_data)
+
+
+class FormImportAPIView(APIView):
+    """
+    API endpoint for importing form configurations.
+    
+    POST /api/v1/workflows/forms/import/
+    """
+    permission_classes = [IsAdminUser]
+    
+    def post(self, request):
+        """Import a form configuration from JSON."""
+        from .services.import_export import import_form, validate_import_data
+        
+        # Get tenant
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Parse import data
+        import_data = request.data
+        if not import_data:
+            return Response(
+                {'error': 'No import data provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate
+        errors = validate_import_data(import_data)
+        if errors:
+            return Response(
+                {'error': 'Validation failed', 'details': errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Import
+        name_suffix = request.data.get('_options', {}).get('name_suffix', ' (Imported)')
+        
+        try:
+            form = import_form(
+                import_data,
+                tenant=tenant,
+                name_suffix=name_suffix,
+                created_by=request.user
+            )
+            
+            return Response({
+                'status': 'success',
+                'message': f'Form imported successfully',
+                'form': {
+                    'id': str(form.id),
+                    'name': form.name,
+                    'entity_type': form.entity_type,
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Import failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class FormDuplicateAPIView(APIView):
+    """
+    API endpoint for duplicating a form.
+    
+    POST /api/v1/workflows/forms/{form_id}/duplicate/
+    """
+    permission_classes = [IsAdminUser]
+    
+    def post(self, request, form_id):
+        """Duplicate a form within the same tenant."""
+        from .services.import_export import duplicate_form
+        
+        try:
+            form = TenantForm.objects.get(pk=form_id)
+        except TenantForm.DoesNotExist:
+            return Response(
+                {'error': 'Form not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check tenant access
+        tenant = getattr(request, 'tenant', None)
+        if tenant and form.tenant_id and form.tenant_id != tenant.id:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        new_name = request.data.get('name')
+        
+        try:
+            new_form = duplicate_form(form, new_name=new_name)
+            
+            return Response({
+                'status': 'success',
+                'message': f'Form duplicated successfully',
+                'form': {
+                    'id': str(new_form.id),
+                    'name': new_form.name,
+                    'entity_type': new_form.entity_type,
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Duplication failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
