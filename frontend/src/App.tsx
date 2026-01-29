@@ -70,8 +70,10 @@ const FormSubmissionWrapper: React.FC = () => {
     return null;
   }
   
+  // Use key to force remount when submission changes
   return (
     <FormSubmissionModal
+      key={activeSubmission.id}
       submission={activeSubmission}
       isOpen={true}
       onClose={closeFormModal}
