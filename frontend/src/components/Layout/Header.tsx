@@ -7,6 +7,8 @@ import { Theme } from '../../config/theme';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import QuickActionsEditor from '../QuickActions/QuickActionsEditor';
 import { Icon } from '../ui';
+import TenantSelector from './TenantSelector';
+import { authService } from '../../services/authService';
 
 interface HeaderProps {
   // No props needed currently
@@ -36,6 +38,10 @@ const Header: React.FC<HeaderProps> = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   const quickMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Get current user info
+  const user = authService.getCurrentUser();
+  const isSuperuser = user?.is_superuser || false;
   
   // Quick Actions context
   const {
@@ -105,6 +111,9 @@ const Header: React.FC<HeaderProps> = () => {
   return (
     <HeaderContainer $theme={theme}>
       <HeaderTitle $theme={theme}>{tenantName}</HeaderTitle>
+      
+      {/* Tenant Selector for Superusers */}
+      <TenantSelector theme={theme} isSuperuser={isSuperuser} />
       
       {/* Global Search */}
       <SearchForm onSubmit={handleSearchSubmit}>

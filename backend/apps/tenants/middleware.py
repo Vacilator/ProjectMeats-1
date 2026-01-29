@@ -77,51 +77,6 @@ class TenantMiddleware:
         tenant = None
         resolution_method = None  # Track how tenant was resolved for logging
         
-        # GLOBAL SYSTEM ADMINS: Special handling for cross-tenant administration
-        # Check if user is in 'Global System Admins' group and assign System Root tenant
-        if hasattr(request, 'user') and request.user.is_authenticated:
-            if request.user.groups.filter(name='Global System Admins').exists():
-                try:
-                    # Assign the System Root tenant (zero-UUID)
-                    tenant = Tenant.objects.get(id='00000000-0000-0000-0000-000000000000')
-                    resolution_method = "Global System Admin (System Root)"
-                    
-                    logger.info(
-                        f"Global System Admin access: user={request.user.username}, "
-                        f"tenant={tenant.slug}, path={request.path}"
-                    )
-                    
-                    # Set tenant in request
-                    request.tenant = tenant
-                    request.tenant_user = None
-                    
-                    # Set PostgreSQL session variable for Row-Level Security (RLS)
-                    if tenant:
-                        try:
-                            with connection.cursor() as cursor:
-                                cursor.execute(
-                                    "SET LOCAL app.current_tenant_id = %s",
-                                    [str(tenant.id)]
-                                )
-                            logger.debug(
-                                f"RLS: Set current_tenant_id={tenant.id} for Global Admin"
-                            )
-                        except Exception as e:
-                            logger.warning(
-                                f"Failed to set RLS session variable for Global Admin: "
-                                f"{type(e).__name__}: {str(e)}"
-                            )
-                    
-                    # Return early - skip standard tenant resolution for Global Admins
-                    return self.get_response(request)
-                    
-                except Tenant.DoesNotExist:
-                    logger.error(
-                        f"System Root tenant not found for Global System Admin: "
-                        f"user={request.user.username}. Run Phase 1.2 migrations."
-                    )
-                    # Fall through to standard resolution if System Root doesn't exist
-        
         # Temporary debugging for staging.meatscentral.com and uat.meatscentral.com
         host = request.get_host().split(":")[0]
         is_debug_host = host in ["staging.meatscentral.com", "uat.meatscentral.com"]
@@ -134,7 +89,8 @@ class TenantMiddleware:
                 f"user={request.user.username if request.user.is_authenticated else 'Anonymous'}"
             )
 
-        # 1. Try to get tenant from X-Tenant-ID header (for API requests)
+        # 1. FIRST: Try to get tenant from X-Tenant-ID header (explicit tenant selection)
+        # This takes priority even for Global System Admins so they can switch tenants
         tenant_id = request.headers.get("X-Tenant-ID")
         if tenant_id:
             try:
@@ -143,7 +99,9 @@ class TenantMiddleware:
                 
                 # Verify user has access to this tenant
                 if request.user.is_authenticated:
-                    if not request.user.is_superuser:
+                    # Superusers and Global System Admins can access any tenant
+                    is_global_admin = request.user.groups.filter(name='Global System Admins').exists()
+                    if not request.user.is_superuser and not is_global_admin:
                         if not TenantUser.objects.filter(
                             user=request.user, tenant=tenant, is_active=True
                         ).exists():
@@ -155,6 +113,12 @@ class TenantMiddleware:
                             return HttpResponseForbidden(
                                 "You do not have access to this tenant"
                             )
+                    elif is_global_admin:
+                        logger.info(
+                            f"Global System Admin explicit tenant selection: "
+                            f"user={request.user.username}, tenant={tenant.slug}, "
+                            f"path={request.path}"
+                        )
             except Tenant.DoesNotExist:
                 logger.warning(
                     f"Invalid tenant ID in X-Tenant-ID header: {tenant_id}, "
@@ -165,11 +129,28 @@ class TenantMiddleware:
                     f"Invalid tenant ID format in X-Tenant-ID header: {tenant_id}, "
                     f"path={request.path}"
                 )
+        
+        # 2. SECOND: Global System Admins default to System Root if no explicit tenant
+        if not tenant and hasattr(request, 'user') and request.user.is_authenticated:
+            if request.user.groups.filter(name='Global System Admins').exists():
+                try:
+                    # Assign the System Root tenant (zero-UUID) as default
+                    tenant = Tenant.objects.get(id='00000000-0000-0000-0000-000000000000')
+                    resolution_method = "Global System Admin (System Root default)"
+                    
+                    logger.info(
+                        f"Global System Admin default to System Root: "
+                        f"user={request.user.username}, path={request.path}"
+                    )
+                except Tenant.DoesNotExist:
+                    logger.error(
+                        f"System Root tenant not found for Global System Admin: "
+                        f"user={request.user.username}. Run Phase 1.2 migrations."
+                    )
+                    # Fall through to standard resolution if System Root doesn't exist
 
-        # 2. Try to get tenant from full domain match (via TenantDomain model)
+        # 3. Try to get tenant from full domain match (via TenantDomain model)
         if not tenant:
-            host = request.get_host().split(":")[0]  # Remove port if present
-            
             if is_debug_host:
                 logger.info(f"{debug_prefix} Attempting domain lookup for: {host}")
             
