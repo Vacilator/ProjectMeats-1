@@ -77,6 +77,8 @@ class ScheduledCallSerializer(serializers.ModelSerializer):
     
     assigned_to_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
+    # Allow null/empty description since it's optional
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
     
     class Meta:
         model = ScheduledCall
@@ -99,6 +101,12 @@ class ScheduledCallSerializer(serializers.ModelSerializer):
             "modified_on",
         ]
         read_only_fields = ["id", "created_on", "modified_on", "assigned_to_name", "created_by_name"]
+    
+    def validate_description(self, value):
+        """Convert null to empty string for database compatibility."""
+        if value is None:
+            return ''
+        return value
     
     def get_assigned_to_name(self, obj):
         """Get the name of the user this call is assigned to."""
