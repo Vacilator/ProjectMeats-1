@@ -13,13 +13,14 @@
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 import { 
   FormSubmission,
   formSubmissionService,
   entityOptionsService,
 } from '../../services/quickActionsService';
 import { notify } from '../../utils/notify';
+import { validateField, mergeValidationRules, ValidationRule } from '../../utils/formValidation';
 import { Icon } from '../ui';
 
 // ============== Types ==============
@@ -345,24 +346,24 @@ const SaveIndicator = styled.span<{ $status: SaveStatus }>`
 `;
 
 // Field Inputs
-const inputStyles = `
+const inputStyles = css<{ $hasError?: boolean }>`
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid #d1d5db;
+  border: 1px solid ${p => p.$hasError ? '#ef4444' : '#d1d5db'};
   border-radius: 8px;
   font-size: 14px;
   color: #111827;
-  background: white;
+  background: ${p => p.$hasError ? '#fef2f2' : 'white'};
   transition: all 0.15s;
   
   &:hover {
-    border-color: #9ca3af;
+    border-color: ${p => p.$hasError ? '#dc2626' : '#9ca3af'};
   }
   
   &:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: ${p => p.$hasError ? '#dc2626' : '#3b82f6'};
+    box-shadow: 0 0 0 3px ${p => p.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'};
   }
   
   &::placeholder {
@@ -375,18 +376,18 @@ const inputStyles = `
   }
 `;
 
-const TextInput = styled.input`
+const TextInput = styled.input<{ $hasError?: boolean }>`
   ${inputStyles}
   min-height: 44px;
 `;
 
-const TextArea = styled.textarea`
+const TextArea = styled.textarea<{ $hasError?: boolean }>`
   ${inputStyles}
   min-height: 100px;
   resize: vertical;
 `;
 
-const SelectInput = styled.select`
+const SelectInput = styled.select<{ $hasError?: boolean }>`
   ${inputStyles}
   min-height: 44px;
   cursor: pointer;
@@ -928,7 +929,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     }, 500);
   }, [autoSaveField]);
 
-  // Save on blur
+  // Save on blur with validation
   const handleBlur = useCallback((stepId: string, key: string) => {
     const saveKey = `${stepId}-${key}`;
     if (saveTimeoutRef.current[saveKey]) {
@@ -936,10 +937,38 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     }
     
     const value = formData[stepId]?.[key];
+    
+    // Find the field to get validation rules
+    const step = steps.find(s => s.id === stepId);
+    const field = step?.fields.find(f => f.key === key);
+    
+    if (field) {
+      // Merge field type defaults with custom validation rules
+      const rules = mergeValidationRules(field.type, field.validation_rules as ValidationRule);
+      if (field.required) {
+        rules.required = true;
+      }
+      
+      // Validate the field
+      const result = validateField(value, rules, field.label);
+      
+      if (!result.isValid && result.error) {
+        // Set error for this field
+        setFieldErrors(prev => ({ ...prev, [key]: result.error! }));
+      } else {
+        // Clear error for this field
+        setFieldErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[key];
+          return newErrors;
+        });
+      }
+    }
+    
     if (hasUnsavedChanges.current) {
       autoSaveField(stepId, key, value);
     }
-  }, [formData, autoSaveField]);
+  }, [formData, autoSaveField, steps]);
 
   // Handle close
   const handleClose = useCallback(() => {
@@ -972,20 +1001,31 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   // Submit form
   const handleSubmit = useCallback(async () => {
-    // Validate required fields in current step
+    // Validate all visible fields in current step with full validation rules
     const errors: Record<string, string> = {};
     currentStep?.fields.forEach(field => {
-      if (field.required && !hiddenFields.has(field.key)) {
-        const value = formData[currentStep.id]?.[field.key];
-        if (!value && value !== 0 && value !== false) {
-          errors[field.key] = `${field.label} is required`;
-        }
+      // Skip hidden fields
+      if (hiddenFields.has(field.key)) return;
+      
+      const value = formData[currentStep.id]?.[field.key];
+      
+      // Merge field type defaults with custom validation rules
+      const rules = mergeValidationRules(field.type, field.validation_rules as ValidationRule);
+      if (field.required) {
+        rules.required = true;
+      }
+      
+      // Validate the field
+      const result = validateField(value, rules, field.label);
+      
+      if (!result.isValid && result.error) {
+        errors[field.key] = result.error;
       }
     });
     
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      notify.error('Please fill in all required fields');
+      notify.error('Please fix the validation errors before submitting');
       return;
     }
     
@@ -1002,6 +1042,48 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       setIsSubmitting(false);
     }
   }, [submission.id, onClose, currentStep, formData, hiddenFields]);
+
+  // Validate current step before navigation
+  const validateCurrentStep = useCallback((): boolean => {
+    if (!currentStep) return true;
+    
+    const errors: Record<string, string> = {};
+    currentStep.fields.forEach(field => {
+      // Skip hidden fields
+      if (hiddenFields.has(field.key)) return;
+      
+      const value = formData[currentStep.id]?.[field.key];
+      
+      // Merge field type defaults with custom validation rules
+      const rules = mergeValidationRules(field.type, field.validation_rules as ValidationRule);
+      if (field.required) {
+        rules.required = true;
+      }
+      
+      // Validate the field
+      const result = validateField(value, rules, field.label);
+      
+      if (!result.isValid && result.error) {
+        errors[field.key] = result.error;
+      }
+    });
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      notify.error('Please fix the validation errors before continuing');
+      return false;
+    }
+    
+    setFieldErrors({});
+    return true;
+  }, [currentStep, formData, hiddenFields]);
+
+  // Go to next step with validation
+  const goToNextStep = useCallback(() => {
+    if (validateCurrentStep()) {
+      setCurrentStepIndex(i => i + 1);
+    }
+  }, [validateCurrentStep]);
 
   // Get field options
   const getFieldOptions = (field: FieldData): { value: string; label: string }[] => {
@@ -1025,6 +1107,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const renderFieldInput = (field: FieldData, stepId: string) => {
     const value = formData[stepId]?.[field.key] ?? '';
     const opts = getFieldOptions(field);
+    const hasError = !!fieldErrors[field.key];
     
     switch (field.type) {
       case 'checkbox':
@@ -1046,6 +1129,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'textarea':
         return (
           <TextArea
+            $hasError={hasError}
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
@@ -1060,6 +1144,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'foreignkey':
         return (
           <SelectInput
+            $hasError={hasError}
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
@@ -1117,6 +1202,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'date':
         return (
           <TextInput
+            $hasError={hasError}
             type="date"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1127,6 +1213,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'datetime':
         return (
           <TextInput
+            $hasError={hasError}
             type="datetime-local"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1137,6 +1224,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'time':
         return (
           <TextInput
+            $hasError={hasError}
             type="time"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1148,6 +1236,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'integer':
         return (
           <TextInput
+            $hasError={hasError}
             type="number"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1163,6 +1252,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'float':
         return (
           <TextInput
+            $hasError={hasError}
             type="number"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1179,6 +1269,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           <CurrencyInputWrapper>
             <span>$</span>
             <TextInput
+              $hasError={hasError}
               type="number"
               value={value}
               onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1194,6 +1285,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'email':
         return (
           <TextInput
+            $hasError={hasError}
             type="email"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1205,6 +1297,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'phone':
         return (
           <TextInput
+            $hasError={hasError}
             type="tel"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1216,6 +1309,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       case 'url':
         return (
           <TextInput
+            $hasError={hasError}
             type="url"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1227,6 +1321,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       default: // text
         return (
           <TextInput
+            $hasError={hasError}
             type="text"
             value={value}
             onChange={e => handleChange(stepId, field.key, e.target.value)}
@@ -1391,7 +1486,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             )}
             
             {currentStepIndex < steps.length - 1 ? (
-              <Button $variant="primary" onClick={() => setCurrentStepIndex(i => i + 1)}>
+              <Button $variant="primary" onClick={goToNextStep}>
                 Next →
               </Button>
             ) : (
