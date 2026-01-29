@@ -23,6 +23,7 @@ import { notify } from '../../utils/notify';
 import { validateField, mergeValidationRules, ValidationRule } from '../../utils/formValidation';
 import { Icon } from '../ui';
 import QuickCreateModal from './QuickCreateModal';
+import FileUploadField from './FileUploadField';
 
 // ============== Types ==============
 interface FormSubmissionModalProps {
@@ -784,6 +785,7 @@ const getFieldTypeIcon = (type: string): string => {
 const isFullWidthField = (field: FieldData): boolean => {
   if (field.type === 'textarea' || field.type === 'json') return true;
   if (field.type === 'multiselect') return true;
+  if (field.type === 'file' || field.type === 'image') return true;
   if (field.max_length && field.max_length > 100) return true;
   return false;
 };
@@ -1455,6 +1457,21 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             onChange={e => handleChange(stepId, field.key, e.target.value)}
             onBlur={() => handleBlur(stepId, field.key)}
             placeholder={field.placeholder || 'https://'}
+          />
+        );
+        
+      case 'file':
+      case 'image':
+        return (
+          <FileUploadField
+            submissionId={submission.id}
+            fieldKey={field.key}
+            label={field.label}
+            value={value}
+            onChange={(newValue) => handleChange(stepId, field.key, newValue)}
+            isImage={field.type === 'image'}
+            hasError={hasError}
+            maxSizeMB={10}
           />
         );
         

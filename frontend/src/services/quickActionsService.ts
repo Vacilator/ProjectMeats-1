@@ -305,6 +305,33 @@ export const formSubmissionService = {
   async delete(submissionId: string): Promise<void> {
     await apiClient.delete(`/workflows/form-submissions/${submissionId}/`);
   },
+
+  /**
+   * Upload a file to a submission
+   */
+  async uploadFile(
+    submissionId: string,
+    fieldKey: string,
+    file: File
+  ): Promise<{ id: string; name: string; url: string; size: number }> {
+    const formData = new FormData();
+    formData.append('field_key', fieldKey);
+    formData.append('file', file);
+    
+    const response = await apiClient.post(
+      `/workflows/form-submissions/${submissionId}/upload/`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
+
+  /**
+   * Delete an uploaded file
+   */
+  async deleteFile(submissionId: string, fileId: string): Promise<void> {
+    await apiClient.delete(`/workflows/form-submissions/${submissionId}/files/${fileId}/`);
+  },
 };
 
 // Entity Options API (for dynamic select fields)

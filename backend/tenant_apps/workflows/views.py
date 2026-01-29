@@ -1577,6 +1577,108 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             'status': submission.status
         })
 
+    @action(detail=True, methods=['post'], url_path='upload')
+    def upload_file(self, request, pk=None):
+        """
+        Upload a file for a submission field.
+        
+        POST /form-submissions/{id}/upload/
+        Body (multipart/form-data):
+          - field_key: string
+          - file: File
+        """
+        from .models import FormSubmissionFile
+        
+        submission = self.get_object()
+        
+        # Tenant security check
+        request_tenant = getattr(request, 'tenant', None)
+        if not request_tenant or submission.tenant_id != request_tenant.id:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Validate request
+        field_key = request.data.get('field_key')
+        uploaded_file = request.FILES.get('file')
+        
+        if not field_key:
+            return Response(
+                {'error': 'field_key is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not uploaded_file:
+            return Response(
+                {'error': 'file is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # File size limit (10MB default)
+        max_size = 10 * 1024 * 1024
+        if uploaded_file.size > max_size:
+            return Response(
+                {'error': f'File too large. Maximum size is {max_size // (1024*1024)}MB'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create file record
+        submission_file = FormSubmissionFile.objects.create(
+            submission=submission,
+            field_key=field_key,
+            file=uploaded_file,
+            original_name=uploaded_file.name,
+            content_type=uploaded_file.content_type or 'application/octet-stream',
+            size=uploaded_file.size,
+            uploaded_by=request.user,
+        )
+        
+        return Response({
+            'id': str(submission_file.id),
+            'name': submission_file.original_name,
+            'url': submission_file.url,
+            'size': submission_file.size,
+            'type': submission_file.content_type,
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['delete'], url_path='files/(?P<file_id>[^/.]+)')
+    def delete_file(self, request, pk=None, file_id=None):
+        """
+        Delete an uploaded file.
+        
+        DELETE /form-submissions/{id}/files/{file_id}/
+        """
+        from .models import FormSubmissionFile
+        
+        submission = self.get_object()
+        
+        # Tenant security check
+        request_tenant = getattr(request, 'tenant', None)
+        if not request_tenant or submission.tenant_id != request_tenant.id:
+            return Response(
+                {'error': 'Access denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            submission_file = FormSubmissionFile.objects.get(
+                id=file_id,
+                submission=submission
+            )
+        except FormSubmissionFile.DoesNotExist:
+            return Response(
+                {'error': 'File not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Delete the actual file and record
+        if submission_file.file:
+            submission_file.file.delete(save=False)
+        submission_file.delete()
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     """

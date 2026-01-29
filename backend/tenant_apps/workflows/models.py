@@ -950,3 +950,83 @@ class FormStepSubmission(models.Model):
         """Mark this step as needing action."""
         self.status = StepSubmissionStatus.ACTION_NEEDED
         self.save(update_fields=['status', 'updated_at'])
+
+
+def form_submission_upload_path(instance, filename):
+    """Generate upload path for form submission files."""
+    import os
+    ext = os.path.splitext(filename)[1]
+    safe_filename = f"{uuid.uuid4().hex}{ext}"
+    return f"form_submissions/{instance.submission.tenant.slug}/{instance.submission.id}/{safe_filename}"
+
+
+class FormSubmissionFile(models.Model):
+    """
+    Stores files uploaded as part of a form submission.
+    
+    Files are associated with a specific field in a submission and can be
+    images, documents, or other file types depending on the field configuration.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submission = models.ForeignKey(
+        FormSubmission,
+        on_delete=models.CASCADE,
+        related_name='files',
+        help_text="The form submission this file belongs to"
+    )
+    field_key = models.CharField(
+        max_length=100,
+        help_text="The field key this file is associated with"
+    )
+    
+    # File storage
+    file = models.FileField(
+        upload_to=form_submission_upload_path,
+        help_text="The uploaded file"
+    )
+    original_name = models.CharField(
+        max_length=255,
+        help_text="Original filename as uploaded"
+    )
+    content_type = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="MIME type of the file"
+    )
+    size = models.PositiveIntegerField(
+        default=0,
+        help_text="File size in bytes"
+    )
+    
+    # Audit fields
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_submission_files',
+        help_text="User who uploaded this file"
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Form Submission File"
+        verbose_name_plural = "Form Submission Files"
+        ordering = ['-uploaded_at']
+        indexes = [
+            models.Index(fields=['submission', 'field_key']),
+        ]
+    
+    def __str__(self):
+        return f"{self.original_name} ({self.field_key})"
+    
+    @property
+    def url(self):
+        """Return the URL for the file."""
+        return self.file.url if self.file else None
+    
+    @property
+    def is_image(self):
+        """Check if the file is an image."""
+        return self.content_type.startswith('image/') if self.content_type else False
