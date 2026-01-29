@@ -231,16 +231,15 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
             title = f"Call Scheduled: {scheduled_call.title}"
             content = (
                 f"Scheduled call for {scheduled_call.scheduled_for.strftime('%Y-%m-%d %H:%M')}.\n"
-                f"Duration: {scheduled_call.duration_minutes} minutes\n"
-                f"Purpose: {scheduled_call.call_purpose}"
+                f"Duration: {scheduled_call.duration_minutes} minutes"
             )
             if scheduled_call.description:
                 content += f"\n\nNotes: {scheduled_call.description}"
         elif action == 'completed':
             title = f"Call Completed: {scheduled_call.title}"
-            content = f"Call was completed."
-            if scheduled_call.outcome:
-                content += f"\n\nOutcome: {scheduled_call.outcome}"
+            content = f"Call was completed on {scheduled_call.completed_at.strftime('%Y-%m-%d %H:%M') if scheduled_call.completed_at else 'N/A'}."
+            if scheduled_call.description:
+                content += f"\n\nNotes: {scheduled_call.description}"
         else:
             title = f"Call Updated: {scheduled_call.title}"
             content = "Call details were updated."

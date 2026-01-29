@@ -63,9 +63,23 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [savingField, setSavingField] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   
   // Entity options cache for lookups
   const [entityOptions, setEntityOptions] = useState<Record<string, { value: string; label: string }[]>>({});
+
+  // Debug logging for form_snapshot
+  useEffect(() => {
+    console.log('[FormSubmissionModal] Submission received:', submission?.id);
+    console.log('[FormSubmissionModal] Form snapshot:', submission?.form_snapshot);
+    console.log('[FormSubmissionModal] Form name:', submission?.form_name);
+    if (submission?.form_snapshot && (!submission.form_snapshot.steps || submission.form_snapshot.steps.length === 0)) {
+      console.warn('[FormSubmissionModal] Form has no steps configured');
+      setLoadError('This form has no steps configured. Please contact your administrator.');
+    } else {
+      setLoadError(null);
+    }
+  }, [submission]);
 
   // Parse steps from form snapshot
   const steps: StepData[] = useMemo(() => {
@@ -530,8 +544,20 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           ) : (
             <div className="text-center py-12">
               <div className="text-gray-400 text-6xl mb-4">📋</div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No steps configured</h3>
-              <p className="text-gray-500">This form has no steps to display.</p>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                {loadError ? 'Configuration Error' : 'No steps configured'}
+              </h3>
+              <p className="text-gray-500">
+                {loadError || 'This form has no steps to display. Please configure steps in the admin panel.'}
+              </p>
+              {loadError && (
+                <button
+                  onClick={onClose}
+                  className="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                >
+                  Close
+                </button>
+              )}
             </div>
           )}
         </div>

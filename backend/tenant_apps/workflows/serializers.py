@@ -420,7 +420,7 @@ class QuickActionItemSerializer(serializers.Serializer):
     form_id = serializers.UUIDField(required=False, allow_null=True)
     workflow_id = serializers.UUIDField(required=False, allow_null=True)
     label = serializers.CharField(max_length=100)
-    icon = serializers.CharField(max_length=50, required=False, default='📄')
+    icon = serializers.CharField(max_length=50, required=False, allow_blank=True, default='file-text')
     order = serializers.IntegerField(min_value=0)
     
     def validate(self, data):
@@ -428,6 +428,9 @@ class QuickActionItemSerializer(serializers.Serializer):
             raise serializers.ValidationError("form_id is required for form type")
         if data['type'] == 'workflow' and not data.get('workflow_id'):
             raise serializers.ValidationError("workflow_id is required for workflow type")
+        # Ensure icon has a valid value (default to file-text if empty)
+        if not data.get('icon') or data.get('icon', '').strip() == '':
+            data['icon'] = 'file-text'
         return data
 
 
