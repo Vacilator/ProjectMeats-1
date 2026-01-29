@@ -168,9 +168,9 @@ class InquiryViewSet(viewsets.ModelViewSet):
             except Customer.DoesNotExist:
                 pass
         
-        # Add call notes to inquiry notes
-        if call.notes:
-            data['notes'] = f"From call: {call.notes}"
+        # Add call description to inquiry notes
+        if call.description:
+            data['notes'] = f"From call: {call.description}"
         
         return Response(data)
     
