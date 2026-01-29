@@ -1,16 +1,19 @@
 /**
- * FormSubmissionModal - Enhanced Form with Auto-Save
+ * FormSubmissionModal - Premium Form UX
  * 
- * Features:
- * - Two-column layout for smaller fields
- * - Intelligent field sizing based on type
- * - Real-time auto-save with visual feedback
- * - Save & Exit capability
- * - Conditional rules evaluation
- * - Smart validation
+ * Mirrors the admin backend Form Preview Modal with:
+ * - Clickable step progress indicator
+ * - Entity type badges
+ * - Field type icons and badges
+ * - Proper field rendering by type (checkbox, textarea, select, multiselect)
+ * - Auto-populate and conditional indicators
+ * - Professional styling with proper input elements
+ * - Auto-save with visual feedback
+ * - Searchable multi-select
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import styled from 'styled-components';
 import { 
   FormSubmission,
   formSubmissionService,
@@ -19,6 +22,7 @@ import {
 import { notify } from '../../utils/notify';
 import { Icon } from '../ui';
 
+// ============== Types ==============
 interface FormSubmissionModalProps {
   submission: FormSubmission;
   isOpen: boolean;
@@ -50,51 +54,684 @@ interface FieldData {
   rows?: number;
   choices?: { value: string; label: string }[];
   validation_rules?: Record<string, any>;
-  width?: 'full' | 'half' | 'third';
+  config?: {
+    custom_label?: string;
+    custom_help_text?: string;
+    is_required?: boolean;
+    auto_populate?: { source_step?: string };
+  };
 }
 
 interface RuleData {
   id: string;
+  step_id?: string;
   conditions: { field: string; operator: string; value: any }[];
   condition_logic: 'and' | 'or';
   actions: { action: string; params: any }[];
   is_active: boolean;
+  affected_fields?: string[];
 }
 
-// Determine field width based on type
-const getFieldWidth = (field: FieldData): 'full' | 'half' | 'third' => {
-  if (field.width) return field.width;
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+// ============== Styled Components ==============
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlideIn 0.2s ease-out;
   
-  switch (field.type) {
-    case 'textarea':
-    case 'json':
-    case 'multiselect':
-      return 'full';
-    case 'checkbox':
-    case 'boolean':
-    case 'date':
-    case 'time':
+  @keyframes modalSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+`;
+
+const ModalHeader = styled.div`
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const HeaderLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+`;
+
+const FormIcon = styled.div`
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+`;
+
+const HeaderTitle = styled.div`
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+  }
+  p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #6b7280;
+  }
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 20px;
+  transition: all 0.15s;
+  
+  &:hover {
+    background: #f3f4f6;
+    color: #111827;
+  }
+`;
+
+// Step Progress Indicator
+const ProgressContainer = styled.div`
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const ProgressStep = styled.div<{ $active: boolean; $completed: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: ${p => p.$active ? '#3b82f6' : p.$completed ? '#dcfce7' : 'white'};
+  border: 2px solid ${p => p.$active ? '#3b82f6' : p.$completed ? '#22c55e' : '#e5e7eb'};
+  
+  &:hover {
+    border-color: ${p => p.$active ? '#3b82f6' : '#3b82f6'};
+    transform: translateY(-1px);
+  }
+`;
+
+const ProgressNumber = styled.span<{ $active: boolean; $completed: boolean }>`
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  background: ${p => p.$active ? 'rgba(255,255,255,0.2)' : p.$completed ? '#22c55e' : '#f3f4f6'};
+  color: ${p => p.$active ? 'white' : p.$completed ? 'white' : '#6b7280'};
+`;
+
+const ProgressLabel = styled.span<{ $active: boolean; $completed: boolean }>`
+  font-size: 14px;
+  font-weight: 500;
+  color: ${p => p.$active ? 'white' : p.$completed ? '#166534' : '#374151'};
+`;
+
+// Step Content Area
+const StepContent = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+`;
+
+const StepHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f3f4f6;
+  
+  h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+`;
+
+const EntityBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 20px;
+  text-transform: capitalize;
+`;
+
+// Field Container
+const FieldsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const FieldWrapper = styled.div<{ $fullWidth?: boolean }>`
+  grid-column: ${p => p.$fullWidth ? '1 / -1' : 'span 1'};
+`;
+
+const FieldCard = styled.div`
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s;
+  
+  &:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+  
+  &:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+`;
+
+const FieldHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+`;
+
+const FieldIcon = styled.span`
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #e0e7ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+`;
+
+const FieldLabel = styled.label`
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const RequiredStar = styled.span`
+  color: #ef4444;
+  font-weight: 700;
+`;
+
+const FieldTypeBadge = styled.span`
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 4px;
+`;
+
+const SaveIndicator = styled.span<{ $status: SaveStatus }>`
+  font-size: 11px;
+  font-weight: 500;
+  color: ${p => p.$status === 'saving' ? '#3b82f6' : p.$status === 'saved' ? '#22c55e' : p.$status === 'error' ? '#ef4444' : 'transparent'};
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+// Field Inputs
+const inputStyles = `
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  background: white;
+  transition: all 0.15s;
+  
+  &:hover {
+    border-color: #9ca3af;
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  &::placeholder {
+    color: #9ca3af;
+  }
+  
+  &:disabled {
+    background: #f9fafb;
+    cursor: not-allowed;
+  }
+`;
+
+const TextInput = styled.input`
+  ${inputStyles}
+  min-height: 44px;
+`;
+
+const TextArea = styled.textarea`
+  ${inputStyles}
+  min-height: 100px;
+  resize: vertical;
+`;
+
+const SelectInput = styled.select`
+  ${inputStyles}
+  min-height: 44px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+`;
+
+const CheckboxWrapper = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  
+  &:hover {
+    border-color: #3b82f6;
+    background: #f8fafc;
+  }
+  
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    accent-color: #3b82f6;
+  }
+  
+  span {
+    font-size: 14px;
+    color: #374151;
+  }
+`;
+
+// Multi-select with search
+const MultiSelectContainer = styled.div`
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  overflow: hidden;
+`;
+
+const MultiSelectSearch = styled.input`
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+  
+  &:focus {
+    outline: none;
+    background: #f8fafc;
+  }
+  
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const MultiSelectOptions = styled.div`
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px;
+`;
+
+const MultiSelectOption = styled.label<{ $selected: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: ${p => p.$selected ? '#eff6ff' : 'transparent'};
+  
+  &:hover {
+    background: ${p => p.$selected ? '#dbeafe' : '#f3f4f6'};
+  }
+  
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    accent-color: #3b82f6;
+  }
+  
+  span {
+    font-size: 14px;
+    color: #374151;
+  }
+`;
+
+const SelectedCount = styled.div`
+  padding: 8px 14px;
+  background: #f3f4f6;
+  font-size: 12px;
+  color: #6b7280;
+  border-top: 1px solid #e5e7eb;
+`;
+
+// Field Indicators
+const FieldIndicators = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+`;
+
+const Indicator = styled.span<{ $type: 'auto' | 'conditional' }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 12px;
+  background: ${p => p.$type === 'auto' ? '#fef3c7' : '#f3e8ff'};
+  color: ${p => p.$type === 'auto' ? '#92400e' : '#7c3aed'};
+`;
+
+// Error display
+const FieldError = styled.p`
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const HelpText = styled.p`
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+`;
+
+// Currency Input
+const CurrencyInputWrapper = styled.div`
+  position: relative;
+  
+  span {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    font-weight: 500;
+  }
+  
+  input {
+    padding-left: 30px;
+  }
+`;
+
+// Navigation
+const NavigationContainer = styled.div`
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const NavLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const StepIndicator = styled.span`
+  font-size: 13px;
+  color: #6b7280;
+  padding: 6px 14px;
+  background: #e5e7eb;
+  border-radius: 20px;
+`;
+
+const AutoSaveStatus = styled.span`
+  font-size: 12px;
+  color: #22c55e;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const NavRight = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' }>`
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  
+  ${p => p.$variant === 'primary' && `
+    background: #3b82f6;
+    color: white;
+    border: none;
+    
+    &:hover:not(:disabled) {
+      background: #2563eb;
+    }
+  `}
+  
+  ${p => p.$variant === 'success' && `
+    background: #22c55e;
+    color: white;
+    border: none;
+    
+    &:hover:not(:disabled) {
+      background: #16a34a;
+    }
+  `}
+  
+  ${p => (!p.$variant || p.$variant === 'secondary') && `
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    
+    &:hover:not(:disabled) {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+  `}
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+// Empty State
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  
+  .icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+  }
+  
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 8px;
+  }
+  
+  p {
+    color: #6b7280;
+    font-size: 14px;
+  }
+`;
+
+// Exit Confirmation Modal
+const ConfirmOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+`;
+
+const ConfirmDialog = styled.div`
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 400px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  
+  h3 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  p {
+    margin: 0 0 24px;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+`;
+
+const ConfirmActions = styled.div`
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+`;
+
+// ============== Helper Functions ==============
+
+const getFieldTypeIcon = (type: string): string => {
+  switch (type) {
+    case 'text':
+    case 'string': return '📝';
+    case 'textarea': return '📄';
+    case 'email': return '📧';
+    case 'phone': return '📞';
+    case 'url': return '🔗';
     case 'number':
+    case 'integer':
     case 'decimal':
-    case 'currency':
-      return 'half';
-    case 'email':
-    case 'phone':
-    case 'url':
-      return 'half';
+    case 'float': return '🔢';
+    case 'currency': return '💰';
+    case 'date': return '📅';
+    case 'datetime': return '⏰';
+    case 'time': return '🕐';
+    case 'checkbox':
+    case 'boolean': return '☑️';
     case 'select':
     case 'lookup':
-      return field.options && (field.options as any[]).length > 10 ? 'full' : 'half';
-    default:
-      // Text fields - check max_length
-      if (field.max_length && field.max_length <= 50) return 'half';
-      if (field.max_length && field.max_length <= 100) return 'half';
-      return 'full';
+    case 'foreignkey':
+    case 'dropdown': return '📋';
+    case 'multiselect': return '📑';
+    case 'file':
+    case 'image': return '📎';
+    case 'json': return '{ }';
+    default: return '📝';
   }
 };
 
-// Auto-save status type
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+const isFullWidthField = (field: FieldData): boolean => {
+  if (field.type === 'textarea' || field.type === 'json') return true;
+  if (field.type === 'multiselect') return true;
+  if (field.max_length && field.max_length > 100) return true;
+  return false;
+};
+
+// ============== Main Component ==============
 
 const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   submission,
@@ -111,8 +748,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [multiSelectSearch, setMultiSelectSearch] = useState<Record<string, string>>({});
   
-  // Refs for debouncing
   const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
   const hasUnsavedChanges = useRef(false);
 
@@ -128,11 +765,11 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         entity_type: step.entity_type,
         fields: (step.fields || []).map((f: any) => ({
           key: f.key,
-          label: f.label || f.custom_label || f.key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          label: f.config?.custom_label || f.label || f.key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
           type: f.type || 'text',
-          required: f.required || f.is_required || false,
-          placeholder: f.placeholder,
-          help_text: f.help_text || f.custom_help_text,
+          required: f.required || f.config?.is_required || false,
+          placeholder: f.placeholder || f.config?.custom_help_text,
+          help_text: f.help_text || f.config?.custom_help_text,
           options: f.options || f.choices,
           related_entity_type: f.related_entity_type,
           max_length: f.max_length,
@@ -142,7 +779,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           rows: f.rows,
           choices: f.choices,
           validation_rules: f.validation_rules,
-          width: f.width,
+          config: f.config,
         })),
       }));
   }, [submission?.form_snapshot]);
@@ -155,7 +792,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   const currentStep = steps[currentStepIndex];
 
-  // Initialize form data from submission
+  // Initialize form data
   useEffect(() => {
     if (submission?.data) {
       setFormData(submission.data);
@@ -210,7 +847,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     logic: 'and' | 'or',
     data: Record<string, Record<string, any>>
   ): boolean => {
-    if (conditions.length === 0) return false;
+    if (!conditions || conditions.length === 0) return false;
     
     const results = conditions.map(cond => {
       const [stepKey, fieldKey] = cond.field.includes('.') 
@@ -236,11 +873,19 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     return logic === 'and' ? results.every(Boolean) : results.some(Boolean);
   };
 
+  // Check if field has rules affecting it
+  const getFieldHasRules = (stepId: string, fieldKey: string): boolean => {
+    return rules.some(rule => 
+      rule.step_id === stepId || 
+      rule.affected_fields?.includes(fieldKey) ||
+      rule.actions.some(a => a.params?.fields?.includes(fieldKey))
+    );
+  };
+
   // Auto-save field value
   const autoSaveField = useCallback(async (stepId: string, fieldKey: string, value: any) => {
     const saveKey = `${stepId}-${fieldKey}`;
     
-    // Clear any pending save for this field
     if (saveTimeoutRef.current[saveKey]) {
       clearTimeout(saveTimeoutRef.current[saveKey]);
     }
@@ -253,7 +898,6 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       setLastSaved(new Date());
       hasUnsavedChanges.current = false;
       
-      // Clear saved status after 2 seconds
       setTimeout(() => {
         setSaveStatus(prev => ({ ...prev, [saveKey]: 'idle' }));
       }, 2000);
@@ -265,7 +909,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     }
   }, [submission.id]);
 
-  // Handle field change with debounced auto-save
+  // Handle field change
   const handleChange = useCallback((stepId: string, key: string, value: any) => {
     setFormData(prev => ({
       ...prev,
@@ -274,19 +918,17 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     
     hasUnsavedChanges.current = true;
     
-    // Clear any existing timeout
     const saveKey = `${stepId}-${key}`;
     if (saveTimeoutRef.current[saveKey]) {
       clearTimeout(saveTimeoutRef.current[saveKey]);
     }
     
-    // Debounce auto-save (500ms)
     saveTimeoutRef.current[saveKey] = setTimeout(() => {
       autoSaveField(stepId, key, value);
     }, 500);
   }, [autoSaveField]);
 
-  // Save immediately (on blur)
+  // Save on blur
   const handleBlur = useCallback((stepId: string, key: string) => {
     const saveKey = `${stepId}-${key}`;
     if (saveTimeoutRef.current[saveKey]) {
@@ -299,7 +941,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     }
   }, [formData, autoSaveField]);
 
-  // Handle close with unsaved changes check
+  // Handle close
   const handleClose = useCallback(() => {
     if (hasUnsavedChanges.current) {
       setShowExitConfirm(true);
@@ -310,7 +952,6 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   // Save and exit
   const handleSaveAndExit = useCallback(async () => {
-    // Save any pending changes
     const savePromises: Promise<any>[] = [];
     Object.entries(formData).forEach(([stepId, fields]) => {
       Object.entries(fields).forEach(([fieldKey, value]) => {
@@ -330,10 +971,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   }, [formData, submission.id, onClose]);
 
   // Submit form
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate required fields
+  const handleSubmit = useCallback(async () => {
+    // Validate required fields in current step
     const errors: Record<string, string> = {};
     currentStep?.fields.forEach(field => {
       if (field.required && !hiddenFields.has(field.key)) {
@@ -364,7 +1003,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     }
   }, [submission.id, onClose, currentStep, formData, hiddenFields]);
 
-  // Get options for a field
+  // Get field options
   const getFieldOptions = (field: FieldData): { value: string; label: string }[] => {
     if (field.related_entity_type && entityOptions[field.related_entity_type]) {
       return entityOptions[field.related_entity_type];
@@ -382,653 +1021,406 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     return [];
   };
 
-  // Render a single field
-  const renderField = (field: FieldData, stepId: string) => {
-    if (hiddenFields.has(field.key)) return null;
-    
+  // Render field input based on type
+  const renderFieldInput = (field: FieldData, stepId: string) => {
     const value = formData[stepId]?.[field.key] ?? '';
-    const saveKey = `${stepId}-${field.key}`;
-    const status = saveStatus[saveKey] || 'idle';
-    const error = fieldErrors[field.key];
     const opts = getFieldOptions(field);
     
-    // Base input styles
-    const inputBase = `
-      w-full px-3 py-2.5 
-      border rounded-lg
-      transition-all duration-200
-      focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-      ${error ? 'border-red-500 bg-red-50' : 'border-gray-300 hover:border-gray-400'}
-    `;
-    
-    const renderInput = () => {
-      switch (field.type) {
-        case 'select':
-        case 'lookup':
-        case 'dropdown':
-          return (
-            <select 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            >
-              <option value="">— Select {field.label} —</option>
-              {opts.map((o, i) => <option key={i} value={o.value}>{o.label}</option>)}
-            </select>
-          );
-          
-        case 'multiselect':
-          return (
-            <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto bg-white">
-              {opts.length === 0 ? (
-                <span className="text-gray-400 text-sm">No options available</span>
-              ) : opts.map((o, i) => (
-                <label key={i} className="flex items-center gap-2 py-1.5 hover:bg-gray-50 px-2 rounded cursor-pointer">
-                  <input 
+    switch (field.type) {
+      case 'checkbox':
+      case 'boolean':
+        return (
+          <CheckboxWrapper>
+            <input
+              type="checkbox"
+              checked={!!value}
+              onChange={e => {
+                handleChange(stepId, field.key, e.target.checked);
+                autoSaveField(stepId, field.key, e.target.checked);
+              }}
+            />
+            <span>{field.label}</span>
+          </CheckboxWrapper>
+        );
+        
+      case 'textarea':
+        return (
+          <TextArea
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+            rows={field.rows || 4}
+          />
+        );
+        
+      case 'select':
+      case 'lookup':
+      case 'dropdown':
+      case 'foreignkey':
+        return (
+          <SelectInput
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+          >
+            <option value="">Select {field.label}...</option>
+            {opts.map((opt, i) => (
+              <option key={i} value={opt.value}>{opt.label}</option>
+            ))}
+          </SelectInput>
+        );
+        
+      case 'multiselect':
+        const searchKey = `${stepId}-${field.key}`;
+        const searchTerm = multiSelectSearch[searchKey] || '';
+        const filteredOpts = opts.filter(o => 
+          o.label.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        const selectedValues = Array.isArray(value) ? value : [];
+        
+        return (
+          <MultiSelectContainer>
+            <MultiSelectSearch
+              type="text"
+              placeholder={`🔍 Search ${field.label.toLowerCase()}...`}
+              value={searchTerm}
+              onChange={e => setMultiSelectSearch(prev => ({ ...prev, [searchKey]: e.target.value }))}
+            />
+            <MultiSelectOptions>
+              {filteredOpts.length === 0 ? (
+                <div style={{ padding: '12px', color: '#9ca3af', textAlign: 'center', fontSize: '14px' }}>
+                  No options found
+                </div>
+              ) : filteredOpts.map((opt, i) => (
+                <MultiSelectOption key={i} $selected={selectedValues.includes(opt.value)}>
+                  <input
                     type="checkbox"
-                    checked={Array.isArray(value) && value.includes(o.value)}
+                    checked={selectedValues.includes(opt.value)}
                     onChange={e => {
-                      const current = Array.isArray(value) ? value : [];
-                      const newValue = e.target.checked 
-                        ? [...current, o.value]
-                        : current.filter(v => v !== o.value);
+                      const newValue = e.target.checked
+                        ? [...selectedValues, opt.value]
+                        : selectedValues.filter(v => v !== opt.value);
                       handleChange(stepId, field.key, newValue);
                     }}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600"
                   />
-                  <span className="text-sm">{o.label}</span>
-                </label>
+                  <span>{opt.label}</span>
+                </MultiSelectOption>
               ))}
-            </div>
-          );
-          
-        case 'textarea':
-          return (
-            <textarea 
-              value={value} 
+            </MultiSelectOptions>
+            <SelectedCount>
+              {selectedValues.length} selected
+            </SelectedCount>
+          </MultiSelectContainer>
+        );
+        
+      case 'date':
+        return (
+          <TextInput
+            type="date"
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+          />
+        );
+        
+      case 'datetime':
+        return (
+          <TextInput
+            type="datetime-local"
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+          />
+        );
+        
+      case 'time':
+        return (
+          <TextInput
+            type="time"
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+          />
+        );
+        
+      case 'number':
+      case 'integer':
+        return (
+          <TextInput
+            type="number"
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            placeholder={field.placeholder || '0'}
+            min={field.min}
+            max={field.max}
+            step="1"
+          />
+        );
+        
+      case 'decimal':
+      case 'float':
+        return (
+          <TextInput
+            type="number"
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            placeholder={field.placeholder || '0.00'}
+            step={field.step || '0.01'}
+            min={field.min}
+            max={field.max}
+          />
+        );
+        
+      case 'currency':
+        return (
+          <CurrencyInputWrapper>
+            <span>$</span>
+            <TextInput
+              type="number"
+              value={value}
               onChange={e => handleChange(stepId, field.key, e.target.value)}
               onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              rows={field.rows || 4}
-              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
-              className={inputBase}
-              style={{ resize: 'vertical', minHeight: '100px' }}
+              placeholder="0.00"
+              step="0.01"
+              min="0"
+              style={{ paddingLeft: '30px' }}
             />
-          );
-          
-        case 'checkbox':
-        case 'boolean':
-          return (
-            <label className="flex items-center gap-3 cursor-pointer py-2">
-              <input 
-                type="checkbox" 
-                checked={!!value} 
-                onChange={e => {
-                  handleChange(stepId, field.key, e.target.checked);
-                  // Immediate save for checkboxes
-                  autoSaveField(stepId, field.key, e.target.checked);
-                }}
-                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm font-medium text-gray-700">{field.label}</span>
-            </label>
-          );
-          
-        case 'date':
-          return (
-            <input 
-              type="date" 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            />
-          );
-          
-        case 'datetime':
-          return (
-            <input 
-              type="datetime-local" 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            />
-          );
-          
-        case 'time':
-          return (
-            <input 
-              type="time" 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            />
-          );
-          
-        case 'number':
-        case 'integer':
-          return (
-            <input 
-              type="number" 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              step="1"
-              min={field.min}
-              max={field.max}
-              placeholder={field.placeholder || '0'}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            />
-          );
-          
-        case 'decimal':
-        case 'float':
-          return (
-            <input 
-              type="number" 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              step={field.step || '0.01'}
-              min={field.min}
-              max={field.max}
-              placeholder={field.placeholder || '0.00'}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            />
-          );
-          
-        case 'currency':
-          return (
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-              <input 
-                type="number" 
-                value={value} 
-                onChange={e => handleChange(stepId, field.key, e.target.value)}
-                onBlur={() => handleBlur(stepId, field.key)}
-                required={field.required}
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                className={`${inputBase} pl-7`}
-                style={{ minHeight: '42px' }}
-              />
-            </div>
-          );
-          
-        case 'email':
-          return (
-            <input 
-              type="email" 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              placeholder={field.placeholder || 'email@example.com'}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            />
-          );
-          
-        case 'phone':
-          return (
-            <input 
-              type="tel" 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              placeholder={field.placeholder || '(555) 123-4567'}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            />
-          );
-          
-        case 'url':
-          return (
-            <input 
-              type="url" 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              placeholder={field.placeholder || 'https://'}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            />
-          );
-          
-        default: // text
-          return (
-            <input 
-              type="text" 
-              value={value} 
-              onChange={e => handleChange(stepId, field.key, e.target.value)}
-              onBlur={() => handleBlur(stepId, field.key)}
-              required={field.required}
-              maxLength={field.max_length}
-              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
-              className={inputBase}
-              style={{ minHeight: '42px' }}
-            />
-          );
-      }
-    };
-
-    return renderInput();
-  };
-
-  // Render save status indicator
-  const renderSaveIndicator = (stepId: string, fieldKey: string) => {
-    const saveKey = `${stepId}-${fieldKey}`;
-    const status = saveStatus[saveKey];
-    
-    if (!status || status === 'idle') return null;
-    
-    return (
-      <span className={`text-xs ml-2 ${
-        status === 'saving' ? 'text-blue-500' :
-        status === 'saved' ? 'text-green-500' :
-        'text-red-500'
-      }`}>
-        {status === 'saving' && '⏳ Saving...'}
-        {status === 'saved' && '✓ Saved'}
-        {status === 'error' && '⚠ Error'}
-      </span>
-    );
+          </CurrencyInputWrapper>
+        );
+        
+      case 'email':
+        return (
+          <TextInput
+            type="email"
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            placeholder={field.placeholder || 'email@example.com'}
+          />
+        );
+        
+      case 'phone':
+        return (
+          <TextInput
+            type="tel"
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            placeholder={field.placeholder || '(555) 123-4567'}
+          />
+        );
+        
+      case 'url':
+        return (
+          <TextInput
+            type="url"
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            placeholder={field.placeholder || 'https://'}
+          />
+        );
+        
+      default: // text
+        return (
+          <TextInput
+            type="text"
+            value={value}
+            onChange={e => handleChange(stepId, field.key, e.target.value)}
+            onBlur={() => handleBlur(stepId, field.key)}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+            maxLength={field.max_length}
+          />
+        );
+    }
   };
 
   if (!isOpen) return null;
 
   const modalContent = (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999,
-        padding: '16px',
-      }}
-      onClick={e => { if (e.target === e.currentTarget) handleClose(); }}
-    >
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
-          width: '100%',
-          maxWidth: '800px',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
+    <ModalOverlay onClick={e => { if (e.target === e.currentTarget) handleClose(); }}>
+      <ModalContent onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ 
-          padding: '16px 24px', 
-          borderBottom: '1px solid #e5e7eb', 
-          backgroundColor: '#f9fafb', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between' 
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              width: '40px', 
-              height: '40px', 
-              borderRadius: '10px', 
-              backgroundColor: '#dbeafe', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}>
-              <Icon name={submission?.form_icon || 'clipboard-list'} size={22} style={{ color: '#2563eb' }} />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#111827' }}>
-                {submission?.form_name || 'Form'}
-              </h2>
+        <ModalHeader>
+          <HeaderLeft>
+            <FormIcon>
+              <Icon name={submission?.form_icon || 'clipboard-list'} size={24} />
+            </FormIcon>
+            <HeaderTitle>
+              <h2>👁️ {submission?.form_name || 'Form'}</h2>
               {lastSaved && (
-                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#6b7280' }}>
-                  Last saved: {lastSaved.toLocaleTimeString()}
-                </p>
+                <p>Last saved: {lastSaved.toLocaleTimeString()}</p>
               )}
-            </div>
-          </div>
-          <button 
-            onClick={handleClose} 
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              fontSize: '24px', 
-              cursor: 'pointer', 
-              color: '#9ca3af',
-              padding: '4px',
-              lineHeight: 1,
-            }}
-            title="Close"
-          >
-            ×
-          </button>
-        </div>
+            </HeaderTitle>
+          </HeaderLeft>
+          <CloseButton onClick={handleClose}>✕</CloseButton>
+        </ModalHeader>
 
-        {/* Step indicator */}
+        {/* Step Progress */}
         {steps.length > 1 && (
-          <div style={{ 
-            padding: '12px 24px', 
-            backgroundColor: '#2563eb', 
-            color: 'white', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: '12px' 
-          }}>
-            <span style={{ 
-              width: '28px', 
-              height: '28px', 
-              borderRadius: '50%', 
-              backgroundColor: 'rgba(255,255,255,0.3)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              fontWeight: 700,
-              fontSize: '14px'
-            }}>
-              {currentStepIndex + 1}
-            </span>
-            <span style={{ fontSize: '15px', fontWeight: 600 }}>{currentStep?.name || `Step ${currentStepIndex + 1}`}</span>
-            <span style={{ fontSize: '13px', opacity: 0.8 }}>of {steps.length}</span>
-          </div>
-        )}
-
-        {/* Step pills */}
-        {steps.length > 1 && (
-          <div style={{ 
-            padding: '10px 24px', 
-            backgroundColor: '#f3f4f6', 
-            borderBottom: '1px solid #e5e7eb', 
-            display: 'flex', 
-            flexWrap: 'wrap', 
-            gap: '6px', 
-            justifyContent: 'center' 
-          }}>
+          <ProgressContainer>
             {steps.map((step, idx) => (
-              <button
+              <ProgressStep
                 key={step.id}
+                $active={idx === currentStepIndex}
+                $completed={idx < currentStepIndex}
                 onClick={() => setCurrentStepIndex(idx)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: idx === currentStepIndex ? 'none' : '1px solid #d1d5db',
-                  backgroundColor: idx === currentStepIndex ? '#2563eb' : idx < currentStepIndex ? '#dcfce7' : 'white',
-                  color: idx === currentStepIndex ? 'white' : idx < currentStepIndex ? '#166534' : '#4b5563',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  transition: 'all 0.15s ease',
-                }}
               >
-                {idx < currentStepIndex ? '✓ ' : `${idx + 1}. `}{step.name}
-              </button>
+                <ProgressNumber
+                  $active={idx === currentStepIndex}
+                  $completed={idx < currentStepIndex}
+                >
+                  {idx < currentStepIndex ? '✓' : idx + 1}
+                </ProgressNumber>
+                <ProgressLabel
+                  $active={idx === currentStepIndex}
+                  $completed={idx < currentStepIndex}
+                >
+                  {step.name}
+                </ProgressLabel>
+              </ProgressStep>
             ))}
-          </div>
+          </ProgressContainer>
         )}
 
         {/* Content */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+        <StepContent>
           {steps.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 0' }}>
-              <div style={{ fontSize: '64px', marginBottom: '16px' }}>📋</div>
-              <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#374151' }}>No steps configured</h3>
-              <p style={{ color: '#6b7280' }}>Please configure form steps in the admin panel.</p>
-            </div>
+            <EmptyState>
+              <div className="icon">📋</div>
+              <h3>No steps configured</h3>
+              <p>Add steps and fields in the form builder to see a preview.</p>
+            </EmptyState>
           ) : currentStep ? (
-            <form onSubmit={handleSubmit}>
-              {/* Two-column grid for fields */}
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(2, 1fr)', 
-                gap: '16px 20px',
-                maxWidth: '100%',
-              }}>
+            <>
+              <StepHeader>
+                <h4>
+                  {currentStep.name}
+                </h4>
+                <EntityBadge>
+                  🏷️ {currentStep.entity_type?.replace('_', ' ') || 'Entity'}
+                </EntityBadge>
+              </StepHeader>
+              
+              <FieldsGrid>
                 {currentStep.fields
                   .filter(field => !hiddenFields.has(field.key))
                   .map(field => {
-                    const width = getFieldWidth(field);
                     const isCheckbox = field.type === 'checkbox' || field.type === 'boolean';
+                    const fullWidth = isFullWidthField(field);
+                    const saveKey = `${currentStep.id}-${field.key}`;
+                    const status = saveStatus[saveKey] || 'idle';
+                    const hasAutoPopulate = !!field.config?.auto_populate?.source_step;
+                    const hasRules = getFieldHasRules(currentStep.id, field.key);
                     
                     return (
-                      <div 
-                        key={field.key} 
-                        style={{ 
-                          gridColumn: width === 'full' ? '1 / -1' : 'span 1',
-                        }}
-                      >
-                        {!isCheckbox && (
-                          <label style={{ 
-                            display: 'flex', 
-                            alignItems: 'center',
-                            marginBottom: '6px', 
-                            fontSize: '14px', 
-                            fontWeight: 500, 
-                            color: '#374151' 
-                          }}>
-                            {field.label}
-                            {field.required && <span style={{ color: '#ef4444', marginLeft: '4px' }}>*</span>}
-                            {renderSaveIndicator(currentStep.id, field.key)}
-                          </label>
-                        )}
-                        {renderField(field, currentStep.id)}
-                        {fieldErrors[field.key] && (
-                          <p style={{ marginTop: '4px', fontSize: '12px', color: '#ef4444' }}>
-                            {fieldErrors[field.key]}
-                          </p>
-                        )}
-                        {field.help_text && !fieldErrors[field.key] && (
-                          <p style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>
-                            {field.help_text}
-                          </p>
-                        )}
-                      </div>
+                      <FieldWrapper key={field.key} $fullWidth={fullWidth}>
+                        <FieldCard>
+                          <FieldHeader>
+                            <FieldIcon>{getFieldTypeIcon(field.type)}</FieldIcon>
+                            <FieldLabel>
+                              {!isCheckbox && field.label}
+                              {field.required && !isCheckbox && <RequiredStar>*</RequiredStar>}
+                            </FieldLabel>
+                            <FieldTypeBadge>{field.type}</FieldTypeBadge>
+                            <SaveIndicator $status={status}>
+                              {status === 'saving' && '⏳'}
+                              {status === 'saved' && '✓'}
+                              {status === 'error' && '⚠'}
+                            </SaveIndicator>
+                          </FieldHeader>
+                          
+                          {renderFieldInput(field, currentStep.id)}
+                          
+                          {(hasAutoPopulate || hasRules) && (
+                            <FieldIndicators>
+                              {hasAutoPopulate && (
+                                <Indicator $type="auto" title="Auto-populated from previous step">
+                                  🔗 Auto-fill
+                                </Indicator>
+                              )}
+                              {hasRules && (
+                                <Indicator $type="conditional" title="Has conditional visibility rule">
+                                  👁️ Conditional
+                                </Indicator>
+                              )}
+                            </FieldIndicators>
+                          )}
+                          
+                          {fieldErrors[field.key] && (
+                            <FieldError>⚠ {fieldErrors[field.key]}</FieldError>
+                          )}
+                          
+                          {field.help_text && !fieldErrors[field.key] && (
+                            <HelpText>{field.help_text}</HelpText>
+                          )}
+                        </FieldCard>
+                      </FieldWrapper>
                     );
                   })}
-              </div>
-
-              {/* Submit button on last step */}
-              {currentStepIndex === steps.length - 1 && (
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    backgroundColor: isSubmitting ? '#9ca3af' : '#16a34a',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    marginTop: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  {isSubmitting ? (
-                    <>⏳ Submitting...</>
-                  ) : (
-                    <>✓ Submit Form</>
-                  )}
-                </button>
-              )}
-            </form>
+              </FieldsGrid>
+            </>
           ) : null}
-        </div>
+        </StepContent>
 
-        {/* Footer */}
-        <div style={{ 
-          padding: '12px 24px', 
-          borderTop: '1px solid #e5e7eb', 
-          backgroundColor: '#f9fafb', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center' 
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ 
-              fontSize: '13px', 
-              color: '#6b7280', 
-              backgroundColor: '#e5e7eb', 
-              padding: '4px 12px', 
-              borderRadius: '999px' 
-            }}>
+        {/* Navigation */}
+        <NavigationContainer>
+          <NavLeft>
+            <StepIndicator>
               Step {currentStepIndex + 1} of {steps.length || 1}
-            </span>
+            </StepIndicator>
             {lastSaved && (
-              <span style={{ fontSize: '12px', color: '#16a34a' }}>
+              <AutoSaveStatus>
                 ✓ Auto-saved
-              </span>
+              </AutoSaveStatus>
             )}
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-              onClick={handleSaveAndExit}
-              style={{ 
-                padding: '8px 16px', 
-                border: '1px solid #d1d5db', 
-                borderRadius: '6px', 
-                backgroundColor: 'white', 
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: '#374151',
-              }}
-            >
+          </NavLeft>
+          
+          <NavRight>
+            <Button onClick={handleSaveAndExit}>
               💾 Save & Exit
-            </button>
+            </Button>
+            
             {currentStepIndex > 0 && (
-              <button 
-                onClick={() => setCurrentStepIndex(i => i - 1)} 
-                style={{ 
-                  padding: '8px 16px', 
-                  border: '1px solid #d1d5db', 
-                  borderRadius: '6px', 
-                  backgroundColor: 'white', 
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                }}
-              >
+              <Button onClick={() => setCurrentStepIndex(i => i - 1)}>
                 ← Previous
-              </button>
+              </Button>
             )}
-            {currentStepIndex < steps.length - 1 && (
-              <button 
-                onClick={() => setCurrentStepIndex(i => i + 1)} 
-                style={{ 
-                  padding: '8px 16px', 
-                  border: 'none', 
-                  borderRadius: '6px', 
-                  backgroundColor: '#2563eb', 
-                  color: 'white', 
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                }}
-              >
+            
+            {currentStepIndex < steps.length - 1 ? (
+              <Button $variant="primary" onClick={() => setCurrentStepIndex(i => i + 1)}>
                 Next →
-              </button>
+              </Button>
+            ) : (
+              <Button $variant="success" onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? '⏳ Submitting...' : '✓ Submit Form'}
+              </Button>
             )}
-          </div>
-        </div>
-      </div>
+          </NavRight>
+        </NavigationContainer>
 
-      {/* Exit Confirmation Modal */}
-      {showExitConfirm && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100000,
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            maxWidth: '400px',
-            boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
-          }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: '18px', fontWeight: 600 }}>
-              Save your progress?
-            </h3>
-            <p style={{ margin: '0 0 20px', color: '#6b7280', fontSize: '14px' }}>
-              You have unsaved changes. Would you like to save before exiting?
-            </p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => { setShowExitConfirm(false); onClose(); }}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
-                Discard
-              </button>
-              <button
-                onClick={() => { setShowExitConfirm(false); handleSaveAndExit(); }}
-                style={{
-                  padding: '8px 16px',
-                  border: 'none',
-                  borderRadius: '6px',
-                  backgroundColor: '#2563eb',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                }}
-              >
-                Save & Exit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        {/* Exit Confirmation */}
+        {showExitConfirm && (
+          <ConfirmOverlay>
+            <ConfirmDialog>
+              <h3>💾 Save your progress?</h3>
+              <p>You have unsaved changes. Would you like to save before exiting?</p>
+              <ConfirmActions>
+                <Button onClick={() => { setShowExitConfirm(false); onClose(); }}>
+                  Discard
+                </Button>
+                <Button $variant="primary" onClick={() => { setShowExitConfirm(false); handleSaveAndExit(); }}>
+                  Save & Exit
+                </Button>
+              </ConfirmActions>
+            </ConfirmDialog>
+          </ConfirmOverlay>
+        )}
+      </ModalContent>
+    </ModalOverlay>
   );
 
   return createPortal(modalContent, document.body);
