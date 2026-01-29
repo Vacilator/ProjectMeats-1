@@ -103,6 +103,11 @@ export const navigation: NavigationItem[] = [
             icon: '📝',
             path: '/inquiries/templates',
           },
+          {
+            label: 'Analytics',
+            icon: '📊',
+            path: '/inquiries/analytics',
+          },
         ],
       },
       {

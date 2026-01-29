@@ -4,7 +4,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
-from django.db.models import F
+from django.db.models import F, Count, Sum, Q, Avg
+from django.db.models.functions import TruncMonth, TruncWeek
+from datetime import timedelta
 
 from .models import Inquiry, InquiryProduct, InquiryTemplate, InquiryTemplateProduct
 from .serializers import (
@@ -342,6 +344,151 @@ class InquiryViewSet(viewsets.ModelViewSet):
             InquiryDetailSerializer(inquiry).data,
             status=status.HTTP_201_CREATED
         )
+    
+    @action(detail=False, methods=['get'])
+    def analytics(self, request):
+        """
+        Get win/loss analytics and inquiry statistics.
+        
+        Query params:
+        - period: 'week', 'month', 'quarter', 'year' (default: 'month')
+        - entity_type: 'supplier' or 'customer' (optional filter)
+        """
+        period = request.query_params.get('period', 'month')
+        entity_type = request.query_params.get('entity_type')
+        
+        # Calculate date range based on period
+        now = timezone.now()
+        if period == 'week':
+            start_date = now - timedelta(days=7)
+        elif period == 'month':
+            start_date = now - timedelta(days=30)
+        elif period == 'quarter':
+            start_date = now - timedelta(days=90)
+        elif period == 'year':
+            start_date = now - timedelta(days=365)
+        else:
+            start_date = now - timedelta(days=30)
+        
+        # Base queryset
+        base_qs = Inquiry.objects.filter(
+            tenant=request.tenant,
+            inquiry_date__gte=start_date
+        )
+        
+        if entity_type:
+            base_qs = base_qs.filter(entity_type=entity_type)
+        
+        # Status distribution
+        status_counts = base_qs.values('status').annotate(
+            count=Count('id')
+        ).order_by('status')
+        
+        # Win/Loss metrics
+        total_closed = base_qs.filter(status__in=['accepted', 'rejected']).count()
+        wins = base_qs.filter(status='accepted').count()
+        losses = base_qs.filter(status='rejected').count()
+        win_rate = (wins / total_closed * 100) if total_closed > 0 else 0
+        
+        # Value metrics
+        value_metrics = base_qs.filter(status='accepted').aggregate(
+            total_won_value=Sum('products__actual_total'),
+            avg_deal_size=Avg('products__actual_total'),
+        )
+        
+        lost_value = base_qs.filter(status='rejected').aggregate(
+            total_lost_value=Sum('products__desired_total')
+        )['total_lost_value'] or 0
+        
+        # Time to close (average days from creation to decision)
+        closed_inquiries = base_qs.filter(
+            status__in=['accepted', 'rejected'],
+            decision_date__isnull=False
+        )
+        
+        avg_days_to_close = None
+        if closed_inquiries.exists():
+            total_days = sum(
+                (i.decision_date - i.inquiry_date).days
+                for i in closed_inquiries
+                if i.decision_date and i.inquiry_date
+            )
+            avg_days_to_close = total_days / closed_inquiries.count() if closed_inquiries.count() > 0 else None
+        
+        # Trend data (grouped by week)
+        trend_data = base_qs.annotate(
+            week=TruncWeek('inquiry_date')
+        ).values('week').annotate(
+            total=Count('id'),
+            accepted=Count('id', filter=Q(status='accepted')),
+            rejected=Count('id', filter=Q(status='rejected')),
+        ).order_by('week')
+        
+        # Top win/loss reasons
+        win_reasons = base_qs.filter(
+            status='accepted',
+            win_loss_reason__isnull=False
+        ).exclude(win_loss_reason='').values_list('win_loss_reason', flat=True)[:10]
+        
+        loss_reasons = base_qs.filter(
+            status='rejected',
+            win_loss_reason__isnull=False
+        ).exclude(win_loss_reason='').values_list('win_loss_reason', flat=True)[:10]
+        
+        # Competitor mentions
+        competitor_data = base_qs.exclude(
+            competitor_names=''
+        ).values_list('competitor_names', flat=True)
+        
+        # Parse competitor names (simple split by comma/newline)
+        competitor_counts = {}
+        for comp_str in competitor_data:
+            if comp_str:
+                for comp in comp_str.replace('\n', ',').split(','):
+                    comp = comp.strip()
+                    if comp:
+                        competitor_counts[comp] = competitor_counts.get(comp, 0) + 1
+        
+        # Sort by count and take top 10
+        top_competitors = sorted(
+            competitor_counts.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:10]
+        
+        # Source type breakdown
+        source_breakdown = base_qs.values('source_type').annotate(
+            count=Count('id'),
+            won=Count('id', filter=Q(status='accepted')),
+        ).order_by('-count')
+        
+        return Response({
+            'period': period,
+            'date_range': {
+                'start': start_date.isoformat(),
+                'end': now.isoformat(),
+            },
+            'summary': {
+                'total_inquiries': base_qs.count(),
+                'pending': base_qs.filter(status__in=['draft', 'pending', 'quoted']).count(),
+                'won': wins,
+                'lost': losses,
+                'win_rate': round(win_rate, 1),
+                'total_won_value': float(value_metrics['total_won_value'] or 0),
+                'total_lost_value': float(lost_value),
+                'avg_deal_size': float(value_metrics['avg_deal_size'] or 0),
+                'avg_days_to_close': round(avg_days_to_close, 1) if avg_days_to_close else None,
+            },
+            'status_distribution': list(status_counts),
+            'trend': list(trend_data),
+            'source_breakdown': list(source_breakdown),
+            'top_competitors': [
+                {'name': name, 'count': count}
+                for name, count in top_competitors
+            ],
+            'recent_win_reasons': list(win_reasons),
+            'recent_loss_reasons': list(loss_reasons),
+        })
 
 
 class InquiryProductViewSet(viewsets.ModelViewSet):
