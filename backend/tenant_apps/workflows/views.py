@@ -1579,17 +1579,24 @@ class AvailableFormsViewSet(viewsets.ReadOnlyModelViewSet):
     Only returns forms that are:
     - Active (status=active)
     - Quick action enabled
-    - Belonging to the user's tenant
+    - Belonging to the user's tenant (or all tenants for superusers)
     """
     permission_classes = [IsAuthenticated]
     serializer_class = AvailableFormSerializer
     
     def get_queryset(self):
-        return TenantForm.objects.filter(
-            tenant=self.request.tenant,
+        # Base query - active and quick-action enabled forms
+        queryset = TenantForm.objects.filter(
             status=FormStatus.ACTIVE,
             is_quick_action_enabled=True
-        ).prefetch_related('entities').order_by('name')
+        )
+        
+        # For superusers, show all available forms
+        # For regular users, filter by their tenant
+        if not self.request.user.is_superuser:
+            queryset = queryset.filter(tenant=self.request.tenant)
+        
+        return queryset.prefetch_related('entities').order_by('name')
 
 
 class QuickActionsAPIView(APIView):
@@ -1620,6 +1627,8 @@ class QuickActionsAPIView(APIView):
         
         try:
             logger.info(f"Quick actions update request: {request.data}")
+            logger.info(f"Request tenant: {request.tenant}, User: {request.user}, Is superuser: {request.user.is_superuser}")
+            
             serializer = QuickActionsSerializer(data=request.data)
             if not serializer.is_valid():
                 logger.error(f"Quick actions serializer errors: {serializer.errors}")
@@ -1633,16 +1642,39 @@ class QuickActionsAPIView(APIView):
             # Validate that referenced forms exist and are available
             for item in items:
                 if item['type'] == 'form' and item.get('form_id'):
+                    # First try to find form for current tenant
                     form = TenantForm.objects.filter(
                         id=item['form_id'],
                         tenant=request.tenant,
                     ).first()
+                    
+                    # If not found and user is superuser, try to find form in any tenant
+                    if not form and request.user.is_superuser:
+                        form = TenantForm.objects.filter(
+                            id=item['form_id'],
+                        ).first()
+                        if form:
+                            logger.info(f"Superuser accessing form {item['form_id']} from tenant {form.tenant}")
+                    
                     if not form:
-                        logger.warning(f"Form {item['form_id']} not found for tenant {request.tenant}")
-                        return Response(
-                            {'error': f'Form {item["form_id"]} not found'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
+                        # Check if form exists at all (to give better error message)
+                        any_form = TenantForm.objects.filter(id=item['form_id']).first()
+                        if any_form:
+                            logger.warning(
+                                f"Form {item['form_id']} exists in tenant {any_form.tenant} "
+                                f"but user's tenant is {request.tenant}"
+                            )
+                            return Response(
+                                {'error': f'Form "{any_form.name}" belongs to a different tenant'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        else:
+                            logger.warning(f"Form {item['form_id']} does not exist in any tenant")
+                            return Response(
+                                {'error': f'Form {item["form_id"]} not found'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                    
                     if not form.is_quick_action_enabled:
                         logger.warning(f"Form {item['form_id']} is not enabled for quick actions")
                         return Response(
