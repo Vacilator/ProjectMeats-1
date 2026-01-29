@@ -2223,3 +2223,209 @@ kbd {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+/* ==========================================================================
+   Enhanced Animations (UI Polish)
+   ========================================================================== */
+
+/* Modal entrance animation */
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-overlay {
+    animation: modalFadeIn 0.2s ease-out;
+}
+
+.modal-content {
+    animation: modalSlideIn 0.25s ease-out;
+}
+
+/* Field drag feedback */
+@keyframes fieldDragPulse {
+    0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(65, 118, 144, 0.4);
+    }
+    50% { 
+        box-shadow: 0 0 0 8px rgba(65, 118, 144, 0);
+    }
+}
+
+.field-item.sortable-chosen {
+    animation: fieldDragPulse 0.8s ease-in-out infinite;
+    background: var(--fb-selected-bg);
+    border-radius: var(--fb-radius-sm);
+}
+
+/* Step card entrance animation */
+@keyframes stepCardFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.step-card {
+    animation: stepCardFadeIn 0.3s ease-out;
+}
+
+/* Success flash animation */
+@keyframes successFlash {
+    0% { background-color: var(--fb-bg); }
+    30% { background-color: rgba(40, 167, 69, 0.15); }
+    100% { background-color: var(--fb-bg); }
+}
+
+.field-item.just-added {
+    animation: successFlash 0.6s ease-out;
+}
+
+/* Button hover lift effect */
+.btn-primary,
+.btn-success,
+.btn-secondary {
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+}
+
+.btn-primary:hover,
+.btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary:active,
+.btn-success:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Tooltip animation */
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+[data-tooltip]::after {
+    animation: tooltipFadeIn 0.15s ease-out;
+}
+
+/* Loading shimmer effect */
+@keyframes shimmer {
+    0% {
+        background-position: -200px 0;
+    }
+    100% {
+        background-position: calc(200px + 100%) 0;
+    }
+}
+
+.loading-shimmer {
+    background: linear-gradient(
+        90deg,
+        var(--fb-darkened-bg) 0%,
+        var(--fb-selected-bg) 50%,
+        var(--fb-darkened-bg) 100%
+    );
+    background-size: 200px 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Step connector line animation */
+.step-connector {
+    position: relative;
+}
+
+.step-connector::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -8px;
+    width: 16px;
+    height: 2px;
+    background: var(--fb-border);
+    transition: background 0.2s ease;
+}
+
+.step-connector.completed::after {
+    background: var(--fb-success);
+}
+
+/* Focus ring enhancement */
+.btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--fb-primary);
+    outline-offset: 2px;
+}
+
+/* Smooth collapse animation */
+.collapsible-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.2s ease;
+}
+
+.collapsible-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+.collapsible-content.expanded {
+    max-height: 500px;
+    opacity: 1;
+}
+
+/* Badge hover effects */
+.field-type-badge,
+.field-required,
+.step-entity-badge {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field-type-badge:hover,
+.field-required:hover,
+.step-entity-badge:hover {
+    transform: scale(1.05);
+}
+
+/* Icon rotation on expand */
+.expand-icon {
+    transition: transform 0.2s ease;
+}
+
+.expand-icon.rotated {
+    transform: rotate(180deg);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
