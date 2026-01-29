@@ -2069,3 +2069,42 @@ class QuickCreateEntityAPIView(APIView):
                 {'error': f'Failed to create {entity_type}: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+class FieldTemplatesAPIView(APIView):
+    """
+    API endpoint for field templates.
+    Provides pre-defined field groups for quick form building.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, template_id=None):
+        """
+        Get all templates or a specific template.
+        
+        GET /api/v1/workflows/field-templates/ - List all templates
+        GET /api/v1/workflows/field-templates/{template_id}/ - Get specific template
+        """
+        from .services.field_templates import get_all_templates, get_template, get_template_fields
+        
+        if template_id:
+            # Get specific template with fields
+            template = get_template(template_id)
+            if not template:
+                return Response(
+                    {'error': f'Template not found: {template_id}'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Include full field definitions
+            prefix = request.query_params.get('prefix', '')
+            return Response({
+                'id': template_id,
+                'name': template['name'],
+                'description': template['description'],
+                'icon': template['icon'],
+                'fields': get_template_fields(template_id, prefix),
+            })
+        
+        # List all templates
+        return Response(get_all_templates())

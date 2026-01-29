@@ -22,6 +22,7 @@ function formBuilder() {
         showAddStepModal: false,
         showPreviewModal: false,
         showFieldConfigModal: false,
+        showTemplatesModal: false,
         
         // Field editor state
         currentStepId: null,
@@ -30,6 +31,12 @@ function formBuilder() {
         availableFields: [],
         filteredAvailableFields: [],
         fieldSearch: '',
+        
+        // Field templates state
+        fieldTemplates: [],
+        templatesLoading: false,
+        selectedTemplate: null,
+        templateFields: [],
         
         // Field config state (Phase 3)
         fieldConfig: {
@@ -1696,6 +1703,99 @@ function formBuilder() {
                 console.error('Error deleting mapping:', error);
                 this.showNotification('Failed to remove mapping', 'error');
             }
+        },
+        
+        // ==================== FIELD TEMPLATES ====================
+        
+        async openTemplatesModal() {
+            this.showTemplatesModal = true;
+            this.templatesLoading = true;
+            this.selectedTemplate = null;
+            this.templateFields = [];
+            
+            try {
+                const response = await fetch('/api/v1/workflows/field-templates/', {
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                this.fieldTemplates = await response.json();
+            } catch (error) {
+                console.error('Error loading field templates:', error);
+                this.showNotification('Error loading field templates', 'error');
+            } finally {
+                this.templatesLoading = false;
+            }
+        },
+        
+        async selectTemplate(templateId) {
+            this.selectedTemplate = templateId;
+            
+            try {
+                const response = await fetch(`/api/v1/workflows/field-templates/${templateId}/`, {
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                this.templateFields = data.fields;
+            } catch (error) {
+                console.error('Error loading template fields:', error);
+                this.showNotification('Error loading template fields', 'error');
+            }
+        },
+        
+        addTemplateFields() {
+            if (!this.templateFields.length) {
+                this.showNotification('No fields to add', 'info');
+                return;
+            }
+            
+            let addedCount = 0;
+            
+            for (const field of this.templateFields) {
+                // Check if field key already exists
+                const exists = this.selectedFields.some(f => f.key === field.key);
+                if (!exists) {
+                    this.selectedFields.push({
+                        key: field.key,
+                        label: field.label,
+                        type: field.type,
+                        required: field.required || false,
+                        placeholder: field.placeholder,
+                        help_text: field.help_text,
+                        choices: field.choices,
+                        validation_rules: field.validation_rules,
+                    });
+                    addedCount++;
+                }
+            }
+            
+            this.showTemplatesModal = false;
+            
+            if (addedCount > 0) {
+                this.showNotification(`Added ${addedCount} field(s) from template`, 'success');
+            } else {
+                this.showNotification('All template fields already exist', 'info');
+            }
+        },
+        
+        closeTemplatesModal() {
+            this.showTemplatesModal = false;
+            this.selectedTemplate = null;
+            this.templateFields = [];
         },
         
         // Helper to get form ID from URL

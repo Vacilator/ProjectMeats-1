@@ -377,7 +377,12 @@
                 <div class="field-editor-container">
                     <!-- Selected Fields (draggable) -->
                     <div class="field-list-section">
-                        <h4>Selected Fields <span class="field-count" x-text="'(' + selectedFields.length + ')'"></span></h4>
+                        <div class="section-header-row">
+                            <h4>Selected Fields <span class="field-count" x-text="'(' + selectedFields.length + ')'"></span></h4>
+                            <button type="button" class="btn btn-secondary btn-sm" @click="openTemplatesModal()" title="Add fields from template">
+                                📋 Add From Template
+                            </button>
+                        </div>
                         <div class="field-list selected-fields" id="selected-fields-list" x-ref="selectedFieldsList">
                             <template x-for="field in selectedFields" :key="field.key">
                                 <div class="field-item" :data-field-key="field.key">
@@ -545,6 +550,62 @@
                         :disabled="fieldConfig.saving">
                     <span x-show="!fieldConfig.saving">💾 Save Configuration</span>
                     <span x-show="fieldConfig.saving">Saving...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Field Templates Modal -->
+    <div class="modal-overlay" x-show="showTemplatesModal" x-cloak @click.self="closeTemplatesModal()">
+        <div class="modal-content modal-md">
+            <div class="modal-header">
+                <h3>📋 Add Fields from Template</h3>
+                <button type="button" class="modal-close" @click="closeTemplatesModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div x-show="templatesLoading" class="loading-spinner">
+                    Loading templates...
+                </div>
+                
+                <div x-show="!templatesLoading">
+                    <!-- Template Selection -->
+                    <div class="templates-grid">
+                        <template x-for="template in fieldTemplates" :key="template.id">
+                            <div class="template-card" 
+                                 :class="{ 'selected': selectedTemplate === template.id }"
+                                 @click="selectTemplate(template.id)">
+                                <div class="template-icon" x-text="template.icon"></div>
+                                <div class="template-info">
+                                    <div class="template-name" x-text="template.name"></div>
+                                    <div class="template-description" x-text="template.description"></div>
+                                    <div class="template-field-count" x-text="template.field_count + ' fields'"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Template Preview -->
+                    <div x-show="templateFields.length > 0" class="template-preview">
+                        <h4>Fields to be added:</h4>
+                        <div class="template-fields-list">
+                            <template x-for="field in templateFields" :key="field.key">
+                                <div class="template-field-item">
+                                    <span class="field-name" x-text="field.label"></span>
+                                    <span class="field-type-badge" x-text="field.type"></span>
+                                    <span class="field-required" x-show="field.required">Required</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeTemplatesModal()">Cancel</button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @click="addTemplateFields()"
+                        :disabled="!templateFields.length">
+                    ➕ Add Fields
                 </button>
             </div>
         </div>
