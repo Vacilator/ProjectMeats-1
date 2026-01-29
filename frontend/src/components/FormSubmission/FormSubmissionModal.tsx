@@ -10,6 +10,7 @@
  * - Professional styling with proper input elements
  * - Auto-save with visual feedback
  * - Searchable multi-select
+ * - New field types: rating, slider, signature, richtext
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -25,6 +26,10 @@ import { Icon } from '../ui';
 import QuickCreateModal from './QuickCreateModal';
 import FileUploadField from './FileUploadField';
 import SearchableSelect from './SearchableSelect';
+import RatingField from './RatingField';
+import SliderField from './SliderField';
+import SignatureField from './SignatureField';
+import RichTextField from './RichTextField';
 
 // ============== Types ==============
 interface FormSubmissionModalProps {
@@ -68,6 +73,7 @@ interface FieldData {
     custom_help_text?: string;
     is_required?: boolean;
     auto_populate?: { source_step?: string };  // Deprecated - use top-level auto_populate
+    unit?: string;  // For slider fields (e.g., '%', 'lbs', '$')
   };
 }
 
@@ -792,6 +798,14 @@ const getFieldTypeIcon = (type: string): string => {
     case 'file':
     case 'image': return '📎';
     case 'json': return '{ }';
+    case 'rating':
+    case 'stars': return '⭐';
+    case 'slider':
+    case 'range': return '🎚️';
+    case 'signature': return '✍️';
+    case 'richtext':
+    case 'html':
+    case 'wysiwyg': return '📰';
     default: return '📝';
   }
 };
@@ -800,6 +814,8 @@ const isFullWidthField = (field: FieldData): boolean => {
   if (field.type === 'textarea' || field.type === 'json') return true;
   if (field.type === 'multiselect') return true;
   if (field.type === 'file' || field.type === 'image') return true;
+  if (field.type === 'richtext' || field.type === 'html' || field.type === 'wysiwyg') return true;
+  if (field.type === 'signature') return true;
   if (field.max_length && field.max_length > 100) return true;
   return false;
 };
@@ -1556,6 +1572,66 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             isImage={field.type === 'image'}
             hasError={hasError}
             maxSizeMB={10}
+          />
+        );
+        
+      case 'rating':
+      case 'stars':
+        return (
+          <RatingField
+            value={Number(value) || 0}
+            onChange={(newValue) => {
+              handleChange(stepId, field.key, newValue);
+              autoSaveField(stepId, field.key, newValue);
+            }}
+            maxRating={field.max || 5}
+            hasError={hasError}
+            ariaProps={ariaProps}
+          />
+        );
+        
+      case 'slider':
+      case 'range':
+        return (
+          <SliderField
+            value={Number(value) || field.min || 0}
+            onChange={(newValue) => {
+              handleChange(stepId, field.key, newValue);
+              autoSaveField(stepId, field.key, newValue);
+            }}
+            min={field.min || 0}
+            max={field.max || 100}
+            step={field.step || 1}
+            unit={field.config?.unit || ''}
+            hasError={hasError}
+            ariaProps={ariaProps}
+          />
+        );
+        
+      case 'signature':
+        return (
+          <SignatureField
+            value={value || ''}
+            onChange={(newValue) => {
+              handleChange(stepId, field.key, newValue);
+              autoSaveField(stepId, field.key, newValue);
+            }}
+            hasError={hasError}
+            ariaProps={ariaProps}
+          />
+        );
+        
+      case 'richtext':
+      case 'html':
+      case 'wysiwyg':
+        return (
+          <RichTextField
+            value={value || ''}
+            onChange={(newValue) => handleChange(stepId, field.key, newValue)}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+            maxLength={field.max_length}
+            hasError={hasError}
+            ariaProps={ariaProps}
           />
         );
         

@@ -380,6 +380,93 @@ FIELD_TEMPLATES = {
             },
         ],
     },
+    'feedback': {
+        'name': 'Feedback & Survey',
+        'description': 'Customer feedback fields with ratings and signatures',
+        'icon': '📊',
+        'fields': [
+            {
+                'key': 'overall_rating',
+                'label': 'Overall Rating',
+                'type': 'rating',
+                'required': True,
+                'max': 5,
+            },
+            {
+                'key': 'quality_rating',
+                'label': 'Product Quality',
+                'type': 'rating',
+                'required': False,
+                'max': 5,
+            },
+            {
+                'key': 'service_rating',
+                'label': 'Service Quality',
+                'type': 'rating',
+                'required': False,
+                'max': 5,
+            },
+            {
+                'key': 'recommendation_score',
+                'label': 'How likely to recommend? (0-10)',
+                'type': 'slider',
+                'required': False,
+                'min': 0,
+                'max': 10,
+                'step': 1,
+            },
+            {
+                'key': 'comments',
+                'label': 'Additional Comments',
+                'type': 'richtext',
+                'required': False,
+                'placeholder': 'Share your detailed feedback...',
+            },
+            {
+                'key': 'signature',
+                'label': 'Signature',
+                'type': 'signature',
+                'required': False,
+            },
+        ],
+    },
+    'agreement': {
+        'name': 'Agreement & Consent',
+        'description': 'Terms acceptance with signature capture',
+        'icon': '📜',
+        'fields': [
+            {
+                'key': 'terms_accepted',
+                'label': 'I accept the terms and conditions',
+                'type': 'checkbox',
+                'required': True,
+            },
+            {
+                'key': 'privacy_accepted',
+                'label': 'I accept the privacy policy',
+                'type': 'checkbox',
+                'required': True,
+            },
+            {
+                'key': 'marketing_consent',
+                'label': 'I consent to receive marketing communications',
+                'type': 'checkbox',
+                'required': False,
+            },
+            {
+                'key': 'signature',
+                'label': 'Signature',
+                'type': 'signature',
+                'required': True,
+            },
+            {
+                'key': 'signature_date',
+                'label': 'Date',
+                'type': 'date',
+                'required': True,
+            },
+        ],
+    },
 }
 
 
