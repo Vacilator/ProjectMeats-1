@@ -61,7 +61,7 @@ const Customers: React.FC = () => {
     try {
       const response = await fetch('/api/v1/products/', {
         headers: {
-          'Authorization': `Token ${localStorage.getItem('token')}`,
+          'Authorization': `Token ${localStorage.getItem('authToken')}`,
         },
       });
       if (response.ok) {
@@ -79,7 +79,7 @@ const Customers: React.FC = () => {
       const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
       const response = await fetch(`/api/v1/products/?${proteinParams}`, {
         headers: {
-          'Authorization': `Token ${localStorage.getItem('token')}`,
+          'Authorization': `Token ${localStorage.getItem('authToken')}`,
         },
       });
       if (response.ok) {
