@@ -2265,3 +2265,107 @@ class FormDuplicateAPIView(APIView):
                 {'error': f'Duplication failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# =============================================================================
+# FORM ANALYTICS API VIEWS
+# =============================================================================
+
+class FormAnalyticsAPIView(APIView):
+    """
+    API endpoint for form analytics.
+    
+    GET /api/v1/workflows/forms/{form_id}/analytics/
+    GET /api/v1/workflows/analytics/summary/
+    """
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request, form_id=None):
+        """Get form analytics or tenant summary."""
+        from .services.analytics import get_form_analytics, get_tenant_form_summary
+        
+        days = int(request.query_params.get('days', 30))
+        include_events = request.query_params.get('events', 'true').lower() == 'true'
+        
+        if form_id:
+            # Specific form analytics
+            try:
+                form = TenantForm.objects.get(pk=form_id)
+            except TenantForm.DoesNotExist:
+                return Response(
+                    {'error': 'Form not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Check tenant access
+            if hasattr(request, 'tenant') and request.tenant:
+                if form.tenant_id and form.tenant_id != request.tenant.id:
+                    return Response(
+                        {'error': 'Access denied'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            
+            analytics = get_form_analytics(form, days=days, include_events=include_events)
+            return Response(analytics)
+        
+        else:
+            # Tenant summary
+            tenant = getattr(request, 'tenant', None)
+            if not tenant:
+                return Response(
+                    {'error': 'Tenant context required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            summary = get_tenant_form_summary(tenant, days=days)
+            return Response(summary)
+
+
+class FormEventAPIView(APIView):
+    """
+    API endpoint for recording form analytics events.
+    
+    POST /api/v1/workflows/form-submissions/{submission_id}/events/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, submission_id):
+        """Record a form analytics event."""
+        from .services.analytics import record_form_event
+        
+        try:
+            submission = FormSubmission.objects.get(pk=submission_id)
+        except FormSubmission.DoesNotExist:
+            return Response(
+                {'error': 'Submission not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check access
+        if hasattr(request, 'tenant') and request.tenant:
+            if submission.tenant_id != request.tenant.id:
+                return Response(
+                    {'error': 'Access denied'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        event_type = request.data.get('event_type')
+        if not event_type:
+            return Response(
+                {'error': 'event_type is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        event = record_form_event(
+            submission=submission,
+            event_type=event_type,
+            step_id=request.data.get('step_id'),
+            field_key=request.data.get('field_key', ''),
+            metadata=request.data.get('metadata', {}),
+            duration_ms=request.data.get('duration_ms')
+        )
+        
+        return Response({
+            'status': 'success',
+            'event_id': str(event.id),
+        }, status=status.HTTP_201_CREATED)

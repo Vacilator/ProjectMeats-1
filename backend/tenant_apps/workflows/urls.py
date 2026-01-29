@@ -24,7 +24,9 @@ from .views import (
     # Entity Options API Views
     EntityOptionsAPIView, QuickCreateEntityAPIView,
     # Form Import/Export API Views
-    FormExportAPIView, FormImportAPIView, FormDuplicateAPIView
+    FormExportAPIView, FormImportAPIView, FormDuplicateAPIView,
+    # Form Analytics API Views
+    FormAnalyticsAPIView, FormEventAPIView
 )
 
 app_name = 'workflows'
@@ -85,4 +87,9 @@ urlpatterns = [
     path('forms/<uuid:form_id>/export/', FormExportAPIView.as_view(), name='form-export'),
     path('forms/import/', FormImportAPIView.as_view(), name='form-import'),
     path('forms/<uuid:form_id>/duplicate/', FormDuplicateAPIView.as_view(), name='form-duplicate'),
+    
+    # Form Analytics API endpoints
+    path('forms/<uuid:form_id>/analytics/', FormAnalyticsAPIView.as_view(), name='form-analytics'),
+    path('analytics/summary/', FormAnalyticsAPIView.as_view(), name='analytics-summary'),
+    path('form-submissions/<uuid:submission_id>/events/', FormEventAPIView.as_view(), name='form-events'),
 ]

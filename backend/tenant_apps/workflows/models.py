@@ -1030,3 +1030,88 @@ class FormSubmissionFile(models.Model):
     def is_image(self):
         """Check if the file is an image."""
         return self.content_type.startswith('image/') if self.content_type else False
+
+
+# =============================================================================
+# FORM ANALYTICS MODELS
+# =============================================================================
+
+class FormSubmissionEventType(models.TextChoices):
+    """Event types for form submission analytics."""
+    FORM_STARTED = 'form_started', 'Form Started'
+    STEP_ENTERED = 'step_entered', 'Step Entered'
+    STEP_COMPLETED = 'step_completed', 'Step Completed'
+    FIELD_FOCUSED = 'field_focused', 'Field Focused'
+    FIELD_CHANGED = 'field_changed', 'Field Changed'
+    FIELD_ERROR = 'field_error', 'Field Error'
+    VALIDATION_ERROR = 'validation_error', 'Validation Error'
+    AUTO_SAVED = 'auto_saved', 'Auto Saved'
+    FORM_SUBMITTED = 'form_submitted', 'Form Submitted'
+    FORM_ABANDONED = 'form_abandoned', 'Form Abandoned'
+
+
+class FormSubmissionEvent(models.Model):
+    """
+    Tracks analytics events for form submissions.
+    
+    Used to calculate:
+    - Form completion rates
+    - Average completion times
+    - Step drop-off analysis
+    - Field error frequency
+    - User interaction patterns
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submission = models.ForeignKey(
+        FormSubmission,
+        on_delete=models.CASCADE,
+        related_name='events',
+        help_text="The form submission this event belongs to"
+    )
+    
+    # Event details
+    event_type = models.CharField(
+        max_length=30,
+        choices=FormSubmissionEventType.choices,
+        help_text="Type of event"
+    )
+    step_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="Step ID if event is step-related"
+    )
+    field_key = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Field key if event is field-related"
+    )
+    
+    # Event metadata
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional event data (error messages, field values, etc.)"
+    )
+    
+    # Timing
+    created_at = models.DateTimeField(auto_now_add=True)
+    duration_ms = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Duration in milliseconds (for step/form completion)"
+    )
+    
+    class Meta:
+        verbose_name = "Form Submission Event"
+        verbose_name_plural = "Form Submission Events"
+        ordering = ['submission', 'created_at']
+        indexes = [
+            models.Index(fields=['submission', 'event_type']),
+            models.Index(fields=['event_type', 'created_at']),
+            models.Index(fields=['step_id', 'event_type']),
+        ]
+    
+    def __str__(self):
+        return f"{self.event_type} - {self.submission_id}"
