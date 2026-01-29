@@ -689,9 +689,10 @@ function formBuilder() {
             this.fieldsSaving = true;
             
             try {
-                // Prepare field data
+                // Prepare field data - include type for proper storage
                 const fieldsData = this.selectedFields.map((f, index) => ({
                     key: f.key,
+                    type: f.type || 'text',  // Include field type
                     visible: true,
                     required: f.required || false,
                     custom_label: '',

@@ -102,11 +102,16 @@ class FormStepFieldsAPIView(APIView):
                 (f for f in available_fields if f['key'] == field.field_key),
                 None
             )
+            # Use stored field_type if available, fall back to metadata
+            field_type = field.field_type if field.field_type and field.field_type != 'text' else (field_meta['type'] if field_meta else 'text')
+            if field_type == 'text' and field_meta and field_meta.get('type'):
+                field_type = field_meta['type']
+            
             selected_fields.append({
                 'id': str(field.id),
                 'key': field.field_key,
                 'label': field.custom_label or (field_meta['label'] if field_meta else field.field_key),
-                'type': field_meta['type'] if field_meta else 'text',
+                'type': field_type,
                 'required': field.is_required,
                 'visible': field.is_visible,
                 'order': field.order,
@@ -152,6 +157,7 @@ class FormStepFieldsAPIView(APIView):
                 TenantFormField.objects.create(
                     form_entity=step,
                     field_key=field_data['key'],
+                    field_type=field_data.get('type', 'text'),  # Store the field type
                     is_visible=field_data.get('visible', True),
                     is_required=field_data.get('required', False),
                     order=order,

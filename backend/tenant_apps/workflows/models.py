@@ -305,6 +305,13 @@ class TenantFormField(models.Model):
         help_text="Field key/name from the entity model"
     )
     
+    # Field type (stored explicitly to ensure correct rendering)
+    field_type = models.CharField(
+        max_length=30,
+        default='text',
+        help_text="Form field type: text, email, select, textarea, number, date, etc."
+    )
+    
     # Display settings
     is_visible = models.BooleanField(
         default=True,

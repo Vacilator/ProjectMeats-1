@@ -120,9 +120,12 @@ def _build_form_snapshot(form):
         }
         
         for field in entity.fields.filter(is_visible=True).order_by('order'):
-            # Get type from registry metadata if available
+            # Get type from stored field_type (primary) or registry metadata (fallback)
             field_meta = entity_fields_meta.get(field.field_key, {})
-            field_type = field_meta.get('type', 'text')
+            field_type = field.field_type if field.field_type and field.field_type != 'text' else field_meta.get('type', 'text')
+            # If still 'text' but we have registry data, use that
+            if field_type == 'text' and field_meta.get('type'):
+                field_type = field_meta['type']
             
             # Get options from choices if available
             options = []

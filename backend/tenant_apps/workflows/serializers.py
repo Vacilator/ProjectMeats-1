@@ -47,7 +47,7 @@ class TenantFormFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantFormField
         fields = [
-            'id', 'field_key', 'is_visible', 'is_required', 'order',
+            'id', 'field_key', 'field_type', 'is_visible', 'is_required', 'order',
             'custom_label', 'custom_help_text', 'default_value',
             'auto_populate_source_step', 'auto_populate_source_field',
             'auto_populate_mode', 'auto_populate_source_step_name'
