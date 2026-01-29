@@ -55,11 +55,16 @@ interface FieldData {
   rows?: number;
   choices?: { value: string; label: string }[];
   validation_rules?: Record<string, any>;
+  auto_populate?: {
+    source_step_id?: string;
+    source_field?: string;
+    mode?: 'copy' | 'lookup';
+  };
   config?: {
     custom_label?: string;
     custom_help_text?: string;
     is_required?: boolean;
-    auto_populate?: { source_step?: string };
+    auto_populate?: { source_step?: string };  // Deprecated - use top-level auto_populate
   };
 }
 
@@ -1078,12 +1083,67 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     return true;
   }, [currentStep, formData, hiddenFields]);
 
-  // Go to next step with validation
+  // Auto-populate fields when entering a new step
+  const autoPopulateFields = useCallback((targetStepIndex: number) => {
+    const targetStep = steps[targetStepIndex];
+    if (!targetStep) return;
+    
+    const updates: Record<string, any> = {};
+    let hasUpdates = false;
+    
+    targetStep.fields.forEach(field => {
+      // Check for auto_populate configuration
+      const autoPopConfig = field.auto_populate;
+      if (!autoPopConfig?.source_step_id || !autoPopConfig?.source_field) return;
+      
+      // Find the source step
+      const sourceStep = steps.find(s => s.id === autoPopConfig.source_step_id);
+      if (!sourceStep) return;
+      
+      // Get value from source step
+      const sourceValue = formData[sourceStep.id]?.[autoPopConfig.source_field];
+      
+      // Only auto-populate if:
+      // 1. There's a source value
+      // 2. The target field is empty (don't overwrite user input)
+      const currentValue = formData[targetStep.id]?.[field.key];
+      if (sourceValue !== undefined && sourceValue !== '' && 
+          (currentValue === undefined || currentValue === '')) {
+        
+        if (autoPopConfig.mode === 'copy' || !autoPopConfig.mode) {
+          // Direct copy
+          updates[field.key] = sourceValue;
+          hasUpdates = true;
+        }
+        // TODO: 'lookup' mode would fetch related entity data via API
+      }
+    });
+    
+    // Apply updates if any
+    if (hasUpdates) {
+      setFormData(prev => ({
+        ...prev,
+        [targetStep.id]: {
+          ...prev[targetStep.id],
+          ...updates,
+        },
+      }));
+      
+      // Show notification about auto-filled fields
+      const fieldCount = Object.keys(updates).length;
+      notify.info(`${fieldCount} field${fieldCount > 1 ? 's' : ''} auto-filled from previous step`);
+    }
+  }, [steps, formData]);
+
+  // Go to next step with validation and auto-populate
   const goToNextStep = useCallback(() => {
     if (validateCurrentStep()) {
-      setCurrentStepIndex(i => i + 1);
+      const nextIndex = currentStepIndex + 1;
+      setCurrentStepIndex(nextIndex);
+      // Auto-populate after a short delay to ensure state is updated
+      setTimeout(() => autoPopulateFields(nextIndex), 100);
     }
-  }, [validateCurrentStep]);
+  }, [validateCurrentStep, currentStepIndex, autoPopulateFields]);
 
   // Get field options
   const getFieldOptions = (field: FieldData): { value: string; label: string }[] => {
@@ -1156,7 +1216,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           </SelectInput>
         );
         
-      case 'multiselect':
+      case 'multiselect': {
         const searchKey = `${stepId}-${field.key}`;
         const searchTerm = multiSelectSearch[searchKey] || '';
         const filteredOpts = opts.filter(o => 
@@ -1198,6 +1258,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             </SelectedCount>
           </MultiSelectContainer>
         );
+      }
         
       case 'date':
         return (
@@ -1362,7 +1423,17 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                 key={step.id}
                 $active={idx === currentStepIndex}
                 $completed={idx < currentStepIndex}
-                onClick={() => setCurrentStepIndex(idx)}
+                onClick={() => {
+                  // Validate before moving forward, but allow going back
+                  if (idx > currentStepIndex && !validateCurrentStep()) {
+                    return;
+                  }
+                  setCurrentStepIndex(idx);
+                  // Trigger auto-populate for the new step
+                  if (idx !== currentStepIndex) {
+                    setTimeout(() => autoPopulateFields(idx), 100);
+                  }
+                }}
               >
                 <ProgressNumber
                   $active={idx === currentStepIndex}
@@ -1408,8 +1479,18 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                     const fullWidth = isFullWidthField(field);
                     const saveKey = `${currentStep.id}-${field.key}`;
                     const status = saveStatus[saveKey] || 'idle';
-                    const hasAutoPopulate = !!field.config?.auto_populate?.source_step;
+                    // Check both new and legacy auto_populate config
+                    const hasAutoPopulate = !!(field.auto_populate?.source_step_id || field.config?.auto_populate?.source_step);
                     const hasRules = getFieldHasRules(currentStep.id, field.key);
+                    
+                    // Get source step name for auto-populate indicator
+                    const sourceStepName = (() => {
+                      if (field.auto_populate?.source_step_id) {
+                        const sourceStep = steps.find(s => s.id === field.auto_populate?.source_step_id);
+                        return sourceStep?.name || 'previous step';
+                      }
+                      return 'previous step';
+                    })();
                     
                     return (
                       <FieldWrapper key={field.key} $fullWidth={fullWidth}>
@@ -1433,8 +1514,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                           {(hasAutoPopulate || hasRules) && (
                             <FieldIndicators>
                               {hasAutoPopulate && (
-                                <Indicator $type="auto" title="Auto-populated from previous step">
-                                  🔗 Auto-fill
+                                <Indicator $type="auto" title={`Auto-populated from ${sourceStepName}`}>
+                                  🔗 From {sourceStepName}
                                 </Indicator>
                               )}
                               {hasRules && (
