@@ -477,6 +477,7 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [contactOptions, setContactOptions] = useState<ContactOption[]>([]);
   const [productOptions, setProductOptions] = useState<Product[]>([]);
+  const [suggestedProducts, setSuggestedProducts] = useState<Product[]>([]);  // Products based on customer preferences
   const [selectedContact, setSelectedContact] = useState<ContactOption | null>(null);
   
   // Loading states
@@ -612,6 +613,44 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
       setLoadingProducts(false);
     }
   };
+
+  // Fetch suggested products based on customer preferences
+  const fetchSuggestedProducts = async (customerId: string) => {
+    if (entityType !== 'customer' || !customerId) {
+      setSuggestedProducts([]);
+      return;
+    }
+    
+    try {
+      // First, get customer's preferred protein types
+      const customerResponse = await apiClient.get(`customers/${customerId}/`);
+      const customer = customerResponse.data;
+      const preferredTypes = customer.preferred_protein_types || [];
+      
+      if (preferredTypes.length === 0) {
+        setSuggestedProducts([]);
+        return;
+      }
+      
+      // Fetch products matching those protein types
+      const proteinParams = preferredTypes.map((t: string) => `type_of_protein=${encodeURIComponent(t)}`).join('&');
+      const productsResponse = await apiClient.get(`products/?is_active=true&${proteinParams}`);
+      const data = productsResponse.data.results || productsResponse.data;
+      setSuggestedProducts(data);
+    } catch (err) {
+      console.error('Failed to fetch suggested products:', err);
+      setSuggestedProducts([]);
+    }
+  };
+
+  // Auto-fetch suggested products when customer is selected
+  useEffect(() => {
+    if (entityType === 'customer' && entityId) {
+      fetchSuggestedProducts(entityId);
+    } else {
+      setSuggestedProducts([]);
+    }
+  }, [entityId, entityType]);
 
   const addProductLine = useCallback(() => {
     const newLine: ProductLineItem = {
@@ -911,11 +950,26 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
                         disabled={submitting || loadingProducts}
                       >
                         <option value="">Select product...</option>
-                        {productOptions.map(product => (
-                          <option key={product.id} value={product.id}>
-                            {product.product_code} - {product.description_of_product_item}
-                          </option>
-                        ))}
+                        {/* Show suggested products first if available */}
+                        {suggestedProducts.length > 0 && (
+                          <optgroup label="📌 Suggested (Based on Customer Preferences)">
+                            {suggestedProducts.map(product => (
+                              <option key={`suggested-${product.id}`} value={product.id}>
+                                ⭐ {product.product_code} - {product.description_of_product_item}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {/* All products */}
+                        <optgroup label="All Products">
+                          {productOptions
+                            .filter(p => !suggestedProducts.some(s => s.id === p.id))
+                            .map(product => (
+                              <option key={product.id} value={product.id}>
+                                {product.product_code} - {product.description_of_product_item}
+                              </option>
+                            ))}
+                        </optgroup>
                       </ProductSelect>
                       
                       <ProductInput
@@ -964,9 +1018,35 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
                 </ProductsTable>
               )}
 
-              <AddProductButton type="button" onClick={addProductLine} disabled={submitting}>
-                + Add Product
-              </AddProductButton>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <AddProductButton type="button" onClick={addProductLine} disabled={submitting}>
+                  + Add Product
+                </AddProductButton>
+                
+                {/* Quick add suggested products button */}
+                {suggestedProducts.length > 0 && productLines.length === 0 && (
+                  <AddProductButton 
+                    type="button" 
+                    onClick={() => {
+                      // Add all suggested products as line items
+                      const newLines = suggestedProducts.map(product => ({
+                        tempId: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                        product: product.id.toString(),
+                        productCode: product.product_code,
+                        productDescription: product.description_of_product_item,
+                        quantity: 1,
+                        desired_uom: 'LBS',
+                        actual_uom: 'LBS',
+                      }));
+                      setProductLines(newLines);
+                    }}
+                    disabled={submitting}
+                    style={{ background: '#f0fdf4', color: '#15803d', borderColor: '#22c55e' }}
+                  >
+                    ⭐ Add Suggested Products ({suggestedProducts.length})
+                  </AddProductButton>
+                )}
+              </div>
             </Section>
 
             {/* Competitor Tracking */}

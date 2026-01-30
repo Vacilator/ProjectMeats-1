@@ -243,24 +243,42 @@ export const formSubmissionService = {
     fieldKey: string,
     value: any
   ): Promise<{ success: boolean; saved_at: string }> {
-    // Cancel any pending save for this field
+    // Cancel any pending save for this field (debounce)
     const cancelKey = `autosave-${submissionId}-${stepId}-${fieldKey}`;
+    cancelTokenManager.cancel(cancelKey);  // Just cancel, don't create new yet
+    
+    // Create new cancel token
     const source = cancelTokenManager.create(cancelKey);
     
     try {
+      console.log('[autoSave] Saving:', { submissionId, stepId, fieldKey, valueType: typeof value });
       const response = await apiClient.post(
         `/workflows/form-submissions/${submissionId}/auto-save/`, 
         { step_id: stepId, field_key: fieldKey, value },
         { cancelToken: source.token }
       );
       cancelTokenManager.remove(cancelKey);
+      console.log('[autoSave] Success:', response.data);
       return response.data;
-    } catch (err) {
-      if (!axios.isCancel(err)) {
-        cancelTokenManager.remove(cancelKey);
-        throw err;
+    } catch (err: any) {
+      cancelTokenManager.remove(cancelKey);
+      
+      if (axios.isCancel(err)) {
+        console.log('[autoSave] Cancelled:', { submissionId, stepId, fieldKey });
+        // Mark error with __CANCEL__ for easier detection
+        const cancelError = new Error('Request cancelled');
+        (cancelError as any).__CANCEL__ = true;
+        throw cancelError;
       }
-      // If cancelled, return a cancelled result
+      
+      console.error('[autoSave] Error:', {
+        submissionId,
+        stepId,
+        fieldKey,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        message: err?.message,
+      });
       throw err;
     }
   },

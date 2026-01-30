@@ -19,6 +19,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
+import axios from 'axios';
 import {
   useReactTable,
   getCoreRowModel,
@@ -46,6 +47,7 @@ import { Card, CardHeader, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Select } from '../../../components/ui/Select';
 import { Input } from './Input';
+import { notify } from '../../../utils/notify';
 
 // Field definition type
 export interface FieldDefinition {
@@ -1202,7 +1204,13 @@ const SchemaEditor: React.FC = () => {
       setFields((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
+        const newFields = arrayMove(items, oldIndex, newIndex);
+        
+        // Save to history and trigger API save
+        saveToHistory(newFields, 'Reorder fields');
+        triggerAutoSave();
+        
+        return newFields;
       });
     }
   };
@@ -1211,12 +1219,15 @@ const SchemaEditor: React.FC = () => {
     setFields((prev) =>
       prev.map((f) => (f.id === id ? { ...f, [field]: value } : f))
     );
-    // TODO: Auto-save to API
+    // Trigger auto-save after field update
+    triggerAutoSave();
   };
 
   const handleDelete = (id: string) => {
-    setFields((prev) => prev.filter((f) => f.id !== id));
-    // TODO: Save to API
+    const newFields = fields.filter((f) => f.id !== id);
+    setFields(newFields);
+    saveToHistory(newFields, 'Delete field');
+    triggerAutoSave();
   };
 
   const handleMoveUp = (id: string) => {
@@ -1259,14 +1270,47 @@ const SchemaEditor: React.FC = () => {
     triggerAutoSave();
   };
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     setSaveStatus('saving');
-    // TODO: Save to API
-    console.log('Saving schema:', fields);
-    setTimeout(() => {
-      setSaveStatus('saved');
-    }, 500);
-  }, [fields]);
+    
+    try {
+      // Get CSRF token from cookie
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+        return null;
+      };
+      const csrfToken = getCookie('csrftoken') || 
+                        document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      
+      // Save schema to API
+      const response = await axios.put(
+        `/admin/system-config/api/studio/versions/${blueprintId}/schema/`,
+        { 
+          fields: fields.map((f, index) => ({
+            ...f,
+            order: index  // Include order in the save payload
+          }))
+        },
+        {
+          headers: {
+            'X-CSRFToken': csrfToken || '',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (response.status === 200) {
+        setSaveStatus('saved');
+        notify.success('Schema saved successfully');
+      }
+    } catch (error: any) {
+      console.error('Error saving schema:', error);
+      setSaveStatus('unsaved');
+      notify.error(`Failed to save schema: ${error.message || 'Unknown error'}`);
+    }
+  }, [fields, blueprintId]);
 
   // Render preview of a field
   const renderPreviewField = (field: FieldDefinition) => {

@@ -11,6 +11,8 @@ urlpatterns = [
     path("auth/guest-login/", views.guest_login, name="guest-login"),
     path("auth/signup/", views.signup, name="signup"),
     path("auth/logout/", views.logout, name="logout"),
+    # Choices endpoint for static dropdowns
+    path("choices/", views.ChoicesAPIView.as_view(), name="choices"),
     # Include router URLs
     path("", include(router.urls)),
 ]

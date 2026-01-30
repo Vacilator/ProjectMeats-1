@@ -20,6 +20,7 @@ import {
   formSubmissionService,
   entityOptionsService,
 } from '../../services/quickActionsService';
+import { isStaticChoiceField, getChoicesForField } from '../../services/choicesService';
 import { notify } from '../../utils/notify';
 import { validateField, mergeValidationRules, ValidationRule } from '../../utils/formValidation';
 import { Icon } from '../ui';
@@ -836,6 +837,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());  // Track touched fields
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [multiSelectSearch, setMultiSelectSearch] = useState<Record<string, string>>({});
   const [announcement, setAnnouncement] = useState<string>('');
@@ -859,24 +861,27 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         name: step.name,
         order: step.order,
         entity_type: step.entity_type,
-        fields: (step.fields || []).map((f: any) => ({
-          key: f.key,
-          label: f.config?.custom_label || f.label || f.key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-          type: f.type || 'text',
-          required: f.required || f.config?.is_required || false,
-          placeholder: f.placeholder || f.config?.custom_help_text,
-          help_text: f.help_text || f.config?.custom_help_text,
-          options: f.options || f.choices,
-          related_entity_type: f.related_entity_type,
-          max_length: f.max_length,
-          min: f.min,
-          max: f.max,
-          step: f.step,
-          rows: f.rows,
-          choices: f.choices,
-          validation_rules: f.validation_rules,
-          config: f.config,
-        })),
+        fields: (step.fields || [])
+          .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))  // Sort fields by order
+          .map((f: any) => ({
+            key: f.key,
+            label: f.config?.custom_label || f.label || f.key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            type: f.type || 'text',
+            required: f.required || f.config?.is_required || false,
+            placeholder: f.placeholder || f.config?.custom_help_text,
+            help_text: f.help_text || f.config?.custom_help_text,
+            options: f.options || f.choices,
+            related_entity_type: f.related_entity_type,
+            max_length: f.max_length,
+            min: f.min,
+            max: f.max,
+            step: f.step,
+            rows: f.rows,
+            choices: f.choices,
+            validation_rules: f.validation_rules,
+            config: f.config,
+            order: f.order ?? 0,  // Preserve order for debugging
+          })),
       }));
   }, [submission?.form_snapshot]);
 
@@ -888,27 +893,66 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   const currentStep = steps[currentStepIndex];
 
-  // Initialize form data
+  // Initialize form data with proper structure for all steps
   useEffect(() => {
-    if (submission?.data) {
-      setFormData(submission.data);
+    // Always initialize formData structure for all steps
+    const initialData: Record<string, Record<string, any>> = {};
+    
+    // Ensure all steps have entries in formData
+    steps.forEach(step => {
+      initialData[step.id] = {
+        ...(submission?.data?.[step.id] || {}),
+      };
+    });
+    
+    if (Object.keys(initialData).length > 0) {
+      setFormData(initialData);
+      console.log('[FormSubmission] Initialized formData:', { 
+        stepIds: steps.map(s => s.id),
+        submissionDataKeys: Object.keys(submission?.data || {}),
+        initialDataKeys: Object.keys(initialData)
+      });
     }
-  }, [submission?.data]);
+  }, [submission?.data, steps]);
 
-  // Load entity options
+  // Load entity options AND static choices
   useEffect(() => {
     const loadOptions = async () => {
-      const types = new Set<string>();
+      // 1. Load related entity options (ForeignKey fields)
+      const entityTypes = new Set<string>();
       steps.forEach(s => s.fields.forEach(f => {
-        if (f.related_entity_type) types.add(f.related_entity_type);
+        if (f.related_entity_type) entityTypes.add(f.related_entity_type);
       }));
-      for (const type of types) {
+      
+      for (const type of entityTypes) {
         if (!entityOptions[type]) {
           try {
             const res = await entityOptionsService.getOptions(type);
             setEntityOptions(prev => ({ ...prev, [type]: res.options || [] }));
           } catch (e) { 
             console.error('Failed to load options for', type, e); 
+          }
+        }
+      }
+      
+      // 2. Load static choices for select fields
+      for (const step of steps) {
+        for (const field of step.fields) {
+          // Check if this field needs static choices (not already having options)
+          if (field.type === 'select' && !field.options?.length && !field.choices?.length && !field.related_entity_type) {
+            // Check if this field name maps to a static choice type
+            if (isStaticChoiceField(field.key)) {
+              try {
+                const choices = await getChoicesForField(field.key);
+                if (choices && choices.length > 0) {
+                  // Store static choices in entityOptions using a special prefix
+                  const choiceKey = `__choices__${field.key}`;
+                  setEntityOptions(prev => ({ ...prev, [choiceKey]: choices }));
+                }
+              } catch (e) {
+                console.error(`Failed to load static choices for field ${field.key}:`, e);
+              }
+            }
           }
         }
       }
@@ -1010,7 +1054,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     setSaveStatus(prev => ({ ...prev, [saveKey]: 'saving' }));
     
     try {
-      await formSubmissionService.autoSave(submission.id, stepId, fieldKey, value);
+      const result = await formSubmissionService.autoSave(submission.id, stepId, fieldKey, value);
+      console.log('[AutoSave] Success:', { stepId, fieldKey, result });
       setSaveStatus(prev => ({ ...prev, [saveKey]: 'saved' }));
       setLastSaved(new Date());
       hasUnsavedChanges.current = false;
@@ -1019,14 +1064,27 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         setSaveStatus(prev => ({ ...prev, [saveKey]: 'idle' }));
       }, 2000);
     } catch (err: any) {
-      if (err?.message !== 'canceled') {
+      // Check if this is an axios cancel
+      const isCanceled = err?.message?.includes('cancelled') || err?.message?.includes('canceled') || err?.__CANCEL__;
+      
+      if (!isCanceled) {
+        console.error('[AutoSave] Failed:', { stepId, fieldKey, error: err?.response?.data || err?.message || err });
         setSaveStatus(prev => ({ ...prev, [saveKey]: 'error' }));
-        console.error('Auto-save failed:', err);
+        
+        // Show user-friendly error for non-network issues
+        if (err?.response?.status === 403) {
+          notify.error('Access denied - please refresh and try again');
+        } else if (err?.response?.status === 400) {
+          notify.error(`Save failed: ${err?.response?.data?.error || 'Invalid data'}`);
+        } else if (err?.response?.status >= 500) {
+          notify.error('Server error - please try again later');
+        }
+        // For network errors, don't spam notifications - just mark as error status
       }
     }
   }, [submission.id]);
 
-  // Handle field change
+  // Handle field change - with real-time validation for touched fields
   const handleChange = useCallback((stepId: string, key: string, value: any) => {
     setFormData(prev => ({
       ...prev,
@@ -1034,6 +1092,32 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     }));
     
     hasUnsavedChanges.current = true;
+    
+    // Real-time validation for fields that have been touched (blurred before)
+    const fieldKey = `${stepId}.${key}`;
+    if (touchedFields.has(fieldKey)) {
+      const step = steps.find(s => s.id === stepId);
+      const field = step?.fields.find(f => f.key === key);
+      
+      if (field) {
+        const rules = mergeValidationRules(field.type, field.validation_rules as ValidationRule);
+        if (field.required) {
+          rules.required = true;
+        }
+        
+        const result = validateField(value, rules, field.label);
+        
+        if (!result.isValid && result.error) {
+          setFieldErrors(prev => ({ ...prev, [key]: result.error! }));
+        } else {
+          setFieldErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[key];
+            return newErrors;
+          });
+        }
+      }
+    }
     
     const saveKey = `${stepId}-${key}`;
     if (saveTimeoutRef.current[saveKey]) {
@@ -1043,16 +1127,27 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     saveTimeoutRef.current[saveKey] = setTimeout(() => {
       autoSaveField(stepId, key, value);
     }, 500);
-  }, [autoSaveField]);
+  }, [autoSaveField, touchedFields, steps]);
 
-  // Save on blur with validation
+  // Save on blur with validation - mark field as touched
   const handleBlur = useCallback((stepId: string, key: string) => {
     const saveKey = `${stepId}-${key}`;
     if (saveTimeoutRef.current[saveKey]) {
       clearTimeout(saveTimeoutRef.current[saveKey]);
     }
     
+    // Mark field as touched
+    const fieldKey = `${stepId}.${key}`;
+    setTouchedFields(prev => {
+      const newTouched = new Set(prev);
+      newTouched.add(fieldKey);
+      return newTouched;
+    });
+    
+    // Get value directly from formData state
+    // Note: we need to use functional update to get latest state
     const value = formData[stepId]?.[key];
+    console.log('[handleBlur]', { stepId, key, value, hasUnsavedChanges: hasUnsavedChanges.current });
     
     // Find the field to get validation rules
     const step = steps.find(s => s.id === stepId);
@@ -1097,20 +1192,56 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   // Save and exit
   const handleSaveAndExit = useCallback(async () => {
+    // Collect all field values to save
     const savePromises: Promise<any>[] = [];
+    const fieldsToSave: Array<{stepId: string; fieldKey: string; value: any}> = [];
+    
     Object.entries(formData).forEach(([stepId, fields]) => {
       Object.entries(fields).forEach(([fieldKey, value]) => {
         if (fieldKey !== '_meta') {
-          savePromises.push(formSubmissionService.autoSave(submission.id, stepId, fieldKey, value));
+          fieldsToSave.push({ stepId, fieldKey, value });
         }
       });
     });
     
-    try {
-      await Promise.all(savePromises);
-      notify.success('Progress saved');
+    if (fieldsToSave.length === 0) {
+      // Nothing to save
+      notify.info('No changes to save');
       onClose();
-    } catch (err) {
+      return;
+    }
+    
+    console.log('[SaveAndExit] Saving', fieldsToSave.length, 'fields');
+    
+    // Create promises for each field
+    fieldsToSave.forEach(({ stepId, fieldKey, value }) => {
+      savePromises.push(
+        formSubmissionService.autoSave(submission.id, stepId, fieldKey, value)
+          .then(() => ({ success: true, stepId, fieldKey }))
+          .catch(err => ({ success: false, stepId, fieldKey, error: err }))
+      );
+    });
+    
+    try {
+      const results = await Promise.all(savePromises);
+      const failures = results.filter((r: any) => !r.success);
+      
+      if (failures.length === 0) {
+        notify.success('Progress saved successfully');
+        onClose();
+      } else if (failures.length < results.length) {
+        // Partial success
+        const successCount = results.length - failures.length;
+        notify.warning(`Saved ${successCount} of ${results.length} fields. Some fields failed to save.`);
+        console.error('[SaveAndExit] Partial failure:', failures);
+        onClose();
+      } else {
+        // All failed
+        notify.error('Failed to save progress. Please try again.');
+        console.error('[SaveAndExit] All saves failed:', failures);
+      }
+    } catch (err: any) {
+      console.error('[SaveAndExit] Unexpected error:', err);
       notify.error('Failed to save progress');
     }
   }, [formData, submission.id, onClose]);
@@ -1194,6 +1325,48 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     return true;
   }, [currentStep, formData, hiddenFields]);
 
+  // Check if current step is valid (for enabling/disabling Next button)
+  // This doesn't show errors - just checks if required fields are filled
+  const isCurrentStepValid = useMemo((): boolean => {
+    if (!currentStep) return true;
+    
+    for (const field of currentStep.fields) {
+      // Skip hidden fields
+      if (hiddenFields.has(field.key)) continue;
+      
+      // Check required fields
+      if (field.required) {
+        const value = formData[currentStep.id]?.[field.key];
+        if (value === undefined || value === null || value === '' || 
+            (Array.isArray(value) && value.length === 0)) {
+          return false;
+        }
+      }
+    }
+    
+    // Also check if there are any validation errors currently showing
+    return Object.keys(fieldErrors).length === 0;
+  }, [currentStep, formData, hiddenFields, fieldErrors]);
+
+  // Count of missing required fields (for tooltip)
+  const missingRequiredCount = useMemo((): number => {
+    if (!currentStep) return 0;
+    
+    let count = 0;
+    for (const field of currentStep.fields) {
+      if (hiddenFields.has(field.key)) continue;
+      
+      if (field.required) {
+        const value = formData[currentStep.id]?.[field.key];
+        if (value === undefined || value === null || value === '' || 
+            (Array.isArray(value) && value.length === 0)) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }, [currentStep, formData, hiddenFields]);
+
   // Auto-populate fields when entering a new step
   const autoPopulateFields = useCallback((targetStepIndex: number) => {
     const targetStep = steps[targetStepIndex];
@@ -1258,12 +1431,23 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   // Get field options
   const getFieldOptions = (field: FieldData): { value: string; label: string }[] => {
+    // 1. Check for related entity options (ForeignKey)
     if (field.related_entity_type && entityOptions[field.related_entity_type]) {
       return entityOptions[field.related_entity_type];
     }
+    
+    // 2. Check for static choices loaded from backend
+    const choiceKey = `__choices__${field.key}`;
+    if (entityOptions[choiceKey]) {
+      return entityOptions[choiceKey];
+    }
+    
+    // 3. Check for choices defined in field config
     if (field.choices) {
       return field.choices;
     }
+    
+    // 4. Check for options array
     if (field.options) {
       return Array.isArray(field.options) 
         ? (typeof field.options[0] === 'string' 
@@ -1271,6 +1455,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             : field.options as { value: string; label: string }[])
         : [];
     }
+    
     return [];
   };
 
@@ -1868,16 +2053,19 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
               <Button 
                 $variant="primary" 
                 onClick={goToNextStep}
+                disabled={!isCurrentStepValid}
                 aria-label={`Go to next step: ${steps[currentStepIndex + 1]?.name || 'Next'}`}
+                title={!isCurrentStepValid ? `Please fill in ${missingRequiredCount} required field${missingRequiredCount !== 1 ? 's' : ''}` : undefined}
               >
-                Next →
+                Next {!isCurrentStepValid && missingRequiredCount > 0 && `(${missingRequiredCount} required)`} →
               </Button>
             ) : (
               <Button 
                 $variant="success" 
                 onClick={handleSubmit} 
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isCurrentStepValid}
                 aria-busy={isSubmitting}
+                title={!isCurrentStepValid ? `Please fill in ${missingRequiredCount} required field${missingRequiredCount !== 1 ? 's' : ''}` : undefined}
               >
                 {isSubmitting ? '⏳ Submitting...' : '✓ Submit Form'}
               </Button>

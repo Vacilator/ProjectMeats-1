@@ -432,8 +432,8 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
     }
   };
 
-  // Move step up/down
-  const handleMoveStep = (index: number, direction: 'up' | 'down') => {
+  // Move step up/down - with auto-save
+  const handleMoveStep = async (index: number, direction: 'up' | 'down') => {
     if (
       (direction === 'up' && index === 0) ||
       (direction === 'down' && index === steps.length - 1)
@@ -451,6 +451,31 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
       setSelectedStepIndex(targetIndex);
     } else if (selectedStepIndex === targetIndex) {
       setSelectedStepIndex(index);
+    }
+
+    // Auto-save after reorder to persist the new order
+    try {
+      const workflowConfig = newSteps.map((step, idx) => ({
+        id: step.id,
+        label: step.label,
+        type: step.type,
+        entityType: step.entityType,
+        config: step.config,
+        order: idx,  // Include order for persistence
+      }));
+
+      await axios.patch(
+        `/admin/system-config/api/studio/versions/${blueprintId}/`,
+        { workflow_config: workflowConfig },
+        {
+          headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error auto-saving step order:', error);
     }
   };
 

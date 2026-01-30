@@ -167,8 +167,106 @@ def logout(request):
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from apps.core.models import UserPreferences
+from rest_framework.views import APIView
+from apps.core.models import (
+    UserPreferences,
+    EdibleInedibleChoices,
+    AccountingPaymentTermsChoices,
+    CreditLimitChoices,
+    AccountLineOfCreditChoices,
+    ProteinTypeChoices,
+    FreshOrFrozenChoices,
+    PackageTypeChoices,
+    NetOrCatchChoices,
+    PlantTypeChoices,
+    CertificateTypeChoices,
+    OriginChoices,
+    CountryOriginChoices,
+    ShippingOfferedChoices,
+    IndustryChoices,
+    WeightUnitChoices,
+    AppointmentMethodChoices,
+    ContactTypeChoices,
+    DepartmentChoicesSupplier,
+    CarrierDepartmentChoices,
+    CartonTypeChoices,
+)
 from apps.core.serializers import UserPreferencesSerializer
+
+
+class ChoicesAPIView(APIView):
+    """
+    API endpoint for getting all static choices (Django TextChoices).
+    
+    Returns all choice options defined in core.models for use in
+    form dropdowns. These are static options that don't require
+    database lookups.
+    
+    GET /api/v1/core/choices/
+    GET /api/v1/core/choices/?choice_type=protein_type
+    """
+    permission_classes = [IsAuthenticated]
+    
+    # Map choice type names to choice classes
+    CHOICE_CLASSES = {
+        'edible_inedible': EdibleInedibleChoices,
+        'accounting_payment_terms': AccountingPaymentTermsChoices,
+        'credit_limit': CreditLimitChoices,
+        'account_line_of_credit': AccountLineOfCreditChoices,
+        'protein_type': ProteinTypeChoices,
+        'fresh_or_frozen': FreshOrFrozenChoices,
+        'package_type': PackageTypeChoices,
+        'net_or_catch': NetOrCatchChoices,
+        'plant_type': PlantTypeChoices,
+        'certificate_type': CertificateTypeChoices,
+        'origin': OriginChoices,
+        'country_origin': CountryOriginChoices,
+        'shipping_offered': ShippingOfferedChoices,
+        'industry': IndustryChoices,
+        'weight_unit': WeightUnitChoices,
+        'appointment_method': AppointmentMethodChoices,
+        'contact_type': ContactTypeChoices,
+        'department_supplier': DepartmentChoicesSupplier,
+        'carrier_department': CarrierDepartmentChoices,
+        'carton_type': CartonTypeChoices,
+    }
+    
+    def get(self, request):
+        """Get all choices or a specific choice type."""
+        choice_type = request.query_params.get('choice_type')
+        
+        if choice_type:
+            # Return a specific choice type
+            if choice_type not in self.CHOICE_CLASSES:
+                return Response(
+                    {'error': f'Unknown choice type: {choice_type}'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            choice_class = self.CHOICE_CLASSES[choice_type]
+            options = [
+                {'value': c.value, 'label': c.label}
+                for c in choice_class
+            ]
+            
+            return Response({
+                'choice_type': choice_type,
+                'options': options,
+                'count': len(options),
+            })
+        
+        # Return all choices
+        all_choices = {}
+        for choice_name, choice_class in self.CHOICE_CLASSES.items():
+            all_choices[choice_name] = [
+                {'value': c.value, 'label': c.label}
+                for c in choice_class
+            ]
+        
+        return Response({
+            'choices': all_choices,
+            'choice_types': list(self.CHOICE_CLASSES.keys()),
+        })
 
 
 class UserPreferencesViewSet(viewsets.ModelViewSet):
