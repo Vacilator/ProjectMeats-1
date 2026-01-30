@@ -1304,7 +1304,6 @@ curl -H "Authorization: Bearer <token>" \
 ## Related Documentation
 
 - [PAYMENT_WORKFLOW_GUIDE.md](./PAYMENT_WORKFLOW_GUIDE.md) - User guide
-- [ROUTING_FIX_COMPLETE.md](./ROUTING_FIX_COMPLETE.md) - ERP module build-out
 - [CONFIGURATION_AND_SECRETS.md](./CONFIGURATION_AND_SECRETS.md) - Environment setup
 
 ---

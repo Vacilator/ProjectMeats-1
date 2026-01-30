@@ -488,7 +488,6 @@ PAID (Green)
 **Document Status:** ✅ Complete and Production-Ready  
 **Related Documentation:**
 - [PAYMENT_WORKFLOW_TECHNICAL.md](./PAYMENT_WORKFLOW_TECHNICAL.md) (Technical Implementation Details)
-- [ROUTING_FIX_COMPLETE.md](./ROUTING_FIX_COMPLETE.md) (ERP Module Build-Out)
 - [CONFIGURATION_AND_SECRETS.md](./CONFIGURATION_AND_SECRETS.md) (Environment Setup)
 
 ---

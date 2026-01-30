@@ -515,7 +515,6 @@ sudo systemctl restart nginx
 | [PAYMENT_WORKFLOW_GUIDE.md](./PAYMENT_WORKFLOW_GUIDE.md) | User guide with step-by-step instructions | Accounting staff | 14KB |
 | [PAYMENT_WORKFLOW_TECHNICAL.md](./PAYMENT_WORKFLOW_TECHNICAL.md) | Technical implementation details | Developers | 36KB |
 | [PAYMENT_INTEGRATION_COMPLETE.md](./PAYMENT_INTEGRATION_COMPLETE.md) | This document - Integration summary | Project managers | 12KB |
-| [ROUTING_FIX_COMPLETE.md](./ROUTING_FIX_COMPLETE.md) | ERP module build-out (context) | All stakeholders | 20KB |
 
 ---
 

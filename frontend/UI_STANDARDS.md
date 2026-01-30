@@ -1,12 +1,14 @@
 # ProjectMeats Frontend UI/UX Standards
 
-## 🎨 Theme System
+> ⚠️ **DEPRECATED**: This file has been superseded by `/docs/DESIGN_SYSTEM.md`
+> 
+> Please refer to the consolidated **[Design System Documentation](/docs/DESIGN_SYSTEM.md)** for the complete, up-to-date UI/UX standards.
+>
+> This file is kept for backwards compatibility and will be removed in a future release.
 
-### Overview
-ProjectMeats uses a **semantic design system** with CSS custom properties that automatically adapt to:
-- Light/Dark mode toggle
-- Tenant-specific branding colors
-- Responsive breakpoints
+---
+
+## Quick Reference (See `/docs/DESIGN_SYSTEM.md` for full details)
 
 ### CSS Custom Properties (ALWAYS USE THESE)
 

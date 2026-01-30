@@ -1,6 +1,6 @@
 # Contributing to ProjectMeats
 
-**Last Updated**: November 2025
+**Last Updated**: January 30, 2026
 
 Welcome to ProjectMeats! This guide will help you contribute effectively to our multi-tenant SaaS platform following industry best practices.
 
@@ -10,6 +10,7 @@ Welcome to ProjectMeats! This guide will help you contribute effectively to our 
 
 - [Quick Links](#-quick-links)
 - [Branch & PR Standards](#-branch--pr-standards-required)
+- [UI/UX Standards](#-uiux-standards-mandatory)
 - [Code Style Guidelines](#-code-style-guidelines)
 - [Testing Requirements](#-testing-requirements)
 - [Development Workflow](#development-workflow)
@@ -19,11 +20,11 @@ Welcome to ProjectMeats! This guide will help you contribute effectively to our 
 
 ## 📋 Quick Links
 
-- **[Branch Workflow Checklist](branch-workflow-checklist.md)** - Complete guide to branch naming, PR conventions, and workflows
-- **[Issue Templates](.github/ISSUE_TEMPLATE/)** - Use standardized templates for issues
-- **[Repository Best Practices](docs/REPOSITORY_BEST_PRACTICES.md)** - Detailed workflow and standards
-- **[Security Guidelines](docs/SECURITY.md)** - Security policies and vulnerability reporting
-- **[Roadmap](docs/ROADMAP.md)** - Future plans and upgrade recommendations
+- **[Design System](DESIGN_SYSTEM.md)** - **START HERE FOR UI/UX** - Complete styling, theming, and component standards
+- **[Branch Workflow Checklist](branch-workflow-checklist.md)** - Branch naming, PR conventions, and workflows
+- **[Architecture](ARCHITECTURE.md)** - System architecture overview
+- **[Configuration & Secrets](CONFIGURATION_AND_SECRETS.md)** - Environment and secrets management
+- **[Golden Pipeline](GOLDEN_PIPELINE.md)** - CI/CD deployment standards
 
 ---
 
@@ -129,7 +130,69 @@ PR titles **must** follow Conventional Commits: `<type>(<scope>): <description>`
 
 ---
 
-## 🎨 Code Style Guidelines
+## 🎨 UI/UX Standards (MANDATORY)
+
+> **📚 Full documentation**: [docs/DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)
+
+### Core Principles
+
+1. **Theme Variables First** - NEVER hardcode colors
+2. **Responsive Design** - Mobile-first approach
+3. **Accessibility** - WCAG AA compliance (4.5:1 contrast)
+4. **Component Reuse** - Use shared components for 3+ usages
+
+### Color System
+
+```tsx
+// ✅ CORRECT - Use CSS custom properties
+const Card = styled.div`
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  border: 1px solid rgb(var(--color-border));
+`;
+
+// ❌ WRONG - Never hardcode colors
+const Card = styled.div`
+  background: #ffffff;
+  color: #2c3e50;
+  border: 1px solid #e9ecef;
+`;
+```
+
+### Standardized Status Colors
+
+| Status | Color | Usage |
+|--------|-------|-------|
+| Success | `rgb(34, 197, 94)` | Completed, Paid, Active |
+| Warning | `rgb(234, 179, 8)` | Pending, Partial, Review |
+| Error | `rgb(239, 68, 68)` | Failed, Overdue, Rejected |
+| Info | `rgb(59, 130, 246)` | Upcoming, In Progress |
+
+### Component Reuse Guidelines
+
+**Before creating a new component:**
+1. Check if similar component exists in `src/components/ui/`
+2. Determine if truly reusable (3+ use cases)
+3. Use TypeScript interfaces for all props
+4. Follow theme variable conventions
+5. Add responsive breakpoints
+6. Include accessibility features
+
+### ESLint Enforcement
+
+The `no-hardcoded-colors` ESLint rule automatically catches violations:
+
+```bash
+# Run linter to check
+npm run lint
+
+# Will flag errors like:
+# ❌ "background: #667eea" - Use rgb(var(--color-primary)) instead
+```
+
+---
+
+## 💻 Code Style Guidelines
 
 ### Backend (Python/Django)
 

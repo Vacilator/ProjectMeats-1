@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `docs/AUTHENTICATION_GUIDE.md` - Authentication & permissions guide (consolidates 13 docs)
     - `docs/TROUBLESHOOTING.md` - Common issues and solutions (consolidates 14 docs)
     - `docs/lessons-learned/3-MONTH-RETROSPECTIVE.md` - 3-month development retrospective (consolidates 10 docs)
-  - Archived all redundant documentation to `docs/archived-2024-11/` with complete cross-references
+  - Archived all redundant documentation to `docs/ (archived - file removed)
   - Updated `docs/README.md` with new structure and navigation
   - Cleaned root directory from 67 to 6 essential markdown files
   - **Impact:** Improved documentation discoverability, reduced duplication, single source of truth per topic
@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Downgraded from `psycopg[binary]==3.2.9` (psycopg3) to `psycopg2-binary==2.9.9`
   - Fixes deployment failures in PRs #235, #240, #237 related to django-tenants integration
   - Root cause: django-tenants 3.5.0 has infinite recursion bug with psycopg3's cursor API
-  - See `docs/archived-2024-11/troubleshooting/PSYCOPG_FIX.md` for detailed technical analysis
+  - See `docs/ (archived - file removed)
   - **Impact:** Enables successful database migrations in CI/CD with django-tenants
   - **Compatibility:** psycopg2-binary 2.9.9 is stable with Django 4.2.7, Python 3.12, PostgreSQL 15
   - **Future upgrade path:** django-tenants 3.7.0+ supports psycopg3 when we upgrade django-tenants
@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Changed dependencies from latest migrations (0002/0004/0005/0006) to initial migrations (0001)
   - Eliminates all `InconsistentMigrationHistory` errors from deployment pipeline
   - Works for both fresh and existing database deployments
-  - See `docs/archived-2024-11/migration/MIGRATION_DEPENDENCIES_FIX_FINAL.md` for comprehensive analysis
+  - See `docs/ (archived - file removed)
   - **Key insight:** Django auto-generates dependencies on latest migrations, but only structural dependencies should be declared
   - **Impact:** Prevents future migration ordering conflicts; safe for all environments
 - **[CRITICAL]** Corrected migration dependency issue that was incorrectly "fixed" in PR #135
@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Moved 67 scattered root-level markdown files to organized archive
   - Consolidated redundant documentation into comprehensive guides
   - Updated all internal documentation references to new locations
-  - **Migration Path:** See `docs/archived-2024-11/README.md` for file mapping
+  - **Migration Path:** See `docs/ (archived - file removed)
 
 ## [Previous Versions]
 See git history for changes prior to this changelog.
