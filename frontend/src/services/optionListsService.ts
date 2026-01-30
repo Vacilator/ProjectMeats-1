@@ -274,6 +274,60 @@ export const getAllOptionLists = async (): Promise<UnifiedOptionList[]> => {
   return unified;
 };
 
+// =============================================================================
+// AUDIT LOGS
+// =============================================================================
+
+export interface AuditLogEntry {
+  id: string;
+  override: string | null;
+  tenant_id: string | null;
+  tenant_name: string;
+  entity_type: string;
+  field_name: string;
+  action: 'create' | 'update' | 'delete' | 'activate' | 'deactivate';
+  action_display: string;
+  previous_state: Record<string, any>;
+  new_state: Record<string, any>;
+  changes: Array<{ field: string; old: any; new: any }>;
+  performed_by: number | null;
+  performed_by_name: string | null;
+  performed_at: string;
+  ip_address: string | null;
+  user_agent: string;
+}
+
+export const getAuditLogs = async (params?: {
+  entity_type?: string;
+  field_name?: string;
+  action?: string;
+  limit?: number;
+}): Promise<AuditLogEntry[]> => {
+  const response = await axios.get(`${API_BASE}/choice-override-audit/`, { params });
+  return response.data;
+};
+
+export const getOverrideAuditHistory = async (overrideId: string): Promise<AuditLogEntry[]> => {
+  const response = await axios.get(`${API_BASE}/choice-overrides/${overrideId}/audit_history/`);
+  return response.data;
+};
+
+// =============================================================================
+// TENANT LIST API (for tenant selector in Admin UI)
+// =============================================================================
+
+export interface TenantInfo {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export const getTenants = async (): Promise<TenantInfo[]> => {
+  // Fetch tenants from tenants API
+  const response = await axios.get('/api/v1/tenants/');
+  return response.data.results || response.data;
+};
+
 export default {
   // System
   getSystemOptionLists,
@@ -298,4 +352,9 @@ export default {
   getEntityChoiceFields,
   // Unified
   getAllOptionLists,
+  // Audit
+  getAuditLogs,
+  getOverrideAuditHistory,
+  // Tenants
+  getTenants,
 };

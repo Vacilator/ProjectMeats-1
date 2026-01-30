@@ -9,7 +9,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     DataSchemaViewSet, DataSchemaFieldViewSet,
     DataSchemaVersionViewSet, FieldOptionListViewSet,
-    TenantFieldChoiceOverrideViewSet,
+    TenantFieldChoiceOverrideViewSet, ChoiceOverrideAuditLogViewSet,
     # Admin Schema Editor APIs
     SchemaFieldsAPIView, SchemaFieldDetailAPIView, SchemaReorderAPIView,
     # Choice Override APIs
@@ -24,6 +24,7 @@ router.register(r'fields', DataSchemaFieldViewSet, basename='schema-field')
 router.register(r'versions', DataSchemaVersionViewSet, basename='schema-version')
 router.register(r'option-lists', FieldOptionListViewSet, basename='option-list')
 router.register(r'choice-overrides', TenantFieldChoiceOverrideViewSet, basename='choice-override')
+router.register(r'choice-override-audit', ChoiceOverrideAuditLogViewSet, basename='choice-override-audit')
 
 urlpatterns = [
     path('', include(router.urls)),

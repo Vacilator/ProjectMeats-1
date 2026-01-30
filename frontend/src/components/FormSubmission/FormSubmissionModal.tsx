@@ -21,6 +21,7 @@ import {
   entityOptionsService,
 } from '../../services/quickActionsService';
 import { isStaticChoiceField, getChoicesForField } from '../../services/choicesService';
+import { getEffectiveChoices } from '../../services/optionListsService';
 import { notify } from '../../utils/notify';
 import { validateField, mergeValidationRules, ValidationRule } from '../../utils/formValidation';
 import { Icon } from '../ui';
@@ -935,17 +936,31 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         }
       }
       
-      // 2. Load static choices for select fields
+      // 2. Load choices for select fields (effective choices with tenant overrides)
       for (const step of steps) {
         for (const field of step.fields) {
-          // Check if this field needs static choices (not already having options)
-          if (field.type === 'select' && !field.options?.length && !field.choices?.length && !field.related_entity_type) {
-            // Check if this field name maps to a static choice type
+          // Check if this field needs choices (not already having options)
+          if ((field.type === 'select' || field.type === 'multiselect') && 
+              !field.options?.length && !field.choices?.length && !field.related_entity_type) {
+            
+            // Try to get effective choices (includes tenant overrides)
+            try {
+              const effectiveResult = await getEffectiveChoices(step.entity_type, field.key);
+              if (effectiveResult.choices && effectiveResult.choices.length > 0) {
+                const choiceKey = `__choices__${field.key}`;
+                setEntityOptions(prev => ({ ...prev, [choiceKey]: effectiveResult.choices }));
+                continue; // Successfully loaded effective choices
+              }
+            } catch (e) {
+              // Effective choices endpoint might not exist for this field, fall back to static
+              console.debug(`No effective choices override for ${step.entity_type}.${field.key}, trying static choices`);
+            }
+            
+            // Fall back to static choices if no override exists
             if (isStaticChoiceField(field.key)) {
               try {
                 const choices = await getChoicesForField(field.key);
                 if (choices && choices.length > 0) {
-                  // Store static choices in entityOptions using a special prefix
                   const choiceKey = `__choices__${field.key}`;
                   setEntityOptions(prev => ({ ...prev, [choiceKey]: choices }));
                 }

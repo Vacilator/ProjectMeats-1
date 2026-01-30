@@ -13,11 +13,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 
-from .models import DataSchema, DataSchemaField, DataSchemaVersion, FieldOptionList, SchemaStatus, TenantFieldChoiceOverride
+from .models import DataSchema, DataSchemaField, DataSchemaVersion, FieldOptionList, SchemaStatus, TenantFieldChoiceOverride, ChoiceOverrideAuditLog
 from .serializers import (
     DataSchemaSerializer, DataSchemaListSerializer, DataSchemaFieldSerializer,
     DataSchemaVersionSerializer, FieldOptionListSerializer, SchemaDefinitionSerializer,
-    TenantFieldChoiceOverrideSerializer, EffectiveChoicesSerializer
+    TenantFieldChoiceOverrideSerializer, EffectiveChoicesSerializer, ChoiceOverrideAuditLogSerializer
 )
 from .permissions import can_submit_schema, can_publish_schema
 
@@ -580,6 +580,7 @@ class TenantFieldChoiceOverrideViewSet(viewsets.ModelViewSet):
     
     Allows admins to override entity field choices at tenant level.
     Root-level overrides (tenant=None) serve as system defaults.
+    All changes are tracked in the audit log.
     """
     
     queryset = TenantFieldChoiceOverride.objects.all()
@@ -613,7 +614,91 @@ class TenantFieldChoiceOverrideViewSet(viewsets.ModelViewSet):
         return qs.select_related('tenant', 'option_list', 'created_by')
     
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        instance = serializer.save(created_by=self.request.user)
+        # Log creation in audit trail
+        ChoiceOverrideAuditLog.log_create(instance, self.request.user, self.request)
+    
+    def perform_update(self, serializer):
+        # Capture old state before update
+        instance = self.get_object()
+        old_data = ChoiceOverrideAuditLog._serialize_override(instance)
+        old_is_active = instance.is_active
+        
+        # Perform the update
+        updated_instance = serializer.save()
+        
+        # Check if this was just an activation/deactivation
+        new_is_active = updated_instance.is_active
+        if old_is_active != new_is_active and len(serializer.validated_data) == 1:
+            ChoiceOverrideAuditLog.log_status_change(
+                updated_instance, new_is_active, self.request.user, self.request
+            )
+        else:
+            # Full update
+            ChoiceOverrideAuditLog.log_update(
+                updated_instance, old_data, self.request.user, self.request
+            )
+    
+    def perform_destroy(self, instance):
+        # Log deletion before destroying
+        ChoiceOverrideAuditLog.log_delete(instance, self.request.user, self.request)
+        instance.delete()
+    
+    @action(detail=True, methods=['get'])
+    def audit_history(self, request, pk=None):
+        """Get audit history for a specific override."""
+        instance = self.get_object()
+        logs = ChoiceOverrideAuditLog.objects.filter(
+            models.Q(override=instance) | 
+            models.Q(entity_type=instance.entity_type, field_name=instance.field_name)
+        ).order_by('-performed_at')[:50]
+        
+        serializer = ChoiceOverrideAuditLogSerializer(logs, many=True)
+        return Response(serializer.data)
+
+
+class ChoiceOverrideAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for viewing Choice Override Audit Logs.
+    
+    Read-only access to audit trail for choice override changes.
+    """
+    
+    queryset = ChoiceOverrideAuditLog.objects.all()
+    serializer_class = ChoiceOverrideAuditLogSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        
+        # Filter by entity type
+        entity_type = self.request.query_params.get('entity_type')
+        if entity_type:
+            qs = qs.filter(entity_type=entity_type)
+        
+        # Filter by field name
+        field_name = self.request.query_params.get('field_name')
+        if field_name:
+            qs = qs.filter(field_name=field_name)
+        
+        # Filter by action
+        action = self.request.query_params.get('action')
+        if action:
+            qs = qs.filter(action=action)
+        
+        # Filter by user
+        user_id = self.request.query_params.get('user')
+        if user_id:
+            qs = qs.filter(performed_by_id=user_id)
+        
+        # Limit results
+        limit = self.request.query_params.get('limit', 100)
+        try:
+            limit = min(int(limit), 500)
+        except ValueError:
+            limit = 100
+        
+        return qs.select_related('override', 'performed_by')[:limit]
 
 
 class EffectiveChoicesAPIView(APIView):

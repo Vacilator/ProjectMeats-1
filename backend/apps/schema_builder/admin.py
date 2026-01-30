@@ -26,7 +26,8 @@ from .forms import (
 )
 from .models import (
     DataSchema, DataSchemaField, DataSchemaVersion, 
-    FieldOptionList, SchemaStatus, FieldType, TenantFieldChoiceOverride
+    FieldOptionList, SchemaStatus, FieldType, TenantFieldChoiceOverride,
+    ChoiceOverrideAuditLog
 )
 from .permissions import (
     can_edit_schema, can_submit_schema, can_publish_schema,
@@ -646,3 +647,52 @@ class TenantFieldChoiceOverrideAdmin(admin.ModelAdmin):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(ChoiceOverrideAuditLog)
+class ChoiceOverrideAuditLogAdmin(admin.ModelAdmin):
+    """Admin for viewing choice override audit logs (read-only)."""
+    
+    list_display = ['performed_at', 'action', 'entity_field_display', 'tenant_name', 'performed_by', 'ip_address']
+    list_filter = ['action', 'entity_type', 'performed_at']
+    search_fields = ['entity_type', 'field_name', 'tenant_name', 'performed_by__username']
+    readonly_fields = [
+        'override', 'tenant_id', 'tenant_name', 'entity_type', 'field_name',
+        'action', 'previous_state', 'new_state', 'changes',
+        'performed_by', 'performed_at', 'ip_address', 'user_agent'
+    ]
+    ordering = ['-performed_at']
+    date_hierarchy = 'performed_at'
+    
+    fieldsets = [
+        ('Override Info', {
+            'fields': ('override', 'entity_type', 'field_name', 'tenant_name')
+        }),
+        ('Action', {
+            'fields': ('action', 'performed_by', 'performed_at')
+        }),
+        ('Changes', {
+            'fields': ('previous_state', 'new_state', 'changes'),
+            'classes': ['collapse']
+        }),
+        ('Request Details', {
+            'fields': ('ip_address', 'user_agent'),
+            'classes': ['collapse']
+        }),
+    ]
+    
+    def entity_field_display(self, obj):
+        return f"{obj.entity_type}.{obj.field_name}"
+    entity_field_display.short_description = 'Entity.Field'
+    
+    def has_add_permission(self, request):
+        """Audit logs cannot be created manually."""
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Audit logs cannot be edited."""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Audit logs cannot be deleted."""
+        return False

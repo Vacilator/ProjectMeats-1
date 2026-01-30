@@ -631,6 +631,208 @@ class TenantFieldChoiceOverride(models.Model):
         return choices
 
 
+class ChoiceOverrideAuditLog(models.Model):
+    """
+    Audit log for tracking changes to TenantFieldChoiceOverride.
+    
+    Records all create, update, and delete operations on choice overrides
+    for compliance and debugging purposes.
+    """
+    
+    class ActionType(models.TextChoices):
+        CREATE = 'create', 'Created'
+        UPDATE = 'update', 'Updated'
+        DELETE = 'delete', 'Deleted'
+        ACTIVATE = 'activate', 'Activated'
+        DEACTIVATE = 'deactivate', 'Deactivated'
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Reference to the override (nullable for deletes)
+    override = models.ForeignKey(
+        TenantFieldChoiceOverride,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='audit_logs',
+        help_text="The override that was modified"
+    )
+    
+    # Denormalized fields for when override is deleted
+    tenant_id = models.UUIDField(null=True, blank=True)
+    tenant_name = models.CharField(max_length=255, blank=True, default='')
+    entity_type = models.CharField(max_length=100)
+    field_name = models.CharField(max_length=100)
+    
+    # Action details
+    action = models.CharField(
+        max_length=20,
+        choices=ActionType.choices,
+        help_text="Type of action performed"
+    )
+    
+    # Snapshot of data before and after change
+    previous_state = models.JSONField(
+        default=dict,
+        help_text="State before the change (empty for creates)"
+    )
+    new_state = models.JSONField(
+        default=dict,
+        help_text="State after the change (empty for deletes)"
+    )
+    
+    # What specifically changed
+    changes = models.JSONField(
+        default=list,
+        help_text="List of specific field changes: [{field, old, new}]"
+    )
+    
+    # Audit metadata
+    performed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='choice_override_audit_logs',
+        help_text="User who performed the action"
+    )
+    performed_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default='')
+    
+    class Meta:
+        verbose_name = "Choice Override Audit Log"
+        verbose_name_plural = "Choice Override Audit Logs"
+        ordering = ['-performed_at']
+        indexes = [
+            models.Index(fields=['override']),
+            models.Index(fields=['entity_type', 'field_name']),
+            models.Index(fields=['performed_at']),
+            models.Index(fields=['action']),
+        ]
+    
+    def __str__(self):
+        return f"{self.action} {self.entity_type}.{self.field_name} by {self.performed_by} at {self.performed_at}"
+    
+    @classmethod
+    def log_create(cls, override, user, request=None):
+        """Log creation of a new override."""
+        return cls.objects.create(
+            override=override,
+            tenant_id=override.tenant_id if override.tenant else None,
+            tenant_name=override.tenant.name if override.tenant else '',
+            entity_type=override.entity_type,
+            field_name=override.field_name,
+            action=cls.ActionType.CREATE,
+            previous_state={},
+            new_state=cls._serialize_override(override),
+            changes=[],
+            performed_by=user,
+            ip_address=cls._get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '') if request else ''
+        )
+    
+    @classmethod
+    def log_update(cls, override, old_data, user, request=None):
+        """Log update to an existing override."""
+        new_data = cls._serialize_override(override)
+        changes = cls._compute_changes(old_data, new_data)
+        
+        return cls.objects.create(
+            override=override,
+            tenant_id=override.tenant_id if override.tenant else None,
+            tenant_name=override.tenant.name if override.tenant else '',
+            entity_type=override.entity_type,
+            field_name=override.field_name,
+            action=cls.ActionType.UPDATE,
+            previous_state=old_data,
+            new_state=new_data,
+            changes=changes,
+            performed_by=user,
+            ip_address=cls._get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '') if request else ''
+        )
+    
+    @classmethod
+    def log_delete(cls, override, user, request=None):
+        """Log deletion of an override."""
+        return cls.objects.create(
+            override=None,  # Will be deleted
+            tenant_id=override.tenant_id if override.tenant else None,
+            tenant_name=override.tenant.name if override.tenant else '',
+            entity_type=override.entity_type,
+            field_name=override.field_name,
+            action=cls.ActionType.DELETE,
+            previous_state=cls._serialize_override(override),
+            new_state={},
+            changes=[],
+            performed_by=user,
+            ip_address=cls._get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '') if request else ''
+        )
+    
+    @classmethod
+    def log_status_change(cls, override, activated, user, request=None):
+        """Log activation/deactivation of an override."""
+        action = cls.ActionType.ACTIVATE if activated else cls.ActionType.DEACTIVATE
+        return cls.objects.create(
+            override=override,
+            tenant_id=override.tenant_id if override.tenant else None,
+            tenant_name=override.tenant.name if override.tenant else '',
+            entity_type=override.entity_type,
+            field_name=override.field_name,
+            action=action,
+            previous_state={'is_active': not activated},
+            new_state={'is_active': activated},
+            changes=[{'field': 'is_active', 'old': not activated, 'new': activated}],
+            performed_by=user,
+            ip_address=cls._get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '') if request else ''
+        )
+    
+    @staticmethod
+    def _serialize_override(override):
+        """Serialize override to dict for storage."""
+        return {
+            'id': str(override.id),
+            'tenant_id': str(override.tenant_id) if override.tenant else None,
+            'entity_type': override.entity_type,
+            'field_name': override.field_name,
+            'mode': override.mode,
+            'options': override.options,
+            'option_list_id': str(override.option_list_id) if override.option_list else None,
+            'is_active': override.is_active,
+        }
+    
+    @staticmethod
+    def _compute_changes(old_data, new_data):
+        """Compute list of field changes between old and new state."""
+        changes = []
+        all_keys = set(old_data.keys()) | set(new_data.keys())
+        
+        for key in all_keys:
+            old_val = old_data.get(key)
+            new_val = new_data.get(key)
+            if old_val != new_val:
+                changes.append({
+                    'field': key,
+                    'old': old_val,
+                    'new': new_val
+                })
+        
+        return changes
+    
+    @staticmethod
+    def _get_client_ip(request):
+        """Extract client IP from request."""
+        if not request:
+            return None
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR')
+
+
 class DynamicEntity(models.Model):
     """
     Dynamic Entity model for storing custom data.

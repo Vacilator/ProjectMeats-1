@@ -6,7 +6,7 @@ Provides REST API serialization for DataSchema, Fields, and Versions.
 """
 from rest_framework import serializers
 
-from .models import DataSchema, DataSchemaField, DataSchemaVersion, FieldOptionList, TenantFieldChoiceOverride
+from .models import DataSchema, DataSchemaField, DataSchemaVersion, FieldOptionList, TenantFieldChoiceOverride, ChoiceOverrideAuditLog
 
 
 class DataSchemaFieldSerializer(serializers.ModelSerializer):
@@ -140,6 +140,24 @@ class EffectiveChoicesSerializer(serializers.Serializer):
     has_override = serializers.BooleanField()
     override_mode = serializers.CharField(allow_null=True)
     override_source = serializers.CharField(allow_null=True)  # 'root', 'tenant', or None
+
+
+class ChoiceOverrideAuditLogSerializer(serializers.ModelSerializer):
+    """Serializer for ChoiceOverrideAuditLog model."""
+    
+    action_display = serializers.CharField(source='get_action_display', read_only=True)
+    performed_by_name = serializers.CharField(source='performed_by.username', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ChoiceOverrideAuditLog
+        fields = [
+            'id', 'override', 'tenant_id', 'tenant_name',
+            'entity_type', 'field_name', 'action', 'action_display',
+            'previous_state', 'new_state', 'changes',
+            'performed_by', 'performed_by_name', 'performed_at',
+            'ip_address', 'user_agent'
+        ]
+        read_only_fields = fields  # All fields are read-only
 
 
 # =============================================================================
