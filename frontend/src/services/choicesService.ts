@@ -139,7 +139,7 @@ export async function getChoices(choiceType: ChoiceType): Promise<ChoiceOption[]
   
   // Fetch specific choice type
   try {
-    const response = await apiClient.get<ChoicesResponse>(`/core/choices/`, {
+    const response = await apiClient.get<ChoicesResponse>(`/choices/`, {
       params: { choice_type: choiceType }
     });
     return response.data.options;
@@ -165,7 +165,7 @@ export async function getAllChoices(): Promise<Record<string, ChoiceOption[]>> {
   }
   
   // Fetch all choices
-  cachePromise = apiClient.get<AllChoicesResponse>(`/core/choices/`)
+  cachePromise = apiClient.get<AllChoicesResponse>(`/choices/`)
     .then(response => {
       choicesCache = response.data.choices;
       return response.data;

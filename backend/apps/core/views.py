@@ -202,8 +202,8 @@ class ChoicesAPIView(APIView):
     form dropdowns. These are static options that don't require
     database lookups.
     
-    GET /api/v1/core/choices/
-    GET /api/v1/core/choices/?choice_type=protein_type
+    GET /api/v1/choices/
+    GET /api/v1/choices/?choice_type=protein_type
     """
     permission_classes = [IsAuthenticated]
     
