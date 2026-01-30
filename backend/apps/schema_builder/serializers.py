@@ -6,7 +6,7 @@ Provides REST API serialization for DataSchema, Fields, and Versions.
 """
 from rest_framework import serializers
 
-from .models import DataSchema, DataSchemaField, DataSchemaVersion, FieldOptionList
+from .models import DataSchema, DataSchemaField, DataSchemaVersion, FieldOptionList, TenantFieldChoiceOverride
 
 
 class DataSchemaFieldSerializer(serializers.ModelSerializer):
@@ -103,6 +103,43 @@ class FieldOptionListSerializer(serializers.ModelSerializer):
     
     def get_option_count(self, obj):
         return len(obj.options) if obj.options else 0
+
+
+class TenantFieldChoiceOverrideSerializer(serializers.ModelSerializer):
+    """Serializer for TenantFieldChoiceOverride model."""
+    
+    option_count = serializers.SerializerMethodField()
+    mode_display = serializers.CharField(source='get_mode_display', read_only=True)
+    tenant_name = serializers.CharField(source='tenant.name', read_only=True, allow_null=True)
+    option_list_name = serializers.CharField(source='option_list.name', read_only=True, allow_null=True)
+    effective_options = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TenantFieldChoiceOverride
+        fields = [
+            'id', 'tenant', 'tenant_name', 'entity_type', 'field_name',
+            'mode', 'mode_display', 'options', 'option_list', 'option_list_name',
+            'option_count', 'effective_options', 'is_active',
+            'created_at', 'updated_at', 'created_by'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_option_count(self, obj):
+        return len(obj.get_effective_options()) if obj else 0
+    
+    def get_effective_options(self, obj):
+        return obj.get_effective_options() if obj else []
+
+
+class EffectiveChoicesSerializer(serializers.Serializer):
+    """Serializer for returning effective choices for an entity field."""
+    
+    entity_type = serializers.CharField()
+    field_name = serializers.CharField()
+    choices = serializers.ListField(child=serializers.DictField())
+    has_override = serializers.BooleanField()
+    override_mode = serializers.CharField(allow_null=True)
+    override_source = serializers.CharField(allow_null=True)  # 'root', 'tenant', or None
 
 
 # =============================================================================

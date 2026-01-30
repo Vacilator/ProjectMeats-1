@@ -462,6 +462,175 @@ class FieldOptionList(models.Model):
         return f"{self.name} ({len(self.options)} options)"
 
 
+class TenantFieldChoiceOverride(models.Model):
+    """
+    Tenant-level override for entity field choices.
+    
+    Allows tenants to customize the options available for select/multi-select
+    fields on standard entities (Customer, Product, etc.).
+    
+    Hierarchy:
+    - Root level (tenant=None): System defaults, apply to all tenants
+    - Tenant level (tenant=X): Override for specific tenant
+    
+    When fetching choices, system merges:
+    1. Django model's original choices
+    2. Root-level overrides (if any)
+    3. Tenant-level overrides (if any, based on mode)
+    """
+    
+    class OverrideMode(models.TextChoices):
+        REPLACE = 'replace', 'Replace All'  # Completely replace default options
+        APPEND = 'append', 'Append to Defaults'  # Add to existing options
+        PREPEND = 'prepend', 'Prepend to Defaults'  # Add before existing options
+        FILTER = 'filter', 'Filter Defaults'  # Show only specified subset
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Scoping - null tenant means root/system level
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='field_choice_overrides',
+        help_text="Tenant this override belongs to (null for root/system level)"
+    )
+    
+    # Target entity and field
+    entity_type = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text="Entity type (e.g., 'customer', 'product')"
+    )
+    field_name = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text="Field name (e.g., 'protein_type', 'edible_inedible')"
+    )
+    
+    # Override configuration
+    mode = models.CharField(
+        max_length=20,
+        choices=OverrideMode.choices,
+        default=OverrideMode.REPLACE,
+        help_text="How to apply this override"
+    )
+    
+    # Options stored as JSON array of {value, label} objects
+    options = models.JSONField(
+        default=list,
+        help_text="List of options [{value: 'v1', label: 'Label 1'}, ...]"
+    )
+    
+    # Optional: link to a reusable FieldOptionList
+    option_list = models.ForeignKey(
+        FieldOptionList,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='field_overrides',
+        help_text="Use options from a reusable list instead of inline options"
+    )
+    
+    # Settings
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this override is active"
+    )
+    
+    # Audit
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='field_choice_overrides_created',
+        help_text="User who created this override"
+    )
+    
+    class Meta:
+        verbose_name = "Field Choice Override"
+        verbose_name_plural = "Field Choice Overrides"
+        ordering = ['entity_type', 'field_name', 'tenant']
+        # Unique per tenant+entity+field combination
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'entity_type', 'field_name'],
+                name='unique_tenant_entity_field_override'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['entity_type', 'field_name']),
+            models.Index(fields=['tenant', 'is_active']),
+        ]
+    
+    def __str__(self):
+        scope = self.tenant.name if self.tenant else "Root/System"
+        return f"{self.entity_type}.{self.field_name} ({scope})"
+    
+    def get_effective_options(self):
+        """Get options, preferring option_list if linked."""
+        if self.option_list:
+            return self.option_list.options
+        return self.options
+    
+    @classmethod
+    def get_effective_choices(cls, entity_type, field_name, tenant=None, default_choices=None):
+        """
+        Get the effective choices for an entity field, applying overrides.
+        
+        Resolution order:
+        1. Start with default_choices (from Django model)
+        2. Apply root-level override (tenant=None) if exists
+        3. Apply tenant-level override if exists
+        
+        Returns list of {value, label} dicts.
+        """
+        # Start with defaults
+        if default_choices:
+            choices = [{'value': c[0], 'label': c[1]} for c in default_choices]
+        else:
+            choices = []
+        
+        # Find applicable overrides
+        overrides = cls.objects.filter(
+            entity_type=entity_type,
+            field_name=field_name,
+            is_active=True
+        ).filter(
+            models.Q(tenant__isnull=True) | models.Q(tenant=tenant)
+        ).order_by('tenant')  # root first, then tenant
+        
+        for override in overrides:
+            override_options = override.get_effective_options()
+            
+            if override.mode == cls.OverrideMode.REPLACE:
+                choices = override_options
+            elif override.mode == cls.OverrideMode.APPEND:
+                # Add options that don't already exist
+                existing_values = {c['value'] for c in choices}
+                for opt in override_options:
+                    if opt['value'] not in existing_values:
+                        choices.append(opt)
+            elif override.mode == cls.OverrideMode.PREPEND:
+                # Add options before existing
+                existing_values = {c['value'] for c in choices}
+                new_choices = []
+                for opt in override_options:
+                    if opt['value'] not in existing_values:
+                        new_choices.append(opt)
+                choices = new_choices + choices
+            elif override.mode == cls.OverrideMode.FILTER:
+                # Keep only specified options
+                allowed_values = {opt['value'] for opt in override_options}
+                choices = [c for c in choices if c['value'] in allowed_values]
+        
+        return choices
+
+
 class DynamicEntity(models.Model):
     """
     Dynamic Entity model for storing custom data.

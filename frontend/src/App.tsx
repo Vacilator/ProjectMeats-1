@@ -60,6 +60,7 @@ import Inquiries from './pages/Inquiries';
 import Fulfillments from './pages/Fulfillments';
 import InquiryTemplates from './pages/InquiryTemplates';
 import InquiryAnalytics from './pages/InquiryAnalytics';
+import OptionListsPage from './pages/Admin/OptionLists';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -205,6 +206,9 @@ const App: React.FC = () => {
                 
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
+                
+                {/* Admin */}
+                <Route path="admin/option-lists" element={<OptionListsPage />} />
               </Route>
             </Routes>
             {/* Form Submission Modal - rendered at app level */}

@@ -4,6 +4,7 @@ API ViewSets for Schema Builder.
 Bundle One: Custom System Data
 Provides REST API endpoints for DataSchema, Fields, and Versions.
 """
+from django.db import models
 from django.db.models import Count, Max
 from django.core.cache import cache
 from rest_framework import viewsets, status
@@ -12,10 +13,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 
-from .models import DataSchema, DataSchemaField, DataSchemaVersion, FieldOptionList, SchemaStatus
+from .models import DataSchema, DataSchemaField, DataSchemaVersion, FieldOptionList, SchemaStatus, TenantFieldChoiceOverride
 from .serializers import (
     DataSchemaSerializer, DataSchemaListSerializer, DataSchemaFieldSerializer,
-    DataSchemaVersionSerializer, FieldOptionListSerializer, SchemaDefinitionSerializer
+    DataSchemaVersionSerializer, FieldOptionListSerializer, SchemaDefinitionSerializer,
+    TenantFieldChoiceOverrideSerializer, EffectiveChoicesSerializer
 )
 from .permissions import can_submit_schema, can_publish_schema
 
@@ -570,3 +572,135 @@ class FieldOptionListViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         return super().destroy(request, *args, **kwargs)
+
+
+class TenantFieldChoiceOverrideViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for Tenant Field Choice Overrides.
+    
+    Allows admins to override entity field choices at tenant level.
+    Root-level overrides (tenant=None) serve as system defaults.
+    """
+    
+    queryset = TenantFieldChoiceOverride.objects.all()
+    serializer_class = TenantFieldChoiceOverrideSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        
+        # Filter by tenant
+        tenant_id = self.request.query_params.get('tenant')
+        if tenant_id == 'root':
+            qs = qs.filter(tenant__isnull=True)
+        elif tenant_id:
+            qs = qs.filter(tenant_id=tenant_id)
+        
+        # Filter by entity type
+        entity_type = self.request.query_params.get('entity_type')
+        if entity_type:
+            qs = qs.filter(entity_type=entity_type)
+        
+        # Filter by field name
+        field_name = self.request.query_params.get('field_name')
+        if field_name:
+            qs = qs.filter(field_name=field_name)
+        
+        # Filter active only
+        if self.request.query_params.get('active_only'):
+            qs = qs.filter(is_active=True)
+        
+        return qs.select_related('tenant', 'option_list', 'created_by')
+    
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class EffectiveChoicesAPIView(APIView):
+    """
+    API endpoint for getting effective choices for an entity field.
+    
+    Combines default choices with root-level and tenant-level overrides.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, entity_type, field_name):
+        """Get effective choices for an entity field."""
+        from tenant_apps.workflows.services import FieldRegistry
+        
+        # Get tenant from request
+        tenant = getattr(request, 'tenant', None)
+        
+        # Get default choices from field registry
+        default_choices = None
+        fields = FieldRegistry.get_fields_for_entity(entity_type)
+        for field in fields:
+            if field.get('name') == field_name and field.get('choices'):
+                default_choices = [(c['value'], c['label']) for c in field['choices']]
+                break
+        
+        # Get effective choices with overrides applied
+        choices = TenantFieldChoiceOverride.get_effective_choices(
+            entity_type=entity_type,
+            field_name=field_name,
+            tenant=tenant,
+            default_choices=default_choices
+        )
+        
+        # Check if there's an override
+        override = TenantFieldChoiceOverride.objects.filter(
+            entity_type=entity_type,
+            field_name=field_name,
+            is_active=True
+        ).filter(
+            models.Q(tenant__isnull=True) | models.Q(tenant=tenant)
+        ).order_by('-tenant').first()  # Prefer tenant over root
+        
+        return Response({
+            'entity_type': entity_type,
+            'field_name': field_name,
+            'choices': choices,
+            'has_override': override is not None,
+            'override_mode': override.mode if override else None,
+            'override_source': ('tenant' if override and override.tenant else 'root') if override else None
+        })
+
+
+class EntityChoiceFieldsAPIView(APIView):
+    """
+    API endpoint for listing all entity fields that have choices.
+    
+    Used by admin UI to show which fields can have choice overrides.
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request):
+        """Get all entity fields that have choices (select/multiselect)."""
+        from tenant_apps.workflows.services import FieldRegistry
+        
+        result = []
+        entity_types = FieldRegistry.get_entity_types()
+        
+        for entity_type in entity_types:
+            fields = FieldRegistry.get_fields_for_entity(entity_type)
+            choice_fields = []
+            
+            for field in fields:
+                if field.get('choices') or field.get('type') in ['select', 'multiselect']:
+                    choice_fields.append({
+                        'name': field.get('name'),
+                        'label': field.get('label', field.get('name')),
+                        'type': field.get('type'),
+                        'default_choice_count': len(field.get('choices', [])),
+                    })
+            
+            if choice_fields:
+                result.append({
+                    'entity_type': entity_type,
+                    'choice_fields': choice_fields,
+                })
+        
+        return Response({
+            'entities': result,
+            'total_fields': sum(len(e['choice_fields']) for e in result)
+        })

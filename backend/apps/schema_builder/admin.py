@@ -26,7 +26,7 @@ from .forms import (
 )
 from .models import (
     DataSchema, DataSchemaField, DataSchemaVersion, 
-    FieldOptionList, SchemaStatus, FieldType
+    FieldOptionList, SchemaStatus, FieldType, TenantFieldChoiceOverride
 )
 from .permissions import (
     can_edit_schema, can_submit_schema, can_publish_schema,
@@ -590,3 +590,59 @@ class FieldOptionListAdmin(admin.ModelAdmin):
         if obj and obj.is_system:
             return False
         return super().has_delete_permission(request, obj)
+
+
+@admin.register(TenantFieldChoiceOverride)
+class TenantFieldChoiceOverrideAdmin(admin.ModelAdmin):
+    """Admin for managing entity field choice overrides."""
+    
+    list_display = ['entity_field_display', 'tenant_display', 'mode', 'option_count', 'is_active', 'updated_at']
+    list_filter = ['entity_type', 'mode', 'is_active', 'tenant']
+    search_fields = ['entity_type', 'field_name', 'tenant__name']
+    readonly_fields = ['created_at', 'updated_at', 'created_by']
+    ordering = ['entity_type', 'field_name', 'tenant']
+    autocomplete_fields = ['tenant', 'option_list']
+    
+    fieldsets = [
+        ('Target', {
+            'fields': ('entity_type', 'field_name', 'tenant'),
+            'description': 'Select the entity and field to override. Leave tenant empty for root/system level.'
+        }),
+        ('Override Configuration', {
+            'fields': ('mode', 'options', 'option_list'),
+            'description': 'Configure how to override the default choices.'
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_at', 'updated_at'),
+            'classes': ['collapse']
+        }),
+    ]
+    
+    def entity_field_display(self, obj):
+        return f"{obj.entity_type}.{obj.field_name}"
+    entity_field_display.short_description = 'Entity.Field'
+    entity_field_display.admin_order_field = 'entity_type'
+    
+    def tenant_display(self, obj):
+        if obj.tenant:
+            return obj.tenant.name
+        return format_html('<span style="color: #666; font-style: italic;">Root/System Default</span>')
+    tenant_display.short_description = 'Scope'
+    tenant_display.admin_order_field = 'tenant'
+    
+    def option_count(self, obj):
+        count = len(obj.get_effective_options())
+        source = "list" if obj.option_list else "inline"
+        return format_html(
+            '<span style="background: #e0e0e0; padding: 2px 8px; border-radius: 10px;">{} ({})</span>',
+            count, source
+        )
+    option_count.short_description = 'Options'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)

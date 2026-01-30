@@ -196,5 +196,16 @@ export const navigation: NavigationItem[] = [
     icon: '🚛',
     path: '/carriers',
   },
+  {
+    label: 'Admin',
+    icon: '⚙️',
+    children: [
+      {
+        label: 'Option Lists',
+        icon: '📋',
+        path: '/admin/option-lists',
+      },
+    ],
+  },
 ];
 
