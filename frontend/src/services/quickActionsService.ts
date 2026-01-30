@@ -253,7 +253,7 @@ export const formSubmissionService = {
     try {
       console.log('[autoSave] Saving:', { submissionId, stepId, fieldKey, valueType: typeof value });
       const response = await apiClient.post(
-        `/workflows/form-submissions/${submissionId}/auto-save/`, 
+        `/workflows/form-submissions/${submissionId}/auto_save/`, 
         { step_id: stepId, field_key: fieldKey, value },
         { cancelToken: source.token }
       );

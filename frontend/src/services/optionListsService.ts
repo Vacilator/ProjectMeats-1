@@ -7,9 +7,39 @@
  * - Entity field choice overrides (TenantFieldChoiceOverride)
  */
 import axios from 'axios';
+import { config } from '../config/runtime';
 
-const API_BASE = '/api/schema-builder';
-const TENANT_API_BASE = '/api/workflows';
+// Use runtime config for proper API base URL
+const API_BASE_URL = config.API_BASE_URL;
+
+// API paths (appended to API_BASE_URL which already includes /api/v1)
+const SCHEMA_BUILDER_PATH = '/schema-builder';
+const WORKFLOWS_PATH = '/workflows';
+
+// Create axios client with proper base URL and auth
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true,
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
+});
+
+// Request interceptor for authentication
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Token ${token}`;
+  }
+  const tenantId = localStorage.getItem('tenantId');
+  if (tenantId) {
+    config.headers['X-Tenant-ID'] = tenantId;
+  }
+  return config;
+});
 
 // Types
 export interface OptionItem {
@@ -84,19 +114,19 @@ export interface EntityChoiceFields {
 // =============================================================================
 
 export const getSystemOptionLists = async (): Promise<FieldOptionList[]> => {
-  const response = await axios.get(`${API_BASE}/option-lists/`);
+  const response = await apiClient.get(`${SCHEMA_BUILDER_PATH}/option-lists/`);
   return response.data;
 };
 
 export const getSystemOptionList = async (id: string): Promise<FieldOptionList> => {
-  const response = await axios.get(`${API_BASE}/option-lists/${id}/`);
+  const response = await apiClient.get(`${SCHEMA_BUILDER_PATH}/option-lists/${id}/`);
   return response.data;
 };
 
 export const createSystemOptionList = async (
   data: Partial<FieldOptionList>
 ): Promise<FieldOptionList> => {
-  const response = await axios.post(`${API_BASE}/option-lists/`, data);
+  const response = await apiClient.post(`${SCHEMA_BUILDER_PATH}/option-lists/`, data);
   return response.data;
 };
 
@@ -104,12 +134,12 @@ export const updateSystemOptionList = async (
   id: string,
   data: Partial<FieldOptionList>
 ): Promise<FieldOptionList> => {
-  const response = await axios.patch(`${API_BASE}/option-lists/${id}/`, data);
+  const response = await apiClient.patch(`${SCHEMA_BUILDER_PATH}/option-lists/${id}/`, data);
   return response.data;
 };
 
 export const deleteSystemOptionList = async (id: string): Promise<void> => {
-  await axios.delete(`${API_BASE}/option-lists/${id}/`);
+  await apiClient.delete(`${SCHEMA_BUILDER_PATH}/option-lists/${id}/`);
 };
 
 // =============================================================================
@@ -117,17 +147,17 @@ export const deleteSystemOptionList = async (id: string): Promise<void> => {
 // =============================================================================
 
 export const getTenantLists = async (): Promise<TenantList[]> => {
-  const response = await axios.get(`${TENANT_API_BASE}/lists/`);
+  const response = await apiClient.get(`${WORKFLOWS_PATH}/lists/`);
   return response.data;
 };
 
 export const getTenantList = async (id: string): Promise<TenantList> => {
-  const response = await axios.get(`${TENANT_API_BASE}/lists/${id}/`);
+  const response = await apiClient.get(`${WORKFLOWS_PATH}/lists/${id}/`);
   return response.data;
 };
 
 export const createTenantList = async (data: Partial<TenantList>): Promise<TenantList> => {
-  const response = await axios.post(`${TENANT_API_BASE}/lists/`, data);
+  const response = await apiClient.post(`${WORKFLOWS_PATH}/lists/`, data);
   return response.data;
 };
 
@@ -135,12 +165,12 @@ export const updateTenantList = async (
   id: string,
   data: Partial<TenantList>
 ): Promise<TenantList> => {
-  const response = await axios.patch(`${TENANT_API_BASE}/lists/${id}/`, data);
+  const response = await apiClient.patch(`${WORKFLOWS_PATH}/lists/${id}/`, data);
   return response.data;
 };
 
 export const deleteTenantList = async (id: string): Promise<void> => {
-  await axios.delete(`${TENANT_API_BASE}/lists/${id}/`);
+  await apiClient.delete(`${WORKFLOWS_PATH}/lists/${id}/`);
 };
 
 // =============================================================================
@@ -153,19 +183,19 @@ export const getChoiceOverrides = async (params?: {
   field_name?: string;
   active_only?: boolean;
 }): Promise<ChoiceOverride[]> => {
-  const response = await axios.get(`${API_BASE}/choice-overrides/`, { params });
+  const response = await apiClient.get(`${SCHEMA_BUILDER_PATH}/choice-overrides/`, { params });
   return response.data;
 };
 
 export const getChoiceOverride = async (id: string): Promise<ChoiceOverride> => {
-  const response = await axios.get(`${API_BASE}/choice-overrides/${id}/`);
+  const response = await apiClient.get(`${SCHEMA_BUILDER_PATH}/choice-overrides/${id}/`);
   return response.data;
 };
 
 export const createChoiceOverride = async (
   data: Partial<ChoiceOverride>
 ): Promise<ChoiceOverride> => {
-  const response = await axios.post(`${API_BASE}/choice-overrides/`, data);
+  const response = await apiClient.post(`${SCHEMA_BUILDER_PATH}/choice-overrides/`, data);
   return response.data;
 };
 
@@ -173,12 +203,12 @@ export const updateChoiceOverride = async (
   id: string,
   data: Partial<ChoiceOverride>
 ): Promise<ChoiceOverride> => {
-  const response = await axios.patch(`${API_BASE}/choice-overrides/${id}/`, data);
+  const response = await apiClient.patch(`${SCHEMA_BUILDER_PATH}/choice-overrides/${id}/`, data);
   return response.data;
 };
 
 export const deleteChoiceOverride = async (id: string): Promise<void> => {
-  await axios.delete(`${API_BASE}/choice-overrides/${id}/`);
+  await apiClient.delete(`${SCHEMA_BUILDER_PATH}/choice-overrides/${id}/`);
 };
 
 // =============================================================================
@@ -189,8 +219,8 @@ export const getEffectiveChoices = async (
   entityType: string,
   fieldName: string
 ): Promise<EffectiveChoices> => {
-  const response = await axios.get(
-    `${API_BASE}/choices/${entityType}/${fieldName}/effective/`
+  const response = await apiClient.get(
+    `${SCHEMA_BUILDER_PATH}/choices/${entityType}/${fieldName}/effective/`
   );
   return response.data;
 };
@@ -199,7 +229,7 @@ export const getEntityChoiceFields = async (): Promise<{
   entities: EntityChoiceFields[];
   total_fields: number;
 }> => {
-  const response = await axios.get(`${API_BASE}/entity-choice-fields/`);
+  const response = await apiClient.get(`${SCHEMA_BUILDER_PATH}/entity-choice-fields/`);
   return response.data;
 };
 
@@ -303,12 +333,12 @@ export const getAuditLogs = async (params?: {
   action?: string;
   limit?: number;
 }): Promise<AuditLogEntry[]> => {
-  const response = await axios.get(`${API_BASE}/choice-override-audit/`, { params });
+  const response = await apiClient.get(`${SCHEMA_BUILDER_PATH}/choice-override-audit/`, { params });
   return response.data;
 };
 
 export const getOverrideAuditHistory = async (overrideId: string): Promise<AuditLogEntry[]> => {
-  const response = await axios.get(`${API_BASE}/choice-overrides/${overrideId}/audit_history/`);
+  const response = await apiClient.get(`${SCHEMA_BUILDER_PATH}/choice-overrides/${overrideId}/audit_history/`);
   return response.data;
 };
 
@@ -323,8 +353,8 @@ export interface TenantInfo {
 }
 
 export const getTenants = async (): Promise<TenantInfo[]> => {
-  // Fetch tenants from tenants API
-  const response = await axios.get('/api/v1/tenants/');
+  // Fetch tenants from tenants API (already includes /api/v1 from apiClient baseURL)
+  const response = await apiClient.get('/tenants/');
   return response.data.results || response.data;
 };
 
