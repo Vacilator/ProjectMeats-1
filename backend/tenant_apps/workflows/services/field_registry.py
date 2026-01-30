@@ -11,15 +11,31 @@ from typing import Dict, List, Any, Optional
 
 
 # Entity type to Django model mapping
+# NOTE: Keep this list updated when adding new tenant-aware models
 ENTITY_MODEL_MAP = {
+    # Core business entities
     'supplier': ('suppliers', 'Supplier'),
     'customer': ('customers', 'Customer'),
     'contact': ('contacts', 'Contact'),
     'carrier': ('carriers', 'Carrier'),
+    'product': ('products', 'Product'),
+    
+    # Order management
     'purchase_order': ('purchase_orders', 'PurchaseOrder'),
     'sales_order': ('sales_orders', 'SalesOrder'),
     'invoice': ('invoices', 'Invoice'),
-    'product': ('products', 'Product'),
+    
+    # Inquiry & fulfillment workflow
+    'inquiry': ('inquiries', 'Inquiry'),
+    'fulfillment': ('fulfillments', 'Fulfillment'),
+    
+    # Scheduling & calls
+    'scheduled_call': ('cockpit', 'ScheduledCall'),
+    
+    # Finance
+    'accounts_receivable': ('accounts_receivables', 'AccountsReceivable'),
+    
+    # Infrastructure
     'plant': ('plants', 'Plant'),
     'location': ('locations', 'Location'),
 }

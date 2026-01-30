@@ -868,47 +868,60 @@ class BlueprintVersionViewSet(viewsets.GenericViewSet,
             ...
         ]
         
-        This replaces hardcoded entity lists in the frontend with dynamic data
+        This uses the FieldRegistry to dynamically expose available entities
         from the actual Django models in the system.
         """
-        # Define core business entities to expose
-        # Format: (app_label, model_name, emoji, display_name)
-        EXPOSED_MODELS = [
-            ('core', 'Protein', '🥩', 'Protein'),
-            ('tenants', 'Tenant', '🏢', 'Tenant'),
-            ('tenants', 'TenantUser', '👤', 'User'),
-            ('auth', 'User', '👤', 'System User'),
-            # Add more models as they're created in the system
-        ]
+        from tenant_apps.workflows.services import FieldRegistry
+        
+        # Emoji mapping for entity types
+        ENTITY_EMOJIS = {
+            'supplier': '🏭',
+            'customer': '👤',
+            'contact': '📇',
+            'carrier': '🚚',
+            'product': '📦',
+            'purchase_order': '📋',
+            'sales_order': '🛒',
+            'invoice': '💰',
+            'inquiry': '❓',
+            'fulfillment': '✅',
+            'scheduled_call': '📞',
+            'accounts_receivable': '💵',
+            'plant': '🏭',
+            'location': '📍',
+        }
         
         entities = []
         
-        for app_label, model_name, emoji, display_name in EXPOSED_MODELS:
-            try:
-                model = apps.get_model(app_label, model_name)
+        try:
+            # Get entity types from FieldRegistry (verifies models exist)
+            entity_types = FieldRegistry.get_entity_types()
+            
+            for entity_info in entity_types:
+                entity_key = entity_info['key']
+                emoji = ENTITY_EMOJIS.get(entity_key, '📄')
                 
-                # Extract field names from the model
-                fields = []
-                for field in model._meta.get_fields():
-                    # Include only concrete fields (not reverse relations)
-                    if field.concrete and not field.many_to_many:
-                        fields.append(field.name)
+                # Get fields for this entity type
+                try:
+                    fields_info = FieldRegistry.get_fields_for_entity(entity_key)
+                    field_names = [f['key'] for f in fields_info[:15]]  # Limit to 15 fields
+                except Exception as e:
+                    logger.warning(f"Could not get fields for {entity_key}: {e}")
+                    field_names = []
                 
-                # Build entity definition
                 entity = {
-                    'value': model_name.lower(),
-                    'label': f'{emoji} {display_name}',
-                    'fields': fields[:10],  # Limit to first 10 fields for UI
-                    'app_label': app_label,
-                    'model_name': model_name
+                    'value': entity_key,
+                    'label': f'{emoji} {entity_info["label"]}',
+                    'fields': field_names,
+                    'app_label': entity_info['app'],
+                    'model_name': entity_info['model']
                 }
                 
                 entities.append(entity)
                 
-            except LookupError:
-                # Model doesn't exist, skip it
-                logger.warning(f"Model {app_label}.{model_name} not found")
-                continue
+        except Exception as e:
+            logger.error(f"Failed to get entity types from FieldRegistry: {e}")
+            # Return empty list on error
         
         return Response({
             'count': len(entities),
