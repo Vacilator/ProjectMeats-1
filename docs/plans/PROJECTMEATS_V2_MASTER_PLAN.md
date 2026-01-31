@@ -2,12 +2,47 @@
 
 ## Unified System-Wide Overhaul
 
-**Document Version**: 2.0  
+**Document Version**: 3.0  
 **Created**: 2026-01-31  
 **Last Updated**: 2026-01-31  
-**Status**: 📋 MASTER PLAN - Awaiting Approval  
+**Status**: 📋 MASTER PLAN - Comprehensive Enhancement  
 **Classification**: INDUSTRY LEADING IMPLEMENTATION  
-**Estimated Duration**: 14-18 weeks
+**Estimated Duration**: 18-22 weeks
+
+---
+
+## Executive Summary
+
+This master plan provides a **comprehensive, system-wide overhaul** of ProjectMeats, covering:
+
+| Area | Scope |
+|------|-------|
+| **Frontend** | 37+ pages across Workspace, Orders, Accounting, Admin |
+| **Backend** | 18 apps, 75+ models, 60+ API endpoints |
+| **Mobile** | React Native app with offline support |
+| **Infrastructure** | CI/CD, monitoring, security, scaling |
+| **Testing** | Unit, integration, E2E with 80%+ coverage targets |
+| **Documentation** | Complete repo reorganization |
+
+### Key Deliverables
+
+1. **Cockpit Command Center** - Revolutionary control interface
+2. **Intelligent Forms & Flows** - Dynamic, context-aware workflows
+3. **3-Tier Config System** - System → Tenant → User settings
+4. **Modern Admin Studio** - Visual editors for all configuration
+5. **Enterprise Security** - JWT, rate limiting, audit logging
+6. **Real-Time Updates** - WebSockets for live data
+7. **Mobile v2.0** - Offline support, push notifications, biometrics
+
+### Timeline Overview
+
+```
+Weeks 1-4:   Foundation (config system, security)
+Weeks 5-8:   Feature Development (Cockpit, Forms, Admin)
+Weeks 9-14:  Advanced Features (Mobile, Reporting, AI)
+Weeks 15-18: Testing & Polish
+Weeks 19-22: Rollout & Stabilization
+```
 
 ---
 
@@ -18,15 +53,20 @@
 3. [Current State Analysis](#current-state-analysis)
 4. [Gap Analysis](#gap-analysis)
 5. [Architecture Overview](#architecture-overview)
-6. [Unified Workstreams](#unified-workstreams)
-7. [Implementation Waves](#implementation-waves)
-8. [Security Hardening Plan](#security-hardening-plan)
-9. [Real-Time & Background Processing](#real-time--background-processing)
-10. [Documentation Overhaul](#documentation-overhaul)
-11. [Zero-Breaking-Change Strategy](#zero-breaking-change-strategy)
-12. [Success Metrics](#success-metrics)
-13. [Risk Management](#risk-management)
-14. [Quality Assurance](#quality-assurance)
+6. [Complete Feature Inventory & Revamp Plan](#complete-feature-inventory--revamp-plan)
+7. [Unified Workstreams](#unified-workstreams)
+8. [Implementation Waves](#implementation-waves)
+9. [Security Hardening Plan](#security-hardening-plan)
+10. [Real-Time & Background Processing](#real-time--background-processing)
+11. [Mobile Application Roadmap](#mobile-application-roadmap)
+12. [Comprehensive Testing Strategy](#comprehensive-testing-strategy)
+13. [Performance Optimization Plan](#performance-optimization-plan)
+14. [DevOps & Infrastructure Enhancements](#devops--infrastructure-enhancements)
+15. [Documentation Overhaul](#documentation-overhaul)
+16. [Zero-Breaking-Change Strategy](#zero-breaking-change-strategy)
+17. [Success Metrics](#success-metrics)
+18. [Risk Management](#risk-management)
+19. [Quality Assurance](#quality-assurance)
 
 ---
 
@@ -330,6 +370,305 @@ This plan unifies **three existing plans** into **seven coordinated workstreams*
 Foundation → Security + Infrastructure → Cockpit/Forms/Admin → Model Migrations → Finalization
    (4 wk)        (5 wk parallel)           (5 wk parallel)         (4 wk)          (4 wk)
                                                                               Total: 14-18 weeks
+```
+
+---
+
+## Complete Feature Inventory & Revamp Plan
+
+### Frontend Pages - Current State & Enhancements
+
+#### 🏠 Dashboard & Workspace
+
+| Page | Current State | v2.0 Enhancement |
+|------|---------------|------------------|
+| **Dashboard** (`/`) | Basic stats display | Replace with Cockpit Command Center |
+| **Call Log** (`/call-log`) | Functional | Rename to "Calls", add intelligence features |
+| **Reports** (`/reports`) | Basic | Add interactive charts, export, scheduling |
+
+#### 👥 Master Data Management
+
+| Page | Current State | v2.0 Enhancement |
+|------|---------------|------------------|
+| **Suppliers** (`/suppliers`) | ✅ Complete | Add bulk import/export, map view |
+| **Suppliers > Plants** | ✅ Complete | Merge into unified Locations |
+| **Suppliers > Contacts** | ✅ Complete | Unified contact management |
+| **Customers** (`/customers`) | ✅ Complete | Add customer scoring, segments |
+| **Customers > Locations** | ✅ Complete | Merge into unified Locations |
+| **Customers > Contacts** | ✅ Complete | Unified contact management |
+| **Contacts** (`/contacts`) | ✅ Complete | Add relationship graph |
+| **Carriers** (`/carriers`) | ⚠️ "Coming Soon" | **Implement full logistics module** |
+
+#### 📋 Order Management
+
+| Page | Current State | v2.0 Enhancement |
+|------|---------------|------------------|
+| **Purchase Orders** (`/purchase-orders`) | ✅ Complete | Add PO builder wizard |
+| **PO Attachments** | ⚠️ "Coming Soon" | **Implement file management** |
+| **Sales Orders** (`/sales-orders`) | ✅ Complete | Add SO builder wizard |
+| **SO Attachments** | ⚠️ "Coming Soon" | **Implement file management** |
+| **Inquiries** (`/inquiries`) | ✅ Complete | Add quick quote calculator |
+| **Inquiry Templates** | ✅ Complete | Enhance with AI suggestions |
+| **Inquiry Analytics** | ⚠️ Basic | **Add conversion funnels** |
+| **Fulfillments** (`/fulfillments`) | ✅ Complete | Add shipment tracking integration |
+
+#### 💰 Accounting
+
+| Page | Current State | v2.0 Enhancement |
+|------|---------------|------------------|
+| **Payables** (`/accounting/payables`) | ✅ Complete | Add aging reports |
+| **Payables > Claims** | ✅ Complete | Add workflow automation |
+| **Receivables** (`/accounts-receivables`) | ✅ Complete | Add collection workflows |
+| **Receivables > Invoices** | ✅ Complete | Add batch invoicing |
+
+#### ❄️ Inventory & Logistics
+
+| Page | Current State | v2.0 Enhancement |
+|------|---------------|------------------|
+| **Cold Storage** (`/cold-storage`) | ✅ Basic | Add inventory tracking, alerts |
+| **Carriers/Logistics** | ⚠️ "Coming Soon" | **Full implementation needed** |
+
+#### ⚡ Workflows & AI
+
+| Page | Current State | v2.0 Enhancement |
+|------|---------------|------------------|
+| **Workflow Catalog** (`/workflows`) | ✅ Complete | Add categories, favorites |
+| **Workflow Monitor** | ⚠️ Mock data | **Connect to real execution** |
+| **Workflow Runner** | ⚠️ Hardcoded schema | **Dynamic step loading** |
+| **AI Assistant** (`/ai-assistant`) | ✅ Basic chat | Add context awareness, actions |
+| **My Submissions** (`/my-submissions`) | ✅ Complete | Add status tracking |
+
+#### ⚙️ Settings & Admin
+
+| Page | Current State | v2.0 Enhancement |
+|------|---------------|------------------|
+| **Profile** (`/profile`) | ⚠️ Mock upload | **Implement avatar API** |
+| **Settings** (`/settings`) | ✅ Basic | Add notification preferences |
+| **Admin Panel** (`/admin/*`) | ✅ Complete | Enhance with visual editors |
+
+---
+
+### Backend Features - Current State & Enhancements
+
+#### 🔌 API Completeness
+
+| Endpoint Group | Current | v2.0 Enhancement |
+|----------------|---------|------------------|
+| **Auth** (`/auth/*`) | Token-based | JWT with refresh, 2FA |
+| **Tenants** (`/tenants/*`) | ✅ Complete | Add tenant analytics |
+| **Users** (`/users/*`) | Basic | Add preferences, activity |
+| **Suppliers** | ✅ Complete | Add bulk operations |
+| **Customers** | ✅ Complete | Add scoring API |
+| **Products** | ✅ Complete | Move to system-wide |
+| **Orders** | ✅ Complete | Add workflow triggers |
+| **Invoices** | ✅ Complete | Add batch processing |
+| **Workflows** | ⚠️ Incomplete | **Full execution engine** |
+| **Search** | ❌ Missing | **Universal search API** |
+| **File Upload** | ❌ Missing | **Attachment management** |
+| **Reports** | ❌ Missing | **Report generation API** |
+| **Export** | ❌ Missing | **Data export API (GDPR)** |
+| **Webhooks** | ❌ Missing | **Event notifications** |
+
+#### 🔧 Backend Services - Incomplete
+
+| Service | Status | Implementation Needed |
+|---------|--------|----------------------|
+| **Email Notifications** | ⚠️ Stub only | Complete SendGrid integration |
+| **Workflow Execution** | ⚠️ TODO comments | Full engine implementation |
+| **Cron Scheduling** | ❌ Not implemented | Celery Beat integration |
+| **File Storage** | ❌ Not implemented | S3/DO Spaces integration |
+| **Report Generation** | ⚠️ Basic PDF | Full reporting engine |
+| **Audit Logging** | ⚠️ Basic | Comprehensive audit trail |
+
+---
+
+### Complete Feature Implementation Plan
+
+#### Wave F1: Fix Incomplete Features (Week 3-4)
+
+**Profile & Settings**
+- [ ] **F1.1** Implement profile avatar upload API
+- [ ] **F1.2** Add S3/DO Spaces file storage backend
+- [ ] **F1.3** Create `FileAttachment` model for universal attachments
+- [ ] **F1.4** Implement attachment endpoints for PO/SO
+- [ ] **F1.5** Add notification preferences to settings
+
+**Workflow Engine Completion**
+- [ ] **F1.6** Fix WorkflowCanvas API save (currently mock)
+- [ ] **F1.7** Fix WorkflowRunner dynamic schema loading
+- [ ] **F1.8** Implement workflow execution engine
+- [ ] **F1.9** Add cron expression parser for scheduled workflows
+- [ ] **F1.10** Connect workflow API to execution engine
+
+#### Wave F2: Carriers & Logistics (Week 5-6)
+
+**Full Logistics Module**
+- [ ] **F2.1** Design Carriers page UI/UX
+- [ ] **F2.2** Implement carrier list with filtering
+- [ ] **F2.3** Add carrier detail view (insurance, contacts)
+- [ ] **F2.4** Create load/shipment tracking model
+- [ ] **F2.5** Add shipment status timeline
+- [ ] **F2.6** Integrate with carrier purchase orders
+- [ ] **F2.7** Add carrier rate management
+- [ ] **F2.8** Create logistics dashboard widget
+
+#### Wave F3: Reporting & Analytics (Week 7-8)
+
+**Reports Module**
+- [ ] **F3.1** Create ReportDefinition model
+- [ ] **F3.2** Build report builder UI
+- [ ] **F3.3** Implement report generation service (PDF/Excel)
+- [ ] **F3.4** Add scheduled report delivery
+- [ ] **F3.5** Create standard report templates:
+  - Sales summary
+  - Purchase summary
+  - Aging reports (AR/AP)
+  - Product movement
+  - Customer/supplier performance
+- [ ] **F3.6** Add interactive dashboard charts
+
+#### Wave F4: AI Enhancement (Week 9-10)
+
+**AI Assistant Improvements**
+- [ ] **F4.1** Add conversation context (current page, selected entity)
+- [ ] **F4.2** Implement action suggestions (create PO, send email)
+- [ ] **F4.3** Add document analysis (upload invoice, extract data)
+- [ ] **F4.4** Create AI-powered search suggestions
+- [ ] **F4.5** Add natural language filters ("show POs from last week")
+- [ ] **F4.6** Implement AI-assisted form completion
+
+---
+
+### UI/UX Overhaul Plan
+
+#### Design System Standardization
+
+| Area | Current | Target |
+|------|---------|--------|
+| **Component Library** | Ant Design + custom | Ant Design with theme tokens |
+| **Styling** | Styled Components + Tailwind | Tailwind only (remove dual) |
+| **Icons** | Lucide | Lucide (consistent) |
+| **Colors** | Theme context | CSS custom properties |
+| **Typography** | Mixed | Standardized scale |
+| **Spacing** | Inconsistent | 4px grid system |
+| **Animations** | Minimal | Subtle, purposeful |
+
+#### UX Improvements by Area
+
+**Navigation**
+- [ ] **UX1.1** Add command palette (⌘K) for quick navigation
+- [ ] **UX1.2** Add breadcrumbs to all pages
+- [ ] **UX1.3** Implement recent items in sidebar
+- [ ] **UX1.4** Add favorites/pinned pages
+- [ ] **UX1.5** Improve mobile navigation (bottom tabs)
+
+**Data Tables**
+- [ ] **UX2.1** Upgrade react-table v7 → @tanstack/react-table v8
+- [ ] **UX2.2** Add column resizing and reordering
+- [ ] **UX2.3** Add saved views/filters
+- [ ] **UX2.4** Implement bulk actions toolbar
+- [ ] **UX2.5** Add inline editing mode
+- [ ] **UX2.6** Add keyboard navigation
+
+**Forms**
+- [ ] **UX3.1** Add auto-save drafts
+- [ ] **UX3.2** Implement smart defaults
+- [ ] **UX3.3** Add field-level validation messages
+- [ ] **UX3.4** Create form wizard for complex entities
+- [ ] **UX3.5** Add duplicate detection
+
+**Feedback & Loading**
+- [ ] **UX4.1** Add skeleton loaders for all pages
+- [ ] **UX4.2** Implement optimistic updates
+- [ ] **UX4.3** Add toast notifications for all actions
+- [ ] **UX4.4** Create empty states with CTAs
+- [ ] **UX4.5** Add error boundaries with recovery
+
+---
+
+### Data Model Enhancements
+
+#### New Models Required
+
+```python
+# File attachments (universal)
+class FileAttachment(TenantAwareModel):
+    file = models.FileField(upload_to='attachments/')
+    filename = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)
+    size = models.PositiveIntegerField()
+    uploaded_by = models.ForeignKey(User)
+    # Generic relation to any model
+    content_type = models.ForeignKey(ContentType)
+    object_id = models.UUIDField()
+
+# Report definitions
+class ReportDefinition(TenantAwareModel):
+    name = models.CharField(max_length=255)
+    report_type = models.CharField(choices=REPORT_TYPES)
+    filters = models.JSONField(default=dict)
+    columns = models.JSONField(default=list)
+    schedule = models.CharField(null=True)  # Cron expression
+    recipients = models.ManyToManyField(User)
+
+# Shipment tracking
+class Shipment(TenantAwareModel):
+    carrier = models.ForeignKey(Carrier)
+    purchase_order = models.ForeignKey(PurchaseOrder)
+    sales_order = models.ForeignKey(SalesOrder, null=True)
+    status = models.CharField(choices=SHIPMENT_STATUS)
+    tracking_number = models.CharField(max_length=100)
+    pickup_date = models.DateField()
+    delivery_date = models.DateField(null=True)
+    
+# Shipment events
+class ShipmentEvent(models.Model):
+    shipment = models.ForeignKey(Shipment)
+    event_type = models.CharField(choices=EVENT_TYPES)
+    location = models.CharField(max_length=255)
+    timestamp = models.DateTimeField()
+    notes = models.TextField(blank=True)
+
+# User preferences (enhanced)
+class UserPreferences(models.Model):
+    user = models.OneToOneField(User)
+    notification_email = models.BooleanField(default=True)
+    notification_push = models.BooleanField(default=True)
+    notification_in_app = models.BooleanField(default=True)
+    digest_frequency = models.CharField(choices=DIGEST_CHOICES)
+    quiet_hours_start = models.TimeField(null=True)
+    quiet_hours_end = models.TimeField(null=True)
+    default_view = models.JSONField(default=dict)  # Per-page defaults
+    recent_items = models.JSONField(default=list)
+    favorites = models.JSONField(default=list)
+```
+
+#### Existing Model Enhancements
+
+```python
+# Add to Carrier model
+class Carrier(TenantAwareModel):
+    # ... existing fields ...
+    # NEW fields:
+    tracking_url_template = models.URLField(blank=True)
+    api_integration = models.CharField(choices=CARRIER_APIS, blank=True)
+    api_credentials = models.JSONField(default=dict)  # Encrypted
+    
+# Add to Contact model
+class Contact(TenantAwareModel):
+    # ... existing fields ...
+    # NEW fields:
+    last_contacted = models.DateTimeField(null=True)
+    contact_frequency_days = models.PositiveIntegerField(default=30)
+    preferred_contact_method = models.CharField(choices=CONTACT_METHODS)
+    timezone = models.CharField(max_length=50, default='America/Chicago')
+
+# Add to PurchaseOrder/SalesOrder
+class PurchaseOrder(TenantAwareModel):
+    # ... existing fields ...
+    # NEW fields:
+    attachments = GenericRelation(FileAttachment)
+    workflow_run = models.ForeignKey('workflows.WorkflowRun', null=True)
 ```
 
 ---
@@ -1304,6 +1643,327 @@ INFRASTRUCTURE_METRICS = [
 
 ---
 
+## Mobile Application Roadmap
+
+### Current State
+
+The mobile app (`/mobile`) uses React Native with Expo 51, sharing types with the frontend via `/shared`.
+
+| Aspect | Current | Status |
+|--------|---------|--------|
+| Framework | React Native + Expo 51 | ✅ Modern |
+| Navigation | React Navigation 7 | ✅ Current |
+| State | React Context | 🔄 Needs upgrade |
+| API Client | Axios | ✅ Shared with web |
+| Auth | Token storage | ⚠️ Needs SecureStore |
+| Offline | None | ❌ Critical gap |
+| Push | Not implemented | ❌ Critical gap |
+
+### Mobile v2.0 Features
+
+#### Wave M1: Foundation (Weeks 5-6)
+
+- [ ] **M1.1** Migrate to SecureStore for token storage
+- [ ] **M1.2** Implement biometric authentication
+- [ ] **M1.3** Add offline data caching (AsyncStorage + SQLite)
+- [ ] **M1.4** Create sync manager for offline changes
+- [ ] **M1.5** Set up Expo push notifications
+
+#### Wave M2: Core Features (Weeks 7-10)
+
+- [ ] **M2.1** Implement Cockpit mobile view (simplified)
+- [ ] **M2.2** Add universal search with voice input
+- [ ] **M2.3** Create mobile-optimized data entry forms
+- [ ] **M2.4** Implement quick actions (call, email, directions)
+- [ ] **M2.5** Add barcode/QR scanning for products
+- [ ] **M2.6** Implement photo capture for attachments
+
+#### Wave M3: Advanced (Weeks 11-14)
+
+- [ ] **M3.1** Add location-based features (nearby plants, routes)
+- [ ] **M3.2** Implement order status push notifications
+- [ ] **M3.3** Create mobile-specific widgets (iOS/Android)
+- [ ] **M3.4** Add Apple Watch companion (key alerts)
+- [ ] **M3.5** Implement deep linking (open specific records)
+
+### Mobile Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    MOBILE APP (Expo)                        │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │   Screens   │  │   Hooks     │  │  Services   │         │
+│  │  (RN Paper) │  │  (Queries)  │  │  (API/Sync) │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+│         │                │                │                 │
+│  ┌──────┴────────────────┴────────────────┴──────┐         │
+│  │              State Manager                     │         │
+│  │  (React Query + Context + SecureStore)        │         │
+│  └───────────────────────────────────────────────┘         │
+│         │                │                │                 │
+│  ┌──────┴──────┐  ┌──────┴──────┐  ┌──────┴──────┐        │
+│  │   Offline   │  │    Push     │  │   Native    │        │
+│  │   SQLite    │  │  Expo PN    │  │   Modules   │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     BACKEND API                             │
+│  (Same endpoints as web, mobile-optimized responses)        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Mobile-Specific Considerations
+
+| Consideration | Implementation |
+|---------------|----------------|
+| **Battery** | Optimize background sync frequency |
+| **Bandwidth** | Compress images, paginate aggressively |
+| **Connectivity** | Graceful offline degradation |
+| **Security** | Certificate pinning, jailbreak detection |
+| **Performance** | Lazy load screens, optimize re-renders |
+
+---
+
+## Comprehensive Testing Strategy
+
+### Testing Pyramid
+
+```
+                    ┌───────────┐
+                    │   E2E     │  5%  (Cypress/Playwright)
+                    │   Tests   │  - Critical user flows
+                   ┌┴───────────┴┐
+                   │ Integration │  15%  (pytest, jest)
+                   │    Tests    │  - API contracts
+                  ┌┴─────────────┴┐
+                  │     Unit      │  80%  (pytest, jest)
+                  │     Tests     │  - Business logic
+                 ┌┴───────────────┴┐
+                 │   Static Analysis │  (mypy, ESLint, TypeScript)
+                 └─────────────────────┘
+```
+
+### Coverage Targets by Area
+
+| Area | Current | Target | Priority |
+|------|---------|--------|----------|
+| **Backend Models** | ~60% | 90% | High |
+| **Backend Views/API** | ~40% | 85% | Critical |
+| **Backend Services** | ~30% | 90% | High |
+| **Frontend Components** | ~20% | 70% | Medium |
+| **Frontend Hooks** | ~15% | 80% | High |
+| **E2E Critical Paths** | ~5% | 100% | Critical |
+
+### E2E Test Scenarios (Critical Paths)
+
+| Scenario | Description | Priority |
+|----------|-------------|----------|
+| **Auth Flow** | Login, MFA, logout, password reset | P0 |
+| **Tenant Switch** | Select tenant, verify data isolation | P0 |
+| **PO Creation** | Full PO creation with products, attachments | P0 |
+| **SO Creation** | Full SO creation linked to PO | P0 |
+| **Form Submission** | Custom form with all field types | P0 |
+| **Quick Action Flow** | Complete inquiry→fulfillment flow | P0 |
+| **Search & Filter** | Universal search, filtered lists | P1 |
+| **Admin Config** | Create choice list, field schema | P1 |
+| **Report Generation** | Generate and export report | P1 |
+
+### Testing Implementation Plan
+
+#### Wave T1: Test Infrastructure (Weeks 1-2)
+
+- [ ] **T1.1** Set up pytest-cov with 80% threshold gate
+- [ ] **T1.2** Set up Jest coverage with 70% threshold
+- [ ] **T1.3** Configure Cypress for E2E tests
+- [ ] **T1.4** Create test factories (factory_boy) for all models
+- [ ] **T1.5** Set up test database fixtures
+- [ ] **T1.6** Configure CI to run tests on all PRs
+
+#### Wave T2: Backend Test Coverage (Weeks 3-6)
+
+- [ ] **T2.1** Add missing model tests (target: 90%)
+- [ ] **T2.2** Add API endpoint tests (target: 85%)
+- [ ] **T2.3** Add service layer tests (target: 90%)
+- [ ] **T2.4** Add tenant isolation tests (verify no cross-tenant data)
+- [ ] **T2.5** Add permission tests (verify RBAC)
+- [ ] **T2.6** Add migration tests (verify reversibility)
+
+#### Wave T3: Frontend Test Coverage (Weeks 4-8)
+
+- [ ] **T3.1** Add component unit tests (target: 70%)
+- [ ] **T3.2** Add hook tests (target: 80%)
+- [ ] **T3.3** Add service/API tests (target: 75%)
+- [ ] **T3.4** Add form validation tests
+- [ ] **T3.5** Add accessibility tests (axe-core)
+
+#### Wave T4: E2E Tests (Weeks 6-10)
+
+- [ ] **T4.1** Implement auth flow tests
+- [ ] **T4.2** Implement order creation tests
+- [ ] **T4.3** Implement form submission tests
+- [ ] **T4.4** Implement admin config tests
+- [ ] **T4.5** Add visual regression tests (Percy/Chromatic)
+
+### Test Data Strategy
+
+```python
+# Backend: Factory Boy factories
+class TenantFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Tenant
+    name = factory.Faker('company')
+    slug = factory.LazyAttribute(lambda o: slugify(o.name))
+
+class SupplierFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Supplier
+    tenant = factory.SubFactory(TenantFactory)
+    name = factory.Faker('company')
+    
+# Create consistent test data
+@pytest.fixture
+def test_tenant(db):
+    return TenantFactory(name='Test Tenant')
+
+@pytest.fixture
+def test_supplier(test_tenant):
+    return SupplierFactory(tenant=test_tenant)
+```
+
+```typescript
+// Frontend: MSW for API mocking
+import { rest } from 'msw';
+
+export const handlers = [
+  rest.get('/api/v1/suppliers/', (req, res, ctx) => {
+    return res(ctx.json({ results: mockSuppliers }));
+  }),
+];
+
+// Test
+describe('SupplierList', () => {
+  it('renders suppliers', async () => {
+    render(<SupplierList />);
+    await waitFor(() => {
+      expect(screen.getByText('Mock Supplier')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+---
+
+## Performance Optimization Plan
+
+### Current Performance Baseline
+
+| Metric | Current | Target | Impact |
+|--------|---------|--------|--------|
+| **First Contentful Paint** | ~2.5s | <1.5s | UX |
+| **Time to Interactive** | ~4s | <3s | UX |
+| **API p95 Response** | ~500ms | <200ms | UX |
+| **Bundle Size (main)** | ~2MB | <500KB | Load time |
+| **Lighthouse Score** | ~65 | >90 | SEO/UX |
+
+### Optimization Strategies
+
+#### Frontend Optimizations
+
+- [ ] **P1.1** Implement code splitting by route
+- [ ] **P1.2** Lazy load heavy components (charts, editors)
+- [ ] **P1.3** Add service worker for caching
+- [ ] **P1.4** Optimize images (WebP, lazy load)
+- [ ] **P1.5** Implement virtual scrolling for long lists
+- [ ] **P1.6** Add React.memo to expensive components
+- [ ] **P1.7** Optimize re-renders with useMemo/useCallback
+- [ ] **P1.8** Remove unused dependencies (bundle analysis)
+
+#### Backend Optimizations
+
+- [ ] **P2.1** Add database query optimization (select_related, prefetch_related)
+- [ ] **P2.2** Implement query result caching (Redis)
+- [ ] **P2.3** Add database indexes for common queries
+- [ ] **P2.4** Implement pagination for all list endpoints
+- [ ] **P2.5** Add response compression (gzip/brotli)
+- [ ] **P2.6** Optimize serializers (only necessary fields)
+- [ ] **P2.7** Add query profiling in development
+
+#### Infrastructure Optimizations
+
+- [ ] **P3.1** Configure CDN for static assets
+- [ ] **P3.2** Implement database connection pooling
+- [ ] **P3.3** Add Redis caching layer
+- [ ] **P3.4** Configure nginx for optimal caching
+- [ ] **P3.5** Implement database read replicas (if needed)
+
+---
+
+## DevOps & Infrastructure Enhancements
+
+### Current State
+
+| Aspect | Current | Target |
+|--------|---------|--------|
+| **CI/CD** | GitHub Actions | ✅ Keep (optimize) |
+| **Hosting** | DigitalOcean Droplet | ✅ Keep (add load balancer) |
+| **Database** | DO Managed PostgreSQL | ✅ Keep (add read replica) |
+| **Registry** | DO Container Registry | ✅ Keep |
+| **Monitoring** | Basic logs | Sentry + Prometheus + Grafana |
+| **Secrets** | GitHub Secrets | ✅ Keep (add rotation) |
+
+### Infrastructure Improvements
+
+#### Wave I1: Observability (Weeks 3-4)
+
+- [ ] **I1.1** Set up Sentry for error tracking (backend + frontend)
+- [ ] **I1.2** Configure Prometheus for metrics collection
+- [ ] **I1.3** Set up Grafana dashboards
+- [ ] **I1.4** Add structured logging (JSON format)
+- [ ] **I1.5** Create alerting rules (PagerDuty/Slack)
+
+#### Wave I2: Reliability (Weeks 5-6)
+
+- [ ] **I2.1** Add health check endpoints
+- [ ] **I2.2** Implement graceful shutdown
+- [ ] **I2.3** Add circuit breakers for external services
+- [ ] **I2.4** Create runbooks for common issues
+- [ ] **I2.5** Implement automatic rollback on failed deploys
+
+#### Wave I3: Scaling (Weeks 10-12)
+
+- [ ] **I3.1** Add load balancer (DO Load Balancer)
+- [ ] **I3.2** Configure horizontal scaling
+- [ ] **I3.3** Add Redis caching cluster
+- [ ] **I3.4** Implement database read replicas
+- [ ] **I3.5** Configure CDN for global distribution
+
+### Monitoring Dashboard Layout
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SYSTEM HEALTH                            │
+├──────────────┬──────────────┬──────────────┬───────────────┤
+│   API p95    │  Error Rate  │   DB Conns   │  Redis Mem    │
+│   142ms ✅   │   0.1% ✅    │   45/100 ✅  │  2.1GB/4GB ✅ │
+├──────────────┴──────────────┴──────────────┴───────────────┤
+│                    REQUEST VOLUME                           │
+│  [Graph: Requests/min over last 24h]                        │
+├─────────────────────────────────────────────────────────────┤
+│                    TOP ERRORS                               │
+│  1. 404 /api/old-endpoint (deprecated) - 45 occurrences    │
+│  2. 500 /api/reports/generate - 12 occurrences             │
+├─────────────────────────────────────────────────────────────┤
+│                    SLOW QUERIES                             │
+│  1. SELECT * FROM purchase_orders... - avg 450ms           │
+│  2. SELECT * FROM products WHERE... - avg 320ms            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Appendix A: Technology Decisions
 
 ### Why JWT over Session Tokens?
@@ -1400,6 +2060,23 @@ django-csp>=3.7
 |---------|------|--------|---------|
 | 1.0 | 2026-01-31 | Copilot | Initial unified plan |
 | 2.0 | 2026-01-31 | Copilot | Added: Gap analysis, Security hardening, Real-time/Background processing, Documentation overhaul, QA strategy, Monitoring, Mobile considerations, Appendices |
+| 3.0 | 2026-01-31 | Copilot | **Comprehensive Enhancement**: Complete frontend page inventory (37+ pages), backend feature completeness, UI/UX overhaul plan, data model enhancements, mobile v2.0 roadmap, comprehensive testing strategy, performance optimization plan, DevOps/infrastructure improvements. Extended timeline to 18-22 weeks. |
+
+---
+
+## Summary Statistics
+
+| Category | Count |
+|----------|-------|
+| **Frontend Pages** | 37+ routes |
+| **Backend Models** | 75+ models |
+| **New Features** | 45+ features |
+| **Bug Fixes** | 6 critical bugs |
+| **Test Scenarios** | 9 E2E critical paths |
+| **New API Endpoints** | 20+ endpoints |
+| **Infrastructure Tasks** | 15+ improvements |
+| **Documentation Files** | 55 → organized structure |
+| **Total Tasks** | 350+ implementation items |
 
 ---
 

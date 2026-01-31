@@ -4,7 +4,8 @@
 
 **Last Updated**: 2026-01-31  
 **Current Phase**: Pre-Wave 0  
-**Overall Progress**: 5%
+**Overall Progress**: 5%  
+**Plan Version**: 3.0 (Comprehensive)
 
 ---
 
@@ -24,15 +25,47 @@
 │  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
+│  NEW WAVES (v3.0):                                                   │
+│  Wave F: Features         [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
+│  Wave M: Mobile           [░░░░░░░░░░]   0%  ⏳ Weeks 5-14            │
+│  Wave T: Testing          [░░░░░░░░░░]   0%  ⏳ Continuous            │
+│  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
+│                                                                      │
 │  ────────────────────────────────────────────────────                │
 │  OVERALL                  [█░░░░░░░░░]   5%                          │
+│                                                                      │
+│  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
+## Scope Summary (v3.0 Master Plan)
+
+| Category | Items | Status |
+|----------|-------|--------|
+| **Frontend Pages** | 37+ routes | Inventoried |
+| **Backend Features** | 75+ models | Inventoried |
+| **Mobile Features** | 15+ tasks | Planned |
+| **Infrastructure** | 15+ tasks | Planned |
+| **Testing** | 9 E2E paths | Planned |
+| **Documentation** | 55+ files | Planned |
+
+---
+
 ## Recent Accomplishments
+
+### 2026-01-31 - Master Plan Enhanced to v3.0
+
+**Added Comprehensive Coverage**:
+- Complete frontend page inventory (37+ routes with enhancement plans)
+- UI/UX overhaul strategy (design system, navigation, tables, forms)
+- Data model enhancements (FileAttachment, Shipment, UserPreferences)
+- Mobile v2.0 roadmap (offline, push, biometrics)
+- Testing strategy (pyramid, coverage targets, E2E paths)
+- Performance optimization plan
+- DevOps & infrastructure improvements
 
 ### 2026-01-31 - Form Builder Bug Fixes (PR #2196 ✅ MERGED)
 
@@ -57,7 +90,7 @@
 
 | Document | Location | Status |
 |----------|----------|--------|
-| Master Plan v2.0 | `docs/plans/PROJECTMEATS_V2_MASTER_PLAN.md` | ✅ Created |
+| Master Plan v3.0 | `docs/plans/PROJECTMEATS_V2_MASTER_PLAN.md` | ✅ Enhanced |
 | Progress Tracker | `docs/plans/PROGRESS_TRACKER.md` | ✅ Created |
 | Admin Revamp Plan | `docs/ADMIN_BACKEND_REVAMP_PLAN.md` | ✅ Created |
 | Doc Organization Plan | `docs/DOCUMENTATION_ORGANIZATION_PLAN.md` | ✅ Created |
