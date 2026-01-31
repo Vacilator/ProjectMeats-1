@@ -700,3 +700,60 @@ Each phase should be independently rollbackable:
 2. [ ] Decide on admin-studio fate (migrate or remove)
 3. [ ] Schedule implementation window
 4. [ ] Execute Phase 1A first (lowest risk)
+
+---
+
+## 🆕 ADMIN BACKEND REVAMP (Added 2026-01-31)
+
+> **See Full Plan**: `/root/.copilot/session-state/.../ADMIN_REVAMP_PLAN.md`
+
+### Integration with This Plan
+
+The Admin Backend Revamp extends this restructuring plan with a **3-tier permission hierarchy**:
+
+```
+SYSTEM CORE (Superuser only)
+    │
+    ▼
+SYSTEM (System Admins - affects all tenants)
+    │
+    ▼
+TENANT (Tenant Admins - affects their tenant only)
+```
+
+### New Unified Config System
+
+**Replaces**:
+- `schema_builder` app → `SystemChoiceList` + `SystemFieldSchema` in core
+- `system_config` app → Merged into core ConfigResolver
+- Scattered TextChoices → Centralized `SystemChoiceList`
+
+**New Models** (in `apps/core/`):
+- `SystemChoiceList` - System-wide dropdown options
+- `SystemChoiceItem` - Items within choice lists
+- `SystemFieldSchema` - Base field definitions per entity
+- `TenantConfig` - Per-tenant overrides and customizations
+
+### Root Tenant Pattern
+
+UUID `00000000-0000-0000-0000-000000000000` serves as:
+- Source of truth for system defaults
+- Context for Global System Admins
+- Parent for all choice list propagation
+
+### Connection to FORMS_FLOWS_ENHANCEMENT_PLAN
+
+The form builder and Cockpit will use `ConfigResolver` to:
+1. Get effective choices (system + tenant overrides)
+2. Get effective fields (base + custom)
+3. Respect permission tiers
+
+### Updated Phase Order
+
+1. **Phase 1A**: Delete unused apps (schema_builder, system_config, accounts_receivables)
+2. **Phase 1B**: Create new unified config models
+3. **Phase 2**: Renames (core→system not needed now, keep as core)
+4. **Phase 3**: Model moves (plants→locations)
+5. **Phase 4**: Admin UI revamp (Django + React Admin Studio)
+6. **Phase 5**: Integration with forms/cockpit
+
