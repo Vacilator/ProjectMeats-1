@@ -163,6 +163,8 @@ ENTITY_TYPES = [
     ('contact', 'Contact'),
     ('carrier', 'Carrier'),
     ('product', 'Product'),
+    ('inquiry', 'Inquiry'),
+    ('fulfillment', 'Fulfillment'),
 ]
 
 

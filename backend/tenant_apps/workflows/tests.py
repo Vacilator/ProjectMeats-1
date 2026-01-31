@@ -355,3 +355,133 @@ class WorkflowExecutionLogTest(TestCase):
         self.assertEqual(log.status, 'success')
         self.assertEqual(log.actions_executed, 2)
         self.assertEqual(len(log.execution_log), 2)
+
+
+class EntityPersistenceServiceTest(TestCase):
+    """Test EntityPersistenceService functionality."""
+    
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.tenant = Tenant.objects.create(
+            name='Test Tenant',
+            slug='test-tenant'
+        )
+        # Create a test form
+        self.form = TenantForm.objects.create(
+            tenant=self.tenant,
+            name='New Supplier Form',
+            description='Add a new supplier',
+            status=FormStatus.ACTIVE,
+            created_by=self.user
+        )
+        # Add a step
+        self.step = TenantFormEntity.objects.create(
+            form=self.form,
+            entity_type='supplier',
+            step_name='Supplier Information',
+            order=0
+        )
+    
+    def test_entity_model_registry(self):
+        """Test that all entity types in registry are valid."""
+        from .services.entity_persistence import ENTITY_MODEL_REGISTRY
+        from django.apps import apps
+        
+        for entity_type, (app, model) in ENTITY_MODEL_REGISTRY.items():
+            try:
+                model_class = apps.get_model(app, model)
+                self.assertIsNotNone(model_class)
+            except LookupError:
+                self.fail(f"Model not found: {app}.{model} for entity type: {entity_type}")
+    
+    def test_create_supplier_from_form(self):
+        """Test creating a Supplier from form submission data."""
+        from .services.entity_persistence import EntityPersistenceService
+        from .models import FormSubmission
+        from tenant_apps.suppliers.models import Supplier
+        
+        # Create a submission with supplier data
+        submission = FormSubmission.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            created_by=self.user,
+            data={
+                str(self.step.id): {
+                    'name': 'Acme Foods',
+                    'email': 'contact@acme.com',
+                    'phone': '555-1234',
+                    'address': '123 Main St',
+                }
+            }
+        )
+        
+        # Run persistence
+        service = EntityPersistenceService(submission, user=self.user)
+        result = service.persist_all()
+        
+        # Verify success
+        self.assertTrue(result['success'])
+        self.assertIn(str(self.step.id), result['created_entities'])
+        
+        # Verify supplier was created
+        supplier_info = result['created_entities'][str(self.step.id)]
+        self.assertEqual(supplier_info['entity_type'], 'supplier')
+        
+        # Fetch from DB
+        supplier = Supplier.objects.get(pk=supplier_info['entity_id'])
+        self.assertEqual(supplier.name, 'Acme Foods')
+        self.assertEqual(supplier.email, 'contact@acme.com')
+        self.assertEqual(supplier.tenant, self.tenant)
+    
+    def test_skip_empty_steps(self):
+        """Test that steps with no data are skipped."""
+        from .services.entity_persistence import EntityPersistenceService
+        from .models import FormSubmission
+        
+        # Create submission with empty data
+        submission = FormSubmission.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            created_by=self.user,
+            data={}  # No data for any step
+        )
+        
+        service = EntityPersistenceService(submission)
+        result = service.persist_all()
+        
+        # Should succeed with no entities created
+        self.assertTrue(result['success'])
+        self.assertEqual(len(result['created_entities']), 0)
+    
+    def test_persist_stores_entity_refs_in_submission(self):
+        """Test that created entity references are stored in submission."""
+        from .services.entity_persistence import EntityPersistenceService
+        from .models import FormSubmission
+        
+        submission = FormSubmission.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            created_by=self.user,
+            data={
+                str(self.step.id): {
+                    'name': 'Test Supplier',
+                }
+            }
+        )
+        
+        service = EntityPersistenceService(submission, user=self.user)
+        result = service.persist_all()
+        
+        # Refresh from DB
+        submission.refresh_from_db()
+        
+        # Check that __created_entities__ was stored
+        self.assertIn('__created_entities__', submission.data)
+        self.assertEqual(
+            submission.data['__created_entities__'],
+            result['created_entities']
+        )

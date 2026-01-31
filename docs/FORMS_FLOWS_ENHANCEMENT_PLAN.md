@@ -1,22 +1,44 @@
 # Forms & Flows Enhancement Plan
 ## Integrating Workflows into Workspace with Action-Aware Status Tracking
+## + Cockpit Command Center: The Ultimate Trading Control Surface
 
-**Created:** 2026-01-30
-**Status:** 📋 PLANNING - ENHANCED
+**Created:** 2026-01-30  
+**Updated:** 2026-01-31  
+**Status:** 📋 PLANNING - ENHANCED v2.0
 
 ---
 
 ## Executive Summary
 
-Transform the current "Workflows" section into a unified "Forms & Flows" experience within the Workspace section. This enhancement will:
+Transform the ProjectMeats workspace into a **Cockpit Command Center** - a high-tech, pilot-inspired control surface that empowers meat brokers/traders/salespeople to operate their business with maximum efficiency, control, and situational awareness.
 
-1. **Reorganize Navigation** - Move workflows under Workspace as "Forms & Flows"
-2. **Unified Dashboard** - Combine form submissions, in-progress flows, and action items
-3. **Action-Aware Status System** - Clear visibility into what requires user action vs waiting on external parties
-4. **Notification System** - Configurable notifications (in-app, email) with user preferences
-5. **Assignment System** - Ability to assign steps to specific users for action
-6. **Audit Trail** - Complete history of status changes and actions
-7. **Extensible Architecture** - Design for future conditional paths, triggers, and automated actions
+### Vision Statement
+
+> *"Like a modern aircraft cockpit - every control at your fingertips, every piece of critical information visible at a glance, seamless workflow execution, and intelligent assistance that anticipates your needs."*
+
+### Core Transformations
+
+1. **🎯 Cockpit Command Center** - Replace Dashboard with an immersive, customizable command center
+2. **📞 Calls** - Rename "Call Log" to "Calls" with complete UI/UX overhaul
+3. **📋 Forms & Flows** - Unified workflow experience with action-aware status tracking
+4. **🔍 Universal Search** - All-in-one search bar for any business entity
+5. **🕸️ Entity Graph** - Mind-mapping-style relationship visualization and navigation
+6. **🎛️ Widget System** - Customizable, draggable widgets/tools with templates
+7. **⚡ Quick Actions Integration** - Custom form flows accessible from anywhere
+8. **🔗 Inline Editing** - Edit any entity without leaving context
+
+### Key Design Principles
+
+| Principle | Description |
+|-----------|-------------|
+| **INTUITIVE** | Zero learning curve - actions feel natural |
+| **SMART** | AI-assisted suggestions, auto-complete, predictive actions |
+| **SIMPLE** | Clean, uncluttered UI with progressive disclosure |
+| **EFFICIENT** | Minimal clicks, keyboard shortcuts, batch operations |
+| **DYNAMIC** | Real-time updates, responsive to user context |
+| **POWERFUL** | Deep functionality accessible without complexity |
+| **IDEAL** | Optimized for meat broker/trader workflows |
+| **EXTENSIBLE** | Plugin-ready architecture for future enhancements |
 
 ---
 
@@ -30,6 +52,9 @@ Transform the current "Workflows" section into a unified "Forms & Flows" experie
 | No notification model | Can't send targeted user notifications | Add `UserNotification` model |
 | No pending items endpoint | Can't efficiently fetch action items | Add `/action-items/` endpoint |
 | No badge counts endpoint | Sidebar can't show counts | Add `/action-items/counts/` endpoint |
+| No universal search endpoint | Can't search across all entities | Add `/search/universal/` endpoint |
+| No entity graph endpoint | Can't fetch relationships | Add `/entities/{id}/graph/` endpoint |
+| No widget config storage | Can't persist user layouts | Add `CockpitLayout` model |
 
 ### Frontend Gaps
 | Gap | Impact | Solution |
@@ -39,9 +64,13 @@ Transform the current "Workflows" section into a unified "Forms & Flows" experie
 | No real-time updates | Badge counts stale | Add polling or WebSocket |
 | No notification bell | Users miss alerts | Add NotificationBell component |
 | No preference management | Can't configure notifications | Add preferences page |
+| Dashboard is static | Not customizable | Replace with Cockpit |
+| Call Log outdated | Poor UX, limited features | Rebuild as "Calls" |
+| No entity graph visualization | Can't explore relationships | Add EntityGraph component |
+| No universal search | Must navigate to find data | Add CommandPalette |
 
 ### UserPreferences Gap
-The existing `UserPreferences` model in `apps/core/models.py` handles theme/layout but **NOT** notification preferences. Need to extend or add new model.
+The existing `UserPreferences` model in `apps/core/models.py` handles theme/layout but **NOT** notification preferences or cockpit layout. Need to extend.
 
 ---
 
@@ -50,8 +79,8 @@ The existing `UserPreferences` model in `apps/core/models.py` handles theme/layo
 ### Navigation Structure (Current)
 ```
 ├── Workspace
-│   ├── Dashboard
-│   ├── Call Log
+│   ├── Dashboard       ← TO BE REPLACED WITH COCKPIT COMMAND CENTER
+│   ├── Call Log        ← TO BE RENAMED "Calls" + COMPLETE OVERHAUL
 │   └── Reports
 ├── Workflows (separate section)
 │   ├── Catalog
@@ -59,15 +88,18 @@ The existing `UserPreferences` model in `apps/core/models.py` handles theme/layo
 ```
 
 ### Existing Components
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| WorkflowList.tsx | pages/Workflows/ | "App Store" view for starting workflows |
-| WorkflowMonitor.tsx | pages/Workflows/ | Execution tracking dashboard |
-| MySubmissions/index.tsx | pages/MySubmissions/ | User's form submissions list |
-| FormSubmissionModal.tsx | components/FormSubmission/ | Multi-step form filling UI |
-| QuickActionsContext.tsx | contexts/ | Global quick actions state |
-| UserPreferences | apps/core/models.py | Theme/layout prefs (no notifications) |
-| ActivityLog | tenant_apps/cockpit/models.py | Generic activity tracking |
+| Component | Location | Purpose | Fate |
+|-----------|----------|---------|------|
+| Dashboard.tsx | pages/ | Static stats view | → Replace with Cockpit |
+| CallLog.tsx | pages/Cockpit/ | Call scheduling | → Overhaul as "Calls" |
+| Cockpit.tsx | pages/ | Legacy command center | → Merge into new Cockpit |
+| WorkflowList.tsx | pages/Workflows/ | "App Store" view | → Move to Forms & Flows |
+| WorkflowMonitor.tsx | pages/Workflows/ | Execution tracking | → Move to Forms & Flows |
+| MySubmissions/index.tsx | pages/MySubmissions/ | User's form submissions | → Merge into Cockpit |
+| FormSubmissionModal.tsx | components/FormSubmission/ | Multi-step form UI | → Keep, enhance |
+| QuickActionsContext.tsx | contexts/ | Global quick actions | → Integrate with Cockpit |
+| UserPreferences | apps/core/models.py | Theme/layout prefs | → Extend for Cockpit |
+| ActivityLog | tenant_apps/cockpit/models.py | Generic activity | → Leverage in Cockpit |
 
 ### Backend Status Models (Current)
 ```python
@@ -92,15 +124,399 @@ StepSubmissionStatus:
 ### 1. New Navigation Structure
 ```
 ├── Workspace
-│   ├── Dashboard
-│   ├── Call Log
-│   ├── Reports
-│   └── Forms & Flows (NEW - replaces Workflows)
+│   ├── 🎯 Cockpit (Command Center)     ← REPLACES Dashboard
+│   ├── 📞 Calls                         ← RENAMED from "Call Log"
+│   ├── 📈 Reports
+│   └── 📋 Forms & Flows (NEW - replaces Workflows)
 │       ├── My Tasks (3)     ← Badge showing action count
 │       ├── In Progress      ← Active form flows
 │       ├── Catalog          ← Available forms to start
 │       └── History          ← Completed/cancelled flows
 ```
+
+---
+
+## 🎯 COCKPIT COMMAND CENTER (Major Feature)
+
+### Vision: The Ultimate Trading Control Surface
+
+The Cockpit is inspired by modern aircraft cockpits - a unified command center where everything a meat broker needs is within reach. It combines:
+
+- **Situational Awareness** - Real-time view of business state
+- **Rapid Action** - Execute common tasks with minimal friction  
+- **Intelligent Navigation** - Find any data through search or visual exploration
+- **Context Preservation** - Expand and explore without losing your place
+- **Customization** - Arrange your workspace the way YOU work
+
+### Core Components
+
+#### A. Command Bar (Universal Search + Quick Actions)
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  🔍 Search anything... (⌘K)                    [+ Quick Action ▼] [👤]  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Features:**
+- **Universal Entity Search** - Find any Supplier, Customer, Product, PO, SO, Contact, etc.
+- **Smart Suggestions** - Recent items, frequently accessed, AI-recommended
+- **Type-Ahead Results** - Instant results as you type with entity type icons
+- **Quick Actions Menu** - Start any form flow from dropdown
+- **Keyboard Shortcuts** - `⌘K` to focus, arrow keys to navigate, Enter to select
+- **Search Operators** - `supplier:ABC`, `po:12345`, `status:pending`, `@john`
+
+**Search Result Format:**
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  🔍 tyson                                                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│  SUPPLIERS                                                              │
+│  🏭 Tyson Foods Inc.            Chicago, IL • Active • 47 orders       │
+│  🏭 Tyson Fresh Meats           Springdale, AR • Active • 12 orders    │
+│                                                                         │
+│  CONTACTS                                                               │
+│  👤 John Tyson                  VP Sales @ Tyson Foods • 📞 555-1234   │
+│                                                                         │
+│  PURCHASE ORDERS                                                        │
+│  📋 PO-2026-0142               Tyson Foods • $45,230 • In Transit     │
+│  📋 PO-2026-0089               Tyson Foods • $23,100 • Delivered       │
+│                                                                         │
+│  PRODUCTS                                                               │
+│  🥩 Tyson Boneless Breast      SKU: TYS-001 • $3.45/lb                 │
+│                                                                         │
+│  Press Enter to select • ↑↓ to navigate • Tab for filters              │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### B. Entity Graph (Mind-Mapping Navigation)
+```
+                                    ┌─────────────────┐
+                                    │   PURCHASE      │
+                              ┌────▶│   ORDER #142    │────┐
+                              │     │   $45,230       │    │
+                              │     └─────────────────┘    │
+                              │                            │
+     ┌─────────────────┐      │     ┌─────────────────┐    │     ┌─────────────────┐
+     │   SUPPLIER      │──────┤     │   PRODUCT       │◀───┼────▶│   CUSTOMER      │
+     │   Tyson Foods   │      │     │   Ribeye 1x1    │    │     │   Costco #405   │
+     │   47 orders     │      │     │   5000 lbs      │    │     │   Los Angeles   │
+     └─────────────────┘      │     └─────────────────┘    │     └─────────────────┘
+            │                 │                            │            │
+            │                 │     ┌─────────────────┐    │            │
+            ▼                 └────▶│   SALES         │◀───┘            ▼
+     ┌─────────────────┐            │   ORDER #892    │         ┌─────────────────┐
+     │   CONTACT       │            │   $52,100       │         │   INVOICE       │
+     │   John Smith    │            └─────────────────┘         │   INV-0892      │
+     │   📞 555-1234   │                                        │   Due: Feb 15   │
+     └─────────────────┘                                        └─────────────────┘
+```
+
+**Features:**
+- **Visual Relationship Exploration** - See how entities connect
+- **Click to Expand** - Add related entities to the graph
+- **Inline Preview** - Hover for quick details
+- **Inline Edit** - Click to edit any field without leaving graph
+- **Context Menu** - Right-click for actions (call, email, create PO, etc.)
+- **Pin Nodes** - Keep important entities visible
+- **Layout Options** - Force-directed, hierarchical, radial
+- **Zoom & Pan** - Smooth navigation with mousewheel/pinch
+- **Save Graph State** - Return to this exploration later
+
+#### C. Widget Grid (Customizable Dashboard)
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  COCKPIT COMMAND CENTER                                    [Customize] [Templates ▼] │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────────┐  │
+│  │ 🎯 MY TASKS          │  │ 📊 TODAY'S NUMBERS   │  │ 📞 UPCOMING CALLS        │  │
+│  │                      │  │                      │  │                          │  │
+│  │ 🔴 3 Action Required │  │ Orders: 12 ($142K)   │  │ 10:00 - John @ Tyson     │  │
+│  │ ⏳ 5 Waiting         │  │ Shipments: 8         │  │ 11:30 - Sarah @ Costco   │  │
+│  │ ⚠️ 1 Overdue         │  │ Invoices: $89K       │  │ 14:00 - Mike @ Sysco     │  │
+│  │                      │  │ Margin: 18.2%        │  │                          │  │
+│  │ [View All Tasks →]   │  │ [View Details →]     │  │ [Schedule Call +]        │  │
+│  └──────────────────────┘  └──────────────────────┘  └──────────────────────────┘  │
+│                                                                                     │
+│  ┌──────────────────────────────────────────┐  ┌────────────────────────────────┐  │
+│  │ 📋 RECENT ACTIVITY                       │  │ ⚡ QUICK ACTIONS               │  │
+│  │                                          │  │                                │  │
+│  │ 09:45 PO-142 shipped via FedEx          │  │ [📝 New Supplier Onboarding]   │  │
+│  │ 09:30 Credit approved for ABC Corp      │  │ [📋 Quick Quote]               │  │
+│  │ 09:15 Call completed with John Tyson    │  │ [📞 Log a Call]                │  │
+│  │ 08:50 SO-892 confirmed by Costco        │  │ [📊 Run Report]                │  │
+│  │                                          │  │ [+ Add Custom...]              │  │
+│  └──────────────────────────────────────────┘  └────────────────────────────────┘  │
+│                                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐  │
+│  │ 🕸️ ENTITY EXPLORER (Collapsed - Click to Expand)                            │  │
+│  │    Currently exploring: Tyson Foods → PO-142 → Costco                       │  │
+│  └─────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Available Widgets:**
+| Widget | Purpose | Default Position |
+|--------|---------|------------------|
+| **My Tasks** | Action items requiring attention | Top-left |
+| **Today's Numbers** | Key metrics at a glance | Top-center |
+| **Upcoming Calls** | Scheduled calls for today/tomorrow | Top-right |
+| **Recent Activity** | Activity feed | Middle-left |
+| **Quick Actions** | Common form flows | Middle-right |
+| **Entity Explorer** | Interactive graph (collapsible) | Bottom (full-width) |
+| **Price Watch** | Commodity prices (future) | Configurable |
+| **Market News** | Industry news feed (future) | Configurable |
+| **Weather/Logistics** | Shipping weather alerts (future) | Configurable |
+| **Custom KPI** | User-defined metrics | Configurable |
+
+**Widget System Features:**
+- **Drag & Drop** - Rearrange widgets freely
+- **Resize** - Widgets can span 1-4 columns
+- **Collapse/Expand** - Minimize widgets to title bar
+- **Templates** - Pre-configured layouts for roles
+- **Save Layout** - Persist per-user
+- **Add/Remove** - Customize which widgets appear
+
+#### D. Widget Templates (Role-Based Defaults)
+
+**Meat Broker/Trader Template (Default):**
+```
+Row 1: [My Tasks] [Today's Numbers] [Upcoming Calls]
+Row 2: [Recent Activity (wide)] [Quick Actions]
+Row 3: [Entity Explorer (full-width, collapsed)]
+```
+
+**Sales Manager Template:**
+```
+Row 1: [Team Tasks] [Sales Pipeline] [Revenue Forecast]
+Row 2: [Top Customers] [Quote Tracker]
+Row 3: [Activity Feed (full-width)]
+```
+
+**Operations Template:**
+```
+Row 1: [Pending Shipments] [Delivery Status] [Warehouse Capacity]
+Row 2: [Today's Pickups] [Today's Deliveries]
+Row 3: [Logistics Map (full-width)]
+```
+
+### Entity Graph Interaction Model
+
+#### Node Actions (Click)
+```typescript
+interface EntityNode {
+  id: string;
+  type: 'supplier' | 'customer' | 'contact' | 'product' | 'purchase_order' | 'sales_order' | 'invoice' | 'plant' | 'carrier';
+  data: Record<string, any>;
+  position: { x: number; y: number };
+  isExpanded: boolean;
+  isPinned: boolean;
+}
+
+// Click → Show detail panel (slide-in)
+// Double-click → Expand relationships
+// Right-click → Context menu (actions)
+// Drag → Move node position
+// Hover → Quick preview tooltip
+```
+
+#### Context Menu Actions
+```
+┌─────────────────────────┐
+│ 🏭 Tyson Foods         │
+├─────────────────────────┤
+│ 👁️ View Full Details    │
+│ ✏️ Edit Supplier        │
+│ ─────────────────────── │
+│ 📋 Create Purchase Order│
+│ 📞 Schedule Call        │
+│ 📧 Send Email           │
+│ ─────────────────────── │
+│ 🔗 Expand Relationships │
+│ 📌 Pin to Graph         │
+│ 🗑️ Remove from Graph    │
+│ ─────────────────────── │
+│ ⚡ Run Quick Action ▶  │
+│    └─ Supplier Onboard  │
+│    └─ Credit Check      │
+│    └─ Custom...         │
+└─────────────────────────┘
+```
+
+#### Inline Editing
+```
+┌─────────────────────────────────────────┐
+│ 📋 PURCHASE ORDER #142                  │
+├─────────────────────────────────────────┤
+│                                         │
+│ Status: [In Transit ▼]  ← Click to edit│
+│ Supplier: Tyson Foods   ← Click to link│
+│ Customer: Costco #405   ← Click to link│
+│                                         │
+│ Products:                               │
+│ ├─ Ribeye 1x1: 5000 lbs @ $4.25        │
+│ └─ [+ Add Product]                      │
+│                                         │
+│ Total: $45,230.00                       │
+│ Ship Date: 2026-02-01  ← Click to edit │
+│ Carrier: [Select ▼]     ← Click to set │
+│                                         │
+│ [Save Changes] [Cancel] [View Full →]   │
+└─────────────────────────────────────────┘
+```
+
+### New Record Creation Flow
+
+The Cockpit supports creating new entities inline with automatic relationship linking:
+
+```
+1. User types "new supplier" in Command Bar
+   OR clicks "+ Quick Action" → "Add Supplier"
+   OR right-clicks empty space in Entity Graph → "Create Supplier"
+
+2. Inline creation panel slides in:
+   ┌─────────────────────────────────────────┐
+   │ + NEW SUPPLIER                          │
+   ├─────────────────────────────────────────┤
+   │ Company Name: [________________]        │
+   │ Contact Name: [________________] [+]    │
+   │ Phone: [________________]               │
+   │ Email: [________________]               │
+   │ Address: [________________]             │
+   │                                         │
+   │ Products Supplied: (optional)           │
+   │ [+ Add Product]                         │
+   │                                         │
+   │ [Create & Add to Graph] [Create & Close]│
+   └─────────────────────────────────────────┘
+
+3. If user clicks [+] next to Contact:
+   - Expands to add contact inline
+   - Or allows selecting existing contact
+   
+4. When saved:
+   - New supplier node appears in Entity Graph
+   - Relationships automatically linked
+   - Success notification shown
+```
+
+---
+
+## 📞 CALLS PAGE OVERHAUL (Renamed from "Call Log")
+
+### Current State Issues
+
+- Name "Call Log" is passive/historical - rename to active "Calls"
+- Calendar-centric but limited views
+- Basic CRUD, no smart features
+- No integration with entity context
+- Limited activity feed integration
+
+### New "Calls" Page Design
+
+#### Header
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  📞 CALLS                                                     [+ Schedule Call]     │
+│  ───────────────────────────────────────────────────────────────────────────────────│
+│  [Today] [This Week] [This Month] [Custom]     View: [📅 Calendar | 📋 List | 🗺️ Map] │
+│                                                                                     │
+│  Filter: [All ▼] [Upcoming ▼] [Completed ▼]    🔍 Search calls...                  │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Smart Features
+
+1. **One-Click Call Logging**
+   - Start a call → timer starts
+   - End call → quick outcome selection
+   - Auto-suggest related entities
+
+2. **Contextual Scheduling**
+   - Suggest best times based on history
+   - Show contact's timezone
+   - Detect scheduling conflicts
+
+3. **Call Intelligence**
+   - Track call frequency per contact
+   - Surface "overdue" contacts (haven't called in X days)
+   - Follow-up reminders
+
+4. **Integration with Entity Graph**
+   - View call history on any entity
+   - Schedule calls directly from entity context menu
+   - Link calls to POs, SOs, etc.
+
+#### Enhanced Calendar View
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  📅 JANUARY 2026                                          [◀ Prev] [Today] [Next ▶] │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│  SUN      MON      TUE      WED      THU      FRI      SAT                         │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  26       27       28       29       30       31       1                           │
+│           ┌────┐   ┌────┐                     ┌────┐                               │
+│           │🟢2 │   │🟡3 │                     │🔴1 │                               │
+│           └────┘   └────┘                     └────┘                               │
+│                                                                                     │
+│  2        3        4        5        6        7        8                           │
+│           TODAY                                                                    │
+│           ┌──────────────────────────┐                                             │
+│           │ 10:00 John @ Tyson  🏭   │                                             │
+│           │ 11:30 Sarah @ Costco 🛒  │                                             │
+│           │ 14:00 Mike @ Sysco  🏭   │                                             │
+│           │ [+ Add Call]             │                                             │
+│           └──────────────────────────┘                                             │
+│                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+│  Legend: 🟢 Completed  🟡 Upcoming  🔴 Overdue  🏭 Supplier  🛒 Customer           │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Quick Call Modal
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  📞 LOG CALL                                                              [✕ Close] │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  With: [🔍 Search contact or company...]                                           │
+│        ┌─────────────────────────────────────────────────┐                         │
+│        │ Recent:                                         │                         │
+│        │ 👤 John Smith (Tyson Foods)                     │                         │
+│        │ 👤 Sarah Lee (Costco)                           │                         │
+│        │ 🏭 Sysco Corporation                            │                         │
+│        └─────────────────────────────────────────────────┘                         │
+│                                                                                     │
+│  Purpose: [Follow-up ▼]                                                            │
+│           ├─ Follow-up                                                             │
+│           ├─ Price Negotiation                                                     │
+│           ├─ Order Check                                                           │
+│           ├─ Relationship Building                                                 │
+│           └─ Other                                                                 │
+│                                                                                     │
+│  Duration: [⏱️ Start Timer] or [Manual: __ min]                                    │
+│                                                                                     │
+│  Notes:                                                                            │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                             │  │
+│  │                                                                             │  │
+│  └─────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                     │
+│  Outcome: [Connected ▼]   Follow-up: [Schedule ▼]                                 │
+│           ├─ Connected                   ├─ No follow-up needed                   │
+│           ├─ Left Voicemail              ├─ Tomorrow                              │
+│           ├─ No Answer                   ├─ This week                             │
+│           └─ Wrong Number                └─ Custom date...                        │
+│                                                                                     │
+│  Link to: [+ PO] [+ SO] [+ Quote] [+ Other...]                                    │
+│                                                                                     │
+│  [Cancel]                                                       [Save & Close]     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ### 2. Enhanced Data Models
 
@@ -335,6 +751,153 @@ expected_completion = models.DateTimeField(
     null=True, blank=True,
     help_text="Expected completion date/time for SLA tracking"
 )
+```
+
+#### G. NEW: CockpitLayout Model (Widget Configuration)
+```python
+class CockpitLayout(models.Model):
+    """User's personalized Cockpit widget layout and preferences."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='cockpit_layout'
+    )
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='cockpit_layouts'
+    )
+    
+    # Widget configuration (array of widget placements)
+    widgets = models.JSONField(
+        default=list,
+        help_text="Array of widget configurations"
+    )
+    # Example: [
+    #   {"id": "my-tasks", "position": {"row": 0, "col": 0}, "size": {"w": 1, "h": 1}, "collapsed": false},
+    #   {"id": "todays-numbers", "position": {"row": 0, "col": 1}, "size": {"w": 1, "h": 1}},
+    #   {"id": "entity-explorer", "position": {"row": 2, "col": 0}, "size": {"w": 4, "h": 2}, "collapsed": true}
+    # ]
+    
+    # Layout template (for reset/sharing)
+    template_name = models.CharField(
+        max_length=50,
+        choices=[
+            ('broker', 'Meat Broker/Trader'),
+            ('sales_manager', 'Sales Manager'),
+            ('operations', 'Operations'),
+            ('custom', 'Custom'),
+        ],
+        default='broker'
+    )
+    
+    # Quick Actions favorites (pinned to widget)
+    quick_action_favorites = models.JSONField(
+        default=list,
+        help_text="Array of form IDs for quick access"
+    )
+    
+    # Entity Explorer state (saved graph)
+    saved_graph_state = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Last entity graph state for restoration"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['user', 'tenant']
+```
+
+#### H. NEW: SavedEntityGraph Model (Reusable Explorations)
+```python
+class SavedEntityGraph(models.Model):
+    """Saved entity graph explorations for quick access."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='saved_graphs'
+    )
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='saved_graphs'
+    )
+    
+    # Graph metadata
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    
+    # Graph state (nodes, positions, expansion state)
+    graph_state = models.JSONField(
+        help_text="Complete graph state for restoration"
+    )
+    # Example: {
+    #   "nodes": [
+    #     {"type": "supplier", "id": "uuid", "position": {"x": 100, "y": 200}, "expanded": true},
+    #     {"type": "purchase_order", "id": "uuid", "position": {"x": 300, "y": 200}},
+    #   ],
+    #   "viewport": {"x": 0, "y": 0, "zoom": 1.0}
+    # }
+    
+    # Auto-generated preview thumbnail (base64)
+    thumbnail = models.TextField(blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_opened_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-last_opened_at', '-updated_at']
+```
+
+#### I. NEW: UniversalSearchIndex Model (Cached Search Index)
+```python
+class UniversalSearchIndex(models.Model):
+    """Cached search index for fast universal search."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='search_index'
+    )
+    
+    # Entity reference
+    entity_type = models.CharField(max_length=50, db_index=True)
+    entity_id = models.UUIDField(db_index=True)
+    
+    # Searchable content (denormalized for speed)
+    primary_text = models.CharField(max_length=500, db_index=True)  # e.g., company name
+    secondary_text = models.CharField(max_length=500, blank=True)   # e.g., contact name
+    search_keywords = models.TextField(blank=True)                   # Additional searchable terms
+    
+    # Display metadata
+    display_icon = models.CharField(max_length=10, default='📄')
+    display_subtitle = models.CharField(max_length=200, blank=True)
+    
+    # Ranking signals
+    access_count = models.PositiveIntegerField(default=0)
+    last_accessed = models.DateTimeField(null=True, blank=True)
+    relevance_score = models.FloatField(default=1.0)
+    
+    # Timestamps
+    indexed_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['tenant', 'entity_type', 'primary_text']),
+            models.Index(fields=['tenant', 'access_count']),
+        ]
+        unique_together = ['tenant', 'entity_type', 'entity_id']
 ```
 
 ### 3. Status Categories (Frontend)
@@ -693,6 +1256,124 @@ class StepCondition(models.Model):
 - [ ] **9.4** Add recent activity list
 - [ ] **9.5** Add quick action buttons
 
+---
+
+## 🎯 COCKPIT COMMAND CENTER IMPLEMENTATION
+
+### Phase C1: Backend - Cockpit Data Models (2 days)
+- [ ] **C1.1** Create `CockpitLayout` model for widget configuration
+- [ ] **C1.2** Create `SavedEntityGraph` model for saved explorations
+- [ ] **C1.3** Create `UniversalSearchIndex` model for fast search
+- [ ] **C1.4** Run migrations
+- [ ] **C1.5** Create search index population management command
+- [ ] **C1.6** Add signal handlers to update search index on entity changes
+
+### Phase C2: Backend - Universal Search API (2-3 days)
+- [ ] **C2.1** Create `GET /search/universal/` endpoint
+- [ ] **C2.2** Implement cross-entity search with ranking
+- [ ] **C2.3** Add recent items tracking per user
+- [ ] **C2.4** Add search suggestions endpoint `GET /search/suggestions/`
+- [ ] **C2.5** Implement search operators parsing (supplier:, po:, @user)
+- [ ] **C2.6** Add search result click tracking for relevance
+
+### Phase C3: Backend - Entity Graph API (2-3 days)
+- [ ] **C3.1** Create `GET /entities/{type}/{id}/` unified entity endpoint
+- [ ] **C3.2** Create `GET /entities/{type}/{id}/relationships/` endpoint
+- [ ] **C3.3** Implement relationship traversal with depth control
+- [ ] **C3.4** Add `POST /entities/{type}/` inline entity creation
+- [ ] **C3.5** Add `PATCH /entities/{type}/{id}/` inline entity update
+- [ ] **C3.6** Create `GET /entities/graph-schema/` for frontend type info
+
+### Phase C4: Backend - Cockpit Layout API (1 day)
+- [ ] **C4.1** Create `GET /cockpit/layout/` endpoint
+- [ ] **C4.2** Create `PUT /cockpit/layout/` endpoint
+- [ ] **C4.3** Create `POST /cockpit/layout/reset/` to reset to template
+- [ ] **C4.4** Create `GET /cockpit/templates/` for available templates
+- [ ] **C4.5** Add saved graph CRUD endpoints
+
+### Phase C5: Frontend - Command Bar (3 days)
+- [ ] **C5.1** Create `CommandPalette` component (modal search)
+- [ ] **C5.2** Implement keyboard shortcut (⌘K / Ctrl+K)
+- [ ] **C5.3** Build `SearchResultsList` with entity grouping
+- [ ] **C5.4** Add `SearchResultItem` with type-specific icons
+- [ ] **C5.5** Implement search debouncing and caching
+- [ ] **C5.6** Add recent items section
+- [ ] **C5.7** Add quick actions dropdown integration
+- [ ] **C5.8** Build `CommandBar` header component
+
+### Phase C6: Frontend - Entity Graph Visualization (5 days)
+- [ ] **C6.1** Set up graph library (react-flow or d3-force)
+- [ ] **C6.2** Create `EntityNode` component with type variants
+- [ ] **C6.3** Create `EntityEdge` component for relationships
+- [ ] **C6.4** Implement node expansion on double-click
+- [ ] **C6.5** Create `EntityPreviewTooltip` for hover
+- [ ] **C6.6** Create `EntityContextMenu` for right-click actions
+- [ ] **C6.7** Build `InlineEditPanel` slide-in for editing
+- [ ] **C6.8** Implement graph layout algorithms (force, hierarchical)
+- [ ] **C6.9** Add zoom/pan controls
+- [ ] **C6.10** Add node pinning and unpinning
+- [ ] **C6.11** Implement save/restore graph state
+- [ ] **C6.12** Add minimap for large graphs
+
+### Phase C7: Frontend - Widget System (4 days)
+- [ ] **C7.1** Create `WidgetGrid` container with react-grid-layout
+- [ ] **C7.2** Create `Widget` base component (header, collapse, drag)
+- [ ] **C7.3** Create `MyTasksWidget`
+- [ ] **C7.4** Create `TodaysNumbersWidget`
+- [ ] **C7.5** Create `UpcomingCallsWidget`
+- [ ] **C7.6** Create `RecentActivityWidget`
+- [ ] **C7.7** Create `QuickActionsWidget`
+- [ ] **C7.8** Create `EntityExplorerWidget` (embedded graph)
+- [ ] **C7.9** Create `WidgetPicker` modal for adding widgets
+- [ ] **C7.10** Implement layout persistence to API
+- [ ] **C7.11** Create template switcher
+
+### Phase C8: Frontend - Cockpit Page Assembly (2 days)
+- [ ] **C8.1** Create `CockpitPage` as new root page
+- [ ] **C8.2** Integrate CommandBar in header
+- [ ] **C8.3** Integrate WidgetGrid as main content
+- [ ] **C8.4** Add layout customization controls
+- [ ] **C8.5** Update navigation to use Cockpit
+- [ ] **C8.6** Add keyboard shortcuts help modal
+- [ ] **C8.7** Remove/deprecate old Dashboard page
+
+---
+
+## 📞 CALLS PAGE OVERHAUL IMPLEMENTATION
+
+### Phase L1: Rename & Route Updates (0.5 days)
+- [ ] **L1.1** Rename `CallLog.tsx` to `Calls.tsx`
+- [ ] **L1.2** Update navigation.ts: "Call Log" → "Calls"
+- [ ] **L1.3** Update route path: `/call-log` → `/calls`
+- [ ] **L1.4** Update all internal references
+
+### Phase L2: Calls Page Redesign (3 days)
+- [ ] **L2.1** Create new page header with view toggles
+- [ ] **L2.2** Enhance calendar view with call indicators
+- [ ] **L2.3** Create list view with smart sorting
+- [ ] **L2.4** Add "overdue contacts" section
+- [ ] **L2.5** Create call frequency analytics
+- [ ] **L2.6** Add filter by entity type/contact
+
+### Phase L3: Quick Call Modal Overhaul (2 days)
+- [ ] **L3.1** Redesign ScheduleCallModal with new layout
+- [ ] **L3.2** Add contact search with recent suggestions
+- [ ] **L3.3** Add call timer for duration tracking
+- [ ] **L3.4** Add outcome quick-select buttons
+- [ ] **L3.5** Add follow-up scheduling integration
+- [ ] **L3.6** Add entity linking (PO, SO, Quote)
+
+### Phase L4: Call Intelligence Features (2 days)
+- [ ] **L4.1** Track call frequency per contact
+- [ ] **L4.2** Implement "hasn't called in X days" alerts
+- [ ] **L4.3** Add suggested call times based on history
+- [ ] **L4.4** Add timezone display for contacts
+- [ ] **L4.5** Integrate with Entity Graph (call from context menu)
+
+---
+
+## REVISED IMPLEMENTATION PHASES (CONTINUED)
+
 ### Phase 10: Form Builder Integration (2 days)
 - [ ] **10.1** Add "waiting type" option to step config
 - [ ] **10.2** Add "expected response time" field
@@ -709,32 +1390,58 @@ class StepCondition(models.Model):
 - [ ] **11.5** Implement quiet hours logic
 - [ ] **11.6** Add unsubscribe handling
 
-### Phase 12: Polish & Testing (2 days)
+### Phase 12: Polish & Testing (3 days)
 - [ ] **12.1** Comprehensive testing of all flows
 - [ ] **12.2** Accessibility review (ARIA, keyboard nav)
 - [ ] **12.3** Mobile responsiveness
 - [ ] **12.4** Performance optimization (memoization, pagination)
 - [ ] **12.5** Error handling review
 - [ ] **12.6** Documentation update
+- [ ] **12.7** Cockpit keyboard shortcut testing
+- [ ] **12.8** Entity graph performance with large datasets
 
 ---
 
 ## File Changes Summary
 
-### New Files
+### New Backend Files
 ```
+backend/tenant_apps/cockpit/
+  ├── migrations/XXXX_add_cockpit_models.py
+  ├── models.py                 # CockpitLayout, SavedEntityGraph, UniversalSearchIndex
+  ├── views.py                  # Cockpit API endpoints
+  ├── serializers.py
+  └── urls.py
+
 backend/tenant_apps/workflows/
   ├── migrations/XXXX_add_status_and_notification_models.py
   ├── serializers/action_items.py
   ├── serializers/notifications.py
   └── services/notification_service.py
 
+backend/apps/core/
+  ├── views/search.py           # Universal search endpoint
+  ├── views/entities.py         # Unified entity API
+  └── management/commands/rebuild_search_index.py
+```
+
+### New Frontend Files
+```
+frontend/src/pages/Cockpit/
+  ├── index.tsx                 # Main Cockpit page
+  ├── Calls.tsx                 # Renamed from CallLog.tsx
+  └── components/
+      ├── CommandBar.tsx
+      ├── CommandPalette.tsx
+      ├── SearchResults.tsx
+      └── SearchResultItem.tsx
+
 frontend/src/pages/FormsFlows/
-  ├── index.tsx              # Layout/router
-  ├── MyTasks.tsx            # Action items view
-  ├── InProgress.tsx         # Active flows
-  ├── Catalog.tsx            # Available forms
-  ├── History.tsx            # Completed flows
+  ├── index.tsx                 # Layout/router
+  ├── MyTasks.tsx               # Action items view
+  ├── InProgress.tsx            # Active flows
+  ├── Catalog.tsx               # Available forms
+  ├── History.tsx               # Completed flows
   └── components/
       ├── ActionItemCard.tsx
       ├── FlowCard.tsx
@@ -743,25 +1450,56 @@ frontend/src/pages/FormsFlows/
       ├── WaitingIndicator.tsx
       └── FilterControls.tsx
 
+frontend/src/components/Cockpit/
+  ├── EntityGraph/
+  │   ├── EntityGraph.tsx       # Main graph component
+  │   ├── EntityNode.tsx        # Node rendering
+  │   ├── EntityEdge.tsx        # Edge rendering
+  │   ├── EntityPreview.tsx     # Hover tooltip
+  │   ├── EntityContextMenu.tsx # Right-click menu
+  │   ├── InlineEditPanel.tsx   # Side panel for editing
+  │   └── GraphMinimap.tsx
+  │
+  ├── Widgets/
+  │   ├── WidgetGrid.tsx        # Grid container
+  │   ├── Widget.tsx            # Base widget
+  │   ├── MyTasksWidget.tsx
+  │   ├── TodaysNumbersWidget.tsx
+  │   ├── UpcomingCallsWidget.tsx
+  │   ├── RecentActivityWidget.tsx
+  │   ├── QuickActionsWidget.tsx
+  │   ├── EntityExplorerWidget.tsx
+  │   └── WidgetPicker.tsx
+  │
+  └── CallModal/
+      ├── QuickCallModal.tsx    # Enhanced call logging
+      └── CallTimer.tsx
+
 frontend/src/services/
   ├── actionItemsService.ts
-  └── notificationsService.ts
+  ├── notificationsService.ts
+  ├── universalSearchService.ts
+  ├── entityGraphService.ts
+  └── cockpitLayoutService.ts
 
 frontend/src/hooks/
   ├── useActionItems.ts
   ├── useActionItemCounts.ts
-  └── useNotifications.ts
+  ├── useNotifications.ts
+  ├── useUniversalSearch.ts
+  ├── useEntityGraph.ts
+  ├── useCockpitLayout.ts
+  └── useKeyboardShortcuts.ts
 
 frontend/src/contexts/
-  └── NotificationsContext.tsx
+  ├── NotificationsContext.tsx
+  ├── CockpitContext.tsx
+  └── EntityGraphContext.tsx
 
 frontend/src/components/Notifications/
   ├── NotificationBell.tsx
   ├── NotificationPanel.tsx
   └── NotificationItem.tsx
-
-frontend/src/components/Dashboard/
-  └── FormsFlowsWidget.tsx
 
 frontend/src/components/Settings/
   └── NotificationPreferences.tsx
@@ -773,21 +1511,30 @@ backend/tenant_apps/workflows/models.py      # New models + status choices
 backend/tenant_apps/workflows/views.py       # New endpoints
 backend/tenant_apps/workflows/urls.py        # New routes
 backend/tenant_apps/workflows/serializers.py # New serializers
+backend/tenant_apps/cockpit/models.py        # Enhanced with new models
 backend/apps/core/models.py                  # Extend UserPreferences
+backend/projectmeats/urls.py                 # Add new routes
 
-frontend/src/config/navigation.ts            # Restructure menu + badge support
+frontend/src/config/navigation.ts            # Restructure: Cockpit, Calls, Forms & Flows
 frontend/src/App.tsx                         # Update routes
 frontend/src/components/Layout/Sidebar.tsx   # Badge rendering
-frontend/src/components/Layout/Header.tsx    # NotificationBell
-frontend/src/pages/Dashboard.tsx             # Add widget
-frontend/src/pages/Settings.tsx              # Notification prefs section
+frontend/src/components/Layout/Header.tsx    # NotificationBell + CommandBar
+frontend/src/pages/Dashboard.tsx             # DEPRECATED → redirect to Cockpit
+frontend/src/pages/Settings.tsx              # Notification + Cockpit prefs
+```
+
+### Deleted/Moved Files
+```
+frontend/src/pages/Dashboard.tsx             # → Deprecated, redirect to Cockpit
+frontend/src/pages/Cockpit/CallLog.tsx       # → Renamed to Calls.tsx
+frontend/src/pages/Cockpit.tsx               # → Merged into new Cockpit/index.tsx
 ```
 
 ---
 
 ## API Endpoints
 
-### New Endpoints
+### Workflows & Notifications Endpoints
 ```
 GET  /api/v1/workflows/action-items/
      Query: ?status=action_required|waiting&priority=high|medium|low&assigned_to=me
@@ -820,23 +1567,109 @@ GET  /api/v1/users/me/notification-preferences/
 PUT  /api/v1/users/me/notification-preferences/
 ```
 
+### Cockpit & Universal Search Endpoints
+```
+# Universal Search
+GET  /api/v1/search/universal/
+     Query: ?q=<search_term>&types=supplier,customer,po&limit=20
+     Returns: { results: [...], total: N, query: str }
+
+GET  /api/v1/search/suggestions/
+     Query: ?q=<partial>&limit=10
+     Returns: { suggestions: [...] }
+
+GET  /api/v1/search/recent/
+     Returns: { recent_items: [...] }
+
+POST /api/v1/search/track-click/
+     Body: { entity_type, entity_id }
+     (Updates relevance scoring)
+
+# Entity Graph API
+GET  /api/v1/entities/{type}/{id}/
+     Returns: Unified entity data with display metadata
+
+GET  /api/v1/entities/{type}/{id}/relationships/
+     Query: ?depth=1&types=all
+     Returns: { relationships: [...], entity_types: [...] }
+
+POST /api/v1/entities/{type}/
+     Body: Entity data
+     Returns: Created entity
+
+PATCH /api/v1/entities/{type}/{id}/
+     Body: Partial entity data
+     Returns: Updated entity
+
+GET  /api/v1/entities/graph-schema/
+     Returns: { entity_types: [...], relationship_types: [...] }
+
+# Cockpit Layout API
+GET  /api/v1/cockpit/layout/
+     Returns: Current user's layout configuration
+
+PUT  /api/v1/cockpit/layout/
+     Body: { widgets: [...], template_name: str }
+     Returns: Updated layout
+
+POST /api/v1/cockpit/layout/reset/
+     Body: { template: "broker" | "sales_manager" | "operations" }
+     Returns: Reset layout
+
+GET  /api/v1/cockpit/templates/
+     Returns: { templates: [...] }
+
+# Saved Graphs API
+GET  /api/v1/cockpit/graphs/
+     Returns: Paginated list of saved graphs
+
+POST /api/v1/cockpit/graphs/
+     Body: { name, description, graph_state }
+     Returns: Created graph
+
+GET  /api/v1/cockpit/graphs/{id}/
+     Returns: Saved graph details
+
+PUT  /api/v1/cockpit/graphs/{id}/
+     Body: { name?, description?, graph_state? }
+     Returns: Updated graph
+
+DELETE /api/v1/cockpit/graphs/{id}/
+```
+
 ---
 
 ## UI/UX Principles
 
-1. **Action-First Design** - Most urgent items at the top
+### Core Principles (INTUITIVE • SMART • SIMPLE • EFFICIENT • DYNAMIC • POWERFUL • IDEAL • EXTENSIBLE)
+
+1. **Action-First Design** - Most urgent items at the top, one-click actions
 2. **Clear Visual Hierarchy** - Red for overdue, orange for action required, yellow for waiting, green for complete
-3. **Progressive Disclosure** - Summary → Details on click
-4. **Minimal Clicks** - Quick actions available from list view
+3. **Progressive Disclosure** - Summary → Details on click → Full page on deep dive
+4. **Minimal Clicks** - 3 clicks max to any action, keyboard shortcuts for power users
 5. **Responsive** - Works on tablet/mobile for field use
-6. **Accessible** - Full keyboard navigation, screen reader support
-7. **Real-time Feel** - Polling for updates, optimistic UI for actions
-8. **Configurable** - User controls notification preferences
+6. **Accessible** - Full keyboard navigation, screen reader support, WCAG 2.1 AA
+7. **Real-time Feel** - Polling for updates, optimistic UI for actions, smooth animations
+8. **Configurable** - User controls notification and layout preferences
+9. **Context Preservation** - Never lose your place when exploring data
+10. **Intelligent Assistance** - Smart suggestions, auto-complete, recent items
+
+### Cockpit-Specific Principles
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Situational Awareness** | All critical info visible without scrolling |
+| **Rapid Access** | ⌘K search, keyboard shortcuts, quick actions |
+| **Flow State** | Minimize interruptions, smooth transitions |
+| **Customization** | Widgets, templates, saved graphs |
+| **Visual Connections** | Entity graph shows relationships clearly |
+| **Inline Everything** | Edit, create, link without page navigation |
 
 ---
 
 ## Success Criteria
 
+### Forms & Flows Success Criteria
 1. ✅ Users can see all action items in one place (My Tasks)
 2. ✅ Clear distinction between "my action" vs "waiting on others"
 3. ✅ Navigation reflects new structure with badge counts
@@ -848,6 +1681,26 @@ PUT  /api/v1/users/me/notification-preferences/
 9. ✅ Assignment workflow functions properly
 10. ✅ No regression in existing form submission flow
 11. ✅ Architecture supports future conditional paths
+
+### Cockpit Command Center Success Criteria
+12. ✅ Universal search finds any entity within 500ms
+13. ✅ Entity graph loads and renders smoothly (60fps)
+14. ✅ Inline editing saves without page reload
+15. ✅ Widget layout persists across sessions
+16. ✅ Keyboard shortcuts work consistently
+17. ✅ Recent items tracked and displayed accurately
+18. ✅ Graph exploration allows 3+ levels of relationship traversal
+19. ✅ Templates provide meaningful starting layouts
+20. ✅ Cockpit loads within 2 seconds (first paint)
+21. ✅ Mobile-responsive for tablet use (iPad)
+
+### Calls Page Success Criteria
+22. ✅ "Calls" rename reflected everywhere
+23. ✅ Call logging takes <30 seconds
+24. ✅ Timer tracks call duration accurately
+25. ✅ Follow-up scheduling integrated
+26. ✅ Entity linking works bidirectionally
+27. ✅ Contact frequency tracking functional
 
 ---
 
@@ -861,6 +1714,35 @@ const POLL_INTERVAL = {
   background: 60000,  // 1 minute
   active: 30000,      // 30 seconds
 };
+```
+
+### Universal Search Strategy
+```typescript
+// Search debounce to prevent API spam
+const SEARCH_DEBOUNCE_MS = 150;
+
+// Search sources ranked by priority
+const SEARCH_SOURCES = [
+  { type: 'cached', priority: 1 },    // UniversalSearchIndex
+  { type: 'recent', priority: 2 },    // User's recent items
+  { type: 'live', priority: 3 },      // Real-time DB query (fallback)
+];
+
+// Result limits per entity type
+const RESULTS_PER_TYPE = 5;
+const TOTAL_RESULTS = 20;
+```
+
+### Entity Graph Performance
+```typescript
+// Graph rendering limits
+const MAX_VISIBLE_NODES = 50;      // Beyond this, cluster nodes
+const MAX_EXPANSION_DEPTH = 3;     // Prevent infinite traversal
+const ANIMATION_DURATION_MS = 300; // Smooth transitions
+
+// Use virtualization for large graphs
+// Cluster distant nodes into summary nodes
+// Progressive loading as user zooms/pans
 ```
 
 ### Notification Delivery Flow
@@ -881,18 +1763,47 @@ const POLL_INTERVAL = {
 - Cache badge counts with short TTL (30 seconds)
 - Use select_related/prefetch_related for nested data
 - Debounce polling during rapid user actions
+- Virtual scrolling for large lists
+- Memoize Entity graph nodes to prevent re-renders
+- Cache search results with query-based keys
 
 ---
 
 ## Risk Assessment
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Breaking existing forms | High | Extensive testing, feature flags |
-| Performance with many action items | Medium | Pagination, caching, indexes |
-| Email spam from notifications | Medium | User preferences, digest option |
-| Complex migration | Medium | Reversible migration, staging test |
-| Badge count drift | Low | Regular reconciliation, polling |
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|------------|------------|
+| Breaking existing forms | High | Medium | Extensive testing, feature flags, gradual rollout |
+| Entity graph performance | High | Medium | Virtualization, node limits, lazy loading |
+| Search index staleness | Medium | Low | Real-time index updates via signals |
+| Performance with many action items | Medium | Medium | Pagination, caching, indexes |
+| Email spam from notifications | Medium | Low | User preferences, digest option, rate limiting |
+| Complex migration | Medium | Low | Reversible migration, staging test |
+| Badge count drift | Low | Low | Regular reconciliation, polling |
+| Learning curve for Cockpit | Medium | Medium | Onboarding tour, keyboard shortcut hints |
+| Widget layout corruption | Low | Low | Layout validation, reset to template option |
+
+---
+
+## Technology Choices
+
+### Entity Graph Library
+**Recommended: React Flow**
+- Pros: Mature, well-documented, built-in pan/zoom, node/edge customization
+- Cons: Large bundle size (~150KB gzipped)
+- Alternative: D3-force (lighter but more manual work)
+
+### Widget Grid Library
+**Recommended: react-grid-layout**
+- Pros: Drag-and-drop, responsive, persistence-ready
+- Cons: Learning curve for responsive breakpoints
+- Alternative: Custom CSS Grid + drag API
+
+### Search Implementation
+**Recommended: PostgreSQL Full-Text Search + Trigram**
+- Pros: No external dependency, good enough for ~100K records
+- Cons: Won't scale to millions without dedicated search service
+- Future: Consider Elasticsearch/Meilisearch for scale
 
 ---
 
@@ -903,4 +1814,83 @@ const POLL_INTERVAL = {
 - Quick Actions menu continues to work for starting new flows
 - Consider WebSocket upgrade in future for real-time updates
 - Mobile app consideration: push notifications via Firebase/APNs
+- Entity graph could integrate with AI assistant for "smart suggestions"
+- Saved graphs could be shared between team members (future feature)
+- Widget templates could be admin-configurable per tenant (future feature)
+
+---
+
+## Appendix A: Keyboard Shortcuts Reference
+
+| Shortcut | Action |
+|----------|--------|
+| `⌘K` / `Ctrl+K` | Open Command Palette (Universal Search) |
+| `⌘/` / `Ctrl+/` | Open Keyboard Shortcuts Help |
+| `Escape` | Close modal / Clear selection |
+| `Enter` | Select focused item |
+| `↑` / `↓` | Navigate search results |
+| `Tab` | Switch search filters |
+| `⌘S` / `Ctrl+S` | Save current entity (when editing) |
+| `⌘N` / `Ctrl+N` | New entity (context-aware) |
+| `G` then `C` | Go to Cockpit |
+| `G` then `L` | Go to Calls |
+| `G` then `T` | Go to Tasks |
+| `G` then `F` | Go to Forms & Flows |
+
+---
+
+## Appendix B: Widget Configuration Schema
+
+```typescript
+interface WidgetConfig {
+  id: string;                    // Unique widget instance ID
+  type: WidgetType;              // Widget type identifier
+  position: {
+    row: number;                 // Grid row (0-indexed)
+    col: number;                 // Grid column (0-indexed)
+  };
+  size: {
+    w: 1 | 2 | 3 | 4;           // Width in grid units
+    h: 1 | 2 | 3;               // Height in grid units
+  };
+  settings: Record<string, any>; // Widget-specific settings
+  collapsed: boolean;            // Is minimized to title bar
+}
+
+type WidgetType = 
+  | 'my-tasks'
+  | 'todays-numbers'
+  | 'upcoming-calls'
+  | 'recent-activity'
+  | 'quick-actions'
+  | 'entity-explorer'
+  | 'custom-kpi'
+  | 'price-watch'
+  | 'market-news';
+```
+
+---
+
+## Appendix C: Entity Type Icons & Colors
+
+| Entity Type | Icon | Color (Light) | Color (Dark) |
+|-------------|------|---------------|--------------|
+| Supplier | 🏭 | `#6366f1` (indigo) | `#818cf8` |
+| Customer | 🛒 | `#10b981` (emerald) | `#34d399` |
+| Contact | 👤 | `#8b5cf6` (violet) | `#a78bfa` |
+| Product | 🥩 | `#f59e0b` (amber) | `#fbbf24` |
+| Purchase Order | 📋 | `#3b82f6` (blue) | `#60a5fa` |
+| Sales Order | 📦 | `#06b6d4` (cyan) | `#22d3ee` |
+| Invoice | 💵 | `#22c55e` (green) | `#4ade80` |
+| Plant | 🏗️ | `#64748b` (slate) | `#94a3b8` |
+| Carrier | 🚚 | `#f97316` (orange) | `#fb923c` |
+
+---
+
+## Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2026-01-30 | Team | Initial Forms & Flows plan |
+| 2.0 | 2026-01-31 | Team | Added Cockpit Command Center, Calls overhaul, Entity Graph |
 

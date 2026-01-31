@@ -27,6 +27,7 @@ from .serializers import (
     WorkflowExecutionLogSerializer
 )
 from .services import FieldRegistry, get_entity_fields, get_available_entities
+from .services.entity_persistence import persist_form_submission
 
 
 # =============================================================================
@@ -1508,7 +1509,16 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def submit(self, request, pk=None):
-        """Final submission of the form."""
+        """
+        Final submission of the form.
+        
+        This action:
+        1. Validates all required steps are complete
+        2. Creates entity records from form data
+        3. Marks submission as completed (only if entities created successfully)
+        
+        Returns created entity IDs for each step.
+        """
         submission = self.get_object()
         
         # Explicit tenant check for security
@@ -1539,16 +1549,30 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
                 ]
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Mark as completed
-        submission.status = FormSubmissionStatus.COMPLETED
-        submission.completed_at = timezone.now()
-        submission.save(update_fields=['status', 'completed_at', 'updated_at'])
+        # Persist form data to entity records
+        persistence_result = persist_form_submission(submission, user=request.user)
         
-        return Response({
-            'success': True,
-            'status': submission.status,
-            'completed_at': submission.completed_at.isoformat()
-        })
+        # Only mark as completed if persistence was successful
+        if persistence_result.get('success', False):
+            submission.status = FormSubmissionStatus.COMPLETED
+            submission.completed_at = timezone.now()
+            submission.save(update_fields=['status', 'completed_at', 'updated_at'])
+            
+            return Response({
+                'success': True,
+                'status': submission.status,
+                'completed_at': submission.completed_at.isoformat(),
+                'entities_created': persistence_result.get('created_entities', {}),
+            })
+        else:
+            # Persistence failed - keep submission in progress, return errors
+            return Response({
+                'success': False,
+                'status': submission.status,
+                'message': 'Failed to create entity records',
+                'entities_created': persistence_result.get('created_entities', {}),
+                'errors': persistence_result.get('errors', [])
+            }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
     
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):

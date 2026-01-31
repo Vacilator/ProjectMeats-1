@@ -203,27 +203,86 @@ function formBuilder() {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                console.log('Step order saved');
+                const result = await response.json();
+                console.log('Step order saved:', result);
+                
+                // Show success notification
+                this.showNotification('✅ Step order saved', 'success');
             } catch (error) {
                 console.error('Error saving step order:', error);
+                this.showNotification('❌ Failed to save step order', 'error');
             }
+        },
+        
+        // Show notification toast
+        showNotification(message, type = 'info') {
+            // Create notification element if it doesn't exist
+            let notification = document.getElementById('form-builder-notification');
+            if (!notification) {
+                notification = document.createElement('div');
+                notification.id = 'form-builder-notification';
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 12px 20px;
+                    border-radius: 4px;
+                    z-index: 10000;
+                    font-weight: 500;
+                    transition: opacity 0.3s;
+                `;
+                document.body.appendChild(notification);
+            }
+            
+            // Set colors based on type
+            const colors = {
+                success: { bg: '#d4edda', border: '#c3e6cb', text: '#155724' },
+                error: { bg: '#f8d7da', border: '#f5c6cb', text: '#721c24' },
+                info: { bg: '#d1ecf1', border: '#bee5eb', text: '#0c5460' }
+            };
+            const color = colors[type] || colors.info;
+            
+            notification.style.backgroundColor = color.bg;
+            notification.style.border = `1px solid ${color.border}`;
+            notification.style.color = color.text;
+            notification.textContent = message;
+            notification.style.opacity = '1';
+            notification.style.display = 'block';
+            
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 300);
+            }, 3000);
         },
         
         // Update Django inline form order fields
         updateInlineOrder(newOrder) {
+            // Find the inline formset in the hidden container
+            const inlineContainer = document.querySelector('.original-inlines');
+            if (!inlineContainer) {
+                console.warn('Could not find .original-inlines container');
+                return;
+            }
+            
             newOrder.forEach(item => {
-                // Find the corresponding inline form and update its order field
-                const orderInput = document.querySelector(
-                    `input[name$="-order"][value="${item.id}"]` // This needs refinement based on actual form structure
-                );
-                if (orderInput) {
-                    // Find sibling order field
-                    const form = orderInput.closest('tr, .form-row, .inline-related');
-                    if (form) {
-                        const orderField = form.querySelector('input[name$="-order"]');
-                        if (orderField) {
-                            orderField.value = item.order;
-                        }
+                // Find the inline form by looking for hidden input with this step's ID
+                // Django generates inputs like: entities-0-id, entities-0-order, etc.
+                const idInput = inlineContainer.querySelector(`input[name$="-id"][value="${item.id}"]`);
+                if (idInput) {
+                    // Extract the form prefix (e.g., "entities-0")
+                    const name = idInput.getAttribute('name');
+                    const prefix = name.replace(/-id$/, '');
+                    
+                    // Find and update the order field for this form
+                    const orderInput = inlineContainer.querySelector(`input[name="${prefix}-order"]`);
+                    if (orderInput) {
+                        orderInput.value = item.order;
+                        console.log(`Updated ${prefix}-order to ${item.order}`);
+                    } else {
+                        console.warn(`Could not find order input for ${prefix}`);
                     }
                 }
             });
@@ -541,6 +600,37 @@ function formBuilder() {
                     { key: 'due_date', label: 'Due Date', type: 'date', required: true },
                     { key: 'status', label: 'Status', type: 'dropdown', required: true },
                     { key: 'total_amount', label: 'Total Amount', type: 'currency', required: true },
+                ],
+                inquiry: [
+                    { key: 'inquiry_number', label: 'Inquiry Number', type: 'text', required: false },
+                    { key: 'status', label: 'Status', type: 'dropdown', required: true },
+                    { key: 'source_type', label: 'Source Type', type: 'dropdown', required: false },
+                    { key: 'entity_type', label: 'Entity Type', type: 'dropdown', required: true },
+                    { key: 'supplier_id', label: 'Supplier', type: 'reference', required: false },
+                    { key: 'customer_id', label: 'Customer', type: 'reference', required: false },
+                    { key: 'contact_id', label: 'Contact', type: 'reference', required: false },
+                    { key: 'product_id', label: 'Product', type: 'reference', required: false },
+                    { key: 'protein_type', label: 'Protein Type', type: 'dropdown', required: false },
+                    { key: 'quantity', label: 'Quantity', type: 'decimal', required: false },
+                    { key: 'unit_of_measure', label: 'Unit of Measure', type: 'dropdown', required: false },
+                    { key: 'desired_price', label: 'Desired Price', type: 'currency', required: false },
+                    { key: 'desired_delivery_date', label: 'Desired Delivery Date', type: 'date', required: false },
+                    { key: 'notes', label: 'Notes', type: 'textarea', required: false },
+                ],
+                fulfillment: [
+                    { key: 'fulfillment_number', label: 'Fulfillment Number', type: 'text', required: false },
+                    { key: 'inquiry_id', label: 'Inquiry', type: 'reference', required: true },
+                    { key: 'status', label: 'Status', type: 'dropdown', required: true },
+                    { key: 'supplier_id', label: 'Supplier', type: 'reference', required: false },
+                    { key: 'customer_id', label: 'Customer', type: 'reference', required: false },
+                    { key: 'carrier_id', label: 'Carrier', type: 'reference', required: false },
+                    { key: 'quantity_fulfilled', label: 'Quantity Fulfilled', type: 'decimal', required: false },
+                    { key: 'unit_of_measure', label: 'Unit of Measure', type: 'dropdown', required: false },
+                    { key: 'actual_price', label: 'Actual Price', type: 'currency', required: false },
+                    { key: 'ship_date', label: 'Ship Date', type: 'date', required: false },
+                    { key: 'delivery_date', label: 'Delivery Date', type: 'date', required: false },
+                    { key: 'tracking_numbers', label: 'Tracking Numbers', type: 'text', required: false },
+                    { key: 'notes', label: 'Notes', type: 'textarea', required: false },
                 ],
             };
             

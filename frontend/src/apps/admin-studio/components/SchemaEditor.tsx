@@ -1284,11 +1284,11 @@ const SchemaEditor: React.FC = () => {
       const csrfToken = getCookie('csrftoken') || 
                         document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       
-      // Save schema to API
-      const response = await axios.put(
+      // Save schema to API - backend expects schema_config, not fields
+      const response = await axios.patch(
         `/admin/system-config/api/studio/versions/${blueprintId}/schema/`,
         { 
-          fields: fields.map((f, index) => ({
+          schema_config: fields.map((f, index) => ({
             ...f,
             order: index  // Include order in the save payload
           }))
