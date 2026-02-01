@@ -8,8 +8,8 @@
 
 ## Living Roadmap & Progress Document
 
-**Current Phase**: Wave 5 - Documentation Cleanup  
-**Overall Progress**: 35%  
+**Current Phase**: Wave T - Testing Foundation  
+**Overall Progress**: 52%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -33,11 +33,11 @@
 │  NEW WAVES (v3.0):                                                   │
 │  Wave F: Features         [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │  Wave M: Mobile           [░░░░░░░░░░]   0%  ⏳ Weeks 5-14            │
-│  Wave T: Testing          [██████░░░░]  55%  🔄 388 FE + 234 BE tests │
+│  Wave T: Testing          [██████░░░░]  60%  🔄 429 FE + 234 BE tests │
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
-│  ────────────────────────────────────────────────────                │
-│  OVERALL                  [█████░░░░░]  50%                         │
+│  ────────────────────────────────────────────────────────────────────│
+│  OVERALL                  [█████░░░░░]  52%   TOTAL: 663 tests       │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,30 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-01 - Wave T: AuthContext & ThemeContext Tests (PR #2245 ✅ MERGED)
+
+**Added 41 new context tests**:
+- `AuthContext.test.tsx` (18 tests): Login/logout/signup flows, state management
+- `ThemeContext.test.tsx` (23 tests): Theme toggle, localStorage, tenant branding
+
+**Test coverage update**: Frontend 388 → 429 tests | Wave T: 60%
+
+### 2026-02-01 - Wave T: Context & Shared Utility Tests (PR #2243 ✅ MERGED)
+
+**Added 93 new tests**:
+- `NavigationContext.test.tsx` (22 tests): Module detection, sidebar persistence
+- `shared-utils.test.ts` (71 tests): Shared utilities for web/mobile
+
+**Test coverage update**: Frontend 295 → 388 tests | 🎉 Overall 50% milestone!
+
+### 2026-02-01 - Wave T: React Hooks Tests (PR #2242 ✅ MERGED)
+
+**Added 56 new hook tests**:
+- `useFormValidation.test.ts` (34 tests): Form validation, hybrid touch behavior
+- `useCommandPalette.test.ts` (22 tests): Keyboard shortcuts, toggle behavior
+
+**Test coverage update**: Frontend 239 → 295 tests
 
 ### 2026-02-01 - Wave T Testing: Frontend Service Tests (PR #2236 ✅ MERGED)
 
