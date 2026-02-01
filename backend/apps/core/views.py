@@ -448,3 +448,138 @@ class SearchOperatorsView(APIView):
             'operators': UniversalSearchService.get_operators_help(),
             'entity_types': UniversalSearchService.get_all_entity_types()
         })
+
+
+# ==============================================================================
+# Entity Graph API (Wave 2: Cockpit Command Center)
+# ==============================================================================
+
+class EntityDetailView(APIView):
+    """
+    Get entity details by type and ID.
+    
+    GET /api/v1/entities/{type}/{id}/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, entity_type: str, entity_id: int):
+        from apps.core.services import EntityGraphService
+        
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        service = EntityGraphService(tenant=request.tenant)
+        entity = service.get_entity(entity_type, entity_id)
+        
+        if not entity:
+            return Response(
+                {'error': 'Entity not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        return Response(entity)
+
+
+class EntityRelationshipsView(APIView):
+    """
+    Get relationships for an entity.
+    
+    GET /api/v1/entities/{type}/{id}/relationships/
+    GET /api/v1/entities/{type}/{id}/relationships/{relationship_name}/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, entity_type: str, entity_id: int, relationship_name: str = None):
+        from apps.core.services import EntityGraphService
+        
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        service = EntityGraphService(tenant=request.tenant)
+        
+        if relationship_name:
+            # Get specific relationship with pagination
+            limit = min(int(request.query_params.get('limit', 20)), 100)
+            offset = int(request.query_params.get('offset', 0))
+            
+            result = service.get_related_entities(
+                entity_type, entity_id, relationship_name,
+                limit=limit, offset=offset
+            )
+            return Response(result)
+        else:
+            # Get all relationships summary
+            include_counts = request.query_params.get('counts', 'true').lower() == 'true'
+            relationships = service.get_relationships(
+                entity_type, entity_id, include_counts=include_counts
+            )
+            return Response({
+                'entity_type': entity_type,
+                'entity_id': entity_id,
+                'relationships': relationships
+            })
+
+
+class EntityGraphView(APIView):
+    """
+    Get entity graph for visualization.
+    
+    GET /api/v1/entities/{type}/{id}/graph/
+    
+    Query Parameters:
+    - depth: How many levels to traverse (1-3, default: 1)
+    - max_nodes: Maximum nodes to return (default: 50, max: 100)
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, entity_type: str, entity_id: int):
+        from apps.core.services import EntityGraphService
+        
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        depth = min(int(request.query_params.get('depth', 1)), 3)
+        max_nodes = min(int(request.query_params.get('max_nodes', 50)), 100)
+        
+        service = EntityGraphService(tenant=request.tenant)
+        graph = service.get_entity_graph(
+            entity_type, entity_id, 
+            depth=depth, max_nodes=max_nodes
+        )
+        
+        if not graph['nodes']:
+            return Response(
+                {'error': 'Entity not found or no relationships'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        return Response(graph)
+
+
+class EntityTypesView(APIView):
+    """
+    Get supported entity types for graph traversal.
+    
+    GET /api/v1/entities/types/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        from apps.core.services import EntityGraphService
+        
+        types = EntityGraphService.get_supported_entity_types()
+        visuals = {t: EntityGraphService.get_entity_visuals(t) for t in types}
+        
+        return Response({
+            'entity_types': types,
+            'visuals': visuals
+        })
