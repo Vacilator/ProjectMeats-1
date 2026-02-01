@@ -310,7 +310,7 @@ export const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({
         payload.our_sales_order_num = formData.sales_order_ref;
       }
 
-      await apiClient.post('invoices/', payload);
+      await apiClient.post('accounting/invoices/', payload);
 
       // Success!
       onSuccess();

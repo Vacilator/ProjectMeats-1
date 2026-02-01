@@ -36,7 +36,9 @@ urlpatterns = [
     path("api/v1/", include("tenant_apps.plants.urls")),
     path("api/v1/", include("tenant_apps.carriers.urls")),
     path("api/v1/", include("tenant_apps.products.urls")),
-    path("api/v1/", include("tenant_apps.invoices.urls")),
+    # Invoices → Accounting rename (v2.0 Wave 1 Week 4)
+    path("api/v1/", include("tenant_apps.invoices.urls")),                      # Legacy (deprecated)
+    path("api/v1/accounting/", include("tenant_apps.invoices.urls")),           # NEW canonical path
     path("api/v1/", include("tenant_apps.locations.urls")),
     path("api/v1/ai-assistant/", include("tenant_apps.ai_assistant.urls")),
     path("api/v1/", include("apps.core.urls")),  # Core shared utilities
