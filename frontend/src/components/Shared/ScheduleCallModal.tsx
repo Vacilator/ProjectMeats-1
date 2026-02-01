@@ -417,10 +417,10 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
 
       if (isEditMode && initialData?.id) {
         // Update existing call
-        await apiClient.patch(`cockpit/scheduled-calls/${initialData.id}/`, payload);
+        await apiClient.patch(`workspace/scheduled-calls/${initialData.id}/`, payload);
       } else {
         // Create new call
-        await apiClient.post('cockpit/scheduled-calls/', payload);
+        await apiClient.post('workspace/scheduled-calls/', payload);
       }
 
       // Success
