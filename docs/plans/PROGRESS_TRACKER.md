@@ -3,8 +3,8 @@
 ## Living Roadmap & Progress Document
 
 **Last Updated**: 2026-02-01  
-**Current Phase**: Wave 2 - Cockpit Command Center (Week 5-6 Started)  
-**Overall Progress**: 20%  
+**Current Phase**: Wave 2 - Cockpit Command Center (Week 8 Complete)  
+**Overall Progress**: 23%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -18,7 +18,7 @@
 │                                                                      │
 │  Wave 0: Preparation      [░░░░░░░░░░]   0%  ⏳ Not Started          │
 │  Wave 1: Foundation       [██████░░░░]  55%  ✅ Week 4 Complete    │
-│  Wave 2: Cockpit          [███░░░░░░░]  23%  🔄 Week 5-7 Complete   │
+│  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
 │  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
 │  Wave 5: Repository       [█░░░░░░░░░]   5%  🔄 Docs Created         │
@@ -32,7 +32,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [██░░░░░░░░]  20%                          │
+│  OVERALL                  [███░░░░░░░]  23%                         │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -55,6 +55,29 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-01 - Wave 2 Widget System Complete (PR #2218 ✅ MERGED)
+
+**Created Widget System for Workspace**:
+- `WidgetGrid`: Draggable/resizable grid with react-grid-layout
+- `WidgetCard`: Base wrapper with loading/error states
+- `QuickStatsWidget`: Key metrics and KPIs display
+- `RecentActivityWidget`: Chronological activity feed
+- `UpcomingCallsWidget`: Scheduled calls with overdue/today indicators
+- `QuickActionsWidget`: Common action shortcuts with keyboard hints
+- `EntityExplorerWidget`: Entity browser with tabbed interface
+
+**Created WorkspacePage** (`/workspace`):
+- Edit mode toggle for customization
+- Widget catalog modal for adding widgets
+- Layout persistence (localStorage)
+- Theme-compliant styling
+
+**Backend Workspace API**:
+- `GET/POST /api/v1/core/workspace/layout/` - Layout storage
+- `GET /api/v1/core/workspace/stats/quick/` - Quick stats data
+- `GET /api/v1/core/workspace/activity/recent/` - Activity feed
+- `GET /api/v1/core/workspace/calls/upcoming/` - Scheduled calls
 
 ### 2026-01-31 - Master Plan Enhanced to v3.0
 
@@ -168,7 +191,7 @@
 - [ ] Delete `system_config` app (has 1 record - needs migration plan)
 - [x] Document changes
 
-### Wave 2: Cockpit Command Center (11/48 tasks)
+### Wave 2: Cockpit Command Center (27/48 tasks)
 
 **Week 5: Backend APIs ✅ COMPLETE**
 - [x] Universal Search API (PR #2212)
@@ -179,7 +202,7 @@
 - [x] Entity Graph API (PR #2215)
   - Entity details, relationships, graph endpoints
   - Depth-controlled traversal (1-3 levels)
-- [ ] Cockpit Layout API (deferred to Week 8)
+- [x] Cockpit Layout API (PR #2218)
 
 **Week 6: Command Palette & Search ✅ COMPLETE**
 - [x] CommandPalette component (⌘K / Ctrl+K) (PR #2212)
@@ -196,13 +219,19 @@
 - [ ] Node expansion on double-click (deferred)
 - [ ] InlineEditPanel (deferred to Wave 4)
 
-**Week 8: Widget System & Assembly**
-- [ ] WidgetGrid with react-grid-layout
-- [ ] Core widgets (6 total)
-- [ ] CockpitPage assembly
-- [ ] Cockpit Layout API
-- [ ] Layout persistence
-- [ ] Feature flag: ENABLE_COCKPIT=true
+**Week 8: Widget System & Assembly ✅ COMPLETE**
+- [x] WidgetGrid with react-grid-layout (PR #2218)
+- [x] Core widgets (6 total) (PR #2218)
+  - QuickStatsWidget
+  - RecentActivityWidget
+  - UpcomingCallsWidget
+  - QuickActionsWidget
+  - EntityExplorerWidget
+  - WidgetCard (base wrapper)
+- [x] WorkspacePage assembly (PR #2218)
+- [x] Workspace API endpoints (PR #2218)
+- [x] Layout persistence (localStorage) (PR #2218)
+- [x] Feature flag: /workspace route (PR #2218)
 
 ### Wave 3: Forms & Flows Enhancement (6/52 tasks)
 
