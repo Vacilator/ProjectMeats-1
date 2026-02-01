@@ -45,6 +45,7 @@ _THIRD_PARTY_APPS = [
     "drf_spectacular",
     "django_filters",
     "django_modal_actions",  # Modal dialogs for Django Admin actions
+    "flags",  # Feature flags for gradual rollout (v2.0 Wave 0)
 ]
 
 # ProjectMeats apps (all in shared schema with tenant_id isolation)
@@ -304,3 +305,60 @@ SERVER_EMAIL = 'no-reply@meatscentral.com'
 # ⚠️  DO NOT ADD: EMAIL_HOST, EMAIL_PORT, EMAIL_USE_TLS, EMAIL_USE_SSL
 # ⚠️  These will cause Errno 111 (Connection Refused) and 504 timeouts
 # ==============================================================================
+
+# ==============================================================================
+# Feature Flags Configuration (v2.0 Wave 0)
+# ==============================================================================
+# django-flags for gradual feature rollout
+# See: https://django-flags.readthedocs.io/
+#
+# Usage in code:
+#   from flags.state import flag_enabled
+#   if flag_enabled('COCKPIT_V2'):
+#       # Use new cockpit
+#
+# Usage in templates:
+#   {% load feature_flags %}
+#   {% flag_enabled 'COCKPIT_V2' as cockpit_v2 %}
+#   {% if cockpit_v2 %}...{% endif %}
+# ==============================================================================
+
+FLAGS = {
+    # Wave 2: Cockpit Command Center
+    'COCKPIT_V2': [
+        {'condition': 'boolean', 'value': True},  # Enabled by default (already deployed)
+    ],
+    'ENTITY_GRAPH': [
+        {'condition': 'boolean', 'value': True},  # Enabled by default
+    ],
+    'COMMAND_PALETTE': [
+        {'condition': 'boolean', 'value': True},  # Enabled by default
+    ],
+    'WIDGET_SYSTEM': [
+        {'condition': 'boolean', 'value': True},  # Enabled by default
+    ],
+    
+    # Wave 3: Forms & Flows (ready for testing)
+    'FORMS_V2': [
+        {'condition': 'boolean', 'value': False},  # Not yet enabled
+    ],
+    'WORKFLOW_ENGINE': [
+        {'condition': 'boolean', 'value': False},  # Not yet enabled
+    ],
+    
+    # Wave 4: Admin Studio
+    'ADMIN_STUDIO_V2': [
+        {'condition': 'boolean', 'value': False},  # Not yet enabled
+    ],
+    
+    # Wave F: New Features
+    'FILE_ATTACHMENTS': [
+        {'condition': 'boolean', 'value': False},  # Coming in Wave F1
+    ],
+    'CARRIERS_MODULE': [
+        {'condition': 'boolean', 'value': False},  # Coming in Wave F2
+    ],
+    'AI_ASSISTANT_V2': [
+        {'condition': 'boolean', 'value': False},  # Coming in Wave F4
+    ],
+}

@@ -13,6 +13,8 @@ urlpatterns = [
     path("auth/logout/", views.logout, name="logout"),
     # Choices endpoint for static dropdowns
     path("choices/", views.ChoicesAPIView.as_view(), name="choices"),
+    # Feature Flags API (Wave 0: Preparation)
+    path("feature-flags/", views.FeatureFlagsView.as_view(), name="feature-flags"),
     # Universal Search API (Wave 2: Cockpit Command Center)
     path("search/universal/", views.UniversalSearchView.as_view(), name="universal-search"),
     path("search/recent/", views.RecentItemsView.as_view(), name="recent-items"),

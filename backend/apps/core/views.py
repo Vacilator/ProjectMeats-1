@@ -778,3 +778,42 @@ class WorkspaceCallsView(APIView):
             'calls': [],
             'total': 0
         })
+
+
+# ==============================================================================
+# Feature Flags API (Wave 0: Preparation)
+# ==============================================================================
+
+class FeatureFlagsView(APIView):
+    """
+    Get feature flags for the current user/tenant.
+    
+    GET /api/v1/feature-flags/
+    
+    Returns enabled/disabled status of all feature flags.
+    Used by frontend to conditionally render features.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get all feature flags with their current status."""
+        from flags.state import flag_enabled
+        from django.conf import settings
+        
+        # Get all configured flags
+        configured_flags = getattr(settings, 'FLAGS', {})
+        
+        # Build response with flag status
+        flags = {}
+        for flag_name in configured_flags.keys():
+            try:
+                flags[flag_name] = flag_enabled(flag_name, request=request)
+            except Exception:
+                # If flag check fails, default to False
+                flags[flag_name] = False
+        
+        return Response({
+            'flags': flags,
+            'user_id': request.user.id,
+            'tenant_id': str(request.tenant.id) if hasattr(request, 'tenant') and request.tenant else None
+        })

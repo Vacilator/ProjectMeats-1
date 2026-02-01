@@ -16,7 +16,7 @@
 │                        PROGRESS OVERVIEW                             │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  Wave 0: Preparation      [░░░░░░░░░░]   0%  ⏳ Not Started          │
+│  Wave 0: Preparation      [████████░░]  80%  ✅ Core Tasks Done      │
 │  Wave 1: Foundation       [██████░░░░]  55%  ✅ Week 4 Complete    │
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
 │  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
@@ -32,7 +32,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [███░░░░░░░]  25%                         │
+│  OVERALL                  [███░░░░░░░]  28%                         │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -55,6 +55,27 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-01 - Wave 0 Preparation (PR #2224 🔄 IN PROGRESS)
+
+**Feature Flags System**:
+- Added `django-flags==5.0.13` to requirements
+- Configured 10 feature flags for gradual rollout:
+  - `COCKPIT_V2`, `ENTITY_GRAPH`, `COMMAND_PALETTE`, `WIDGET_SYSTEM` (enabled)
+  - `FORMS_V2`, `WORKFLOW_ENGINE`, `ADMIN_STUDIO_V2` (disabled)
+  - `FILE_ATTACHMENTS`, `CARRIERS_MODULE`, `AI_ASSISTANT_V2` (disabled)
+- Created `/api/v1/core/feature-flags/` endpoint
+
+**Baseline Documentation**:
+- Created `docs/WAVE0_BASELINE.md` with:
+  - Backend test coverage: 41% (14,381 lines)
+  - Frontend test coverage: ~12% (56 tests)
+  - API endpoint inventory (80+ endpoints)
+  - Health monitoring endpoints documented
+  - Backup/restore procedures documented
+
+**Bug Fix**:
+- Removed conflicting `tests.py` in `system_config` (tests exist in `tests/` directory)
 
 ### 2026-02-01 - Testing Foundation (PR #2222 ✅ MERGED)
 
@@ -142,14 +163,13 @@
 
 ## Upcoming Tasks (Next Sprint)
 
-### Priority 1: Wave T - Testing Expansion
+### Priority 1: Wave 0 Completion (Remaining)
 
 | Task | Assignee | Due | Status |
 |------|----------|-----|--------|
-| Add backend pytest-django tests | Dev | Sprint 1 | ⏳ Next |
-| Test tenant isolation patterns | Dev | Sprint 1 | ⏳ Planned |
-| Add API endpoint tests | Dev | Sprint 1 | ⏳ Planned |
-| Increase frontend coverage to 25% | Dev | Sprint 2 | ⏳ Planned |
+| Merge Wave 0 PR | Dev | ASAP | 🔄 In Progress |
+| Set up Sentry monitoring | DevOps | Sprint 1 | ⏳ Recommended |
+| Create v2.0/master feature branch | Dev | Week 0 | ⏳ After PR merge |
 
 ### Priority 2: Wave 1 Completion (Remaining)
 
@@ -159,15 +179,26 @@
 | Delete `system_config` app (needs migration) | Dev | Sprint 2 | ⏳ Blocked |
 | Audit admin-studio system_config usage | Dev | Sprint 1 | ⏳ Deferred |
 
-### Priority 3: Wave 0 Preparation
+### Priority 3: Wave T - Testing Expansion
 
 | Task | Assignee | Due | Status |
 |------|----------|-----|--------|
-| Create v2.0/master feature branch | Dev | Week 0 | ⏳ Not Started |
-| Set up feature flags system | Dev | Week 0 | ⏳ Not Started |
-| Baseline test coverage report | Dev | Week 0 | ✅ Started (pyproject.toml) |
-| Document current API endpoints | Dev | Week 0 | ⏳ Not Started |
-| Set up monitoring dashboards | DevOps | Week 0 | ⏳ Not Started |
+| Add backend pytest-django tests | Dev | Sprint 1 | ⏳ Next |
+| Test tenant isolation patterns | Dev | Sprint 1 | ⏳ Planned |
+| Add API endpoint tests | Dev | Sprint 1 | ⏳ Planned |
+| Increase frontend coverage to 25% | Dev | Sprint 2 | ⏳ Planned |
+
+### Wave 0 Checklist
+
+| Task | Status | Notes |
+|------|--------|-------|
+| **0.1** Feature flags system | ✅ Done | django-flags + 10 flags configured |
+| **0.2** Feature flags API | ✅ Done | `/api/v1/core/feature-flags/` |
+| **0.3** Test coverage baseline | ✅ Done | 41% backend, ~12% frontend |
+| **0.4** API documentation | ✅ Done | drf-spectacular (existing) |
+| **0.5** Backup procedures | ✅ Done | Documented in WAVE0_BASELINE.md |
+| **0.6** Health monitoring | ✅ Done | Health endpoints exist |
+| **0.7** Create v2.0/master branch | ⏳ Pending | After Wave 0 PR merge |
 
 ---
 
