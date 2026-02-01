@@ -4,7 +4,7 @@
 
 **Last Updated**: 2026-02-01  
 **Current Phase**: Wave 2 - Cockpit Command Center (Week 5-6 Started)  
-**Overall Progress**: 17%  
+**Overall Progress**: 20%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -18,7 +18,7 @@
 │                                                                      │
 │  Wave 0: Preparation      [░░░░░░░░░░]   0%  ⏳ Not Started          │
 │  Wave 1: Foundation       [██████░░░░]  55%  ✅ Week 4 Complete    │
-│  Wave 2: Cockpit          [█░░░░░░░░░]  10%  🔄 Week 5-6 Started   │
+│  Wave 2: Cockpit          [███░░░░░░░]  23%  🔄 Week 5-7 Complete   │
 │  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
 │  Wave 5: Repository       [█░░░░░░░░░]   5%  🔄 Docs Created         │
@@ -32,7 +32,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [██░░░░░░░░]  17%                          │
+│  OVERALL                  [██░░░░░░░░]  20%                          │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -168,37 +168,39 @@
 - [ ] Delete `system_config` app (has 1 record - needs migration plan)
 - [x] Document changes
 
-### Wave 2: Cockpit Command Center (5/48 tasks)
+### Wave 2: Cockpit Command Center (11/48 tasks)
 
-**Week 5: Backend APIs - IN PROGRESS**
+**Week 5: Backend APIs ✅ COMPLETE**
 - [x] Universal Search API (PR #2212)
   - Cross-entity search with ranking
   - Search operators (supplier:, po:, @user, etc.)
 - [x] Recent Items API (PR #2212)
 - [x] Search Operators Help API (PR #2212)
-- [ ] Entity Graph API
-- [ ] Cockpit Layout API
+- [x] Entity Graph API (PR #2215)
+  - Entity details, relationships, graph endpoints
+  - Depth-controlled traversal (1-3 levels)
+- [ ] Cockpit Layout API (deferred to Week 8)
 
-**Week 6: Command Palette & Search - IN PROGRESS**
+**Week 6: Command Palette & Search ✅ COMPLETE**
 - [x] CommandPalette component (⌘K / Ctrl+K) (PR #2212)
 - [x] Keyboard navigation (PR #2212)
-- [ ] SearchResultsList with entity grouping
-- [ ] Search debouncing and caching (partial)
-- [ ] Recent items section (partial)
-- [ ] Quick actions integration
+- [x] Search debouncing (200ms) (PR #2212)
+- [x] Recent items section (PR #2212)
+- [ ] Quick actions integration (deferred)
 
-**Week 7: Entity Graph Visualization**
-- [ ] Graph library setup (react-flow)
-- [ ] EntityNode component
-- [ ] EntityEdge component
-- [ ] Node expansion
-- [ ] InlineEditPanel
-- [ ] Graph layout algorithms
+**Week 7: Entity Graph Visualization ✅ COMPLETE**
+- [x] Graph library setup (react-flow) (PR #2215)
+- [x] EntityNode component (PR #2215)
+- [x] EntityGraph component (PR #2215)
+- [x] Graph layout algorithms (PR #2215)
+- [ ] Node expansion on double-click (deferred)
+- [ ] InlineEditPanel (deferred to Wave 4)
 
 **Week 8: Widget System & Assembly**
 - [ ] WidgetGrid with react-grid-layout
 - [ ] Core widgets (6 total)
 - [ ] CockpitPage assembly
+- [ ] Cockpit Layout API
 - [ ] Layout persistence
 - [ ] Feature flag: ENABLE_COCKPIT=true
 
