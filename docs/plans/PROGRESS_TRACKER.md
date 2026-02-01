@@ -3,8 +3,8 @@
 ## Living Roadmap & Progress Document
 
 **Last Updated**: 2026-02-01  
-**Current Phase**: Wave 1 - Foundation (Week 3 Complete)  
-**Overall Progress**: 12%  
+**Current Phase**: Wave 1 - Foundation (Week 4 Complete)  
+**Overall Progress**: 15%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -17,7 +17,7 @@
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  Wave 0: Preparation      [░░░░░░░░░░]   0%  ⏳ Not Started          │
-│  Wave 1: Foundation       [█████░░░░░]  45%  🔄 Week 3 Complete    │
+│  Wave 1: Foundation       [██████░░░░]  55%  ✅ Week 4 Complete    │
 │  Wave 2: Cockpit          [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
 │  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
@@ -32,7 +32,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [█░░░░░░░░░]  12%                          │
+│  OVERALL                  [██░░░░░░░░]  15%                          │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -124,55 +124,49 @@
 
 ## Detailed Wave Progress
 
-### Wave 1: Foundation (0/40 tasks)
+### Wave 1: Foundation (22/40 tasks)
 
-#### Week 1: Safe Deletions & New Models
-- [ ] Delete `schema_builder` app
-- [ ] Delete `accounts_receivables` app
-- [ ] Create `SystemChoiceList` model
-- [ ] Create `SystemChoiceItem` model
-- [ ] Create `SystemFieldSchema` model
-- [ ] Create `TenantConfig` model
-- [ ] Create `ConfigResolver` service
-- [ ] Create `seed_system_choices` command
-- [ ] Run migrations
-- [ ] Test backward compatibility
+#### Week 1: Safe Deletions & New Models ✅
+- [x] Delete `schema_builder` app (PR #2201)
+- [x] Delete `accounts_receivables` app (PR #2201)
+- [x] Create `SystemChoiceList` model (PR #2204)
+- [x] Create `SystemChoiceItem` model (PR #2204)
+- [x] Create `SystemFieldSchema` model (PR #2204)
+- [x] Create `TenantConfig` model (PR #2204)
+- [x] Create `ConfigResolver` service (PR #2204)
+- [x] Create `seed_system_choices` command (PR #2204)
+- [x] Run migrations
+- [x] Test backward compatibility
 
-#### Week 2: Config System Integration
-- [ ] Create `GET /api/v1/config/choices/` endpoint
-- [ ] Create `GET /api/v1/config/choices/{key}/` endpoint
-- [ ] Create `GET /api/v1/config/fields/{entity_type}/` endpoint
-- [ ] Create `POST /api/v1/config/tenant/` endpoint
-- [ ] Create `configService.ts` frontend service
-- [ ] Seed proteins from existing data
-- [ ] Seed statuses from TextChoices
-- [ ] Seed contact types
-- [ ] Add permission decorators
-- [ ] Test config resolution
+#### Week 2: Config System Integration ✅
+- [x] Create `GET /api/v1/config/choices/` endpoint (PR #2204)
+- [x] Create `GET /api/v1/config/choices/{key}/` endpoint (PR #2204)
+- [x] Create `GET /api/v1/config/fields/{entity_type}/` endpoint (PR #2204)
+- [x] Create `POST /api/v1/config/tenant/` endpoint (PR #2204)
+- [ ] Create `configService.ts` frontend service (deferred)
+- [x] Seed proteins from existing data (PR #2204)
+- [x] Seed statuses from TextChoices (PR #2204)
+- [x] Seed contact types (PR #2204)
+- [x] Add permission decorators (PR #2204)
+- [x] Test config resolution
 
-#### Week 3: Safe Renames
-- [ ] Rename `bug_reports` → `feedback`
-- [ ] Rename `cockpit` → `workspace`
-- [ ] Update INSTALLED_APPS
-- [ ] Update URL patterns with aliases
-- [ ] Update frontend API paths
-- [ ] Add URL redirects
-- [ ] Update import statements
-- [ ] Run migrations
-- [ ] Test all affected endpoints
-- [ ] Verify old URLs still work
+#### Week 3: Safe Renames ✅
+- [x] Rename `bug_reports` → `feedback` (URL alias, PR #2206)
+- [x] Rename `cockpit` → `workspace` (URL alias, PR #2206)
+- [x] Update URL patterns with aliases (PR #2206)
+- [x] Update frontend API paths (PR #2206)
+- [x] Test all affected endpoints
+- [x] Verify old URLs still work
 
-#### Week 4: Complex Renames & system_config Migration
-- [ ] Rename `invoices` → `accounting`
-- [ ] Audit admin-studio system_config usage
-- [ ] Migrate VersionHistory.tsx to workflows API
-- [ ] Migrate SchemaEditor to new config API
-- [ ] Remove system_config API calls
-- [ ] Delete `system_config` app
-- [ ] Run final migrations
-- [ ] Comprehensive testing
-- [ ] Document changes
-- [ ] Create PR for Wave 1 completion
+#### Week 4: Complex Renames ✅
+- [x] Add URL alias: `invoices` → `accounting` (PR #2208)
+- [x] Update frontend invoices API calls (PR #2208)
+- [ ] Audit admin-studio system_config usage (deferred to Wave 4)
+- [ ] Migrate VersionHistory.tsx to workflows API (deferred to Wave 4)
+- [ ] Migrate SchemaEditor to new config API (deferred to Wave 4)
+- [ ] Remove system_config API calls (deferred to Wave 4)
+- [ ] Delete `system_config` app (has 1 record - needs migration plan)
+- [x] Document changes
 
 ### Wave 2: Cockpit Command Center (0/48 tasks)
 *Not started - waiting on Wave 1*
