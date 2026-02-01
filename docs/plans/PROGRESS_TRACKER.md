@@ -9,7 +9,7 @@
 ## Living Roadmap & Progress Document
 
 **Current Phase**: Wave T - Testing Foundation  
-**Overall Progress**: 52%  
+**Overall Progress**: 56%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -33,11 +33,11 @@
 │  NEW WAVES (v3.0):                                                   │
 │  Wave F: Features         [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │  Wave M: Mobile           [░░░░░░░░░░]   0%  ⏳ Weeks 5-14            │
-│  Wave T: Testing          [██████░░░░]  60%  🔄 429 FE + 234 BE tests │
+│  Wave T: Testing          [███████░░░]  70%  🔄 536 FE + 234 BE tests │
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [█████░░░░░]  52%   TOTAL: 663 tests       │
+│  OVERALL                  [██████░░░░]  56%   TOTAL: 770 tests       │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,35 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-01 - Wave T: NavigationMenu Tests (PR #2251 ✅ MERGED)
+
+**Added 25 navigation tests**:
+- `NavigationMenu.test.tsx` (25 tests): Accordion behavior, nested navigation, active states, accessibility
+
+**Test coverage update**: Frontend 511 → 536 tests | Wave T: 70%
+
+### 2026-02-01 - Wave T: quickActionsService Tests (PR #2250 ✅ MERGED)
+
+**Added 25 service tests**:
+- `quickActionsService.test.ts` (25 tests): CRUD operations, form submission lifecycle, cancel tokens
+
+**Test coverage update**: Frontend 486 → 511 tests | Wave T: 68%
+
+### 2026-02-01 - Wave T: UserAvatar & WidgetCard Tests (PR #2248 ✅ MERGED)
+
+**Added 36 component tests**:
+- `UserAvatar.test.tsx` (16 tests): Avatar display, upload, file validation
+- `WidgetCard.test.tsx` (20 tests): Loading/error states, refresh, custom actions
+
+**Test coverage update**: Frontend 450 → 486 tests | Wave T: 65%
+
+### 2026-02-01 - Wave T: QuickActionsContext Tests (PR #2247 ✅ MERGED)
+
+**Added 21 context tests**:
+- `QuickActionsContext.test.tsx` (21 tests): CRUD operations, form submission flow
+
+**Test coverage update**: Frontend 429 → 450 tests | Wave T: 62%
 
 ### 2026-02-01 - Wave T: AuthContext & ThemeContext Tests (PR #2245 ✅ MERGED)
 
@@ -483,7 +512,9 @@
 | Metric | Baseline | Current | Target | Trend |
 |--------|----------|---------|--------|-------|
 | Backend test coverage | ~40% | ~40% | 80% | — |
-| Frontend test coverage | ~5% | ~12% | 70% | 📈 5 test files, 56 tests |
+| Frontend test coverage | ~5% | ~25% | 70% | 📈 24 test files, 536 tests |
+| Frontend tests | 0 | **536** | 500+ | ✅ Target exceeded! |
+| Backend tests | 0 | **234** | 300+ | 🔄 Approaching target |
 | Lint errors | TBD | TBD | 0 | — |
 | Type errors | TBD | TBD | 0 | — |
 | TODO/FIXME items | 14 | 14 | 0 | — |
