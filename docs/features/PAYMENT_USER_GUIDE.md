@@ -1,9 +1,12 @@
-# Payment Workflow User Guide
+# Payment User Guide
 
-**ProjectMeats (Meats Central) - Accounting Module**  
-**Document Version:** 1.0  
-**Last Updated:** January 2026  
-**Status:** ✅ Production Ready
+> **Consolidated**: This guide focuses on **user workflows**. 
+> See [Payment Developer Guide](PAYMENT_DEVELOPER_GUIDE.md) for technical details.
+> 
+> **Archived docs**: `PAYMENT_FEATURE_FINAL_SUMMARY.md`, `PAYMENT_INTEGRATION_COMPLETE.md`
+>
+> **Last Updated:** 2026-02-01  
+> **Status:** ✅ Production Ready
 
 ---
 

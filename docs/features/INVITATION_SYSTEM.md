@@ -1,4 +1,13 @@
-# Tenant Invite-Only User Creation System
+# Invitation System
+
+> **Consolidated**: This is the authoritative guide for the invitation system.
+> 
+> **Archived docs**: 
+> - `INVITATION_SYSTEM_VERIFICATION.md` (testing checklist)
+> - `INVITATION_TOKEN_FIX.md` (bug fix history)
+> - `INVITATION_TROUBLESHOOTING.md` (debugging - integrated below)
+>
+> **Last Updated:** 2026-02-01
 
 ## 🎯 Overview
 

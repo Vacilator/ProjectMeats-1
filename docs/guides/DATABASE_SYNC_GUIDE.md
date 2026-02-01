@@ -1,4 +1,10 @@
-# Database Sync Workflow: Production to UAT
+# Database Sync Guide
+
+> **Consolidated**: This guide supersedes archived docs:
+> - `DATABASE_SYNC_STRATEGY.md` (architectural decisions)
+> - `DATABASE_SYNC_SETUP.md` (initial setup checklist)
+> 
+> **Last Updated**: 2026-02-01
 
 **Workflow:** `.github/workflows/db-sync-prod-to-uat.yml`  
 **Schedule:** Daily at 00:00 UTC  

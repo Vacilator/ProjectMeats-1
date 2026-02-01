@@ -1,4 +1,12 @@
-# Guest Mode Implementation
+# Guest Mode
+
+> **Consolidated**: This is the authoritative guide for guest mode.
+> 
+> **Archived docs**: 
+> - `GUEST_MODE_QUICK_REF.md` (quick reference)
+> - `GUEST_USER_PERMISSIONS_GUIDE.md` (permissions details)
+>
+> **Last Updated:** 2026-02-01
 
 ## Overview
 

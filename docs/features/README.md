@@ -1,33 +1,28 @@
 # Feature Documentation
 
 > Documentation for specific features and modules.
+>
+> **Last Updated**: 2026-02-01 (Phase D3 consolidation complete)
 
 ## Access & Authentication
 
 | Document | Purpose |
 |----------|---------|
 | [Tenant Access Control](TENANT_ACCESS_CONTROL.md) | Multi-tenant permissions |
-| [Invite Only System](INVITE_ONLY_SYSTEM.md) | Invitation-based registration |
-| [Invitation Verification](INVITATION_SYSTEM_VERIFICATION.md) | Verifying invitations |
-| [Invitation Troubleshooting](INVITATION_TROUBLESHOOTING.md) | Debug invitation issues |
-| [Invitation Token Fix](INVITATION_TOKEN_FIX.md) | Token handling fixes |
+| [Invitation System](INVITATION_SYSTEM.md) | Invitation-based registration (consolidated) |
 
 ## Guest Mode
 
 | Document | Purpose |
 |----------|---------|
-| [Guest Mode Implementation](GUEST_MODE_IMPLEMENTATION.md) | Guest user architecture |
-| [Guest Mode Quick Ref](GUEST_MODE_QUICK_REF.md) | Quick reference |
-| [Guest User Permissions](GUEST_USER_PERMISSIONS_GUIDE.md) | Permission model |
+| [Guest Mode](GUEST_MODE.md) | Guest user system (consolidated) |
 
 ## Payments
 
 | Document | Purpose |
 |----------|---------|
-| [Payment Workflow Guide](PAYMENT_WORKFLOW_GUIDE.md) | Payment user flows |
-| [Payment Technical](PAYMENT_WORKFLOW_TECHNICAL.md) | Technical implementation |
-| [Payment Integration](PAYMENT_INTEGRATION_COMPLETE.md) | Integration details |
-| [Payment Summary](PAYMENT_FEATURE_FINAL_SUMMARY.md) | Feature overview |
+| [Payment User Guide](PAYMENT_USER_GUIDE.md) | Payment user workflows |
+| [Payment Developer Guide](PAYMENT_DEVELOPER_GUIDE.md) | Technical implementation |
 
 ## Admin Studio
 
@@ -37,5 +32,5 @@
 
 ---
 
-> **Note**: Some feature docs may be consolidated in Phase D3.
+> **Consolidated docs** moved to [archive/consolidated/](../archive/consolidated/)
 > See [Documentation Organization Plan](../plans/DOCUMENTATION_ORGANIZATION_PLAN.md)

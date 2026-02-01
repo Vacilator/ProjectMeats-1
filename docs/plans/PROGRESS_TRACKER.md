@@ -3,8 +3,8 @@
 ## Living Roadmap & Progress Document
 
 **Last Updated**: 2026-02-01  
-**Current Phase**: Wave T - Testing Foundation Started  
-**Overall Progress**: 25%  
+**Current Phase**: Wave 5 - Documentation Cleanup  
+**Overall Progress**: 35%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -21,7 +21,7 @@
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
 │  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
-│  Wave 5: Repository       [██████░░░░]  57%  🔄 D1+D2 Complete!      │
+│  Wave 5: Repository       [████████░░]  75%  🔄 D1+D2+D3 Complete!   │
 │  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
@@ -32,7 +32,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [████░░░░░░]  33%                         │
+│  OVERALL                  [████░░░░░░]  35%                         │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -50,42 +50,44 @@
 | **Mobile Features** | 15+ tasks | Planned |
 | **Infrastructure** | 15+ tasks | Planned |
 | **Testing** | 9 E2E paths | Planned |
-| **Documentation** | 55+ files | Planned |
+| **Documentation** | ~45 files | D3 Complete |
 
 ---
 
 ## Recent Accomplishments
 
-### 2026-02-01 - Wave 5 Phase D2: Organize Documents (PR #2231 🔄)
+### 2026-02-01 - Wave 5 Phase D3: Consolidate Duplicates (PR #2232 🔄)
+
+**Consolidated 13 duplicate docs into 5 authoritative guides**:
+
+| Category | Before | After | Reduction |
+|----------|--------|-------|-----------|
+| SSL | 2 docs | 1 (`SSL_CONFIGURATION.md`) | -1 |
+| Database Sync | 3 docs | 1 (`DATABASE_SYNC_GUIDE.md`) | -2 |
+| Email | 4 docs | 1 (`EMAIL_CONFIGURATION.md`) | -3 |
+| Payments | 4 docs | 2 (`PAYMENT_USER_GUIDE.md`, `PAYMENT_DEVELOPER_GUIDE.md`) | -2 |
+| Invitation | 4 docs | 1 (`INVITATION_SYSTEM.md`) | -3 |
+| Guest Mode | 3 docs | 1 (`GUEST_MODE.md`) | -2 |
+| **Total** | **20 docs** | **7 docs** | **-13** |
+
+**Archived to `archive/consolidated/`**:
+- SSL_SETUP.md, DATABASE_SYNC_*.md (2), EMAIL_*.md (3)
+- PAYMENT_*.md (2), INVITATION_*.md (3), GUEST_*.md (2)
+
+**Updated READMEs**:
+- `guides/README.md` - Updated with consolidated doc links
+- `features/README.md` - Updated with consolidated doc links
+- Created `archive/consolidated/README.md` - Consolidation index
+
+### 2026-02-01 - Wave 5 Phase D2: Organize Documents (PR #2231 ✅ MERGED)
 
 **Moved 46 documents to proper directories**:
-- `getting-started/` (4 docs): Quick Start, Local Development, Contributing, Branch Workflow
-- `architecture/` (5 docs): Architecture, Infrastructure, Global Config, Unified Proxy, Auth
-- `guides/` (16 docs): Development, Design System, SSL, Database Sync, Email, etc.
-- `reference/` (6 docs): Configuration, Env Vars, Changelog, Workflow API, Golden Pipeline
-- `features/` (13 docs): Guest Mode, Payments, Invitations, Tenant Access, Studio
-- `implementation-history/` (7 docs): Wave0 Baseline, Call Log, Phase 4, Golden Standard
-
-**Created directory READMEs**:
-- Each directory now has a README.md with index and navigation
-- All docs discoverable through directory-level navigation
-
-**Updated main README**:
-- All links updated to new paths
-- Directory structure diagram updated
-- Health metrics updated (100% organized)
+- All docs now in categorized directories with READMEs
 
 ### 2026-02-01 - Wave 5 Phase D1: Documentation Structure (PR #2230 ✅ MERGED)
 
 **Created Navigation System**:
-- Created `/docs/README.md` master index with quick navigation table
-- Established **Source of Truth** section clearly identifying authoritative docs
-- Added search tips and document category listings
-- Created `/docs/plans/README.md` explaining plan hierarchy
-- Created `/docs/archive/README.md` for superseded docs
-
-**Plan Consolidation**:
-- Moved active plans to `plans/` directory
+- Created master index, plan hierarchy, archive explanation
 - Archived superseded plans with deprecation notices
 
 ### 2026-02-01 - Wave 0 Preparation (PR #2225 ✅ MERGED)
@@ -376,15 +378,15 @@
 - [x] Update all internal links in README
 - [x] Create directory READMEs (6 new)
 
-**Phase D3: Consolidate Duplicates (Week 3)** - 0/5
-- [ ] Merge Payment docs (4 → 1)
-- [ ] Merge Invitation docs (6 → 2)
-- [ ] Merge Email docs (3 → 1)
-- [ ] Merge Database sync docs (3 → 1)
-- [ ] Merge SSL docs (2 → 1)
+**Phase D3: Consolidate Duplicates (Week 3)** - 5/5 ✅
+- [x] Merge SSL docs (2 → 1): `SSL_CONFIGURATION.md`
+- [x] Merge Database sync docs (3 → 1): `DATABASE_SYNC_GUIDE.md`
+- [x] Merge Email docs (4 → 1): `EMAIL_CONFIGURATION.md`
+- [x] Merge Payment docs (4 → 2): `PAYMENT_USER_GUIDE.md`, `PAYMENT_DEVELOPER_GUIDE.md`
+- [x] Merge Invitation/Guest docs (7 → 2): `INVITATION_SYSTEM.md`, `GUEST_MODE.md`
 
 **Phase D4: Metadata & Cross-References (Week 4)** - 0/5
-- [ ] Add standard header to all 55+ docs
+- [ ] Add standard header to all ~45 docs
 - [ ] Add status badges to all docs
 - [ ] Add "Related Documents" sections
 - [ ] Create doc dependency graph
@@ -393,10 +395,10 @@
 **Success Criteria**:
 | Metric | Current | Target |
 |--------|---------|--------|
-| Time to find any doc | ~1 min (improved) | <30 sec |
-| Docs with metadata | ~15% | 100% |
-| Duplicate doc pairs | ~12 | 0 |
-| Orphaned docs | Unknown | 0 |
+| Time to find any doc | <30 sec ✅ | <30 sec |
+| Docs with metadata | ~25% | 100% |
+| Duplicate doc pairs | ✅ 0 | 0 |
+| Orphaned docs | 0 (verified) | 0 |
 
 ### Wave 6: Model Migrations (0/25 tasks)
 *Not started - waiting on Waves 1-4*

@@ -1,4 +1,7 @@
-# SSL Webroot Deployment Guide
+# SSL Configuration Guide
+
+> **Consolidated**: This guide supersedes the archived `SSL_SETUP.md` (basic setup).  
+> **Last Updated**: 2026-02-01
 
 ## 🎯 Overview
 

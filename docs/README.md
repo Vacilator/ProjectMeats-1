@@ -166,12 +166,12 @@ docs/
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Total documents | 58 | ~40 (after consolidation) |
+| Total documents | ~45 | ~40 |
 | Organized in directories | ✅ 100% | 100% |
-| Documents with metadata | ~15% | 100% |
-| Duplicate document pairs | ~12 | 0 (Phase D3) |
+| Documents with metadata | ~25% | 100% |
+| Duplicate document pairs | ✅ 0 | 0 |
 
-**Reorganization Status**: 🔄 In Progress (Wave 5, Phase D2 Complete)
+**Reorganization Status**: 🔄 In Progress (Wave 5, Phase D3 Complete)
 
 ---
 
@@ -183,4 +183,4 @@ docs/
 
 ---
 
-*This index is part of the [Documentation Organization Plan](DOCUMENTATION_ORGANIZATION_PLAN.md)*
+*This index is part of the [Documentation Organization Plan](plans/DOCUMENTATION_ORGANIZATION_PLAN.md)*

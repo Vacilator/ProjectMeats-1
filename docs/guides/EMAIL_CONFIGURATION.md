@@ -1,4 +1,11 @@
-# SendGrid Email Configuration Guide
+# Email Configuration Guide
+
+> **Consolidated**: This guide supersedes archived docs:
+> - `SENDGRID_CONFIGURATION_GUIDE.md` (initial setup)
+> - `EMAIL_BRANDING_AND_OWNER_PERMISSIONS.md` (customization)
+> - `EMAIL_TROUBLESHOOTING_SERVER_SIDE.md` (debugging)
+>
+> **Last Updated**: 2026-02-01
 
 ## Overview
 

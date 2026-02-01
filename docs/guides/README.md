@@ -1,6 +1,8 @@
 # How-To Guides
 
 > Step-by-step guides for common tasks.
+> 
+> **Last Updated**: 2026-02-01
 
 ## Development
 
@@ -17,29 +19,23 @@
 | [Allowed Hosts](ALLOWED_HOSTS_CONFIGURATION.md) | Django allowed hosts setup |
 | [Branch Protection](BRANCH_PROTECTION_SETUP.md) | GitHub branch rules |
 
-## Database & Sync
+## Database
 
 | Guide | Purpose |
 |-------|---------|
-| [Database Sync Setup](DATABASE_SYNC_SETUP.md) | Initial sync configuration |
-| [Database Sync Strategy](DATABASE_SYNC_STRATEGY.md) | Sync approach and patterns |
-| [DB Sync Workflow](DB_SYNC_WORKFLOW.md) | Day-to-day sync operations |
+| [Database Sync Guide](DATABASE_SYNC_GUIDE.md) | Production → UAT sync (consolidated) |
 
-## Email & Integrations
+## Email
 
 | Guide | Purpose |
 |-------|---------|
-| [SendGrid Configuration](SENDGRID_CONFIGURATION_GUIDE.md) | Email service setup |
-| [SendGrid Email Config](SENDGRID_EMAIL_CONFIGURATION.md) | Email templates |
-| [Email Troubleshooting](EMAIL_TROUBLESHOOTING_SERVER_SIDE.md) | Debug email issues |
-| [Email Branding](EMAIL_BRANDING_AND_OWNER_PERMISSIONS.md) | Customizing emails |
+| [Email Configuration](EMAIL_CONFIGURATION.md) | SendGrid setup & troubleshooting (consolidated) |
 
 ## SSL & Security
 
 | Guide | Purpose |
 |-------|---------|
-| [SSL Setup](SSL_SETUP.md) | Certificate installation |
-| [SSL Webroot Deployment](SSL_WEBROOT_DEPLOYMENT_GUIDE.md) | Let's Encrypt setup |
+| [SSL Configuration](SSL_CONFIGURATION.md) | Let's Encrypt & zero-downtime renewal (consolidated) |
 
 ## Operations
 
