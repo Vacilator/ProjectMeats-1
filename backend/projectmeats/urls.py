@@ -40,8 +40,12 @@ urlpatterns = [
     path("api/v1/", include("tenant_apps.locations.urls")),
     path("api/v1/ai-assistant/", include("tenant_apps.ai_assistant.urls")),
     path("api/v1/", include("apps.core.urls")),  # Core shared utilities
-    path("api/v1/bug-reports/", include("tenant_apps.bug_reports.urls")),
-    path("api/v1/cockpit/", include("tenant_apps.cockpit.urls")),
+    # Bug Reports → Feedback rename (v2.0 Wave 1 Week 3)
+    path("api/v1/bug-reports/", include("tenant_apps.bug_reports.urls")),  # Legacy (deprecated)
+    path("api/v1/feedback/", include("tenant_apps.bug_reports.urls")),      # NEW canonical path
+    # Cockpit → Workspace rename (v2.0 Wave 1 Week 3)
+    path("api/v1/cockpit/", include("tenant_apps.cockpit.urls")),           # Legacy (deprecated)
+    path("api/v1/workspace/", include("tenant_apps.cockpit.urls")),         # NEW canonical path
     path("api/v1/", include("tenant_apps.inquiries.urls")),  # Inquiry management
     path("api/v1/", include("tenant_apps.fulfillments.urls")),  # Fulfillment tracking
     path("api/v1/workflows/", include("tenant_apps.workflows.urls")),  # Bundle Two: Tenant Workflows
