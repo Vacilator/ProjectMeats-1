@@ -314,3 +314,137 @@ class UserPreferencesViewSet(viewsets.ModelViewSet):
         # GET request
         serializer = self.get_serializer(preferences)
         return Response(serializer.data)
+
+
+# ==============================================================================
+# Universal Search API (Wave 2: Cockpit Command Center)
+# ==============================================================================
+
+class UniversalSearchView(APIView):
+    """
+    Universal search across all tenant entities.
+    
+    GET /api/v1/search/universal/?q=query
+    
+    Supports search operators:
+    - supplier:ABC or s:ABC - Search only suppliers
+    - customer:XYZ or c:XYZ - Search only customers  
+    - po:1234 - Search only purchase orders
+    - so:5678 - Search only sales orders
+    - product:beef or p:beef - Search only products
+    - @john - Search only contacts
+    - invoice:INV001 or inv:INV001 - Search only invoices
+    - plant:PLANT1 - Search only plants
+    - carrier:CARRIER1 - Search only carriers
+    
+    Query Parameters:
+    - q: Search query (required, min 2 chars)
+    - types: Comma-separated entity types to search (optional)
+    - limit: Results per type (default: 5, max: 20)
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        from apps.core.services import UniversalSearchService
+        
+        query = request.query_params.get('q', '').strip()
+        types_param = request.query_params.get('types', '')
+        limit = min(int(request.query_params.get('limit', 5)), 20)
+        
+        if len(query) < 2:
+            return Response({
+                'query': query,
+                'results': [],
+                'counts': {},
+                'total': 0,
+                'message': 'Query must be at least 2 characters'
+            })
+        
+        # Parse entity types if provided
+        entity_types = None
+        if types_param:
+            entity_types = [t.strip() for t in types_param.split(',') if t.strip()]
+        
+        # Check tenant context
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Execute search
+        service = UniversalSearchService(tenant=request.tenant)
+        results = service.search(query, limit_per_type=limit, entity_types=entity_types)
+        
+        return Response(results)
+
+
+class RecentItemsView(APIView):
+    """
+    Get recently accessed items for the current user.
+    
+    GET /api/v1/search/recent/
+    POST /api/v1/search/recent/ - Track item access
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        from apps.core.services import UniversalSearchService
+        
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        limit = min(int(request.query_params.get('limit', 10)), 20)
+        
+        service = UniversalSearchService(tenant=request.tenant)
+        recent = service.get_recent_items(request.user, limit=limit)
+        
+        return Response({
+            'items': recent,
+            'count': len(recent)
+        })
+    
+    def post(self, request):
+        """Track an item access."""
+        from apps.core.services import UniversalSearchService
+        
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        entity_type = request.data.get('entity_type')
+        entity_id = request.data.get('entity_id')
+        title = request.data.get('title', '')
+        
+        if not entity_type or not entity_id:
+            return Response(
+                {'error': 'entity_type and entity_id are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        service = UniversalSearchService(tenant=request.tenant)
+        service.track_item_access(request.user, entity_type, entity_id, title)
+        
+        return Response({'status': 'tracked'})
+
+
+class SearchOperatorsView(APIView):
+    """
+    Get available search operators and help text.
+    
+    GET /api/v1/search/operators/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        from apps.core.services import UniversalSearchService
+        
+        return Response({
+            'operators': UniversalSearchService.get_operators_help(),
+            'entity_types': UniversalSearchService.get_all_entity_types()
+        })

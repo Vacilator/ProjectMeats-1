@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import Breadcrumb from '../Navigation/Breadcrumb';
 import Omnibox from '../AIAssistant/Omnibox';
+import { CommandPalette } from '../Navigation/CommandPalette';
 import FloatingAssistButton from '../FloatingAssistButton';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -14,6 +15,7 @@ const Layout: React.FC = () => {
   const { sidebarOpen, setSidebarOpen } = useNavigation();
   const { theme } = useTheme();
   const [showOmnibox, setShowOmnibox] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
 
   const toggleSidebar = () => {
@@ -24,12 +26,23 @@ const Layout: React.FC = () => {
     setSidebarHovered(isHovered);
   };
 
-  // Global keyboard shortcut for Omnibox (Cmd/Ctrl + K)
+  // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K = Universal Search (CommandPalette)
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
+        setShowCommandPalette(true);
+      }
+      // Cmd/Ctrl + Shift + K = AI Command Center (Omnibox)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'K') {
+        e.preventDefault();
         setShowOmnibox(true);
+      }
+      // Forward slash = Quick search (when not in input)
+      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+        e.preventDefault();
+        setShowCommandPalette(true);
       }
     };
 
@@ -60,9 +73,13 @@ const Layout: React.FC = () => {
         onClose={() => setShowOmnibox(false)}
         onSubmit={handleOmniboxSubmit}
       />
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+      />
       <FloatingAssistButton />
       <KeyboardShortcutHint $theme={theme}>
-        Press <kbd>Ctrl+K</kbd> (or <kbd>⌘K</kbd>) to open AI Command Center
+        Press <kbd>/</kbd> or <kbd>Ctrl+K</kbd> to search • <kbd>Ctrl+Shift+K</kbd> for AI commands
       </KeyboardShortcutHint>
     </LayoutContainer>
   );
