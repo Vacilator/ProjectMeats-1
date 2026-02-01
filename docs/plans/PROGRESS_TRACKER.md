@@ -3,8 +3,8 @@
 ## Living Roadmap & Progress Document
 
 **Last Updated**: 2026-02-01  
-**Current Phase**: Wave 2 - Cockpit Command Center (Week 8 Complete)  
-**Overall Progress**: 23%  
+**Current Phase**: Wave T - Testing Foundation Started  
+**Overall Progress**: 25%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -28,11 +28,11 @@
 │  NEW WAVES (v3.0):                                                   │
 │  Wave F: Features         [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │  Wave M: Mobile           [░░░░░░░░░░]   0%  ⏳ Weeks 5-14            │
-│  Wave T: Testing          [░░░░░░░░░░]   0%  ⏳ Continuous            │
+│  Wave T: Testing          [██░░░░░░░░]  15%  🔄 Foundation Started     │
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [███░░░░░░░]  23%                         │
+│  OVERALL                  [███░░░░░░░]  25%                         │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -55,6 +55,24 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-01 - Testing Foundation (PR #2222 ✅ MERGED)
+
+**Added Testing Infrastructure**:
+- `pyproject.toml`: pytest, coverage, black, isort configuration
+- `backend/conftest.py`: Tenant-aware Django test fixtures
+  - `api_client`, `authenticated_client` fixtures
+  - `test_tenant`, `tenant_user`, `authenticated_tenant_client` fixtures
+  - Factory fixtures for Supplier, Customer, PurchaseOrder
+
+**Frontend Component Tests** (56 tests passing):
+- `EntityGraph.test.tsx`: Data transformation, layout, entity types (6 tests)
+- `CommandPalette.test.tsx`: Rendering, keyboard nav, search (7 tests)
+- `Widgets.test.tsx`: WidgetCard, QuickActionsWidget (10 tests)
+
+**Test Coverage Update**:
+- Frontend: ~5% → ~12% (5 test files, 56 tests)
+- Backend: Ready for pytest-django integration
 
 ### 2026-02-01 - Wave 2 Widget System Complete (PR #2218 ✅ MERGED)
 
@@ -124,22 +142,30 @@
 
 ## Upcoming Tasks (Next Sprint)
 
-### Priority 1: Complete Planning Phase
+### Priority 1: Wave T - Testing Expansion
 
 | Task | Assignee | Due | Status |
 |------|----------|-----|--------|
-| Review and approve master plan | User | ASAP | ⏳ Pending |
-| Merge PR #2198 (planning docs) | User | ASAP | ⏳ Pending |
-| Deploy form builder fixes to dev | CI/CD | After merge | ⏳ Waiting |
-| Verify fixes on dev.meatscentral.com | User | After deploy | ⏳ Waiting |
+| Add backend pytest-django tests | Dev | Sprint 1 | ⏳ Next |
+| Test tenant isolation patterns | Dev | Sprint 1 | ⏳ Planned |
+| Add API endpoint tests | Dev | Sprint 1 | ⏳ Planned |
+| Increase frontend coverage to 25% | Dev | Sprint 2 | ⏳ Planned |
 
-### Priority 2: Wave 0 Preparation
+### Priority 2: Wave 1 Completion (Remaining)
+
+| Task | Assignee | Due | Status |
+|------|----------|-----|--------|
+| Create `configService.ts` frontend service | Dev | Sprint 1 | ⏳ Deferred |
+| Delete `system_config` app (needs migration) | Dev | Sprint 2 | ⏳ Blocked |
+| Audit admin-studio system_config usage | Dev | Sprint 1 | ⏳ Deferred |
+
+### Priority 3: Wave 0 Preparation
 
 | Task | Assignee | Due | Status |
 |------|----------|-----|--------|
 | Create v2.0/master feature branch | Dev | Week 0 | ⏳ Not Started |
 | Set up feature flags system | Dev | Week 0 | ⏳ Not Started |
-| Baseline test coverage report | Dev | Week 0 | ⏳ Not Started |
+| Baseline test coverage report | Dev | Week 0 | ✅ Started (pyproject.toml) |
 | Document current API endpoints | Dev | Week 0 | ⏳ Not Started |
 | Set up monitoring dashboards | DevOps | Week 0 | ⏳ Not Started |
 
@@ -309,7 +335,7 @@
 | Metric | Baseline | Current | Target | Trend |
 |--------|----------|---------|--------|-------|
 | Backend test coverage | ~40% | ~40% | 80% | — |
-| Frontend test coverage | ~5% | ~5% | 70% | ⚠️ Critical - only 2 test files |
+| Frontend test coverage | ~5% | ~12% | 70% | 📈 5 test files, 56 tests |
 | Lint errors | TBD | TBD | 0 | — |
 | Type errors | TBD | TBD | 0 | — |
 | TODO/FIXME items | 14 | 14 | 0 | — |
@@ -379,6 +405,7 @@
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-02-01 | 1.1 | Added Testing Foundation accomplishment (PR #2222), updated Wave T progress to 15%, frontend test coverage to ~12% |
 | 2026-01-31 | 1.0 | Initial creation |
 
 ---
