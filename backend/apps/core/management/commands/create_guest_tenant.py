@@ -208,7 +208,7 @@ class Command(BaseCommand):
         from tenant_apps.purchase_orders.models import PurchaseOrder
         from tenant_apps.sales_orders.models import SalesOrder
         from tenant_apps.invoices.models import Invoice
-        from tenant_apps.accounts_receivables.models import AccountsReceivable
+        # NOTE: AccountsReceivable DELETED in v2.0 Wave 1 (0 records, merged into invoices/accounting)
         from tenant_apps.carriers.models import Carrier
         from tenant_apps.plants.models import Plant
         
@@ -221,7 +221,7 @@ class Command(BaseCommand):
             PurchaseOrder,
             SalesOrder,
             Invoice,
-            AccountsReceivable,
+            # AccountsReceivable removed in v2.0
             Carrier,
             Plant,
         ]

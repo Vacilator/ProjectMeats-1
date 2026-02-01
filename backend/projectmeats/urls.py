@@ -26,7 +26,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # API v1 endpoints
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
-    path("api/v1/", include("tenant_apps.accounts_receivables.urls")),
+    # NOTE: accounts_receivables DELETED in v2.0 Wave 1 (merged into invoices/accounting)
     path("api/v1/", include("tenant_apps.suppliers.urls")),
     path("api/v1/", include("tenant_apps.customers.urls")),
     path("api/v1/", include("tenant_apps.contacts.urls")),
@@ -44,7 +44,7 @@ urlpatterns = [
     path("api/v1/", include("tenant_apps.inquiries.urls")),  # Inquiry management
     path("api/v1/", include("tenant_apps.fulfillments.urls")),  # Fulfillment tracking
     path("api/v1/workflows/", include("tenant_apps.workflows.urls")),  # Bundle Two: Tenant Workflows
-    path("api/v1/schema-builder/", include("apps.schema_builder.urls")),  # Bundle One: Schema Builder API
+    # NOTE: schema-builder API DELETED in v2.0 Wave 1 (superseded by workflows)
     # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

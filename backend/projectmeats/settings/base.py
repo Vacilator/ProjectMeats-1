@@ -51,10 +51,10 @@ _THIRD_PARTY_APPS = [
 _PROJECT_APPS = [
     "apps.core",
     "apps.tenants",  # Tenant management (shared-schema approach)
-    "apps.schema_builder",  # Bundle One: Custom System Data - Django Admin Enhancements
+    # NOTE: apps.schema_builder DELETED in v2.0 Wave 1 (0 records, superseded by workflows)
     "shared_apps.system_config",  # System Blueprint Engine (global configuration)
     # Business apps (all use tenant_id for data isolation)
-    "tenant_apps.accounts_receivables",
+    # NOTE: tenant_apps.accounts_receivables DELETED in v2.0 Wave 1 (0 records, merged into invoices)
     "tenant_apps.ai_assistant",
     "tenant_apps.bug_reports",
     "tenant_apps.carriers",
@@ -266,11 +266,7 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": False,
         },
-        "tenant_apps.accounts_receivables.views": {
-            "handlers": ["console", "debug_file"],
-            "level": "DEBUG",
-            "propagate": False,
-        },
+        # NOTE: tenant_apps.accounts_receivables DELETED in v2.0 Wave 1
         "apps.core.exceptions": {
             "handlers": ["console", "debug_file"],
             "level": "DEBUG",
