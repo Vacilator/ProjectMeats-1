@@ -51,6 +51,7 @@ _THIRD_PARTY_APPS = [
 _PROJECT_APPS = [
     "apps.core",
     "apps.tenants",  # Tenant management (shared-schema approach)
+    "apps.system",   # NEW: Centralized configuration system (v2.0 Wave 1)
     # NOTE: apps.schema_builder DELETED in v2.0 Wave 1 (0 records, superseded by workflows)
     "shared_apps.system_config",  # System Blueprint Engine (global configuration)
     # Business apps (all use tenant_id for data isolation)
