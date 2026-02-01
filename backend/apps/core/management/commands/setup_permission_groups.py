@@ -24,7 +24,7 @@ BUSINESS_ENTITIES = {
     'purchase_orders': ['purchaseorder', 'purchaseorderline'],
     'sales_orders': ['salesorder', 'salesorderline'],
     'invoices': ['invoice', 'invoiceline'],
-    'accounts_receivables': ['receivable', 'paymenttransaction'],
+    # 'accounts_receivables' removed in v2.0 Wave 1 (merged into invoices/accounting)
     'products': ['product', 'productcategory'],
     'plants': ['plant'],
     'locations': ['location'],
@@ -38,7 +38,6 @@ EXCLUDED_APPS = [
     'authtoken',
     'contenttypes',
     'sessions',
-    'schema_builder',
     'system_config',
     'ai_assistant',
     'bug_reports',
@@ -125,7 +124,7 @@ class Command(BaseCommand):
             self.create_group('Purchasing Team', purchasing_perms)
 
         # 5. Accounting
-        accounting_perms = self.get_crud_permissions(['invoices', 'accounts_receivables'])
+        accounting_perms = self.get_crud_permissions(['invoices'])  # accounts_receivables removed in v2.0
         accounting_perms += self.get_view_permissions(['sales_orders', 'purchase_orders', 'customers'])
         groups['Accounting'] = accounting_perms
         if not dry_run:

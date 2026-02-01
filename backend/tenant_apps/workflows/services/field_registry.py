@@ -32,8 +32,7 @@ ENTITY_MODEL_MAP = {
     # Scheduling & calls
     'scheduled_call': ('cockpit', 'ScheduledCall'),
     
-    # Finance
-    'accounts_receivable': ('accounts_receivables', 'AccountsReceivable'),
+    # NOTE: accounts_receivable removed in v2.0 Wave 1 (merged into invoices/accounting)
     
     # Infrastructure
     'plant': ('plants', 'Plant'),
