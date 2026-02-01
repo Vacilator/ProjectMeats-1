@@ -23,6 +23,11 @@ urlpatterns = [
     path("entities/<str:entity_type>/<int:entity_id>/relationships/", views.EntityRelationshipsView.as_view(), name="entity-relationships"),
     path("entities/<str:entity_type>/<int:entity_id>/relationships/<str:relationship_name>/", views.EntityRelationshipsView.as_view(), name="entity-relationship-detail"),
     path("entities/<str:entity_type>/<int:entity_id>/graph/", views.EntityGraphView.as_view(), name="entity-graph"),
+    # Workspace API (Wave 2: Cockpit Command Center - Widget System)
+    path("workspace/layout/", views.WorkspaceLayoutView.as_view(), name="workspace-layout"),
+    path("workspace/stats/quick/", views.WorkspaceStatsView.as_view(), name="workspace-stats"),
+    path("workspace/activity/recent/", views.WorkspaceActivityView.as_view(), name="workspace-activity"),
+    path("workspace/calls/upcoming/", views.WorkspaceCallsView.as_view(), name="workspace-calls"),
     # Include router URLs
     path("", include(router.urls)),
 ]

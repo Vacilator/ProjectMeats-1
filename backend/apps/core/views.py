@@ -583,3 +583,198 @@ class EntityTypesView(APIView):
             'entity_types': types,
             'visuals': visuals
         })
+
+
+# ============================================================================
+# Workspace API Views (Wave 2: Cockpit Command Center)
+# ============================================================================
+
+class WorkspaceLayoutView(APIView):
+    """
+    User workspace layout storage.
+    
+    GET /api/v1/workspace/layout/
+    POST /api/v1/workspace/layout/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get user's saved workspace layout."""
+        from django.core.cache import cache
+        
+        cache_key = f"workspace_layout_{request.user.id}"
+        layout = cache.get(cache_key)
+        
+        if layout:
+            return Response(layout)
+        
+        # Return default layout if none saved
+        return Response({
+            'layout': None,
+            'widgets': None,
+            'version': 1
+        })
+    
+    def post(self, request):
+        """Save user's workspace layout."""
+        from django.core.cache import cache
+        
+        layout_data = {
+            'layout': request.data.get('layout', []),
+            'widgets': request.data.get('widgets', []),
+            'version': request.data.get('version', 1),
+            'user_id': request.user.id
+        }
+        
+        cache_key = f"workspace_layout_{request.user.id}"
+        # Cache for 30 days
+        cache.set(cache_key, layout_data, 60 * 60 * 24 * 30)
+        
+        return Response({'status': 'saved'}, status=status.HTTP_200_OK)
+
+
+class WorkspaceStatsView(APIView):
+    """
+    Quick stats for workspace widgets.
+    
+    GET /api/v1/workspace/stats/quick/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get quick stats for the current tenant."""
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        from apps.tenant_apps.purchase_orders.models import PurchaseOrder
+        from apps.tenant_apps.sales_orders.models import SalesOrder
+        from apps.tenant_apps.suppliers.models import Supplier
+        from apps.tenant_apps.customers.models import Customer
+        from django.db.models import Sum, Count
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        tenant = request.tenant
+        today = timezone.now().date()
+        week_ago = today - timedelta(days=7)
+        
+        # Calculate stats
+        try:
+            po_today = PurchaseOrder.objects.filter(
+                tenant=tenant, 
+                created_at__date=today
+            ).count()
+            
+            so_today = SalesOrder.objects.filter(
+                tenant=tenant,
+                created_at__date=today
+            ).count()
+            
+            active_suppliers = Supplier.objects.filter(
+                tenant=tenant,
+                is_active=True
+            ).count()
+            
+            active_customers = Customer.objects.filter(
+                tenant=tenant,
+                is_active=True
+            ).count()
+            
+            return Response({
+                'stats': [
+                    {
+                        'id': 'orders_today',
+                        'label': 'Orders Today',
+                        'value': po_today + so_today,
+                        'change': 0,
+                        'changeLabel': 'vs yesterday',
+                        'color': 'rgb(59, 130, 246)'
+                    },
+                    {
+                        'id': 'active_suppliers',
+                        'label': 'Active Suppliers',
+                        'value': active_suppliers,
+                        'change': 0,
+                        'changeLabel': 'total',
+                        'color': 'rgb(34, 197, 94)'
+                    },
+                    {
+                        'id': 'active_customers',
+                        'label': 'Active Customers',
+                        'value': active_customers,
+                        'change': 0,
+                        'changeLabel': 'total',
+                        'color': 'rgb(168, 85, 247)'
+                    },
+                    {
+                        'id': 'pending_orders',
+                        'label': 'Pending Orders',
+                        'value': PurchaseOrder.objects.filter(
+                            tenant=tenant,
+                            status='pending'
+                        ).count(),
+                        'change': 0,
+                        'changeLabel': 'awaiting',
+                        'color': 'rgb(234, 179, 8)'
+                    }
+                ]
+            })
+        except Exception as e:
+            return Response({
+                'stats': [],
+                'error': str(e)
+            })
+
+
+class WorkspaceActivityView(APIView):
+    """
+    Recent activity feed for workspace widgets.
+    
+    GET /api/v1/workspace/activity/recent/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get recent activity for the current tenant."""
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        limit = min(int(request.query_params.get('limit', 10)), 50)
+        
+        # For now, return empty - this would integrate with an activity log
+        # or audit trail system in a full implementation
+        return Response({
+            'activities': [],
+            'total': 0
+        })
+
+
+class WorkspaceCallsView(APIView):
+    """
+    Upcoming calls for workspace widgets.
+    
+    GET /api/v1/workspace/calls/upcoming/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get upcoming calls for the current tenant."""
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        limit = min(int(request.query_params.get('limit', 10)), 50)
+        
+        # This would integrate with a CRM/call scheduling system
+        return Response({
+            'calls': [],
+            'total': 0
+        })
