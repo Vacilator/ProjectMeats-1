@@ -1,5 +1,11 @@
 # Form Editor & Execution System - Implementation Documentation
 
+> ⚠️ **ARCHIVED**: This document is superseded by [Forms Enhancement Plan](../plans/FORMS_FLOWS_ENHANCEMENT_PLAN.md)  
+> **Archived Date**: 2026-02-01  
+> **Reason**: Historical implementation record; active planning moved to Enhancement Plan
+
+---
+
 ## Overview
 
 This document consolidates all changes related to the Tenant Form Editor (Django Admin) and the Form Execution System (Frontend Quick Actions). It tracks all PRs, fixes, and enhancements in chronological order.

@@ -1,5 +1,11 @@
 # Admin Backend & Data Architecture Revamp Plan
 
+> ⚠️ **ARCHIVED**: This document is superseded by [Master Plan v3.1 - Wave 4](../plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-4-admin-studio-enhancement)  
+> **Archived Date**: 2026-02-01  
+> **Reason**: Content consolidated into Master Plan v3.1
+
+---
+
 **Document Version**: 1.0  
 **Created**: 2026-01-31  
 **Status**: 📋 PLANNING - Awaiting Implementation Approval  

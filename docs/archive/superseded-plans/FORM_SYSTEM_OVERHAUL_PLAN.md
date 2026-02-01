@@ -1,5 +1,11 @@
 # Form Systems Full Overhaul - Project Plan & Status
 
+> ⚠️ **ARCHIVED**: This document is superseded by [Master Plan v3.1 - Wave 3](../plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-3-forms--flows)  
+> **Archived Date**: 2026-02-01  
+> **Reason**: Content consolidated into Master Plan v3.1
+
+---
+
 > **Document Created**: January 29, 2026  
 > **Last Updated**: January 29, 2026  
 > **Status**: ✅ **ALL PHASES COMPLETE** (Phases 0-3)

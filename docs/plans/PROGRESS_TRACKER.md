@@ -21,7 +21,7 @@
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
 │  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
-│  Wave 5: Repository       [█░░░░░░░░░]   5%  🔄 Docs Created         │
+│  Wave 5: Repository       [██░░░░░░░░]  23%  🔄 D1 Complete!         │
 │  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
@@ -32,7 +32,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [███░░░░░░░]  28%                         │
+│  OVERALL                  [███░░░░░░░]  30%                         │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -56,7 +56,34 @@
 
 ## Recent Accomplishments
 
-### 2026-02-01 - Wave 0 Preparation (PR #2224 🔄 IN PROGRESS)
+### 2026-02-01 - Wave 5 Phase D1: Documentation Structure (PR #2229 🔄)
+
+**Created Navigation System**:
+- Created `/docs/README.md` master index with quick navigation table
+- Established **Source of Truth** section clearly identifying authoritative docs
+- Added search tips and document category listings
+- Created `/docs/plans/README.md` explaining plan hierarchy
+- Created `/docs/archive/README.md` for superseded docs
+
+**Plan Consolidation**:
+- Moved active plans to `plans/` directory:
+  - `FORMS_FLOWS_ENHANCEMENT_PLAN.md`
+  - `DOCUMENTATION_ORGANIZATION_PLAN.md`
+- Archived superseded plans with deprecation notices:
+  - `FORM_SYSTEM_OVERHAUL_PLAN.md` → archive/superseded-plans/
+  - `DATA_ENTITY_RESTRUCTURING_PLAN.md` → archive/superseded-plans/
+  - `ADMIN_BACKEND_REVAMP_PLAN.md` → archive/superseded-plans/
+  - `FORM_EDITOR_AND_EXECUTION.md` → archive/superseded-plans/
+
+**Source of Truth Established**:
+| Topic | Source of Truth |
+|-------|-----------------|
+| Overall v2.0 Plan | Master Plan v3.1 |
+| Current Progress | Progress Tracker |
+| CI/CD Pipeline | Roadmap + Golden Pipeline |
+| Forms & Flows | Forms Enhancement Plan |
+
+### 2026-02-01 - Wave 0 Preparation (PR #2225 ✅ MERGED)
 
 **Feature Flags System**:
 - Added `django-flags==5.0.13` to requirements
@@ -309,30 +336,35 @@
 ### Wave 4: Admin Studio Enhancement (0/35 tasks)
 *Not started - waiting on Wave 1*
 
-### Wave 5: Repository Cleanup (2/30 tasks)
+### Wave 5: Repository Cleanup (7/30 tasks)
 
 **Completed**:
-- [x] Create `docs/ADMIN_BACKEND_REVAMP_PLAN.md`
 - [x] Create `docs/DOCUMENTATION_ORGANIZATION_PLAN.md`
+- [x] Create `/docs/README.md` master index with navigation
+- [x] Create `/docs/plans/README.md` with source of truth guide
+- [x] Create `/docs/archive/README.md` explaining archived docs
+- [x] Move active plans to `plans/` directory
+- [x] Archive superseded plans with deprecation notices
+- [x] Establish clear Source of Truth hierarchy
 
-> **📚 Reference**: See `docs/DOCUMENTATION_ORGANIZATION_PLAN.md` for detailed implementation
+> **📚 Reference**: See `docs/plans/DOCUMENTATION_ORGANIZATION_PLAN.md` for detailed implementation
 
-**Phase D1: Create Structure (Week 1)** - 0/5
-- [ ] Create `/docs/README.md` master index
-- [ ] Create directory structure (8 folders)
-- [ ] Implement navigation system in README
-- [ ] Add search hints and quick links
-- [ ] Create doc template with metadata header
+**Phase D1: Create Structure (Week 1)** - 5/5 ✅
+- [x] Create `/docs/README.md` master index
+- [x] Create directory structure (archive/, plans/ with READMEs)
+- [x] Implement navigation system in README
+- [x] Add search hints and quick links
+- [x] Create doc template with metadata header (in plans/README.md)
 
-**Phase D2: Move & Organize (Week 2)** - 0/10
+**Phase D2: Move & Organize (Week 2)** - 2/10
 - [ ] Move onboarding docs → `getting-started/`
 - [ ] Move architecture docs → `architecture/`
 - [ ] Move how-to guides → `guides/`
 - [ ] Move reference docs → `reference/`
-- [ ] Move active plans → `plans/`
+- [x] Move active plans → `plans/` (FORMS_FLOWS, DOC_ORG)
 - [ ] Move feature docs → `features/`
-- [ ] Archive superseded docs → `archive/`
-- [ ] Create `implementation-history/` for historical record
+- [x] Archive superseded docs → `archive/superseded-plans/`
+- [ ] Create `implementation-history/` for historical record (exists)
 - [ ] Update all internal links
 - [ ] Verify no broken links
 
@@ -353,8 +385,8 @@
 **Success Criteria**:
 | Metric | Current | Target |
 |--------|---------|--------|
-| Time to find any doc | >2 min | <30 sec |
-| Docs with metadata | ~10% | 100% |
+| Time to find any doc | ~1 min (improved) | <30 sec |
+| Docs with metadata | ~15% | 100% |
 | Duplicate doc pairs | ~12 | 0 |
 | Orphaned docs | Unknown | 0 |
 

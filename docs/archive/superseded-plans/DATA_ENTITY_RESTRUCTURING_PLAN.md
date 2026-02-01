@@ -1,5 +1,11 @@
 # ProjectMeats Data Entity Restructuring Plan
 
+> ⚠️ **ARCHIVED**: This document is superseded by [Master Plan v3.1 - Wave 6](../plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-6-model-migrations)  
+> **Archived Date**: 2026-02-01  
+> **Reason**: Content consolidated into Master Plan v3.1
+
+---
+
 **Document Version**: 1.1  
 **Created**: January 28, 2026  
 **Status**: PLANNED (Not Yet Implemented)  
