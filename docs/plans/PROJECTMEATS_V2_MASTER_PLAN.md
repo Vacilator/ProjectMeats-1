@@ -120,10 +120,10 @@ Weeks 19-22: Rollout & Stabilization
 │                       CODEBASE HEALTH REPORT                         │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  Backend Apps                    19 apps  ⚠️ Too many (target: 12)   │
+│  Backend Apps                    21 apps  ⚠️ Too many (target: 12)   │
 │  Documentation Files             57 files ⚠️ Disorganized            │
 │  Test Coverage (Backend)         ~40%     ❌ Below standard          │
-│  Test Coverage (Frontend)        ~30%     ❌ Below standard          │
+│  Test Coverage (Frontend)        ~5%      ❌ Critically low (2 tests)│
 │  TypeScript Strict Mode          ✅       Enabled                    │
 │  Linting/Formatting              ✅       Black + Prettier           │
 │  Security Headers                ✅       HSTS, XSS, etc.            │
@@ -416,7 +416,7 @@ Foundation → Security + Infrastructure → Cockpit/Forms/Admin → Model Migra
 
 | Page | Current State | v2.0 Enhancement |
 |------|---------------|------------------|
-| **Payables** (`/accounting/payables`) | ✅ Complete | Add aging reports |
+| **Payables** (`/accounting/payables`) | ⚠️ "Coming Soon" | **Implement full payables module** |
 | **Payables > Claims** | ✅ Complete | Add workflow automation |
 | **Receivables** (`/accounts-receivables`) | ✅ Complete | Add collection workflows |
 | **Receivables > Invoices** | ✅ Complete | Add batch invoicing |
@@ -425,7 +425,7 @@ Foundation → Security + Infrastructure → Cockpit/Forms/Admin → Model Migra
 
 | Page | Current State | v2.0 Enhancement |
 |------|---------------|------------------|
-| **Cold Storage** (`/cold-storage`) | ✅ Basic | Add inventory tracking, alerts |
+| **Cold Storage** (`/cold-storage`) | ⚠️ "Coming Soon" | **Implement inventory tracking module** |
 | **Carriers/Logistics** | ⚠️ "Coming Soon" | **Full implementation needed** |
 
 #### ⚡ Workflows & AI
@@ -2061,6 +2061,33 @@ django-csp>=3.7
 | 1.0 | 2026-01-31 | Copilot | Initial unified plan |
 | 2.0 | 2026-01-31 | Copilot | Added: Gap analysis, Security hardening, Real-time/Background processing, Documentation overhaul, QA strategy, Monitoring, Mobile considerations, Appendices |
 | 3.0 | 2026-01-31 | Copilot | **Comprehensive Enhancement**: Complete frontend page inventory (37+ pages), backend feature completeness, UI/UX overhaul plan, data model enhancements, mobile v2.0 roadmap, comprehensive testing strategy, performance optimization plan, DevOps/infrastructure improvements. Extended timeline to 18-22 weeks. |
+| 3.1 | 2026-01-31 | Copilot | **Accuracy Review & Corrections**: Fixed app count (19→21, includes shared_apps/system_config), corrected frontend test coverage baseline (~30%→~5%), updated "Coming Soon" page status (Payables, Cold Storage), added TODO/FIXME tracking. |
+
+---
+
+## Review Notes (v3.1 Audit)
+
+### Corrections Made
+
+1. **App Count**: Changed from 19 to 21 (3 in `apps/` + 17 in `tenant_apps/` + 1 in `shared_apps/`)
+2. **Frontend Test Coverage**: Corrected from ~30% to ~5% (only 2 test files: `runtime.test.ts`, `tenantContext.test.ts`)
+3. **"Coming Soon" Pages**: Updated status for Payables and Cold Storage (both use ComingSoon component)
+4. **`system_config` App**: Exists at `shared_apps/system_config/` with models, views, tests - requires migration plan before deletion
+
+### Verified Accurate
+
+- React 19.2 + Vite 6.4 ✅
+- react-table v7.8.0 ✅  
+- Vitest 3.2.4 ✅
+- GitHub Actions CI/CD ✅
+- Shared-schema multi-tenancy ✅
+
+### Items Requiring Further Verification
+
+- Backend test coverage (~40% claimed, needs pytest-cov run)
+- Redis/Celery status (listed as missing, verify requirements.txt)
+- CSP headers in production
+- Product deduplication count (235 → ~32 target)
 
 ---
 
@@ -2068,6 +2095,7 @@ django-csp>=3.7
 
 | Category | Count |
 |----------|-------|
+| **Backend Apps** | 21 apps (3 apps/ + 17 tenant_apps/ + 1 shared_apps/) |
 | **Frontend Pages** | 37+ routes |
 | **Backend Models** | 75+ models |
 | **New Features** | 45+ features |
@@ -2077,6 +2105,8 @@ django-csp>=3.7
 | **Infrastructure Tasks** | 15+ improvements |
 | **Documentation Files** | 55 → organized structure |
 | **Total Tasks** | 350+ implementation items |
+| **TODO/FIXME Items** | 10 (5 frontend, 5 backend) |
+| **"Coming Soon" Pages** | 5 (Carriers, PO/SO Attachments, Payables, ColdStorage) |
 
 ---
 

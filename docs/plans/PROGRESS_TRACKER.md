@@ -252,10 +252,12 @@
 
 | Metric | Baseline | Current | Target | Trend |
 |--------|----------|---------|--------|-------|
-| Backend test coverage | 40% | 40% | 80% | — |
-| Frontend test coverage | 30% | 30% | 70% | — |
+| Backend test coverage | ~40% | ~40% | 80% | — |
+| Frontend test coverage | ~5% | ~5% | 70% | ⚠️ Critical - only 2 test files |
 | Lint errors | TBD | TBD | 0 | — |
 | Type errors | TBD | TBD | 0 | — |
+| TODO/FIXME items | 14 | 14 | 0 | — |
+| "Coming Soon" pages | 5 | 5 | 0 | — |
 
 ### Performance
 
