@@ -21,7 +21,7 @@
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
 │  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
-│  Wave 5: Repository       [██░░░░░░░░]  23%  🔄 D1 Complete!         │
+│  Wave 5: Repository       [██████░░░░]  57%  🔄 D1+D2 Complete!      │
 │  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
@@ -32,7 +32,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [███░░░░░░░]  30%                         │
+│  OVERALL                  [████░░░░░░]  33%                         │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -56,7 +56,26 @@
 
 ## Recent Accomplishments
 
-### 2026-02-01 - Wave 5 Phase D1: Documentation Structure (PR #2229 🔄)
+### 2026-02-01 - Wave 5 Phase D2: Organize Documents (PR #2231 🔄)
+
+**Moved 46 documents to proper directories**:
+- `getting-started/` (4 docs): Quick Start, Local Development, Contributing, Branch Workflow
+- `architecture/` (5 docs): Architecture, Infrastructure, Global Config, Unified Proxy, Auth
+- `guides/` (16 docs): Development, Design System, SSL, Database Sync, Email, etc.
+- `reference/` (6 docs): Configuration, Env Vars, Changelog, Workflow API, Golden Pipeline
+- `features/` (13 docs): Guest Mode, Payments, Invitations, Tenant Access, Studio
+- `implementation-history/` (7 docs): Wave0 Baseline, Call Log, Phase 4, Golden Standard
+
+**Created directory READMEs**:
+- Each directory now has a README.md with index and navigation
+- All docs discoverable through directory-level navigation
+
+**Updated main README**:
+- All links updated to new paths
+- Directory structure diagram updated
+- Health metrics updated (100% organized)
+
+### 2026-02-01 - Wave 5 Phase D1: Documentation Structure (PR #2230 ✅ MERGED)
 
 **Created Navigation System**:
 - Created `/docs/README.md` master index with quick navigation table
@@ -66,22 +85,8 @@
 - Created `/docs/archive/README.md` for superseded docs
 
 **Plan Consolidation**:
-- Moved active plans to `plans/` directory:
-  - `FORMS_FLOWS_ENHANCEMENT_PLAN.md`
-  - `DOCUMENTATION_ORGANIZATION_PLAN.md`
-- Archived superseded plans with deprecation notices:
-  - `FORM_SYSTEM_OVERHAUL_PLAN.md` → archive/superseded-plans/
-  - `DATA_ENTITY_RESTRUCTURING_PLAN.md` → archive/superseded-plans/
-  - `ADMIN_BACKEND_REVAMP_PLAN.md` → archive/superseded-plans/
-  - `FORM_EDITOR_AND_EXECUTION.md` → archive/superseded-plans/
-
-**Source of Truth Established**:
-| Topic | Source of Truth |
-|-------|-----------------|
-| Overall v2.0 Plan | Master Plan v3.1 |
-| Current Progress | Progress Tracker |
-| CI/CD Pipeline | Roadmap + Golden Pipeline |
-| Forms & Flows | Forms Enhancement Plan |
+- Moved active plans to `plans/` directory
+- Archived superseded plans with deprecation notices
 
 ### 2026-02-01 - Wave 0 Preparation (PR #2225 ✅ MERGED)
 
@@ -336,7 +341,7 @@
 ### Wave 4: Admin Studio Enhancement (0/35 tasks)
 *Not started - waiting on Wave 1*
 
-### Wave 5: Repository Cleanup (7/30 tasks)
+### Wave 5: Repository Cleanup (17/30 tasks)
 
 **Completed**:
 - [x] Create `docs/DOCUMENTATION_ORGANIZATION_PLAN.md`
@@ -346,6 +351,9 @@
 - [x] Move active plans to `plans/` directory
 - [x] Archive superseded plans with deprecation notices
 - [x] Establish clear Source of Truth hierarchy
+- [x] Move 46 docs to proper directories
+- [x] Create README.md in each directory
+- [x] Update all links in main README
 
 > **📚 Reference**: See `docs/plans/DOCUMENTATION_ORGANIZATION_PLAN.md` for detailed implementation
 
@@ -356,17 +364,17 @@
 - [x] Add search hints and quick links
 - [x] Create doc template with metadata header (in plans/README.md)
 
-**Phase D2: Move & Organize (Week 2)** - 2/10
-- [ ] Move onboarding docs → `getting-started/`
-- [ ] Move architecture docs → `architecture/`
-- [ ] Move how-to guides → `guides/`
-- [ ] Move reference docs → `reference/`
-- [x] Move active plans → `plans/` (FORMS_FLOWS, DOC_ORG)
-- [ ] Move feature docs → `features/`
+**Phase D2: Move & Organize (Week 2)** - 10/10 ✅
+- [x] Move onboarding docs → `getting-started/` (4 docs)
+- [x] Move architecture docs → `architecture/` (5 docs)
+- [x] Move how-to guides → `guides/` (16 docs)
+- [x] Move reference docs → `reference/` (6 docs)
+- [x] Move active plans → `plans/`
+- [x] Move feature docs → `features/` (13 docs)
 - [x] Archive superseded docs → `archive/superseded-plans/`
-- [ ] Create `implementation-history/` for historical record (exists)
-- [ ] Update all internal links
-- [ ] Verify no broken links
+- [x] Move implementation docs → `implementation-history/` (7 docs)
+- [x] Update all internal links in README
+- [x] Create directory READMEs (6 new)
 
 **Phase D3: Consolidate Duplicates (Week 3)** - 0/5
 - [ ] Merge Payment docs (4 → 1)

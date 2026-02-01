@@ -11,13 +11,13 @@ Welcome to the ProjectMeats documentation. This index helps you find what you ne
 
 | I want to... | Go to |
 |--------------|-------|
-| **Set up my local environment** | [Quick Start](QUICK_START.md) → [Local Development](LOCAL_DEVELOPMENT.md) |
-| **Understand the architecture** | [Architecture Overview](ARCHITECTURE.md) |
-| **Deploy to an environment** | [Development Workflow](DEVELOPMENT_WORKFLOW.md) |
+| **Set up my local environment** | [Quick Start](getting-started/QUICK_START.md) → [Local Development](getting-started/LOCAL_DEVELOPMENT.md) |
+| **Understand the architecture** | [Architecture Overview](architecture/ARCHITECTURE.md) |
+| **Deploy to an environment** | [Development Workflow](guides/DEVELOPMENT_WORKFLOW.md) |
 | **See the project roadmap** | [Master Plan v3.1](plans/PROJECTMEATS_V2_MASTER_PLAN.md) |
 | **Track current progress** | [Progress Tracker](plans/PROGRESS_TRACKER.md) |
-| **Configure secrets/env vars** | [Configuration & Secrets](CONFIGURATION_AND_SECRETS.md) |
-| **Contribute code** | [Contributing Guide](CONTRIBUTING.md) |
+| **Configure secrets/env vars** | [Configuration & Secrets](reference/CONFIGURATION_AND_SECRETS.md) |
+| **Contribute code** | [Contributing Guide](getting-started/CONTRIBUTING.md) |
 
 ---
 
@@ -29,22 +29,22 @@ These are the **authoritative** documents for ProjectMeats. When in doubt, these
 |-------|-----------------|--------------|
 | **Overall v2.0 Plan** | [Master Plan v3.1](plans/PROJECTMEATS_V2_MASTER_PLAN.md) | 2026-02-01 |
 | **Current Progress** | [Progress Tracker](plans/PROGRESS_TRACKER.md) | 2026-02-01 |
-| **CI/CD Pipeline** | [Roadmap](ROADMAP.md) + [Golden Pipeline](GOLDEN_PIPELINE.md) | 2026-01-04 |
-| **Secrets & Config** | [Configuration & Secrets](CONFIGURATION_AND_SECRETS.md) | 2026-01-04 |
-| **Multi-Tenancy** | [Architecture](ARCHITECTURE.md) | Shared-schema, NOT django-tenants |
-| **Frontend Styling** | [Design System](DESIGN_SYSTEM.md) | 2026-01-31 |
-| **Deployment Process** | [Development Workflow](DEVELOPMENT_WORKFLOW.md) | 2026-01-04 |
+| **CI/CD Pipeline** | [Roadmap](ROADMAP.md) + [Golden Pipeline](reference/GOLDEN_PIPELINE.md) | 2026-01-04 |
+| **Secrets & Config** | [Configuration & Secrets](reference/CONFIGURATION_AND_SECRETS.md) | 2026-01-04 |
+| **Multi-Tenancy** | [Architecture](architecture/ARCHITECTURE.md) | Shared-schema, NOT django-tenants |
+| **Frontend Styling** | [Design System](guides/DESIGN_SYSTEM.md) | 2026-01-31 |
+| **Deployment Process** | [Development Workflow](guides/DEVELOPMENT_WORKFLOW.md) | 2026-01-04 |
 
-### ⚠️ Superseded Plans (Do NOT Use as Source of Truth)
+### ⚠️ Superseded Plans (Archived)
 
-These documents contain **historical context** but are superseded by newer plans:
+These documents have been **archived** to `archive/superseded-plans/`:
 
 | Document | Superseded By | Status |
 |----------|---------------|--------|
-| `FORM_SYSTEM_OVERHAUL_PLAN.md` | [Master Plan Wave 3](plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-3-forms--flows) | 📦 Archive candidate |
-| `FORM_EDITOR_AND_EXECUTION.md` | [Forms Enhancement Plan](FORMS_FLOWS_ENHANCEMENT_PLAN.md) | 📦 Archive candidate |
-| `DATA_ENTITY_RESTRUCTURING_PLAN.md` | [Master Plan Wave 6](plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-6-model-migrations) | 📦 Archive candidate |
-| `ADMIN_BACKEND_REVAMP_PLAN.md` | [Master Plan Wave 4](plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-4-admin-studio-enhancement) | 📦 Archive candidate |
+| `FORM_SYSTEM_OVERHAUL_PLAN.md` | [Master Plan Wave 3](plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-3-forms--flows) | 📦 Archived |
+| `FORM_EDITOR_AND_EXECUTION.md` | [Forms Enhancement Plan](plans/FORMS_FLOWS_ENHANCEMENT_PLAN.md) | 📦 Archived |
+| `DATA_ENTITY_RESTRUCTURING_PLAN.md` | [Master Plan Wave 6](plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-6-model-migrations) | 📦 Archived |
+| `ADMIN_BACKEND_REVAMP_PLAN.md` | [Master Plan Wave 4](plans/PROJECTMEATS_V2_MASTER_PLAN.md#wave-4-admin-studio-enhancement) | 📦 Archived |
 
 ---
 
@@ -58,20 +58,36 @@ docs/
 │   ├── PROJECTMEATS_V2_MASTER_PLAN.md  # THE source of truth for v2.0
 │   └── PROGRESS_TRACKER.md      # Living progress document
 │
+├── getting-started/             # Onboarding & setup
+│   ├── README.md                # Index
+│   ├── QUICK_START.md           # 5-minute setup
+│   ├── LOCAL_DEVELOPMENT.md     # Full environment setup
+│   └── CONTRIBUTING.md          # Git workflow
+│
 ├── architecture/                # System design & patterns
-│   └── (being organized)
+│   ├── README.md                # Index
+│   ├── ARCHITECTURE.md          # Overview
+│   └── *.md                     # Infrastructure, auth, etc.
 │
 ├── guides/                      # How-to guides & tutorials
-│   └── (being organized)
+│   ├── README.md                # Index
+│   └── *.md                     # Development, email, SSL, etc.
+│
+├── reference/                   # Technical reference
+│   ├── README.md                # Index
+│   ├── CONFIGURATION_AND_SECRETS.md  # Env var source of truth
+│   └── *.md                     # APIs, changelog, etc.
+│
+├── features/                    # Feature documentation
+│   ├── README.md                # Index
+│   └── *.md                     # Guest mode, payments, etc.
 │
 ├── implementation-history/      # Historical implementation records
+│   ├── README.md                # Index
 │   └── *.md                     # Completed feature docs
 │
-├── deployment/                  # Deployment & operations
-│   └── (being organized)
-│
 └── archive/                     # Superseded/completed docs
-    └── (to be created)
+    └── superseded-plans/        # Replaced by Master Plan
 ```
 
 ---
@@ -81,17 +97,17 @@ docs/
 ### 🚀 Getting Started
 | Document | Description |
 |----------|-------------|
-| [Quick Start](QUICK_START.md) | 5-minute setup guide |
-| [Local Development](LOCAL_DEVELOPMENT.md) | Full local environment setup |
-| [Contributing](CONTRIBUTING.md) | Git workflow and PR process |
+| [Quick Start](getting-started/QUICK_START.md) | 5-minute setup guide |
+| [Local Development](getting-started/LOCAL_DEVELOPMENT.md) | Full local environment setup |
+| [Contributing](getting-started/CONTRIBUTING.md) | Git workflow and PR process |
 
 ### 🏗️ Architecture
 | Document | Description |
 |----------|-------------|
-| [Architecture Overview](ARCHITECTURE.md) | System design and patterns |
-| [Infrastructure](INFRASTRUCTURE_ARCHITECTURE.md) | Cloud architecture |
-| [Global Config](GLOBAL_CONFIG_ARCHITECTURE.md) | Configuration system design |
-| [Unified Proxy](UNIFIED_PROXY_ARCHITECTURE.md) | Reverse proxy architecture |
+| [Architecture Overview](architecture/ARCHITECTURE.md) | System design and patterns |
+| [Infrastructure](architecture/INFRASTRUCTURE_ARCHITECTURE.md) | Cloud architecture |
+| [Global Config](architecture/GLOBAL_CONFIG_ARCHITECTURE.md) | Configuration system design |
+| [Unified Proxy](architecture/UNIFIED_PROXY_ARCHITECTURE.md) | Reverse proxy architecture |
 
 ### 📋 Planning & Roadmap
 | Document | Description | Status |
@@ -105,30 +121,30 @@ docs/
 ### ⚙️ Configuration & Operations
 | Document | Description |
 |----------|-------------|
-| [Configuration & Secrets](CONFIGURATION_AND_SECRETS.md) | Environment variables and secrets |
-| [Environment Vars](ENVIRONMENT_VARS.md) | Backend environment reference |
-| [Frontend Env Vars](FRONTEND_ENVIRONMENT_VARIABLES.md) | Frontend environment reference |
-| [Golden Pipeline](GOLDEN_PIPELINE.md) | CI/CD pipeline reference |
+| [Configuration & Secrets](reference/CONFIGURATION_AND_SECRETS.md) | Environment variables and secrets |
+| [Environment Vars](reference/ENVIRONMENT_VARS.md) | Backend environment reference |
+| [Frontend Env Vars](reference/FRONTEND_ENVIRONMENT_VARIABLES.md) | Frontend environment reference |
+| [Golden Pipeline](reference/GOLDEN_PIPELINE.md) | CI/CD pipeline reference |
 
 ### 🎨 Frontend & Design
 | Document | Description |
 |----------|-------------|
-| [Design System](DESIGN_SYSTEM.md) | UI/UX standards and components |
-| [Studio User Guide](STUDIO_USER_GUIDE.md) | Admin Studio usage |
+| [Design System](guides/DESIGN_SYSTEM.md) | UI/UX standards and components |
+| [Studio User Guide](features/STUDIO_USER_GUIDE.md) | Admin Studio usage |
 
 ### 🔐 Security & Access
 | Document | Description |
 |----------|-------------|
-| [Authentication](AUTHENTICATION_EXPLANATION.md) | Auth flow explanation |
-| [Tenant Access Control](TENANT_ACCESS_CONTROL.md) | Multi-tenant permissions |
-| [Guest Mode](GUEST_MODE_IMPLEMENTATION.md) | Guest user system |
-| [Invite System](INVITE_ONLY_SYSTEM.md) | Invitation flow |
+| [Authentication](architecture/AUTHENTICATION_EXPLANATION.md) | Auth flow explanation |
+| [Tenant Access Control](features/TENANT_ACCESS_CONTROL.md) | Multi-tenant permissions |
+| [Guest Mode](features/GUEST_MODE_IMPLEMENTATION.md) | Guest user system |
+| [Invite System](features/INVITE_ONLY_SYSTEM.md) | Invitation flow |
 
 ### 📧 Integrations
 | Document | Description |
 |----------|-------------|
-| [SendGrid Config](SENDGRID_CONFIGURATION_GUIDE.md) | Email setup |
-| [Payment Workflow](PAYMENT_WORKFLOW_GUIDE.md) | Payment integration |
+| [SendGrid Config](guides/SENDGRID_CONFIGURATION_GUIDE.md) | Email setup |
+| [Payment Workflow](features/PAYMENT_WORKFLOW_GUIDE.md) | Payment integration |
 
 ---
 
@@ -151,11 +167,11 @@ docs/
 | Metric | Current | Target |
 |--------|---------|--------|
 | Total documents | 58 | ~40 (after consolidation) |
-| Documents with metadata | ~10% | 100% |
-| Orphaned documents | Unknown | 0 |
-| Duplicate document pairs | ~12 | 0 |
+| Organized in directories | ✅ 100% | 100% |
+| Documents with metadata | ~15% | 100% |
+| Duplicate document pairs | ~12 | 0 (Phase D3) |
 
-**Reorganization Status**: 🔄 In Progress (Wave 5, Phase D1)
+**Reorganization Status**: 🔄 In Progress (Wave 5, Phase D2 Complete)
 
 ---
 
