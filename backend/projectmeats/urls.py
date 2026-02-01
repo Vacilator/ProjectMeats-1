@@ -25,6 +25,7 @@ urlpatterns = [
     # Admin interface
     path("admin/", admin.site.urls),
     # API v1 endpoints
+    path("api/v1/system/", include("apps.system.urls")),  # NEW: Centralized config system (v2.0 Wave 1)
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
     # NOTE: accounts_receivables DELETED in v2.0 Wave 1 (merged into invoices/accounting)
     path("api/v1/", include("tenant_apps.suppliers.urls")),
