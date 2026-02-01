@@ -1,5 +1,11 @@
 # URGENT: Fix ERR_CONNECTION_REFUSED on All Environments
 
+**Status**: 📦 HISTORICAL  
+**Category**: Guides  
+**Last Updated**: 2026-02-01
+
+---
+
 **Issue:** dev.meatscentral.com, uat.meatscentral.com, and meatscentral.com all return `ERR_CONNECTION_REFUSED`
 
 **Root Cause:** No host-level reverse proxy is configured. Containers are running but not exposed to internet.

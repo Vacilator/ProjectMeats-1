@@ -1,5 +1,11 @@
 # Tenant-Based Access Control and Role Permissions
 
+**Status**: ✅ CURRENT  
+**Category**: Features  
+**Last Updated**: 2026-02-01
+
+---
+
 ## Overview
 
 This document describes the multi-tenant access control system implemented in ProjectMeats. The system ensures that users only see data for their assigned tenant(s) and have appropriate permissions based on their role.

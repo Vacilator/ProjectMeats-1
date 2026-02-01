@@ -1,9 +1,14 @@
 # Meats Central User Training Guide
 
+**Status**: ✅ CURRENT  
+**Category**: Guides  
+**Last Updated**: 2026-02-01
+
+---
+
 **Target Audience:** Accounting Staff, Office Managers, and Financial Controllers  
 **Feature Set:** Payment Recording, Activity Logging, and Call Management  
-**Version:** 1.0 - January 2026  
-**Status:** ✅ Production Ready
+**Version:** 1.0 - January 2026
 
 ---
 

@@ -1,5 +1,11 @@
 # Branch Workflow Checklist - ProjectMeats
 
+**Status**: ✅ CURRENT  
+**Category**: Getting Started  
+**Last Updated**: 2026-02-01
+
+---
+
 This document provides a comprehensive guide to our branch management, naming conventions, and promotion workflow following industry best practices.
 
 ## 📋 Table of Contents

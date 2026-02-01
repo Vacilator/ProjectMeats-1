@@ -1,5 +1,11 @@
 # Workflow Engine API Reference
 
+**Status**: ✅ CURRENT  
+**Category**: Reference  
+**Last Updated**: 2026-02-01
+
+---
+
 ## Overview
 
 The Workflow Engine API provides endpoints for creating, executing, and monitoring custom business workflows. This document covers all available endpoints, request/response formats, and usage examples.

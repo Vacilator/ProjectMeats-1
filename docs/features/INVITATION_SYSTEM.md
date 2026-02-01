@@ -1,5 +1,11 @@
 # Invitation System
 
+**Status**: ✅ CURRENT  
+**Category**: Features  
+**Last Updated**: 2026-02-01
+
+---
+
 > **Consolidated**: This is the authoritative guide for the invitation system.
 > 
 > **Archived docs**: 

@@ -1,5 +1,11 @@
 # Environment Variables Reference
 
+**Status**: ✅ CURRENT  
+**Category**: Reference  
+**Last Updated**: 2026-02-01
+
+---
+
 **Source of Truth**: `config/env.manifest.json` (v3.3)
 
 This document lists all environment variables required by ProjectMeats across different environments and deployment contexts.

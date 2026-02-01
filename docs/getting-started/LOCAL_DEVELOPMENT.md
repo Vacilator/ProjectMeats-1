@@ -1,5 +1,11 @@
 # 🚀 Quick Start Guide - Local Development
 
+**Status**: ✅ CURRENT  
+**Category**: Getting Started  
+**Last Updated**: 2026-02-01
+
+---
+
 This guide will get you up and running with the ProjectMeats application in under 5 minutes.
 
 ## Prerequisites

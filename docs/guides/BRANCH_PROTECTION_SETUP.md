@@ -1,5 +1,11 @@
 # Branch Protection Setup Guide
 
+**Status**: ✅ CURRENT  
+**Category**: Guides  
+**Last Updated**: 2026-02-01
+
+---
+
 ## Purpose
 Prevent future branch divergence by enforcing GitFlow: `development` → `UAT` → `main`
 

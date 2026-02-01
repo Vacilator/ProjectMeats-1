@@ -1,12 +1,13 @@
 # Payment Developer Guide
 
-> **Consolidated**: This guide focuses on **technical implementation**. 
-> See [Payment User Guide](PAYMENT_USER_GUIDE.md) for user workflows.
->
-> **Last Updated:** 2026-02-01  
-> **Status:** ✅ Production Ready
+**Status**: ✅ CURRENT  
+**Category**: Features  
+**Last Updated**: 2026-02-01
 
 ---
+
+> **Consolidated**: This guide focuses on **technical implementation**. 
+> See [Payment User Guide](PAYMENT_USER_GUIDE.md) for user workflows.
 
 ## Table of Contents
 

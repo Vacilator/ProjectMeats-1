@@ -1,9 +1,15 @@
 # Configuration and Secrets Management
+
+**Status**: ✅ CURRENT  
+**Category**: Reference  
+**Last Updated**: 2026-02-01
+
+---
+
 **Single Source of Truth for ProjectMeats Environments**
 
 > **Authority**: This document describes the authoritative configuration system for ProjectMeats.  
-> **Version**: Manifest v3.3 (December 2025)  
-> **Status**: ✅ Active | All other environment/secret docs are archived
+> **Version**: Manifest v3.3 (December 2025)
 
 ---
 

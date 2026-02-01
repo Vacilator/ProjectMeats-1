@@ -1,5 +1,11 @@
 # Django Staff Permissions Explained
 
+**Status**: ✅ CURRENT  
+**Category**: Guides  
+**Last Updated**: 2026-02-01
+
+---
+
 ## Overview
 
 In Django, there are three main permission levels at the **user level** (not tenant level):

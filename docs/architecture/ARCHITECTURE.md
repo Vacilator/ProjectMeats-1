@@ -1,5 +1,11 @@
 # ProjectMeats Architecture (Authoritative — December 2025)
 
+**Status**: ✅ CURRENT  
+**Category**: Architecture  
+**Last Updated**: 2026-02-01
+
+---
+
 > **IMPORTANT**: This document is the single source of truth for ProjectMeats architecture.
 > If any other documentation contradicts this file, THIS FILE WINS.
 > See `backend/projectmeats/settings/base.py` for implementation details.

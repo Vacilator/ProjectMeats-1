@@ -1,6 +1,11 @@
 # Frontend Environment Variables
 
-**Last Updated:** December 10, 2025  
+**Status**: ✅ CURRENT  
+**Category**: Reference  
+**Last Updated**: 2026-02-01
+
+---
+
 **Applies To:** React Frontend (Vite/CRA)  
 **Source of Truth:** `config/env.manifest.json` v3.3
 
