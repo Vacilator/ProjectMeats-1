@@ -417,6 +417,7 @@ Foundation → Security + Infrastructure → Cockpit/Forms/Admin → Model Migra
 | Page | Current State | v2.0 Enhancement |
 |------|---------------|------------------|
 | **Payables** (`/accounting/payables`) | ⚠️ "Coming Soon" | **Implement full payables module** |
+| **Payables** (`/accounting/payables`) | ✅ Complete | Add aging reports |
 | **Payables > Claims** | ✅ Complete | Add workflow automation |
 | **Receivables** (`/accounts-receivables`) | ✅ Complete | Add collection workflows |
 | **Receivables > Invoices** | ✅ Complete | Add batch invoicing |
@@ -426,6 +427,7 @@ Foundation → Security + Infrastructure → Cockpit/Forms/Admin → Model Migra
 | Page | Current State | v2.0 Enhancement |
 |------|---------------|------------------|
 | **Cold Storage** (`/cold-storage`) | ⚠️ "Coming Soon" | **Implement inventory tracking module** |
+| **Cold Storage** (`/cold-storage`) | ✅ Basic | Add inventory tracking, alerts |
 | **Carriers/Logistics** | ⚠️ "Coming Soon" | **Full implementation needed** |
 
 #### ⚡ Workflows & AI
