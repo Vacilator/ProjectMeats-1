@@ -33,11 +33,11 @@
 │  NEW WAVES (v3.0):                                                   │
 │  Wave F: Features         [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │  Wave M: Mobile           [░░░░░░░░░░]   0%  ⏳ Weeks 5-14            │
-│  Wave T: Testing          [████░░░░░░]  35%  🔄 149 FE + 234 BE tests │
+│  Wave T: Testing          [█████░░░░░]  45%  🔄 239 FE + 234 BE tests │
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [████░░░░░░]  42%                         │
+│  OVERALL                  [█████░░░░░]  45%                         │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
