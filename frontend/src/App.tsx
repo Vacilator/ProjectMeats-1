@@ -61,6 +61,7 @@ import Fulfillments from './pages/Fulfillments';
 import InquiryTemplates from './pages/InquiryTemplates';
 import InquiryAnalytics from './pages/InquiryAnalytics';
 import OptionListsPage from './pages/Admin/OptionLists';
+import Workspace from './pages/Workspace';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -209,6 +210,9 @@ const App: React.FC = () => {
                 
                 {/* Admin */}
                 <Route path="admin/option-lists" element={<OptionListsPage />} />
+                
+                {/* Workspace (Cockpit Command Center) */}
+                <Route path="workspace" element={<Workspace />} />
               </Route>
             </Routes>
             {/* Form Submission Modal - rendered at app level */}
