@@ -892,28 +892,53 @@ urlpatterns = [
 
 **Goal**: Clean, organized, maintainable codebase
 
+> **📚 Reference**: See `docs/DOCUMENTATION_ORGANIZATION_PLAN.md` for detailed implementation guide
+
 #### Documentation (Weeks 1-4)
 
-- [ ] Create `/docs/README.md` index
+**Phase D1: Create Structure (Week 1)**
+- [ ] Create `/docs/README.md` master navigation index
 - [ ] Create directory structure:
   ```
   docs/
-  ├── getting-started/
-  ├── architecture/
-  ├── guides/
-  ├── reference/
-  ├── plans/
-  ├── features/
-  └── archive/
+  ├── README.md                    # Navigation hub
+  ├── getting-started/             # Onboarding docs
+  ├── architecture/                # System design
+  ├── guides/                      # How-to guides
+  ├── reference/                   # Lookup info
+  ├── plans/                       # Active plans
+  ├── features/                    # Feature docs
+  ├── implementation-history/      # Historical record
+  └── archive/                     # Superseded docs
   ```
-- [ ] Move docs to appropriate directories
-- [ ] Consolidate duplicates:
-  - Payment docs (4 → 2)
-  - Invitation docs (6 → 2)
-  - Email docs (3 → 1)
-  - Database sync docs (3 → 1)
-- [ ] Archive completed implementations
-- [ ] Add metadata to all docs
+
+**Phase D2: Move & Organize (Week 2)**
+- [ ] Move onboarding docs → `getting-started/`
+- [ ] Move architecture docs → `architecture/`
+- [ ] Move how-to guides → `guides/`
+- [ ] Move reference docs → `reference/`
+- [ ] Move active plans → `plans/`
+- [ ] Move feature docs → `features/`
+- [ ] Archive completed/superseded → `archive/`
+
+**Phase D3: Consolidate Duplicates (Week 3)**
+- [ ] Merge Payment docs (4 → 1): `features/PAYMENT_SYSTEM.md`
+- [ ] Merge Invitation docs (6 → 2): `features/INVITATION_SYSTEM.md`, `features/GUEST_MODE.md`
+- [ ] Merge Email docs (3 → 1): `guides/EMAIL_CONFIGURATION.md`
+- [ ] Merge Database sync docs (3 → 1): `guides/DATABASE_SYNC_GUIDE.md`
+- [ ] Merge SSL docs (2 → 1): `guides/SSL_SETUP.md`
+
+**Phase D4: Metadata & Cross-References (Week 4)**
+- [ ] Add standard header to all docs (version, date, status, owner)
+- [ ] Update all internal links to new paths
+- [ ] Add "Related Documents" section where missing
+- [ ] Add status badges (📋 PLANNING | 🚧 IN PROGRESS | ✅ IMPLEMENTED | 📦 ARCHIVED)
+
+**Success Criteria**:
+- Time to find any doc: < 30 seconds
+- Docs with proper metadata: 100%
+- Duplicate doc pairs: 0
+- Orphaned docs (no links): 0
 
 #### Code Cleanup (Weeks 5-8)
 
@@ -1205,6 +1230,26 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
 ## Documentation Overhaul
 
+> **📚 Detailed Implementation**: See `docs/DOCUMENTATION_ORGANIZATION_PLAN.md`
+
+### Goals
+
+| Goal | Metric | Target |
+|------|--------|--------|
+| **Discoverability** | Time to find any doc | < 30 seconds |
+| **Clarity** | Docs with proper metadata | 100% |
+| **Consistency** | Duplicate doc pairs | 0 |
+| **Maintainability** | Orphaned docs (no links) | 0 |
+
+### Current State Issues
+
+| Issue | Count | Impact |
+|-------|-------|--------|
+| Duplicative docs | ~12 pairs | Confusion about source of truth |
+| Missing index | 1 | No navigation aid |
+| Should be archived | ~8 docs | Clutter, outdated info |
+| No categorization | All | Can't tell plan vs reference vs history |
+
 ### New Documentation Structure
 
 ```
@@ -1253,7 +1298,8 @@ docs/
 │
 ├── plans/
 │   ├── PROJECTMEATS_V2_MASTER_PLAN.md  # This document
-│   └── PROGRESS_TRACKER.md        # Running progress
+│   ├── PROGRESS_TRACKER.md        # Running progress
+│   └── DOCUMENTATION_ORGANIZATION_PLAN.md  # Doc standards
 │
 └── archive/
     ├── legacy_2025/               # Old architecture docs

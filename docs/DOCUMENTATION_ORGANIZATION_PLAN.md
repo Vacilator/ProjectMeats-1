@@ -1,9 +1,21 @@
 # Documentation Organization Plan
 
-**Document Version**: 1.0  
+**Document Version**: 1.1  
 **Created**: 2026-01-31  
+**Updated**: 2026-02-01  
 **Status**: 📋 PLANNING  
-**Priority**: MEDIUM
+**Priority**: MEDIUM  
+**Tracked In**: Wave 5 of `docs/plans/PROJECTMEATS_V2_MASTER_PLAN.md`
+
+---
+
+## Related Documents
+
+| Document | Purpose |
+|----------|---------|
+| [Master Plan v3.1](plans/PROJECTMEATS_V2_MASTER_PLAN.md) | Overall v2.0 implementation plan |
+| [Progress Tracker](plans/PROGRESS_TRACKER.md) | Wave 5 task tracking |
+| [Roadmap](ROADMAP.md) | Phase 7: Documentation Organization |
 
 ---
 

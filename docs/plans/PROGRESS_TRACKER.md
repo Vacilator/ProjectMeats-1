@@ -315,13 +315,48 @@
 - [x] Create `docs/ADMIN_BACKEND_REVAMP_PLAN.md`
 - [x] Create `docs/DOCUMENTATION_ORGANIZATION_PLAN.md`
 
-**Remaining**:
-- [ ] Create `/docs/README.md` index
-- [ ] Create directory structure
-- [ ] Move docs to appropriate directories
-- [ ] Consolidate duplicates
-- [ ] Archive completed implementations
-- [ ] ... (24 more tasks)
+> **📚 Reference**: See `docs/DOCUMENTATION_ORGANIZATION_PLAN.md` for detailed implementation
+
+**Phase D1: Create Structure (Week 1)** - 0/5
+- [ ] Create `/docs/README.md` master index
+- [ ] Create directory structure (8 folders)
+- [ ] Implement navigation system in README
+- [ ] Add search hints and quick links
+- [ ] Create doc template with metadata header
+
+**Phase D2: Move & Organize (Week 2)** - 0/10
+- [ ] Move onboarding docs → `getting-started/`
+- [ ] Move architecture docs → `architecture/`
+- [ ] Move how-to guides → `guides/`
+- [ ] Move reference docs → `reference/`
+- [ ] Move active plans → `plans/`
+- [ ] Move feature docs → `features/`
+- [ ] Archive superseded docs → `archive/`
+- [ ] Create `implementation-history/` for historical record
+- [ ] Update all internal links
+- [ ] Verify no broken links
+
+**Phase D3: Consolidate Duplicates (Week 3)** - 0/5
+- [ ] Merge Payment docs (4 → 1)
+- [ ] Merge Invitation docs (6 → 2)
+- [ ] Merge Email docs (3 → 1)
+- [ ] Merge Database sync docs (3 → 1)
+- [ ] Merge SSL docs (2 → 1)
+
+**Phase D4: Metadata & Cross-References (Week 4)** - 0/5
+- [ ] Add standard header to all 55+ docs
+- [ ] Add status badges to all docs
+- [ ] Add "Related Documents" sections
+- [ ] Create doc dependency graph
+- [ ] Document orphan check automation
+
+**Success Criteria**:
+| Metric | Current | Target |
+|--------|---------|--------|
+| Time to find any doc | >2 min | <30 sec |
+| Docs with metadata | ~10% | 100% |
+| Duplicate doc pairs | ~12 | 0 |
+| Orphaned docs | Unknown | 0 |
 
 ### Wave 6: Model Migrations (0/25 tasks)
 *Not started - waiting on Waves 1-4*
