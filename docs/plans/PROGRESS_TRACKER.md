@@ -3,8 +3,8 @@
 ## Living Roadmap & Progress Document
 
 **Last Updated**: 2026-02-01  
-**Current Phase**: Wave 1 - Foundation (Week 4 Complete)  
-**Overall Progress**: 15%  
+**Current Phase**: Wave 2 - Cockpit Command Center (Week 5-6 Started)  
+**Overall Progress**: 17%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -18,7 +18,7 @@
 │                                                                      │
 │  Wave 0: Preparation      [░░░░░░░░░░]   0%  ⏳ Not Started          │
 │  Wave 1: Foundation       [██████░░░░]  55%  ✅ Week 4 Complete    │
-│  Wave 2: Cockpit          [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
+│  Wave 2: Cockpit          [█░░░░░░░░░]  10%  🔄 Week 5-6 Started   │
 │  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
 │  Wave 5: Repository       [█░░░░░░░░░]   5%  🔄 Docs Created         │
@@ -32,7 +32,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────                │
-│  OVERALL                  [██░░░░░░░░]  15%                          │
+│  OVERALL                  [██░░░░░░░░]  17%                          │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -168,8 +168,39 @@
 - [ ] Delete `system_config` app (has 1 record - needs migration plan)
 - [x] Document changes
 
-### Wave 2: Cockpit Command Center (0/48 tasks)
-*Not started - waiting on Wave 1*
+### Wave 2: Cockpit Command Center (5/48 tasks)
+
+**Week 5: Backend APIs - IN PROGRESS**
+- [x] Universal Search API (PR #2212)
+  - Cross-entity search with ranking
+  - Search operators (supplier:, po:, @user, etc.)
+- [x] Recent Items API (PR #2212)
+- [x] Search Operators Help API (PR #2212)
+- [ ] Entity Graph API
+- [ ] Cockpit Layout API
+
+**Week 6: Command Palette & Search - IN PROGRESS**
+- [x] CommandPalette component (⌘K / Ctrl+K) (PR #2212)
+- [x] Keyboard navigation (PR #2212)
+- [ ] SearchResultsList with entity grouping
+- [ ] Search debouncing and caching (partial)
+- [ ] Recent items section (partial)
+- [ ] Quick actions integration
+
+**Week 7: Entity Graph Visualization**
+- [ ] Graph library setup (react-flow)
+- [ ] EntityNode component
+- [ ] EntityEdge component
+- [ ] Node expansion
+- [ ] InlineEditPanel
+- [ ] Graph layout algorithms
+
+**Week 8: Widget System & Assembly**
+- [ ] WidgetGrid with react-grid-layout
+- [ ] Core widgets (6 total)
+- [ ] CockpitPage assembly
+- [ ] Layout persistence
+- [ ] Feature flag: ENABLE_COCKPIT=true
 
 ### Wave 3: Forms & Flows Enhancement (6/52 tasks)
 
