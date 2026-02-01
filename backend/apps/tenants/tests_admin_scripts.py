@@ -15,7 +15,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.tenants.models import Tenant, TenantDomain, TenantInvitation, TenantUser
-from apps.tenants.utils import (
+from apps.tenants.utils.invitation_utils import (
     generate_invitation_link,
     get_invitation_by_token,
     validate_invitation,
@@ -440,8 +440,8 @@ class TenantQueryTests(TestCase):
         )
 
     def test_list_all_tenants(self):
-        """Test listing all tenants."""
-        tenants = Tenant.objects.all()
+        """Test listing all tenants (excluding System Root which may have slug 'system' or 'system-root')."""
+        tenants = Tenant.objects.filter(slug__startswith='company-')
         self.assertEqual(tenants.count(), 2)
 
     def test_find_active_tenants_on_trial(self):
@@ -449,6 +449,7 @@ class TenantQueryTests(TestCase):
         tenants = Tenant.objects.filter(
             is_active=True,
             is_trial=True,
+            slug__startswith='company-'
         )
         self.assertEqual(tenants.count(), 1)
         self.assertEqual(tenants.first().slug, "company-one")
