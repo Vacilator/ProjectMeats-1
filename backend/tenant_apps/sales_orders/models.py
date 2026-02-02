@@ -71,11 +71,12 @@ class SalesOrder(TenantAwareModel):
         help_text="Product being sold",
     )
     plant = models.ForeignKey(
-        "plants.Plant",
+        "locations.Location",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Plant/facility for this order",
+        related_name="plant_sales_orders",
+        help_text="Plant/facility for this order (location with plant_* type)",
     )
     pick_up_location = models.ForeignKey(
         "locations.Location",

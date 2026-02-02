@@ -263,11 +263,12 @@ class PurchaseOrder(TimestampModel):
     
     # Facility and Contact
     plant = models.ForeignKey(
-        "plants.Plant",
+        "locations.Location",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Plant/facility for this order",
+        related_name="plant_purchase_orders",
+        help_text="Plant/facility for this order (location with plant_* type)",
     )
     pick_up_location = models.ForeignKey(
         "locations.Location",
@@ -440,11 +441,12 @@ class CarrierPurchaseOrder(TimestampModel):
         help_text="Supplier for this carrier purchase order",
     )
     plant = models.ForeignKey(
-        "plants.Plant",
+        "locations.Location",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Plant/facility for this order",
+        related_name="plant_carrier_purchase_orders",
+        help_text="Plant/facility for this order (location with plant_* type)",
     )
     pick_up_location = models.ForeignKey(
         "locations.Location",
