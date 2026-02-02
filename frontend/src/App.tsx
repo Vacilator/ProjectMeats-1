@@ -11,6 +11,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { QuickActionsProvider } from './contexts/QuickActionsContext';
+import { NotificationsProvider } from './contexts/NotificationsContext';
 import Layout from './components/Layout/Layout';
 
 // Create QueryClient for data fetching (React Query)
@@ -56,6 +57,7 @@ import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDet
 import { FormSubmissionModal } from './components/FormSubmission';
 import { useQuickActions } from './contexts/QuickActionsContext';
 import MySubmissions from './pages/MySubmissions';
+import MyTasks from './pages/MyTasks';
 import Inquiries from './pages/Inquiries';
 import Fulfillments from './pages/Fulfillments';
 import InquiryTemplates from './pages/InquiryTemplates';
@@ -139,15 +141,16 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
-          <QuickActionsProvider>
-            <Router
-              future={{
-                v7_startTransition: true,
-                v7_relativeSplatPath: true,
-              }}
-            >
-              <NavigationProvider>
-                <Routes>
+          <NotificationsProvider>
+            <QuickActionsProvider>
+              <Router
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true,
+                }}
+              >
+                <NavigationProvider>
+                  <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
               <Route path="/" element={<Layout />}>
@@ -207,6 +210,7 @@ const App: React.FC = () => {
                 
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
+                <Route path="my-tasks" element={<MyTasks />} />
                 
                 {/* Admin */}
                 <Route path="admin/option-lists" element={<OptionListsPage />} />
@@ -220,6 +224,7 @@ const App: React.FC = () => {
           </NavigationProvider>
         </Router>
       </QuickActionsProvider>
+      </NotificationsProvider>
       </ThemeProvider>
     </AuthProvider>
     </QueryClientProvider>

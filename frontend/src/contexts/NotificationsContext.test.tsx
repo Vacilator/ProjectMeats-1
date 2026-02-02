@@ -3,24 +3,25 @@
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React, { ReactNode } from 'react';
+import { vi } from 'vitest';
 import { NotificationsProvider, useNotifications, Notification, ActionItem } from './NotificationsContext';
 import { AuthProvider } from './AuthContext';
 
 // Mock fetch
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 // Mock localStorage
 const mockLocalStorage = {
-  getItem: jest.fn(() => 'test-token'),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
+  getItem: vi.fn(() => 'test-token'),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
 };
 Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
 
 // Mock AuthContext to always be authenticated
-jest.mock('./AuthContext', () => ({
-  ...jest.requireActual('./AuthContext'),
+vi.mock('./AuthContext', () => ({
+  ...vi.importActual('./AuthContext'),
   useAuth: () => ({
     isAuthenticated: true,
     user: { id: 1, username: 'testuser' },
@@ -128,7 +129,7 @@ const createWrapper = () => {
 
 describe('NotificationsContext', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // Default mock responses
     mockFetch.mockImplementation((url: string) => {
@@ -171,7 +172,7 @@ describe('NotificationsContext', () => {
 
   describe('useNotifications hook', () => {
     it('should throw error when used outside provider', () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       
       expect(() => {
         renderHook(() => useNotifications());

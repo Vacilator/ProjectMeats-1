@@ -9,6 +9,7 @@ import QuickActionsEditor from '../QuickActions/QuickActionsEditor';
 import { Icon } from '../ui';
 import TenantSelector from './TenantSelector';
 import { authService } from '../../services/authService';
+import { NotificationBell } from '../Notifications';
 
 interface HeaderProps {
   // No props needed currently
@@ -211,10 +212,8 @@ const Header: React.FC<HeaderProps> = () => {
           {themeName === 'light' ? '🌙' : '☀️'}
         </ThemeToggleButton>
 
-        {/* Notifications */}
-        <NotificationButton $theme={theme} title="Notifications" aria-label="Notifications">
-          🔔
-        </NotificationButton>
+        {/* Notifications - Using NotificationBell component */}
+        <NotificationBell />
 
         {/* Profile */}
         <ProfileDropdown />
@@ -419,21 +418,6 @@ const ThemeToggleButton = styled.button<{ $theme: Theme }>`
   &:hover {
     background-color: ${(props) => props.$theme.colors.surfaceHover};
     transform: scale(1.1);
-  }
-`;
-
-const NotificationButton = styled.button<{ $theme: Theme }>`
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
-  transition: background-color 0.2s;
-  color: ${(props) => props.$theme.colors.textPrimary};
-
-  &:hover {
-    background-color: ${(props) => props.$theme.colors.surfaceHover};
   }
 `;
 
