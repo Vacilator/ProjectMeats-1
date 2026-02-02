@@ -5,6 +5,8 @@ Provides admin interfaces for:
 - SystemChoiceList with inline items (drag-drop, import/export)
 - SystemFieldSchema
 - TenantConfig
+- Product (system-wide product catalog)
+- TenantProductPreference (tenant product customizations)
 
 Wave 4 enhancements:
 - Custom change_form.html with Alpine.js
@@ -24,6 +26,9 @@ from apps.system.models import (
     SystemChoiceItem,
     SystemFieldSchema,
     TenantConfig,
+    Product,
+    ProductCategoryChoices,
+    TenantProductPreference,
 )
 
 
@@ -357,3 +362,240 @@ class TenantConfigAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)
+
+
+class ProductCategoryFilter(SimpleListFilter):
+    """Filter products by category."""
+    title = 'Category'
+    parameter_name = 'category'
+    
+    def lookups(self, request, model_admin):
+        return ProductCategoryChoices.choices
+    
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(category=self.value())
+        return queryset
+
+
+class TenantProductPreferenceInline(admin.TabularInline):
+    """Inline for tenant product preferences."""
+    model = TenantProductPreference
+    extra = 0
+    readonly_fields = ('tenant', 'created_at')
+    fields = ('tenant', 'display_name', 'internal_code', 'default_price', 'default_cost', 'is_active', 'is_favorite')
+    can_delete = False
+    
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    """
+    Admin for system-wide Product catalog.
+    
+    Features:
+    - Category filtering
+    - Search by code, name, protein type
+    - Inline tenant preferences
+    - Status badges
+    """
+    list_display = (
+        'product_code', 'name_truncated', 'category_display', 
+        'protein_type', 'fresh_or_frozen_display', 'is_active_display',
+        'tenant_usage_count', 'updated_at'
+    )
+    list_filter = (ProductCategoryFilter, 'is_active', 'fresh_or_frozen', 'tested_product')
+    search_fields = ('product_code', 'name', 'description', 'protein_type', 'namp_code', 'usda_code')
+    readonly_fields = ('id', 'created_at', 'updated_at', 'legacy_tenant_product_id')
+    ordering = ('product_code',)
+    inlines = [TenantProductPreferenceInline]
+    actions = ['mark_active', 'mark_inactive', 'export_products_csv']
+    
+    fieldsets = (
+        ('Identification', {
+            'fields': ('id', 'product_code', 'name', 'description')
+        }),
+        ('Classification', {
+            'fields': ('category', 'protein_type', 'fresh_or_frozen', 'edible_or_inedible')
+        }),
+        ('Packaging', {
+            'fields': ('package_type', 'carton_type', 'pcs_per_carton', 'unit_weight', 'uom')
+        }),
+        ('Industry Codes', {
+            'fields': ('namp_code', 'usda_code', 'ub_code'),
+            'classes': ('collapse',)
+        }),
+        ('Attributes', {
+            'fields': ('net_or_catch', 'tested_product')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Audit', {
+            'fields': ('legacy_tenant_product_id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def name_truncated(self, obj):
+        """Truncate long names."""
+        if len(obj.name) > 40:
+            return obj.name[:40] + '...'
+        return obj.name
+    name_truncated.short_description = 'Name'
+    
+    def category_display(self, obj):
+        """Display category with color badge."""
+        colors = {
+            'BEEF': '#dc2626',
+            'PORK': '#ea580c',
+            'POULTRY': '#ca8a04',
+            'SEAFOOD': '#0284c7',
+            'LAMB': '#7c3aed',
+            'VEAL': '#be185d',
+            'GAME': '#15803d',
+            'OTHER': '#6b7280',
+        }
+        color = colors.get(obj.category, '#6b7280')
+        return format_html(
+            '<span style="background: {}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{}</span>',
+            color, obj.get_category_display()
+        )
+    category_display.short_description = 'Category'
+    
+    def fresh_or_frozen_display(self, obj):
+        """Display fresh/frozen with icon."""
+        if obj.is_fresh:
+            return format_html('<span style="color: green;">🥬 Fresh</span>')
+        elif obj.is_frozen:
+            return format_html('<span style="color: blue;">❄️ Frozen</span>')
+        return '—'
+    fresh_or_frozen_display.short_description = 'State'
+    
+    def is_active_display(self, obj):
+        """Display active status."""
+        if obj.is_active:
+            return format_html('<span style="color: green;">✓ Active</span>')
+        return format_html('<span style="color: red;">✗ Inactive</span>')
+    is_active_display.short_description = 'Status'
+    
+    def tenant_usage_count(self, obj):
+        """Count how many tenants use this product."""
+        count = obj.tenant_preferences.count()
+        if count == 0:
+            return format_html('<span style="color: gray;">0 tenants</span>')
+        return format_html('<span style="color: blue;">{} tenants</span>', count)
+    tenant_usage_count.short_description = 'Usage'
+    
+    @admin.action(description='✅ Mark selected as active')
+    def mark_active(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} product(s) marked as active.')
+    
+    @admin.action(description='❌ Mark selected as inactive')
+    def mark_inactive(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} product(s) marked as inactive.')
+    
+    @admin.action(description='📤 Export selected as CSV')
+    def export_products_csv(self, request, queryset):
+        """Export products to CSV."""
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="products.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Code', 'Name', 'Category', 'Protein Type', 'Fresh/Frozen', 'Active'])
+        
+        for product in queryset:
+            writer.writerow([
+                product.product_code,
+                product.name,
+                product.category,
+                product.protein_type,
+                product.fresh_or_frozen,
+                product.is_active,
+            ])
+        
+        return response
+
+
+@admin.register(TenantProductPreference)
+class TenantProductPreferenceAdmin(admin.ModelAdmin):
+    """
+    Admin for tenant-specific product preferences.
+    
+    Features:
+    - Filter by tenant
+    - Search by product code/name
+    - Pricing management
+    """
+    list_display = (
+        'product_code', 'product_name', 'tenant', 'display_name',
+        'default_price_display', 'default_cost_display', 
+        'is_active_display', 'is_favorite_display', 'updated_at'
+    )
+    list_filter = ('tenant', 'is_active', 'is_favorite')
+    search_fields = ('product__product_code', 'product__name', 'display_name', 'internal_code', 'tenant__name')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    autocomplete_fields = ('product', 'tenant', 'preferred_supplier')
+    ordering = ('tenant', 'product__product_code')
+    
+    fieldsets = (
+        ('Relationships', {
+            'fields': ('id', 'tenant', 'product')
+        }),
+        ('Display Customization', {
+            'fields': ('display_name', 'internal_code', 'notes')
+        }),
+        ('Pricing', {
+            'fields': ('default_price', 'default_cost')
+        }),
+        ('Supplier', {
+            'fields': ('preferred_supplier', 'supplier_item_number')
+        }),
+        ('Status', {
+            'fields': ('is_active', 'is_favorite', 'sort_order')
+        }),
+        ('Audit', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def product_code(self, obj):
+        return obj.product.product_code
+    product_code.short_description = 'Product Code'
+    product_code.admin_order_field = 'product__product_code'
+    
+    def product_name(self, obj):
+        return obj.product.name[:30] + '...' if len(obj.product.name) > 30 else obj.product.name
+    product_name.short_description = 'Product'
+    
+    def default_price_display(self, obj):
+        if obj.default_price:
+            return format_html('<span style="color: green;">${:,.2f}</span>', obj.default_price)
+        return '—'
+    default_price_display.short_description = 'Price'
+    
+    def default_cost_display(self, obj):
+        if obj.default_cost:
+            return format_html('<span style="color: blue;">${:,.2f}</span>', obj.default_cost)
+        return '—'
+    default_cost_display.short_description = 'Cost'
+    
+    def is_active_display(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color: green;">✓</span>')
+        return format_html('<span style="color: red;">✗</span>')
+    is_active_display.short_description = 'Active'
+    
+    def is_favorite_display(self, obj):
+        if obj.is_favorite:
+            return format_html('<span style="color: gold;">⭐</span>')
+        return ''
+    is_favorite_display.short_description = '⭐'
