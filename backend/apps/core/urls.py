@@ -1,16 +1,26 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 from . import views
+from .jwt_serializers import TenantAwareTokenObtainPairView
 
 # Create a router for ViewSets
 router = DefaultRouter()
 router.register(r'preferences', views.UserPreferencesViewSet, basename='user-preferences')
 
 urlpatterns = [
+    # Legacy auth endpoints (for backward compatibility)
     path("auth/login/", views.login, name="login"),
     path("auth/guest-login/", views.guest_login, name="guest-login"),
     path("auth/signup/", views.signup, name="signup"),
     path("auth/logout/", views.logout, name="logout"),
+    
+    # JWT Authentication endpoints (Wave S1: Security Hardening)
+    # Preferred auth method: short-lived access tokens with refresh rotation
+    path("auth/token/", TenantAwareTokenObtainPairView.as_view(), name="token-obtain-pair"),
+    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path("auth/token/verify/", TokenVerifyView.as_view(), name="token-verify"),
+    
     # Choices endpoint for static dropdowns
     path("choices/", views.ChoicesAPIView.as_view(), name="choices"),
     # Feature Flags API (Wave 0: Preparation)

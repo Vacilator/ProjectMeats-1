@@ -41,6 +41,7 @@ _DJANGO_CORE_APPS = [
 _THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_simplejwt.token_blacklist",  # JWT token blacklist (Wave S1)
     "corsheaders",
     "drf_spectacular",
     "django_filters",
@@ -170,6 +171,10 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FileUploadParser",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        # JWT Authentication (Wave S1: Security Hardening)
+        # Short-lived access tokens with refresh token rotation
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # Legacy token auth (for backward compatibility during migration)
         "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",  # For Studio and browsable API
     ],
@@ -197,6 +202,41 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.exception_handler",
+}
+
+# ==============================================================================
+# JWT AUTHENTICATION (Wave S1: Security Hardening)
+# ==============================================================================
+# Replace perpetual tokens with industry-standard JWT
+# Access tokens expire quickly; refresh tokens rotate on use
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    # Token lifetimes
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),  # Short-lived for security
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),     # Longer-lived, rotates on use
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=15),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+    
+    # Token rotation: issue new refresh token on each refresh
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,  # Blacklist old refresh tokens
+    
+    # Algorithm (uses SECRET_KEY for signing by default)
+    "ALGORITHM": "HS256",
+    
+    # Auth header
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    
+    # Token claims
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    
+    # Custom claims (add tenant info for multi-tenancy)
+    "TOKEN_OBTAIN_SERIALIZER": "apps.core.jwt_serializers.TenantAwareTokenObtainPairSerializer",
 }
 
 # API Documentation
