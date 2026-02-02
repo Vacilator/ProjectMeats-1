@@ -95,6 +95,40 @@ vi.mock('../ui', () => ({
   Icon: ({ name }: { name: string }) => <span data-testid={`icon-${name}`}>{name}</span>,
 }));
 
+// Mock NotificationsContext to avoid NotificationsProvider requirement
+vi.mock('../../contexts/NotificationsContext', () => ({
+  useNotifications: () => ({
+    notifications: [],
+    unreadCount: 0,
+    loading: false,
+    error: null,
+    fetchNotifications: vi.fn(),
+    markAsRead: vi.fn(),
+    markAllAsRead: vi.fn(),
+    dismissNotification: vi.fn(),
+    actionItems: [],
+    actionItemCounts: null,
+    fetchActionItems: vi.fn(),
+    preferences: null,
+    updatePreferences: vi.fn(),
+    startPolling: vi.fn(),
+    stopPolling: vi.fn(),
+  }),
+}));
+
+// Mock NotificationBell component
+vi.mock('../Notifications', () => ({
+  NotificationBell: () => (
+    <button 
+      title="Notifications" 
+      aria-label="Notifications"
+      data-testid="notification-bell"
+    >
+      🔔
+    </button>
+  ),
+}));
+
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
