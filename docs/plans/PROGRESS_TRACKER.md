@@ -27,7 +27,7 @@
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [██████░░░░]  60%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
-│  Wave 6: Model Migration  [████████░░]  80%  ✅ Products Phase 1+2!   │
+│  Wave 6: Model Migration  [█████████░]  90%  ✅ Products Phase 1-3!   │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
 │  NEW WAVES (v3.0):                                                   │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [█████████░]  92%   TOTAL: 1134 tests      │
+│  OVERALL                  [█████████░]  93%   TOTAL: 1134 tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -61,9 +61,9 @@
 
 ## Recent Accomplishments
 
-### 2026-02-03 - Wave 6: Products to System (Phase 1 & 2) 📦
+### 2026-02-03 - Wave 6: Products to System (Phase 1-3) 📦
 
-**System-wide Product catalog architecture complete!**
+**Product migration infrastructure complete!**
 
 - **PR #2330**: Add system.Product model (Phase 1)
   - UUID primary key for cross-system references
@@ -78,13 +78,19 @@
   - Preferred supplier associations
   - 13 additional tests (30 total)
 
-**Wave 6 Status**: 60% → 80% ✅
+- **PR #2336**: Add product data migration (Phase 3)
+  - Management command with --dry-run option
+  - Reversible Django migration
+  - Deduplicates by product_code
+  - Creates TenantProductPreference associations
+
+**Wave 6 Status**: 80% → 90% ✅
 
 **Product Migration Architecture**:
 ```
 Phase 1: ✅ Create system.Product model
 Phase 2: ✅ Create TenantProductPreference model
-Phase 3: ⏳ Data migration from tenant_apps.products
+Phase 3: ✅ Data migration infrastructure
 Phase 4: ⏳ Update FK references across apps
 Phase 5: ⏳ Remove old tenant_apps/products
 ```
