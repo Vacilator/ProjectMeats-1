@@ -14,7 +14,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
-import { Search, X, ArrowUp, ArrowDown, CornerDownLeft } from 'lucide-react';
+import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2, Package, Truck } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
 
@@ -42,10 +42,74 @@ interface SearchResponse {
   total: number;
 }
 
+interface QuickAction {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  route: string;
+  color: string;
+}
+
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+// ============================================================================
+// Quick Actions Configuration
+// ============================================================================
+
+const QUICK_ACTIONS: QuickAction[] = [
+  {
+    id: 'new-po',
+    title: 'New Purchase Order',
+    description: 'Create a purchase order',
+    icon: <Plus size={16} />,
+    route: '/purchase-orders/new',
+    color: 'rgb(59, 130, 246)',
+  },
+  {
+    id: 'new-so',
+    title: 'New Sales Order',
+    description: 'Create a sales order',
+    icon: <FileText size={16} />,
+    route: '/sales-orders/new',
+    color: 'rgb(34, 197, 94)',
+  },
+  {
+    id: 'new-supplier',
+    title: 'Add Supplier',
+    description: 'Create a new supplier',
+    icon: <Building2 size={16} />,
+    route: '/suppliers/new',
+    color: 'rgb(168, 85, 247)',
+  },
+  {
+    id: 'new-customer',
+    title: 'Add Customer',
+    description: 'Create a new customer',
+    icon: <Users size={16} />,
+    route: '/customers/new',
+    color: 'rgb(249, 115, 22)',
+  },
+  {
+    id: 'new-product',
+    title: 'Add Product',
+    description: 'Create a new product',
+    icon: <Package size={16} />,
+    route: '/products/new',
+    color: 'rgb(236, 72, 153)',
+  },
+  {
+    id: 'new-carrier',
+    title: 'Add Carrier',
+    description: 'Create a new carrier',
+    icon: <Truck size={16} />,
+    route: '/carriers/new',
+    color: 'rgb(20, 184, 166)',
+  },
+];
 
 // ============================================================================
 // Styled Components
@@ -253,6 +317,58 @@ const LoadingSpinner = styled.div`
   color: rgb(var(--color-text-tertiary));
 `;
 
+const QuickActionsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  padding: 0.5rem;
+`;
+
+const QuickActionItem = styled.button<{ $isSelected: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: ${props => props.$isSelected ? 'rgb(var(--color-primary) / 0.1)' : 'transparent'};
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgb(var(--color-background));
+    border-color: rgb(var(--color-primary) / 0.3);
+  }
+`;
+
+const QuickActionIcon = styled.div<{ $color: string }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: ${props => props.$color}20;
+  color: ${props => props.$color};
+`;
+
+const QuickActionContent = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const QuickActionTitle = styled.div`
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+`;
+
+const QuickActionDescription = styled.div`
+  font-size: 0.75rem;
+  color: rgb(var(--color-text-tertiary));
+`;
+
 // ============================================================================
 // Icon Mapping
 // ============================================================================
@@ -338,14 +454,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Keyboard navigation
+  // Keyboard navigation - now supports quick actions
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const items = query.length >= 2 ? results : recentItems;
+    // Calculate total navigable items
+    const searchItems = query.length >= 2 ? results : recentItems;
+    const showQuickActions = query.length < 2;
+    const totalItems = showQuickActions 
+      ? searchItems.length + QUICK_ACTIONS.length
+      : searchItems.length;
     
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedIndex(i => Math.min(i + 1, items.length - 1));
+        setSelectedIndex(i => Math.min(i + 1, totalItems - 1));
         break;
       case 'ArrowUp':
         e.preventDefault();
@@ -353,8 +474,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         break;
       case 'Enter':
         e.preventDefault();
-        if (items[selectedIndex]) {
-          handleSelect(items[selectedIndex]);
+        if (showQuickActions) {
+          // First are recent items, then quick actions
+          if (selectedIndex < searchItems.length) {
+            handleSelect(searchItems[selectedIndex]);
+          } else {
+            const actionIndex = selectedIndex - searchItems.length;
+            if (QUICK_ACTIONS[actionIndex]) {
+              handleQuickAction(QUICK_ACTIONS[actionIndex]);
+            }
+          }
+        } else if (searchItems[selectedIndex]) {
+          handleSelect(searchItems[selectedIndex]);
         }
         break;
       case 'Escape':
@@ -379,8 +510,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     navigate(item.route);
   };
 
+  const handleQuickAction = (action: QuickAction) => {
+    onClose();
+    navigate(action.route);
+  };
+
   const displayItems = query.length >= 2 ? results : recentItems;
   const showRecent = query.length < 2 && recentItems.length > 0;
+  const showQuickActions = query.length < 2;
 
   return (
     <Overlay $isOpen={isOpen} onClick={onClose}>
@@ -403,43 +540,90 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         <ResultsContainer>
           {isLoading ? (
             <LoadingSpinner>Searching...</LoadingSpinner>
-          ) : displayItems.length > 0 ? (
-            <ResultSection>
-              <SectionTitle>
-                {showRecent ? 'Recent' : `Results (${displayItems.length})`}
-              </SectionTitle>
-              {displayItems.map((item, index) => (
-                <ResultItem
-                  key={`${item.type}-${item.id}`}
-                  $isSelected={index === selectedIndex}
-                  onClick={() => handleSelect(item)}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                >
-                  <ResultIcon $color={item.color}>
-                    {getIconElement(item.icon)}
-                  </ResultIcon>
-                  <ResultContent>
-                    <ResultTitle>{item.title}</ResultTitle>
-                    {item.subtitle && (
-                      <ResultSubtitle>{item.subtitle}</ResultSubtitle>
-                    )}
-                  </ResultContent>
-                  <ResultType>{item.type.replace('_', ' ')}</ResultType>
-                </ResultItem>
-              ))}
-            </ResultSection>
           ) : query.length >= 2 ? (
-            <EmptyState>
-              No results found for "{query}"
-              <br />
-              <small>Try: supplier:name, po:number, @contact</small>
-            </EmptyState>
+            // Search results
+            displayItems.length > 0 ? (
+              <ResultSection>
+                <SectionTitle>Results ({displayItems.length})</SectionTitle>
+                {displayItems.map((item, index) => (
+                  <ResultItem
+                    key={`${item.type}-${item.id}`}
+                    $isSelected={index === selectedIndex}
+                    onClick={() => handleSelect(item)}
+                    onMouseEnter={() => setSelectedIndex(index)}
+                  >
+                    <ResultIcon $color={item.color}>
+                      {getIconElement(item.icon)}
+                    </ResultIcon>
+                    <ResultContent>
+                      <ResultTitle>{item.title}</ResultTitle>
+                      {item.subtitle && (
+                        <ResultSubtitle>{item.subtitle}</ResultSubtitle>
+                      )}
+                    </ResultContent>
+                    <ResultType>{item.type.replace('_', ' ')}</ResultType>
+                  </ResultItem>
+                ))}
+              </ResultSection>
+            ) : (
+              <EmptyState>
+                No results found for "{query}"
+                <br />
+                <small>Try: supplier:name, po:number, @contact</small>
+              </EmptyState>
+            )
           ) : (
-            <EmptyState>
-              Start typing to search...
-              <br />
-              <small>Use operators: supplier:, customer:, po:, so:, @</small>
-            </EmptyState>
+            // Default view: Recent items + Quick actions
+            <>
+              {recentItems.length > 0 && (
+                <ResultSection>
+                  <SectionTitle>Recent</SectionTitle>
+                  {recentItems.map((item, index) => (
+                    <ResultItem
+                      key={`${item.type}-${item.id}`}
+                      $isSelected={index === selectedIndex}
+                      onClick={() => handleSelect(item)}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                    >
+                      <ResultIcon $color={item.color}>
+                        {getIconElement(item.icon)}
+                      </ResultIcon>
+                      <ResultContent>
+                        <ResultTitle>{item.title}</ResultTitle>
+                        {item.subtitle && (
+                          <ResultSubtitle>{item.subtitle}</ResultSubtitle>
+                        )}
+                      </ResultContent>
+                      <ResultType>{item.type.replace('_', ' ')}</ResultType>
+                    </ResultItem>
+                  ))}
+                </ResultSection>
+              )}
+              <ResultSection>
+                <SectionTitle>Quick Actions</SectionTitle>
+                <QuickActionsGrid>
+                  {QUICK_ACTIONS.map((action, index) => {
+                    const actionIndex = recentItems.length + index;
+                    return (
+                      <QuickActionItem
+                        key={action.id}
+                        $isSelected={actionIndex === selectedIndex}
+                        onClick={() => handleQuickAction(action)}
+                        onMouseEnter={() => setSelectedIndex(actionIndex)}
+                      >
+                        <QuickActionIcon $color={action.color}>
+                          {action.icon}
+                        </QuickActionIcon>
+                        <QuickActionContent>
+                          <QuickActionTitle>{action.title}</QuickActionTitle>
+                          <QuickActionDescription>{action.description}</QuickActionDescription>
+                        </QuickActionContent>
+                      </QuickActionItem>
+                    );
+                  })}
+                </QuickActionsGrid>
+              </ResultSection>
+            </>
           )}
         </ResultsContainer>
 
