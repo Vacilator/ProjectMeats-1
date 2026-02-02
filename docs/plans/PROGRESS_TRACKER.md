@@ -9,7 +9,7 @@
 ## Living Roadmap & Progress Document
 
 **Current Phase**: Wave 1 - Foundation (Remaining)  
-**Overall Progress**: 66%  
+**Overall Progress**: 68%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -24,7 +24,7 @@
 │  Wave 0: Preparation      [████████░░]  80%  ✅ Core Tasks Done      │
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done  │
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
-│  Wave 3: Forms & Flows    [████░░░░░░]  35%  ✅ Frontend Components   │
+│  Wave 3: Forms & Flows    [████░░░░░░]  40%  ✅ App Integration      │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
 │  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [███████░░░]  66%   TOTAL: 850+ tests      │
+│  OVERALL                  [███████░░░]  68%   TOTAL: 850+ tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,20 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-02 - Wave 3: App Integration & Vitest Fix (PR #2276 ✅ MERGED)
+
+**Integrated notifications into the main app**:
+- Added `NotificationsProvider` to App.tsx (wraps QuickActionsProvider)
+- Added `/my-tasks` route for MyTasks page
+- Replaced static notification button with `NotificationBell` component in Header
+- Removed unused `NotificationButton` styled component
+
+**Fixed deployment failure**:
+- Replaced Jest globals with Vitest equivalents in NotificationsContext.test.tsx
+- `jest.fn()` → `vi.fn()`, `jest.mock()` → `vi.mock()`, etc.
+
+**Wave 3 Progress**: 35% → 40% (integration complete)
 
 ### 2026-02-02 - Wave 3: Frontend Notification Components (PR #2274 ✅ MERGED)
 
