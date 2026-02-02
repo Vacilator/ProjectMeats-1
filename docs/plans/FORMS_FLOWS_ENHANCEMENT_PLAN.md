@@ -1887,10 +1887,476 @@ type WidgetType =
 
 ---
 
+---
+
+## 🚀 OPTIMIZED IMPLEMENTATION PLAN (v3.0)
+
+**Added**: 2026-02-02  
+**Status**: 📋 IMPLEMENTATION READY
+
+This section reorganizes the original plan for maximum efficiency by leveraging components already implemented in Wave 2-3.
+
+---
+
+### 🎯 Key Finding: What's Already Built
+
+#### ✅ FULLY IMPLEMENTED (Skip These Tasks)
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| **Widget System** | `frontend/src/components/Widgets/` | ✅ Complete with 8 widgets, react-grid-layout |
+| **UserWorkspaceLayout Model** | `backend/tenant_apps/cockpit/models.py` | ✅ Persists widget layouts |
+| **Notification Models** | `backend/tenant_apps/workflows/models.py` | ✅ UserNotification + Preferences |
+| **Notification API** | `/api/v1/workflows/notifications/` | ✅ CRUD + mark-read + counts |
+| **Universal Search Service** | `backend/apps/core/services/universal_search.py` | ✅ 9 entity types, operators |
+| **Search API** | `/api/v1/search/universal/` | ✅ With recent items, operators |
+| **CommandPalette** | `frontend/src/components/Navigation/CommandPalette.tsx` | ✅ Full keyboard nav, caching |
+| **Entity Graph Service** | `backend/apps/core/services/entity_graph.py` | ✅ Relationships, graph traversal |
+| **Entity Graph Components** | `frontend/src/components/EntityGraph/` | ✅ React Flow, custom nodes/edges |
+| **Entity Graph API** | `/api/v1/entities/{type}/{id}/graph/` | ✅ With depth, max_nodes params |
+| **Action Items API** | `/api/v1/workflows/action-items/` | ✅ Serializers + basic endpoints |
+| **StepAssignment Model** | `backend/tenant_apps/workflows/models.py` | ✅ With SLA, escalation |
+| **FormStatusHistory Model** | `backend/tenant_apps/workflows/models.py` | ✅ Audit trail |
+| **MyTasks Page** | `frontend/src/pages/FormsFlows/MyTasks.tsx` | ✅ Filtering, sorting, delegation UI |
+| **NotificationsContext** | `frontend/src/contexts/NotificationsContext.tsx` | ✅ ActionItem types, state |
+| **CallLog Page** | `frontend/src/pages/Cockpit/CallLog.tsx` | ✅ Calendar, CRUD, entity linking |
+| **ScheduleCallModal** | `frontend/src/components/Shared/ScheduleCallModal.tsx` | ✅ Create/Edit modes |
+| **UpcomingCallsWidget** | `frontend/src/components/Widgets/UpcomingCallsWidget.tsx` | ✅ Status grouping |
+| **Keyboard Shortcuts** | `frontend/src/hooks/useCommandPalette.ts` | ✅ Ctrl+K handler |
+
+#### ⚠️ PARTIALLY IMPLEMENTED (Focus Here)
+
+| Component | What Exists | What's Missing |
+|-----------|-------------|----------------|
+| **Action Items Counts API** | Endpoint defined | Logic not returning real data |
+| **Notification Bell** | API exists | Frontend NotificationBell component |
+| **Forms & Flows Navigation** | MyTasks page | Catalog, InProgress, History pages |
+| **Cockpit Command Center** | Widgets exist | Cockpit page assembly |
+| **Calls Rename** | Full CallLog | Route/nav rename to "Calls" |
+| **Inline Entity Editing** | Graph view | InlineEditPanel implementation |
+| **SavedEntityGraph** | None | Model + API + UI for saving graphs |
+| **Email Notifications** | Preferences model | Delivery service |
+| **Notification Preferences UI** | API exists | Settings page component |
+
+#### ❌ NOT YET IMPLEMENTED (New Work)
+
+| Component | Complexity | Priority |
+|-----------|------------|----------|
+| **Call Timer** | Low | Medium |
+| **Call Intelligence** | Medium | Low |
+| **Saved Graphs UI** | Medium | Low |
+| **Full-Text Search** | High | Low (v2.5) |
+| **WebSocket Notifications** | High | Low (v2.5) |
+
+---
+
+### 📊 Revised Implementation Timeline
+
+| Metric | Original | Optimized |
+|--------|----------|-----------|
+| **Phases** | 12 | 6 |
+| **Estimated Time** | ~25 days | ~10 days |
+| **Time Savings** | - | **60%** |
+
+---
+
+### Phase 1: Navigation & Routing (0.5 day)
+
+**Goal**: Restructure navigation to match new information architecture.
+
+#### Task 1.1: Update Navigation Structure
+**File**: `frontend/src/config/navigation.ts`
+**Time**: 1 hour
+
+- [ ] Add `badge?: number | string` to NavigationItem interface
+- [ ] Rename "Call Log" entry to "Calls"
+- [ ] Move "Workflows" section under "Workspace" as "Forms & Flows"
+- [ ] Add sub-items: My Tasks, In Progress, Catalog, History
+
+#### Task 1.2: Update Routes
+**File**: `frontend/src/App.tsx`
+**Time**: 1 hour
+
+- [ ] Add route alias `/calls` → CallLog component
+- [ ] Add route `/workspace/forms-flows` → FormsFlows layout
+- [ ] Add route `/workspace/forms-flows/tasks` → MyTasks (already exists)
+- [ ] Add route `/workspace/forms-flows/catalog` → WorkflowList
+- [ ] Add route `/workspace/forms-flows/history` → new History page
+- [ ] Add route `/workspace/forms-flows/in-progress` → new InProgress page
+- [ ] Add redirect `/call-log` → `/calls`
+- [ ] Add redirect `/workflows` → `/workspace/forms-flows/catalog`
+
+#### Task 1.3: Create FormsFlows Layout
+**File**: `frontend/src/pages/FormsFlows/index.tsx` (create)
+**Time**: 1 hour
+
+- [ ] Create layout wrapper with sub-navigation tabs
+- [ ] Style tabs to match existing patterns
+- [ ] Wire up Outlet for child routes
+
+**Depends on**: 1.2
+
+---
+
+### Phase 2: Sidebar Badges & Counts (0.5 day)
+
+**Goal**: Show action item counts in sidebar navigation.
+
+#### Task 2.1: Fix Action Items Counts API
+**File**: `backend/tenant_apps/workflows/views.py`
+**Time**: 1.5 hours
+
+- [ ] Query StepAssignments for current user
+- [ ] Count by status: action_required, overdue, waiting
+- [ ] Return ActionItemCountsSerializer response
+- [ ] Add database indexes if needed
+
+#### Task 2.2: Create useActionItemCounts Hook
+**File**: `frontend/src/hooks/useActionItemCounts.ts` (create)
+**Time**: 1 hour
+
+- [ ] Fetch from `/api/v1/workflows/action-items/counts/`
+- [ ] Add polling (60s interval)
+- [ ] Export counts + isLoading + error
+
+**Depends on**: 2.1
+
+#### Task 2.3: Add Badge Rendering to Sidebar
+**File**: `frontend/src/components/Layout/Sidebar.tsx`
+**Time**: 1 hour
+
+- [ ] Import useActionItemCounts
+- [ ] Find navigation items with badge property
+- [ ] Render badge next to item label
+- [ ] Style badge (red for overdue, blue otherwise)
+
+**Depends on**: 2.2
+
+---
+
+### Phase 3: Notification Bell (1 day)
+
+**Goal**: Add notification bell to header with dropdown panel.
+
+#### Task 3.1: Create NotificationBell Component
+**File**: `frontend/src/components/Notifications/NotificationBell.tsx` (create)
+**Time**: 2 hours
+
+- [ ] Bell icon with unread count badge
+- [ ] Click opens dropdown panel
+- [ ] Uses existing notification API
+- [ ] Mark all read action
+
+#### Task 3.2: Create NotificationPanel Component
+**File**: `frontend/src/components/Notifications/NotificationPanel.tsx` (create)
+**Time**: 2 hours
+
+- [ ] List of recent notifications (last 10)
+- [ ] NotificationItem sub-component
+- [ ] Click to navigate to action_url
+- [ ] "View all" link to full notifications page
+
+#### Task 3.3: Create NotificationItem Component
+**File**: `frontend/src/components/Notifications/NotificationItem.tsx` (create)
+**Time**: 1 hour
+
+- [ ] Icon based on notification_type
+- [ ] Title + message preview
+- [ ] time_ago display
+- [ ] Unread indicator
+
+#### Task 3.4: Integrate into Header
+**File**: `frontend/src/components/Layout/Header.tsx`
+**Time**: 1 hour
+
+- [ ] Import NotificationBell
+- [ ] Position next to user profile
+- [ ] Connect to existing NotificationsContext
+
+---
+
+### Phase 4: Cockpit Command Center Assembly (1.5 days)
+
+**Goal**: Create the Cockpit page that replaces Dashboard.
+
+#### Task 4.1: Create Cockpit Page
+**File**: `frontend/src/pages/Cockpit/index.tsx` (create/update)
+**Time**: 3 hours
+
+- [ ] Import existing WidgetGrid
+- [ ] Configure default widget layout for "broker" template
+- [ ] Add "Customize" toggle for edit mode
+- [ ] Add template selector dropdown
+- [ ] Persist layout changes to API
+
+**Reuses**: WidgetGrid, all widget components, UserWorkspaceLayout API
+
+#### Task 4.2: Create CommandBar Header
+**File**: `frontend/src/components/Cockpit/CommandBar.tsx` (create)
+**Time**: 2 hours
+
+- [ ] Search input that opens CommandPalette on focus
+- [ ] Quick Actions dropdown button
+- [ ] User profile/notifications section
+- [ ] Keyboard shortcut hint (⌘K)
+
+**Reuses**: CommandPalette, useCommandPalette hook
+
+#### Task 4.3: Integrate Entity Explorer Widget
+**File**: `frontend/src/components/Widgets/EntityExplorerWidget.tsx` (already exists)
+**Time**: 1.5 hours
+
+- [ ] Verify it wraps EntityGraph correctly
+- [ ] Add collapse/expand functionality
+- [ ] Add "Save Graph" action (if SavedEntityGraph implemented)
+- [ ] Test with various entity types
+
+**Reuses**: EntityGraph, EntityNode, EntityEdge components
+
+#### Task 4.4: Update Navigation to Cockpit
+**File**: Multiple
+**Time**: 1 hour
+
+- [ ] Update nav item "Dashboard" → "Cockpit"
+- [ ] Update route `/dashboard` → `/cockpit`
+- [ ] Add redirect from old dashboard URL
+- [ ] Update default landing page
+
+---
+
+### Phase 5: Forms & Flows Pages (1.5 days)
+
+**Goal**: Complete the Forms & Flows section pages.
+
+#### Task 5.1: Create InProgress Page
+**File**: `frontend/src/pages/FormsFlows/InProgress.tsx` (create)
+**Time**: 2 hours
+
+- [ ] Query active form submissions (status=in_progress)
+- [ ] Card grid with progress indicators
+- [ ] Filter by form type
+- [ ] "Resume" action
+
+**Reuses**: Existing FormSubmission API
+
+#### Task 5.2: Enhance Catalog Page (WorkflowList)
+**File**: `frontend/src/pages/Workflows/WorkflowList.tsx` (move/update)
+**Time**: 2 hours
+
+- [ ] Move to FormsFlows/Catalog.tsx
+- [ ] Add "Recently Used" section
+- [ ] Add favorites/pinned forms
+- [ ] Add category filtering
+
+**Reuses**: Existing WorkflowList component
+
+#### Task 5.3: Create History Page
+**File**: `frontend/src/pages/FormsFlows/History.tsx` (create)
+**Time**: 2 hours
+
+- [ ] Query completed/cancelled submissions
+- [ ] Date range filter
+- [ ] Search by form name
+- [ ] Export to CSV action
+- [ ] View submission details (read-only)
+
+#### Task 5.4: Enhance MyTasks Page
+**File**: `frontend/src/pages/FormsFlows/MyTasks.tsx` (exists)
+**Time**: 2 hours
+
+- [ ] Wire up to action items counts API (verify)
+- [ ] Add "Delegate" action (if delegation API ready)
+- [ ] Add overdue highlighting
+- [ ] Add empty states
+
+---
+
+### Phase 6: Calls Enhancement & Polish (1 day)
+
+**Goal**: Rename CallLog and add final enhancements.
+
+#### Task 6.1: Rename CallLog to Calls
+**Files**: Multiple
+**Time**: 1 hour
+
+- [ ] Rename file CallLog.tsx → Calls.tsx (or add alias)
+- [ ] Update all imports
+- [ ] Update page title/header
+- [ ] Update navigation label
+
+#### Task 6.2: Add Call Timer Component
+**File**: `frontend/src/components/Calls/CallTimer.tsx` (create)
+**Time**: 1.5 hours
+
+- [ ] Start/Stop timer
+- [ ] Display elapsed time
+- [ ] Save duration to call record
+
+#### Task 6.3: Add Call Timer to Modal
+**File**: `frontend/src/components/Shared/ScheduleCallModal.tsx`
+**Time**: 1 hour
+
+- [ ] Import CallTimer
+- [ ] Show when in "log call" mode
+- [ ] Auto-populate duration field
+
+#### Task 6.4: Create Notification Preferences UI
+**File**: `frontend/src/components/Settings/NotificationPreferences.tsx` (create)
+**Time**: 2 hours
+
+- [ ] Fetch current preferences
+- [ ] Toggle switches for each notification type
+- [ ] Channel selection (in-app, email)
+- [ ] Quiet hours configuration
+- [ ] Save button
+
+**Reuses**: Existing NotificationPreferences API
+
+#### Task 6.5: Final Polish
+**Time**: 2 hours
+
+- [ ] Accessibility review (ARIA labels, keyboard nav)
+- [ ] Mobile responsiveness check
+- [ ] Error state handling
+- [ ] Loading states
+- [ ] Documentation updates
+
+---
+
+### Dependency Graph
+
+```
+Phase 1 (Navigation)
+    │
+    ├──► Phase 2 (Badges) ──► Phase 3 (Notifications)
+    │                              │
+    └──► Phase 4 (Cockpit) ◄───────┘
+              │
+              ▼
+         Phase 5 (Forms & Flows)
+              │
+              ▼
+         Phase 6 (Calls + Polish)
+```
+
+**Critical Path**: 1 → 2 → 3 → 4 → 5 → 6
+
+**Parallelizable**:
+- Phase 2 (Badges) and Phase 4 (Cockpit) can start after Phase 1
+- Phase 3 (Notifications) can proceed while Phase 4 is in progress
+- Task 6.4 (Notification Prefs) can start anytime after Phase 3
+
+---
+
+### Files Changed Summary
+
+#### New Files (15)
+```
+frontend/src/pages/FormsFlows/
+├── index.tsx                    # Layout wrapper
+├── InProgress.tsx               # Active flows
+├── Catalog.tsx                  # (moved from WorkflowList)
+└── History.tsx                  # Completed flows
+
+frontend/src/components/Notifications/
+├── NotificationBell.tsx         # Bell icon + badge
+├── NotificationPanel.tsx        # Dropdown list
+└── NotificationItem.tsx         # Single item
+
+frontend/src/components/Cockpit/
+└── CommandBar.tsx               # Search + quick actions
+
+frontend/src/components/Calls/
+└── CallTimer.tsx                # Timer component
+
+frontend/src/components/Settings/
+└── NotificationPreferences.tsx  # Preferences UI
+
+frontend/src/hooks/
+└── useActionItemCounts.ts       # Badge counts hook
+```
+
+#### Modified Files (10)
+```
+frontend/src/config/navigation.ts          # Structure + badges
+frontend/src/App.tsx                       # Routes
+frontend/src/components/Layout/Sidebar.tsx # Badge rendering
+frontend/src/components/Layout/Header.tsx  # NotificationBell
+frontend/src/pages/Cockpit/index.tsx       # Cockpit assembly
+frontend/src/pages/Cockpit/CallLog.tsx     # Rename + timer
+frontend/src/components/Shared/ScheduleCallModal.tsx  # Timer integration
+frontend/src/pages/FormsFlows/MyTasks.tsx  # Enhancements
+backend/tenant_apps/workflows/views.py     # Action items counts logic
+```
+
+#### Moved Files (1)
+```
+frontend/src/pages/Workflows/WorkflowList.tsx → frontend/src/pages/FormsFlows/Catalog.tsx
+```
+
+---
+
+### Success Metrics
+
+- [ ] Navigation shows new structure (Cockpit, Calls, Forms & Flows)
+- [ ] Sidebar badges show accurate counts
+- [ ] Notification bell works with unread count
+- [ ] Cockpit loads with draggable widgets
+- [ ] Command bar opens CommandPalette with ⌘K
+- [ ] Entity explorer widget shows graph
+- [ ] Forms & Flows has 4 working sub-pages
+- [ ] Call timer tracks duration
+- [ ] Notification preferences saveable
+- [ ] No regression in existing functionality
+- [ ] Accessible (keyboard nav, screen reader)
+- [ ] Mobile responsive (tablet)
+
+---
+
+### Risk Mitigation
+
+| Risk | Mitigation |
+|------|------------|
+| Action items API incomplete | Task 2.1 focuses on fixing this first |
+| Widget layout conflicts | Use existing WidgetGrid; test thoroughly |
+| Route conflicts | Add redirects for backward compatibility |
+| Performance with many notifications | Paginate, limit to 10 in dropdown |
+| Breaking existing CallLog | Keep old route as redirect |
+
+---
+
+### Post-Implementation (Future Waves)
+
+These items from the original plan are deferred:
+
+1. **SavedEntityGraph** - Model + UI for saving graph explorations
+2. **Email Notification Delivery** - Backend service for sending emails
+3. **Call Intelligence** - Frequency tracking, "overdue contacts"
+4. **Full-Text Search** - PostgreSQL FTS or Elasticsearch
+5. **WebSocket Notifications** - Real-time updates
+6. **Conditional Workflow Paths** - Step conditions, branching
+
+---
+
+### Checklist for Implementation Start
+
+Before starting:
+
+- [ ] Verify all "Already Built" components still exist and work
+- [ ] Run existing tests to establish baseline
+- [ ] Confirm API endpoints are accessible
+- [ ] Review current navigation structure
+- [ ] Check database migrations are up to date
+
+**Ready to implement!** Start with Phase 1, Task 1.1.
+
+---
+
 ## Document History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-01-30 | Team | Initial Forms & Flows plan |
 | 2.0 | 2026-01-31 | Team | Added Cockpit Command Center, Calls overhaul, Entity Graph |
+| 3.0 | 2026-02-02 | Copilot | Added Optimized Implementation Plan - identified 75% existing components, reduced timeline from 25 to 10 days |
 
