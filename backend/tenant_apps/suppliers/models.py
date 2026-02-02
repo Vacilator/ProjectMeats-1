@@ -120,7 +120,7 @@ class Supplier(TenantAwareModel):
         help_text="Multiple contacts associated with this supplier",
     )
     products = models.ManyToManyField(
-        'products.Product',
+        'system.Product',
         related_name="suppliers",
         blank=True,
         help_text="Products available from this supplier",

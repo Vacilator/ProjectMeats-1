@@ -82,7 +82,7 @@ class PurchaseOrder(OrderMethodsMixin, TimestampModel):
         help_text="Supplier for this purchase order",
     )
     product = models.ForeignKey(
-        "products.Product",
+        "system.Product",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -473,7 +473,7 @@ class CarrierPurchaseOrder(TimestampModel):
         help_text="Delivery location for this carrier order",
     )
     product = models.ForeignKey(
-        "products.Product",
+        "system.Product",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -674,7 +674,7 @@ class ColdStorageEntry(TimestampModel):
         help_text="Related customer sales order",
     )
     product = models.ForeignKey(
-        "products.Product",
+        "system.Product",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

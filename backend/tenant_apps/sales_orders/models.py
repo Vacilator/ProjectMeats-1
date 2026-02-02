@@ -72,7 +72,7 @@ class SalesOrder(OrderMethodsMixin, TenantAwareModel):
         help_text="Carrier for this sales order",
     )
     product = models.ForeignKey(
-        "products.Product",
+        "system.Product",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

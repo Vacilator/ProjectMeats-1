@@ -110,7 +110,7 @@ class Customer(TenantAwareModel):
         help_text="Multiple contacts associated with this customer",
     )
     products = models.ManyToManyField(
-        'products.Product',
+        'system.Product',
         related_name="customers",
         blank=True,
         help_text="Products associated with this customer",

@@ -308,7 +308,7 @@ class InquiryProduct(models.Model):
         related_name='products'
     )
     product = models.ForeignKey(
-        'products.Product',
+        'system.Product',
         on_delete=models.CASCADE,
         related_name='inquiry_lines'
     )
@@ -542,7 +542,7 @@ class InquiryTemplateProduct(models.Model):
         related_name='products'
     )
     product = models.ForeignKey(
-        'products.Product',
+        'system.Product',
         on_delete=models.CASCADE,
         related_name='template_lines'
     )

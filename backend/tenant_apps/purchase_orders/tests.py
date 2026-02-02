@@ -17,8 +17,8 @@ from tenant_apps.purchase_orders.models import (
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.customers.models import Customer
-from tenant_apps.products.models import Product
-from tenant_apps.plants.models import Plant
+from apps.system.models import Product
+from tenant_apps.locations.models import Location
 from tenant_apps.sales_orders.models import SalesOrder
 from apps.tenants.models import Tenant, TenantUser
 from apps.core.models import (
@@ -59,15 +59,15 @@ class CarrierPurchaseOrderModelTest(TestCase):
             email=f"supplier-{unique_id}@test.com",
             tenant=self.tenant,
         )
-        self.plant = Plant.objects.create(
+        self.location = Location.objects.create(
             name=f"Test Plant {unique_id}",
             city="Test City",
+            location_type="plant_slaughter",
             tenant=self.tenant,
         )
         self.product = Product.objects.create(
             product_code=f"TEST-{unique_id}",
-            description_of_product_item="Test Product",
-            tenant=self.tenant,
+            name="Test Product",
         )
 
     def test_create_carrier_purchase_order(self):
@@ -93,7 +93,7 @@ class CarrierPurchaseOrderModelTest(TestCase):
         carrier_po = CarrierPurchaseOrder.objects.create(
             carrier=self.carrier,
             supplier=self.supplier,
-            plant=self.plant,
+            plant=self.location,
             product=self.product,
             our_carrier_po_num=f"CPO-{unique_id}",
             type_of_protein=ProteinTypeChoices.BEEF,
@@ -175,8 +175,7 @@ class ColdStorageEntryModelTest(TestCase):
         )
         self.product = Product.objects.create(
             product_code=f"TEST-{unique_id}",
-            description_of_product_item="Test Product",
-            tenant=self.tenant,
+            name="Test Product",
         )
 
     def test_create_cold_storage_entry(self):
