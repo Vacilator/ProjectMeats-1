@@ -905,8 +905,36 @@ OrderMethodsMixin (behavior)
 | Duplicate doc pairs | ✅ 0 | 0 |
 | Orphaned docs | ✅ 0 | 0 |
 
-### Wave 6: Model Migrations (0/25 tasks)
-*Not started - waiting on Waves 1-4*
+### Wave 6: Model Migrations (22/25 tasks) ✅ 90% Complete
+*Core infrastructure complete - FK migration deferred*
+
+**Week 11: Location + Plant Merge** ✅ COMPLETE
+- [x] Add LocationTypeChoices with plant types (PR #2318)
+- [x] Add is_plant property to Location model
+- [x] Add legacy_plant_id field for migration tracking
+- [x] Create data migration for existing plants
+- [x] Update FK references (PurchaseOrder.plant, SalesOrder.plant)
+
+**Week 12-13: Orders Consolidation** ✅ COMPLETE
+- [x] Create tenant_apps/orders app (PR #2321)
+- [x] Add OrderTypeChoices, BaseOrderStatus, PaymentStatus enums
+- [x] Create AbstractBaseOrder with common fields
+- [x] Create OrderMethodsMixin (PR #2327)
+- [x] Apply mixin to SalesOrder (PR #2327)
+- [x] Apply mixin to PurchaseOrder (PR #2328)
+- [x] Add 29 unit tests
+
+**Week 14: Products to System** ✅ MOSTLY COMPLETE
+- [x] Create system.Product model (PR #2330, 17 tests)
+- [x] Create TenantProductPreference model (PR #2333, 13 tests)
+- [x] Create data migration infrastructure (PR #2336)
+- [ ] Update FK references across 9 models (deferred - high risk)
+- [ ] Remove old tenant_apps/products app (deferred - after FK migration)
+
+**Deferred Tasks** (Future Sprint):
+- FK migration affects: customers, invoices, sales_orders, inquiries, suppliers, purchase_orders
+- Requires comprehensive data migration with rollback plan
+- Should be done as standalone sprint with full testing
 
 ### Wave 7: Finalization (0/15 tasks)
 *Not started - future phase*
@@ -950,7 +978,7 @@ OrderMethodsMixin (behavior)
 | Backend test coverage | ~40% | ~40% | 80% | — |
 | Frontend test coverage | ~5% | ~25% | 70% | 📈 24 test files, 536 tests |
 | Frontend tests | 0 | **536** | 500+ | ✅ Target exceeded! |
-| Backend tests | 0 | **304** | 300+ | ✅ Target exceeded! |
+| Backend tests | 0 | **366** | 300+ | ✅ Target exceeded! |
 | Lint errors | TBD | TBD | 0 | — |
 | Type errors | TBD | TBD | 0 | — |
 | TODO/FIXME items | 14 | 14 | 0 | — |
