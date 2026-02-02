@@ -9,7 +9,7 @@
 ## Living Roadmap & Progress Document
 
 **Current Phase**: Wave 6 - Model Migration (In Progress)  
-**Overall Progress**: 88%  
+**Overall Progress**: 89%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -25,7 +25,7 @@
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done   │
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete      │
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
-│  Wave 4: Admin Studio     [█████░░░░░]  50%  ✅ Week 10 Complete     │
+│  Wave 4: Admin Studio     [██████░░░░]  60%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
 │  Wave 6: Model Migration  [███░░░░░░░]  30%  🔄 Orders Base Classes   │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [█████████░]  88%   TOTAL: 1104 tests      │
+│  OVERALL                  [█████████░]  89%   TOTAL: 1104 tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,22 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-03 - Wave 4: Keyboard Shortcuts Complete! ⌨️
+
+**Admin Studio keyboard shortcuts are now implemented!**
+
+#### Keyboard Shortcuts PR (Today):
+- **PR #2324**: Add keyboard shortcuts to Admin Studio editors
+  - ChoiceListEditor: ⌘S save, ⌘N add item, Escape close
+  - TenantConfigEditor: ⌘S save, ⌘N add config, Escape close
+  - Visual keyboard shortcut badges on action buttons
+  - Unsaved changes warning on Escape
+  - Cross-platform support (Cmd on Mac, Ctrl on Windows/Linux)
+
+**Wave 4 Status**: 50% → 60% ✅
+
+---
 
 ### 2026-02-03 - Wave 6: Orders App Base Classes! 🔄
 
