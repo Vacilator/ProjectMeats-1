@@ -390,6 +390,43 @@ const getIconElement = (iconName: string): string => {
 };
 
 // ============================================================================
+// Search Cache (in-memory with TTL)
+// ============================================================================
+
+interface CacheEntry {
+  results: SearchResult[];
+  timestamp: number;
+}
+
+const CACHE_TTL_MS = 30000; // 30 seconds
+const searchCache = new Map<string, CacheEntry>();
+
+const getCachedResults = (query: string): SearchResult[] | null => {
+  const entry = searchCache.get(query);
+  if (!entry) return null;
+  
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    searchCache.delete(query);
+    return null;
+  }
+  
+  return entry.results;
+};
+
+const setCachedResults = (query: string, results: SearchResult[]): void => {
+  // Limit cache size to prevent memory bloat
+  if (searchCache.size > 100) {
+    const oldestKey = searchCache.keys().next().value;
+    searchCache.delete(oldestKey);
+  }
+  
+  searchCache.set(query, {
+    results,
+    timestamp: Date.now(),
+  });
+};
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -428,10 +465,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     }
   };
 
-  // Debounced search
+  // Debounced search with caching
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
+      return;
+    }
+
+    // Check cache first
+    const cached = getCachedResults(query);
+    if (cached) {
+      setResults(cached);
+      setSelectedIndex(0);
       return;
     }
 
@@ -441,7 +486,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         const response = await apiClient.get<SearchResponse>('search/universal/', {
           params: { q: query, limit: 8 }
         });
-        setResults(response.data.results);
+        const fetchedResults = response.data.results;
+        
+        // Cache the results
+        setCachedResults(query, fetchedResults);
+        
+        setResults(fetchedResults);
         setSelectedIndex(0);
       } catch (err) {
         console.error('Search failed:', err);

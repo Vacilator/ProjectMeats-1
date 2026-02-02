@@ -31,6 +31,7 @@ import {
   MyTasksWidget,
   TodaysNumbersWidget,
 } from '../components/Widgets';
+import { apiClient } from '../services/apiService';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -71,16 +72,64 @@ const DEFAULT_LAYOUT: WidgetLayout[] = [
   { i: 'entity-explorer', x: 6, y: 7, w: 6, h: 3 },
 ];
 
-// Widget catalog for adding new widgets
+// Widget catalog for adding new widgets - organized by category
 const WIDGET_CATALOG = [
-  { type: 'TodaysNumbersWidget', title: "Today's Numbers", description: 'Detailed KPI dashboard with trends' },
-  { type: 'MyTasksWidget', title: 'My Tasks', description: 'Your assigned tasks and deadlines' },
-  { type: 'QuickStatsWidget', title: 'Quick Stats', description: 'Key metrics and KPIs' },
-  { type: 'RecentActivityWidget', title: 'Recent Activity', description: 'Activity feed' },
-  { type: 'UpcomingCallsWidget', title: 'Upcoming Calls', description: 'Scheduled callbacks' },
-  { type: 'QuickActionsWidget', title: 'Quick Actions', description: 'Common shortcuts' },
-  { type: 'EntityExplorerWidget', title: 'Entity Explorer', description: 'Browse entities' },
+  { 
+    type: 'TodaysNumbersWidget', 
+    title: "Today's Numbers", 
+    description: 'Detailed KPI dashboard with trends',
+    category: 'metrics',
+    icon: '📊',
+  },
+  { 
+    type: 'MyTasksWidget', 
+    title: 'My Tasks', 
+    description: 'Your assigned tasks and deadlines',
+    category: 'productivity',
+    icon: '✅',
+  },
+  { 
+    type: 'QuickStatsWidget', 
+    title: 'Quick Stats', 
+    description: 'Key metrics and KPIs',
+    category: 'metrics',
+    icon: '📈',
+  },
+  { 
+    type: 'RecentActivityWidget', 
+    title: 'Recent Activity', 
+    description: 'Activity feed',
+    category: 'information',
+    icon: '📰',
+  },
+  { 
+    type: 'UpcomingCallsWidget', 
+    title: 'Upcoming Calls', 
+    description: 'Scheduled callbacks',
+    category: 'productivity',
+    icon: '📞',
+  },
+  { 
+    type: 'QuickActionsWidget', 
+    title: 'Quick Actions', 
+    description: 'Common shortcuts',
+    category: 'productivity',
+    icon: '⚡',
+  },
+  { 
+    type: 'EntityExplorerWidget', 
+    title: 'Entity Explorer', 
+    description: 'Browse and explore entities',
+    category: 'information',
+    icon: '🔍',
+  },
 ];
+
+const WIDGET_CATEGORIES: Record<string, string> = {
+  metrics: '📊 Metrics & KPIs',
+  productivity: '✅ Productivity',
+  information: '📰 Information',
+};
 
 // ============================================================================
 // Styled Components
@@ -328,6 +377,23 @@ const WidgetOptionDescription = styled.div`
   margin-top: 2px;
 `;
 
+const CategoryHeader = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  padding: 8px 0;
+  margin-top: 16px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  
+  &:first-child {
+    margin-top: 0;
+  }
+`;
+
+const WidgetIcon = styled.span`
+  font-size: 20px;
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -339,21 +405,43 @@ export const WorkspacePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [gridWidth, setGridWidth] = useState(1200);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Load saved layout from localStorage
+  // Load saved layout from backend API with localStorage fallback
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: SavedLayout = JSON.parse(saved);
-        if (parsed.version === LAYOUT_VERSION) {
-          setWidgets(parsed.widgets);
-          setLayout(parsed.layout);
+    const loadLayout = async () => {
+      try {
+        // Try backend API first
+        const response = await apiClient.get('cockpit/workspace-layout/');
+        const saved = response.data;
+        if (saved.version === LAYOUT_VERSION) {
+          setWidgets(saved.widgets);
+          setLayout(saved.layout);
+          return;
+        }
+      } catch (err: any) {
+        // 404 means no saved layout - fall through to localStorage
+        if (err.response?.status !== 404) {
+          console.error('Failed to load workspace layout from API:', err);
         }
       }
-    } catch (err) {
-      console.error('Failed to load workspace layout:', err);
-    }
+
+      // Fallback to localStorage
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed: SavedLayout = JSON.parse(saved);
+          if (parsed.version === LAYOUT_VERSION) {
+            setWidgets(parsed.widgets);
+            setLayout(parsed.layout);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load workspace layout from localStorage:', err);
+      }
+    };
+
+    loadLayout();
   }, []);
 
   // Calculate grid width based on container
@@ -369,17 +457,30 @@ export const WorkspacePage: React.FC = () => {
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
-  // Save layout to localStorage
-  const saveLayout = useCallback(() => {
+  // Save layout to both backend API and localStorage
+  const saveLayout = useCallback(async () => {
+    const data: SavedLayout = {
+      layout,
+      widgets,
+      version: LAYOUT_VERSION,
+    };
+
+    // Always save to localStorage as fallback
     try {
-      const data: SavedLayout = {
-        layout,
-        widgets,
-        version: LAYOUT_VERSION,
-      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (err) {
-      console.error('Failed to save workspace layout:', err);
+      console.error('Failed to save workspace layout to localStorage:', err);
+    }
+
+    // Also save to backend API
+    try {
+      setIsSaving(true);
+      await apiClient.put('cockpit/workspace-layout/', data);
+    } catch (err) {
+      console.error('Failed to save workspace layout to API:', err);
+      // localStorage already has the backup
+    } finally {
+      setIsSaving(false);
     }
   }, [layout, widgets]);
 
@@ -389,16 +490,27 @@ export const WorkspacePage: React.FC = () => {
   }, []);
 
   // Save and exit edit mode
-  const handleSaveLayout = useCallback(() => {
-    saveLayout();
+  const handleSaveLayout = useCallback(async () => {
+    await saveLayout();
     setIsEditing(false);
   }, [saveLayout]);
 
   // Reset to default layout
-  const handleResetLayout = useCallback(() => {
+  const handleResetLayout = useCallback(async () => {
     setWidgets(DEFAULT_WIDGETS);
     setLayout(DEFAULT_LAYOUT);
     localStorage.removeItem(STORAGE_KEY);
+    
+    // Also delete from backend
+    try {
+      await apiClient.delete('cockpit/workspace-layout/');
+    } catch (err) {
+      // 404 is fine - no saved layout to delete
+      if ((err as any).response?.status !== 404) {
+        console.error('Failed to reset workspace layout in API:', err);
+      }
+    }
+    
     setIsEditing(false);
   }, []);
 
@@ -466,9 +578,9 @@ export const WorkspacePage: React.FC = () => {
                 <RotateCcw size={16} />
                 Reset
               </ActionButton>
-              <ActionButton $variant="primary" onClick={handleSaveLayout}>
+              <ActionButton $variant="primary" onClick={handleSaveLayout} disabled={isSaving}>
                 <Lock size={16} />
-                Save & Lock
+                {isSaving ? 'Saving...' : 'Save & Lock'}
               </ActionButton>
             </>
           ) : (
@@ -516,20 +628,30 @@ export const WorkspacePage: React.FC = () => {
             </ModalClose>
           </ModalHeader>
           <ModalBody>
-            {WIDGET_CATALOG.map(item => (
-              <WidgetOption 
-                key={item.type}
-                onClick={() => handleAddWidget(item.type, item.title)}
-              >
-                <WidgetOptionIcon>
-                  <LayoutGrid size={18} />
-                </WidgetOptionIcon>
-                <WidgetOptionContent>
-                  <WidgetOptionTitle>{item.title}</WidgetOptionTitle>
-                  <WidgetOptionDescription>{item.description}</WidgetOptionDescription>
-                </WidgetOptionContent>
-              </WidgetOption>
-            ))}
+            {Object.entries(WIDGET_CATEGORIES).map(([category, label]) => {
+              const categoryWidgets = WIDGET_CATALOG.filter(w => w.category === category);
+              if (categoryWidgets.length === 0) return null;
+              
+              return (
+                <div key={category}>
+                  <CategoryHeader>{label}</CategoryHeader>
+                  {categoryWidgets.map(item => (
+                    <WidgetOption 
+                      key={item.type}
+                      onClick={() => handleAddWidget(item.type, item.title)}
+                    >
+                      <WidgetOptionIcon>
+                        <WidgetIcon>{item.icon}</WidgetIcon>
+                      </WidgetOptionIcon>
+                      <WidgetOptionContent>
+                        <WidgetOptionTitle>{item.title}</WidgetOptionTitle>
+                        <WidgetOptionDescription>{item.description}</WidgetOptionDescription>
+                      </WidgetOptionContent>
+                    </WidgetOption>
+                  ))}
+                </div>
+              );
+            })}
           </ModalBody>
         </ModalContent>
       </ModalOverlay>

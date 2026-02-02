@@ -2,14 +2,14 @@
 
 **Status**: 🔄 LIVING DOCUMENT  
 **Category**: Plans  
-**Last Updated**: 2026-02-03
+**Last Updated**: 2026-02-02
 
 ---
 
 ## Living Roadmap & Progress Document
 
-**Current Phase**: Wave 6 - Model Migration (COMPLETE!)  
-**Overall Progress**: 96%  
+**Current Phase**: Wave 2 Cockpit Complete!  
+**Overall Progress**: 97%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -23,7 +23,7 @@
 │                                                                      │
 │  Wave 0: Preparation      [████████░░]  80%  ✅ Core Tasks Done      │
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done   │
-│  Wave 2: Cockpit          [████████░░]  83%  ✅ Near Complete        │
+│  Wave 2: Cockpit          [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [██████░░░░]  65%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [█████████░]  96%   TOTAL: 1166 tests      │
+│  OVERALL                  [█████████░]  97%   TOTAL: 1166+ tests     │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -789,7 +789,7 @@ OrderMethodsMixin (behavior)
 - [ ] Delete `system_config` app (has 1 record - needs migration plan)
 - [x] Document changes
 
-### Wave 2: Cockpit Command Center (40/48 tasks) ✅ NEAR COMPLETE
+### Wave 2: Cockpit Command Center (48/48 tasks) ✅ COMPLETE
 
 **Week 5: Backend APIs ✅ COMPLETE**
 - [x] Universal Search API (PR #2212)
@@ -806,12 +806,14 @@ OrderMethodsMixin (behavior)
 - [x] CommandPalette component (⌘K / Ctrl+K) (PR #2212)
 - [x] Keyboard navigation (PR #2212)
 - [x] Search debouncing (200ms) (PR #2212)
+- [x] Search caching layer (30s TTL) (PR #2372)
 - [x] Recent items section (PR #2212)
 - [x] Quick actions integration (PR #2358)
 
 **Week 7: Entity Graph Visualization ✅ COMPLETE**
 - [x] Graph library setup (react-flow) (PR #2215)
 - [x] EntityNode component (PR #2215)
+- [x] EntityEdge component with relationship colors (PR #2372)
 - [x] EntityGraph component (PR #2215)
 - [x] Graph layout algorithms (PR #2215)
 - [x] Node expansion on double-click (PR #2361)
@@ -831,8 +833,10 @@ OrderMethodsMixin (behavior)
 - [x] WorkspacePage assembly (PR #2218)
 - [x] Workspace API endpoints (PR #2218)
 - [x] Layout persistence (localStorage) (PR #2218)
+- [x] Backend layout persistence API (PR #2372)
 - [x] Feature flag: /workspace route (PR #2218)
 - [x] Widget removal UI in edit mode (PR #2371)
+- [x] Widget catalog with categories (PR #2372)
 - [x] /cockpit route redirect (PR #2371)
 
 ### Wave 3: Forms & Flows Enhancement (52/52 tasks) ✅ COMPLETE

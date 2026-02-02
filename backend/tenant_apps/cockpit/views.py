@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
+from rest_framework.views import APIView
 from django.db.models import Q
 from django.db import IntegrityError
 from django.utils import timezone
@@ -19,8 +20,9 @@ from .serializers import (
     OrderSlotSerializer,
     ActivityLogSerializer,
     ScheduledCallSerializer,
+    UserWorkspaceLayoutSerializer,
 )
-from .models import ActivityLog, ScheduledCall
+from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
 from tenant_apps.customers.models import Customer
 
 logger = logging.getLogger(__name__)
@@ -254,3 +256,74 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
             created_by=user,
             tags='call,scheduled-call,auto-generated'
         )
+
+
+class WorkspaceLayoutView(APIView):
+    """
+    API view for managing user workspace layouts.
+    
+    GET: Retrieve the current user's workspace layout
+    PUT: Save/update the current user's workspace layout
+    DELETE: Reset to default layout (deletes saved layout)
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get the current user's workspace layout."""
+        try:
+            layout = UserWorkspaceLayout.objects.get(user=request.user)
+            serializer = UserWorkspaceLayoutSerializer(layout)
+            return Response(serializer.data)
+        except UserWorkspaceLayout.DoesNotExist:
+            return Response(
+                {"detail": "No saved layout found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    def put(self, request):
+        """Save or update the user's workspace layout."""
+        try:
+            layout, created = UserWorkspaceLayout.objects.get_or_create(
+                user=request.user,
+                defaults={
+                    'layout': request.data.get('layout', []),
+                    'widgets': request.data.get('widgets', []),
+                    'version': request.data.get('version', 1),
+                }
+            )
+            
+            if not created:
+                # Update existing layout
+                serializer = UserWorkspaceLayoutSerializer(
+                    layout, 
+                    data=request.data, 
+                    partial=True
+                )
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                return Response(serializer.data)
+            
+            serializer = UserWorkspaceLayoutSerializer(layout)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Error saving workspace layout: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Failed to save layout", "detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    def delete(self, request):
+        """Delete the user's saved layout (reset to default)."""
+        try:
+            layout = UserWorkspaceLayout.objects.get(user=request.user)
+            layout.delete()
+            return Response(
+                {"detail": "Layout reset to default"},
+                status=status.HTTP_204_NO_CONTENT
+            )
+        except UserWorkspaceLayout.DoesNotExist:
+            return Response(
+                {"detail": "No saved layout to delete"},
+                status=status.HTTP_404_NOT_FOUND
+            )

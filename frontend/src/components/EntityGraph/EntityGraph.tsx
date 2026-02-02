@@ -31,6 +31,7 @@ import styled from 'styled-components';
 import { X, Edit2, ExternalLink, ChevronRight } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import { EntityNode, EntityNodeData } from './EntityNode';
+import EntityEdge from './EntityEdge';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -321,17 +322,10 @@ const createEdges = (edges: GraphEdge[]): Edge[] => {
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    label: edge.label,
-    type: 'smoothstep',
-    animated: false,
-    style: { stroke: 'rgb(var(--color-border))' },
-    labelStyle: { 
-      fontSize: 10, 
-      fill: 'rgb(var(--color-text-secondary))',
-    },
-    labelBgStyle: { 
-      fill: 'rgb(var(--color-surface))',
-      fillOpacity: 0.9,
+    type: 'entityEdge',
+    data: {
+      label: edge.label,
+      relationship: edge.relationship,
     },
     markerEnd: {
       type: MarkerType.ArrowClosed,
@@ -346,6 +340,10 @@ const createEdges = (edges: GraphEdge[]): Edge[] => {
 
 const nodeTypes = {
   entityNode: EntityNode,
+};
+
+const edgeTypes = {
+  entityEdge: EntityEdge,
 };
 
 export const EntityGraph: React.FC<EntityGraphProps> = ({
@@ -544,6 +542,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({
           onNodeClick={handleNodeClick}
           onNodeDoubleClick={handleNodeDoubleClick}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           defaultViewport={defaultViewport}
           connectionLineType={ConnectionLineType.SmoothStep}
           fitView
