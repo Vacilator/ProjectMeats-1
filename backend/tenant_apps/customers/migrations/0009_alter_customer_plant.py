@@ -12,6 +12,21 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # 1) Clean up orphaned plant_id values that don't exist in locations_location
+        # This prevents FK violation when altering the constraint
+        migrations.RunSQL(
+            sql="""
+                UPDATE customers_customer c
+                SET plant_id = NULL
+                WHERE plant_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM locations_location l
+                      WHERE l.id = c.plant_id
+                  );
+            """,
+            reverse_sql=migrations.RunSQL.noop,
+        ),
+        # 2) Now safe to alter the FK constraint
         migrations.AlterField(
             model_name="customer",
             name="plant",
