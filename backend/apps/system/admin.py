@@ -240,6 +240,32 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
         if not change:  # New object
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+    
+    def has_change_permission(self, request, obj=None):
+        """
+        Tier-based permission: Non-extensible lists require superuser to modify.
+        """
+        if obj is None:
+            return super().has_change_permission(request, obj)
+        
+        # Non-extensible (system-only) lists require superuser
+        if not obj.is_extensible and not request.user.is_superuser:
+            return False
+        
+        return super().has_change_permission(request, obj)
+    
+    def has_delete_permission(self, request, obj=None):
+        """
+        Tier-based permission: Only superusers can delete choice lists.
+        """
+        if obj is None:
+            return super().has_delete_permission(request, obj)
+        
+        # Only superusers can delete lists (prevent accidental deletions)
+        if not request.user.is_superuser:
+            return False
+        
+        return super().has_delete_permission(request, obj)
 
 
 @admin.register(SystemChoiceItem)
@@ -292,6 +318,34 @@ class SystemChoiceItemAdmin(admin.ModelAdmin):
             return format_html('<span style="color: blue;">🔒 System</span>')
         return format_html('<span style="color: orange;">🏢 Tenant</span>')
     scope_display.short_description = 'Scope'
+    
+    def has_change_permission(self, request, obj=None):
+        """
+        Tier-based permission: Only superusers can modify system-level items.
+        Tenant-specific items can be modified by staff with change permission.
+        """
+        if obj is None:
+            return super().has_change_permission(request, obj)
+        
+        # System-level items (tenant=None) require superuser
+        if obj.is_system_defined and not request.user.is_superuser:
+            return False
+        
+        return super().has_change_permission(request, obj)
+    
+    def has_delete_permission(self, request, obj=None):
+        """
+        Tier-based permission: Only superusers can delete system-level items.
+        Tenant-specific items can be deleted by staff with delete permission.
+        """
+        if obj is None:
+            return super().has_delete_permission(request, obj)
+        
+        # System-level items (tenant=None) require superuser
+        if obj.is_system_defined and not request.user.is_superuser:
+            return False
+        
+        return super().has_delete_permission(request, obj)
 
 
 @admin.register(SystemFieldSchema)

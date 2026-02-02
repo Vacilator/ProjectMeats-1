@@ -271,3 +271,180 @@ class TenantProductPreferenceTest(TestCase):
         """Test auto-populated timestamp fields."""
         self.assertIsNotNone(self.preference.created_at)
         self.assertIsNotNone(self.preference.updated_at)
+
+
+class TierBasedPermissionTest(TestCase):
+    """Test tier-based permission enforcement in admin."""
+    
+    def setUp(self):
+        """Set up test data with system and tenant items."""
+        from django.contrib.auth.models import User
+        from apps.system.models import SystemChoiceList, SystemChoiceItem
+        from apps.tenants.models import Tenant
+        
+        # Create users
+        self.superuser = User.objects.create_superuser(
+            username='superadmin',
+            email='super@test.com',
+            password='superpass123'
+        )
+        self.staff_user = User.objects.create_user(
+            username='staffuser',
+            email='staff@test.com',
+            password='staffpass123',
+            is_staff=True,
+        )
+        
+        # Create tenant for tenant-specific items
+        self.tenant = Tenant.objects.create(
+            name='Test Tenant',
+            slug='test-tenant',
+            contact_email='test@tenant.com',
+            created_by=self.superuser,
+        )
+        
+        # Create a choice list
+        self.choice_list = SystemChoiceList.objects.create(
+            slug='test-permissions-list',
+            name='Test Permissions List',
+            is_extensible=True,
+        )
+        
+        # Create system-level item (tenant=None)
+        self.system_item = SystemChoiceItem.objects.create(
+            choice_list=self.choice_list,
+            value='system_value',
+            label='System Item',
+            tenant=None,  # System-level
+        )
+        
+        # Create tenant-specific item
+        self.tenant_item = SystemChoiceItem.objects.create(
+            choice_list=self.choice_list,
+            value='tenant_value',
+            label='Tenant Item',
+            tenant=self.tenant,  # Tenant-level
+        )
+    
+    def test_system_item_is_system_defined(self):
+        """Test is_system_defined property for system items."""
+        self.assertTrue(self.system_item.is_system_defined)
+        self.assertFalse(self.tenant_item.is_system_defined)
+    
+    def test_superuser_can_modify_system_item(self):
+        """Test that superuser can modify system-level items."""
+        from apps.system.admin import SystemChoiceItemAdmin
+        from apps.system.models import SystemChoiceItem
+        from django.contrib.admin.sites import AdminSite
+        from django.test import RequestFactory
+        
+        admin = SystemChoiceItemAdmin(SystemChoiceItem, AdminSite())
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.user = self.superuser
+        
+        # Superuser should have change permission for system items
+        self.assertTrue(admin.has_change_permission(request, self.system_item))
+        self.assertTrue(admin.has_delete_permission(request, self.system_item))
+    
+    def test_staff_cannot_modify_system_item(self):
+        """Test that staff user cannot modify system-level items."""
+        from apps.system.admin import SystemChoiceItemAdmin
+        from apps.system.models import SystemChoiceItem
+        from django.contrib.admin.sites import AdminSite
+        from django.test import RequestFactory
+        
+        admin = SystemChoiceItemAdmin(SystemChoiceItem, AdminSite())
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.user = self.staff_user
+        
+        # Staff should NOT have change permission for system items
+        self.assertFalse(admin.has_change_permission(request, self.system_item))
+        self.assertFalse(admin.has_delete_permission(request, self.system_item))
+    
+    def test_staff_can_modify_tenant_item(self):
+        """Test that staff user with permission can modify tenant-specific items."""
+        from apps.system.admin import SystemChoiceItemAdmin
+        from apps.system.models import SystemChoiceItem
+        from django.contrib.admin.sites import AdminSite
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+        from django.test import RequestFactory
+        
+        # Grant staff user change and delete permissions
+        content_type = ContentType.objects.get_for_model(SystemChoiceItem)
+        change_permission = Permission.objects.get(
+            codename='change_systemchoiceitem',
+            content_type=content_type,
+        )
+        delete_permission = Permission.objects.get(
+            codename='delete_systemchoiceitem',
+            content_type=content_type,
+        )
+        self.staff_user.user_permissions.add(change_permission, delete_permission)
+        
+        admin = SystemChoiceItemAdmin(SystemChoiceItem, AdminSite())
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.user = self.staff_user
+        
+        # Staff should have change permission for tenant items
+        self.assertTrue(admin.has_change_permission(request, self.tenant_item))
+        self.assertTrue(admin.has_delete_permission(request, self.tenant_item))
+    
+    def test_non_extensible_list_requires_superuser(self):
+        """Test that non-extensible lists require superuser to modify."""
+        from apps.system.admin import SystemChoiceListAdmin
+        from apps.system.models import SystemChoiceList
+        from django.contrib.admin.sites import AdminSite
+        from django.test import RequestFactory
+        
+        # Create a non-extensible list
+        locked_list = SystemChoiceList.objects.create(
+            slug='locked-list',
+            name='Locked System List',
+            is_extensible=False,  # System-only
+        )
+        
+        admin = SystemChoiceListAdmin(SystemChoiceList, AdminSite())
+        factory = RequestFactory()
+        
+        # Superuser request
+        super_request = factory.get('/')
+        super_request.user = self.superuser
+        
+        # Staff request
+        staff_request = factory.get('/')
+        staff_request.user = self.staff_user
+        
+        # Superuser should have change permission
+        self.assertTrue(admin.has_change_permission(super_request, locked_list))
+        
+        # Staff should NOT have change permission for non-extensible lists
+        self.assertFalse(admin.has_change_permission(staff_request, locked_list))
+    
+    def test_extensible_list_allows_staff_modification(self):
+        """Test that extensible lists can be modified by staff with permission."""
+        from apps.system.admin import SystemChoiceListAdmin
+        from apps.system.models import SystemChoiceList
+        from django.contrib.admin.sites import AdminSite
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+        from django.test import RequestFactory
+        
+        # Grant staff user change permission on SystemChoiceList
+        content_type = ContentType.objects.get_for_model(SystemChoiceList)
+        change_permission = Permission.objects.get(
+            codename='change_systemchoicelist',
+            content_type=content_type,
+        )
+        self.staff_user.user_permissions.add(change_permission)
+        
+        admin = SystemChoiceListAdmin(SystemChoiceList, AdminSite())
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.user = self.staff_user
+        
+        # Extensible list should allow staff modification
+        self.assertTrue(admin.has_change_permission(request, self.choice_list))
