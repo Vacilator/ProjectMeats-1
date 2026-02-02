@@ -67,6 +67,7 @@ _PROJECT_APPS = [
     "tenant_apps.inquiries",  # Inquiry management
     "tenant_apps.invoices",
     "tenant_apps.locations",
+    "tenant_apps.orders",  # Wave 6: Abstract base order classes
     "tenant_apps.plants",
     "tenant_apps.products",
     "tenant_apps.purchase_orders",
