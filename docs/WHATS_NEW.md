@@ -23,7 +23,11 @@
 
 **Short Answer**: Most of the work is infrastructure that enables future features. The UI changes are intentionally subtle to maintain backward compatibility.
 
-**Detailed Explanation**: See [WAVE_2_COMPLETION_EXPLAINED.md](./implementation-history/WAVE_2_COMPLETION_EXPLAINED.md) for:
+**Detailed Explanation**: 
+- 📄 **Quick Reference**: [WAVE_2_QUICK_REFERENCE.md](./implementation-history/WAVE_2_QUICK_REFERENCE.md) - Print-friendly one-pager
+- 📖 **Deep Dive**: [WAVE_2_COMPLETION_EXPLAINED.md](./implementation-history/WAVE_2_COMPLETION_EXPLAINED.md) - Complete technical breakdown
+
+**What you'll learn**:
 - Complete breakdown of all 48 completed tasks
 - Technical deep dive into what changed under the hood
 - Why the changes feel subtle (90% infrastructure, 10% UI)
