@@ -309,7 +309,9 @@ class InquiryProduct(models.Model):
     )
     product = models.ForeignKey(
         'system.Product',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='inquiry_lines'
     )
     quantity = models.DecimalField(
@@ -543,7 +545,9 @@ class InquiryTemplateProduct(models.Model):
     )
     product = models.ForeignKey(
         'system.Product',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='template_lines'
     )
     

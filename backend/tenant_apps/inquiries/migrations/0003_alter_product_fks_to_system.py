@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # InquiryProduct: Remove old FK, add new UUID FK
+        # InquiryProduct: Remove old FK, add new UUID FK (nullable)
         migrations.RemoveField(
             model_name='inquiryproduct',
             name='product',
@@ -20,12 +20,14 @@ class Migration(migrations.Migration):
             model_name='inquiryproduct',
             name='product',
             field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
+                null=True,
+                blank=True,
+                on_delete=django.db.models.deletion.SET_NULL,
                 related_name='inquiry_lines',
                 to='system.product',
             ),
         ),
-        # InquiryTemplateProduct: Remove old FK, add new UUID FK
+        # InquiryTemplateProduct: Remove old FK, add new UUID FK (nullable)
         migrations.RemoveField(
             model_name='inquirytemplateproduct',
             name='product',
@@ -34,7 +36,9 @@ class Migration(migrations.Migration):
             model_name='inquirytemplateproduct',
             name='product',
             field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
+                null=True,
+                blank=True,
+                on_delete=django.db.models.deletion.SET_NULL,
                 related_name='template_lines',
                 to='system.product',
             ),
