@@ -119,11 +119,15 @@ interface CacheEntry<T> {
 interface ConfigCache {
   tenantConfigs?: CacheEntry<TenantConfig[]>;
   choiceLists?: CacheEntry<Record<string, SystemChoiceList>>;
+  allChoiceLists?: CacheEntry<SystemChoiceList[]>;
   fieldSchemas?: CacheEntry<Record<string, SystemFieldSchema[]>>;
   resolvedConfigs?: CacheEntry<Record<string, ResolvedConfig>>;
 }
 
 let memoryCache: ConfigCache = {};
+
+// Pending requests deduplication (prevent duplicate API calls)
+const pendingRequests: Record<string, Promise<unknown>> = {};
 
 /**
  * Check if cache entry is still valid
@@ -302,8 +306,46 @@ export async function resolveConfigs(
  * Get all choice lists
  */
 export async function getChoiceLists(): Promise<SystemChoiceList[]> {
-  const response = await apiClient.get('/system/choice-lists/');
-  return response.data.results || response.data;
+  // Check cache first
+  if (isCacheValid(memoryCache.allChoiceLists)) {
+    return memoryCache.allChoiceLists.data;
+  }
+
+  // Deduplicate concurrent requests
+  const cacheKey = 'allChoiceLists';
+  if (pendingRequests[cacheKey]) {
+    return pendingRequests[cacheKey] as Promise<SystemChoiceList[]>;
+  }
+
+  pendingRequests[cacheKey] = (async () => {
+    try {
+      const response = await apiClient.get('/system/choice-lists/');
+      const lists = response.data.results || response.data;
+      
+      // Cache the full list
+      memoryCache.allChoiceLists = {
+        data: lists,
+        timestamp: Date.now(),
+      };
+      
+      // Also populate individual choice list cache
+      if (!memoryCache.choiceLists) {
+        memoryCache.choiceLists = {
+          data: {},
+          timestamp: Date.now(),
+        };
+      }
+      for (const list of lists) {
+        memoryCache.choiceLists.data[list.slug] = list;
+      }
+      
+      return lists;
+    } finally {
+      delete pendingRequests[cacheKey];
+    }
+  })();
+
+  return pendingRequests[cacheKey] as Promise<SystemChoiceList[]>;
 }
 
 /**
@@ -318,19 +360,33 @@ export async function getChoiceList(slug: string): Promise<SystemChoiceList> {
     return memoryCache.choiceLists.data[slug];
   }
 
-  const response = await apiClient.get(`/system/config/choices/${slug}/`);
-  const choiceList = response.data;
-
-  // Cache it
-  if (!memoryCache.choiceLists) {
-    memoryCache.choiceLists = {
-      data: {},
-      timestamp: Date.now(),
-    };
+  // Deduplicate concurrent requests for the same slug
+  const cacheKey = `choiceList_${slug}`;
+  if (pendingRequests[cacheKey]) {
+    return pendingRequests[cacheKey] as Promise<SystemChoiceList>;
   }
-  memoryCache.choiceLists.data[slug] = choiceList;
 
-  return choiceList;
+  pendingRequests[cacheKey] = (async () => {
+    try {
+      const response = await apiClient.get(`/system/config/choices/${slug}/`);
+      const choiceList = response.data;
+
+      // Cache it
+      if (!memoryCache.choiceLists) {
+        memoryCache.choiceLists = {
+          data: {},
+          timestamp: Date.now(),
+        };
+      }
+      memoryCache.choiceLists.data[slug] = choiceList;
+
+      return choiceList;
+    } finally {
+      delete pendingRequests[cacheKey];
+    }
+  })();
+
+  return pendingRequests[cacheKey] as Promise<SystemChoiceList>;
 }
 
 /**
@@ -496,6 +552,84 @@ export async function getBusinessRules(): Promise<{
 }
 
 // =============================================================================
+// Preloading & Batch Operations
+// =============================================================================
+
+/**
+ * Preload common configuration data for faster initial page loads.
+ * Call this during app initialization or after login.
+ */
+export async function preloadConfig(): Promise<void> {
+  await Promise.all([
+    getChoiceLists(),
+    getTenantConfigsByCategory(),
+    getFeatureFlags(),
+  ]);
+}
+
+/**
+ * Batch fetch multiple choice lists by slug.
+ * More efficient than individual getChoiceList calls.
+ */
+export async function getChoiceListsBatch(
+  slugs: string[]
+): Promise<Record<string, SystemChoiceList>> {
+  const results: Record<string, SystemChoiceList> = {};
+  const uncachedSlugs: string[] = [];
+
+  // Check cache first
+  for (const slug of slugs) {
+    if (
+      isCacheValid(memoryCache.choiceLists) &&
+      memoryCache.choiceLists.data[slug]
+    ) {
+      results[slug] = memoryCache.choiceLists.data[slug];
+    } else {
+      uncachedSlugs.push(slug);
+    }
+  }
+
+  // Fetch uncached in parallel
+  if (uncachedSlugs.length > 0) {
+    const fetched = await Promise.all(
+      uncachedSlugs.map((slug) => getChoiceList(slug).catch(() => null))
+    );
+    
+    uncachedSlugs.forEach((slug, index) => {
+      const list = fetched[index];
+      if (list) {
+        results[slug] = list;
+      }
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Get cache statistics for debugging
+ */
+export function getCacheStats(): {
+  choiceListsCached: number;
+  tenantConfigsCached: boolean;
+  resolvedConfigsCached: number;
+  cacheAge: number | null;
+} {
+  return {
+    choiceListsCached: memoryCache.choiceLists
+      ? Object.keys(memoryCache.choiceLists.data).length
+      : 0,
+    tenantConfigsCached: !!memoryCache.tenantConfigs,
+    resolvedConfigsCached: memoryCache.resolvedConfigs
+      ? Object.keys(memoryCache.resolvedConfigs.data).length
+      : 0,
+    cacheAge: memoryCache.choiceLists
+      ? Date.now() - memoryCache.choiceLists.timestamp
+      : null,
+  };
+}
+
+// =============================================================================
 // Service Export
 // =============================================================================
 
@@ -517,6 +651,7 @@ export const configService = {
   getChoiceList,
   getChoiceItems,
   getChoiceOptions,
+  getChoiceListsBatch,
 
   // Field Schemas
   getFieldSchemas,
@@ -531,7 +666,9 @@ export const configService = {
   getThemeConfig,
   getBusinessRules,
 
-  // Cache Management
+  // Preloading & Cache
+  preloadConfig,
+  getCacheStats,
   clearCache: clearConfigCache,
 };
 
