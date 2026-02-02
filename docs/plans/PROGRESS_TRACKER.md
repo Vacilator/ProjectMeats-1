@@ -27,7 +27,7 @@
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [██████░░░░]  60%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
-│  Wave 6: Model Migration  [██████░░░░]  60%  ✅ Orders Complete!      │
+│  Wave 6: Model Migration  [███████░░░]  70%  ✅ Products Phase 1!     │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
 │  NEW WAVES (v3.0):                                                   │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [█████████░]  90%   TOTAL: 1104 tests      │
+│  OVERALL                  [█████████░]  91%   TOTAL: 1121 tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,28 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-03 - Wave 6: Products to System (Phase 1) 📦
+
+**System-wide Product model created!**
+
+- **PR #2330**: Add system.Product model
+  - UUID primary key for cross-system references
+  - No tenant FK (shared across all tenants)
+  - `legacy_tenant_product_id` for migration tracking
+  - 17 unit tests
+
+**Wave 6 Status**: 60% → 70% ✅
+
+**Product Migration Architecture**:
+```
+Phase 1: ✅ Create system.Product model
+Phase 2: ⏳ Data migration from tenant_apps.products
+Phase 3: ⏳ Update FK references across apps
+Phase 4: ⏳ Remove old tenant_apps/products
+```
+
+---
 
 ### 2026-02-03 - Wave 6: Orders Consolidation COMPLETE! 🎉
 
