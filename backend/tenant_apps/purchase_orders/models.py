@@ -4,6 +4,7 @@ Purchase Orders models for ProjectMeats.
 Defines purchase order entities and related business logic.
 
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
+Uses OrderMethodsMixin for shared order behavior (payment calculations, status checks).
 """
 from decimal import Decimal
 from django.db import models
@@ -27,6 +28,7 @@ from apps.core.models import (
     WeightUnitChoices,
     TenantManager,
 )
+from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
 
 
 class PurchaseOrderStatus(models.TextChoices):
@@ -38,12 +40,12 @@ class PurchaseOrderStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
-class PaymentStatus(models.TextChoices):
-    """Payment status choices for purchase orders."""
-
-    UNPAID = "unpaid", "Unpaid"
-    PARTIAL = "partial", "Partial"
-    PAID = "paid", "Paid"
+# Note: PaymentStatus is now imported from orders.models for consistency
+# Local definition kept for backward compatibility reference:
+# class PaymentStatus(models.TextChoices):
+#     UNPAID = "unpaid", "Unpaid"
+#     PARTIAL = "partial", "Partial"
+#     PAID = "paid", "Paid"
 
 
 class LogisticsScenarioChoices(models.TextChoices):
@@ -54,8 +56,14 @@ class LogisticsScenarioChoices(models.TextChoices):
     WE_PICKUP = "we_pickup", "We Pickup (Our Logistics)"
 
 
-class PurchaseOrder(TimestampModel):
-    """Purchase Order model for managing purchase orders."""
+class PurchaseOrder(OrderMethodsMixin, TimestampModel):
+    """
+    Purchase Order model for managing purchase orders.
+    
+    Inherits from OrderMethodsMixin for shared order behavior:
+    - is_paid, is_complete, has_outstanding_balance properties
+    - calculate_outstanding(), update_payment_status() methods
+    """
     # Use custom manager for multi-tenancy
     objects = TenantManager()
 
