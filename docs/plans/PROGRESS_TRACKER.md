@@ -22,7 +22,7 @@
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  Wave 0: Preparation      [████████░░]  80%  ✅ Core Tasks Done      │
-│  Wave 1: Foundation       [██████░░░░]  55%  ✅ Week 4 Complete    │
+│  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done  │
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
 │  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
@@ -60,6 +60,22 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-02 - Wave 1: configService Frontend Service (PR #2268 ✅ MERGED)
+
+**Added comprehensive configuration service**:
+- `configService.ts`: Full API integration for 3-tier config system
+- `configService.test.ts`: 29 unit tests covering all functionality
+
+**Features**:
+- Tenant config CRUD operations
+- Config resolution with cascade lookup (tenant → system → default)
+- Choice list helpers for dropdowns
+- Field schema helpers for dynamic forms
+- Feature flag checking
+- Memory caching with 5-minute TTL
+
+**Wave 1 Progress**: 23/40 tasks complete (58%)
 
 ### 2026-02-02 - Wave T: Backend Testing COMPLETE! 🎉
 
@@ -303,7 +319,7 @@
 
 | Task | Assignee | Due | Status |
 |------|----------|-----|--------|
-| Create `configService.ts` frontend service | Dev | Sprint 1 | ⏳ Deferred |
+| Create `configService.ts` frontend service | Dev | Sprint 1 | ✅ Done (PR #2268) |
 | Delete `system_config` app (needs migration) | Dev | Sprint 2 | ⏳ Blocked |
 | Audit admin-studio system_config usage | Dev | Sprint 1 | ⏳ Deferred |
 
@@ -332,7 +348,7 @@
 
 ## Detailed Wave Progress
 
-### Wave 1: Foundation (22/40 tasks)
+### Wave 1: Foundation (23/40 tasks)
 
 #### Week 1: Safe Deletions & New Models ✅
 - [x] Delete `schema_builder` app (PR #2201)
@@ -351,7 +367,7 @@
 - [x] Create `GET /api/v1/config/choices/{key}/` endpoint (PR #2204)
 - [x] Create `GET /api/v1/config/fields/{entity_type}/` endpoint (PR #2204)
 - [x] Create `POST /api/v1/config/tenant/` endpoint (PR #2204)
-- [ ] Create `configService.ts` frontend service (deferred)
+- [x] Create `configService.ts` frontend service (PR #2268)
 - [x] Seed proteins from existing data (PR #2204)
 - [x] Seed statuses from TextChoices (PR #2204)
 - [x] Seed contact types (PR #2204)
