@@ -155,3 +155,119 @@ class ProductCategoryChoicesTest(TestCase):
         """Test category labels are human-readable."""
         self.assertEqual(ProductCategoryChoices.BEEF.label, 'Beef')
         self.assertEqual(ProductCategoryChoices.SEAFOOD.label, 'Seafood')
+
+
+class TenantProductPreferenceTest(TestCase):
+    """Test the TenantProductPreference model."""
+    
+    def setUp(self):
+        """Create test data."""
+        from apps.tenants.models import Tenant
+        
+        # Create tenant
+        self.tenant = Tenant.objects.create(
+            name='Test Meat Company',
+            slug='test-meat',
+        )
+        
+        # Create product
+        self.product = Product.objects.create(
+            product_code='BEEF-RIBEYE-001',
+            name='Choice Ribeye Steak',
+            category=ProductCategoryChoices.BEEF,
+        )
+        
+        # Import here to avoid circular imports
+        from apps.system.models import TenantProductPreference
+        self.TenantProductPreference = TenantProductPreference
+        
+        # Create preference
+        self.preference = TenantProductPreference.objects.create(
+            tenant=self.tenant,
+            product=self.product,
+            display_name='Premium Ribeye',
+            internal_code='RIB-001',
+            default_price=Decimal('25.99'),
+            default_cost=Decimal('18.50'),
+            is_active=True,
+        )
+    
+    def test_preference_creation(self):
+        """Test that a preference can be created."""
+        self.assertEqual(self.preference.tenant, self.tenant)
+        self.assertEqual(self.preference.product, self.product)
+        self.assertEqual(self.preference.display_name, 'Premium Ribeye')
+    
+    def test_preference_str(self):
+        """Test string representation uses display_name."""
+        self.assertEqual(str(self.preference), 'Test Meat Company: Premium Ribeye')
+    
+    def test_preference_str_without_display_name(self):
+        """Test string representation falls back to product.name."""
+        self.preference.display_name = ''
+        self.preference.save()
+        self.assertEqual(str(self.preference), 'Test Meat Company: Choice Ribeye Steak')
+    
+    def test_effective_name_with_override(self):
+        """Test effective_name returns display_name when set."""
+        self.assertEqual(self.preference.effective_name, 'Premium Ribeye')
+    
+    def test_effective_name_fallback(self):
+        """Test effective_name returns product.name when display_name is empty."""
+        self.preference.display_name = ''
+        self.assertEqual(self.preference.effective_name, 'Choice Ribeye Steak')
+    
+    def test_effective_code_with_override(self):
+        """Test effective_code returns internal_code when set."""
+        self.assertEqual(self.preference.effective_code, 'RIB-001')
+    
+    def test_effective_code_fallback(self):
+        """Test effective_code returns product.product_code when internal_code is empty."""
+        self.preference.internal_code = ''
+        self.assertEqual(self.preference.effective_code, 'BEEF-RIBEYE-001')
+    
+    def test_unique_tenant_product_constraint(self):
+        """Test that tenant+product must be unique."""
+        from django.db import IntegrityError
+        with self.assertRaises(IntegrityError):
+            self.TenantProductPreference.objects.create(
+                tenant=self.tenant,
+                product=self.product,  # Duplicate
+            )
+    
+    def test_uuid_primary_key(self):
+        """Test that primary key is a UUID."""
+        import uuid
+        self.assertIsInstance(self.preference.id, uuid.UUID)
+    
+    def test_default_values(self):
+        """Test default field values."""
+        product2 = Product.objects.create(
+            product_code='PORK-001',
+            name='Pork Loin',
+        )
+        preference = self.TenantProductPreference.objects.create(
+            tenant=self.tenant,
+            product=product2,
+        )
+        self.assertTrue(preference.is_active)
+        self.assertFalse(preference.is_favorite)
+        self.assertEqual(preference.sort_order, 0)
+        self.assertEqual(preference.display_name, '')
+    
+    def test_pricing_fields(self):
+        """Test pricing fields."""
+        self.assertEqual(self.preference.default_price, Decimal('25.99'))
+        self.assertEqual(self.preference.default_cost, Decimal('18.50'))
+    
+    def test_get_price_for_customer(self):
+        """Test get_price_for_customer returns default_price."""
+        self.assertEqual(
+            self.preference.get_price_for_customer(),
+            Decimal('25.99')
+        )
+    
+    def test_timestamp_fields(self):
+        """Test auto-populated timestamp fields."""
+        self.assertIsNotNone(self.preference.created_at)
+        self.assertIsNotNone(self.preference.updated_at)
