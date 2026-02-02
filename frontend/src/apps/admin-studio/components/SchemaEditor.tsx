@@ -13,6 +13,7 @@
  * - Undo/redo history
  * - Auto-save with debounce
  * - Inline help tooltips
+ * - Conditional visibility rules
  * 
  * Uses @tanstack/react-table for the table and @dnd-kit for row reordering.
  */
@@ -48,6 +49,7 @@ import { Button } from '../../../components/ui/Button';
 import { Select } from '../../../components/ui/Select';
 import { Input } from './Input';
 import { notify } from '../../../utils/notify';
+import { ConditionalVisibilityRules, VisibilityRule } from '../../../components/FormBuilder';
 
 // Field definition type
 export interface FieldDefinition {
@@ -69,6 +71,7 @@ export interface FieldDefinition {
   helpText?: string;
   hidden?: boolean;
   readOnly?: boolean;
+  visibilityRules?: VisibilityRule[];
 }
 
 // Field template for quick creation
@@ -631,7 +634,10 @@ const SortableRow: React.FC<{
   availableEntities: Array<{ id: string; name: string }>;
   expandedValidation: Record<string, boolean>;
   setExpandedValidation: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-}> = ({ row, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast, availableEntities, expandedValidation, setExpandedValidation }) => {
+  expandedVisibility: Record<string, boolean>;
+  setExpandedVisibility: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  allFields: FieldDefinition[];
+}> = ({ row, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast, availableEntities, expandedValidation, setExpandedValidation, expandedVisibility, setExpandedVisibility, allFields }) => {
   const {
     attributes,
     listeners,
@@ -835,6 +841,44 @@ const SortableRow: React.FC<{
                     )}
                   </ValidationSection>
                 )}
+                
+                {/* Conditional Visibility Toggle */}
+                <div style={{ marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedVisibility(prev => ({
+                      ...prev,
+                      [row.original.id]: !prev[row.original.id]
+                    }))}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: row.original.visibilityRules?.length ? 'rgb(var(--color-primary, 102 126 234))' : 'rgb(var(--color-text-secondary, 127 140 141))',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: row.original.visibilityRules?.length ? 600 : 400,
+                    }}
+                  >
+                    {expandedVisibility[row.original.id] ? '▼ Hide' : '▶ Visibility'}
+                    {row.original.visibilityRules?.length ? ` (${row.original.visibilityRules.length} rule${row.original.visibilityRules.length > 1 ? 's' : ''})` : ''}
+                  </button>
+                </div>
+                
+                {/* Conditional Visibility Rules */}
+                {expandedVisibility[row.original.id] && (
+                  <div style={{ marginTop: '8px', padding: '12px', background: 'rgb(249 250 251)', borderRadius: '6px' }}>
+                    <ConditionalVisibilityRules
+                      fieldId={row.original.id}
+                      fields={allFields.filter(f => f.id !== row.original.id).map(f => ({
+                        id: f.id,
+                        name: f.label,
+                        type: f.type,
+                      }))}
+                      rules={row.original.visibilityRules || []}
+                      onRulesChange={(rules) => onUpdate(row.original.id, 'visibilityRules', rules)}
+                    />
+                  </div>
+                )}
               </div>
             )}
             {columnId === 'actions' && (
@@ -878,6 +922,7 @@ const SchemaEditor: React.FC = () => {
   const [fields, setFields] = useState<FieldDefinition[]>([]);
   const [availableEntities, setAvailableEntities] = useState<Array<{ id: string; name: string }>>([]);
   const [expandedValidation, setExpandedValidation] = useState<Record<string, boolean>>({});
+  const [expandedVisibility, setExpandedVisibility] = useState<Record<string, boolean>>({});
   
   // Industry-leading features state
   const [searchQuery, setSearchQuery] = useState('');
@@ -1513,6 +1558,9 @@ const SchemaEditor: React.FC = () => {
                           availableEntities={availableEntities}
                           expandedValidation={expandedValidation}
                           setExpandedValidation={setExpandedValidation}
+                          expandedVisibility={expandedVisibility}
+                          setExpandedVisibility={setExpandedVisibility}
+                          allFields={fields}
                         />
                       ))}
                     <GhostRow onClick={handleAddField}>
