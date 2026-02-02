@@ -210,7 +210,7 @@ class Command(BaseCommand):
         from tenant_apps.invoices.models import Invoice
         # NOTE: AccountsReceivable DELETED in v2.0 Wave 1 (0 records, merged into invoices/accounting)
         from tenant_apps.carriers.models import Carrier
-        from tenant_apps.plants.models import Plant
+        from tenant_apps.locations.models import Location
         
         # Models that guest user should have access to
         tenant_models = [
@@ -223,7 +223,7 @@ class Command(BaseCommand):
             Invoice,
             # AccountsReceivable removed in v2.0
             Carrier,
-            Plant,
+            Location,
         ]
         
         permissions_granted = 0

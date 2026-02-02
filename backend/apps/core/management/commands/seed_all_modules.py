@@ -16,7 +16,7 @@ import random
 from apps.tenants.models import Tenant
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.customers.models import Customer
-from tenant_apps.plants.models import Plant
+from tenant_apps.locations.models import Location
 from tenant_apps.carriers.models import Carrier
 from tenant_apps.products.models import Product
 from tenant_apps.purchase_orders.models import PurchaseOrder
@@ -109,16 +109,16 @@ class Command(BaseCommand):
         SalesOrder.objects.filter(tenant=tenant).delete()
         # Don't delete PurchaseOrders, Suppliers, Customers - they may have real data
 
-    def seed_plants(self, tenant, count=5):
-        """Seed plant/facility data."""
-        self.stdout.write('🏭 Seeding Plants...')
+    def seed_locations(self, tenant, count=5):
+        """Seed location/facility data."""
+        self.stdout.write('📍 Seeding Locations...')
         
         suppliers = Supplier.objects.filter(tenant=tenant)[:3]
         if not suppliers:
-            self.stdout.write(self.style.WARNING('  ⚠️  No suppliers found, skipping plants'))
+            self.stdout.write(self.style.WARNING('  ⚠️  No suppliers found, skipping locations'))
             return
 
-        plant_names = [
+        location_names = [
             'North Processing Facility',
             'South Distribution Center',
             'East Warehouse Complex',
@@ -126,14 +126,14 @@ class Command(BaseCommand):
             'Central Packaging Plant',
         ]
 
-        for i, name in enumerate(plant_names[:count]):
-            plant, created = Plant.objects.get_or_create(
+        for i, name in enumerate(location_names[:count]):
+            location, created = Location.objects.get_or_create(
                 tenant=tenant,
-                code=f'PLT-{i+1:03d}',
+                code=f'LOC-{i+1:03d}',
                 defaults={
                     'name': name,
                     'plant_est_num': f'EST{1000 + i}',
-                    'plant_type': random.choice(['processing', 'distribution', 'warehouse']),
+                    'location_type': random.choice(['plant_processing', 'warehouse', 'cold_storage']),
                     'address': f'{100 + i*10} Industrial Blvd',
                     'city': random.choice(['Dallas', 'Houston', 'Austin', 'San Antonio']),
                     'state': 'TX',
@@ -142,7 +142,7 @@ class Command(BaseCommand):
                 }
             )
             if created:
-                self.stdout.write(f'  ✓ Created plant: {plant.name}')
+                self.stdout.write(f'  ✓ Created location: {location.name}')
 
     def seed_carriers(self, tenant, count=3):
         """Seed carrier/logistics companies."""

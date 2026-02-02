@@ -22,7 +22,7 @@ from apps.core.models import (
     ProteinTypeChoices,
     TenantAwareModel,
 )
-from tenant_apps.plants.models import Plant
+from tenant_apps.locations.models import Location
 
 
 class Customer(TenantAwareModel):
@@ -59,11 +59,12 @@ class Customer(TenantAwareModel):
 
     # New enhanced fields based on spreadsheet requirements
     plant = models.ForeignKey(
-        Plant,
+        Location,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Associated plant establishment",
+        related_name='customer_plants',
+        help_text="Associated plant/location establishment",
     )
     proteins = models.ManyToManyField(
         Protein, blank=True, help_text="Protein types handled by this customer"

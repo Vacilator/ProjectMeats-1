@@ -28,7 +28,7 @@ from apps.core.models import (
     ShippingOfferedChoices,
     TenantAwareModel,
 )
-from tenant_apps.plants.models import Plant
+from tenant_apps.locations.models import Location
 
 
 class Supplier(TenantAwareModel):
@@ -65,12 +65,12 @@ class Supplier(TenantAwareModel):
 
     # New enhanced fields based on spreadsheet requirements
     plant = models.ForeignKey(
-        Plant,
+        Location,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='supplier_assignments',
-        help_text="Associated plant establishment",
+        help_text="Associated plant/location establishment",
     )
     proteins = models.ManyToManyField(
         Protein, blank=True, help_text="Protein types supplied by this supplier"
