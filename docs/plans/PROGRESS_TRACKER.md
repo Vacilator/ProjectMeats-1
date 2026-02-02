@@ -9,7 +9,7 @@
 ## Living Roadmap & Progress Document
 
 **Current Phase**: Wave 1 - Foundation (Remaining)  
-**Overall Progress**: 68%  
+**Overall Progress**: 70%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -24,7 +24,7 @@
 │  Wave 0: Preparation      [████████░░]  80%  ✅ Core Tasks Done      │
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done  │
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
-│  Wave 3: Forms & Flows    [████░░░░░░]  40%  ✅ App Integration      │
+│  Wave 3: Forms & Flows    [█████░░░░░]  45%  ✅ Preferences Page      │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
 │  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [███████░░░]  68%   TOTAL: 850+ tests      │
+│  OVERALL                  [███████░░░]  70%   TOTAL: 850+ tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,20 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-02 - Wave 3: Notification Preferences Page (PR #2278 ✅ MERGED)
+
+**Full settings page for notification preferences**:
+- Master toggle for all notifications
+- Per-channel toggles (email, push)
+- 12 notification type cards with delivery method selection
+- Quiet hours with time pickers
+- Daily/weekly digest settings
+- Save with loading states and feedback
+
+**Route**: `/settings/notifications`
+
+**Wave 3 Progress**: 40% → 45%
 
 ### 2026-02-02 - Wave 3: App Integration & Vitest Fix (PR #2276 ✅ MERGED)
 
