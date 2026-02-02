@@ -496,6 +496,7 @@ export const WorkspacePage: React.FC = () => {
             widgets={widgets}
             layout={layout}
             onLayoutChange={handleLayoutChange}
+            onRemoveWidget={handleRemoveWidget}
             renderWidget={renderWidget}
             width={gridWidth}
             cols={12}

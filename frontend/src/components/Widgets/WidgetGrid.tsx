@@ -16,6 +16,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import GridLayout, { Layout } from 'react-grid-layout';
 import styled from 'styled-components';
+import { X } from 'lucide-react';
 import 'react-grid-layout/css/styles.css';
 
 // ============================================================================
@@ -37,6 +38,7 @@ export interface WidgetGridProps {
   widgets: WidgetConfig[];
   layout: WidgetLayout[];
   onLayoutChange: (layout: WidgetLayout[]) => void;
+  onRemoveWidget?: (widgetId: string) => void;
   renderWidget: (widget: WidgetConfig) => React.ReactNode;
   cols?: number;
   rowHeight?: number;
@@ -103,6 +105,7 @@ const WidgetWrapper = styled.div<{ $isEditing: boolean }>`
   height: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
+  position: relative;
   
   ${props => props.$isEditing && `
     cursor: move;
@@ -113,6 +116,33 @@ const WidgetWrapper = styled.div<{ $isEditing: boolean }>`
   `}
 `;
 
+const RemoveButton = styled.button`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(239, 68, 68);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+
+  &:hover {
+    background: rgb(220, 38, 38);
+  }
+
+  ${WidgetWrapper}:hover & {
+    opacity: 1;
+  }
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -121,6 +151,7 @@ export const WidgetGrid: React.FC<WidgetGridProps> = ({
   widgets,
   layout,
   onLayoutChange,
+  onRemoveWidget,
   renderWidget,
   cols = 12,
   rowHeight = 100,
@@ -133,6 +164,17 @@ export const WidgetGrid: React.FC<WidgetGridProps> = ({
       onLayoutChange(newLayout as WidgetLayout[]);
     },
     [onLayoutChange]
+  );
+
+  const handleRemove = useCallback(
+    (e: React.MouseEvent, widgetId: string) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (onRemoveWidget) {
+        onRemoveWidget(widgetId);
+      }
+    },
+    [onRemoveWidget]
   );
 
   return (
@@ -152,6 +194,15 @@ export const WidgetGrid: React.FC<WidgetGridProps> = ({
       >
         {widgets.map(widget => (
           <WidgetWrapper key={widget.id} $isEditing={isEditing}>
+            {isEditing && onRemoveWidget && (
+              <RemoveButton
+                onClick={(e) => handleRemove(e, widget.id)}
+                title="Remove widget"
+                aria-label={`Remove ${widget.title}`}
+              >
+                <X size={14} />
+              </RemoveButton>
+            )}
             {renderWidget(widget)}
           </WidgetWrapper>
         ))}

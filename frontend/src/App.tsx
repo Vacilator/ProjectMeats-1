@@ -219,6 +219,7 @@ const App: React.FC = () => {
                 
                 {/* Workspace (Cockpit Command Center) */}
                 <Route path="workspace" element={<Workspace />} />
+                <Route path="cockpit" element={<Navigate to="/workspace" replace />} />
               </Route>
             </Routes>
             {/* Form Submission Modal - rendered at app level */}
