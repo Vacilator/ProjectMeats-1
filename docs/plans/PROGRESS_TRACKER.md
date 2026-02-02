@@ -9,7 +9,7 @@
 ## Living Roadmap & Progress Document
 
 **Current Phase**: Wave 1 - Foundation (Remaining)  
-**Overall Progress**: 70%  
+**Overall Progress**: 72%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -24,7 +24,7 @@
 │  Wave 0: Preparation      [████████░░]  80%  ✅ Core Tasks Done      │
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done  │
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
-│  Wave 3: Forms & Flows    [█████░░░░░]  45%  ✅ Preferences Page      │
+│  Wave 3: Forms & Flows    [█████░░░░░]  50%  ✅ Progress Indicator    │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
 │  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [███████░░░]  70%   TOTAL: 850+ tests      │
+│  OVERALL                  [████████░░]  72%   TOTAL: 866+ tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,18 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-02 - Wave 3: FormProgressIndicator Component (PR #2280 ✅ MERGED)
+
+**Visual progress indicator for multi-step forms**:
+- 3 variants: horizontal, vertical, compact
+- 5 step statuses: pending, current, completed, skipped, error
+- Animated checkmarks and pulsing current step
+- Progress bar with percentage (compact variant)
+- 16 test cases
+
+**Wave 3 Progress**: 45% → 50%
+**Total Tests**: 850 → 866 (+16)
 
 ### 2026-02-02 - Wave 3: Notification Preferences Page (PR #2278 ✅ MERGED)
 
