@@ -25,7 +25,7 @@
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done   │
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete      │
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
-│  Wave 4: Admin Studio     [██████░░░░]  60%  ✅ Keyboard Shortcuts    │
+│  Wave 4: Admin Studio     [██████░░░░]  65%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
 │  Wave 6: Model Migration  [██████████] 100%  ✅ COMPLETE! 🎉          │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
@@ -886,7 +886,7 @@ OrderMethodsMixin (behavior)
 - [x] Drag-drop reordering via SortableJS (PR #2300)
 - [x] Import/export functionality (JSON) (PR #2300)
 - [x] Admin panel reorganization (emoji groups) (PR #2301)
-- [ ] Tier-based permission checks (partial - display done, enforcement pending)
+- [x] Tier-based permission checks (PR #2350)
 
 **Week 8-9: React Admin Studio** ✅ (5/5 tasks)
 - [x] `ConfigDashboard` page (PR #2304)
