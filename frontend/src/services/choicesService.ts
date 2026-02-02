@@ -2,7 +2,10 @@
  * Choices Service
  * 
  * Fetches and caches static choice options from the backend.
- * These are Django TextChoices that don't require database lookups.
+ * 
+ * Resolution Order:
+ * 1. Try configService's SystemChoiceList API first (new v2 system)
+ * 2. Fall back to legacy /choices/ endpoint for Django TextChoices
  * 
  * Usage:
  *   const options = await choicesService.getChoices('protein_type');
@@ -10,6 +13,7 @@
  */
 import axios from 'axios';
 import { config } from '../config/runtime';
+import { configService } from './configService';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -118,6 +122,16 @@ export const FIELD_TO_CHOICE_TYPE: Record<string, ChoiceType> = {
   'carton_type': 'carton_type',
 };
 
+// Mapping from field names to SystemChoiceList slugs (v2 config system)
+// These take precedence over legacy FIELD_TO_CHOICE_TYPE
+export const FIELD_TO_CHOICE_LIST_SLUG: Record<string, string> = {
+  // Add mappings as SystemChoiceLists are created for each field
+  // Format: 'field_name': 'choice-list-slug'
+  // Example:
+  // 'protein_type': 'protein-types',
+  // 'status': 'order-statuses',
+};
+
 // Cache for choices (avoid repeated API calls)
 let choicesCache: Record<string, ChoiceOption[]> | null = null;
 let cachePromise: Promise<AllChoicesResponse> | null = null;
@@ -182,12 +196,29 @@ export async function getAllChoices(): Promise<Record<string, ChoiceOption[]>> {
 
 /**
  * Get choices for a field by its name
- * Uses FIELD_TO_CHOICE_TYPE mapping
+ * 
+ * Resolution order:
+ * 1. Check FIELD_TO_CHOICE_LIST_SLUG for v2 SystemChoiceList mapping
+ * 2. Fall back to FIELD_TO_CHOICE_TYPE for legacy Django TextChoices
  */
 export async function getChoicesForField(fieldName: string): Promise<ChoiceOption[] | null> {
   const normalizedName = fieldName.toLowerCase().replace(/\s+/g, '_');
-  const choiceType = FIELD_TO_CHOICE_TYPE[normalizedName];
   
+  // First try: v2 SystemChoiceList via configService
+  const choiceListSlug = FIELD_TO_CHOICE_LIST_SLUG[normalizedName];
+  if (choiceListSlug) {
+    try {
+      const options = await configService.getChoiceOptions(choiceListSlug);
+      if (options && options.length > 0) {
+        return options;
+      }
+    } catch (error) {
+      console.debug(`No SystemChoiceList found for slug '${choiceListSlug}', falling back to legacy`);
+    }
+  }
+  
+  // Second try: legacy Django TextChoices
+  const choiceType = FIELD_TO_CHOICE_TYPE[normalizedName];
   if (!choiceType) {
     return null; // Field doesn't have static choices
   }
@@ -200,7 +231,8 @@ export async function getChoicesForField(fieldName: string): Promise<ChoiceOptio
  */
 export function isStaticChoiceField(fieldName: string): boolean {
   const normalizedName = fieldName.toLowerCase().replace(/\s+/g, '_');
-  return normalizedName in FIELD_TO_CHOICE_TYPE;
+  // Field is static if it maps to either v2 SystemChoiceList or legacy TextChoices
+  return normalizedName in FIELD_TO_CHOICE_LIST_SLUG || normalizedName in FIELD_TO_CHOICE_TYPE;
 }
 
 /**
@@ -209,6 +241,7 @@ export function isStaticChoiceField(fieldName: string): boolean {
 export function clearChoicesCache(): void {
   choicesCache = null;
   cachePromise = null;
+  configService.clearCache(); // Also clear configService cache
 }
 
 /**
@@ -229,6 +262,7 @@ export const choicesService = {
   clearChoicesCache,
   preloadChoices,
   FIELD_TO_CHOICE_TYPE,
+  FIELD_TO_CHOICE_LIST_SLUG,
 };
 
 export default choicesService;
