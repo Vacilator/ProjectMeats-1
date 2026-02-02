@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
+import { ConfigDashboard } from './pages/ConfigDashboard';
 import Editor from './pages/Editor';
 
 // Base URL for the Studio app
@@ -15,6 +16,7 @@ const App: React.FC = () => {
     <BrowserRouter basename={BASENAME}>
       <Routes>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/config" element={<ConfigDashboard />} />
         <Route path="/:blueprintId" element={<Editor />} />
         {/* If loaded with initial ID (direct link handled by Django), render Editor */}
         {initialBlueprintId && (

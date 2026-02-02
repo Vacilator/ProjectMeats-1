@@ -43,12 +43,20 @@ export const Dashboard: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Blueprint Studio</h1>
             <p className="text-gray-500 mt-1">Manage system blueprints and workflows</p>
           </div>
-          <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors"
-            onClick={() => alert('Create new blueprint functionality to be implemented')}
-          >
-            + Create New Blueprint
-          </button>
+          <div className="flex gap-3">
+            <Link
+              to="/config"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 font-medium transition-colors flex items-center gap-2"
+            >
+              ⚙️ Config Dashboard
+            </Link>
+            <button 
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors"
+              onClick={() => alert('Create new blueprint functionality to be implemented')}
+            >
+              + Create New Blueprint
+            </button>
+          </div>
         </header>
 
         {loading ? (
