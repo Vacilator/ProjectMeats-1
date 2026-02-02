@@ -64,7 +64,7 @@ import InquiryTemplates from './pages/InquiryTemplates';
 import InquiryAnalytics from './pages/InquiryAnalytics';
 import OptionListsPage from './pages/Admin/OptionLists';
 import Workspace from './pages/Workspace';
-import { NotificationPreferences } from './pages/Settings';
+import { NotificationPreferences } from './pages/Settings/index';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
