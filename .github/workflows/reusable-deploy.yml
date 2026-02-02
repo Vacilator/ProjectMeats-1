@@ -825,6 +825,25 @@ jobs:
           # Login to registry
           echo "${{ secrets.DO_ACCESS_TOKEN }}" | docker login registry.digitalocean.com -u "${{ secrets.DO_ACCESS_TOKEN }}" --password-stdin
           
+          # Check disk space and cleanup if needed
+          echo "Checking disk space..."
+          df -h /
+          USAGE=$(df / | awk 'NR==2{print $5}' | tr -d '%')
+          echo "Current disk usage: ${USAGE}%"
+          
+          if [ "$USAGE" -gt 70 ]; then
+            echo "⚠️  Disk usage above 70%, running Docker cleanup..."
+            # Remove old/unused images (keep current deployment images)
+            docker image prune -af --filter "until=24h" || true
+            # Remove unused volumes
+            docker volume prune -f || true
+            # Remove build cache
+            docker builder prune -af || true
+            # Show disk after cleanup
+            echo "Disk after cleanup:"
+            df -h /
+          fi
+          
           # Pull new image
           docker pull "$REG/$IMG:$TAG"
           
@@ -986,6 +1005,25 @@ jobs:
           # Login to registry
           echo "${DO_TOKEN}" | docker login registry.digitalocean.com -u "${DO_TOKEN}" --password-stdin
           echo "✓ Docker login successful"
+          
+          # Check disk space and cleanup if needed
+          echo "Checking disk space..."
+          df -h /
+          USAGE=$(df / | awk 'NR==2{print $5}' | tr -d '%')
+          echo "Current disk usage: ${USAGE}%"
+          
+          if [ "$USAGE" -gt 70 ]; then
+            echo "⚠️  Disk usage above 70%, running Docker cleanup..."
+            # Remove old/unused images (keep current deployment images)
+            docker image prune -af --filter "until=24h" || true
+            # Remove unused volumes
+            docker volume prune -f || true
+            # Remove build cache
+            docker builder prune -af || true
+            # Show disk after cleanup
+            echo "Disk after cleanup:"
+            df -h /
+          fi
           
           # Pull new image
           echo "Pulling image: $REG/$IMG:$IMAGE_TAG"
