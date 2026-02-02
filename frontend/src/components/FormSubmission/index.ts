@@ -14,5 +14,7 @@ export { default as RatingField } from './RatingField';
 export { default as SliderField } from './SliderField';
 export { default as SignatureField } from './SignatureField';
 export { default as RichTextField } from './RichTextField';
+export { default as FormProgressIndicator } from './FormProgressIndicator';
 export type { StepConfig } from './FormStep';
 export type { FieldConfig } from './FormField';
+export type { FormStep as FormProgressStep, FormProgressIndicatorProps } from './FormProgressIndicator';
