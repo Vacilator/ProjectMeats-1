@@ -8,8 +8,8 @@
 
 ## Living Roadmap & Progress Document
 
-**Current Phase**: Wave 6 - Model Migration (In Progress)  
-**Overall Progress**: 90%  
+**Current Phase**: Wave 6 - Model Migration (COMPLETE!)  
+**Overall Progress**: 96%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -27,7 +27,7 @@
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [██████░░░░]  60%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
-│  Wave 6: Model Migration  [█████████░]  95%  ✅ Admin Complete!       │
+│  Wave 6: Model Migration  [██████████] 100%  ✅ COMPLETE! 🎉          │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
 │  NEW WAVES (v3.0):                                                   │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [█████████░]  94%   TOTAL: 1166 tests      │
+│  OVERALL                  [█████████░]  96%   TOTAL: 1166 tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,45 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-03 - Wave 6: COMPLETE! 🎉🎉🎉
+
+**All phases of Wave 6 Model Migration are now COMPLETE!**
+
+#### Phase 5: FK Migration (Today)
+- **PR #2345**: Migrate product FKs to system.Product
+  - Updated 9 FK references across 6 apps
+  - Custom migrations for bigint→UUID conversion
+  - Apps migrated: customers, suppliers, purchase_orders, sales_orders, invoices, inquiries
+  - Updated purchase_orders tests (15/15 passing)
+
+**Wave 6 Status**: 95% → 100% ✅
+
+**Final Product Architecture**:
+```
+system.Product (master catalog - shared across all tenants)
+    │ UUID primary key
+    │ No tenant FK (system-wide)
+    │
+    └─→ TenantProductPreference (tenant customizations)
+            ├── display_name, internal_code
+            ├── default_price, default_cost
+            ├── preferred_supplier
+            └── is_favorite, sort_order
+
+FK References Updated:
+├── customers.Customer.products → system.Product (M2M)
+├── suppliers.Supplier.products → system.Product (M2M)
+├── purchase_orders.PurchaseOrder.product → system.Product
+├── purchase_orders.CarrierPurchaseOrder.product → system.Product
+├── purchase_orders.ColdStorageEntry.product → system.Product
+├── sales_orders.SalesOrder.product → system.Product
+├── invoices.Invoice.product → system.Product
+├── inquiries.InquiryProduct.product → system.Product
+└── inquiries.InquiryTemplateProduct.product → system.Product
+```
+
+---
 
 ### 2026-02-03 - Wave 6: Products Admin Complete! 🎛️
 
