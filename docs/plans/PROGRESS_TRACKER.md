@@ -27,7 +27,7 @@
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [██████░░░░]  60%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
-│  Wave 6: Model Migration  [███████░░░]  70%  ✅ Products Phase 1!     │
+│  Wave 6: Model Migration  [████████░░]  80%  ✅ Products Phase 1+2!   │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
 │  NEW WAVES (v3.0):                                                   │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [█████████░]  91%   TOTAL: 1121 tests      │
+│  OVERALL                  [█████████░]  92%   TOTAL: 1134 tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -61,24 +61,43 @@
 
 ## Recent Accomplishments
 
-### 2026-02-03 - Wave 6: Products to System (Phase 1) 📦
+### 2026-02-03 - Wave 6: Products to System (Phase 1 & 2) 📦
 
-**System-wide Product model created!**
+**System-wide Product catalog architecture complete!**
 
-- **PR #2330**: Add system.Product model
+- **PR #2330**: Add system.Product model (Phase 1)
   - UUID primary key for cross-system references
   - No tenant FK (shared across all tenants)
   - `legacy_tenant_product_id` for migration tracking
   - 17 unit tests
 
-**Wave 6 Status**: 60% → 70% ✅
+- **PR #2333**: Add TenantProductPreference model (Phase 2)
+  - Tenant-specific product customizations
+  - Override display names, internal codes
+  - Default pricing (cost and sell price)
+  - Preferred supplier associations
+  - 13 additional tests (30 total)
+
+**Wave 6 Status**: 60% → 80% ✅
 
 **Product Migration Architecture**:
 ```
 Phase 1: ✅ Create system.Product model
-Phase 2: ⏳ Data migration from tenant_apps.products
-Phase 3: ⏳ Update FK references across apps
-Phase 4: ⏳ Remove old tenant_apps/products
+Phase 2: ✅ Create TenantProductPreference model
+Phase 3: ⏳ Data migration from tenant_apps.products
+Phase 4: ⏳ Update FK references across apps
+Phase 5: ⏳ Remove old tenant_apps/products
+```
+
+**Final Architecture**:
+```
+system.Product (master catalog - 32 unique products)
+    │
+    └─→ TenantProductPreference (tenant customizations)
+            ├── display_name, internal_code
+            ├── default_price, default_cost
+            ├── preferred_supplier
+            └── is_favorite, sort_order
 ```
 
 ---
