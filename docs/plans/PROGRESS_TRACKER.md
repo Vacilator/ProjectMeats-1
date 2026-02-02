@@ -24,7 +24,7 @@
 │  Wave 0: Preparation      [████████░░]  80%  ✅ Core Tasks Done      │
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done  │
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete    │
-│  Wave 3: Forms & Flows    [██░░░░░░░░]  15%  ✅ Bugs Fixed           │
+│  Wave 3: Forms & Flows    [███░░░░░░░]  25%  ✅ Backend Models Done    │
 │  Wave 4: Admin Studio     [░░░░░░░░░░]   0%  ⏳ Waiting on W1        │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
 │  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [██████░░░░]  62%   TOTAL: 840 tests       │
+│  OVERALL                  [███████░░░]  64%   TOTAL: 850 tests       │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,23 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-02 - Wave 3: Forms & Flows Backend Models (PR #2271 ✅ MERGED)
+
+**Added Wave 3 backend foundation**:
+- `FormStatusHistory` model: Track status changes with audit trail
+- `StepAssignment` model: Assign users/roles to form steps
+- `UserNotification` model: 12 notification types, 4 priorities
+- `UserNotificationPreferences` model: Per-user notification settings
+
+**New API Endpoints**:
+- `/api/v1/workflows/step-assignments/` - CRUD for step assignments
+- `/api/v1/workflows/notifications/` - User notifications
+- `/api/v1/workflows/notification-preferences/` - Preferences
+- `/api/v1/workflows/action-items/` - User's action items
+- `/api/v1/workflows/action-items/counts/` - Action item counts
+
+**Wave 3 Progress**: 15% → 25% (backend models complete)
 
 ### 2026-02-02 - Wave 1: configService Frontend Service (PR #2268 ✅ MERGED)
 
@@ -434,7 +451,7 @@
 - [x] Layout persistence (localStorage) (PR #2218)
 - [x] Feature flag: /workspace route (PR #2218)
 
-### Wave 3: Forms & Flows Enhancement (6/52 tasks)
+### Wave 3: Forms & Flows Enhancement (13/52 tasks)
 
 **Completed**:
 - [x] Bug #1: inquiry/fulfillment entity types
@@ -443,12 +460,20 @@
 - [x] Bug #6: EntityPersistenceService
 - [x] Update FormSubmissionModal patterns
 - [x] Unit tests for EntityPersistenceService
+- [x] FormStatusHistory model (PR #2271)
+- [x] StepAssignment model (PR #2271)
+- [x] UserNotification model (PR #2271)
+- [x] UserNotificationPreferences model (PR #2271)
+- [x] Action Items API endpoints (PR #2271)
+- [x] Notification API endpoints (PR #2271)
+- [x] Model tests for Wave 3 (PR #2271)
 
 **Remaining**:
-- [ ] Phase C1: Backend - Cockpit Data Models (0/6)
-- [ ] Phase C2: Backend - Universal Search API (0/6)
-- [ ] Phase C3: Backend - Entity Graph API (0/6)
-- [ ] ... (46 more tasks)
+- [ ] MyTasks frontend page
+- [ ] NotificationBell component
+- [ ] NotificationPanel component
+- [ ] NotificationsContext
+- [ ] ... (39 more tasks)
 
 ### Wave 4: Admin Studio Enhancement (0/35 tasks)
 *Not started - waiting on Wave 1*
