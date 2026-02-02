@@ -40,7 +40,66 @@ class PaymentStatus(models.TextChoices):
     PAID = "paid", "Paid"
 
 
-class AbstractBaseOrder(TenantAwareModel):
+class OrderMethodsMixin:
+    """
+    Mixin class providing common order methods and computed properties.
+    
+    This mixin can be added to existing order models without changing
+    their database schema. It provides:
+    - Payment-related computed properties (is_paid, has_outstanding_balance)
+    - Status-related computed properties (is_complete)
+    - Payment calculation and update methods
+    
+    Requirements:
+    - Model must have: payment_status, status, total_amount, outstanding_amount fields
+    - Payment/status values must be compatible with PaymentStatus/BaseOrderStatus
+    
+    Usage:
+        class SalesOrder(OrderMethodsMixin, TenantAwareModel):
+            ...
+    """
+    
+    @property
+    def is_paid(self) -> bool:
+        """Check if order is fully paid."""
+        return self.payment_status == PaymentStatus.PAID.value
+    
+    @property
+    def is_complete(self) -> bool:
+        """Check if order is in terminal state (delivered or cancelled)."""
+        return self.status in (BaseOrderStatus.DELIVERED.value, BaseOrderStatus.CANCELLED.value)
+    
+    @property
+    def has_outstanding_balance(self) -> bool:
+        """Check if there's an outstanding balance."""
+        if self.outstanding_amount is None:
+            return False
+        return self.outstanding_amount > Decimal("0.00")
+    
+    def calculate_outstanding(self, paid_amount: Decimal) -> Decimal:
+        """Calculate outstanding amount based on total and paid amounts."""
+        if self.total_amount is None:
+            return Decimal("0.00")
+        outstanding = self.total_amount - paid_amount
+        return max(outstanding, Decimal("0.00"))
+    
+    def update_payment_status(self, paid_amount: Decimal) -> None:
+        """Update payment status based on paid amount."""
+        if self.total_amount is None:
+            return
+        
+        if paid_amount >= self.total_amount:
+            self.payment_status = PaymentStatus.PAID.value
+            self.outstanding_amount = Decimal("0.00")
+        elif paid_amount > Decimal("0.00"):
+            self.payment_status = PaymentStatus.PARTIAL.value
+            self.outstanding_amount = self.calculate_outstanding(paid_amount)
+        else:
+            self.payment_status = PaymentStatus.UNPAID.value
+            self.outstanding_amount = self.total_amount
+
+
+class AbstractBaseOrder(OrderMethodsMixin, TenantAwareModel):
     """
     Abstract base class for all order types.
     
@@ -51,6 +110,11 @@ class AbstractBaseOrder(TenantAwareModel):
     - Location references
     
     Subclasses add type-specific fields and relationships.
+    
+    Note: This class inherits OrderMethodsMixin for computed properties
+    and payment methods. The AbstractBaseOrder uses TextChoices enums
+    directly, while OrderMethodsMixin uses .value for compatibility
+    with existing models that store string values.
     """
     
     class Meta:
@@ -151,53 +215,6 @@ class AbstractBaseOrder(TenantAwareModel):
         default="",
         help_text="Carrier release format",
     )
-    
-    # ==========================================================================
-    # Computed Properties
-    # ==========================================================================
-    
-    @property
-    def is_paid(self) -> bool:
-        """Check if order is fully paid."""
-        return self.payment_status == PaymentStatus.PAID
-    
-    @property
-    def is_complete(self) -> bool:
-        """Check if order is in terminal state (delivered or cancelled)."""
-        return self.status in (BaseOrderStatus.DELIVERED, BaseOrderStatus.CANCELLED)
-    
-    @property
-    def has_outstanding_balance(self) -> bool:
-        """Check if there's an outstanding balance."""
-        if self.outstanding_amount is None:
-            return False
-        return self.outstanding_amount > Decimal("0.00")
-    
-    # ==========================================================================
-    # Common Methods
-    # ==========================================================================
-    
-    def calculate_outstanding(self, paid_amount: Decimal) -> Decimal:
-        """Calculate outstanding amount based on total and paid amounts."""
-        if self.total_amount is None:
-            return Decimal("0.00")
-        outstanding = self.total_amount - paid_amount
-        return max(outstanding, Decimal("0.00"))
-    
-    def update_payment_status(self, paid_amount: Decimal) -> None:
-        """Update payment status based on paid amount."""
-        if self.total_amount is None:
-            return
-        
-        if paid_amount >= self.total_amount:
-            self.payment_status = PaymentStatus.PAID
-            self.outstanding_amount = Decimal("0.00")
-        elif paid_amount > Decimal("0.00"):
-            self.payment_status = PaymentStatus.PARTIAL
-            self.outstanding_amount = self.calculate_outstanding(paid_amount)
-        else:
-            self.payment_status = PaymentStatus.UNPAID
-            self.outstanding_amount = self.total_amount
 
 
 class AbstractOrderWithRelations(AbstractBaseOrder):

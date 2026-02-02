@@ -1,7 +1,7 @@
 """
-Tests for the orders app abstract base models.
+Tests for the orders app abstract base models and mixins.
 
-Tests the common functionality defined in AbstractBaseOrder.
+Tests the common functionality defined in AbstractBaseOrder and OrderMethodsMixin.
 """
 from decimal import Decimal
 from django.test import TestCase
@@ -10,6 +10,7 @@ from tenant_apps.orders.models import (
     BaseOrderStatus,
     PaymentStatus,
     OrderTypeChoices,
+    OrderMethodsMixin,
     get_order_type_label,
     get_all_order_statuses,
 )
@@ -82,37 +83,37 @@ class TestAbstractBaseOrderProperties(TestCase):
     def test_is_paid_when_paid(self):
         """Test is_paid returns True when payment status is PAID."""
         order = ConcreteTestOrder()
-        order.payment_status = PaymentStatus.PAID
+        order.payment_status = PaymentStatus.PAID.value
         self.assertTrue(order.is_paid)
     
     def test_is_paid_when_unpaid(self):
         """Test is_paid returns False when payment status is UNPAID."""
         order = ConcreteTestOrder()
-        order.payment_status = PaymentStatus.UNPAID
+        order.payment_status = PaymentStatus.UNPAID.value
         self.assertFalse(order.is_paid)
     
     def test_is_paid_when_partial(self):
         """Test is_paid returns False when payment status is PARTIAL."""
         order = ConcreteTestOrder()
-        order.payment_status = PaymentStatus.PARTIAL
+        order.payment_status = PaymentStatus.PARTIAL.value
         self.assertFalse(order.is_paid)
     
     def test_is_complete_when_delivered(self):
         """Test is_complete returns True when status is DELIVERED."""
         order = ConcreteTestOrder()
-        order.status = BaseOrderStatus.DELIVERED
+        order.status = BaseOrderStatus.DELIVERED.value
         self.assertTrue(order.is_complete)
     
     def test_is_complete_when_cancelled(self):
         """Test is_complete returns True when status is CANCELLED."""
         order = ConcreteTestOrder()
-        order.status = BaseOrderStatus.CANCELLED
+        order.status = BaseOrderStatus.CANCELLED.value
         self.assertTrue(order.is_complete)
     
     def test_is_complete_when_pending(self):
         """Test is_complete returns False when status is PENDING."""
         order = ConcreteTestOrder()
-        order.status = BaseOrderStatus.PENDING
+        order.status = BaseOrderStatus.PENDING.value
         self.assertFalse(order.is_complete)
     
     def test_has_outstanding_balance_with_balance(self):
@@ -177,7 +178,7 @@ class TestAbstractBaseOrderMethods(TestCase):
         order = ConcreteTestOrder()
         order.total_amount = Decimal("1000.00")
         order.update_payment_status(Decimal("0.00"))
-        self.assertEqual(order.payment_status, PaymentStatus.UNPAID)
+        self.assertEqual(order.payment_status, PaymentStatus.UNPAID.value)
         self.assertEqual(order.outstanding_amount, Decimal("1000.00"))
     
     def test_update_payment_status_partial(self):
@@ -185,7 +186,7 @@ class TestAbstractBaseOrderMethods(TestCase):
         order = ConcreteTestOrder()
         order.total_amount = Decimal("1000.00")
         order.update_payment_status(Decimal("500.00"))
-        self.assertEqual(order.payment_status, PaymentStatus.PARTIAL)
+        self.assertEqual(order.payment_status, PaymentStatus.PARTIAL.value)
         self.assertEqual(order.outstanding_amount, Decimal("500.00"))
     
     def test_update_payment_status_paid(self):
@@ -193,7 +194,7 @@ class TestAbstractBaseOrderMethods(TestCase):
         order = ConcreteTestOrder()
         order.total_amount = Decimal("1000.00")
         order.update_payment_status(Decimal("1000.00"))
-        self.assertEqual(order.payment_status, PaymentStatus.PAID)
+        self.assertEqual(order.payment_status, PaymentStatus.PAID.value)
         self.assertEqual(order.outstanding_amount, Decimal("0.00"))
     
     def test_update_payment_status_overpayment(self):
@@ -201,14 +202,39 @@ class TestAbstractBaseOrderMethods(TestCase):
         order = ConcreteTestOrder()
         order.total_amount = Decimal("1000.00")
         order.update_payment_status(Decimal("1500.00"))
-        self.assertEqual(order.payment_status, PaymentStatus.PAID)
+        self.assertEqual(order.payment_status, PaymentStatus.PAID.value)
         self.assertEqual(order.outstanding_amount, Decimal("0.00"))
     
     def test_update_payment_status_none_total(self):
         """Test update_payment_status does nothing with no total."""
         order = ConcreteTestOrder()
         order.total_amount = None
-        order.payment_status = PaymentStatus.UNPAID
+        order.payment_status = PaymentStatus.UNPAID.value
         order.update_payment_status(Decimal("500.00"))
         # Should not change when total is None
-        self.assertEqual(order.payment_status, PaymentStatus.UNPAID)
+        self.assertEqual(order.payment_status, PaymentStatus.UNPAID.value)
+
+
+class TestOrderMethodsMixin(TestCase):
+    """Test OrderMethodsMixin with string values (as used by existing models)."""
+    
+    def test_mixin_is_paid_with_string_value(self):
+        """Test is_paid works with string value."""
+        order = ConcreteTestOrder()
+        order.payment_status = "paid"  # String value, not enum
+        self.assertTrue(order.is_paid)
+    
+    def test_mixin_is_complete_with_string_value(self):
+        """Test is_complete works with string value."""
+        order = ConcreteTestOrder()
+        order.status = "delivered"  # String value
+        self.assertTrue(order.is_complete)
+    
+    def test_mixin_update_payment_status_sets_string_values(self):
+        """Test update_payment_status sets string values (not enums)."""
+        order = ConcreteTestOrder()
+        order.total_amount = Decimal("1000.00")
+        order.update_payment_status(Decimal("500.00"))
+        # Should set string value
+        self.assertEqual(order.payment_status, "partial")
+        self.assertIsInstance(order.payment_status, str)

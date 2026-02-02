@@ -4,6 +4,7 @@ Sales Orders models for ProjectMeats.
 Defines sales order entities and related business logic.
 
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
+Uses OrderMethodsMixin for shared order behavior (payment calculations, status checks).
 """
 from django.db import models
 from apps.tenants.models import Tenant
@@ -12,6 +13,7 @@ from apps.core.models import (
     TenantAwareModel,
     WeightUnitChoices,
 )
+from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus, BaseOrderStatus
 
 
 class SalesOrderStatus(models.TextChoices):
@@ -24,16 +26,22 @@ class SalesOrderStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
-class PaymentStatus(models.TextChoices):
-    """Payment status choices for sales orders."""
+# Note: PaymentStatus is now imported from orders.models for consistency
+# Local definition kept for backward compatibility reference:
+# class PaymentStatus(models.TextChoices):
+#     UNPAID = "unpaid", "Unpaid"
+#     PARTIAL = "partial", "Partial"
+#     PAID = "paid", "Paid"
 
-    UNPAID = "unpaid", "Unpaid"
-    PARTIAL = "partial", "Partial"
-    PAID = "paid", "Paid"
 
-
-class SalesOrder(TenantAwareModel):
-    """Sales Order model for managing customer sales orders."""
+class SalesOrder(OrderMethodsMixin, TenantAwareModel):
+    """
+    Sales Order model for managing customer sales orders.
+    
+    Inherits from OrderMethodsMixin for shared order behavior:
+    - is_paid, is_complete, has_outstanding_balance properties
+    - calculate_outstanding(), update_payment_status() methods
+    """
     
     # Order identification
     our_sales_order_num = models.CharField(
