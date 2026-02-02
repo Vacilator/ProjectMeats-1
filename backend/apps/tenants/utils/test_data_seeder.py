@@ -301,9 +301,9 @@ def _populate_tenant_business_data(tenant, user, verbosity=1):
                 'country': 'USA'
             }
             
-            # Assign random Plant if available
-            if plants:
-                supplier_defaults['plant'] = random.choice(plants)
+            # Assign random Location if available
+            if locations:
+                supplier_defaults['plant'] = random.choice(locations)
             
             supplier, _ = Supplier.objects.get_or_create(
                 tenant=tenant,
@@ -340,9 +340,9 @@ def _populate_tenant_business_data(tenant, user, verbosity=1):
                 'country': 'USA'
             }
             
-            # Assign random Plant if available
-            if plants:
-                customer_defaults['plant'] = random.choice(plants)
+            # Assign random Location if available
+            if locations:
+                customer_defaults['plant'] = random.choice(locations)
             
             customer, _ = Customer.objects.get_or_create(
                 tenant=tenant,
