@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   configService,
   SystemChoiceList,
@@ -464,6 +465,14 @@ const ChoiceListsTab: React.FC<ChoiceListsTabProps> = ({ choiceLists }) => {
                       ))}
                     </tbody>
                   </table>
+                  <div className="mt-4 pt-4 border-t">
+                    <Link
+                      to={`/config/choices/${list.slug}`}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      ✏️ Edit Items
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <p className="text-gray-500 text-sm">No items in this list.</p>
@@ -472,6 +481,16 @@ const ChoiceListsTab: React.FC<ChoiceListsTabProps> = ({ choiceLists }) => {
           )}
         </div>
       ))}
+      
+      {/* Open Editor Button */}
+      <div className="mt-6 text-center">
+        <Link
+          to="/config/choices"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+        >
+          📋 Open Choice List Editor
+        </Link>
+      </div>
     </div>
   );
 };
