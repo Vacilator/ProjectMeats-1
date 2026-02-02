@@ -9,7 +9,7 @@
 ## Living Roadmap & Progress Document
 
 **Current Phase**: Wave 6 - Model Migration (In Progress)  
-**Overall Progress**: 89%  
+**Overall Progress**: 90%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -27,7 +27,7 @@
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [██████░░░░]  60%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
-│  Wave 6: Model Migration  [███░░░░░░░]  30%  🔄 Orders Base Classes   │
+│  Wave 6: Model Migration  [██████░░░░]  60%  ✅ Orders Complete!      │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
 │  NEW WAVES (v3.0):                                                   │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [█████████░]  89%   TOTAL: 1104 tests      │
+│  OVERALL                  [█████████░]  90%   TOTAL: 1104 tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,40 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-03 - Wave 6: Orders Consolidation COMPLETE! 🎉
+
+**All 4 phases of Orders Consolidation are now complete!**
+
+#### Orders Consolidation PRs (Today):
+- **PR #2321**: Abstract base classes (Phase 1)
+  - OrderTypeChoices, BaseOrderStatus, PaymentStatus enums
+  - AbstractBaseOrder with common fields
+  - 22 unit tests
+
+- **PR #2327**: OrderMethodsMixin + SalesOrder integration (Phase 2)
+  - Created OrderMethodsMixin for shared behavior
+  - SalesOrder now uses mixin for payment calculations
+  - Zero database changes
+
+- **PR #2328**: PurchaseOrder mixin integration (Phase 3)
+  - PurchaseOrder now uses OrderMethodsMixin
+  - Both order types share identical behavior
+  - Zero database changes
+
+**Wave 6 Status**: 30% → 60% ✅
+
+**Final Architecture**:
+```
+OrderMethodsMixin (behavior)
+├── is_paid, is_complete, has_outstanding_balance
+├── calculate_outstanding(), update_payment_status()
+│
+├─→ PurchaseOrder(OrderMethodsMixin, TimestampModel)
+└─→ SalesOrder(OrderMethodsMixin, TenantAwareModel)
+```
+
+---
 
 ### 2026-02-03 - Wave 4: Keyboard Shortcuts Complete! ⌨️
 
@@ -95,9 +129,9 @@
 
 **Phase Structure**:
 - ✅ Phase 1: Abstract base classes (PR #2321)
-- 🔄 Phase 2: Inherit PurchaseOrder from AbstractBaseOrder
-- ⏳ Phase 3: Inherit SalesOrder from AbstractBaseOrder
-- ⏳ Phase 4: Remove duplicate code
+- ✅ Phase 2: OrderMethodsMixin + SalesOrder (PR #2327)
+- ✅ Phase 3: PurchaseOrder mixin (PR #2328)
+- ✅ Phase 4: **COMPLETE** - Shared behavior via mixin
 
 ---
 
