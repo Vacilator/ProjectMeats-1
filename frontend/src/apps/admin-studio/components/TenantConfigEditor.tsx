@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   configService,
-  TenantConfig,
   ConfigCategory,
   ConfigByCategory,
 } from '../../../services/configService';
@@ -19,6 +18,20 @@ interface EditingConfig {
   is_new?: boolean;
   is_modified?: boolean;
 }
+
+// Keyboard shortcut display component
+const KeyboardShortcut: React.FC<{ keys: string }> = ({ keys }) => (
+  <kbd style={{
+    display: 'inline-block',
+    padding: '0.125rem 0.375rem',
+    fontSize: '0.65rem',
+    fontFamily: 'monospace',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    border: '1px solid rgba(0, 0, 0, 0.1)',
+    borderRadius: '3px',
+    marginLeft: '8px',
+  }}>{keys}</kbd>
+);
 
 const CATEGORIES: ConfigCategory[] = ['UI', 'BUSINESS', 'FEATURES', 'INTEGRATIONS', 'OTHER'];
 
@@ -72,6 +85,44 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
   useEffect(() => {
     loadConfigs();
   }, [loadConfigs]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        // Allow Ctrl+S even in inputs
+        if (!((e.ctrlKey || e.metaKey) && e.key === 's')) {
+          return;
+        }
+      }
+
+      // Ctrl/Cmd + S: Save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (hasChanges && !saving) {
+          handleSave();
+        }
+      }
+      // Ctrl/Cmd + N: Add new config
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        handleAddConfig();
+      }
+      // Escape: Close editor
+      else if (e.key === 'Escape') {
+        if (onClose) {
+          if (!hasChanges || window.confirm('You have unsaved changes. Discard them?')) {
+            onClose();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hasChanges, saving, onClose]);
 
   const handleCategoryChange = (category: ConfigCategory) => {
     if (hasChanges) {
@@ -420,6 +471,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
           >
             + Add Config
+            <KeyboardShortcut keys="⌘N" />
           </button>
           <div className="flex gap-3 items-center">
             {hasChanges && (
@@ -435,6 +487,7 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
               }`}
             >
               {saving ? 'Saving...' : 'Save Changes'}
+              <KeyboardShortcut keys="⌘S" />
             </button>
           </div>
         </div>
