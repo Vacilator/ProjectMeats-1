@@ -23,7 +23,7 @@
 │                                                                      │
 │  Wave 0: Preparation      [████████░░]  80%  ✅ Core Tasks Done      │
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done   │
-│  Wave 2: Cockpit          [██████░░░░]  63%  ✅ Graph Enhancements   │
+│  Wave 2: Cockpit          [████████░░]  75%  ✅ Widgets Complete     │
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [██████░░░░]  65%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
@@ -789,7 +789,7 @@ OrderMethodsMixin (behavior)
 - [ ] Delete `system_config` app (has 1 record - needs migration plan)
 - [x] Document changes
 
-### Wave 2: Cockpit Command Center (30/48 tasks)
+### Wave 2: Cockpit Command Center (36/48 tasks) ✅ NEAR COMPLETE
 
 **Week 5: Backend APIs ✅ COMPLETE**
 - [x] Universal Search API (PR #2212)
@@ -819,13 +819,15 @@ OrderMethodsMixin (behavior)
 
 **Week 8: Widget System & Assembly ✅ COMPLETE**
 - [x] WidgetGrid with react-grid-layout (PR #2218)
-- [x] Core widgets (6 total) (PR #2218)
+- [x] Core widgets (8 total) (PR #2218, #2369)
   - QuickStatsWidget
   - RecentActivityWidget
   - UpcomingCallsWidget
   - QuickActionsWidget
   - EntityExplorerWidget
   - WidgetCard (base wrapper)
+  - MyTasksWidget (PR #2369)
+  - TodaysNumbersWidget (PR #2369)
 - [x] WorkspacePage assembly (PR #2218)
 - [x] Workspace API endpoints (PR #2218)
 - [x] Layout persistence (localStorage) (PR #2218)

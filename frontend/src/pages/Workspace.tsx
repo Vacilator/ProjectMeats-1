@@ -28,6 +28,8 @@ import {
   UpcomingCallsWidget,
   QuickActionsWidget,
   EntityExplorerWidget,
+  MyTasksWidget,
+  TodaysNumbersWidget,
 } from '../components/Widgets';
 
 // ============================================================================
@@ -49,6 +51,8 @@ const LAYOUT_VERSION = 1;
 
 // Default widgets configuration
 const DEFAULT_WIDGETS: WidgetConfig[] = [
+  { id: 'todays-numbers', type: 'TodaysNumbersWidget', title: "Today's Numbers" },
+  { id: 'my-tasks', type: 'MyTasksWidget', title: 'My Tasks' },
   { id: 'quick-stats', type: 'QuickStatsWidget', title: 'Quick Stats' },
   { id: 'recent-activity', type: 'RecentActivityWidget', title: 'Recent Activity' },
   { id: 'upcoming-calls', type: 'UpcomingCallsWidget', title: 'Upcoming Calls' },
@@ -58,15 +62,19 @@ const DEFAULT_WIDGETS: WidgetConfig[] = [
 
 // Default layout configuration
 const DEFAULT_LAYOUT: WidgetLayout[] = [
-  { i: 'quick-stats', x: 0, y: 0, w: 6, h: 3 },
-  { i: 'quick-actions', x: 6, y: 0, w: 6, h: 3 },
-  { i: 'recent-activity', x: 0, y: 3, w: 4, h: 4 },
-  { i: 'upcoming-calls', x: 4, y: 3, w: 4, h: 4 },
-  { i: 'entity-explorer', x: 8, y: 3, w: 4, h: 4 },
+  { i: 'todays-numbers', x: 0, y: 0, w: 6, h: 4 },
+  { i: 'my-tasks', x: 6, y: 0, w: 6, h: 4 },
+  { i: 'quick-stats', x: 0, y: 4, w: 4, h: 3 },
+  { i: 'quick-actions', x: 4, y: 4, w: 4, h: 3 },
+  { i: 'recent-activity', x: 8, y: 4, w: 4, h: 3 },
+  { i: 'upcoming-calls', x: 0, y: 7, w: 6, h: 3 },
+  { i: 'entity-explorer', x: 6, y: 7, w: 6, h: 3 },
 ];
 
 // Widget catalog for adding new widgets
 const WIDGET_CATALOG = [
+  { type: 'TodaysNumbersWidget', title: "Today's Numbers", description: 'Detailed KPI dashboard with trends' },
+  { type: 'MyTasksWidget', title: 'My Tasks', description: 'Your assigned tasks and deadlines' },
   { type: 'QuickStatsWidget', title: 'Quick Stats', description: 'Key metrics and KPIs' },
   { type: 'RecentActivityWidget', title: 'Recent Activity', description: 'Activity feed' },
   { type: 'UpcomingCallsWidget', title: 'Upcoming Calls', description: 'Scheduled callbacks' },
@@ -424,6 +432,10 @@ export const WorkspacePage: React.FC = () => {
         return <QuickActionsWidget />;
       case 'EntityExplorerWidget':
         return <EntityExplorerWidget />;
+      case 'MyTasksWidget':
+        return <MyTasksWidget />;
+      case 'TodaysNumbersWidget':
+        return <TodaysNumbersWidget />;
       default:
         return <div>Unknown widget: {widget.type}</div>;
     }

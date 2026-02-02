@@ -10,4 +10,6 @@ export { RecentActivityWidget } from './RecentActivityWidget';
 export { UpcomingCallsWidget } from './UpcomingCallsWidget';
 export { QuickActionsWidget } from './QuickActionsWidget';
 export { EntityExplorerWidget } from './EntityExplorerWidget';
+export { MyTasksWidget } from './MyTasksWidget';
+export { TodaysNumbersWidget } from './TodaysNumbersWidget';
 export type { WidgetConfig, WidgetLayout } from './WidgetGrid';

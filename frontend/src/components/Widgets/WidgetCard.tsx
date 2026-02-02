@@ -30,6 +30,8 @@ export interface WidgetCardProps {
   actions?: ReactNode;
   className?: string;
   noPadding?: boolean;
+  badge?: string;
+  badgeVariant?: 'default' | 'danger' | 'warning' | 'success';
 }
 
 // ============================================================================
@@ -73,6 +75,24 @@ const HeaderTitle = styled.h3`
   font-weight: 600;
   color: rgb(var(--color-text-primary));
   margin: 0;
+`;
+
+const HeaderBadge = styled.span<{ $variant: 'default' | 'danger' | 'warning' | 'success' }>`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  background: ${props => {
+    switch (props.$variant) {
+      case 'danger': return 'rgb(239, 68, 68)';
+      case 'warning': return 'rgb(234, 179, 8)';
+      case 'success': return 'rgb(34, 197, 94)';
+      default: return 'rgb(var(--color-primary))';
+    }
+  }};
+  color: ${props => props.$variant === 'warning' ? 'black' : 'white'};
 `;
 
 const HeaderActions = styled.div`
@@ -156,6 +176,8 @@ export const WidgetCard: React.FC<WidgetCardProps> = ({
   actions,
   className,
   noPadding = false,
+  badge,
+  badgeVariant = 'default',
 }) => {
   return (
     <CardContainer className={className}>
@@ -163,6 +185,7 @@ export const WidgetCard: React.FC<WidgetCardProps> = ({
         <HeaderLeft>
           {icon && <HeaderIcon>{icon}</HeaderIcon>}
           <HeaderTitle>{title}</HeaderTitle>
+          {badge && <HeaderBadge $variant={badgeVariant}>{badge}</HeaderBadge>}
         </HeaderLeft>
         <HeaderActions>
           {actions}
