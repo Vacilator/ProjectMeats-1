@@ -181,14 +181,20 @@ describe('NotificationsContext', () => {
       consoleSpy.mockRestore();
     });
 
-    it('should provide initial empty state', () => {
+    it('should provide initial empty state', async () => {
       const { result } = renderHook(() => useNotifications(), {
         wrapper: createWrapper(),
       });
 
+      // Initially, notifications array is empty
       expect(result.current.notifications).toEqual([]);
-      expect(result.current.loading).toBe(false);
       expect(result.current.error).toBeNull();
+      
+      // Loading may be true or false depending on timing (useEffect runs immediately)
+      // Wait for loading to settle after initial fetch
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
 
     it('should fetch notifications on mount', async () => {
