@@ -330,6 +330,12 @@ function groupNotificationsByTime(notifications: Notification[]): Record<string,
     'Earlier': [],
   };
   
+  // Defensive check: ensure notifications is an array
+  if (!Array.isArray(notifications)) {
+    console.warn('[NotificationPanel] Expected array, got:', typeof notifications);
+    return groups;
+  }
+  
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);

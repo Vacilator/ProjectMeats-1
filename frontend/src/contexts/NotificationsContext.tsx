@@ -136,7 +136,9 @@ async function fetchNotificationsAPI(): Promise<Notification[]> {
     },
   });
   if (!response.ok) throw new Error('Failed to fetch notifications');
-  return response.json();
+  const data = await response.json();
+  // Handle both paginated response {results: []} and bare array
+  return Array.isArray(data) ? data : (data.results || []);
 }
 
 async function fetchUnreadCountAPI(): Promise<number> {
