@@ -176,6 +176,18 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+    # Rate Limiting / Throttling (Wave S2: Security Hardening)
+    # Prevents brute force attacks and API abuse
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "20/minute",      # Anonymous users: 20 requests/minute
+        "user": "100/minute",     # Authenticated users: 100 requests/minute
+        "auth": "5/minute",       # Auth endpoints (login/register): 5/minute
+        "burst": "60/minute",     # Burst-allowed endpoints: 60/minute
+    },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_FILTER_BACKENDS": [
