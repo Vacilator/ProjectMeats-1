@@ -2,15 +2,51 @@
  * General API Service for ProjectMeats Business Management
  *
  * Handles communication with all Django REST API endpoints.
+ * 
+ * Wave S1: JWT Authentication Support
+ * - Uses Bearer tokens for JWT authentication
+ * - Falls back to Token auth for legacy compatibility
+ * - Automatic token refresh on 401 responses
  */
-import axios from 'axios';
+import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 'axios';
 import { config } from '../config/runtime';
+import {
+  getAuthHeader,
+  needsRefresh,
+  refreshAccessToken,
+  clearTokens,
+  isUsingJwt,
+} from './jwtService';
 
 // API Configuration
 const API_BASE_URL = config.API_BASE_URL;
 
 // Extract base URL without /api/v1/ suffix for admin endpoints
 const BASE_DOMAIN = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+
+// Flag to prevent redirect loops
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: InternalAxiosRequestConfig) => void;
+  reject: (error: unknown) => void;
+  config: InternalAxiosRequestConfig;
+}> = [];
+
+const processQueue = (error: unknown | null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      // Retry with new token
+      const authHeader = getAuthHeader();
+      if (authHeader && prom.config.headers) {
+        prom.config.headers.Authorization = authHeader;
+      }
+      prom.resolve(prom.config);
+    }
+  });
+  failedQueue = [];
+};
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -37,10 +73,17 @@ const adminClient = axios.create({
 
 // Request interceptor for authentication and tenant context (apiClient)
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Token ${token}`;
+  async (config) => {
+    // Check if token needs refresh before making request
+    if (isUsingJwt() && needsRefresh() && !isRefreshing) {
+      console.debug('[API] Token needs refresh, refreshing before request...');
+      await refreshAccessToken();
+    }
+    
+    // Get auth header (supports both JWT Bearer and legacy Token)
+    const authHeader = getAuthHeader();
+    if (authHeader) {
+      config.headers.Authorization = authHeader;
     }
     
     // Add tenant ID header if available
@@ -56,10 +99,15 @@ apiClient.interceptors.request.use(
 
 // Request interceptor for authentication and tenant context (adminClient)
 adminClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Token ${token}`;
+  async (config) => {
+    // Check if token needs refresh before making request
+    if (isUsingJwt() && needsRefresh() && !isRefreshing) {
+      await refreshAccessToken();
+    }
+    
+    const authHeader = getAuthHeader();
+    if (authHeader) {
+      config.headers.Authorization = authHeader;
     }
     
     // Add tenant ID header if available
@@ -73,14 +121,56 @@ adminClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling (apiClient)
+// Response interceptor with JWT refresh logic (apiClient)
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
+  async (error: AxiosErrorType) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    
+    // Handle 401 Unauthorized
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      // If using JWT and we have a refresh token, try to refresh
+      if (isUsingJwt()) {
+        if (isRefreshing) {
+          // Queue this request while refresh is in progress
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject, config: originalRequest });
+          }).then((config) => apiClient(config as InternalAxiosRequestConfig));
+        }
+        
+        originalRequest._retry = true;
+        isRefreshing = true;
+        
+        try {
+          const newToken = await refreshAccessToken();
+          
+          if (newToken) {
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            processQueue(null);
+            return apiClient(originalRequest);
+          }
+        } catch (refreshError) {
+          processQueue(refreshError);
+          // Refresh failed, redirect to login
+          clearTokens();
+          localStorage.removeItem('user');
+          localStorage.removeItem('tenantId');
+          localStorage.removeItem('tenantName');
+          localStorage.removeItem('tenantSlug');
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      }
+      
+      // No JWT or refresh failed, clear auth and redirect
+      clearTokens();
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
+    
     return Promise.reject(error);
   }
 );
@@ -88,11 +178,25 @@ apiClient.interceptors.response.use(
 // Response interceptor for error handling (adminClient)
 adminClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
+  async (error: AxiosErrorType) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      if (isUsingJwt()) {
+        originalRequest._retry = true;
+        const newToken = await refreshAccessToken();
+        
+        if (newToken) {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return adminClient(originalRequest);
+        }
+      }
+      
+      clearTokens();
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
+    
     return Promise.reject(error);
   }
 );

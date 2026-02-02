@@ -1,9 +1,21 @@
 /**
  * Authentication service for managing user authentication state.
+ * 
+ * Wave S1: Security Hardening - JWT Authentication
+ * - Uses JWT tokens (access + refresh) for authentication
+ * - Short-lived access tokens (15 min) with automatic refresh
+ * - Falls back to legacy token auth for backward compatibility
  */
 import { apiClient } from './apiService';
 import { config } from '../config/runtime';
 import { UserProfile } from '../types';
+import {
+  storeTokens,
+  clearTokens,
+  getAccessToken,
+  migrateLegacyToken,
+  isUsingJwt,
+} from './jwtService';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -23,17 +35,26 @@ export interface SignUpCredentials {
 }
 
 export interface AuthResponse {
-  token: string;
+  // JWT response
+  access?: string;
+  refresh?: string;
+  // Legacy response
+  token?: string;
+  // Common fields
   user: UserProfile;
+  tenants?: Array<{
+    tenant__id: string;
+    tenant__name: string;
+    tenant__slug: string;
+    role: string;
+  }>;
 }
 
 export class AuthService {
-  private token: string | null = null;
   private user: UserProfile | null = null;
 
   constructor() {
-    // Initialize from localStorage
-    this.token = localStorage.getItem('authToken');
+    // Initialize user from localStorage
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
@@ -45,30 +66,68 @@ export class AuthService {
     }
   }
 
+  /**
+   * Login with JWT authentication
+   * Uses /api/v1/auth/token/ for JWT tokens
+   */
   async login(credentials: LoginCredentials): Promise<UserProfile> {
     try {
-      const response = await apiClient.post('/auth/login/', credentials);
-      const { token, user, tenants } = response.data;
+      // Try JWT endpoint first
+      const response = await apiClient.post('/auth/token/', credentials);
+      const { access, refresh, user, tenants } = response.data;
 
-      this.token = token;
-      this.user = user;
+      if (access && refresh) {
+        // JWT login successful
+        storeTokens(access, refresh);
+        this.user = user;
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        // Store tenant information
+        if (tenants && tenants.length > 0) {
+          const primaryTenant = tenants[0];
+          localStorage.setItem('tenantId', primaryTenant.tenant__id);
+          localStorage.setItem('tenantName', primaryTenant.tenant__name);
+          localStorage.setItem('tenantSlug', primaryTenant.tenant__slug);
+        }
 
-      // Store in localStorage
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      // Store tenant information - use first tenant as active tenant
-      if (tenants && tenants.length > 0) {
-        const primaryTenant = tenants[0];
-        localStorage.setItem('tenantId', primaryTenant.tenant__id);
-        localStorage.setItem('tenantName', primaryTenant.tenant__name);
-        localStorage.setItem('tenantSlug', primaryTenant.tenant__slug);
+        console.debug('[Auth] JWT login successful');
+        return user;
       }
-
-      return user;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Login failed');
+      
+      throw new Error('Invalid JWT response');
+    } catch (jwtError: any) {
+      // If JWT fails with 404 (endpoint not available), fall back to legacy
+      if (jwtError.response?.status === 404) {
+        console.debug('[Auth] JWT endpoint not available, using legacy login');
+        return this.legacyLogin(credentials);
+      }
+      
+      throw new Error(jwtError.response?.data?.detail || jwtError.response?.data?.error || 'Login failed');
     }
+  }
+
+  /**
+   * Legacy login for backward compatibility
+   * Uses /api/v1/auth/login/ with Token authentication
+   */
+  private async legacyLogin(credentials: LoginCredentials): Promise<UserProfile> {
+    const response = await apiClient.post('/auth/login/', credentials);
+    const { token, user, tenants } = response.data;
+
+    // Store legacy token
+    localStorage.setItem('authToken', token);
+    this.user = user;
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    // Store tenant information
+    if (tenants && tenants.length > 0) {
+      const primaryTenant = tenants[0];
+      localStorage.setItem('tenantId', primaryTenant.tenant__id);
+      localStorage.setItem('tenantName', primaryTenant.tenant__name);
+      localStorage.setItem('tenantSlug', primaryTenant.tenant__slug);
+    }
+
+    return user;
   }
 
   async signUp(credentials: SignUpCredentials): Promise<UserProfile> {
@@ -92,13 +151,17 @@ export class AuthService {
       const response = await apiClient.post(endpoint, payload);
 
       // EXTRACT TENANT INFO HERE
-      const { token, user, tenant } = response.data;
+      const { token, access, refresh, user, tenant } = response.data;
 
-      this.token = token;
+      // Check if we got JWT tokens
+      if (access && refresh) {
+        storeTokens(access, refresh);
+      } else if (token) {
+        // Legacy token
+        localStorage.setItem('authToken', token);
+      }
+      
       this.user = user;
-
-      // Store in localStorage
-      localStorage.setItem('authToken', token);
       localStorage.setItem('user', JSON.stringify(user));
 
       // CRITICAL FIX: Store the new tenant context immediately
@@ -131,16 +194,17 @@ export class AuthService {
 
   async logout(): Promise<void> {
     try {
-      if (this.token) {
+      // Only call logout endpoint if using legacy tokens
+      // JWT tokens don't need server-side invalidation (they expire)
+      if (!isUsingJwt()) {
         await apiClient.post('/auth/logout/', {});
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear local state and storage regardless of API call success
-      this.token = null;
+      // Clear all tokens and local state
+      clearTokens();
       this.user = null;
-      localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       localStorage.removeItem('tenantId');
       localStorage.removeItem('tenantName');
@@ -149,7 +213,8 @@ export class AuthService {
   }
 
   async getCurrentUser(): Promise<UserProfile | null> {
-    if (!this.token) {
+    const token = getAccessToken();
+    if (!token) {
       return null;
     }
 
@@ -177,7 +242,7 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return this.token;
+    return getAccessToken();
   }
 
   getUser(): UserProfile | null {
@@ -185,7 +250,7 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return !!this.token && !!this.user;
+    return !!getAccessToken() && !!this.user;
   }
 
   isAdmin(): boolean {
