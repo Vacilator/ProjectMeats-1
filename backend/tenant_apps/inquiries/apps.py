@@ -7,7 +7,7 @@ class InquiriesConfig(AppConfig):
     
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'tenant_apps.inquiries'
-    verbose_name = 'Inquiries'
+    verbose_name = '❓ Inquiries'
 
     def ready(self):
         """Import signals when app is ready."""

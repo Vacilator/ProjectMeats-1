@@ -10,7 +10,7 @@ from django.apps import AppConfig
 class WorkflowsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'tenant_apps.workflows'
-    verbose_name = 'Tenant Workflows'
+    verbose_name = '🔄 Tenant Workflows'
     
     def ready(self):
         # Import signals for workflow triggers
