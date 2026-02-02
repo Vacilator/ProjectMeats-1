@@ -25,7 +25,7 @@
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done   │
 │  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete      │
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
-│  Wave 4: Admin Studio     [████░░░░░░]  35%  🔄 Week 8-9 Complete     │
+│  Wave 4: Admin Studio     [████░░░░░░]  40%  🔄 Week 10 Integration   │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
 │  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
@@ -60,6 +60,20 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-02 - Wave 4: Week 10 Integration Started! 🔗
+
+**Wave 4 Week 10 Integration & Polish is underway!**
+
+#### Integration PRs (Today):
+- **PR #2312**: choicesService integration with configService
+  - Added FIELD_TO_CHOICE_LIST_SLUG mapping for v2 API
+  - Resolution order: SystemChoiceList → Legacy /choices/
+  - Enables gradual migration to tenant-configurable dropdowns
+
+**Wave 4 Status**: 35% → 40% 🔄
+
+---
 
 ### 2026-02-02 - Wave 4: React Admin Studio Complete! 🚀
 
@@ -660,8 +674,8 @@
 - [x] Connect step routing to workflow editor (PR #2295)
 - [x] All integration tests passing
 
-### Wave 4: Admin Studio Enhancement (10/35 tasks)
-*🔄 In Progress - Week 8-9 React Admin Studio components*
+### Wave 4: Admin Studio Enhancement (11/35 tasks)
+*🔄 In Progress - Week 10 Integration & Polish*
 
 **Week 6-7: Django Admin Enhancement** ✅ (5/6 tasks)
 - [x] `SystemChoiceListAdmin` with inline items (PR #2300)
@@ -678,9 +692,9 @@
 - [x] `TenantConfigEditor` (PR #2309)
 - [x] Keyboard shortcuts (deferred - basic navigation exists)
 
-**Week 10: Integration & Polish** ⏳ (0/4 tasks)
-- [ ] Update FormSubmissionModal to use ConfigResolver
-- [ ] Update choicesService to use new API
+**Week 10: Integration & Polish** 🔄 (1/4 tasks)
+- [ ] Update FormSubmissionModal to use ConfigResolver (not needed - FormSubmissionModal uses choicesService)
+- [x] Update choicesService to use new API (PR #2312)
 - [ ] Test all dropdown fields
 - [ ] Performance optimization
 
