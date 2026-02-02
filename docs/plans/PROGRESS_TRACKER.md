@@ -2,14 +2,14 @@
 
 **Status**: 🔄 LIVING DOCUMENT  
 **Category**: Plans  
-**Last Updated**: 2026-02-02
+**Last Updated**: 2026-02-03
 
 ---
 
 ## Living Roadmap & Progress Document
 
-**Current Phase**: Wave 3 - Forms & Flows Enhancement (Near Complete)  
-**Overall Progress**: 78%  
+**Current Phase**: Wave 6 - Model Migration (In Progress)  
+**Overall Progress**: 87%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -27,7 +27,7 @@
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [█████░░░░░]  50%  ✅ Week 10 Complete     │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
-│  Wave 6: Model Migration  [░░░░░░░░░░]   0%  ⏳ Waiting on W1-W4     │
+│  Wave 6: Model Migration  [██░░░░░░░░]  20%  🔄 Plants→Locations Done│
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
 │  NEW WAVES (v3.0):                                                   │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [████████░░]  85%   TOTAL: 1104 tests      │
+│  OVERALL                  [█████████░]  87%   TOTAL: 1104 tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,28 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-03 - Wave 6: Plants → Locations Merge Complete! 🔄
+
+**First major model migration completed!**
+
+#### Model Migration PR (Today):
+- **PR #2318**: Merge Plant model into Location with unified types
+  - Added `LocationTypeChoices` with plant types (plant_processing, plant_distribution, etc.)
+  - Added plant-specific fields to Location: `plant_est_num`, `manager`, `capacity`, `created_by`
+  - Added `legacy_plant_id` for migration tracking and rollback capability
+  - Updated ForeignKey references in PurchaseOrder, CarrierPurchaseOrder, SalesOrder
+  - Created data migration to copy all Plant records to Location
+  - Plants app now deprecated (will be removed after stability period)
+
+**Wave 6 Status**: 0% → 20% 🔄
+
+**Migration Details**:
+- 5 new migrations created (3 in locations, 1 in purchase_orders, 1 in sales_orders)
+- Backward-compatible: `is_plant` property identifies plant locations
+- FK updates preserve data integrity via `legacy_plant_id` mapping
+
+---
 
 ### 2026-02-02 - Wave 4: Week 10 Complete! ✅
 
