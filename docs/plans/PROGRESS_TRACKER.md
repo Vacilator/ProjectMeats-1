@@ -9,7 +9,7 @@
 ## Living Roadmap & Progress Document
 
 **Current Phase**: Wave 6 - Model Migration (In Progress)  
-**Overall Progress**: 87%  
+**Overall Progress**: 88%  
 **Plan Version**: 3.1 (Corrected)
 
 ---
@@ -27,7 +27,7 @@
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [█████░░░░░]  50%  ✅ Week 10 Complete     │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
-│  Wave 6: Model Migration  [██░░░░░░░░]  20%  🔄 Plants→Locations Done│
+│  Wave 6: Model Migration  [███░░░░░░░]  30%  🔄 Orders Base Classes   │
 │  Wave 7: Finalization     [░░░░░░░░░░]   0%  ⏳ Future                │
 │                                                                      │
 │  NEW WAVES (v3.0):                                                   │
@@ -37,7 +37,7 @@
 │  Wave I: Infrastructure   [░░░░░░░░░░]   0%  ⏳ Parallel Track        │
 │                                                                      │
 │  ────────────────────────────────────────────────────────────────────│
-│  OVERALL                  [█████████░]  87%   TOTAL: 1104 tests      │
+│  OVERALL                  [█████████░]  88%   TOTAL: 1104 tests      │
 │                                                                      │
 │  TOTAL SCOPE: 350+ tasks | 18-22 weeks | 7 workstreams              │
 │                                                                      │
@@ -60,6 +60,30 @@
 ---
 
 ## Recent Accomplishments
+
+### 2026-02-03 - Wave 6: Orders App Base Classes! 🔄
+
+**Phase 1 of Orders Consolidation complete!**
+
+#### Orders App Foundation PR (Today):
+- **PR #2321**: Create orders app with abstract base classes
+  - `OrderTypeChoices`: purchase, sales, carrier
+  - `BaseOrderStatus`: pending, approved, confirmed, in_transit, delivered, cancelled
+  - `PaymentStatus`: unpaid, partial, paid
+  - `AbstractBaseOrder` with common fields (dates, amounts, product details, carrier)
+  - Computed properties: `is_paid`, `is_complete`, `has_outstanding_balance`
+  - Methods: `calculate_outstanding()`, `update_payment_status()`
+  - 22 unit tests for shared behavior
+
+**Wave 6 Status**: 20% → 30% 🔄
+
+**Phase Structure**:
+- ✅ Phase 1: Abstract base classes (PR #2321)
+- 🔄 Phase 2: Inherit PurchaseOrder from AbstractBaseOrder
+- ⏳ Phase 3: Inherit SalesOrder from AbstractBaseOrder
+- ⏳ Phase 4: Remove duplicate code
+
+---
 
 ### 2026-02-03 - Wave 6: Plants → Locations Merge Complete! 🔄
 
