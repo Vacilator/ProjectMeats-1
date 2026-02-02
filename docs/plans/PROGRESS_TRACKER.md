@@ -23,7 +23,7 @@
 │                                                                      │
 │  Wave 0: Preparation      [████████░░]  80%  ✅ Core Tasks Done      │
 │  Wave 1: Foundation       [██████░░░░]  58%  ✅ configService Done   │
-│  Wave 2: Cockpit          [██████░░░░]  56%  ✅ Week 8 Complete      │
+│  Wave 2: Cockpit          [██████░░░░]  63%  ✅ Graph Enhancements   │
 │  Wave 3: Forms & Flows    [██████████] 100%  ✅ COMPLETE! 🎉         │
 │  Wave 4: Admin Studio     [██████░░░░]  65%  ✅ Keyboard Shortcuts    │
 │  Wave 5: Repository       [██████████]  95%  ✅ D1-D4 Complete!      │
@@ -789,7 +789,7 @@ OrderMethodsMixin (behavior)
 - [ ] Delete `system_config` app (has 1 record - needs migration plan)
 - [x] Document changes
 
-### Wave 2: Cockpit Command Center (27/48 tasks)
+### Wave 2: Cockpit Command Center (30/48 tasks)
 
 **Week 5: Backend APIs ✅ COMPLETE**
 - [x] Universal Search API (PR #2212)
@@ -814,8 +814,8 @@ OrderMethodsMixin (behavior)
 - [x] EntityNode component (PR #2215)
 - [x] EntityGraph component (PR #2215)
 - [x] Graph layout algorithms (PR #2215)
-- [ ] Node expansion on double-click (deferred)
-- [ ] InlineEditPanel (deferred to Wave 4)
+- [x] Node expansion on double-click (PR #2361)
+- [x] InlineEditPanel (PR #2361)
 
 **Week 8: Widget System & Assembly ✅ COMPLETE**
 - [x] WidgetGrid with react-grid-layout (PR #2218)
