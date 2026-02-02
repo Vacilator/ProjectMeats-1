@@ -64,6 +64,7 @@ import InquiryTemplates from './pages/InquiryTemplates';
 import InquiryAnalytics from './pages/InquiryAnalytics';
 import OptionListsPage from './pages/Admin/OptionLists';
 import Workspace from './pages/Workspace';
+import { NotificationPreferences } from './pages/Settings';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -194,6 +195,7 @@ const App: React.FC = () => {
                 <Route path="reports" element={<Reports />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="settings/notifications" element={<NotificationPreferences />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
                 
                 {/* Inquiries & Fulfillments */}
