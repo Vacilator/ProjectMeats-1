@@ -485,3 +485,316 @@ class EntityPersistenceServiceTest(TestCase):
             submission.data['__created_entities__'],
             result['created_entities']
         )
+
+
+# =============================================================================
+# WAVE 3: FORMS & FLOWS ENHANCEMENT TESTS
+# =============================================================================
+
+class FormStatusHistoryModelTest(TestCase):
+    """Test FormStatusHistory model functionality."""
+    
+    @classmethod
+    def setUpTestData(cls):
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        cls.user = User.objects.create_user(
+            username=f'statususer_{unique_id}',
+            email=f'statususer_{unique_id}@example.com',
+            password='testpass123'
+        )
+        cls.tenant = Tenant.objects.create(
+            name=f'Status Tenant {unique_id}',
+            slug=f'status-tenant-{unique_id}'
+        )
+        cls.form = TenantForm.objects.create(
+            tenant=cls.tenant,
+            name='Test Form for Status',
+            description='A test form',
+            status=FormStatus.ACTIVE,
+            created_by=cls.user
+        )
+    
+    def test_create_status_history(self):
+        """Test creating a status history entry."""
+        from .models import FormSubmission, FormStatusHistory, FormSubmissionStatus
+        
+        submission = FormSubmission.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            status=FormSubmissionStatus.DRAFT,
+            created_by=self.user
+        )
+        
+        history = FormStatusHistory.objects.create(
+            submission=submission,
+            from_status='',
+            to_status=FormSubmissionStatus.DRAFT,
+            changed_by=self.user,
+            comment='Initial creation'
+        )
+        
+        self.assertEqual(history.from_status, '')
+        self.assertEqual(history.to_status, 'draft')
+        self.assertEqual(history.changed_by, self.user)
+        self.assertIn('Initial', history.comment)
+    
+    def test_status_transition(self):
+        """Test recording a status transition."""
+        from .models import FormSubmission, FormStatusHistory, FormSubmissionStatus
+        
+        submission = FormSubmission.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            status=FormSubmissionStatus.DRAFT,
+            created_by=self.user
+        )
+        
+        # Create history for transition
+        history = FormStatusHistory.objects.create(
+            submission=submission,
+            from_status=FormSubmissionStatus.DRAFT,
+            to_status=FormSubmissionStatus.IN_PROGRESS,
+            changed_by=self.user,
+            comment='Started working on submission'
+        )
+        
+        self.assertEqual(str(history), f"{submission} - draft → in_progress")
+
+
+class StepAssignmentModelTest(TestCase):
+    """Test StepAssignment model functionality."""
+    
+    @classmethod
+    def setUpTestData(cls):
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        cls.user = User.objects.create_user(
+            username=f'assignuser_{unique_id}',
+            email=f'assignuser_{unique_id}@example.com',
+            password='testpass123'
+        )
+        cls.tenant = Tenant.objects.create(
+            name=f'Assign Tenant {unique_id}',
+            slug=f'assign-tenant-{unique_id}'
+        )
+        cls.form = TenantForm.objects.create(
+            tenant=cls.tenant,
+            name='Test Form for Assignment',
+            description='A test form',
+            status=FormStatus.ACTIVE,
+            created_by=cls.user
+        )
+        cls.step = TenantFormEntity.objects.create(
+            form=cls.form,
+            entity_type='supplier',
+            step_name='Supplier Info',
+            order=0
+        )
+    
+    def test_create_user_assignment(self):
+        """Test creating a user-based step assignment."""
+        from .models import StepAssignment, AssignmentType
+        
+        assignment = StepAssignment.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            step=self.step,
+            assignment_type=AssignmentType.USER,
+            assigned_user=self.user,
+            is_required=True,
+            due_days=3,
+            created_by=self.user
+        )
+        
+        self.assertEqual(assignment.assignment_type, 'user')
+        self.assertEqual(assignment.assigned_user, self.user)
+        self.assertEqual(assignment.due_days, 3)
+        self.assertTrue(assignment.is_required)
+    
+    def test_create_role_assignment(self):
+        """Test creating a role-based step assignment."""
+        from .models import StepAssignment, AssignmentType
+        
+        assignment = StepAssignment.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            step=self.step,
+            assignment_type=AssignmentType.ROLE,
+            assigned_role='manager',
+            is_required=True,
+            created_by=self.user
+        )
+        
+        self.assertEqual(assignment.assignment_type, 'role')
+        self.assertEqual(assignment.assigned_role, 'manager')
+        self.assertEqual(str(assignment), f"Supplier Info → manager")
+
+
+class UserNotificationModelTest(TestCase):
+    """Test UserNotification model functionality."""
+    
+    @classmethod
+    def setUpTestData(cls):
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        cls.user = User.objects.create_user(
+            username=f'notifyuser_{unique_id}',
+            email=f'notifyuser_{unique_id}@example.com',
+            password='testpass123'
+        )
+        cls.tenant = Tenant.objects.create(
+            name=f'Notify Tenant {unique_id}',
+            slug=f'notify-tenant-{unique_id}'
+        )
+    
+    def test_create_notification(self):
+        """Test creating a notification."""
+        from .models import UserNotification, NotificationType, NotificationPriority
+        
+        notification = UserNotification.objects.create(
+            tenant=self.tenant,
+            user=self.user,
+            notification_type=NotificationType.TASK_ASSIGNED,
+            title='New Task Assigned',
+            message='You have been assigned a new task: Review supplier form',
+            priority=NotificationPriority.HIGH
+        )
+        
+        self.assertEqual(notification.notification_type, 'task_assigned')
+        self.assertEqual(notification.priority, 'high')
+        self.assertFalse(notification.is_read)
+        self.assertFalse(notification.is_dismissed)
+    
+    def test_mark_read(self):
+        """Test marking a notification as read."""
+        from .models import UserNotification, NotificationType
+        
+        notification = UserNotification.objects.create(
+            tenant=self.tenant,
+            user=self.user,
+            notification_type=NotificationType.TASK_COMPLETED,
+            title='Task Completed',
+            message='Your task has been completed'
+        )
+        
+        self.assertFalse(notification.is_read)
+        self.assertIsNone(notification.read_at)
+        
+        notification.mark_read()
+        
+        self.assertTrue(notification.is_read)
+        self.assertIsNotNone(notification.read_at)
+    
+    def test_dismiss(self):
+        """Test dismissing a notification."""
+        from .models import UserNotification, NotificationType
+        
+        notification = UserNotification.objects.create(
+            tenant=self.tenant,
+            user=self.user,
+            notification_type=NotificationType.SYSTEM,
+            title='System Update',
+            message='System will be updated tonight'
+        )
+        
+        self.assertFalse(notification.is_dismissed)
+        
+        notification.dismiss()
+        
+        self.assertTrue(notification.is_dismissed)
+
+
+class UserNotificationPreferencesModelTest(TestCase):
+    """Test UserNotificationPreferences model functionality."""
+    
+    @classmethod
+    def setUpTestData(cls):
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        cls.user = User.objects.create_user(
+            username=f'prefuser_{unique_id}',
+            email=f'prefuser_{unique_id}@example.com',
+            password='testpass123'
+        )
+    
+    def test_create_preferences(self):
+        """Test creating notification preferences."""
+        from .models import UserNotificationPreferences
+        
+        prefs = UserNotificationPreferences.objects.create(
+            user=self.user,
+            notifications_enabled=True,
+            email_enabled=True,
+            sms_enabled=False,
+            push_enabled=True
+        )
+        
+        self.assertTrue(prefs.notifications_enabled)
+        self.assertTrue(prefs.email_enabled)
+        self.assertFalse(prefs.sms_enabled)
+        self.assertTrue(prefs.push_enabled)
+    
+    def test_should_notify_with_disabled_master(self):
+        """Test should_notify returns False when master switch is off."""
+        from .models import UserNotificationPreferences, DeliveryChannel
+        
+        prefs = UserNotificationPreferences.objects.create(
+            user=self.user,
+            notifications_enabled=False,
+            email_enabled=True
+        )
+        
+        result = prefs.should_notify('task_assigned', DeliveryChannel.EMAIL)
+        self.assertFalse(result)
+    
+    def test_should_notify_with_disabled_channel(self):
+        """Test should_notify returns False when channel is disabled."""
+        from .models import UserNotificationPreferences, DeliveryChannel
+        
+        prefs = UserNotificationPreferences.objects.create(
+            user=self.user,
+            notifications_enabled=True,
+            email_enabled=False
+        )
+        
+        result = prefs.should_notify('task_assigned', DeliveryChannel.EMAIL)
+        self.assertFalse(result)
+    
+    def test_should_notify_with_type_preferences(self):
+        """Test should_notify respects type-specific preferences."""
+        from .models import UserNotificationPreferences, DeliveryChannel
+        
+        prefs = UserNotificationPreferences.objects.create(
+            user=self.user,
+            notifications_enabled=True,
+            email_enabled=True,
+            type_preferences={
+                'task_assigned': ['in_app', 'email'],
+                'mention': ['in_app']
+            }
+        )
+        
+        # Task assigned should allow email
+        self.assertTrue(prefs.should_notify('task_assigned', DeliveryChannel.EMAIL))
+        
+        # Mention should not allow email (only in_app in preferences)
+        self.assertFalse(prefs.should_notify('mention', DeliveryChannel.EMAIL))
+        
+        # Unknown type defaults to in_app only
+        self.assertTrue(prefs.should_notify('unknown_type', DeliveryChannel.IN_APP))
+        self.assertFalse(prefs.should_notify('unknown_type', DeliveryChannel.EMAIL))
+    
+    def test_get_defaults(self):
+        """Test default preferences are returned correctly."""
+        from .models import UserNotificationPreferences, NotificationType, DeliveryChannel
+        
+        defaults = UserNotificationPreferences.get_defaults()
+        
+        # Task assigned should have in_app and email
+        self.assertIn(DeliveryChannel.IN_APP, defaults[NotificationType.TASK_ASSIGNED])
+        self.assertIn(DeliveryChannel.EMAIL, defaults[NotificationType.TASK_ASSIGNED])
+        
+        # Task completed should have in_app only
+        self.assertIn(DeliveryChannel.IN_APP, defaults[NotificationType.TASK_COMPLETED])
+        self.assertNotIn(DeliveryChannel.EMAIL, defaults[NotificationType.TASK_COMPLETED])

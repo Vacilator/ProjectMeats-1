@@ -438,3 +438,166 @@ class QuickActionsSerializer(serializers.Serializer):
     """Serializer for user's quick actions list."""
     
     items = QuickActionItemSerializer(many=True)
+
+
+# =============================================================================
+# WAVE 3: FORMS & FLOWS ENHANCEMENT SERIALIZERS
+# =============================================================================
+
+from .models import (
+    FormStatusHistory, StepAssignment, UserNotification, 
+    UserNotificationPreferences, AssignmentType, NotificationType
+)
+
+
+class FormStatusHistorySerializer(serializers.ModelSerializer):
+    """Serializer for form status history."""
+    
+    changed_by_name = serializers.SerializerMethodField()
+    from_status_display = serializers.CharField(source='get_from_status_display', read_only=True)
+    to_status_display = serializers.CharField(source='get_to_status_display', read_only=True)
+    
+    class Meta:
+        model = FormStatusHistory
+        fields = [
+            'id', 'submission', 'from_status', 'from_status_display',
+            'to_status', 'to_status_display', 'changed_by', 'changed_by_name',
+            'comment', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+    
+    def get_changed_by_name(self, obj):
+        if obj.changed_by:
+            return obj.changed_by.get_full_name() or obj.changed_by.username
+        return None
+
+
+class StepAssignmentSerializer(serializers.ModelSerializer):
+    """Serializer for step assignments."""
+    
+    assigned_user_name = serializers.SerializerMethodField()
+    step_name = serializers.CharField(source='step.step_name', read_only=True)
+    form_name = serializers.CharField(source='form.name', read_only=True)
+    assignment_type_display = serializers.CharField(source='get_assignment_type_display', read_only=True)
+    
+    class Meta:
+        model = StepAssignment
+        fields = [
+            'id', 'tenant', 'form', 'form_name', 'step', 'step_name',
+            'assignment_type', 'assignment_type_display',
+            'assigned_user', 'assigned_user_name', 'assigned_role',
+            'is_required', 'due_days', 'escalation_user',
+            'created_by', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'tenant', 'created_by', 'created_at', 'updated_at']
+    
+    def get_assigned_user_name(self, obj):
+        if obj.assigned_user:
+            return obj.assigned_user.get_full_name() or obj.assigned_user.username
+        return None
+    
+    def create(self, validated_data):
+        request = self.context.get('request')
+        validated_data['tenant'] = request.tenant
+        validated_data['created_by'] = request.user
+        return super().create(validated_data)
+
+
+class UserNotificationSerializer(serializers.ModelSerializer):
+    """Serializer for user notifications."""
+    
+    notification_type_display = serializers.CharField(source='get_notification_type_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    time_ago = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UserNotification
+        fields = [
+            'id', 'tenant', 'user',
+            'notification_type', 'notification_type_display',
+            'title', 'message', 'priority', 'priority_display',
+            'entity_type', 'entity_id', 'action_url',
+            'is_read', 'read_at', 'is_dismissed',
+            'metadata', 'created_at', 'expires_at', 'time_ago'
+        ]
+        read_only_fields = ['id', 'tenant', 'user', 'created_at']
+    
+    def get_time_ago(self, obj):
+        """Return human-readable time ago string."""
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        now = timezone.now()
+        diff = now - obj.created_at
+        
+        if diff < timedelta(minutes=1):
+            return "Just now"
+        elif diff < timedelta(hours=1):
+            minutes = int(diff.total_seconds() / 60)
+            return f"{minutes}m ago"
+        elif diff < timedelta(days=1):
+            hours = int(diff.total_seconds() / 3600)
+            return f"{hours}h ago"
+        elif diff < timedelta(days=7):
+            days = diff.days
+            return f"{days}d ago"
+        else:
+            return obj.created_at.strftime("%b %d")
+
+
+class UserNotificationCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating notifications (internal use)."""
+    
+    class Meta:
+        model = UserNotification
+        fields = [
+            'tenant', 'user', 'notification_type', 'title', 'message',
+            'priority', 'entity_type', 'entity_id', 'action_url',
+            'metadata', 'expires_at'
+        ]
+
+
+class UserNotificationPreferencesSerializer(serializers.ModelSerializer):
+    """Serializer for notification preferences."""
+    
+    class Meta:
+        model = UserNotificationPreferences
+        fields = [
+            'id', 'user', 'notifications_enabled',
+            'email_enabled', 'sms_enabled', 'push_enabled',
+            'type_preferences',
+            'quiet_hours_enabled', 'quiet_hours_start', 'quiet_hours_end',
+            'daily_digest_enabled', 'weekly_digest_enabled',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+
+class ActionItemSerializer(serializers.Serializer):
+    """Serializer for action items (tasks assigned to user)."""
+    
+    id = serializers.UUIDField()
+    type = serializers.ChoiceField(choices=['form_step', 'workflow_task'])
+    title = serializers.CharField()
+    description = serializers.CharField(allow_blank=True)
+    form_name = serializers.CharField(required=False)
+    step_name = serializers.CharField(required=False)
+    submission_id = serializers.UUIDField(required=False)
+    priority = serializers.ChoiceField(choices=['low', 'normal', 'high', 'urgent'])
+    status = serializers.CharField()
+    due_date = serializers.DateTimeField(required=False, allow_null=True)
+    is_overdue = serializers.BooleanField()
+    assigned_at = serializers.DateTimeField()
+    entity_type = serializers.CharField(required=False)
+    entity_id = serializers.UUIDField(required=False)
+
+
+class ActionItemCountsSerializer(serializers.Serializer):
+    """Serializer for action item counts."""
+    
+    total = serializers.IntegerField()
+    overdue = serializers.IntegerField()
+    due_today = serializers.IntegerField()
+    due_this_week = serializers.IntegerField()
+    by_priority = serializers.DictField(child=serializers.IntegerField())
+    by_form = serializers.ListField(child=serializers.DictField())

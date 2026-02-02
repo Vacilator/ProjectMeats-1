@@ -28,7 +28,11 @@ from .views import (
     # Form Analytics API Views
     FormAnalyticsAPIView, FormEventAPIView,
     # Form Test Data API Views
-    FormTestDataAPIView
+    FormTestDataAPIView,
+    # Wave 3: Forms & Flows Enhancement Views
+    FormStatusHistoryViewSet, StepAssignmentViewSet,
+    UserNotificationViewSet, UserNotificationPreferencesView,
+    ActionItemsAPIView, ActionItemCountsAPIView
 )
 
 app_name = 'workflows'
@@ -53,6 +57,10 @@ router.register(r'execution-logs', WorkflowExecutionLogViewSet, basename='workfl
 # Form Submissions
 router.register(r'form-submissions', FormSubmissionViewSet, basename='form-submission')
 router.register(r'available-forms', AvailableFormsViewSet, basename='available-form')
+
+# Wave 3: Step Assignments and Notifications
+router.register(r'step-assignments', StepAssignmentViewSet, basename='step-assignment')
+router.register(r'notifications', UserNotificationViewSet, basename='notification')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -95,6 +103,18 @@ urlpatterns = [
     path('analytics/summary/', FormAnalyticsAPIView.as_view(), name='analytics-summary'),
     path('form-submissions/<uuid:submission_id>/events/', FormEventAPIView.as_view(), name='form-events'),
     
+    # Form Status History endpoint (nested under submissions)
+    path('form-submissions/<uuid:submission_id>/history/', 
+         FormStatusHistoryViewSet.as_view({'get': 'list', 'post': 'create'}), 
+         name='form-submission-history'),
+    
     # Form Test Data API endpoints
     path('forms/<uuid:form_id>/test-data/', FormTestDataAPIView.as_view(), name='form-test-data'),
+    
+    # Wave 3: Action Items API endpoints
+    path('action-items/', ActionItemsAPIView.as_view(), name='action-items'),
+    path('action-items/counts/', ActionItemCountsAPIView.as_view(), name='action-item-counts'),
+    
+    # Wave 3: Notification Preferences endpoint
+    path('notification-preferences/', UserNotificationPreferencesView.as_view(), name='notification-preferences'),
 ]

@@ -1115,3 +1115,480 @@ class FormSubmissionEvent(models.Model):
     
     def __str__(self):
         return f"{self.event_type} - {self.submission_id}"
+
+
+# =============================================================================
+# FORM STATUS HISTORY (Wave 3: Forms & Flows Enhancement)
+# =============================================================================
+
+class FormStatusHistory(models.Model):
+    """
+    Tracks status changes for form submissions.
+    
+    Provides a complete audit trail of when status changed, who changed it,
+    and optional comments/reasons for the change. Used for:
+    - Compliance and auditing
+    - Status change analytics
+    - Action items and notifications
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submission = models.ForeignKey(
+        FormSubmission,
+        on_delete=models.CASCADE,
+        related_name='status_history',
+        help_text="The form submission this history entry belongs to"
+    )
+    
+    # Status transition
+    from_status = models.CharField(
+        max_length=20,
+        choices=FormSubmissionStatus.choices,
+        blank=True,
+        default='',
+        help_text="Previous status (empty if initial creation)"
+    )
+    to_status = models.CharField(
+        max_length=20,
+        choices=FormSubmissionStatus.choices,
+        help_text="New status after this change"
+    )
+    
+    # Change metadata
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='form_status_changes',
+        help_text="User who made this status change"
+    )
+    comment = models.TextField(
+        blank=True,
+        default='',
+        help_text="Optional reason or comment for the status change"
+    )
+    
+    # Audit
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Form Status History"
+        verbose_name_plural = "Form Status Histories"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['submission', '-created_at']),
+            models.Index(fields=['to_status', 'created_at']),
+            models.Index(fields=['changed_by', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.submission} - {self.from_status or 'new'} → {self.to_status}"
+
+
+# =============================================================================
+# STEP ASSIGNMENT (Wave 3: Forms & Flows Enhancement)
+# =============================================================================
+
+class AssignmentType(models.TextChoices):
+    """Types of step assignments."""
+    USER = 'user', 'Specific User'
+    ROLE = 'role', 'Role-Based'
+    TEAM = 'team', 'Team-Based'
+    POOL = 'pool', 'Shared Pool'
+
+
+class StepAssignment(models.Model):
+    """
+    Assigns users or roles to specific form steps.
+    
+    Enables workflow routing based on:
+    - Direct user assignment
+    - Role-based assignment (e.g., "Manager Approval")
+    - Team-based assignment
+    - Pool assignment (first available picks up)
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='step_assignments',
+        help_text="Tenant this assignment belongs to"
+    )
+    
+    # Step being assigned
+    form = models.ForeignKey(
+        TenantForm,
+        on_delete=models.CASCADE,
+        related_name='step_assignments',
+        help_text="The form this assignment applies to"
+    )
+    step = models.ForeignKey(
+        TenantFormEntity,
+        on_delete=models.CASCADE,
+        related_name='assignments',
+        help_text="The step being assigned"
+    )
+    
+    # Assignment type and target
+    assignment_type = models.CharField(
+        max_length=20,
+        choices=AssignmentType.choices,
+        default=AssignmentType.USER,
+        help_text="Type of assignment"
+    )
+    
+    # For USER type: specific user
+    assigned_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='step_assignments',
+        help_text="Specific user assigned (for USER type)"
+    )
+    
+    # For ROLE/TEAM type: role or team name stored as string
+    assigned_role = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Role name for role-based assignment (e.g., 'manager', 'approver')"
+    )
+    
+    # Assignment rules
+    is_required = models.BooleanField(
+        default=True,
+        help_text="Whether this step must be completed (vs. skippable)"
+    )
+    due_days = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of days allowed to complete this step (SLA)"
+    )
+    escalation_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='escalation_assignments',
+        help_text="User to notify if step exceeds due date"
+    )
+    
+    # Audit
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_step_assignments',
+        help_text="User who created this assignment"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Step Assignment"
+        verbose_name_plural = "Step Assignments"
+        ordering = ['form', 'step__order']
+        unique_together = [['form', 'step', 'assigned_user'], ['form', 'step', 'assigned_role']]
+        indexes = [
+            models.Index(fields=['tenant', 'form']),
+            models.Index(fields=['assigned_user', 'assignment_type']),
+            models.Index(fields=['assigned_role']),
+        ]
+    
+    def __str__(self):
+        if self.assignment_type == AssignmentType.USER and self.assigned_user:
+            return f"{self.step.name} → {self.assigned_user.username}"
+        elif self.assignment_type in [AssignmentType.ROLE, AssignmentType.TEAM]:
+            return f"{self.step.name} → {self.assigned_role}"
+        return f"{self.step.name} → {self.assignment_type}"
+
+
+# =============================================================================
+# USER NOTIFICATIONS (Wave 3: Forms & Flows Enhancement)
+# =============================================================================
+
+class NotificationType(models.TextChoices):
+    """Types of notifications."""
+    TASK_ASSIGNED = 'task_assigned', 'Task Assigned'
+    TASK_DUE_SOON = 'task_due_soon', 'Task Due Soon'
+    TASK_OVERDUE = 'task_overdue', 'Task Overdue'
+    TASK_COMPLETED = 'task_completed', 'Task Completed'
+    FORM_SUBMITTED = 'form_submitted', 'Form Submitted'
+    FORM_APPROVED = 'form_approved', 'Form Approved'
+    FORM_REJECTED = 'form_rejected', 'Form Rejected'
+    MENTION = 'mention', 'Mentioned You'
+    COMMENT = 'comment', 'New Comment'
+    STATUS_CHANGE = 'status_change', 'Status Changed'
+    WORKFLOW_TRIGGER = 'workflow_trigger', 'Workflow Triggered'
+    SYSTEM = 'system', 'System Notification'
+
+
+class NotificationPriority(models.TextChoices):
+    """Priority levels for notifications."""
+    LOW = 'low', 'Low'
+    NORMAL = 'normal', 'Normal'
+    HIGH = 'high', 'High'
+    URGENT = 'urgent', 'Urgent'
+
+
+class UserNotification(models.Model):
+    """
+    Stores in-app notifications for users.
+    
+    Used for:
+    - Action item alerts (task assigned, due soon, overdue)
+    - Form submission updates
+    - Workflow triggers and status changes
+    - System announcements
+    
+    Supports:
+    - Read/unread tracking
+    - Entity linking (click to navigate)
+    - Priority levels
+    - Expiration (auto-cleanup)
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        help_text="Tenant this notification belongs to"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        help_text="User to receive this notification"
+    )
+    
+    # Notification content
+    notification_type = models.CharField(
+        max_length=30,
+        choices=NotificationType.choices,
+        help_text="Type of notification"
+    )
+    title = models.CharField(
+        max_length=200,
+        help_text="Notification title (short, e.g., 'New Task Assigned')"
+    )
+    message = models.TextField(
+        help_text="Full notification message"
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=NotificationPriority.choices,
+        default=NotificationPriority.NORMAL,
+        help_text="Notification priority level"
+    )
+    
+    # Entity reference (for navigation)
+    entity_type = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        help_text="Entity type for linking (e.g., 'form_submission', 'purchase_order')"
+    )
+    entity_id = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="UUID of the related entity"
+    )
+    action_url = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        help_text="URL to navigate to when notification is clicked"
+    )
+    
+    # State tracking
+    is_read = models.BooleanField(
+        default=False,
+        help_text="Whether the notification has been read"
+    )
+    read_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the notification was read"
+    )
+    is_dismissed = models.BooleanField(
+        default=False,
+        help_text="Whether the user dismissed this notification"
+    )
+    
+    # Metadata
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional notification data"
+    )
+    
+    # Audit and lifecycle
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this notification should auto-expire (for cleanup)"
+    )
+    
+    class Meta:
+        verbose_name = "User Notification"
+        verbose_name_plural = "User Notifications"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read', '-created_at']),
+            models.Index(fields=['user', 'notification_type', '-created_at']),
+            models.Index(fields=['tenant', '-created_at']),
+            models.Index(fields=['entity_type', 'entity_id']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username}: {self.title}"
+    
+    def mark_read(self):
+        """Mark this notification as read."""
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
+    
+    def dismiss(self):
+        """Dismiss this notification."""
+        self.is_dismissed = True
+        self.save(update_fields=['is_dismissed'])
+
+
+# =============================================================================
+# USER NOTIFICATION PREFERENCES (Wave 3: Forms & Flows Enhancement)
+# =============================================================================
+
+class DeliveryChannel(models.TextChoices):
+    """Notification delivery channels."""
+    IN_APP = 'in_app', 'In-App'
+    EMAIL = 'email', 'Email'
+    SMS = 'sms', 'SMS'
+    PUSH = 'push', 'Push Notification'
+
+
+class UserNotificationPreferences(models.Model):
+    """
+    User's notification preferences.
+    
+    Controls which notification types the user wants to receive
+    and through which channels (in-app, email, SMS, push).
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notification_preferences',
+        help_text="User for these preferences"
+    )
+    
+    # Global settings
+    notifications_enabled = models.BooleanField(
+        default=True,
+        help_text="Master switch to enable/disable all notifications"
+    )
+    email_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether to send email notifications"
+    )
+    sms_enabled = models.BooleanField(
+        default=False,
+        help_text="Whether to send SMS notifications"
+    )
+    push_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether to send push notifications"
+    )
+    
+    # Per-type preferences (JSON maps NotificationType → list of DeliveryChannel)
+    # Example: {"task_assigned": ["in_app", "email"], "mention": ["in_app"]}
+    type_preferences = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Per-type delivery preferences"
+    )
+    
+    # Quiet hours (don't send notifications during these times)
+    quiet_hours_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable quiet hours (no notifications during specified times)"
+    )
+    quiet_hours_start = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Start of quiet hours (e.g., 22:00)"
+    )
+    quiet_hours_end = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="End of quiet hours (e.g., 08:00)"
+    )
+    
+    # Digest preferences
+    daily_digest_enabled = models.BooleanField(
+        default=False,
+        help_text="Receive a daily digest email instead of individual notifications"
+    )
+    weekly_digest_enabled = models.BooleanField(
+        default=False,
+        help_text="Receive a weekly digest email"
+    )
+    
+    # Audit
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "User Notification Preferences"
+        verbose_name_plural = "User Notification Preferences"
+    
+    def __str__(self):
+        return f"Notification Preferences for {self.user.username}"
+    
+    def should_notify(self, notification_type: str, channel: str) -> bool:
+        """Check if this user should receive a notification via a specific channel."""
+        if not self.notifications_enabled:
+            return False
+        
+        # Check channel-level toggle
+        if channel == DeliveryChannel.EMAIL and not self.email_enabled:
+            return False
+        if channel == DeliveryChannel.SMS and not self.sms_enabled:
+            return False
+        if channel == DeliveryChannel.PUSH and not self.push_enabled:
+            return False
+        
+        # Check type-specific preferences
+        type_prefs = self.type_preferences.get(notification_type, [])
+        if type_prefs:
+            return channel in type_prefs
+        
+        # Default: in-app only for unspecified types
+        return channel == DeliveryChannel.IN_APP
+    
+    @classmethod
+    def get_defaults(cls):
+        """Return default notification preferences."""
+        return {
+            NotificationType.TASK_ASSIGNED: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
+            NotificationType.TASK_DUE_SOON: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
+            NotificationType.TASK_OVERDUE: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
+            NotificationType.TASK_COMPLETED: [DeliveryChannel.IN_APP],
+            NotificationType.FORM_SUBMITTED: [DeliveryChannel.IN_APP],
+            NotificationType.FORM_APPROVED: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
+            NotificationType.FORM_REJECTED: [DeliveryChannel.IN_APP, DeliveryChannel.EMAIL],
+            NotificationType.MENTION: [DeliveryChannel.IN_APP],
+            NotificationType.COMMENT: [DeliveryChannel.IN_APP],
+            NotificationType.STATUS_CHANGE: [DeliveryChannel.IN_APP],
+            NotificationType.WORKFLOW_TRIGGER: [DeliveryChannel.IN_APP],
+            NotificationType.SYSTEM: [DeliveryChannel.IN_APP],
+        }

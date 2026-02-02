@@ -4,7 +4,7 @@ API ViewSets for Tenant Workflows.
 Bundle Two: System → Tenant Workflows & New Data Entities
 Provides REST API endpoints for Forms, Workflows, and Lists.
 """
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, mixins, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -2438,3 +2438,361 @@ class FormTestDataAPIView(APIView):
             'form_name': form.name,
             'test_data': test_data,
         })
+
+
+# =============================================================================
+# WAVE 3: FORMS & FLOWS ENHANCEMENT VIEWS
+# =============================================================================
+
+from .models import (
+    FormStatusHistory, StepAssignment, UserNotification,
+    UserNotificationPreferences, StepSubmissionStatus
+)
+from .serializers import (
+    FormStatusHistorySerializer, StepAssignmentSerializer,
+    UserNotificationSerializer, UserNotificationPreferencesSerializer,
+    ActionItemSerializer, ActionItemCountsSerializer
+)
+
+
+class FormStatusHistoryViewSet(mixins.ListModelMixin,
+                               mixins.CreateModelMixin,
+                               viewsets.GenericViewSet):
+    """
+    API endpoint for form status history.
+    
+    GET /api/v1/workflows/form-submissions/{submission_id}/history/
+    POST /api/v1/workflows/form-submissions/{submission_id}/history/
+    """
+    serializer_class = FormStatusHistorySerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        submission_id = self.kwargs.get('submission_id')
+        return FormStatusHistory.objects.filter(
+            submission_id=submission_id
+        ).select_related('changed_by', 'submission')
+    
+    def perform_create(self, serializer):
+        submission_id = self.kwargs.get('submission_id')
+        try:
+            submission = FormSubmission.objects.get(pk=submission_id)
+        except FormSubmission.DoesNotExist:
+            raise serializers.ValidationError("Submission not found")
+        
+        # Get current status before change
+        from_status = submission.status
+        to_status = self.request.data.get('to_status')
+        
+        # Update submission status
+        submission.status = to_status
+        submission.save(update_fields=['status', 'updated_at'])
+        
+        # Create history record
+        serializer.save(
+            submission=submission,
+            from_status=from_status,
+            changed_by=self.request.user
+        )
+
+
+class StepAssignmentViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for step assignments.
+    
+    GET /api/v1/workflows/step-assignments/
+    POST /api/v1/workflows/step-assignments/
+    PUT/PATCH /api/v1/workflows/step-assignments/{id}/
+    DELETE /api/v1/workflows/step-assignments/{id}/
+    """
+    serializer_class = StepAssignmentSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = StepAssignment.objects.select_related(
+            'tenant', 'form', 'step', 'assigned_user', 'escalation_user', 'created_by'
+        )
+        
+        # Filter by tenant
+        if hasattr(self.request, 'tenant') and self.request.tenant:
+            queryset = queryset.filter(tenant=self.request.tenant)
+        
+        # Filter by form
+        form_id = self.request.query_params.get('form')
+        if form_id:
+            queryset = queryset.filter(form_id=form_id)
+        
+        # Filter by step
+        step_id = self.request.query_params.get('step')
+        if step_id:
+            queryset = queryset.filter(step_id=step_id)
+        
+        # Filter by assigned user
+        user_id = self.request.query_params.get('assigned_user')
+        if user_id:
+            queryset = queryset.filter(assigned_user_id=user_id)
+        
+        # Filter by my assignments
+        if self.request.query_params.get('my_assignments') == 'true':
+            queryset = queryset.filter(assigned_user=self.request.user)
+        
+        return queryset
+
+
+class UserNotificationViewSet(mixins.ListModelMixin,
+                              mixins.RetrieveModelMixin,
+                              mixins.DestroyModelMixin,
+                              viewsets.GenericViewSet):
+    """
+    API endpoint for user notifications.
+    
+    GET /api/v1/workflows/notifications/
+    GET /api/v1/workflows/notifications/{id}/
+    DELETE /api/v1/workflows/notifications/{id}/
+    POST /api/v1/workflows/notifications/{id}/read/
+    POST /api/v1/workflows/notifications/mark-all-read/
+    """
+    serializer_class = UserNotificationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = UserNotification.objects.filter(
+            user=self.request.user,
+            is_dismissed=False
+        ).select_related('tenant')
+        
+        # Filter by tenant if available
+        if hasattr(self.request, 'tenant') and self.request.tenant:
+            queryset = queryset.filter(tenant=self.request.tenant)
+        
+        # Filter by read status
+        is_read = self.request.query_params.get('is_read')
+        if is_read == 'true':
+            queryset = queryset.filter(is_read=True)
+        elif is_read == 'false':
+            queryset = queryset.filter(is_read=False)
+        
+        # Filter by type
+        notification_type = self.request.query_params.get('type')
+        if notification_type:
+            queryset = queryset.filter(notification_type=notification_type)
+        
+        # Filter by priority
+        priority = self.request.query_params.get('priority')
+        if priority:
+            queryset = queryset.filter(priority=priority)
+        
+        return queryset.order_by('-created_at')
+    
+    @action(detail=True, methods=['post'])
+    def read(self, request, pk=None):
+        """Mark a notification as read."""
+        notification = self.get_object()
+        notification.mark_read()
+        return Response({'status': 'success'})
+    
+    @action(detail=False, methods=['post'], url_path='mark-all-read')
+    def mark_all_read(self, request):
+        """Mark all notifications as read."""
+        from django.utils import timezone
+        
+        queryset = self.get_queryset().filter(is_read=False)
+        count = queryset.update(is_read=True, read_at=timezone.now())
+        return Response({'status': 'success', 'count': count})
+    
+    @action(detail=False, methods=['get'], url_path='unread-count')
+    def unread_count(self, request):
+        """Get count of unread notifications."""
+        count = self.get_queryset().filter(is_read=False).count()
+        return Response({'count': count})
+
+
+class UserNotificationPreferencesView(APIView):
+    """
+    API endpoint for notification preferences.
+    
+    GET /api/v1/workflows/notification-preferences/
+    PUT /api/v1/workflows/notification-preferences/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get or create notification preferences for current user."""
+        prefs, created = UserNotificationPreferences.objects.get_or_create(
+            user=request.user,
+            defaults={'type_preferences': UserNotificationPreferences.get_defaults()}
+        )
+        serializer = UserNotificationPreferencesSerializer(prefs)
+        return Response(serializer.data)
+    
+    def put(self, request):
+        """Update notification preferences."""
+        prefs, created = UserNotificationPreferences.objects.get_or_create(
+            user=request.user,
+            defaults={'type_preferences': UserNotificationPreferences.get_defaults()}
+        )
+        serializer = UserNotificationPreferencesSerializer(prefs, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ActionItemsAPIView(APIView):
+    """
+    API endpoint for action items (tasks assigned to user).
+    
+    GET /api/v1/workflows/action-items/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get action items for current user."""
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        user = request.user
+        now = timezone.now()
+        today = now.date()
+        week_from_now = today + timedelta(days=7)
+        
+        action_items = []
+        
+        # Get step assignments for user
+        assignments = StepAssignment.objects.filter(
+            assigned_user=user
+        ).select_related('form', 'step', 'tenant')
+        
+        # Filter by tenant if available
+        if hasattr(request, 'tenant') and request.tenant:
+            assignments = assignments.filter(tenant=request.tenant)
+        
+        # Find submissions that have this user's assigned steps in action_needed status
+        for assignment in assignments:
+            # Find step submissions in action_needed status
+            step_submissions = FormStepSubmission.objects.filter(
+                step=assignment.step,
+                status=StepSubmissionStatus.ACTION_NEEDED,
+                submission__status='in_progress'
+            ).select_related('submission', 'submission__form')
+            
+            # Filter by tenant
+            if hasattr(request, 'tenant') and request.tenant:
+                step_submissions = step_submissions.filter(
+                    submission__tenant=request.tenant
+                )
+            
+            for step_sub in step_submissions:
+                # Calculate due date
+                due_date = None
+                is_overdue = False
+                if assignment.due_days:
+                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                    is_overdue = due_date < now
+                
+                action_items.append({
+                    'id': step_sub.id,
+                    'type': 'form_step',
+                    'title': f"{assignment.form.name}: {assignment.step.step_name or assignment.step.entity_type}",
+                    'description': assignment.form.description or '',
+                    'form_name': assignment.form.name,
+                    'step_name': assignment.step.step_name or assignment.step.entity_type,
+                    'submission_id': step_sub.submission_id,
+                    'priority': 'urgent' if is_overdue else ('high' if assignment.is_required else 'normal'),
+                    'status': step_sub.status,
+                    'due_date': due_date,
+                    'is_overdue': is_overdue,
+                    'assigned_at': step_sub.created_at,
+                    'entity_type': assignment.step.entity_type,
+                    'entity_id': step_sub.id,
+                })
+        
+        # Sort by priority and due date
+        action_items.sort(key=lambda x: (
+            {'urgent': 0, 'high': 1, 'normal': 2, 'low': 3}.get(x['priority'], 2),
+            x['due_date'] or now + timedelta(days=365),
+            x['assigned_at']
+        ))
+        
+        serializer = ActionItemSerializer(action_items, many=True)
+        return Response(serializer.data)
+
+
+class ActionItemCountsAPIView(APIView):
+    """
+    API endpoint for action item counts.
+    
+    GET /api/v1/workflows/action-items/counts/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get counts of action items for current user."""
+        from django.utils import timezone
+        from datetime import timedelta
+        from collections import defaultdict
+        
+        user = request.user
+        now = timezone.now()
+        today = now.date()
+        week_from_now = today + timedelta(days=7)
+        
+        counts = {
+            'total': 0,
+            'overdue': 0,
+            'due_today': 0,
+            'due_this_week': 0,
+            'by_priority': defaultdict(int),
+            'by_form': []
+        }
+        form_counts = defaultdict(int)
+        
+        # Get step assignments for user
+        assignments = StepAssignment.objects.filter(
+            assigned_user=user
+        ).select_related('form', 'step')
+        
+        if hasattr(request, 'tenant') and request.tenant:
+            assignments = assignments.filter(tenant=request.tenant)
+        
+        for assignment in assignments:
+            step_submissions = FormStepSubmission.objects.filter(
+                step=assignment.step,
+                status=StepSubmissionStatus.ACTION_NEEDED,
+                submission__status='in_progress'
+            )
+            
+            if hasattr(request, 'tenant') and request.tenant:
+                step_submissions = step_submissions.filter(
+                    submission__tenant=request.tenant
+                )
+            
+            for step_sub in step_submissions:
+                counts['total'] += 1
+                form_counts[assignment.form.name] += 1
+                
+                # Calculate due date and priority
+                due_date = None
+                is_overdue = False
+                if assignment.due_days:
+                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                    is_overdue = due_date < now
+                    
+                    if is_overdue:
+                        counts['overdue'] += 1
+                    elif due_date.date() == today:
+                        counts['due_today'] += 1
+                    elif due_date.date() <= week_from_now:
+                        counts['due_this_week'] += 1
+                
+                priority = 'urgent' if is_overdue else ('high' if assignment.is_required else 'normal')
+                counts['by_priority'][priority] += 1
+        
+        counts['by_form'] = [
+            {'form_name': name, 'count': count}
+            for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
+        ]
+        counts['by_priority'] = dict(counts['by_priority'])
+        
+        serializer = ActionItemCountsSerializer(counts)
+        return Response(serializer.data)
