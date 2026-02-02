@@ -11,6 +11,7 @@
  * - Entity selection per step
  * - Field mapping between steps
  * - Data flow visualization with connections
+ * - Step routing logic with conditions
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
@@ -32,6 +33,7 @@ import ReactFlow, {
   getBezierPath,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { StepRoutingLogic, RoutingRule } from '../../../components/Workflows';
 
 interface WorkflowCanvasWithLogicProps {
   blueprintId: string;
@@ -46,6 +48,7 @@ interface WorkflowStep {
   config?: {
     form_fields?: string[];
     field_mappings?: FieldMapping[];  // NEW: Data flow between steps
+    routing_rules?: RoutingRule[];    // NEW: Step routing conditions
     [key: string]: any;
   };
 }
@@ -526,6 +529,16 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
     
     handleUpdateStep(stepIndex, { config: updatedConfig });
   };
+  
+  // Handle routing rules update
+  const handleRoutingRulesChange = useCallback((stepIndex: number, rules: RoutingRule[]) => {
+    const step = steps[stepIndex];
+    const updatedConfig = {
+      ...step.config,
+      routing_rules: rules,
+    };
+    handleUpdateStep(stepIndex, { config: updatedConfig });
+  }, [steps]);
 
   // Get entity fields for selected entity type
   const getEntityFields = (entityType: string | undefined) => {
@@ -867,6 +880,26 @@ const WorkflowCanvasWithLogic: React.FC<WorkflowCanvasWithLogicProps> = ({ bluep
                 </div>
               </div>
             )}
+            
+            {/* Section 4: Step Routing Logic */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-gray-900 text-lg border-b pb-2">🔀 Step Routing</h4>
+              <p className="text-sm text-gray-500 mb-3">
+                Define conditions that determine which step comes next
+              </p>
+              <StepRoutingLogic
+                steps={steps.map((s, idx) => ({
+                  id: s.id,
+                  name: s.label,
+                  type: s.type,
+                  order: idx,
+                }))}
+                currentStepId={selectedStep.id}
+                rules={selectedStep.config?.routing_rules || []}
+                onRulesChange={(rules) => handleRoutingRulesChange(selectedStepIndex, rules)}
+                availableFields={getEntityFields(selectedStep.entityType)}
+              />
+            </div>
           </div>
 
           {/* Panel Footer */}
