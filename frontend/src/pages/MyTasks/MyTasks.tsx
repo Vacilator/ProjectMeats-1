@@ -3,10 +3,13 @@
  * 
  * Displays action items assigned to the current user across all forms and workflows.
  * Connects to the action-items API endpoint.
+ * Supports task delegation via DelegateTaskModal.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
+import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
+import { DelegationHistory } from '../../components/Delegation';
 
 // Styled Components
 const Container = styled.div`
@@ -251,6 +254,49 @@ const ActionButton = styled.button`
   }
 `;
 
+const SecondaryButton = styled.button`
+  padding: 8px 16px;
+  background: transparent;
+  color: rgb(var(--color-primary, 102 126 234));
+  border: 1px solid rgb(var(--color-primary, 102 126 234));
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(var(--color-primary, 102 126 234), 0.1);
+  }
+`;
+
+const HistoryToggle = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: rgb(var(--color-surface, 255 255 255));
+  border: 1px solid rgb(var(--color-border, 224 224 224));
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary, 44 62 80));
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  margin-bottom: 24px;
+
+  &:hover {
+    border-color: rgb(var(--color-primary, 102 126 234));
+  }
+`;
+
+const HistoryContainer = styled.div<{ $isOpen: boolean }>`
+  max-height: ${props => props.$isOpen ? '600px' : '0'};
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  margin-bottom: ${props => props.$isOpen ? '24px' : '0'};
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 20px;
@@ -339,6 +385,32 @@ export const MyTasks: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'due_date' | 'priority' | 'form'>('due_date');
+  
+  // Delegation state
+  const [showDelegateModal, setShowDelegateModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<ActionItem | null>(null);
+  const [isDelegating, setIsDelegating] = useState(false);
+  const [showDelegationHistory, setShowDelegationHistory] = useState(false);
+  
+  // Mock available users - in production, this would come from an API
+  const [availableUsers] = useState<User[]>([
+    { id: '1', name: 'John Smith', email: 'john@example.com', role: 'Sales Rep', department: 'Sales' },
+    { id: '2', name: 'Jane Doe', email: 'jane@example.com', role: 'Manager', department: 'Operations' },
+    { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'Analyst', department: 'Finance' },
+  ]);
+  
+  // Delegation history - in production, this would come from an API
+  const [delegationHistory] = useState([
+    {
+      id: '1',
+      taskName: 'Review Purchase Order #1234',
+      fromUser: { id: 'current', name: 'You', email: 'me@example.com' },
+      toUser: { id: '1', name: 'John Smith', email: 'john@example.com' },
+      delegatedAt: new Date(Date.now() - 86400000).toISOString(),
+      reason: 'Out of office this week',
+      status: 'active' as const,
+    },
+  ]);
 
   // Filter and sort action items
   const filteredItems = useMemo(() => {
@@ -397,6 +469,42 @@ export const MyTasks: React.FC = () => {
       window.location.href = `/workflows/submissions/${item.submission_id}`;
     }
   };
+  
+  // Handle delegate click
+  const handleDelegateClick = useCallback((e: React.MouseEvent, item: ActionItem) => {
+    e.stopPropagation();
+    setSelectedTask(item);
+    setShowDelegateModal(true);
+  }, []);
+  
+  // Handle delegation
+  const handleDelegate = useCallback(async (data: DelegationData) => {
+    if (!selectedTask) return;
+    
+    setIsDelegating(true);
+    try {
+      // In production, this would call the API
+      console.log('Delegating task:', selectedTask.id, 'to:', data.delegateUserId);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Close modal and refresh data
+      setShowDelegateModal(false);
+      setSelectedTask(null);
+      refreshData();
+    } catch (err) {
+      console.error('Failed to delegate task:', err);
+    } finally {
+      setIsDelegating(false);
+    }
+  }, [selectedTask, refreshData]);
+  
+  // Handle revoke delegation
+  const handleRevokeDelegation = useCallback(async (delegationId: string) => {
+    console.log('Revoking delegation:', delegationId);
+    // In production, this would call the API
+  }, []);
 
   // Render loading state
   if (loading && actionItems.length === 0) {
@@ -547,6 +655,9 @@ export const MyTasks: React.FC = () => {
                 </TaskMeta>
               </TaskContent>
               <TaskActions onClick={(e) => e.stopPropagation()}>
+                <SecondaryButton onClick={(e) => handleDelegateClick(e, item)}>
+                  Delegate
+                </SecondaryButton>
                 <ActionButton onClick={() => handleTaskClick(item)}>
                   Open
                 </ActionButton>
@@ -555,6 +666,33 @@ export const MyTasks: React.FC = () => {
           ))}
         </TaskList>
       )}
+      
+      {/* Delegation History Toggle */}
+      <HistoryToggle onClick={() => setShowDelegationHistory(!showDelegationHistory)}>
+        {showDelegationHistory ? '▼' : '▶'} Delegation History ({delegationHistory.length})
+      </HistoryToggle>
+      
+      {/* Delegation History Panel */}
+      <HistoryContainer $isOpen={showDelegationHistory}>
+        <DelegationHistory
+          delegations={delegationHistory}
+          onRevoke={handleRevokeDelegation}
+          currentUserId="current"
+        />
+      </HistoryContainer>
+      
+      {/* Delegate Task Modal */}
+      <DelegateTaskModal
+        isOpen={showDelegateModal}
+        onClose={() => {
+          setShowDelegateModal(false);
+          setSelectedTask(null);
+        }}
+        onDelegate={handleDelegate}
+        taskName={selectedTask?.title || ''}
+        availableUsers={availableUsers}
+        isLoading={isDelegating}
+      />
     </Container>
   );
 };
