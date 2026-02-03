@@ -12,3 +12,6 @@ export type { Product, Customer, UseCustomerProductsReturn } from './useCustomer
 
 export { useCommandPalette } from './useCommandPalette';
 export type { default as UseCommandPaletteReturn } from './useCommandPalette';
+
+export { useActionItemCounts, POLL_INTERVAL_ACTIVE, POLL_INTERVAL_BACKGROUND } from './useActionItemCounts';
+export type { ActionItemCounts, UseActionItemCountsResult } from './useActionItemCounts';
