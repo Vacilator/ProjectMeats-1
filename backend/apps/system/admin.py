@@ -70,8 +70,9 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
     Admin for SystemChoiceList with enhanced features:
     - Custom change_form with Alpine.js
     - Drag-drop reordering
-    - JSON import/export
+    - JSON/CSV import/export
     - Tier-based permissions
+    - Bulk operations (copy, merge, archive)
     """
     list_display = ('slug', 'name', 'items_count_display', 'tier_display', 'is_extensible', 'model_field_path', 'updated_at')
     list_filter = ('is_extensible', 'is_reorderable')
@@ -79,7 +80,14 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
     readonly_fields = ('id', 'created_at', 'updated_at')
     inlines = [SystemChoiceItemInline]
     change_form_template = 'admin/system/systemchoicelist/change_form.html'
-    actions = ['export_selected_json', 'export_selected_csv', 'duplicate_choice_list']
+    actions = [
+        'export_selected_json', 
+        'export_selected_csv', 
+        'duplicate_choice_list',
+        'archive_choice_list',
+        'unarchive_choice_list',
+        'merge_choice_lists',
+    ]
     
     fieldsets = (
         (None, {
@@ -331,6 +339,68 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
                 item.save()
         
         self.message_user(request, f'Successfully duplicated {queryset.count()} choice list(s).')
+    
+    @admin.action(description='🗃️ Archive selected (deactivate all items)')
+    def archive_choice_list(self, request, queryset):
+        """Archive choice lists by deactivating all their items."""
+        total_items = 0
+        for choice_list in queryset:
+            updated = choice_list.items.filter(tenant__isnull=True).update(is_active=False)
+            total_items += updated
+        
+        self.message_user(
+            request, 
+            f'Archived {queryset.count()} choice list(s), deactivated {total_items} items.'
+        )
+    
+    @admin.action(description='✅ Unarchive selected (activate all items)')
+    def unarchive_choice_list(self, request, queryset):
+        """Unarchive choice lists by activating all their items."""
+        total_items = 0
+        for choice_list in queryset:
+            updated = choice_list.items.filter(tenant__isnull=True).update(is_active=True)
+            total_items += updated
+        
+        self.message_user(
+            request, 
+            f'Unarchived {queryset.count()} choice list(s), activated {total_items} items.'
+        )
+    
+    @admin.action(description='🔀 Merge selected into first')
+    def merge_choice_lists(self, request, queryset):
+        """Merge multiple choice lists into the first selected one."""
+        if queryset.count() < 2:
+            self.message_user(request, 'Select at least 2 choice lists to merge.', level='error')
+            return
+        
+        lists = list(queryset.order_by('pk'))
+        target = lists[0]
+        sources = lists[1:]
+        
+        merged_count = 0
+        for source in sources:
+            # Get max order in target
+            max_order = target.items.filter(tenant__isnull=True).aggregate(
+                max_order=models.Max('order')
+            )['max_order'] or 0
+            
+            # Move items from source to target
+            for item in source.items.filter(tenant__isnull=True):
+                # Check if value already exists in target
+                if not target.items.filter(value=item.value, tenant__isnull=True).exists():
+                    max_order += 1
+                    item.choice_list = target
+                    item.order = max_order
+                    item.save()
+                    merged_count += 1
+            
+            # Delete the empty source list
+            source.delete()
+        
+        self.message_user(
+            request, 
+            f'Merged {len(sources)} list(s) into "{target.name}". Added {merged_count} unique items.'
+        )
     
     def items_count_display(self, obj):
         """Display item count with color coding."""

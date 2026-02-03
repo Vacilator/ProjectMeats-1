@@ -32,7 +32,7 @@ COMPLETED (7 waves):
 ✅ Wave T: Testing                      100% - 1166 tests (800 FE, 366 BE)
 
 IN PROGRESS (1 wave):
-🔄 Wave 4: Admin Studio                  75% - Visual editors (PR #2398)
+🔄 Wave 4: Admin Studio                  85% - Visual editors (PR #2398, #2399)
 
 NOT STARTED (4 waves):
 ⏸️ Wave 7: Finalization                   0% - 15 tasks
@@ -107,11 +107,11 @@ NOT STARTED (4 waves):
 
 ---
 
-### 🔄 Wave 4: Admin Studio (75% Complete)
+### 🔄 Wave 4: Admin Studio (85% Complete)
 
 **Goal**: Visual configuration editors
 
-**Status**: Django Admin enhanced, React Studio partially done
+**Status**: Django Admin complete, React Studio partially done
 
 #### Completed
 - [x] Django Admin enhancements (inline items, permissions)
@@ -124,9 +124,8 @@ NOT STARTED (4 waves):
 - [x] **4.3** Import/export functionality (CSV/JSON) - PR #2398
 - [x] **4.4** Tier-based permission checks (system vs tenant) - existing
 - [x] **4.5** Admin panel reorganization (emoji groups) - PR #2398
-
-#### Remaining - Week 6-7: Django Admin (1 task)
-- [ ] **4.6** Bulk operations (copy, merge, archive)
+- [x] **4.6** Bulk operations (copy, merge, archive) - PR #2399
+- [x] **4.11** Connect FormSubmissionModal to ConfigResolver - PR #2399
 
 #### Remaining - Week 8-9: React Admin Studio (4 tasks)
 - [ ] **4.7** Enhanced `SchemaEditor` (visual field builder)
@@ -134,8 +133,7 @@ NOT STARTED (4 waves):
 - [ ] **4.9** Real-time preview of config changes
 - [ ] **4.10** Audit log viewer
 
-#### Remaining - Week 10: Integration & Polish (5 tasks)
-- [ ] **4.11** Connect FormSubmissionModal to ConfigResolver
+#### Remaining - Week 10: Integration & Polish (4 tasks)
 - [ ] **4.12** Update all forms to use dynamic configs
 - [ ] **4.13** Test all dropdown fields across app
 - [ ] **4.14** Performance optimization (caching)
