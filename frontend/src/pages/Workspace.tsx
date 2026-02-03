@@ -9,9 +9,12 @@
  * - Layout persistence
  * - Edit mode toggle
  * - Widget catalog
+ * - CommandBar for universal search (⌘K)
  * 
  * Theme Compliance:
  * - Uses CSS custom properties
+ * 
+ * Updated: 2026-02-03 - Added CommandBar integration
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
@@ -31,6 +34,9 @@ import {
   MyTasksWidget,
   TodaysNumbersWidget,
 } from '../components/Widgets';
+import { CommandBar } from '../components/Cockpit';
+import { CommandPalette } from '../components/Navigation/CommandPalette';
+import { useCommandPalette } from '../hooks/useCommandPalette';
 import { apiClient } from '../services/apiService';
 
 // ============================================================================
@@ -183,6 +189,18 @@ const HeaderActions = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+`;
+
+const HeaderCenter = styled.div`
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0 24px;
+  max-width: 500px;
+  
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'danger' }>`
@@ -406,6 +424,9 @@ export const WorkspacePage: React.FC = () => {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [gridWidth, setGridWidth] = useState(1200);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // CommandPalette hook for universal search
+  const { isOpen: isPaletteOpen, open: openPalette, close: closePalette } = useCommandPalette();
 
   // Load saved layout from backend API with localStorage fallback
   useEffect(() => {
@@ -567,6 +588,17 @@ export const WorkspacePage: React.FC = () => {
           {isEditing && <EditBadge>Editing</EditBadge>}
         </HeaderLeft>
         
+        {/* Universal Search CommandBar - Hidden in edit mode */}
+        {!isEditing && (
+          <HeaderCenter>
+            <CommandBar 
+              onOpenPalette={openPalette}
+              isPaletteOpen={isPaletteOpen}
+              placeholder="Search suppliers, customers, orders..."
+            />
+          </HeaderCenter>
+        )}
+        
         <HeaderActions>
           {isEditing ? (
             <>
@@ -591,6 +623,9 @@ export const WorkspacePage: React.FC = () => {
           )}
         </HeaderActions>
       </Header>
+      
+      {/* Command Palette Modal */}
+      <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
       <GridWrapper ref={containerRef}>
         {widgets.length === 0 ? (
