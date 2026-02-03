@@ -242,11 +242,75 @@ SIMPLE_JWT = {
 # API Documentation
 SPECTACULAR_SETTINGS = {
     "TITLE": "ProjectMeats API",
-    "DESCRIPTION": "REST API for meat sales broker management system",
-    "VERSION": "1.0.0",
+    "DESCRIPTION": """
+# ProjectMeats REST API v2.0
+
+Multi-tenant meat sales broker management system.
+
+## Authentication
+All endpoints require Token authentication via the `Authorization` header:
+```
+Authorization: Token your-auth-token
+```
+
+## Multi-Tenancy
+Include tenant context via the `X-Tenant-ID` header:
+```
+X-Tenant-ID: your-tenant-uuid
+```
+
+## API Modules
+- **System Configuration**: Choice lists, field schemas, tenant configs
+- **Accounts**: User authentication and profiles
+- **Tenants**: Multi-tenancy management
+- **Customers**: Customer CRM
+- **Suppliers**: Supplier management
+- **Products**: Product catalog
+- **Purchase Orders**: PO lifecycle management
+- **Sales Orders**: SO lifecycle management
+- **Invoices/Accounting**: Financial management
+- **Plants**: Processing facility management
+- **Carriers**: Shipping carrier management
+- **Workflows**: Form and approval workflows
+- **AI Assistant**: AI-powered recommendations
+
+## Response Format
+All responses follow standard REST conventions with JSON payloads.
+Paginated lists include `count`, `next`, `previous`, and `results` fields.
+    """,
+    "VERSION": "2.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "SORT_OPERATIONS": False,
+    "TAGS": [
+        {"name": "Health", "description": "Service health checks"},
+        {"name": "Auth", "description": "Authentication and tokens"},
+        {"name": "System", "description": "System configuration (choice lists, schemas)"},
+        {"name": "Tenants", "description": "Multi-tenancy management"},
+        {"name": "Customers", "description": "Customer CRM operations"},
+        {"name": "Suppliers", "description": "Supplier management"},
+        {"name": "Products", "description": "Product catalog"},
+        {"name": "Purchase Orders", "description": "Purchase order lifecycle"},
+        {"name": "Sales Orders", "description": "Sales order lifecycle"},
+        {"name": "Invoices", "description": "Invoice and accounting"},
+        {"name": "Plants", "description": "Processing facilities"},
+        {"name": "Carriers", "description": "Shipping carriers"},
+        {"name": "Contacts", "description": "Contact management"},
+        {"name": "Locations", "description": "Address and location management"},
+        {"name": "Workflows", "description": "Form and approval workflows"},
+        {"name": "Workspace", "description": "User workspace and dashboard"},
+        {"name": "AI Assistant", "description": "AI-powered features"},
+        {"name": "Feedback", "description": "Bug reports and feedback"},
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+        "displayOperationId": False,
+        "filter": True,
+    },
+    "REDOC_UI_SETTINGS": {
+        "hideDownloadButton": False,
+    },
 }
 
 # Ensure logs directory exists for file handlers
