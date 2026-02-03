@@ -3,14 +3,18 @@
  * 
  * Renders forms dynamically from JSON schema definitions.
  * Supports 12 field types with validation and data piping.
+ * 
+ * Wave 4 - Task 4.12: Integrated with ConfigResolver for dynamic settings.
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import styled from 'styled-components';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
+import { resolveConfig } from '../../services/configService';
+import { getChoicesForField, isStaticChoiceField } from '../../services/choicesService';
 
 // Field definition types
 interface FieldDefinition {
@@ -220,6 +224,61 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   isSubmitting = false,
 }) => {
   const validationSchema = buildValidationSchema(schema.fields);
+  
+  // Form-level config from ConfigResolver (Wave 4 - Task 4.12)
+  const [formConfig, setFormConfig] = useState({
+    showRequiredIndicator: true,
+    showHelpText: true,
+    validateOnChange: false,
+    submitButtonText: 'Submit',
+  });
+  
+  // Dynamic choice options from config system
+  const [dynamicOptions, setDynamicOptions] = useState<Record<string, { value: string; label: string }[]>>({});
+
+  // Load form-level configuration
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const [showRequired, showHelp, validateChange, submitText] = await Promise.all([
+          resolveConfig<boolean>('forms.show_required_indicator', true),
+          resolveConfig<boolean>('forms.show_help_text', true),
+          resolveConfig<boolean>('forms.validate_on_change', false),
+          resolveConfig<string>('forms.submit_button_text', 'Submit'),
+        ]);
+        
+        setFormConfig({
+          showRequiredIndicator: showRequired.value,
+          showHelpText: showHelp.value,
+          validateOnChange: validateChange.value,
+          submitButtonText: submitText.value,
+        });
+      } catch (error) {
+        console.debug('Using default form config');
+      }
+    };
+    
+    loadConfig();
+  }, []);
+  
+  // Load dynamic options for select fields
+  useEffect(() => {
+    const loadOptions = async () => {
+      const selectFields = schema.fields.filter(f => f.type === 'select' && !f.options?.length);
+      
+      for (const field of selectFields) {
+        // Try to load from config system
+        if (isStaticChoiceField(field.key)) {
+          const choices = await getChoicesForField(field.key);
+          if (choices) {
+            setDynamicOptions(prev => ({ ...prev, [field.key]: choices }));
+          }
+        }
+      }
+    };
+    
+    loadOptions();
+  }, [schema.fields]);
 
   const {
     register,
@@ -229,17 +288,32 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   } = useForm({
     resolver: zodResolver(validationSchema),
     defaultValues: initialValues,
+    mode: formConfig.validateOnChange ? 'onChange' : 'onSubmit',
   });
+  
+  // Get options for a select field (static or dynamic)
+  const getFieldOptions = (field: FieldDefinition): { value: string; label: string }[] => {
+    // Use provided options first
+    if (field.options?.length) {
+      return field.options.map(opt => 
+        typeof opt === 'string' ? { value: opt, label: opt } : opt
+      );
+    }
+    // Fall back to dynamically loaded options
+    return dynamicOptions[field.key] || [];
+  };
 
   const renderField = (field: FieldDefinition) => {
     const error = errors[field.key];
     const hasError = !!error;
+    // Use config for required indicator (Wave 4 - Task 4.12)
+    const showRequired = formConfig.showRequiredIndicator && field.required;
 
     switch (field.type) {
       case 'textarea':
         return (
           <FieldGroup key={field.key}>
-            <Label htmlFor={field.key} required={field.required}>
+            <Label htmlFor={field.key} required={showRequired}>
               {field.label}
             </Label>
             <TextArea
@@ -249,7 +323,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               hasError={hasError}
               disabled={isSubmitting}
             />
-            {field.help_text && <HelpText>{field.help_text}</HelpText>}
+            {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
             {error && <ErrorText>{error.message as string}</ErrorText>}
           </FieldGroup>
         );
@@ -257,7 +331,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       case 'select':
         return (
           <FieldGroup key={field.key}>
-            <Label htmlFor={field.key} required={field.required}>
+            <Label htmlFor={field.key} required={showRequired}>
               {field.label}
             </Label>
             <Controller
@@ -268,16 +342,14 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
                   id={field.key}
                   value={controllerField.value || ''}
                   onChange={controllerField.onChange}
-                  options={
-                    field.options?.map((opt) => ({ value: opt, label: opt })) || []
-                  }
+                  options={getFieldOptions(field)}
                   placeholder={field.placeholder || 'Select an option'}
                   error={error?.message as string}
                   disabled={isSubmitting}
                 />
               )}
             />
-            {field.help_text && <HelpText>{field.help_text}</HelpText>}
+            {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
           </FieldGroup>
         );
 
@@ -293,7 +365,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               />
               {field.label}
             </CheckboxLabel>
-            {field.help_text && <HelpText>{field.help_text}</HelpText>}
+            {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
             {error && <ErrorText>{error.message as string}</ErrorText>}
           </FieldGroup>
         );
@@ -301,21 +373,21 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
       case 'radio':
         return (
           <FieldGroup key={field.key}>
-            <Label required={field.required}>{field.label}</Label>
+            <Label required={showRequired}>{field.label}</Label>
             <RadioGroup>
-              {field.options?.map((option) => (
-                <RadioLabel key={option}>
+              {getFieldOptions(field).map((option) => (
+                <RadioLabel key={option.value}>
                   <input
                     type="radio"
-                    value={option}
+                    value={option.value}
                     {...register(field.key)}
                     disabled={isSubmitting}
                   />
-                  {option}
+                  {option.label}
                 </RadioLabel>
               ))}
             </RadioGroup>
-            {field.help_text && <HelpText>{field.help_text}</HelpText>}
+            {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
             {error && <ErrorText>{error.message as string}</ErrorText>}
           </FieldGroup>
         );
@@ -324,7 +396,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
         // text, number, date, email, phone, url, file, datetime
         return (
           <FieldGroup key={field.key}>
-            <Label htmlFor={field.key} required={field.required}>
+            <Label htmlFor={field.key} required={showRequired}>
               {field.label}
             </Label>
             <Input
@@ -335,7 +407,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
               hasError={hasError}
               disabled={isSubmitting}
             />
-            {field.help_text && <HelpText>{field.help_text}</HelpText>}
+            {formConfig.showHelpText && field.help_text && <HelpText>{field.help_text}</HelpText>}
             {error && <ErrorText>{error.message as string}</ErrorText>}
           </FieldGroup>
         );
@@ -365,7 +437,7 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
           </Button>
         )}
         <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Submitting...' : 'Submit'}
+          {isSubmitting ? 'Submitting...' : formConfig.submitButtonText}
         </Button>
       </FormActions>
     </FormContainer>

@@ -23,7 +23,7 @@
 
 ```
 COMPLETED (7 waves):
-✅ Wave 0: Preparation                   80% - Core tasks done
+✅ Wave 0: Preparation                   90% - Core tasks done
 ✅ Wave 1: Foundation (Config System)   100% - PR #2394, #2395
 ✅ Wave 2: Cockpit Command Center       100% - 48/48 tasks
 ✅ Wave 3: Forms & Flows                100% - 40+ tasks
@@ -32,7 +32,7 @@ COMPLETED (7 waves):
 ✅ Wave T: Testing                      100% - 1166 tests (800 FE, 366 BE)
 
 IN PROGRESS (1 wave):
-🔄 Wave 4: Admin Studio                  90% - Visual editors (PR #2398-2402)
+🔄 Wave 4: Admin Studio                  95% - Visual editors (PR #2398-2404)
 
 NOT STARTED (4 waves):
 ⏸️ Wave 7: Finalization                   0% - 15 tasks
@@ -45,7 +45,7 @@ NOT STARTED (4 waves):
 
 ## Wave-by-Wave Breakdown
 
-### ✅ Wave 0: Preparation (80% Complete)
+### ✅ Wave 0: Preparation (90% Complete)
 
 **Goal**: Set up for success without touching production code
 
@@ -55,10 +55,10 @@ NOT STARTED (4 waves):
 - [x] Feature flags setup
 - [x] Test suite baseline established (1166 tests)
 - [x] Monitoring dashboards configured
+- [x] **0.4** Document all current API endpoints (`docs/API_REFERENCE.md` - PR #2404)
 
-#### Remaining (2 tasks)
+#### Remaining (1 task)
 - [ ] **0.1** Create `v2.0/master` feature branch (optional - using main workflow)
-- [ ] **0.4** Document all current API endpoints (can be done async)
 
 **Dependencies**: None  
 **Blockers**: None  
@@ -107,7 +107,7 @@ NOT STARTED (4 waves):
 
 ---
 
-### 🔄 Wave 4: Admin Studio (90% Complete)
+### 🔄 Wave 4: Admin Studio (95% Complete)
 
 **Goal**: Visual configuration editors
 
@@ -126,6 +126,9 @@ NOT STARTED (4 waves):
 - [x] **4.5** Admin panel reorganization (emoji groups) - PR #2398
 - [x] **4.6** Bulk operations (copy, merge, archive) - PR #2399
 - [x] **4.11** Connect FormSubmissionModal to ConfigResolver - PR #2399
+- [x] **4.12** Update all forms to use dynamic configs - PR #2404
+- [x] **4.14** Performance optimization (caching) - PR #2402
+- [x] **4.15** Documentation and training materials - PR #2402
 
 #### Remaining - Week 8-9: React Admin Studio (4 tasks)
 - [ ] **4.7** Enhanced `SchemaEditor` (visual field builder)
@@ -133,13 +136,8 @@ NOT STARTED (4 waves):
 - [ ] **4.9** Real-time preview of config changes
 - [ ] **4.10** Audit log viewer
 
-#### Remaining - Week 10: Integration & Polish (2 tasks)
-- [ ] **4.12** Update all forms to use dynamic configs
+#### Remaining - Week 10: Testing (1 task)
 - [ ] **4.13** Test all dropdown fields across app
-
-#### Completed - Integration & Polish
-- [x] **4.14** Performance optimization (caching) - PR #2402
-- [x] **4.15** Documentation and training materials - PR #2402
 
 **Dependencies**: 
 - ⚠️ Requires Wave 1 (ConfigResolver, models) to be complete
