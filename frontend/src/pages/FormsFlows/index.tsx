@@ -47,6 +47,10 @@ const TABS: TabItem[] = [
 const Container = styled.div`
   min-height: calc(100vh - 64px);
   background: rgb(var(--color-background));
+  
+  @media (max-width: 768px) {
+    min-height: calc(100vh - 56px);
+  }
 `;
 
 const Header = styled.div`
@@ -56,6 +60,12 @@ const Header = styled.div`
   padding: 20px 24px 0;
   background: rgb(var(--color-surface));
   border-bottom: 1px solid rgb(var(--color-border));
+  
+  @media (max-width: 640px) {
+    padding: 16px 16px 0;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
 `;
 
 const HeaderLeft = styled.div`
@@ -93,6 +103,18 @@ const TabNav = styled.nav`
   gap: 4px;
   padding: 0 24px;
   background: rgb(var(--color-surface));
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  
+  @media (max-width: 640px) {
+    padding: 0 16px;
+    gap: 0;
+  }
 `;
 
 const TabLink = styled(NavLink)`
@@ -106,6 +128,8 @@ const TabLink = styled(NavLink)`
   text-decoration: none;
   border-bottom: 2px solid transparent;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
   
   &:hover {
     color: rgb(var(--color-text-primary));
@@ -115,6 +139,22 @@ const TabLink = styled(NavLink)`
   &.active {
     color: rgb(var(--color-primary));
     border-bottom-color: rgb(var(--color-primary));
+  }
+  
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: -2px;
+    border-radius: 4px;
+  }
+  
+  @media (max-width: 640px) {
+    padding: 12px 12px;
+    font-size: 13px;
+    gap: 6px;
+    
+    span {
+      /* Hide label text on small screens if needed, show icon */
+    }
   }
 `;
 
@@ -134,6 +174,10 @@ const TabBadge = styled.span`
 
 const Content = styled.main`
   padding: 24px;
+  
+  @media (max-width: 640px) {
+    padding: 16px;
+  }
 `;
 
 // ============================================================================
