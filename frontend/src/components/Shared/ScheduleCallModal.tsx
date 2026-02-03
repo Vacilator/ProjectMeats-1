@@ -6,6 +6,7 @@
  * - Edit existing calls (via initialData prop)
  * - Full form validation
  * - Theme-compliant styling
+ * - Call timer for tracking call duration
  * 
  * Usage:
  * ```tsx
@@ -20,11 +21,14 @@
  *   onSuccess={...}
  * />
  * ```
+ * 
+ * Updated: 2026-02-03 - Added CallTimer support
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
 import { CreateInquiryModal } from '../Inquiry';
+import { CallTimer } from '../Calls';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -280,6 +284,29 @@ const ModalFooterRight = styled.div`
   gap: 0.75rem;
 `;
 
+const TimerSection = styled.div`
+  padding: 1rem;
+  background: rgba(var(--color-primary), 0.05);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(var(--color-primary), 0.1);
+  margin-top: 0.5rem;
+`;
+
+const TimerLabel = styled.div`
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const TimerWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -302,6 +329,10 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   const [outcome, setOutcome] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Call timer state (for logging call duration)
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [timerDurationSeconds, setTimerDurationSeconds] = useState(0);
   
   // Inquiry modal state
   const [showInquiryModal, setShowInquiryModal] = useState(false);
@@ -565,6 +596,29 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
                   disabled={submitting}
                 />
               </FormGroup>
+            )}
+
+            {/* Call Timer - shown in edit mode for logging calls */}
+            {isEditMode && !initialData?.is_completed && (
+              <TimerSection>
+                <TimerLabel>Call Timer (optional)</TimerLabel>
+                <TimerWrapper>
+                  <CallTimer
+                    mode="full"
+                    onStop={(seconds) => {
+                      setTimerDurationSeconds(seconds);
+                      // Update duration in minutes, rounded up
+                      setDurationMinutes(String(Math.ceil(seconds / 60)));
+                      setIsTimerActive(false);
+                    }}
+                    onTick={(seconds) => setTimerDurationSeconds(seconds)}
+                    isActive={isTimerActive}
+                  />
+                </TimerWrapper>
+                <HelpText style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                  Start the timer when you begin your call. Duration will be saved automatically.
+                </HelpText>
+              </TimerSection>
             )}
 
             {error && <ErrorMessage>{error}</ErrorMessage>}

@@ -1,5 +1,5 @@
 /**
- * Cockpit Call Log Page - Professional Scheduling
+ * Calls Page - Professional Call Scheduling & Logging
  * 
  * Features:
  * - Multiple calendar views: Month, Week, Day, Agenda
@@ -7,11 +7,14 @@
  * - Drag-and-drop rescheduling (Week/Day views)
  * - Visual status indicators (upcoming, completed, overdue)
  * - Activity feed integration
+ * - Call timer for tracking call duration
  * 
  * Theme Compliance:
  * - Uses CSS custom properties (rgb(var(--color-primary)))
  * - No hardcoded colors
  * - Responsive design
+ * 
+ * Updated: 2026-02-03 - Renamed from "Call Log" to "Calls"
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
@@ -1058,7 +1061,7 @@ export const CallLog: React.FC = () => {
   return (
     <PageContainer>
       <PageHeader>
-        <PageTitle>Call Log & Schedule</PageTitle>
+        <PageTitle>Calls</PageTitle>
         <HeaderActions>
           <PrimaryButton onClick={() => setShowScheduleModal(true)}>
             + Schedule New Call
