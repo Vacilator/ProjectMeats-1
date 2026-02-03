@@ -3,6 +3,12 @@
  * 
  * Defines the main navigation structure for the application.
  * This is the central location for managing navigation items.
+ * 
+ * Updated: 2026-02-03 - Phase 1 Forms & Flows Enhancement
+ * - Renamed "Dashboard" to "Cockpit"
+ * - Renamed "Call Log" to "Calls"
+ * - Moved "Workflows" under "Workspace" as "Forms & Flows"
+ * - Added badge support for action item counts
  */
 
 export interface NavigationItem {
@@ -14,6 +20,10 @@ export interface NavigationItem {
   roles?: string[];
   onClick?: () => void;
   color?: string;
+  /** Badge count or text to display next to the item (e.g., "3" for action items) */
+  badge?: number | string;
+  /** Key for fetching dynamic badge count from context */
+  badgeKey?: 'actionRequired' | 'waiting' | 'overdue' | 'total';
 }
 
 export const navigation: NavigationItem[] = [
@@ -22,36 +32,48 @@ export const navigation: NavigationItem[] = [
     icon: '💼',
     children: [
       {
-        label: 'Dashboard',
-        icon: '📊',
-        path: '/',
+        label: 'Cockpit',
+        icon: '🎯',
+        path: '/workspace',
       },
       {
-        label: 'Call Log',
+        label: 'Calls',
         icon: '📞',
-        path: '/call-log',
+        path: '/calls',
       },
       {
         label: 'Reports',
         icon: '📈',
         path: '/reports',
       },
-    ],
-  },
-  {
-    label: 'Workflows',
-    icon: '⚡',
-    path: '/workflows',
-    children: [
       {
-        label: 'Catalog',
+        label: 'Forms & Flows',
         icon: '📋',
-        path: '/workflows',
-      },
-      {
-        label: 'Monitor',
-        icon: '📊',
-        path: '/workflows/monitor',
+        path: '/forms-flows',
+        badgeKey: 'actionRequired',
+        children: [
+          {
+            label: 'My Tasks',
+            icon: '✅',
+            path: '/forms-flows/tasks',
+            badgeKey: 'actionRequired',
+          },
+          {
+            label: 'In Progress',
+            icon: '⏳',
+            path: '/forms-flows/in-progress',
+          },
+          {
+            label: 'Catalog',
+            icon: '📚',
+            path: '/forms-flows/catalog',
+          },
+          {
+            label: 'History',
+            icon: '📜',
+            path: '/forms-flows/history',
+          },
+        ],
       },
     ],
   },
