@@ -3,6 +3,9 @@
  * 
  * Handles nested navigation with expandable/collapsible accordion submenus
  * Supports multi-level hierarchies with proper indentation and smooth animations
+ * 
+ * Updated: 2026-02-03 - Phase 2 Forms & Flows Enhancement
+ * - Added badge rendering support for action item counts
  */
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -10,6 +13,7 @@ import styled, { css } from 'styled-components';
 import { NavigationItem } from '../../config/navigation';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
+import { useActionItems, getBadgeValue } from '../../contexts/ActionItemsContext';
 
 interface NavigationMenuProps {
   items: NavigationItem[];
@@ -41,6 +45,7 @@ const ChevronIcon: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => (
 const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: sidebarExpanded, level = 0 }) => {
   const { theme, themeName } = useTheme();
   const location = useLocation();
+  const { counts } = useActionItems();
   // Changed from Set to string | null for exclusive accordion (only one open at a time)
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const isDarkMode = themeName === 'dark';
@@ -99,27 +104,37 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   };
 
   // Render a simple navigation link (no children)
-  const renderNavLink = (item: NavigationItem, exactActive: boolean, active: boolean) => (
-    <StyledNavLink
-      to={item.path!}
-      $theme={theme}
-      $level={level}
-      $active={exactActive}
-      $hasActiveChild={active && !exactActive}
-      $isDarkMode={isDarkMode}
-    >
-      <NavIcon $color={item.color}>{item.icon}</NavIcon>
-      {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
-    </StyledNavLink>
-  );
+  const renderNavLink = (item: NavigationItem, exactActive: boolean, active: boolean) => {
+    const badgeValue = item.badge ?? getBadgeValue(counts, item.badgeKey);
+    return (
+      <StyledNavLink
+        to={item.path!}
+        $theme={theme}
+        $level={level}
+        $active={exactActive}
+        $hasActiveChild={active && !exactActive}
+        $isDarkMode={isDarkMode}
+      >
+        <NavIcon $color={item.color}>{item.icon}</NavIcon>
+        {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
+        {sidebarExpanded && badgeValue !== undefined && badgeValue > 0 && (
+          <Badge $isDarkMode={isDarkMode}>{badgeValue > 99 ? '99+' : badgeValue}</Badge>
+        )}
+      </StyledNavLink>
+    );
+  };
 
   // Render accordion header content (icon and label)
   const renderAccordionContent = (item: NavigationItem) => {
+    const badgeValue = item.badge ?? getBadgeValue(counts, item.badgeKey);
     if (item.path) {
       return (
         <AccordionNavLink to={item.path} $level={level}>
           <NavIcon $color={item.color}>{item.icon}</NavIcon>
           {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
+          {sidebarExpanded && badgeValue !== undefined && badgeValue > 0 && (
+            <Badge $isDarkMode={isDarkMode}>{badgeValue > 99 ? '99+' : badgeValue}</Badge>
+          )}
         </AccordionNavLink>
       );
     }
@@ -127,6 +142,9 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       <>
         <NavIcon $color={item.color}>{item.icon}</NavIcon>
         {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
+        {sidebarExpanded && badgeValue !== undefined && badgeValue > 0 && (
+          <Badge $isDarkMode={isDarkMode}>{badgeValue > 99 ? '99+' : badgeValue}</Badge>
+        )}
       </>
     );
   };
@@ -408,6 +426,26 @@ const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean
   border-radius: 4px;
   margin-left: 8px;
   margin-right: 8px;
+`;
+
+const Badge = styled.span<{ $isDarkMode: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 9px;
+  background: rgb(var(--color-primary));
+  color: white;
+  margin-left: auto;
+  flex-shrink: 0;
+  box-shadow: ${(props) => props.$isDarkMode
+    ? '0 1px 3px rgba(0, 0, 0, 0.3)'
+    : '0 1px 3px rgba(0, 0, 0, 0.15)'};
 `;
 
 export default NavigationMenu;

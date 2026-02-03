@@ -2,9 +2,10 @@
  * Forms & Flows Layout Component
  * 
  * Parent layout for the Forms & Flows section with sub-navigation tabs.
- * Implements Phase 1 of the Forms & Flows Enhancement Plan.
+ * Implements Phase 1 & 2 of the Forms & Flows Enhancement Plan.
  * 
  * Created: 2026-02-03
+ * Updated: 2026-02-03 - Phase 2: Connected badge counts
  * 
  * Features:
  * - Sub-navigation tabs (My Tasks, In Progress, Catalog, History)
@@ -15,6 +16,7 @@ import React from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { CheckSquare, Clock, BookOpen, History, FileText } from 'lucide-react';
+import { useActionItems } from '../../contexts/ActionItemsContext';
 
 // ============================================================================
 // Types
@@ -140,11 +142,14 @@ const Content = styled.main`
 
 const FormsFlowsLayout: React.FC = () => {
   const location = useLocation();
+  const { counts } = useActionItems();
   
-  // TODO: Connect to useActionItemCounts hook for badge counts
-  // For now, badges will be added in Phase 2
+  // Map badgeKey to counts
   const badgeCounts: Record<string, number> = {
-    // actionRequired: 3,  // Will be populated from hook
+    actionRequired: counts.total,
+    overdue: counts.overdue,
+    dueToday: counts.due_today,
+    dueThisWeek: counts.due_this_week,
   };
   
   return (
