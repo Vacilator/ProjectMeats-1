@@ -105,11 +105,12 @@ export interface ConfigByCategory {
 }
 
 // =============================================================================
-// Cache Management
+// Cache Management (Wave 4 - Task 4.14: Performance Optimization)
 // =============================================================================
 
 const CONFIG_CACHE_KEY = 'configService_cache';
-const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for memory cache
+const PERSIST_CACHE_TTL = 30 * 60 * 1000; // 30 minutes for localStorage
 
 interface CacheEntry<T> {
   data: T;
@@ -129,6 +130,10 @@ let memoryCache: ConfigCache = {};
 // Pending requests deduplication (prevent duplicate API calls)
 const pendingRequests: Record<string, Promise<unknown>> = {};
 
+// Performance metrics tracking
+let cacheHits = 0;
+let cacheMisses = 0;
+
 /**
  * Check if cache entry is still valid
  */
@@ -138,14 +143,74 @@ function isCacheValid<T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<
 }
 
 /**
+ * Try to restore cache from localStorage on init
+ */
+function restoreCacheFromStorage(): void {
+  try {
+    const stored = localStorage.getItem(CONFIG_CACHE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Only restore if within persistent TTL
+      if (parsed.timestamp && Date.now() - parsed.timestamp < PERSIST_CACHE_TTL) {
+        memoryCache = parsed.cache || {};
+        console.debug('[configService] Cache restored from localStorage');
+      }
+    }
+  } catch {
+    // localStorage might not be available or data corrupted
+  }
+}
+
+/**
+ * Persist cache to localStorage for faster subsequent page loads
+ */
+function persistCacheToStorage(): void {
+  try {
+    const toStore = {
+      timestamp: Date.now(),
+      cache: {
+        // Only persist choice lists (most frequently used, rarely changed)
+        allChoiceLists: memoryCache.allChoiceLists,
+        choiceLists: memoryCache.choiceLists,
+      },
+    };
+    localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(toStore));
+  } catch {
+    // localStorage might be full or unavailable
+  }
+}
+
+// Restore cache on module load
+restoreCacheFromStorage();
+
+/**
  * Clear all config caches
  */
 export function clearConfigCache(): void {
   memoryCache = {};
+  cacheHits = 0;
+  cacheMisses = 0;
   try {
     localStorage.removeItem(CONFIG_CACHE_KEY);
   } catch {
     // localStorage might not be available
+  }
+}
+
+/**
+ * Preload commonly used config data (call on app init)
+ */
+export async function preloadConfigCache(): Promise<void> {
+  try {
+    // Preload all choice lists in parallel
+    await Promise.all([
+      getChoiceLists(),
+      getTenantConfigs(),
+    ]);
+    persistCacheToStorage();
+    console.debug('[configService] Config cache preloaded');
+  } catch (error) {
+    console.warn('[configService] Failed to preload cache:', error);
   }
 }
 
@@ -308,8 +373,10 @@ export async function resolveConfigs(
 export async function getChoiceLists(): Promise<SystemChoiceList[]> {
   // Check cache first
   if (isCacheValid(memoryCache.allChoiceLists)) {
+    cacheHits++;
     return memoryCache.allChoiceLists.data;
   }
+  cacheMisses++;
 
   // Deduplicate concurrent requests
   const cacheKey = 'allChoiceLists';
@@ -357,8 +424,10 @@ export async function getChoiceList(slug: string): Promise<SystemChoiceList> {
     isCacheValid(memoryCache.choiceLists) &&
     memoryCache.choiceLists.data[slug]
   ) {
+    cacheHits++;
     return memoryCache.choiceLists.data[slug];
   }
+  cacheMisses++;
 
   // Deduplicate concurrent requests for the same slug
   const cacheKey = `choiceList_${slug}`;
@@ -379,6 +448,9 @@ export async function getChoiceList(slug: string): Promise<SystemChoiceList> {
         };
       }
       memoryCache.choiceLists.data[slug] = choiceList;
+      
+      // Persist to localStorage for faster loads
+      persistCacheToStorage();
 
       return choiceList;
     } finally {
@@ -607,14 +679,20 @@ export async function getChoiceListsBatch(
 }
 
 /**
- * Get cache statistics for debugging
+ * Get cache statistics for debugging and monitoring
  */
 export function getCacheStats(): {
   choiceListsCached: number;
   tenantConfigsCached: boolean;
   resolvedConfigsCached: number;
   cacheAge: number | null;
+  hits: number;
+  misses: number;
+  hitRate: string;
 } {
+  const total = cacheHits + cacheMisses;
+  const hitRate = total > 0 ? ((cacheHits / total) * 100).toFixed(1) + '%' : 'N/A';
+  
   return {
     choiceListsCached: memoryCache.choiceLists
       ? Object.keys(memoryCache.choiceLists.data).length
@@ -626,6 +704,9 @@ export function getCacheStats(): {
     cacheAge: memoryCache.choiceLists
       ? Date.now() - memoryCache.choiceLists.timestamp
       : null,
+    hits: cacheHits,
+    misses: cacheMisses,
+    hitRate,
   };
 }
 
@@ -668,6 +749,7 @@ export const configService = {
 
   // Preloading & Cache
   preloadConfig,
+  preloadConfigCache,
   getCacheStats,
   clearCache: clearConfigCache,
 };
