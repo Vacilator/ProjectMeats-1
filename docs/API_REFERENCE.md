@@ -61,6 +61,10 @@ Response:
 | PATCH | `/api/v1/system/tenant-configs/{id}/` | Update tenant config |
 | DELETE | `/api/v1/system/tenant-configs/{id}/` | Delete tenant config |
 | GET | `/api/v1/system/field-schemas/` | List field schemas |
+| GET | `/api/v1/system/audit-logs/` | List config audit logs |
+| GET | `/api/v1/system/audit-logs/{id}/` | Get audit log detail |
+| GET | `/api/v1/system/audit-logs/summary/` | Get audit summary stats |
+| GET | `/api/v1/system/audit-logs/entity/{type}/{id}/` | Get entity history |
 
 ### Tenants
 

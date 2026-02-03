@@ -2,7 +2,7 @@
 
 **Status**: ✅ CURRENT  
 **Category**: Reference  
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-02-04
 
 ---
 
@@ -11,7 +11,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-02-04
+
+### Waves Completed (8 of 12) 🎉
+
+#### Wave 4: Admin Studio (100% Complete) - PR #2398-2409
+- **ConfigPreview component** - Real-time preview of configuration changes (themes, features, rules)
+- **AuditLogViewer** - Full-stack audit trail with filtering, search, and diff view
+- **ConfigAuditLog model** - Generic FK tracking for any config entity
+- **SchemaEditor enhancements** - Visual field builder with drag-drop, duplicate, bulk actions
+- **TenantConfigEditor** - Tenant customization UI with import/export JSON
+- **Keyboard shortcuts** - Admin Studio navigation (⌨️)
+- **Import/export functionality** - CSV/JSON for choice lists and schemas
+- **Bulk operations** - Copy, merge, archive for choice lists
+
+#### Wave 6: Model Migrations (100% Complete) - PR #2321-2345
+- **Abstract order base classes** - OrderMethodsMixin for shared PO/SO behavior
+- **Product migration to system** - UUID-based system.Product with TenantProductPreference
+- **FK migration** - 9 FK references updated across 6 apps
+- **Zero-downtime migrations** - All migrations reversible
+
+#### Wave 5: Repository Cleanup (100% Complete) - PR #2392-2393
+- **Documentation reorganization** - 67 → ~45 files consolidated
+- **Code cleanup** - Removed TODO/FIXME items, unused imports
+- **Consistent naming** - Standardized across codebase
+
+#### Wave 3: Forms & Flows (100% Complete) - PR #2381-2390
+- **My Tasks dashboard** - Action item tracking
+- **Forms & Flows layout** - Tabs for tasks, in-progress, catalog, history
+- **Badge support** - Action item counts in sidebar
+- **CallTimer component** - Start/stop/pause for calls
+
+#### Wave 2: Cockpit Command Center (100% Complete) - 48/48 tasks
+- **Widget system** - Drag-drop, resize, persist layouts
+- **Command Palette** - Universal search (⌘K)
+- **Entity Explorer** - Visual relationship graphs
+- **Backend APIs** - Layout persistence, universal search
+
+#### Wave 1: Foundation (100% Complete) - PR #2394-2395
+- **3-tier config system** - System → Tenant → User resolution
+- **ConfigResolver service** - Dynamic configuration resolution
+- **Choice lists** - 14 system choice lists seeded
+- **configService.ts** - Frontend config consumption
+
+#### Wave T: Testing (100% Complete)
+- **1166 total tests** - 846 frontend + 221 backend (37 skipped)
+- **94.77% line coverage** (frontend)
+- **83.59% branch coverage** (frontend)
+
+#### Wave 0: Preparation (90% Complete)
+- **Test baseline** - Established 1166 tests
+- **API documentation** - Comprehensive API_REFERENCE.md
+- **Feature flags** - Setup complete
 
 ### Added
 - **[MAJOR]** Comprehensive documentation consolidation (November 2024)
