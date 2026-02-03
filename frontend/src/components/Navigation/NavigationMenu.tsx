@@ -110,6 +110,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
     >
       <NavIcon $color={item.color}>{item.icon}</NavIcon>
       {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
+      {item.badge !== undefined && item.badge !== 0 && (
+        <Badge $type={item.badgeType || 'default'}>
+          {item.badge}
+        </Badge>
+      )}
     </StyledNavLink>
   );
 
@@ -120,6 +125,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
         <AccordionNavLink to={item.path} $level={level}>
           <NavIcon $color={item.color}>{item.icon}</NavIcon>
           {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
+          {item.badge !== undefined && item.badge !== 0 && (
+            <Badge $type={item.badgeType || 'default'}>
+              {item.badge}
+            </Badge>
+          )}
         </AccordionNavLink>
       );
     }
@@ -127,6 +137,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       <>
         <NavIcon $color={item.color}>{item.icon}</NavIcon>
         {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
+        {item.badge !== undefined && item.badge !== 0 && (
+          <Badge $type={item.badgeType || 'default'}>
+            {item.badge}
+          </Badge>
+        )}
       </>
     );
   };
@@ -361,6 +376,94 @@ const ExpandButton = styled.button<{ $isExpanded: boolean; $isDarkMode: boolean 
   transition: all 0.15s ease;
   margin-left: auto;
   flex-shrink: 0;
+  
+  &:hover {
+    background: ${(props) => props.$isDarkMode 
+      ? 'rgba(255, 255, 255, 0.1)' 
+      : 'rgba(0, 0, 0, 0.05)'};
+    color: ${(props) => props.$isDarkMode ? 'white' : 'rgb(var(--color-text-primary))'};
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 1px;
+  }
+`;
+
+const NavIcon = styled.span<{ $color?: string }>`
+  font-size: 18px;
+  line-height: 1;
+  min-width: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  ${(props) => props.$color && `color: ${props.$color};`}
+`;
+
+const NavLabel = styled.span`
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+`;
+
+const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean }>`
+  max-height: ${(props) => (props.$isExpanded ? '1000px' : '0')};
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: ${(props) => props.$isDarkMode 
+    ? 'rgba(0, 0, 0, 0.1)' 
+    : 'rgba(0, 0, 0, 0.02)'};
+  border-radius: 4px;
+  margin: 0 8px 4px 8px;
+`;
+
+const Badge = styled.span<{ $type: 'default' | 'error' | 'warning' | 'success' }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  color: white;
+  background-color: ${(props) => {
+    switch (props.$type) {
+      case 'error':
+        return 'rgb(239, 68, 68)'; // Red
+      case 'warning':
+        return 'rgb(234, 179, 8)'; // Yellow
+      case 'success':
+        return 'rgb(34, 197, 94)'; // Green
+      default:
+        return 'rgb(59, 130, 246)'; // Blue
+    }
+  }};
+  border-radius: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+  
+  ${(props) => props.$type === 'error' && css`
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.8;
+      }
+    }
+  `}
+`;
+
+export default NavigationMenu;
   
   &:hover {
     background: ${(props) => props.$isDarkMode 

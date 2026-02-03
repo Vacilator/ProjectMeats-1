@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
-import { navigation } from '../../config/navigation';
+import { navigation, NavigationItem } from '../../config/navigation';
 import NavigationMenu from '../Navigation/NavigationMenu';
+import { useActionItemCounts } from '../../hooks/useActionItemCounts';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -46,6 +47,32 @@ const LockIcon: React.FC = () => (
   </svg>
 );
 
+/**
+ * Recursively update navigation items with badge counts
+ */
+const updateNavigationWithBadges = (
+  items: NavigationItem[],
+  actionItemCounts: { total: number; overdue: number }
+): NavigationItem[] => {
+  return items.map((item) => {
+    // Clone the item to avoid mutating the original
+    const updatedItem: NavigationItem = { ...item };
+    
+    // Add badge to "My Tasks" navigation item
+    if (item.label === 'My Tasks' && actionItemCounts.total > 0) {
+      updatedItem.badge = actionItemCounts.total;
+      updatedItem.badgeType = actionItemCounts.overdue > 0 ? 'error' : 'default';
+    }
+    
+    // Recursively update children
+    if (item.children) {
+      updatedItem.children = updateNavigationWithBadges(item.children, actionItemCounts);
+    }
+    
+    return updatedItem;
+  });
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) => {
   const { theme, themeName, tenantBranding } = useTheme();
   const location = useLocation();
@@ -54,6 +81,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
     // Load keep open preference from localStorage
     return localStorage.getItem('sidebarKeepOpen') === 'true';
   });
+
+  // Fetch action item counts for badges
+  const { counts, isLoading: countsLoading } = useActionItemCounts();
+
+  // Update navigation with badge counts
+  const navigationWithBadges = useMemo(() => {
+    if (countsLoading) {
+      return navigation;
+    }
+    
+    return updateNavigationWithBadges(navigation, {
+      total: counts.total,
+      overdue: counts.overdue,
+    });
+  }, [counts.total, counts.overdue, countsLoading]);
 
   // Check if we're on desktop (for pin functionality)
   // Using function to safely access window for SSR compatibility
@@ -142,7 +184,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
       </SidebarHeader>
 
       <NavigationSection $isDarkMode={isDarkMode}>
-        <NavigationMenu items={navigation} isExpanded={isExpanded} />
+        <NavigationMenu items={navigationWithBadges} isExpanded={isExpanded} />
       </NavigationSection>
 
       <SidebarFooter $isExpanded={isExpanded} $isDarkMode={isDarkMode}>

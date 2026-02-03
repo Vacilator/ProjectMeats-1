@@ -14,6 +14,8 @@ export interface NavigationItem {
   roles?: string[];
   onClick?: () => void;
   color?: string;
+  badge?: number | string;  // Badge count or text to display
+  badgeType?: 'default' | 'error' | 'warning' | 'success';  // Badge styling variant
 }
 
 export const navigation: NavigationItem[] = [
