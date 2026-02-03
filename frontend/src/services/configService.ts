@@ -711,6 +711,125 @@ export function getCacheStats(): {
 }
 
 // =============================================================================
+// Audit Log API Functions (Wave 4 Task 4.10)
+// =============================================================================
+
+/**
+ * Audit log entry from the API
+ */
+export interface ConfigAuditLog {
+  id: string;
+  entity_type: string;
+  entity_name: string;
+  change_type: 'CREATE' | 'UPDATE' | 'DELETE' | 'IMPORT' | 'EXPORT';
+  change_type_display: string;
+  field_name?: string;
+  old_value?: unknown;
+  new_value?: unknown;
+  snapshot_before?: Record<string, unknown>;
+  snapshot_after?: Record<string, unknown>;
+  user?: string;
+  user_email: string;
+  user_display: string;
+  tenant?: string;
+  ip_address?: string;
+  notes?: string;
+  created_at: string;
+}
+
+/**
+ * Summary audit log entry (minimal fields)
+ */
+export interface ConfigAuditLogSummary {
+  id: string;
+  entity_type: string;
+  entity_name: string;
+  change_type: string;
+  field_name?: string;
+  user_display: string;
+  created_at: string;
+}
+
+/**
+ * Audit log summary statistics
+ */
+export interface AuditLogSummaryStats {
+  total_count: number;
+  by_entity_type: Array<{ entity_type: string; count: number }>;
+  by_change_type: Array<{ change_type: string; count: number }>;
+  by_user: Array<{ user_email: string; count: number }>;
+  recent: ConfigAuditLogSummary[];
+}
+
+/**
+ * Audit log filter parameters
+ */
+export interface AuditLogFilters {
+  entity_type?: string;
+  change_type?: string;
+  user?: string;
+  date_from?: string;
+  date_to?: string;
+  search?: string;
+  page?: number;
+  page_size?: number;
+}
+
+/**
+ * Get paginated audit logs with optional filters
+ */
+async function getAuditLogs(
+  filters: AuditLogFilters = {}
+): Promise<{ results: ConfigAuditLogSummary[]; count: number; next: string | null; previous: string | null }> {
+  const params = new URLSearchParams();
+  
+  if (filters.entity_type) params.append('entity_type', filters.entity_type);
+  if (filters.change_type) params.append('change_type', filters.change_type);
+  if (filters.user) params.append('user', filters.user);
+  if (filters.date_from) params.append('date_from', filters.date_from);
+  if (filters.date_to) params.append('date_to', filters.date_to);
+  if (filters.search) params.append('search', filters.search);
+  if (filters.page) params.append('page', String(filters.page));
+  if (filters.page_size) params.append('page_size', String(filters.page_size));
+  
+  const response = await apiClient.get(`/api/v1/system/audit-logs/?${params.toString()}`);
+  return response.data;
+}
+
+/**
+ * Get a single audit log entry with full details
+ */
+async function getAuditLogDetail(id: string): Promise<ConfigAuditLog> {
+  const response = await apiClient.get(`/api/v1/system/audit-logs/${id}/`);
+  return response.data;
+}
+
+/**
+ * Get audit log summary statistics
+ */
+async function getAuditLogSummary(): Promise<AuditLogSummaryStats> {
+  const response = await apiClient.get('/api/v1/system/audit-logs/summary/');
+  return response.data;
+}
+
+/**
+ * Get history for a specific entity
+ */
+async function getEntityHistory(params: {
+  entity_type?: string;
+  entity_name?: string;
+  object_id?: string;
+}): Promise<ConfigAuditLog[]> {
+  const searchParams = new URLSearchParams();
+  if (params.entity_type) searchParams.append('entity_type', params.entity_type);
+  if (params.entity_name) searchParams.append('entity_name', params.entity_name);
+  if (params.object_id) searchParams.append('object_id', params.object_id);
+  
+  const response = await apiClient.get(`/api/v1/system/audit-logs/entity_history/?${searchParams.toString()}`);
+  return response.data;
+}
+
+// =============================================================================
 // Service Export
 // =============================================================================
 
@@ -752,6 +871,12 @@ export const configService = {
   preloadConfigCache,
   getCacheStats,
   clearCache: clearConfigCache,
+
+  // Audit Logs (Wave 4 Task 4.10)
+  getAuditLogs,
+  getAuditLogDetail,
+  getAuditLogSummary,
+  getEntityHistory,
 };
 
 export default configService;

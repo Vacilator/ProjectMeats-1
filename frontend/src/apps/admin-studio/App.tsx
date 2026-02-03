@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard';
 import { ConfigDashboard } from './pages/ConfigDashboard';
 import { ChoiceListEditor } from './components/ChoiceListEditor';
 import { TenantConfigEditor } from './components/TenantConfigEditor';
+import { AuditLogViewer } from './components/AuditLogViewer';
 import Editor from './pages/Editor';
 
 // Base URL for the Studio app
@@ -23,6 +24,7 @@ const App: React.FC = () => {
         <Route path="/config/choices/:slug" element={<ChoiceListEditorPage />} />
         <Route path="/config/tenant" element={<TenantConfigEditorPage />} />
         <Route path="/config/tenant/:category" element={<TenantConfigEditorPage />} />
+        <Route path="/config/audit" element={<AuditLogPage />} />
         <Route path="/:blueprintId" element={<Editor />} />
         {/* If loaded with initial ID (direct link handled by Django), render Editor */}
         {initialBlueprintId && (
@@ -72,6 +74,28 @@ const TenantConfigEditorPage: React.FC = () => {
       </header>
       <div className="h-[calc(100vh-65px)]">
         <TenantConfigEditor />
+      </div>
+    </div>
+  );
+};
+
+// Wrapper page for AuditLogViewer with navigation
+const AuditLogPage: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
+          <a
+            href="/admin/system-config/studio/config"
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ← Back to Config
+          </a>
+          <h1 className="text-xl font-bold text-gray-900">📜 Audit Log</h1>
+        </div>
+      </header>
+      <div className="h-[calc(100vh-65px)]">
+        <AuditLogViewer />
       </div>
     </div>
   );

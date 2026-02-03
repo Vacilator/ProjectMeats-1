@@ -8,6 +8,7 @@ Provides endpoints for:
 - /api/v1/system/tenant-configs/
 - /api/v1/system/config/resolve/
 - /api/v1/system/config/choices/{slug}/
+- /api/v1/system/audit-logs/
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -18,6 +19,7 @@ from apps.system.views import (
     SystemFieldSchemaViewSet,
     TenantConfigViewSet,
     ConfigResolverView,
+    ConfigAuditLogViewSet,
 )
 
 app_name = 'system'
@@ -28,6 +30,7 @@ router.register(r'choice-items', SystemChoiceItemViewSet, basename='choice-item'
 router.register(r'field-schemas', SystemFieldSchemaViewSet, basename='field-schema')
 router.register(r'tenant-configs', TenantConfigViewSet, basename='tenant-config')
 router.register(r'config', ConfigResolverView, basename='config')
+router.register(r'audit-logs', ConfigAuditLogViewSet, basename='audit-log')
 
 urlpatterns = [
     path('', include(router.urls)),

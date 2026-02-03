@@ -8,12 +8,14 @@ This module provides a 3-tier configuration system:
 - TenantConfig: Tenant-specific overrides and preferences
 - Product: System-wide product catalog (shared across all tenants)
 - TenantProductPreference: Tenant-specific product customizations
+- ConfigAuditLog: Audit trail for configuration changes
 """
 from apps.system.models.system_choice import SystemChoiceList, SystemChoiceItem
 from apps.system.models.system_schema import SystemFieldSchema
 from apps.system.models.tenant_config import TenantConfig
 from apps.system.models.product import Product, ProductCategoryChoices
 from apps.system.models.tenant_product_preference import TenantProductPreference
+from apps.system.models.audit_log import ConfigAuditLog
 
 __all__ = [
     'SystemChoiceList',
@@ -23,4 +25,5 @@ __all__ = [
     'Product',
     'ProductCategoryChoices',
     'TenantProductPreference',
+    'ConfigAuditLog',
 ]
