@@ -22,6 +22,7 @@ import {
 } from '../../services/quickActionsService';
 import { isStaticChoiceField, getChoicesForField } from '../../services/choicesService';
 import { getEffectiveChoices } from '../../services/optionListsService';
+import { resolveConfig } from '../../services/configService';
 import { notify } from '../../utils/notify';
 import { validateField, mergeValidationRules, ValidationRule } from '../../utils/formValidation';
 import { Icon } from '../ui';
@@ -848,9 +849,53 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     entityType: string;
   } | null>(null);
   
+  // Form-level config settings from ConfigResolver (Wave 4 - Task 4.11)
+  const [formConfig, setFormConfig] = useState<{
+    autoSaveEnabled: boolean;
+    autoSaveDelay: number;
+    showProgressBar: boolean;
+    allowStepNavigation: boolean;
+    validateOnBlur: boolean;
+  }>({
+    autoSaveEnabled: true,
+    autoSaveDelay: 500,
+    showProgressBar: true,
+    allowStepNavigation: true,
+    validateOnBlur: true,
+  });
+  
   const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
   const hasUnsavedChanges = useRef(false);
   const stepContentRef = useRef<HTMLDivElement>(null);
+
+  // Load form-level configuration from ConfigResolver (Wave 4 - Task 4.11)
+  useEffect(() => {
+    const loadFormConfig = async () => {
+      try {
+        // Resolve form configuration with cascading defaults
+        const [autoSave, autoSaveDelay, showProgress, allowNav, validateBlur] = await Promise.all([
+          resolveConfig<boolean>('forms.auto_save_enabled', true),
+          resolveConfig<number>('forms.auto_save_delay_ms', 500),
+          resolveConfig<boolean>('forms.show_progress_bar', true),
+          resolveConfig<boolean>('forms.allow_step_navigation', true),
+          resolveConfig<boolean>('forms.validate_on_blur', true),
+        ]);
+        
+        setFormConfig({
+          autoSaveEnabled: autoSave.value,
+          autoSaveDelay: autoSaveDelay.value,
+          showProgressBar: showProgress.value,
+          allowStepNavigation: allowNav.value,
+          validateOnBlur: validateBlur.value,
+        });
+      } catch (error) {
+        // Keep defaults if config resolution fails
+        console.debug('Using default form config, resolution failed:', error);
+      }
+    };
+    
+    loadFormConfig();
+  }, []);
 
   // Parse steps from submission
   const steps: StepData[] = useMemo(() => {
@@ -1134,15 +1179,18 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       }
     }
     
-    const saveKey = `${stepId}-${key}`;
-    if (saveTimeoutRef.current[saveKey]) {
-      clearTimeout(saveTimeoutRef.current[saveKey]);
+    // Use configurable auto-save delay (Wave 4 - Task 4.11)
+    if (formConfig.autoSaveEnabled) {
+      const saveKey = `${stepId}-${key}`;
+      if (saveTimeoutRef.current[saveKey]) {
+        clearTimeout(saveTimeoutRef.current[saveKey]);
+      }
+      
+      saveTimeoutRef.current[saveKey] = setTimeout(() => {
+        autoSaveField(stepId, key, value);
+      }, formConfig.autoSaveDelay);
     }
-    
-    saveTimeoutRef.current[saveKey] = setTimeout(() => {
-      autoSaveField(stepId, key, value);
-    }, 500);
-  }, [autoSaveField, touchedFields, steps]);
+  }, [autoSaveField, touchedFields, steps, formConfig.autoSaveEnabled, formConfig.autoSaveDelay]);
 
   // Save on blur with validation - mark field as touched
   const handleBlur = useCallback((stepId: string, key: string) => {
@@ -1160,7 +1208,6 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     });
     
     // Get value directly from formData state
-    // Note: we need to use functional update to get latest state
     const value = formData[stepId]?.[key];
     console.log('[handleBlur]', { stepId, key, value, hasUnsavedChanges: hasUnsavedChanges.current });
     
@@ -1168,7 +1215,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     const step = steps.find(s => s.id === stepId);
     const field = step?.fields.find(f => f.key === key);
     
-    if (field) {
+    // Validate on blur if enabled via config (Wave 4 - Task 4.11)
+    if (field && formConfig.validateOnBlur) {
       // Merge field type defaults with custom validation rules
       const rules = mergeValidationRules(field.type, field.validation_rules as ValidationRule);
       if (field.required) {
@@ -1191,10 +1239,10 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       }
     }
     
-    if (hasUnsavedChanges.current) {
+    if (hasUnsavedChanges.current && formConfig.autoSaveEnabled) {
       autoSaveField(stepId, key, value);
     }
-  }, [formData, autoSaveField, steps]);
+  }, [formData, autoSaveField, steps, formConfig.validateOnBlur, formConfig.autoSaveEnabled]);
 
   // Handle close
   const handleClose = useCallback(() => {
