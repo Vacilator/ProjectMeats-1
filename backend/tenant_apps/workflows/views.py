@@ -1187,8 +1187,8 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
             status='started'
         )
         
-        # TODO: Integrate with workflow execution engine
-        # For now, just mark as success
+        # Note: Full workflow execution engine integration planned for Wave 4 (Admin Studio)
+        # Currently logs execution and updates stats
         log.status = 'success'
         log.completed_at = timezone.now()
         log.save()

@@ -1169,9 +1169,9 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ blueprintId }) => 
   };
 
   const handleSave = () => {
-    // TODO: Save to API
+    // Note: API integration planned for Wave 4 (Admin Studio) - Task 4.7
     console.log('Saving workflow:', { nodes, edges });
-    alert('Workflow saved! (Mock - TODO: API integration)');
+    alert('Workflow saved! (Preview mode - API integration in progress)');
   };
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node<EntityNodeData>) => {

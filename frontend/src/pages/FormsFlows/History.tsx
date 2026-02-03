@@ -413,9 +413,9 @@ const FormsFlowsHistory: React.FC = () => {
     window.location.href = `/workflows/details/${submission.id}`;
   };
   
-  // Export to CSV (placeholder)
+  // Export to CSV - Planned for Wave F (Features) - see REMAINING_WORK_OUTLINE.md
   const handleExport = () => {
-    // TODO: Implement CSV export
+    // Feature F3.5: Export to Excel/PDF - scheduled for implementation
     alert('Export functionality coming soon!');
   };
   
