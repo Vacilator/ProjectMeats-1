@@ -448,3 +448,499 @@ class TierBasedPermissionTest(TestCase):
         
         # Extensible list should allow staff modification
         self.assertTrue(admin.has_change_permission(request, self.choice_list))
+
+
+class ConfigResolverTest(TestCase):
+    """Test the ConfigResolver service for cascading configuration resolution."""
+    
+    def setUp(self):
+        """Create test data for config resolution."""
+        from apps.tenants.models import Tenant
+        from apps.system.models import (
+            SystemChoiceList, SystemChoiceItem, SystemFieldSchema, TenantConfig
+        )
+        from django.contrib.auth.models import User
+        
+        # Create test user
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@test.com',
+            password='testpass123'
+        )
+        
+        # Create tenant
+        self.tenant = Tenant.objects.create(
+            name='Config Test Tenant',
+            slug='config-test',
+            contact_email='config@test.com',
+            created_by=self.user,
+        )
+        
+        # Create a choice list with system items
+        self.choice_list = SystemChoiceList.objects.create(
+            slug='test-proteins',
+            name='Test Proteins',
+            description='Protein types for testing',
+            is_extensible=True,
+            is_reorderable=True,
+        )
+        
+        # Create system-level items
+        SystemChoiceItem.objects.create(
+            choice_list=self.choice_list,
+            value='BEEF',
+            label='Beef',
+            order=1,
+            is_default=True,
+            tenant=None,
+        )
+        SystemChoiceItem.objects.create(
+            choice_list=self.choice_list,
+            value='PORK',
+            label='Pork',
+            order=2,
+            tenant=None,
+        )
+        SystemChoiceItem.objects.create(
+            choice_list=self.choice_list,
+            value='CHICKEN',
+            label='Chicken',
+            order=3,
+            tenant=None,
+        )
+        
+        # Create tenant-specific custom item
+        self.tenant_item = SystemChoiceItem.objects.create(
+            choice_list=self.choice_list,
+            value='WAGYU',
+            label='Wagyu Beef',
+            order=10,
+            tenant=self.tenant,
+        )
+        
+        # Create inactive item
+        self.inactive_item = SystemChoiceItem.objects.create(
+            choice_list=self.choice_list,
+            value='LAMB',
+            label='Lamb',
+            order=4,
+            is_active=False,
+            tenant=None,
+        )
+        
+        # Create a field schema
+        self.field_schema = SystemFieldSchema.objects.create(
+            field_path='products.product.protein_type',
+            field_type='SELECT',
+            label='Protein Type',
+            help_text='Select the type of protein',
+            is_required=True,
+            default_value='BEEF',
+            choice_list=self.choice_list,
+        )
+        
+        # Create tenant config
+        self.tenant_config = TenantConfig.objects.create(
+            tenant=self.tenant,
+            key='ui.theme.primary_color',
+            value='#ff5733',
+            category='UI',
+            description='Primary theme color',
+            updated_by=self.user,
+        )
+    
+    def test_config_resolver_initialization(self):
+        """Test ConfigResolver can be initialized with or without tenant."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        # Without tenant
+        resolver = ConfigResolver()
+        self.assertIsNone(resolver.tenant)
+        self.assertIsNone(resolver.tenant_id)
+        
+        # With tenant
+        resolver = ConfigResolver(tenant=self.tenant)
+        self.assertEqual(resolver.tenant, self.tenant)
+        self.assertEqual(resolver.tenant_id, self.tenant.id)
+    
+    def test_get_tenant_config_value(self):
+        """Test getting a tenant-specific config value."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver(tenant=self.tenant)
+        value = resolver.get('ui.theme.primary_color')
+        self.assertEqual(value, '#ff5733')
+    
+    def test_get_config_with_default(self):
+        """Test getting config with fallback default."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver(tenant=self.tenant)
+        
+        # Non-existent key should return default
+        value = resolver.get('non.existent.key', default='default_value')
+        self.assertEqual(value, 'default_value')
+    
+    def test_get_config_without_tenant(self):
+        """Test getting config without tenant context uses default."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver()
+        value = resolver.get('ui.theme.primary_color', default='#667eea')
+        self.assertEqual(value, '#667eea')  # Returns default, not tenant value
+    
+    def test_get_choices_system_only(self):
+        """Test getting system-level choices only."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        # Without tenant - should only get system items
+        resolver = ConfigResolver()
+        choices = resolver.get_choices('test-proteins')
+        
+        # Should have 3 active system items (not tenant item or inactive)
+        self.assertEqual(len(choices), 3)
+        values = [c['value'] for c in choices]
+        self.assertIn('BEEF', values)
+        self.assertIn('PORK', values)
+        self.assertIn('CHICKEN', values)
+        self.assertNotIn('WAGYU', values)  # Tenant item
+        self.assertNotIn('LAMB', values)  # Inactive
+    
+    def test_get_choices_with_tenant_custom(self):
+        """Test getting choices with tenant custom items."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver(tenant=self.tenant)
+        choices = resolver.get_choices('test-proteins')
+        
+        # Should have 4 items (3 system + 1 tenant custom)
+        self.assertEqual(len(choices), 4)
+        values = [c['value'] for c in choices]
+        self.assertIn('WAGYU', values)  # Tenant custom item
+    
+    def test_get_choices_include_inactive(self):
+        """Test getting choices including inactive items."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver()
+        choices = resolver.get_choices('test-proteins', include_inactive=True)
+        
+        # Should have 4 items (3 active + 1 inactive)
+        self.assertEqual(len(choices), 4)
+        values = [c['value'] for c in choices]
+        self.assertIn('LAMB', values)  # Inactive item
+    
+    def test_get_choices_respects_order(self):
+        """Test that choices are returned in correct order."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver()
+        choices = resolver.get_choices('test-proteins')
+        
+        # Items should be ordered by 'order' field
+        self.assertEqual(choices[0]['value'], 'BEEF')  # order=1
+        self.assertEqual(choices[1]['value'], 'PORK')  # order=2
+        self.assertEqual(choices[2]['value'], 'CHICKEN')  # order=3
+    
+    def test_get_choices_marks_default(self):
+        """Test that default item is marked."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver()
+        choices = resolver.get_choices('test-proteins')
+        
+        beef_choice = next(c for c in choices if c['value'] == 'BEEF')
+        pork_choice = next(c for c in choices if c['value'] == 'PORK')
+        
+        self.assertTrue(beef_choice['is_default'])
+        self.assertFalse(pork_choice['is_default'])
+    
+    def test_get_choices_marks_system(self):
+        """Test that system vs tenant items are properly marked."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver(tenant=self.tenant)
+        choices = resolver.get_choices('test-proteins')
+        
+        beef_choice = next(c for c in choices if c['value'] == 'BEEF')
+        wagyu_choice = next(c for c in choices if c['value'] == 'WAGYU')
+        
+        self.assertTrue(beef_choice['is_system'])
+        self.assertFalse(wagyu_choice['is_system'])
+    
+    def test_get_field_schema(self):
+        """Test getting field schema configuration."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver()
+        schema = resolver.get_field_schema('products.product.protein_type')
+        
+        self.assertIsNotNone(schema)
+        self.assertEqual(schema['field_path'], 'products.product.protein_type')
+        self.assertEqual(schema['field_type'], 'SELECT')
+        self.assertEqual(schema['label'], 'Protein Type')
+        self.assertEqual(schema['default_value'], 'BEEF')
+        self.assertTrue(schema['is_required'])
+        self.assertEqual(schema['choice_list_slug'], 'test-proteins')
+    
+    def test_get_field_schema_not_found(self):
+        """Test getting non-existent field schema returns None."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver()
+        schema = resolver.get_field_schema('non.existent.field')
+        self.assertIsNone(schema)
+    
+    def test_get_all_tenant_configs(self):
+        """Test getting all configs for a tenant."""
+        from apps.system.services.config_resolver import ConfigResolver
+        from apps.system.models import TenantConfig
+        
+        # Add another config
+        TenantConfig.objects.create(
+            tenant=self.tenant,
+            key='ui.theme.secondary_color',
+            value='#333333',
+            category='UI',
+            updated_by=self.user,
+        )
+        
+        resolver = ConfigResolver(tenant=self.tenant)
+        configs = resolver.get_all_tenant_configs()
+        
+        self.assertEqual(len(configs), 2)
+        self.assertEqual(configs['ui.theme.primary_color'], '#ff5733')
+        self.assertEqual(configs['ui.theme.secondary_color'], '#333333')
+    
+    def test_get_all_tenant_configs_by_category(self):
+        """Test getting configs filtered by category."""
+        from apps.system.services.config_resolver import ConfigResolver
+        from apps.system.models import TenantConfig
+        
+        # Add config in different category
+        TenantConfig.objects.create(
+            tenant=self.tenant,
+            key='notifications.email.enabled',
+            value=True,
+            category='NOTIFICATIONS',
+            updated_by=self.user,
+        )
+        
+        resolver = ConfigResolver(tenant=self.tenant)
+        configs = resolver.get_all_tenant_configs(category='UI')
+        
+        self.assertEqual(len(configs), 1)
+        self.assertIn('ui.theme.primary_color', configs)
+        self.assertNotIn('notifications.email.enabled', configs)
+    
+    def test_set_tenant_config(self):
+        """Test setting a tenant config value."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver(tenant=self.tenant)
+        
+        # Set new config
+        config = resolver.set_tenant_config(
+            key='new.config.key',
+            value='new_value',
+            category='OTHER',
+            description='A new config',
+            user=self.user,
+        )
+        
+        self.assertEqual(config.key, 'new.config.key')
+        self.assertEqual(config.value, 'new_value')
+        self.assertEqual(config.tenant, self.tenant)
+        
+        # Verify it's retrievable
+        value = resolver.get('new.config.key')
+        self.assertEqual(value, 'new_value')
+    
+    def test_set_tenant_config_update_existing(self):
+        """Test updating an existing tenant config."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver(tenant=self.tenant)
+        
+        # Update existing config
+        config = resolver.set_tenant_config(
+            key='ui.theme.primary_color',
+            value='#00ff00',
+            user=self.user,
+        )
+        
+        # Should update, not create new
+        self.assertEqual(config.value, '#00ff00')
+        
+        # Verify the update
+        value = resolver.get('ui.theme.primary_color')
+        self.assertEqual(value, '#00ff00')
+    
+    def test_set_tenant_config_requires_tenant(self):
+        """Test that setting config without tenant raises error."""
+        from apps.system.services.config_resolver import ConfigResolver
+        
+        resolver = ConfigResolver()  # No tenant
+        
+        with self.assertRaises(ValueError) as context:
+            resolver.set_tenant_config(key='test.key', value='test')
+        
+        self.assertIn('tenant context', str(context.exception))
+    
+    def test_convenience_function_get_config(self):
+        """Test the get_config convenience function."""
+        from apps.system.services.config_resolver import get_config
+        
+        # With tenant
+        value = get_config('ui.theme.primary_color', tenant=self.tenant)
+        self.assertEqual(value, '#ff5733')
+        
+        # Without tenant (uses default)
+        value = get_config('ui.theme.primary_color', tenant=None, default='#000000')
+        self.assertEqual(value, '#000000')
+    
+    def test_convenience_function_get_choices(self):
+        """Test the get_choices convenience function."""
+        from apps.system.services.config_resolver import get_choices
+        
+        # With tenant
+        choices = get_choices('test-proteins', tenant=self.tenant)
+        self.assertEqual(len(choices), 4)  # 3 system + 1 tenant
+        
+        # Without tenant
+        choices = get_choices('test-proteins', tenant=None)
+        self.assertEqual(len(choices), 3)  # Only system items
+    
+    def test_caching_behavior(self):
+        """Test that caching works correctly."""
+        from apps.system.services.config_resolver import ConfigResolver
+        from django.core.cache import cache
+        
+        # Clear cache first
+        cache.clear()
+        
+        resolver = ConfigResolver(tenant=self.tenant)
+        
+        # First call should populate cache
+        choices1 = resolver.get_choices('test-proteins')
+        
+        # Second call should use cache (same result)
+        choices2 = resolver.get_choices('test-proteins')
+        
+        self.assertEqual(choices1, choices2)
+        self.assertEqual(len(choices1), len(choices2))
+
+
+class ConfigResolverAPITest(TestCase):
+    """Test the Config API endpoints."""
+    
+    def setUp(self):
+        """Set up API test client and data."""
+        from django.contrib.auth.models import User
+        from apps.tenants.models import Tenant
+        from apps.system.models import SystemChoiceList, SystemChoiceItem
+        from rest_framework.test import APIClient
+        
+        # Create user
+        self.user = User.objects.create_user(
+            username='apiuser',
+            email='api@test.com',
+            password='apipass123'
+        )
+        
+        # Create tenant
+        self.tenant = Tenant.objects.create(
+            name='API Test Tenant',
+            slug='api-test',
+            contact_email='api@test.com',
+            created_by=self.user,
+        )
+        
+        # Create choice list
+        self.choice_list = SystemChoiceList.objects.create(
+            slug='api-test-list',
+            name='API Test List',
+            is_extensible=True,
+        )
+        
+        SystemChoiceItem.objects.create(
+            choice_list=self.choice_list,
+            value='OPTION_A',
+            label='Option A',
+            order=1,
+            tenant=None,
+        )
+        SystemChoiceItem.objects.create(
+            choice_list=self.choice_list,
+            value='OPTION_B',
+            label='Option B',
+            order=2,
+            tenant=None,
+        )
+        
+        # Set up client
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+    
+    def test_list_choice_lists(self):
+        """Test listing all choice lists."""
+        response = self.client.get('/api/v1/system/choice-lists/')
+        self.assertEqual(response.status_code, 200)
+        
+        # Handle pagination if present, otherwise use data directly
+        results = response.data.get('results', response.data) if isinstance(response.data, dict) else response.data
+        
+        # Should return at least our test list
+        if isinstance(results, list):
+            slugs = [item['slug'] for item in results]
+            self.assertIn('api-test-list', slugs)
+    
+    def test_get_choice_list_detail(self):
+        """Test getting a single choice list by slug."""
+        response = self.client.get('/api/v1/system/choice-lists/api-test-list/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['slug'], 'api-test-list')
+        self.assertEqual(response.data['name'], 'API Test List')
+    
+    def test_get_choice_list_items(self):
+        """Test getting items for a choice list."""
+        response = self.client.get('/api/v1/system/choice-lists/api-test-list/items/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 2)
+        
+        values = [item['value'] for item in response.data]
+        self.assertIn('OPTION_A', values)
+        self.assertIn('OPTION_B', values)
+    
+    def test_config_resolve_endpoint(self):
+        """Test the config resolve endpoint."""
+        from apps.system.models import TenantConfig
+        
+        # Create a tenant config
+        TenantConfig.objects.create(
+            tenant=self.tenant,
+            key='api.test.value',
+            value='test_result',
+            updated_by=self.user,
+        )
+        
+        # Make request with tenant header
+        response = self.client.get(
+            '/api/v1/system/config/resolve/',
+            {'key': 'api.test.value'},
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+        self.assertEqual(response.status_code, 200)
+    
+    def test_config_resolve_requires_key(self):
+        """Test that resolve endpoint requires key parameter."""
+        response = self.client.get('/api/v1/system/config/resolve/')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('key', response.data['error'])
+    
+    def test_unauthenticated_access_denied(self):
+        """Test that unauthenticated requests are denied."""
+        self.client.force_authenticate(user=None)
+        
+        response = self.client.get('/api/v1/system/choice-lists/')
+        self.assertEqual(response.status_code, 401)
