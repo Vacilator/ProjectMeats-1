@@ -80,6 +80,7 @@
     ]
   },
   "devDependencies": {
+    "@axe-core/react": "^4.11.1",
     "@storybook/addon-docs": "^10.1.11",
     "@storybook/addon-onboarding": "^10.1.11",
     "@storybook/react-webpack5": "^10.1.11",
