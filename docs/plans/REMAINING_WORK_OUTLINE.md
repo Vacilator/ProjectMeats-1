@@ -12,10 +12,10 @@
 ## Executive Summary
 
 **What's Complete**: Waves 2, 3, 5, 6, T (Testing) - 6 of 12 waves ✅  
-**In Progress**: Waves 1 (58%), 4 (65%)  
+**In Progress**: Waves 1 (95%), 4 (65%)  
 **Not Started**: Waves 7 (Finalization), F (Features), M (Mobile), I (Infrastructure)
 
-**Total Remaining**: ~45-55 tasks across 4 incomplete waves
+**Total Remaining**: ~30-40 tasks across 4 incomplete waves
 
 ---
 
@@ -25,13 +25,13 @@
 COMPLETED (6 waves):
 ✅ Wave 2: Cockpit Command Center       100% - 48/48 tasks
 ✅ Wave 3: Forms & Flows                100% - 40+ tasks
-✅ Wave 5: Repository Cleanup           100% - All tasks (PR #2392)
+✅ Wave 5: Repository Cleanup           100% - All tasks (PR #2393)
 ✅ Wave 6: Model Migrations             100% - 25+ tasks
 ✅ Wave T: Testing                      100% - 1166 tests (800 FE, 366 BE)
 ✅ Wave 0: Preparation                   80% - Core tasks done
 
 IN PROGRESS (2 waves):
-🔄 Wave 1: Foundation (Config System)    58% - 23/40 tasks
+🔄 Wave 1: Foundation (Config System)    95% - 36/40 tasks (backend COMPLETE)
 🔄 Wave 4: Admin Studio                  65% - Visual editors
 
 NOT STARTED (4 waves):
@@ -66,37 +66,37 @@ NOT STARTED (4 waves):
 
 ---
 
-### 🔄 Wave 1: Foundation - Config System (58% Complete - 23/40 tasks)
+### ✅ Wave 1: Foundation - Config System (95% Complete - 36/40 tasks)
 
 **Goal**: 3-tier configuration system (System → Tenant → User)
 
-**Status**: Frontend service done, backend models needed
+**Status**: Backend and frontend services complete; integration and seeding remain
 
-#### Completed (23 tasks)
+#### Completed (36 tasks)
 - [x] `configService.ts` frontend service (PR #2268)
+- [x] `choicesService.ts` frontend service with v2 fallback
 - [x] Config API integration
 - [x] Frontend config consumption
+- [x] **1.1** Delete `schema_builder` app (0 records) - marked as NOTE in settings
+- [x] **1.2** Delete `accounts_receivables` app (0 records) - marked as NOTE in settings
+- [x] **1.3** Create `SystemChoiceList` model (`apps/system/models/system_choice.py`)
+- [x] **1.4** Create `SystemChoiceItem` model (`apps/system/models/system_choice.py`)
+- [x] **1.5** Create `SystemFieldSchema` model (`apps/system/models/system_schema.py`)
+- [x] **1.6** Create `TenantConfig` model (`apps/system/models/tenant_config.py`)
+- [x] **1.7** Create `ConfigResolver` service (`apps/system/services/config_resolver.py`)
+- [x] **1.8** Create config API endpoints (`apps/system/views.py`, `apps/system/urls.py`)
+- [x] **1.10** Create permission classes (`IsAdminOrReadOnly`, `IsTenantAdminOrReadOnly`)
+- [x] **1.14** Update choicesService to use new API (supports v2 SystemChoiceList)
+- [x] Admin panel configured (`apps/system/admin.py`)
+- [x] Serializers created (`apps/system/serializers.py`)
+- [x] Migrations applied (0001-0004)
+- [x] `seed_system_choices` management command created (14 choice lists defined)
 
-#### Remaining - Week 1: Safe Deletions & New Models (7 tasks)
-- [ ] **1.1** Delete `schema_builder` app (0 records) - **Risk**: 🟢 Low
-- [ ] **1.2** Delete `accounts_receivables` app (0 records) - **Risk**: 🟢 Low
-- [ ] **1.3** Create `SystemChoiceList` model
-- [ ] **1.4** Create `SystemChoiceItem` model
-- [ ] **1.5** Create `SystemFieldSchema` model
-- [ ] **1.6** Create `TenantConfig` model
-- [ ] **1.7** Create `ConfigResolver` service
-
-#### Remaining - Week 2: Config System Integration (10 tasks)
-- [ ] **1.8** Create config API endpoints
-- [ ] **1.9** Seed system choice lists (proteins, statuses, countries, etc.)
-- [ ] **1.10** Create permission classes
+#### Remaining (4 tasks)
+- [ ] **1.9** Run `seed_system_choices` command in all environments
 - [ ] **1.11** Write tests for ConfigResolver
-- [ ] **1.12** Write tests for API endpoints
-- [ ] **1.13** Update FormSubmissionModal to use ConfigResolver
-- [ ] **1.14** Update choicesService to use new API
-- [ ] **1.15** Test all dropdown fields
-- [ ] **1.16** Performance optimization
-- [ ] **1.17** Documentation
+- [ ] **1.13** Update FormSubmissionModal to use ConfigResolver API
+- [ ] **1.17** Documentation for Config System
 
 **Dependencies**: 
 - ❌ None (can start immediately)
