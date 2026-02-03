@@ -12,10 +12,30 @@ Welcome to the ProjectMeats documentation. This index helps you find what you ne
 
 ---
 
+## 🎉 What's New
+
+### February 2026: Wave 2 Complete! 
+
+✅ **Cockpit Command Center** is now 100% complete (48/48 tasks)
+
+**New Features Available Now:**
+- 🎨 **Customizable Workspace**: Drag, resize, and arrange widgets
+- ⌨️ **Command Palette**: Universal search with ⌘K / Ctrl+K
+- 📊 **Entity Explorer**: Visual relationship graphs
+- 💾 **Layout Persistence**: Syncs across devices
+
+**Why don't I notice much change?** Most of Wave 2 was infrastructure (90%) with subtle UI improvements (10%). [Read the full explanation →](WHATS_NEW.md)
+
+**What's coming next?** Waves 3-4 in March-April 2026 will bring more visible features like My Tasks dashboard and visual configuration editors.
+
+---
+
 ## 🎯 Quick Navigation
 
 | I want to... | Go to |
 |--------------|-------|
+| **See what's new** | [What's New](WHATS_NEW.md) 🆕 |
+| **Understand Wave 2 completion** | [Wave 2 Explained](implementation-history/WAVE_2_COMPLETION_EXPLAINED.md) 🆕 |
 | **Set up my local environment** | [Quick Start](getting-started/QUICK_START.md) → [Local Development](getting-started/LOCAL_DEVELOPMENT.md) |
 | **Understand the architecture** | [Architecture Overview](architecture/ARCHITECTURE.md) |
 | **Deploy to an environment** | [Development Workflow](guides/DEVELOPMENT_WORKFLOW.md) |
@@ -32,6 +52,8 @@ These are the **authoritative** documents for ProjectMeats. When in doubt, these
 
 | Topic | Source of Truth | Last Updated |
 |-------|-----------------|--------------|
+| **What's New** | [What's New](WHATS_NEW.md) 🆕 | 2026-02-02 |
+| **Wave 2 Completion** | [Wave 2 Explained](implementation-history/WAVE_2_COMPLETION_EXPLAINED.md) 🆕 | 2026-02-02 |
 | **Overall v2.0 Plan** | [Master Plan v3.1](plans/PROJECTMEATS_V2_MASTER_PLAN.md) | 2026-02-01 |
 | **Current Progress** | [Progress Tracker](plans/PROGRESS_TRACKER.md) | 2026-02-01 |
 | **CI/CD Pipeline** | [Roadmap](ROADMAP.md) + [Golden Pipeline](reference/GOLDEN_PIPELINE.md) | 2026-01-04 |
@@ -89,6 +111,7 @@ docs/
 │
 ├── implementation-history/      # Historical implementation records
 │   ├── README.md                # Index
+│   ├── WAVE_2_COMPLETION_EXPLAINED.md  # 🆕 Wave 2 deep dive
 │   └── *.md                     # Completed feature docs
 │
 └── archive/                     # Superseded/completed docs
