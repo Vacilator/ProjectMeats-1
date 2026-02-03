@@ -32,7 +32,7 @@ COMPLETED (7 waves):
 ✅ Wave T: Testing                      100% - 1166 tests (800 FE, 366 BE)
 
 IN PROGRESS (1 wave):
-🔄 Wave 4: Admin Studio                  65% - Visual editors
+🔄 Wave 4: Admin Studio                  75% - Visual editors (PR #2398)
 
 NOT STARTED (4 waves):
 ⏸️ Wave 7: Finalization                   0% - 15 tasks
@@ -107,7 +107,7 @@ NOT STARTED (4 waves):
 
 ---
 
-### 🔄 Wave 4: Admin Studio (65% Complete)
+### 🔄 Wave 4: Admin Studio (75% Complete)
 
 **Goal**: Visual configuration editors
 
@@ -119,13 +119,13 @@ NOT STARTED (4 waves):
 - [x] Keyboard shortcuts (⌨️ Complete)
 - [x] ConfigDashboard page
 - [x] ChoiceListEditor component
+- [x] **4.1** Custom `change_form.html` with Alpine.js (existing)
+- [x] **4.2** Drag-drop reordering for choice items (existing)
+- [x] **4.3** Import/export functionality (CSV/JSON) - PR #2398
+- [x] **4.4** Tier-based permission checks (system vs tenant) - existing
+- [x] **4.5** Admin panel reorganization (emoji groups) - PR #2398
 
-#### Remaining - Week 6-7: Django Admin (6 tasks)
-- [ ] **4.1** Custom `change_form.html` with Alpine.js
-- [ ] **4.2** Drag-drop reordering for choice items
-- [ ] **4.3** Import/export functionality (CSV/JSON)
-- [ ] **4.4** Tier-based permission checks (system vs tenant)
-- [ ] **4.5** Admin panel reorganization (emoji groups)
+#### Remaining - Week 6-7: Django Admin (1 task)
 - [ ] **4.6** Bulk operations (copy, merge, archive)
 
 #### Remaining - Week 8-9: React Admin Studio (4 tasks)

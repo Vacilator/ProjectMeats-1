@@ -15,6 +15,11 @@ from drf_spectacular.views import (
 )
 from .health import health_check, health_detailed, ready_check
 
+# Configure admin site appearance
+admin.site.site_header = '🥩 Meats Central Admin'
+admin.site.site_title = 'Meats Central'
+admin.site.index_title = 'Admin Dashboard'
+
 urlpatterns = [
     # Health check endpoints
     path("api/v1/health/", health_check, name="health-check"),
