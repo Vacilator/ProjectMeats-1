@@ -74,10 +74,15 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
   }
   
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
+  }
+  
+  @media (max-width: 640px) {
+    width: 100%;
   }
 `;
 
@@ -131,6 +136,11 @@ const ActionButton = styled.button`
     color: rgb(var(--color-text-primary));
   }
   
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
+  
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -144,6 +154,12 @@ const Table = styled.table`
   border-radius: var(--radius-lg, 12px);
   overflow: hidden;
   border: 1px solid rgb(var(--color-border));
+  
+  @media (max-width: 768px) {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 `;
 
 const TableHead = styled.thead`
@@ -231,6 +247,11 @@ const ViewButton = styled.button`
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
   }
+  
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -307,6 +328,11 @@ const PageButton = styled.button<{ $active?: boolean }>`
   
   &:hover:not(:disabled) {
     border-color: rgb(var(--color-primary));
+  }
+  
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
   }
   
   &:disabled {
@@ -396,55 +422,60 @@ const FormsFlowsHistory: React.FC = () => {
   const totalPages = Math.ceil(totalCount / pageSize);
   
   return (
-    <Container>
+    <Container role="region" aria-label="Form History">
       <Toolbar>
         <ToolbarLeft>
           <SearchWrapper>
-            <SearchIcon>
+            <SearchIcon aria-hidden="true">
               <Search size={16} />
             </SearchIcon>
             <SearchInput
-              type="text"
+              type="search"
               placeholder="Search by form name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search history by form name"
             />
           </SearchWrapper>
           
-          <DateFilter>
-            <Calendar size={16} color="rgb(var(--color-text-tertiary))" />
+          <DateFilter role="group" aria-label="Date range filter">
+            <Calendar size={16} color="rgb(var(--color-text-tertiary))" aria-hidden="true" />
             <DateInput
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              placeholder="Start date"
+              aria-label="Start date"
             />
-            <DateSeparator>to</DateSeparator>
+            <DateSeparator aria-hidden="true">to</DateSeparator>
             <DateInput
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              placeholder="End date"
+              aria-label="End date"
             />
           </DateFilter>
         </ToolbarLeft>
         
         <div style={{ display: 'flex', gap: '8px' }}>
-          <ActionButton onClick={handleExport}>
-            <Download size={16} />
+          <ActionButton onClick={handleExport} aria-label="Export to CSV">
+            <Download size={16} aria-hidden="true" />
             Export
           </ActionButton>
-          <ActionButton onClick={fetchSubmissions} disabled={loading}>
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          <ActionButton 
+            onClick={fetchSubmissions} 
+            disabled={loading}
+            aria-label={loading ? 'Loading...' : 'Refresh history'}
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           </ActionButton>
         </div>
       </Toolbar>
       
       {loading ? (
-        <LoadingState>Loading history...</LoadingState>
+        <LoadingState role="status" aria-live="polite">Loading history...</LoadingState>
       ) : submissions.length === 0 ? (
-        <EmptyState>
-          <EmptyIcon>
+        <EmptyState role="status" aria-live="polite">
+          <EmptyIcon aria-hidden="true">
             <FileText size={48} />
           </EmptyIcon>
           <EmptyTitle>No history found</EmptyTitle>
@@ -456,15 +487,15 @@ const FormsFlowsHistory: React.FC = () => {
         </EmptyState>
       ) : (
         <>
-          <Table>
+          <Table aria-label="Form submission history">
             <TableHead>
               <tr>
-                <TableHeader>Form</TableHeader>
-                <TableHeader>Status</TableHeader>
-                <TableHeader>Started</TableHeader>
-                <TableHeader>Completed</TableHeader>
-                <TableHeader>By</TableHeader>
-                <TableHeader style={{ width: '80px' }}>Actions</TableHeader>
+                <TableHeader scope="col">Form</TableHeader>
+                <TableHeader scope="col">Status</TableHeader>
+                <TableHeader scope="col">Started</TableHeader>
+                <TableHeader scope="col">Completed</TableHeader>
+                <TableHeader scope="col">By</TableHeader>
+                <TableHeader scope="col" style={{ width: '80px' }}>Actions</TableHeader>
               </tr>
             </TableHead>
             <tbody>
@@ -472,7 +503,7 @@ const FormsFlowsHistory: React.FC = () => {
                 <TableRow key={submission.id}>
                   <TableCell>
                     <FormInfo>
-                      <FormIcon>
+                      <FormIcon aria-hidden="true">
                         {submission.form_icon || <FileText size={18} />}
                       </FormIcon>
                       <FormName>{submission.form_name}</FormName>
@@ -481,8 +512,8 @@ const FormsFlowsHistory: React.FC = () => {
                   <TableCell>
                     <StatusBadge $status={submission.status}>
                       {submission.status === 'completed' 
-                        ? <><CheckCircle size={12} /> Completed</>
-                        : <><XCircle size={12} /> Cancelled</>
+                        ? <><CheckCircle size={12} aria-hidden="true" /> Completed</>
+                        : <><XCircle size={12} aria-hidden="true" /> Cancelled</>
                       }
                     </StatusBadge>
                   </TableCell>
@@ -490,8 +521,11 @@ const FormsFlowsHistory: React.FC = () => {
                   <TableCell>{formatDate(submission.completed_at || '')}</TableCell>
                   <TableCell>{submission.created_by_name || '-'}</TableCell>
                   <TableCell>
-                    <ViewButton onClick={() => handleViewDetails(submission)}>
-                      <Eye size={14} />
+                    <ViewButton 
+                      onClick={() => handleViewDetails(submission)}
+                      aria-label={`View details for ${submission.form_name}`}
+                    >
+                      <Eye size={14} aria-hidden="true" />
                       View
                     </ViewButton>
                   </TableCell>
@@ -501,14 +535,15 @@ const FormsFlowsHistory: React.FC = () => {
           </Table>
           
           {totalPages > 1 && (
-            <Pagination>
-              <PageInfo>
+            <Pagination role="navigation" aria-label="Pagination">
+              <PageInfo aria-live="polite">
                 Showing {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, totalCount)} of {totalCount}
               </PageInfo>
               <PageButtons>
                 <PageButton 
                   onClick={() => setPage(p => p - 1)} 
                   disabled={page <= 1}
+                  aria-label="Go to previous page"
                 >
                   Previous
                 </PageButton>
@@ -519,6 +554,8 @@ const FormsFlowsHistory: React.FC = () => {
                       key={pageNum}
                       $active={page === pageNum}
                       onClick={() => setPage(pageNum)}
+                      aria-label={`Page ${pageNum}`}
+                      aria-current={page === pageNum ? 'page' : undefined}
                     >
                       {pageNum}
                     </PageButton>
@@ -527,6 +564,7 @@ const FormsFlowsHistory: React.FC = () => {
                 <PageButton 
                   onClick={() => setPage(p => p + 1)} 
                   disabled={page >= totalPages}
+                  aria-label="Go to next page"
                 >
                   Next
                 </PageButton>

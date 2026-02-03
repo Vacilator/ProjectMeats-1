@@ -45,12 +45,24 @@ const Toolbar = styled.div`
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+  
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const ToolbarLeft = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  
+  @media (max-width: 640px) {
+    width: 100%;
+  }
 `;
 
 const SearchInput = styled.input`
@@ -65,10 +77,16 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
   }
   
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
+  }
+  
+  @media (max-width: 640px) {
+    width: 100%;
+    flex: 1;
   }
 `;
 
@@ -87,6 +105,11 @@ const FilterButton = styled.button`
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-text-primary));
+  }
+  
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
   }
 `;
 
@@ -107,9 +130,20 @@ const RefreshButton = styled.button`
     color: rgb(var(--color-primary));
   }
   
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
+  
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+  
+  @media (max-width: 640px) {
+    position: absolute;
+    right: 0;
+    top: 0;
   }
 `;
 
@@ -117,6 +151,10 @@ const CardGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
+  
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const Card = styled.div`
@@ -232,6 +270,11 @@ const ResumeButton = styled.button`
   &:hover {
     opacity: 0.9;
   }
+  
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -326,30 +369,35 @@ const FormsFlowsInProgress: React.FC = () => {
   };
   
   return (
-    <Container>
+    <Container role="region" aria-label="In Progress Forms">
       <Toolbar>
         <ToolbarLeft>
           <SearchInput
-            type="text"
+            type="search"
             placeholder="Search in-progress forms..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search in-progress forms"
           />
-          <FilterButton>
-            <Filter size={16} />
+          <FilterButton aria-label="Filter forms">
+            <Filter size={16} aria-hidden="true" />
             Filter
           </FilterButton>
         </ToolbarLeft>
-        <RefreshButton onClick={fetchSubmissions} disabled={loading}>
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+        <RefreshButton 
+          onClick={fetchSubmissions} 
+          disabled={loading}
+          aria-label={loading ? 'Loading...' : 'Refresh list'}
+        >
+          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
         </RefreshButton>
       </Toolbar>
       
       {loading ? (
-        <LoadingState>Loading submissions...</LoadingState>
+        <LoadingState role="status" aria-live="polite">Loading submissions...</LoadingState>
       ) : filteredSubmissions.length === 0 ? (
-        <EmptyState>
-          <EmptyIcon>
+        <EmptyState role="status" aria-live="polite">
+          <EmptyIcon aria-hidden="true">
             <Clock size={48} />
           </EmptyIcon>
           <EmptyTitle>No forms in progress</EmptyTitle>
@@ -360,20 +408,20 @@ const FormsFlowsInProgress: React.FC = () => {
           </EmptyMessage>
         </EmptyState>
       ) : (
-        <CardGrid>
+        <CardGrid role="list" aria-label={`${filteredSubmissions.length} forms in progress`}>
           {filteredSubmissions.map((submission) => {
             const progress = submission.total_steps > 0 
               ? Math.round((submission.current_step / submission.total_steps) * 100)
               : 0;
             
             return (
-              <Card key={submission.id}>
+              <Card key={submission.id} role="listitem" aria-label={`${submission.form_name}, ${progress}% complete`}>
                 <CardHeader>
-                  <CardIcon>
+                  <CardIcon aria-hidden="true">
                     {submission.form_icon || <FileText size={22} />}
                   </CardIcon>
                   <StatusBadge $status={submission.status}>
-                    <Clock size={12} />
+                    <Clock size={12} aria-hidden="true" />
                     {submission.status === 'in_progress' ? 'In Progress' : 'Draft'}
                   </StatusBadge>
                 </CardHeader>
@@ -384,7 +432,7 @@ const FormsFlowsInProgress: React.FC = () => {
                   {submission.created_by_name && ` • By ${submission.created_by_name}`}
                 </CardMeta>
                 
-                <ProgressBar>
+                <ProgressBar role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label={`Progress: ${progress}%`}>
                   <ProgressFill $percent={progress} />
                 </ProgressBar>
                 <ProgressText>
@@ -393,8 +441,11 @@ const FormsFlowsInProgress: React.FC = () => {
                 </ProgressText>
                 
                 <CardActions>
-                  <ResumeButton onClick={() => handleResume(submission)}>
-                    <Play size={16} />
+                  <ResumeButton 
+                    onClick={() => handleResume(submission)}
+                    aria-label={`Resume ${submission.form_name}`}
+                  >
+                    <Play size={16} aria-hidden="true" />
                     Resume
                   </ResumeButton>
                 </CardActions>
