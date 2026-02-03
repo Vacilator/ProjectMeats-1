@@ -65,6 +65,11 @@ import InquiryAnalytics from './pages/InquiryAnalytics';
 import OptionListsPage from './pages/Admin/OptionLists';
 import Workspace from './pages/Workspace';
 import { NotificationPreferences } from './pages/Settings/index';
+// Forms & Flows pages - Phase 1 Enhancement
+import FormsFlowsLayout from './pages/FormsFlows';
+import FormsFlowsCatalog from './pages/FormsFlows/Catalog';
+import FormsFlowsInProgress from './pages/FormsFlows/InProgress';
+import FormsFlowsHistory from './pages/FormsFlows/History';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -155,7 +160,7 @@ const App: React.FC = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
               <Route path="/" element={<Layout />}>
-                <Route index element={<Dashboard />} />
+                <Route index element={<Navigate to="/workspace" replace />} />
                 
                 {/* Suppliers & Related */}
                 <Route path="suppliers" element={<Suppliers />} />
@@ -190,8 +195,9 @@ const App: React.FC = () => {
                 <Route path="carriers" element={<Carriers />} />
                 <Route path="contacts" element={<Contacts />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
-                <Route path="call-log" element={<CallLog />} />
-                <Route path="processes" element={<Navigate to="/workflows" replace />} />
+                <Route path="calls" element={<CallLog />} />
+                <Route path="call-log" element={<Navigate to="/calls" replace />} />
+                <Route path="processes" element={<Navigate to="/forms-flows/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
@@ -204,15 +210,24 @@ const App: React.FC = () => {
                 <Route path="inquiries/analytics" element={<InquiryAnalytics />} />
                 <Route path="fulfillments" element={<Fulfillments />} />
                 
-                {/* Workflows */}
-                <Route path="workflows" element={<WorkflowList />} />
+                {/* Forms & Flows (replaces Workflows) */}
+                <Route path="forms-flows" element={<FormsFlowsLayout />}>
+                  <Route index element={<Navigate to="/forms-flows/tasks" replace />} />
+                  <Route path="tasks" element={<MyTasks />} />
+                  <Route path="in-progress" element={<FormsFlowsInProgress />} />
+                  <Route path="catalog" element={<FormsFlowsCatalog />} />
+                  <Route path="history" element={<FormsFlowsHistory />} />
+                </Route>
+                
+                {/* Legacy Workflows routes - redirect to Forms & Flows */}
+                <Route path="workflows" element={<Navigate to="/forms-flows/catalog" replace />} />
                 <Route path="workflows/monitor" element={<WorkflowMonitor />} />
                 <Route path="workflows/run/:runId" element={<WorkflowRunner />} />
                 <Route path="workflows/details/:runId" element={<WorkflowExecutionDetails />} />
                 
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
-                <Route path="my-tasks" element={<MyTasks />} />
+                <Route path="my-tasks" element={<Navigate to="/forms-flows/tasks" replace />} />
                 
                 {/* Admin */}
                 <Route path="admin/option-lists" element={<OptionListsPage />} />
