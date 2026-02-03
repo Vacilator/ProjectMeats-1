@@ -153,8 +153,14 @@
         <button type="button" class="btn-export" @click="exportToJson()">
             📤 Export JSON
         </button>
-        <button type="button" class="btn-import" @click="showImportModal = true">
+        <button type="button" class="btn-export" style="background: #17a2b8;" @click="exportToCsv()">
+            📊 Export CSV
+        </button>
+        <button type="button" class="btn-import" @click="showImportModal = true; importFormat = 'json'">
             📥 Import JSON
+        </button>
+        <button type="button" class="btn-import" style="background: #6f42c1;" @click="showImportModal = true; importFormat = 'csv'">
+            📋 Import CSV
         </button>
         <button type="button" class="btn-reorder" @click="enableDragDrop()">
             ↕️ Enable Drag Reorder
@@ -171,19 +177,20 @@
     <div class="modal-overlay" x-show="showImportModal" @click.self="showImportModal = false">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Import Choice Items</h3>
+                <h3 x-text="importFormat === 'csv' ? 'Import CSV' : 'Import JSON'">Import Choice Items</h3>
                 <button type="button" @click="showImportModal = false" style="border: none; background: none; font-size: 20px; cursor: pointer;">×</button>
             </div>
             <div>
-                <p>Paste JSON array of choice items:</p>
+                <p x-show="importFormat === 'json'">Paste JSON array of choice items:</p>
+                <p x-show="importFormat === 'csv'">Paste CSV data (header row: value,label,order,is_active,is_default):</p>
                 <textarea 
-                    x-model="importJson" 
+                    x-model="importDataText" 
                     style="width: 100%; height: 200px; font-family: monospace; font-size: 12px;"
-                    placeholder='[{"value": "option1", "label": "Option 1", "order": 1}]'
+                    :placeholder="importFormat === 'csv' ? 'value,label,order,is_active,is_default\noption1,Option 1,1,true,false' : '[{\"value\": \"option1\", \"label\": \"Option 1\", \"order\": 1}]'"
                 ></textarea>
                 <div style="margin-top: 16px; display: flex; gap: 10px; justify-content: flex-end;">
                     <button type="button" @click="showImportModal = false" style="padding: 8px 16px;">Cancel</button>
-                    <button type="button" class="btn-import" @click="importFromJson()">Import</button>
+                    <button type="button" class="btn-import" @click="importData()">Import</button>
                 </div>
             </div>
         </div>
@@ -205,7 +212,8 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('choiceListAdmin', () => ({
         showImportModal: false,
-        importJson: '',
+        importDataText: '',
+        importFormat: 'json',
         showToast: false,
         toastMessage: '',
         toastType: 'success',
@@ -264,12 +272,60 @@ document.addEventListener('alpine:init', () => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            this.showNotification(`Exported ${items.length} items`);
+            this.showNotification(`Exported ${items.length} items as JSON`);
+        },
+        
+        exportToCsv() {
+            // Collect current choice items from the inline formset
+            const rows = document.querySelectorAll('.dynamic-systemchoiceitem_set');
+            let csv = 'value,label,order,is_active,is_default\n';
+            let count = 0;
+            
+            rows.forEach(row => {
+                const valueInput = row.querySelector('input[name$="-value"]');
+                const labelInput = row.querySelector('input[name$="-label"]');
+                const orderInput = row.querySelector('input[name$="-order"]');
+                const activeInput = row.querySelector('input[name$="-is_active"]');
+                const defaultInput = row.querySelector('input[name$="-is_default"]');
+                
+                if (valueInput && valueInput.value) {
+                    const escapeCsv = (val) => `"${String(val || '').replace(/"/g, '""')}"`;
+                    csv += [
+                        escapeCsv(valueInput.value),
+                        escapeCsv(labelInput ? labelInput.value : ''),
+                        orderInput ? parseInt(orderInput.value) || 0 : 0,
+                        activeInput ? activeInput.checked : true,
+                        defaultInput ? defaultInput.checked : false
+                    ].join(',') + '\n';
+                    count++;
+                }
+            });
+            
+            // Create download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `choice-list-${document.querySelector('input[name="slug"]')?.value || 'export'}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.showNotification(`Exported ${count} items as CSV`);
+        },
+        
+        importData() {
+            if (this.importFormat === 'csv') {
+                this.importFromCsv();
+            } else {
+                this.importFromJson();
+            }
         },
         
         importFromJson() {
             try {
-                const items = JSON.parse(this.importJson);
+                const items = JSON.parse(this.importDataText);
                 if (!Array.isArray(items)) {
                     throw new Error('JSON must be an array');
                 }
@@ -307,11 +363,74 @@ document.addEventListener('alpine:init', () => {
                 });
                 
                 this.showImportModal = false;
-                this.importJson = '';
+                this.importDataText = '';
                 this.showNotification(`Imported ${items.length} items`);
                 
             } catch (error) {
                 this.showNotification(`Import failed: ${error.message}`, 'error');
+            }
+        },
+        
+        importFromCsv() {
+            try {
+                const lines = this.importDataText.trim().split('\n');
+                if (lines.length < 2) {
+                    throw new Error('CSV must have header row and at least one data row');
+                }
+                
+                // Parse header
+                const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                const valueIdx = headers.indexOf('value');
+                const labelIdx = headers.indexOf('label');
+                const orderIdx = headers.indexOf('order');
+                const activeIdx = headers.indexOf('is_active');
+                const defaultIdx = headers.indexOf('is_default');
+                
+                if (valueIdx === -1) {
+                    throw new Error('CSV must have a "value" column');
+                }
+                
+                // Find the inline formset
+                const addButton = document.querySelector('.add-row a');
+                if (!addButton) {
+                    throw new Error('Could not find inline formset');
+                }
+                
+                // Parse data rows
+                let importCount = 0;
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+                    if (cols.length === 0 || !cols[valueIdx]) continue;
+                    
+                    // Click add button to create new row
+                    addButton.click();
+                    
+                    // Get the newly added row
+                    const rows = document.querySelectorAll('.dynamic-systemchoiceitem_set:not(.has_original)');
+                    const newRow = rows[rows.length - 1];
+                    
+                    if (newRow) {
+                        const valueInput = newRow.querySelector('input[name$="-value"]');
+                        const labelInput = newRow.querySelector('input[name$="-label"]');
+                        const orderInput = newRow.querySelector('input[name$="-order"]');
+                        const activeInput = newRow.querySelector('input[name$="-is_active"]');
+                        const defaultInput = newRow.querySelector('input[name$="-is_default"]');
+                        
+                        if (valueInput) valueInput.value = cols[valueIdx] || '';
+                        if (labelInput) labelInput.value = labelIdx !== -1 ? cols[labelIdx] : cols[valueIdx];
+                        if (orderInput) orderInput.value = orderIdx !== -1 ? parseInt(cols[orderIdx]) || i : i;
+                        if (activeInput) activeInput.checked = activeIdx === -1 || cols[activeIdx]?.toLowerCase() !== 'false';
+                        if (defaultInput) defaultInput.checked = defaultIdx !== -1 && cols[defaultIdx]?.toLowerCase() === 'true';
+                        importCount++;
+                    }
+                }
+                
+                this.showImportModal = false;
+                this.importDataText = '';
+                this.showNotification(`Imported ${importCount} items from CSV`);
+                
+            } catch (error) {
+                this.showNotification(`CSV import failed: ${error.message}`, 'error');
             }
         },
         

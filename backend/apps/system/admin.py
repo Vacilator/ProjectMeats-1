@@ -79,7 +79,7 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
     readonly_fields = ('id', 'created_at', 'updated_at')
     inlines = [SystemChoiceItemInline]
     change_form_template = 'admin/system/systemchoicelist/change_form.html'
-    actions = ['export_selected_json', 'duplicate_choice_list']
+    actions = ['export_selected_json', 'export_selected_csv', 'duplicate_choice_list']
     
     fieldsets = (
         (None, {
@@ -104,9 +104,19 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
                 name='system_systemchoicelist_export'
             ),
             path(
+                '<int:pk>/export-csv/',
+                self.admin_site.admin_view(self.export_csv_view),
+                name='system_systemchoicelist_export_csv'
+            ),
+            path(
                 '<int:pk>/import/',
                 self.admin_site.admin_view(self.import_json_view),
                 name='system_systemchoicelist_import'
+            ),
+            path(
+                '<int:pk>/import-csv/',
+                self.admin_site.admin_view(self.import_csv_view),
+                name='system_systemchoicelist_import_csv'
             ),
         ]
         return custom_urls + urls
@@ -181,6 +191,81 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     
+    def export_csv_view(self, request, pk):
+        """Export choice list items as CSV."""
+        import csv
+        
+        try:
+            choice_list = SystemChoiceList.objects.get(pk=pk)
+            items = choice_list.items.filter(tenant__isnull=True).order_by('order')
+            
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{choice_list.slug}.csv"'
+            
+            writer = csv.writer(response)
+            writer.writerow(['value', 'label', 'order', 'is_active', 'is_default'])
+            
+            for item in items:
+                writer.writerow([
+                    item.value,
+                    item.label,
+                    item.order,
+                    item.is_active,
+                    item.is_default,
+                ])
+            
+            return response
+        except SystemChoiceList.DoesNotExist:
+            return JsonResponse({'error': 'Choice list not found'}, status=404)
+    
+    def import_csv_view(self, request, pk):
+        """Import choice items from CSV."""
+        import csv
+        import io
+        
+        if request.method != 'POST':
+            return JsonResponse({'error': 'POST required'}, status=405)
+        
+        try:
+            choice_list = SystemChoiceList.objects.get(pk=pk)
+            
+            # Handle file upload or raw CSV data
+            if request.FILES.get('file'):
+                csv_file = request.FILES['file']
+                content = csv_file.read().decode('utf-8')
+            else:
+                content = request.body.decode('utf-8')
+            
+            reader = csv.DictReader(io.StringIO(content))
+            created_count = 0
+            total_count = 0
+            
+            for row in reader:
+                total_count += 1
+                obj, created = SystemChoiceItem.objects.update_or_create(
+                    choice_list=choice_list,
+                    value=row['value'],
+                    tenant=None,
+                    defaults={
+                        'label': row.get('label', row['value']),
+                        'order': int(row.get('order', 0)),
+                        'is_active': row.get('is_active', 'True').lower() == 'true',
+                        'is_default': row.get('is_default', 'False').lower() == 'true',
+                    }
+                )
+                if created:
+                    created_count += 1
+            
+            return JsonResponse({
+                'success': True,
+                'imported': total_count,
+                'created': created_count
+            })
+        except SystemChoiceList.DoesNotExist:
+            return JsonResponse({'error': 'Choice list not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
     @admin.action(description='📤 Export selected as JSON')
     def export_selected_json(self, request, queryset):
         """Export multiple choice lists as a single JSON file."""
@@ -202,6 +287,32 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
             content_type='application/json'
         )
         response['Content-Disposition'] = 'attachment; filename="choice-lists-export.json"'
+        return response
+    
+    @admin.action(description='📊 Export selected as CSV')
+    def export_selected_csv(self, request, queryset):
+        """Export multiple choice lists and their items as CSV."""
+        import csv
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="choice-lists-export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['List Slug', 'List Name', 'Item Value', 'Item Label', 'Order', 'Active', 'Default'])
+        
+        for choice_list in queryset:
+            items = choice_list.items.filter(tenant__isnull=True).order_by('order')
+            for item in items:
+                writer.writerow([
+                    choice_list.slug,
+                    choice_list.name,
+                    item.value,
+                    item.label,
+                    item.order,
+                    item.is_active,
+                    item.is_default,
+                ])
+        
         return response
     
     @admin.action(description='📋 Duplicate selected')
