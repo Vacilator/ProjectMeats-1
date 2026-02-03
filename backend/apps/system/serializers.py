@@ -6,6 +6,7 @@ Provides DRF serializers for:
 - SystemChoiceItem
 - SystemFieldSchema
 - TenantConfig
+- ConfigAuditLog
 """
 from rest_framework import serializers
 
@@ -14,6 +15,7 @@ from apps.system.models import (
     SystemChoiceItem,
     SystemFieldSchema,
     TenantConfig,
+    ConfigAuditLog,
 )
 
 
@@ -171,3 +173,62 @@ class BulkChoiceUpdateSerializer(serializers.Serializer):
                     f"Invalid order value: {item['order']}"
                 )
         return value
+
+
+class ConfigAuditLogSerializer(serializers.ModelSerializer):
+    """Serializer for ConfigAuditLog - read-only audit trail."""
+    user_display = serializers.SerializerMethodField()
+    change_type_display = serializers.CharField(source='get_change_type_display', read_only=True)
+    
+    class Meta:
+        model = ConfigAuditLog
+        fields = [
+            'id',
+            'entity_type',
+            'entity_name',
+            'change_type',
+            'change_type_display',
+            'field_name',
+            'old_value',
+            'new_value',
+            'snapshot_before',
+            'snapshot_after',
+            'user',
+            'user_email',
+            'user_display',
+            'tenant',
+            'ip_address',
+            'notes',
+            'created_at',
+        ]
+        read_only_fields = fields
+    
+    def get_user_display(self, obj):
+        """Return user display name or email."""
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.email
+        return obj.user_email or 'System'
+
+
+class ConfigAuditLogSummarySerializer(serializers.ModelSerializer):
+    """Minimal serializer for audit log listings."""
+    user_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ConfigAuditLog
+        fields = [
+            'id',
+            'entity_type',
+            'entity_name',
+            'change_type',
+            'field_name',
+            'user_display',
+            'created_at',
+        ]
+        read_only_fields = fields
+    
+    def get_user_display(self, obj):
+        """Return user display name or email."""
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.email
+        return obj.user_email or 'System'

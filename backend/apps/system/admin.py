@@ -834,3 +834,86 @@ class TenantProductPreferenceAdmin(admin.ModelAdmin):
             return format_html('<span style="color: gold;">⭐</span>')
         return ''
     is_favorite_display.short_description = '⭐'
+
+
+# Register ConfigAuditLog for admin access
+from apps.system.models import ConfigAuditLog
+
+@admin.register(ConfigAuditLog)
+class ConfigAuditLogAdmin(admin.ModelAdmin):
+    """
+    Read-only admin for config audit logs.
+    
+    Features:
+    - Filter by entity type, change type, user
+    - Search by entity name, user email
+    - Date range filtering
+    """
+    list_display = (
+        'created_at', 'entity_type', 'entity_name', 
+        'change_type_badge', 'user_display', 'tenant'
+    )
+    list_filter = ('entity_type', 'change_type', 'tenant', 'created_at')
+    search_fields = ('entity_name', 'user_email', 'notes')
+    readonly_fields = (
+        'id', 'content_type', 'object_id', 'entity_type', 'entity_name',
+        'change_type', 'field_name', 'old_value', 'new_value',
+        'snapshot_before', 'snapshot_after', 'user', 'user_email',
+        'tenant', 'ip_address', 'user_agent', 'notes', 'created_at'
+    )
+    ordering = ('-created_at',)
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Entity', {
+            'fields': ('entity_type', 'entity_name', 'object_id', 'content_type')
+        }),
+        ('Change Details', {
+            'fields': ('change_type', 'field_name', 'old_value', 'new_value')
+        }),
+        ('Snapshots', {
+            'fields': ('snapshot_before', 'snapshot_after'),
+            'classes': ('collapse',)
+        }),
+        ('User & Tenant', {
+            'fields': ('user', 'user_email', 'tenant')
+        }),
+        ('Request Info', {
+            'fields': ('ip_address', 'user_agent', 'notes'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('id', 'created_at')
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        return False  # Audit logs are system-generated only
+    
+    def has_change_permission(self, request, obj=None):
+        return False  # Audit logs are immutable
+    
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser  # Only superusers can delete
+    
+    def change_type_badge(self, obj):
+        colors = {
+            'CREATE': '#22c55e',  # green
+            'UPDATE': '#f59e0b',  # amber
+            'DELETE': '#ef4444',  # red
+            'IMPORT': '#3b82f6',  # blue
+            'EXPORT': '#8b5cf6',  # purple
+        }
+        color = colors.get(obj.change_type, '#6b7280')
+        return format_html(
+            '<span style="background: {}; color: white; padding: 2px 8px; '
+            'border-radius: 4px; font-size: 11px;">{}</span>',
+            color, obj.get_change_type_display()
+        )
+    change_type_badge.short_description = 'Change'
+    
+    def user_display(self, obj):
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.email
+        return obj.user_email or 'System'
+    user_display.short_description = 'User'

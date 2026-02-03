@@ -6,17 +6,21 @@ Provides DRF ViewSets for:
 - SystemChoiceItem (tenant admins can add custom items)
 - SystemFieldSchema (admin only)
 - TenantConfig (tenant admins can manage their configs)
+- ConfigAuditLog (read-only audit trail)
 """
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 from apps.system.models import (
     SystemChoiceList,
     SystemChoiceItem,
     SystemFieldSchema,
     TenantConfig,
+    ConfigAuditLog,
 )
 from apps.system.serializers import (
     SystemChoiceListSerializer,
@@ -26,6 +30,8 @@ from apps.system.serializers import (
     TenantConfigSerializer,
     ChoiceItemCreateSerializer,
     BulkChoiceUpdateSerializer,
+    ConfigAuditLogSerializer,
+    ConfigAuditLogSummarySerializer,
 )
 from apps.system.services.config_resolver import ConfigResolver
 
@@ -327,3 +333,106 @@ class ConfigResolverView(viewsets.ViewSet):
             {'error': f'No schema found for {field_path}'},
             status=status.HTTP_404_NOT_FOUND
         )
+
+
+class ConfigAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only ViewSet for ConfigAuditLog.
+    
+    Provides audit trail viewing with filtering capabilities.
+    Only accessible to staff users or tenant admins.
+    
+    GET /api/v1/system/audit-logs/ - List audit logs
+    GET /api/v1/system/audit-logs/{id}/ - Get single log entry
+    GET /api/v1/system/audit-logs/summary/ - Get summary statistics
+    """
+    permission_classes = [IsTenantAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['entity_type', 'change_type', 'user']
+    search_fields = ['entity_name', 'user_email', 'notes']
+    ordering_fields = ['created_at', 'entity_type', 'change_type']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Filter audit logs by tenant context."""
+        tenant = getattr(self.request, 'tenant', None)
+        
+        if self.request.user.is_staff:
+            # Staff can see all logs
+            qs = ConfigAuditLog.objects.all()
+        elif tenant:
+            # Tenant admins see their tenant's logs + system-level logs
+            qs = ConfigAuditLog.objects.filter(
+                Q(tenant=tenant) | Q(tenant__isnull=True)
+            )
+        else:
+            # No tenant context - only system-level logs
+            qs = ConfigAuditLog.objects.filter(tenant__isnull=True)
+        
+        # Apply date filters from query params
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        
+        if date_from:
+            qs = qs.filter(created_at__gte=date_from)
+        if date_to:
+            qs = qs.filter(created_at__lte=date_to)
+        
+        return qs.select_related('user', 'tenant')
+    
+    def get_serializer_class(self):
+        """Use summary serializer for list, full serializer for detail."""
+        if self.action == 'list':
+            return ConfigAuditLogSummarySerializer
+        return ConfigAuditLogSerializer
+    
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Get summary statistics for audit logs."""
+        qs = self.get_queryset()
+        
+        # Count by entity type
+        from django.db.models import Count
+        by_entity = qs.values('entity_type').annotate(count=Count('id')).order_by('-count')
+        
+        # Count by change type
+        by_change = qs.values('change_type').annotate(count=Count('id')).order_by('-count')
+        
+        # Count by user
+        by_user = qs.values('user_email').annotate(count=Count('id')).order_by('-count')[:10]
+        
+        # Recent activity
+        recent = qs[:5]
+        
+        return Response({
+            'total_count': qs.count(),
+            'by_entity_type': list(by_entity),
+            'by_change_type': list(by_change),
+            'by_user': list(by_user),
+            'recent': ConfigAuditLogSummarySerializer(recent, many=True).data,
+        })
+    
+    @action(detail=False, methods=['get'])
+    def entity_history(self, request):
+        """Get history for a specific entity."""
+        entity_type = request.query_params.get('entity_type')
+        entity_name = request.query_params.get('entity_name')
+        object_id = request.query_params.get('object_id')
+        
+        if not (entity_type or object_id):
+            return Response(
+                {'error': 'entity_type or object_id required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        qs = self.get_queryset()
+        
+        if entity_type:
+            qs = qs.filter(entity_type=entity_type)
+        if entity_name:
+            qs = qs.filter(entity_name__icontains=entity_name)
+        if object_id:
+            qs = qs.filter(object_id=object_id)
+        
+        serializer = ConfigAuditLogSerializer(qs[:50], many=True)
+        return Response(serializer.data)
