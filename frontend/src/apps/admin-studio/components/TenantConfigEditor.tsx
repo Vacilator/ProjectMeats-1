@@ -253,6 +253,67 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
     return typeof value;
   };
 
+  // Export configs as JSON
+  const handleExport = () => {
+    const exportData = {
+      category: selectedCategory,
+      exportedAt: new Date().toISOString(),
+      configs: configs.map(c => ({
+        key: c.key,
+        value: c.value,
+        description: c.description,
+        category: c.category,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tenant-config-${selectedCategory.toLowerCase()}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setSuccessMessage('Configuration exported successfully');
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  // Import configs from JSON
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      try {
+        const text = await file.text();
+        const importData = JSON.parse(text);
+        
+        if (!importData.configs || !Array.isArray(importData.configs)) {
+          setError('Invalid import file format');
+          return;
+        }
+        
+        const importedConfigs: EditingConfig[] = importData.configs.map((c: { key: string; value: unknown; description?: string }) => ({
+          key: c.key,
+          value: c.value,
+          category: selectedCategory,
+          description: c.description || '',
+          is_new: true,
+        }));
+        
+        setConfigs([...importedConfigs, ...configs]);
+        setHasChanges(true);
+        setSuccessMessage(`Imported ${importedConfigs.length} configs`);
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } catch (err) {
+        console.error('Import error:', err);
+        setError('Failed to parse import file');
+      }
+    };
+    input.click();
+  };
+
   const filteredConfigs = configs.filter(
     (config) =>
       config.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -321,6 +382,20 @@ export const TenantConfigEditor: React.FC<TenantConfigEditorProps> = ({ onClose 
               </p>
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={handleExport}
+                className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                title="Export configs as JSON"
+              >
+                📤 Export
+              </button>
+              <button
+                onClick={handleImport}
+                className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                title="Import configs from JSON"
+              >
+                📥 Import
+              </button>
               {onClose && (
                 <button
                   onClick={onClose}

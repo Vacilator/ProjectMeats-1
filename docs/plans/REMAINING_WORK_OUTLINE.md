@@ -32,7 +32,7 @@ COMPLETED (7 waves):
 ✅ Wave T: Testing                      100% - 1166 tests (800 FE, 366 BE)
 
 IN PROGRESS (1 wave):
-🔄 Wave 4: Admin Studio                  95% - Visual editors (PR #2398-2404)
+🔄 Wave 4: Admin Studio                  98% - Visual editors (PR #2398-2406)
 
 NOT STARTED (4 waves):
 ⏸️ Wave 7: Finalization                   0% - 15 tasks
@@ -107,11 +107,11 @@ NOT STARTED (4 waves):
 
 ---
 
-### 🔄 Wave 4: Admin Studio (95% Complete)
+### 🔄 Wave 4: Admin Studio (98% Complete)
 
 **Goal**: Visual configuration editors
 
-**Status**: Django Admin complete, documentation done, React Studio partially done
+**Status**: Django Admin complete, documentation done, React Studio enhanced
 
 #### Completed
 - [x] Django Admin enhancements (inline items, permissions)
@@ -125,14 +125,21 @@ NOT STARTED (4 waves):
 - [x] **4.4** Tier-based permission checks (system vs tenant) - existing
 - [x] **4.5** Admin panel reorganization (emoji groups) - PR #2398
 - [x] **4.6** Bulk operations (copy, merge, archive) - PR #2399
+- [x] **4.7** Enhanced `SchemaEditor` (visual field builder) - PR #2406
+  - Fixed TypeScript errors
+  - Added row-level selection checkboxes
+  - Added duplicate field button
+  - Fixed ConditionalVisibilityRules integration
+- [x] **4.8** `TenantConfigEditor` (tenant customization UI) - PR #2406
+  - Added import/export JSON functionality
+  - Enhanced category navigation
+  - Value type indicators
 - [x] **4.11** Connect FormSubmissionModal to ConfigResolver - PR #2399
 - [x] **4.12** Update all forms to use dynamic configs - PR #2404
 - [x] **4.14** Performance optimization (caching) - PR #2402
 - [x] **4.15** Documentation and training materials - PR #2402
 
-#### Remaining - Week 8-9: React Admin Studio (4 tasks)
-- [ ] **4.7** Enhanced `SchemaEditor` (visual field builder)
-- [ ] **4.8** `TenantConfigEditor` (tenant customization UI)
+#### Remaining - Week 8-9: React Admin Studio (2 tasks)
 - [ ] **4.9** Real-time preview of config changes
 - [ ] **4.10** Audit log viewer
 
