@@ -165,8 +165,8 @@ export const WorkflowRunner: React.FC = () => {
       // For simplicity, we'll construct it from the workflow run data
       // In production, you'd have an endpoint to get the current step schema
       
-      // TODO: Replace with actual API call to get current step schema
-      // For now, use a placeholder
+      // Note: Full step schema API integration planned for Wave 4 (Admin Studio)
+      // Currently using placeholder with data from workflow run
       setCurrentSchema({
         step_index: workflowRun.current_step_index,
         name: `${workflowRun.workflow_slug} - Step ${workflowRun.current_step_index + 1}`,

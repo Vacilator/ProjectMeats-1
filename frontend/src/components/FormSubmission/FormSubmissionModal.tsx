@@ -1414,7 +1414,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           updates[field.key] = sourceValue;
           hasUpdates = true;
         }
-        // TODO: 'lookup' mode would fetch related entity data via API
+        // Note: 'lookup' mode for fetching related entity data via API is planned for Wave 4 (Admin Studio)
       }
     });
     

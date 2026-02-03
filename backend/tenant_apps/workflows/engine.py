@@ -185,8 +185,8 @@ class SendNotificationExecutor(ActionExecutor):
         title = config.get('title', 'Notification')
         message = config.get('message', '')
         
-        # TODO: Integrate with notification system
-        # For now, just log it
+        # Note: Full notification system integration planned for Wave I (Infrastructure)
+        # Task I2.3: Real-time notifications
         logger.info(f"Notification: {title} - {message}")
         
         return {
@@ -514,8 +514,8 @@ def trigger_scheduled_workflows():
     
     Should be called by Celery Beat on a regular interval (e.g., every minute).
     """
-    # TODO: Implement cron expression parsing and matching
-    # For now, this is a placeholder
+    # Note: Cron expression parsing planned for Wave I (Infrastructure)
+    # Task I3.5: Scheduled tasks (cron jobs)
     logger.info("Checking scheduled workflows...")
     
     # Get all active scheduled workflows

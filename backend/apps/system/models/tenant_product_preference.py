@@ -154,5 +154,6 @@ class TenantProductPreference(models.Model):
         Future enhancement: check customer-specific pricing first.
         For now, returns default_price.
         """
-        # TODO: Check customer-specific pricing when implemented
+        # Note: Customer-specific pricing planned for Wave F (Features)
+        # Task F1.4: Customer segmentation
         return self.default_price

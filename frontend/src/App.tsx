@@ -25,7 +25,7 @@ const queryClient = new QueryClient({
     },
   },
 });
-import Dashboard from './pages/Dashboard';
+// Page imports - Note: Dashboard replaced by Workspace, WorkflowList replaced by FormsFlows/Catalog
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
 import PurchaseOrders from './pages/PurchaseOrders';
@@ -52,7 +52,7 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import { ComingSoon } from './pages/ComingSoon';
 import ApiTestComponent from './components/ApiTestComponent';
-import { WorkflowList, WorkflowRunner } from './pages/Workflows';
+import { WorkflowRunner } from './pages/Workflows';
 import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
 import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
 import { FormSubmissionModal } from './components/FormSubmission';
