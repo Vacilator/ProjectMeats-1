@@ -124,12 +124,39 @@ export const FIELD_TO_CHOICE_TYPE: Record<string, ChoiceType> = {
 
 // Mapping from field names to SystemChoiceList slugs (v2 config system)
 // These take precedence over legacy FIELD_TO_CHOICE_TYPE
+// All slugs match the seeded SystemChoiceLists from seed_system_choices command
 export const FIELD_TO_CHOICE_LIST_SLUG: Record<string, string> = {
-  // Add mappings as SystemChoiceLists are created for each field
-  // Format: 'field_name': 'choice-list-slug'
-  // Example:
-  // 'protein_type': 'protein-types',
-  // 'status': 'order-statuses',
+  // Product fields
+  'protein_type': 'protein_type',
+  'type_of_protein': 'protein_type',
+  'preferred_protein_types': 'protein_type',
+  'fresh_or_frozen': 'fresh_or_frozen',
+  'package_type': 'package_type',
+  'country_origin': 'country_origin',
+  'edible_inedible': 'edible_inedible',
+  'edible_or_inedible': 'edible_inedible',
+  'weight_unit': 'weight_unit',
+  
+  // Customer/Supplier fields
+  'payment_terms': 'payment_terms',
+  'accounting_payment_terms': 'payment_terms',
+  'credit_limit': 'credit_limit',
+  'credit_limits': 'credit_limit',
+  'certificate_type': 'certificate_type',
+  'type_of_certificate': 'certificate_type',
+  'shipping_offered': 'shipping_offered',
+  
+  // Contact fields
+  'contact_type': 'contact_type',
+  
+  // Plant fields
+  'plant_type': 'plant_type',
+  
+  // Order status fields
+  'po_status': 'po_status',
+  'purchase_order_status': 'po_status',
+  'so_status': 'so_status',
+  'sales_order_status': 'so_status',
 };
 
 // Cache for choices (avoid repeated API calls)
