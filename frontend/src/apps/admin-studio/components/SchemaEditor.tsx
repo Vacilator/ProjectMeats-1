@@ -110,11 +110,7 @@ const fadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
-const pulse = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(var(--color-primary), 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(var(--color-primary), 0); }
-  100% { box-shadow: 0 0 0 0 rgba(var(--color-primary), 0); }
-`;
+/* Note: Wave 4 - pulse animation reserved for future save indicator enhancements */
 
 const Container = styled.div`
   width: 100%;
@@ -637,7 +633,9 @@ const SortableRow: React.FC<{
   expandedVisibility: Record<string, boolean>;
   setExpandedVisibility: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   allFields: FieldDefinition[];
-}> = ({ row, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast, availableEntities, expandedValidation, setExpandedValidation, expandedVisibility, setExpandedVisibility, allFields }) => {
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
+}> = ({ row, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast, availableEntities, expandedValidation, setExpandedValidation, expandedVisibility, setExpandedVisibility, allFields, isSelected, onToggleSelect }) => {
   const {
     attributes,
     listeners,
@@ -654,6 +652,14 @@ const SortableRow: React.FC<{
 
   return (
     <TableRow ref={setNodeRef} style={style} isDragging={isDragging}>
+      <TableCell style={{ width: '40px' }}>
+        <input
+          type="checkbox"
+          checked={isSelected || false}
+          onChange={() => onToggleSelect?.(row.original.id)}
+          title="Select row"
+        />
+      </TableCell>
       <TableCell>
         <DragHandle {...attributes} {...listeners}>
           ⋮⋮
@@ -868,14 +874,15 @@ const SortableRow: React.FC<{
                 {expandedVisibility[row.original.id] && (
                   <div style={{ marginTop: '8px', padding: '12px', background: 'rgb(249 250 251)', borderRadius: '6px' }}>
                     <ConditionalVisibilityRules
-                      fieldId={row.original.id}
-                      fields={allFields.filter(f => f.id !== row.original.id).map(f => ({
+                      targetFieldId={row.original.id}
+                      availableFields={allFields.filter(f => f.id !== row.original.id).map(f => ({
                         id: f.id,
                         name: f.label,
-                        type: f.type,
+                        label: f.label,
+                        type: (['text', 'number', 'select', 'checkbox', 'date', 'radio'].includes(f.type) ? f.type : 'text') as 'text' | 'number' | 'select' | 'checkbox' | 'date' | 'radio',
                       }))}
                       rules={row.original.visibilityRules || []}
-                      onRulesChange={(rules) => onUpdate(row.original.id, 'visibilityRules', rules)}
+                      onChange={(rules: VisibilityRule[]) => onUpdate(row.original.id, 'visibilityRules', rules)}
                     />
                   </div>
                 )}
@@ -1441,6 +1448,13 @@ const SchemaEditor: React.FC = () => {
         <ToolbarButton onClick={handlePaste} disabled={clipboard.length === 0} title="Paste (Ctrl+V)">
           📋 Paste
         </ToolbarButton>
+        <ToolbarButton 
+          onClick={() => selectedFields.size === 1 && handleDuplicate([...selectedFields][0])} 
+          disabled={selectedFields.size !== 1} 
+          title="Duplicate selected field"
+        >
+          📑 Duplicate
+        </ToolbarButton>
         <ToolbarButton onClick={handleBulkDelete} disabled={selectedFields.size === 0} title="Delete (Del)">
           🗑️ Delete
         </ToolbarButton>
@@ -1561,10 +1575,12 @@ const SchemaEditor: React.FC = () => {
                           expandedVisibility={expandedVisibility}
                           setExpandedVisibility={setExpandedVisibility}
                           allFields={fields}
+                          isSelected={selectedFields.has(row.original.id)}
+                          onToggleSelect={toggleFieldSelection}
                         />
                       ))}
                     <GhostRow onClick={handleAddField}>
-                      <TableCell colSpan={8} style={{ textAlign: 'center', color: 'rgb(var(--color-text-secondary))' }}>
+                      <TableCell colSpan={9} style={{ textAlign: 'center', color: 'rgb(var(--color-text-secondary))' }}>
                         + Add Field
                       </TableCell>
                     </GhostRow>
