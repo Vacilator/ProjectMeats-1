@@ -269,16 +269,38 @@ class WorkspaceLayoutView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        """Get the current user's workspace layout."""
+        """
+        Get the current user's workspace layout.
+        
+        Returns saved layout if exists, otherwise returns a sensible default
+        layout that matches frontend expectations. This prevents 404 errors
+        and provides a better first-time user experience.
+        """
         try:
             layout = UserWorkspaceLayout.objects.get(user=request.user)
             serializer = UserWorkspaceLayoutSerializer(layout)
             return Response(serializer.data)
         except UserWorkspaceLayout.DoesNotExist:
-            return Response(
-                {"detail": "No saved layout found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            # Return default layout instead of 404
+            # This matches frontend's DEFAULT_WIDGETS and DEFAULT_LAYOUT
+            default_response = {
+                "version": 1,
+                "layout": [
+                    {"i": "quick-actions", "x": 0, "y": 0, "w": 3, "h": 8, "minW": 2, "minH": 4},
+                    {"i": "recent-activity", "x": 3, "y": 0, "w": 6, "h": 8, "minW": 4, "minH": 6},
+                    {"i": "action-items", "x": 9, "y": 0, "w": 3, "h": 8, "minW": 2, "minH": 4},
+                    {"i": "entity-explorer", "x": 0, "y": 8, "w": 6, "h": 8, "minW": 4, "minH": 6},
+                    {"i": "calendar", "x": 6, "y": 8, "w": 6, "h": 8, "minW": 4, "minH": 6},
+                ],
+                "widgets": [
+                    {"id": "quick-actions", "type": "quick-actions", "title": "Quick Actions"},
+                    {"id": "recent-activity", "type": "recent-activity", "title": "Recent Activity"},
+                    {"id": "action-items", "type": "action-items", "title": "Action Items"},
+                    {"id": "entity-explorer", "type": "entity-explorer", "title": "Entity Explorer"},
+                    {"id": "calendar", "type": "calendar", "title": "Calendar"},
+                ],
+            }
+            return Response(default_response, status=status.HTTP_200_OK)
     
     def put(self, request):
         """Save or update the user's workspace layout."""
