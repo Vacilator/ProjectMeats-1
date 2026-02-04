@@ -610,6 +610,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
 
   // ============================================================================
+  // Save Handler
+  // ============================================================================
+  
+  const handleSave = useCallback(() => {
+    if (onSave) {
+      onSave(nodes, edges);
+      console.log('Flow saved successfully!');
+    }
+  }, [nodes, edges, onSave]);
+
+  // ============================================================================
   // Keyboard Shortcuts
   // ============================================================================
   
@@ -671,14 +682,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPaletteVisible, nodes, undo, redo, handleSave, setNodes, setEdges]);
-
-  // Save handler
-  const handleSave = useCallback(() => {
-    if (onSave) {
-      onSave(nodes, edges);
-      console.log('Flow saved successfully!');
-    }
-  }, [nodes, edges, onSave]);
 
   // ============================================================================
   // Node Selection & Configuration

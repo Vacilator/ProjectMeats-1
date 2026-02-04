@@ -14,6 +14,7 @@ import { NavigationItem } from '../../config/navigation';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
 import { useActionItems, getBadgeValue } from '../../contexts/ActionItemsContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface NavigationMenuProps {
   items: NavigationItem[];
@@ -46,9 +47,47 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   const { theme, themeName } = useTheme();
   const location = useLocation();
   const { counts } = useActionItems();
+  const { user, isAdmin } = useAuth();
   // Changed from Set to string | null for exclusive accordion (only one open at a time)
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const isDarkMode = themeName === 'dark';
+  
+  // Filter items based on user roles
+  const filterItemsByRole = (navItems: NavigationItem[]): NavigationItem[] => {
+    return navItems.filter(item => {
+      // If no roles specified, show to everyone
+      if (!item.roles || item.roles.length === 0) {
+        return true;
+      }
+      
+      // Check if user has any of the required roles
+      if (item.roles.includes('admin') && isAdmin) {
+        return true;
+      }
+      
+      if (item.roles.includes('superuser') && user?.is_superuser) {
+        return true;
+      }
+      
+      // Check against user's role if available
+      if (user?.role && item.roles.includes(user.role)) {
+        return true;
+      }
+      
+      return false;
+    }).map(item => {
+      // Recursively filter children
+      if (item.children) {
+        return {
+          ...item,
+          children: filterItemsByRole(item.children)
+        };
+      }
+      return item;
+    });
+  };
+  
+  const filteredItems = filterItemsByRole(items);
 
   // Auto-expand parent items when a child is active
   useEffect(() => {
@@ -67,11 +106,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       return null;
     };
     
-    const activeParent = findActiveParent(items);
+    const activeParent = findActiveParent(filteredItems);
     if (activeParent) {
       setExpandedItem(activeParent);
     }
-  }, [location.pathname, items]);
+  }, [location.pathname, filteredItems]);
 
   const toggleExpand = (label: string, e?: React.MouseEvent) => {
     if (e) {
@@ -194,7 +233,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
 
   return (
     <MenuContainer>
-      {items.map((item) => {
+      {filteredItems.map((item) => {
         const hasChildren = item.children && item.children.length > 0;
         const isItemExpanded = expandedItem === item.label; // Changed from Set.has() to direct comparison
         const active = isActive(item);

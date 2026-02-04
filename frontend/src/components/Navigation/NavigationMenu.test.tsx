@@ -25,6 +25,22 @@ vi.mock('../../contexts/ThemeContext', () => ({
   }),
 }));
 
+vi.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 1, username: 'testuser', role: 'admin', is_superuser: false },
+    isAdmin: true,
+    isAuthenticated: true,
+    loading: false,
+  }),
+}));
+
+vi.mock('../../contexts/ActionItemsContext', () => ({
+  useActionItems: () => ({
+    counts: { total: 5, overdue: 2, due_today: 1, due_this_week: 2 },
+  }),
+  getBadgeValue: () => 0,
+}));
+
 // Helper to render with Router
 const renderWithRouter = (ui: React.ReactElement, { initialEntries = ['/'] } = {}) => {
   return render(

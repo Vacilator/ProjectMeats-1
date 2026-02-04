@@ -73,6 +73,12 @@ export const navigation: NavigationItem[] = [
             icon: '📜',
             path: '/workforms/history',
           },
+          {
+            label: 'Editor',
+            icon: '🎨',
+            path: '/workforms/editor',
+            roles: ['admin', 'superuser'],
+          },
         ],
       },
     ],
