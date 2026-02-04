@@ -27,10 +27,12 @@ const LEGACY_TOKEN_KEY = 'authToken';
 const REFRESH_BUFFER_MS = 60 * 1000;
 
 // Minimum time between refresh attempts (prevent rapid retries)
-const MIN_REFRESH_INTERVAL_MS = 5000;
+// Increased from 5s to 30s to prevent excessive refresh attempts
+const MIN_REFRESH_INTERVAL_MS = 30000; // 30 seconds
 
-let lastRefreshAttempt = 0;
+// Global refresh promise to prevent concurrent refresh attempts
 let refreshPromise: Promise<string | null> | null = null;
+let lastRefreshAttempt = 0;
 
 /**
  * Decode JWT payload without verification (for expiry check)

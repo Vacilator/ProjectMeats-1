@@ -192,13 +192,14 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   const renderAccordionHeader = (item: NavigationItem, isItemExpanded: boolean, active: boolean, hasActiveChild: boolean) => (
     <AccordionHeader
       onClick={(e) => {
-        // Only prevent default if the item doesn't have a path
-        // This allows items with both path and children to navigate when clicked
+        // If item has NO path (pure parent), toggle accordion
         if (!item.path) {
           e.preventDefault();
+          e.stopPropagation();
           toggleExpand(item.label, e);
         }
-        // If item has a path, let the NavLink handle navigation
+        // If item HAS a path, the AccordionNavLink will handle navigation
+        // We don't toggle accordion on header click, only on chevron button click
       }}
       $theme={theme}
       $level={level}
