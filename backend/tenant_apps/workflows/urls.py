@@ -32,7 +32,9 @@ from .views import (
     # Wave 3: Forms & Flows Enhancement Views
     FormStatusHistoryViewSet, StepAssignmentViewSet,
     UserNotificationViewSet, UserNotificationPreferencesView,
-    ActionItemsAPIView, ActionItemCountsAPIView
+    ActionItemsAPIView, ActionItemCountsAPIView,
+    # Phase 4.2: Permission System
+    WorkFormPermissionsAPIView
 )
 
 app_name = 'workflows'
@@ -117,4 +119,7 @@ urlpatterns = [
     
     # Wave 3: Notification Preferences endpoint
     path('notification-preferences/', UserNotificationPreferencesView.as_view(), name='notification-preferences'),
+    
+    # Phase 4.2: WorkForms Permissions endpoint
+    path('permissions/', WorkFormPermissionsAPIView.as_view(), name='workforms-permissions'),
 ]

@@ -28,6 +28,10 @@ from .serializers import (
 )
 from .services import FieldRegistry, get_entity_fields, get_available_entities
 from .services.entity_persistence import persist_form_submission
+from .permissions import (
+    IsTenantAdminOrOwner, CanEditWorkForm, CanPublishWorkForm,
+    WorkFormPermissionHelper
+)
 
 
 # =============================================================================
@@ -897,9 +901,30 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
     API endpoint for Tenant Forms.
     
     Custom forms that tenants can create for entity record creation/editing.
+    
+    Phase 4.2: Uses role-based permissions:
+    - owner/admin: Full access
+    - manager: Can edit own forms only  
+    - user/readonly: Read-only access
     """
     
     queryset = TenantForm.objects.all()
+    
+    def get_permissions(self):
+        """
+        Dynamically set permissions based on action.
+        """
+        if self.action in ['create']:
+            permission_classes = [IsAuthenticated, CanEditWorkForm]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated, CanEditWorkForm]
+        elif self.action in ['activate', 'deactivate', 'set_default']:
+            permission_classes = [IsAuthenticated, CanPublishWorkForm]
+        else:
+            # list, retrieve, preview - any authenticated user
+            permission_classes = [IsAuthenticated]
+        
+        return [permission() for permission in permission_classes]
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -2796,3 +2821,50 @@ class ActionItemCountsAPIView(APIView):
         
         serializer = ActionItemCountsSerializer(counts)
         return Response(serializer.data)
+
+
+# =============================================================================
+# WORKFORMS PERMISSION API (Phase 4.2)
+# =============================================================================
+
+class WorkFormPermissionsAPIView(APIView):
+    """
+    API endpoint for getting user's WorkForms permissions.
+    
+    Phase 4.2: Enterprise-grade permission system.
+    Returns comprehensive permission metadata based on user's tenant role.
+    
+    GET /api/v1/workflows/permissions/
+    
+    Returns:
+        {
+            'can_create': bool,
+            'can_edit': bool,
+            'can_publish': bool,
+            'can_archive': bool,
+            'can_delete': bool,
+            'allowed_modes': ['wizard', 'visual', 'expert'],
+            'allowed_node_categories': ['triggers', 'forms', ...],
+            'can_access_system_templates': bool,
+            'can_create_global_templates': bool,
+            'max_active_flows': int | None,
+            'role': str
+        }
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get permission metadata for the current user."""
+        user = request.user
+        tenant = getattr(request, 'tenant', None)
+        
+        if not tenant:
+            return Response(
+                {'error': 'No tenant context available'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        permissions = WorkFormPermissionHelper.get_permissions_for_user(user, tenant)
+        
+        return Response(permissions)
+

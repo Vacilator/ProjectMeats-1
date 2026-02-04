@@ -4,20 +4,23 @@
  * Visual editor for creating and editing forms/workflows.
  * Phase 4.1.2: Load, edit, and save forms
  * Phase 2.2.1: Editor modes (Wizard, Visual, Expert)
+ * Phase 4.2: Role-based permissions (owner/admin/manager/user/readonly)
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-04 - Phase 4.1.2 Enhanced with API integration
  * Updated: 2026-02-04 - Phase 2.2.1 Added editor mode system
+ * Updated: 2026-02-04 - Phase 4.2 Added permission system
  */
 import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Wand2, Eye, Code2 } from 'lucide-react';
+import { Wand2, Eye, Code2, Lock } from 'lucide-react';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
 import { adminClient } from '../../services/apiService';
+import { useWorkFormPermissions, canUseEditorMode, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
 // ============================================================================
 // Types
@@ -271,6 +274,9 @@ export const WorkFormsEditor: React.FC = () => {
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('template');
   
+  // Phase 4.2: Permissions
+  const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
+  
   // State
   const [status, setStatus] = useState<'draft' | 'active' | 'inactive'>('draft');
   const [isSaving, setIsSaving] = useState(false);
@@ -452,17 +458,23 @@ export const WorkFormsEditor: React.FC = () => {
         </HeaderLeft>
         
         <HeaderRight>
-          {/* Editor Mode Switcher */}
+          {/* Editor Mode Switcher - Phase 4.2: Permission-aware */}
           <ModeSwitcher>
             {Object.values(EDITOR_MODES).map((mode) => {
               const Icon = mode.icon;
+              const isAllowed = canUseEditorMode(permissions, mode.id);
+              const isDisabled = !isAllowed || permissionsLoading;
+              
               return (
                 <ModeButton
                   key={mode.id}
                   $active={editorMode === mode.id}
-                  onClick={() => handleModeSwitch(mode.id)}
-                  title={mode.description}
+                  onClick={() => isAllowed && handleModeSwitch(mode.id)}
+                  title={isAllowed ? mode.description : getUpgradeMessage('expert_mode', permissions.role)}
+                  disabled={isDisabled}
+                  style={isDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                 >
+                  {!isAllowed && <Lock style={{ width: 12, height: 12, marginRight: 4 }} />}
                   <Icon />
                   <span>{mode.label}</span>
                 </ModeButton>
@@ -482,10 +494,12 @@ export const WorkFormsEditor: React.FC = () => {
             Preview
           </ActionButton>
           
+          {/* Publish button - Phase 4.2: Only for admin/owner */}
           <ActionButton 
             $variant="primary" 
             onClick={handlePublish}
-            disabled={status === 'active' || !id || publishMutation.isPending}
+            disabled={!permissions.can_publish || status === 'active' || !id || publishMutation.isPending || permissionsLoading}
+            title={!permissions.can_publish ? getUpgradeMessage('publish', permissions.role) : ''}
           >
             {publishMutation.isPending ? 'Publishing...' : status === 'active' ? 'Published' : 'Publish'}
           </ActionButton>

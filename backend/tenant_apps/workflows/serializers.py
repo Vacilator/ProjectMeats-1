@@ -90,27 +90,104 @@ class TenantFormRuleSerializer(serializers.ModelSerializer):
 
 
 class TenantFormSerializer(serializers.ModelSerializer):
-    """Serializer for TenantForm model."""
+    """
+    Serializer for TenantForm model.
+    
+    Phase 4.2: Includes permission metadata for frontend.
+    """
     
     entities = TenantFormEntitySerializer(many=True, read_only=True)
     rules = TenantFormRuleSerializer(many=True, read_only=True)
     entity_count = serializers.SerializerMethodField()
     is_multi_entity = serializers.SerializerMethodField()
     
+    # Phase 4.2: Permission metadata
+    can_edit = serializers.SerializerMethodField()
+    can_publish = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+    
     class Meta:
         model = TenantForm
         fields = [
             'id', 'name', 'description', 'status', 'is_default', 'icon',
             'entities', 'rules', 'entity_count', 'is_multi_entity',
+            'can_edit', 'can_publish', 'can_delete',  # Phase 4.2: Permission metadata
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'can_edit', 'can_publish', 'can_delete']
     
     def get_entity_count(self, obj):
         return obj.entities.count()
     
     def get_is_multi_entity(self, obj):
         return obj.entities.count() > 1
+    
+    def get_can_edit(self, obj):
+        """Check if current user can edit this form."""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        
+        # Superusers can edit anything
+        if request.user.is_superuser:
+            return True
+        
+        # Check tenant role
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return False
+        
+        from apps.tenants.models import TenantUser
+        try:
+            tenant_user = TenantUser.objects.get(
+                user=request.user,
+                tenant=tenant,
+                is_active=True
+            )
+            
+            # owner/admin can edit any form
+            if tenant_user.role in ['owner', 'admin']:
+                return True
+            
+            # manager can edit own forms
+            if tenant_user.role == 'manager':
+                return obj.created_by == request.user
+            
+            return False
+        except TenantUser.DoesNotExist:
+            return False
+    
+    def get_can_publish(self, obj):
+        """Check if current user can publish this form."""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        
+        # Superusers can publish anything
+        if request.user.is_superuser:
+            return True
+        
+        # Check tenant role
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return False
+        
+        from apps.tenants.models import TenantUser
+        try:
+            tenant_user = TenantUser.objects.get(
+                user=request.user,
+                tenant=tenant,
+                is_active=True
+            )
+            # Only owner/admin can publish
+            return tenant_user.role in ['owner', 'admin']
+        except TenantUser.DoesNotExist:
+            return False
+    
+    def get_can_delete(self, obj):
+        """Check if current user can delete this form."""
+        # Same logic as can_edit for now
+        return self.get_can_edit(obj)
 
 
 class TenantFormCreateSerializer(serializers.ModelSerializer):
