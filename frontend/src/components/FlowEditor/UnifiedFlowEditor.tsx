@@ -54,6 +54,8 @@ import {
 import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { NodeConfigPanel } from './ConfigPanel';
+import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
+import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
 
@@ -945,6 +947,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Configuration Panel
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   
+  // FormStep specialized configuration (Phase 4.2.B Integration)
+  const [formStepModalOpen, setFormStepModalOpen] = useState(false);
+  const [selectedFormStep, setSelectedFormStep] = useState<Node | null>(null);
+  const [editingField, setEditingField] = useState<any | null>(null);
+  
   // Drag-drop state for ghost preview and smart snapping
   const [isDragging, setIsDragging] = useState(false);
   const [dragNodeType, setDragNodeType] = useState<string | null>(null);
@@ -1768,9 +1775,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Open config panel when a single node is selected
     const selectedNodes = params.nodes || [];
     if (selectedNodes.length === 1) {
-      setSelectedNode(selectedNodes[0]);
+      const node = selectedNodes[0];
+      
+      // Phase 4.2.B: Open specialized FormStep modal for formStep nodes
+      if (node.type === 'formStep') {
+        setSelectedFormStep(node);
+        setFormStepModalOpen(true);
+        setSelectedNode(null); // Don't open generic panel
+      } else {
+        setSelectedNode(node);
+        setSelectedFormStep(null);
+        setFormStepModalOpen(false);
+      }
     } else {
       setSelectedNode(null);
+      setSelectedFormStep(null);
+      setFormStepModalOpen(false);
     }
   }, []);
 
@@ -1787,7 +1807,63 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       })
     );
     console.log(`Node ${nodeId} updated:`, newData);
+    setHasUnsavedChanges(true);
   }, [setNodes]);
+
+  // Phase 4.2.B: FormStep-specific handlers
+  const handleFormStepUpdate = useCallback((updatedStepData: any) => {
+    if (!selectedFormStep) return;
+    
+    handleNodeUpdate(selectedFormStep.id, updatedStepData);
+    setFormStepModalOpen(false);
+    setSelectedFormStep(null);
+  }, [selectedFormStep, handleNodeUpdate]);
+  
+  const handleAddField = useCallback(() => {
+    // Create new blank field and open field editor
+    const newField = {
+      id: `field_${Date.now()}`,
+      label: 'New Field',
+      type: 'text',
+      required: false,
+      placeholder: '',
+      validationRules: [],
+    };
+    setEditingField(newField);
+  }, []);
+  
+  const handleEditField = useCallback((field: any) => {
+    setEditingField(field);
+  }, []);
+  
+  const handleFieldUpdate = useCallback((updatedField: any) => {
+    if (!selectedFormStep) return;
+    
+    const currentFields = selectedFormStep.data.fields || [];
+    const fieldIndex = currentFields.findIndex((f: any) => f.id === updatedField.id);
+    
+    let newFields;
+    if (fieldIndex >= 0) {
+      // Update existing field
+      newFields = currentFields.map((f: any) => 
+        f.id === updatedField.id ? updatedField : f
+      );
+    } else {
+      // Add new field
+      newFields = [...currentFields, updatedField];
+    }
+    
+    // Update the FormStep node with new fields
+    handleNodeUpdate(selectedFormStep.id, { fields: newFields });
+    
+    // Update selectedFormStep state for immediate UI update
+    setSelectedFormStep(prev => prev ? {
+      ...prev,
+      data: { ...prev.data, fields: newFields }
+    } : null);
+    
+    setEditingField(null);
+  }, [selectedFormStep, handleNodeUpdate]);
 
   const handleNodeTest = useCallback((nodeId: string) => {
     console.log(`Testing node ${nodeId} with sample data...`);
@@ -2468,8 +2544,35 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       <TemplateSelector
         isOpen={isTemplateModalOpen}
         onClose={() => setIsTemplateModalOpen(false)}
-        onSelect={handleTemplateSelect}
+        onSelectTemplate={handleTemplateSelect}
+        onStartBlank={handleStartBlank}
       />
+      
+      {/* FormStep Configuration Modal (Phase 4.2.B Integration) */}
+      {formStepModalOpen && selectedFormStep && (
+        <FormStepConfigPanel
+          step={selectedFormStep.data}
+          onChange={handleFormStepUpdate}
+          onClose={() => {
+            setFormStepModalOpen(false);
+            setSelectedFormStep(null);
+          }}
+          onEditField={handleEditField}
+          onAddField={handleAddField}
+          availableFields={[]} // TODO: Get previous step fields
+        />
+      )}
+      
+      {/* FormField Configuration Modal (nested) */}
+      {editingField && (
+        <FormFieldConfigPanel
+          field={editingField}
+          onChange={handleFieldUpdate}
+          onClose={() => setEditingField(null)}
+          availableFields={selectedFormStep?.data?.fields || []}
+          tenantLists={[]} // TODO: Fetch from API
+        />
+      )}
     </EditorContainer>
   );
 };
