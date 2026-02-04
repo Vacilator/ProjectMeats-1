@@ -556,11 +556,11 @@ Based on industry research, our editor will embody:
 
 ---
 
-### 2.4 Canvas Interactions (Make/Figma-Quality) ✅ BATCH 1 & 2 PART 1 COMPLETE!
+### 2.4 Canvas Interactions (Make/Figma-Quality) ✅ BATCH 2 COMPLETE!
 
 **Goal**: Buttery-smooth interactions that feel professional
 
-**Progress**: 4/7 tasks complete (57%)
+**Progress**: 6/7 tasks complete (86%) - Almost done!
 
 #### Batch 1 Complete (PRs #2451, #2452, #2453)
 - ✅ **2.4.4** Navigation & viewport (Figma-quality)
@@ -569,21 +569,22 @@ Based on industry research, our editor will embody:
   - Ctrl+A (select all), Escape (deselect all)
   - Enhanced MiniMap with custom node colors
   - Pannable and zoomable MiniMap
-  - Removed redundant default Controls
   - Build time: 16-19s
   - Status: ✅ Merged to development
 
-#### Batch 2 Part 1 Complete (PR #2455)
+#### Batch 2 Complete (PRs #2455, #2456, #2459)
 - ✅ **2.4.1** Drag-drop from palette (Make-quality)
   - Ghost preview during drag (semi-transparent)
   - Smart grid snapping (15x15 grid)
   - Cancel drag with Escape key
-  - Enhanced drag state tracking
-  - Build time: 17.11s
+  - Proximity detection (100px threshold)
+  - Auto-connect to nearby nodes
+  - Visual feedback (green glow + 🔗 icon)
+  - Build time: 16.18s (fastest!)
   - Status: ✅ Merged to development
 
-#### Remaining Tasks
-- [ ] **2.4.1** Drag-drop from palette (continued)
+#### Remaining Tasks (Batch 3 & 4)
+- [ ] **2.4.2** Connection validation improvements
   - **Ghost preview** during drag
   - **Smart snapping** to grid and alignment guides
   - **Drop zone highlighting** 
