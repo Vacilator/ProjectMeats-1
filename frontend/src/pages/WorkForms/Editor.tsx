@@ -3,18 +3,37 @@
  * 
  * Visual editor for creating and editing forms/workflows.
  * Phase 4.1.2: Load, edit, and save forms
+ * Phase 2.2.1: Editor modes (Wizard, Visual, Expert)
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-04 - Phase 4.1.2 Enhanced with API integration
+ * Updated: 2026-02-04 - Phase 2.2.1 Added editor mode system
  */
 import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Wand2, Eye, Code2 } from 'lucide-react';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
 import { adminClient } from '../../services/apiService';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type EditorMode = 'wizard' | 'visual' | 'expert';
+
+interface EditorModeConfig {
+  id: EditorMode;
+  label: string;
+  icon: React.ComponentType<any>;
+  description: string;
+  targetUser: string;
+  availableNodeTypes: string[];
+  features: string[];
+}
 
 // ============================================================================
 // Styled Components
@@ -137,6 +156,90 @@ const SaveIndicator = styled.div<{ $visible: boolean }>`
   transition: opacity 0.3s ease;
 `;
 
+const ModeSwitcher = styled.div`
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  background: rgb(var(--color-background));
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+`;
+
+const ModeButton = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
+  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-secondary))'};
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  &:hover {
+    background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.1)'};
+    color: ${props => props.$active ? 'white' : 'rgb(var(--color-primary))'};
+  }
+`;
+
+const ModeIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(var(--color-primary), 0.1);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: rgb(var(--color-primary));
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+// ============================================================================
+// Editor Mode Configuration
+// ============================================================================
+
+const EDITOR_MODES: Record<EditorMode, EditorModeConfig> = {
+  wizard: {
+    id: 'wizard',
+    label: 'Wizard',
+    icon: Wand2,
+    description: 'Guided, one-step-at-a-time form building (Typeform-style)',
+    targetUser: 'Business users, first-time creators',
+    availableNodeTypes: ['formStep', 'formField', 'conditionIf', 'actionEmail', 'endSuccess'],
+    features: ['guided-setup', 'templates-only', 'auto-connections', 'step-by-step'],
+  },
+  visual: {
+    id: 'visual',
+    label: 'Visual',
+    icon: Eye,
+    description: 'Full drag-drop canvas with visual workflow builder (Make/n8n-style)',
+    targetUser: 'Power users, process owners',
+    availableNodeTypes: ['*'], // Most nodes
+    features: ['drag-drop', 'custom-connections', 'basic-conditions', 'templates'],
+  },
+  expert: {
+    id: 'expert',
+    label: 'Expert',
+    icon: Code2,
+    description: 'Full control with code expressions and API integrations (Salesforce Flow-style)',
+    targetUser: 'Developers, automation specialists',
+    availableNodeTypes: ['*'], // All nodes
+    features: ['code-expressions', 'api-integrations', 'custom-scripts', 'subflows', 'advanced-logic'],
+  },
+};
+
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
@@ -176,6 +279,7 @@ export const WorkFormsEditor: React.FC = () => {
   const [initialNodes, setInitialNodes] = useState<Node[]>([]);
   const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [editorMode, setEditorMode] = useState<EditorMode>('visual'); // Default to visual mode
 
   // Load existing form if editing
   const { data: existingForm, isLoading: isLoadingForm } = useQuery<TenantForm>({
@@ -186,6 +290,13 @@ export const WorkFormsEditor: React.FC = () => {
     },
     enabled: !!id,
   });
+
+  // Handle mode switching with validation
+  const handleModeSwitch = useCallback((newMode: EditorMode) => {
+    // In future: Add validation and warning dialogs if switching would lose features
+    // For now: Simple switch
+    setEditorMode(newMode);
+  }, []);
 
   // Initialize editor with template or existing form
   useEffect(() => {
@@ -341,6 +452,24 @@ export const WorkFormsEditor: React.FC = () => {
         </HeaderLeft>
         
         <HeaderRight>
+          {/* Editor Mode Switcher */}
+          <ModeSwitcher>
+            {Object.values(EDITOR_MODES).map((mode) => {
+              const Icon = mode.icon;
+              return (
+                <ModeButton
+                  key={mode.id}
+                  $active={editorMode === mode.id}
+                  onClick={() => handleModeSwitch(mode.id)}
+                  title={mode.description}
+                >
+                  <Icon />
+                  <span>{mode.label}</span>
+                </ModeButton>
+              );
+            })}
+          </ModeSwitcher>
+          
           <SaveIndicator $visible={showSavedIndicator}>
             ✓ Saved
           </SaveIndicator>
@@ -369,6 +498,7 @@ export const WorkFormsEditor: React.FC = () => {
             initialNodes={initialNodes}
             initialEdges={initialEdges}
             onSave={handleSave}
+            editorMode={editorMode}
           />
         )}
       </EditorWrapper>
