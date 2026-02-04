@@ -95,11 +95,20 @@ export function getAccessToken(): string | null {
   // Check for JWT token first
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
   if (accessToken) {
+    // Check if token is valid
+    if (isTokenExpired(accessToken)) {
+      console.debug('[JWT] Access token is expired');
+      // Don't return expired token - let refresh handle it
+      return null;
+    }
     return accessToken;
   }
   
   // Fall back to legacy token for backward compatibility
   const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
+  if (legacyToken) {
+    console.debug('[JWT] Using legacy token');
+  }
   return legacyToken;
 }
 
@@ -214,15 +223,22 @@ export function clearTokens(): void {
 export function getAuthHeader(): string | null {
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
   if (accessToken) {
-    return `Bearer ${accessToken}`;
+    // Only return if token is not expired
+    if (!isTokenExpired(accessToken)) {
+      return `Bearer ${accessToken}`;
+    }
+    console.debug('[JWT] Access token expired, needs refresh');
+    return null;
   }
   
   // Fall back to legacy token
   const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
   if (legacyToken) {
+    console.debug('[JWT] Using legacy Token auth');
     return `Token ${legacyToken}`;
   }
   
+  console.warn('[JWT] No auth token available');
   return null;
 }
 

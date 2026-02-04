@@ -11,7 +11,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
 import { adminClient } from '../../services/apiService';
@@ -163,6 +163,7 @@ interface TenantForm {
 
 export const WorkFormsEditor: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('template');
@@ -246,6 +247,9 @@ export const WorkFormsEditor: React.FC = () => {
       }
     },
     onSuccess: (data) => {
+      // Invalidate queries to refresh catalog
+      queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
+      
       // Show saved indicator
       setShowSavedIndicator(true);
       setTimeout(() => setShowSavedIndicator(false), 2000);
@@ -286,6 +290,10 @@ export const WorkFormsEditor: React.FC = () => {
       return response.data;
     },
     onSuccess: () => {
+      // Invalidate queries to refresh catalog
+      queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
+      queryClient.invalidateQueries({ queryKey: ['tenant-form', id] });
+      
       setStatus('active');
       alert('Form published successfully!');
     },

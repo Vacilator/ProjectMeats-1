@@ -551,13 +551,12 @@ const FormsFlowsCatalog: React.FC = () => {
       )}
 
       {/* Template Selector Modal */}
-      {showTemplateSelector && (
-        <TemplateSelector
-          onSelect={handleTemplateSelect}
-          onClose={() => setShowTemplateSelector(false)}
-          onCreateBlank={handleCreateBlank}
-        />
-      )}
+      <TemplateSelector
+        isOpen={showTemplateSelector}
+        onClose={() => setShowTemplateSelector(false)}
+        onSelectTemplate={handleTemplateSelect}
+        onStartBlank={handleCreateBlank}
+      />
     </Container>
   );
 };
