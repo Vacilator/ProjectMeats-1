@@ -1,5 +1,10 @@
 /**
  * Tests for Breadcrumb Navigation Component
+ * 
+ * Updated: 2026-02-04 - Phase 1.1 changes
+ * - Removed hardcoded Dashboard root
+ * - Context-aware breadcrumbs (first segment is root)
+ * - Returns null for root path
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -20,74 +25,75 @@ const renderWithRouter = (initialPath: string = '/') => {
 
 describe('Breadcrumb', () => {
   describe('root path', () => {
-    it('shows Dashboard when at root', () => {
-      renderWithRouter('/');
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    });
-
-    it('does not render separator at root', () => {
-      renderWithRouter('/');
-      expect(screen.queryByText('/')).not.toBeInTheDocument();
+    it('returns null for root path (no breadcrumb)', () => {
+      const { container } = renderWithRouter('/');
+      expect(container.firstChild).toBeNull();
     });
   });
 
   describe('single level path', () => {
-    it('renders suppliers breadcrumb', () => {
+    it('renders suppliers breadcrumb without root prefix', () => {
       renderWithRouter('/suppliers');
       
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      // Should show only "Suppliers", no Dashboard
       expect(screen.getByText('Suppliers')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders customers breadcrumb', () => {
+    it('renders customers breadcrumb without root prefix', () => {
       renderWithRouter('/customers');
       
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
       expect(screen.getByText('Customers')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders purchase-orders breadcrumb', () => {
+    it('renders purchase-orders breadcrumb without root prefix', () => {
       renderWithRouter('/purchase-orders');
       
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
       expect(screen.getByText('Purchase Orders')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders accounts-receivables breadcrumb', () => {
+    it('renders accounts-receivables breadcrumb without root prefix', () => {
       renderWithRouter('/accounts-receivables');
       
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
       expect(screen.getByText('Accounts Receivables')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders contacts breadcrumb', () => {
+    it('renders contacts breadcrumb without root prefix', () => {
       renderWithRouter('/contacts');
       
       expect(screen.getByText('Contacts')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders carriers breadcrumb', () => {
+    it('renders carriers breadcrumb without root prefix', () => {
       renderWithRouter('/carriers');
       
       expect(screen.getByText('Carriers')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders ai-assistant breadcrumb', () => {
+    it('renders ai-assistant breadcrumb without root prefix', () => {
       renderWithRouter('/ai-assistant');
       
       expect(screen.getByText('AI Assistant')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders profile breadcrumb', () => {
+    it('renders profile breadcrumb without root prefix', () => {
       renderWithRouter('/profile');
       
       expect(screen.getByText('Profile')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
 
-    it('renders settings breadcrumb', () => {
+    it('renders settings breadcrumb without root prefix', () => {
       renderWithRouter('/settings');
       
       expect(screen.getByText('Settings')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
   });
 
@@ -97,43 +103,44 @@ describe('Breadcrumb', () => {
       expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 
-    it('renders Dashboard as a link when not at root', () => {
-      renderWithRouter('/suppliers');
-      
-      const dashboardLink = screen.getByRole('link', { name: 'Dashboard' });
-      expect(dashboardLink).toHaveAttribute('href', '/');
-    });
-
-    it('renders last item as text, not link', () => {
-      renderWithRouter('/suppliers');
-      
-      // Suppliers should be text, not link
-      const suppliersText = screen.getByText('Suppliers');
-      expect(suppliersText.tagName).not.toBe('A');
-    });
-  });
-
-  describe('multi-level path', () => {
-    it('renders all path segments', () => {
-      renderWithRouter('/suppliers/details');
-      
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Suppliers')).toBeInTheDocument();
-      expect(screen.getByText('details')).toBeInTheDocument();
-    });
-
-    it('renders middle segments as links', () => {
+    it('renders first segment as link when multi-level', () => {
       renderWithRouter('/suppliers/details');
       
       const suppliersLink = screen.getByRole('link', { name: 'Suppliers' });
       expect(suppliersLink).toHaveAttribute('href', '/suppliers');
     });
 
-    it('renders separators between segments', () => {
+    it('renders last item as text, not link', () => {
+      renderWithRouter('/suppliers');
+      
+      // Suppliers should be text, not link (it's the only/current page)
+      const suppliersText = screen.getByText('Suppliers');
+      expect(suppliersText.tagName).not.toBe('A');
+    });
+  });
+
+  describe('multi-level path', () => {
+    it('renders all path segments without Dashboard', () => {
+      renderWithRouter('/suppliers/details');
+      
+      // First segment is root (no Dashboard)
+      expect(screen.getByText('Suppliers')).toBeInTheDocument();
+      expect(screen.getByText('Details')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+    });
+
+    it('renders first segment as link in multi-level', () => {
+      renderWithRouter('/suppliers/details');
+      
+      const suppliersLink = screen.getByRole('link', { name: 'Suppliers' });
+      expect(suppliersLink).toHaveAttribute('href', '/suppliers');
+    });
+
+    it('renders separator between segments', () => {
       renderWithRouter('/suppliers/details');
       
       const separators = screen.getAllByText('/');
-      expect(separators.length).toBeGreaterThanOrEqual(2);
+      expect(separators.length).toBeGreaterThanOrEqual(1); // Changed from 2 to 1
     });
   });
 
@@ -141,8 +148,9 @@ describe('Breadcrumb', () => {
     it('displays pathname as-is for unmapped routes', () => {
       renderWithRouter('/custom-page');
       
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('custom-page')).toBeInTheDocument();
+      // Should display custom-page as title-cased, no Dashboard
+      expect(screen.getByText('Custom page')).toBeInTheDocument();
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     });
   });
 });
