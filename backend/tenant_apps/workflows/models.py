@@ -217,6 +217,13 @@ class TenantForm(models.Model):
         help_text="User who created this form"
     )
     
+    # Visual editor flow data (Phase 2.1)
+    flow_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Visual editor flow definition (nodes and edges)"
+    )
+    
     class Meta:
         verbose_name = "Tenant Form"
         verbose_name_plural = "Tenant Forms"

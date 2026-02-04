@@ -112,7 +112,7 @@ class TenantFormSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'status', 'is_default', 'icon',
             'entities', 'rules', 'entity_count', 'is_multi_entity',
             'can_edit', 'can_publish', 'can_delete',  # Phase 4.2: Permission metadata
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'flow_data',  # Phase 2.1: Visual editor
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'can_edit', 'can_publish', 'can_delete']
     
@@ -198,7 +198,7 @@ class TenantFormCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantForm
         fields = [
-            'name', 'description', 'status', 'is_default', 'icon', 'entities'
+            'name', 'description', 'status', 'is_default', 'icon', 'entities', 'flow_data'
         ]
     
     def create(self, validated_data):
