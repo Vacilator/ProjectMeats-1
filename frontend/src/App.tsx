@@ -64,6 +64,11 @@ import Fulfillments from './pages/Fulfillments';
 import InquiryTemplates from './pages/InquiryTemplates';
 import InquiryAnalytics from './pages/InquiryAnalytics';
 import OptionListsPage from './pages/Admin/OptionLists';
+import ConfigurationsPage from './pages/Admin/Configurations';
+import CustomizationsPage from './pages/Admin/Customizations';
+import UsersPage from './pages/Admin/Users';
+import AdminProfilePage from './pages/Admin/Profile';
+import BillingPage from './pages/Admin/Billing';
 import CockpitPage from './pages/Cockpit';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
@@ -235,8 +240,13 @@ const App: React.FC = () => {
                 <Route path="my-submissions" element={<MySubmissions />} />
                 <Route path="my-tasks" element={<Navigate to="/workforms/tasks" replace />} />
                 
-                {/* Admin */}
+                {/* Admin Workspace */}
                 <Route path="admin/option-lists" element={<OptionListsPage />} />
+                <Route path="admin/configurations" element={<ConfigurationsPage />} />
+                <Route path="admin/customizations" element={<CustomizationsPage />} />
+                <Route path="admin/users" element={<UsersPage />} />
+                <Route path="admin/profile" element={<AdminProfilePage />} />
+                <Route path="admin/billing" element={<BillingPage />} />
                 
                 {/* Cockpit (Command Center Dashboard) */}
                 <Route path="cockpit" element={<CockpitPage />} />

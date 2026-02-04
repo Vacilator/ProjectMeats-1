@@ -224,14 +224,52 @@ export const navigation: NavigationItem[] = [
     icon: '🚛',
     path: '/carriers',
   },
+];
+
+/**
+ * Admin Workspace Navigation (Bottom Section)
+ * Tenant-specific administration and configuration pages
+ */
+export const adminWorkspaceNavigation: NavigationItem[] = [
   {
-    label: 'Admin',
+    label: 'Admin Workspace',
     icon: '⚙️',
     children: [
+      {
+        label: 'Configurations',
+        icon: '🔧',
+        path: '/admin/configurations',
+        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Customizations',
+        icon: '🎨',
+        path: '/admin/customizations',
+        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Users & Invitations',
+        icon: '👥',
+        path: '/admin/users',
+        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Profile',
+        icon: '🏢',
+        path: '/admin/profile',
+        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Billing',
+        icon: '💳',
+        path: '/admin/billing',
+        roles: ['admin', 'superuser'],
+      },
       {
         label: 'Option Lists',
         icon: '📋',
         path: '/admin/option-lists',
+        roles: ['admin', 'superuser'],
       },
     ],
   },
