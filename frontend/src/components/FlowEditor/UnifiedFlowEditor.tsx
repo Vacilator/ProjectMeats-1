@@ -16,8 +16,9 @@
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-04 - Phase 2.1 Batch 2 (Added Wait, Document, Utility, Terminal nodes)
+ * Updated: 2026-02-04 - Phase 2.1 Batch 3 (Enhanced palette, keyboard shortcuts, undo/redo)
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import {
   ReactFlow,
@@ -36,6 +37,7 @@ import {
   EdgeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2 } from 'lucide-react';
 
 import {
   FormStepNode,
@@ -59,6 +61,16 @@ interface UnifiedFlowEditorProps {
   initialEdges?: Edge[];
   onSave?: (nodes: Node[], edges: Edge[]) => void;
   readOnly?: boolean;
+}
+
+interface HistoryState {
+  nodes: Node[];
+  edges: Edge[];
+}
+
+interface FavoritesState {
+  nodeTypeIds: string[];
+  lastUsed: string[];
 }
 
 // ============================================================================
@@ -92,22 +104,65 @@ const NodePalette = styled.div`
 const PaletteHeader = styled.div`
   padding: 12px;
   border-bottom: 1px solid rgb(var(--color-border));
-  font-weight: 600;
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
   background: rgb(var(--color-background));
   position: sticky;
   top: 0;
   z-index: 1;
 `;
 
-const PaletteCategory = styled.div`
-  padding: 12px;
+const PaletteTitle = styled.div`
+  font-weight: 600;
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 8px;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  outline: none;
+  transition: border-color 0.2s ease;
+  
+  &:focus {
+    border-color: rgb(var(--color-primary));
+  }
+  
+  &::placeholder {
+    color: rgb(var(--color-text-tertiary));
+  }
+`;
+
+const PaletteCategory = styled.div<{ $collapsed?: boolean }>`
   border-bottom: 1px solid rgb(var(--color-border));
   
   &:last-child {
     border-bottom: none;
   }
+`;
+
+const CategoryHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+  
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+  }
+`;
+
+const CategoryTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
 
 const CategoryTitle = styled.div`
@@ -116,7 +171,40 @@ const CategoryTitle = styled.div`
   color: rgb(var(--color-text-secondary));
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 8px;
+`;
+
+const CategoryBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgb(var(--color-text-tertiary));
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 10px;
+`;
+
+const CollapseIcon = styled.span<{ $collapsed?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+  transform: ${props => props.$collapsed ? 'rotate(-90deg)' : 'rotate(0deg)'};
+  transition: transform 0.2s ease;
+`;
+
+const CategoryContent = styled.div<{ $collapsed?: boolean }>`
+  padding: ${props => props.$collapsed ? '0 12px' : '0 12px 12px 12px'};
+  max-height: ${props => props.$collapsed ? '0' : '1000px'};
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
 `;
 
 const NodeItem = styled.div<{ $color: string }>`
@@ -131,6 +219,7 @@ const NodeItem = styled.div<{ $color: string }>`
   border-radius: var(--radius-sm);
   cursor: grab;
   transition: all 0.15s ease;
+  position: relative;
   
   &:hover {
     background: rgb(var(--color-surface));
@@ -146,6 +235,32 @@ const NodeItem = styled.div<{ $color: string }>`
   }
 `;
 
+const FavoriteButton = styled.button<{ $isFavorite?: boolean }>`
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: ${props => props.$isFavorite ? 'rgb(234, 179, 8)' : 'rgb(var(--color-text-tertiary))'};
+  opacity: ${props => props.$isFavorite ? '1' : '0'};
+  transition: opacity 0.2s ease, color 0.2s ease;
+  
+  ${NodeItem}:hover & {
+    opacity: 1;
+  }
+  
+  &:hover {
+    color: rgb(234, 179, 8);
+    transform: scale(1.1);
+  }
+`;
+
 const NodeIcon = styled.span`
   font-size: 18px;
   line-height: 1;
@@ -154,6 +269,7 @@ const NodeIcon = styled.span`
 const NodeInfo = styled.div`
   flex: 1;
   min-width: 0;
+  padding-right: 20px; /* Space for favorite button */
 `;
 
 const NodeName = styled.div`
