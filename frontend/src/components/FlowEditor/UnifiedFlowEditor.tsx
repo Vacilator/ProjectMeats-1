@@ -848,7 +848,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         type: getReactFlowNodeType(type),
         position,
         data: {
-          label: NODE_TYPE_REGISTRY.find(n => n.id === type)?.name || 'New Node',
+          label: NODE_TYPE_REGISTRY[type]?.name || 'New Node',
           status: 'draft',
           ...getDefaultNodeData(type),
         },
@@ -1335,7 +1335,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <MiniMap 
           nodeColor={(node) => {
-            const registry = NODE_TYPE_REGISTRY.find(n => n.id === node.type);
+            const registry = NODE_TYPE_REGISTRY[node.type];
             return registry?.color || '#94a3b8';
           }}
           maskColor="rgba(0, 0, 0, 0.1)"
@@ -1379,10 +1379,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             top: dragPosition.y,
             boxShadow: nearbyNode ? '0 0 0 3px rgba(var(--color-success), 0.5)' : '0 8px 24px rgba(0, 0, 0, 0.2)',
           }}
-          $color={NODE_TYPE_REGISTRY.find(n => n.id === dragNodeType)?.color}
+          $color={NODE_TYPE_REGISTRY[dragNodeType]?.color}
         >
-          {NODE_TYPE_REGISTRY.find(n => n.id === dragNodeType)?.icon}
-          {NODE_TYPE_REGISTRY.find(n => n.id === dragNodeType)?.name}
+          {NODE_TYPE_REGISTRY[dragNodeType]?.icon}
+          {NODE_TYPE_REGISTRY[dragNodeType]?.name}
           {nearbyNode && <span style={{ marginLeft: '8px' }}>🔗</span>}
         </DragGhost>
       )}
