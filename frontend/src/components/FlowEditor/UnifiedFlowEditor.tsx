@@ -36,9 +36,10 @@ import {
   NodeTypes,
   EdgeTypes,
   OnSelectionChangeParams,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2 } from 'lucide-react';
+import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 
 import {
   FormStepNode,
@@ -353,6 +354,44 @@ const ToolbarButton = styled.button`
   }
 `;
 
+const ViewportToolbar = styled.div`
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 5;
+`;
+
+const ViewportButton = styled.button`
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: rgb(var(--color-background));
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
 // ============================================================================
 // Node & Edge Type Mapping
 // ============================================================================
@@ -385,6 +424,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeIdCounter, setNodeIdCounter] = useState(initialNodes.length + 1);
+  
+  // React Flow instance for viewport controls
+  const reactFlowInstance = useReactFlow();
 
   // ============================================================================
   // Enhanced Palette Features State
@@ -621,6 +663,34 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, edges, onSave]);
 
   // ============================================================================
+  // Viewport Controls
+  // ============================================================================
+  
+  const fitView = useCallback(() => {
+    reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+  }, [reactFlowInstance]);
+  
+  const zoomIn = useCallback(() => {
+    reactFlowInstance.zoomIn({ duration: 300 });
+  }, [reactFlowInstance]);
+  
+  const zoomOut = useCallback(() => {
+    reactFlowInstance.zoomOut({ duration: 300 });
+  }, [reactFlowInstance]);
+  
+  const zoomTo = useCallback((level: number) => {
+    reactFlowInstance.zoomTo(level, { duration: 300 });
+  }, [reactFlowInstance]);
+  
+  const selectAll = useCallback(() => {
+    setNodes(nds => nds.map(node => ({ ...node, selected: true })));
+  }, [setNodes]);
+  
+  const deselectAll = useCallback(() => {
+    setNodes(nds => nds.map(node => ({ ...node, selected: false })));
+  }, [setNodes]);
+
+  // ============================================================================
   // Keyboard Shortcuts
   // ============================================================================
   
@@ -677,11 +747,54 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         handleSave();
         return;
       }
+      
+      // F: Fit to view
+      if (event.key === 'f' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        fitView();
+        return;
+      }
+      
+      // 1: Zoom to 100%
+      if (event.key === '1' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        zoomTo(1);
+        return;
+      }
+      
+      // 2: Zoom to 50%
+      if (event.key === '2' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        zoomTo(0.5);
+        return;
+      }
+      
+      // 3: Fit view (same as F)
+      if (event.key === '3' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        fitView();
+        return;
+      }
+      
+      // Ctrl+A / Cmd+A: Select all
+      if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
+        event.preventDefault();
+        selectAll();
+        return;
+      }
+      
+      // Escape: Deselect all
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        deselectAll();
+        setSelectedNode(null);
+        return;
+      }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaletteVisible, nodes, undo, redo, handleSave, setNodes, setEdges]);
+  }, [isPaletteVisible, nodes, undo, redo, handleSave, setNodes, setEdges, fitView, zoomTo, selectAll, deselectAll, setSelectedNode]);
 
   // ============================================================================
   // Node Selection & Configuration
@@ -941,6 +1054,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </Toolbar>
       )}
 
+      {/* Viewport Controls */}
+      <ViewportToolbar>
+        <ViewportButton onClick={fitView} title="Fit to View (F)">
+          <Maximize2 />
+        </ViewportButton>
+        <ViewportButton onClick={zoomIn} title="Zoom In">
+          <ZoomIn />
+        </ViewportButton>
+        <ViewportButton onClick={zoomOut} title="Zoom Out">
+          <ZoomOut />
+        </ViewportButton>
+      </ViewportToolbar>
+
       {/* React Flow Canvas */}
       <ReactFlow
         nodes={nodes}
@@ -977,6 +1103,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               Tab: Toggle palette | /: Search | Del: Delete selected
               <br />
               Ctrl+Z: Undo | Ctrl+Y: Redo | Ctrl+S: Save
+              <br />
+              F: Fit view | 1: 100% | 2: 50% | Ctrl+A: Select all | Esc: Deselect
             </EmptyText>
           </EmptyState>
         )}
