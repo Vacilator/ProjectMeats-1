@@ -1,1072 +1,595 @@
 /**
  * Option Lists Management Page
  * 
- * Allows admins to manage:
- * - System option lists (global)
- * - Tenant-specific option lists
- * - Entity field choice overrides
- * - Audit history of changes
+ * Manages SystemChoiceList and SystemChoiceItem from the system configuration app.
+ * 
+ * Features:
+ * - View all system choice lists (e.g., protein_type, payment_terms, etc.)
+ * - System-defined items (locked, cannot be modified by tenants)
+ * - Tenant-customizable items (can add/edit/remove)
+ * - Clear indication of which lists are extensible vs system-locked
+ * 
+ * Created: 2026-02-04
  */
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Table, Button, Modal, Form, Input, Select, Space, Tag, Tabs, Card, 
-  Typography, message, Popconfirm, Tooltip, Badge, Empty, Spin, Timeline
-} from 'antd';
-import {
-  PlusOutlined, EditOutlined, DeleteOutlined, GlobalOutlined,
-  TeamOutlined, SettingOutlined, ReloadOutlined, SearchOutlined,
-  HistoryOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  ExclamationCircleOutlined
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import optionListsService, {
-  FieldOptionList, TenantList, ChoiceOverride, OptionItem,
-  EntityChoiceFields, UnifiedOptionList, AuditLogEntry, TenantInfo
-} from '../../../services/optionListsService';
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { 
+  Plus, Edit2, Trash2, Lock, Unlock, Globe, Building, 
+  Search, ChevronDown, ChevronUp
+} from 'lucide-react';
+import { adminClient } from '../../../services/apiService';
 
-const { Title, Text } = Typography;
-const { TextArea } = Input;
-const { TabPane } = Tabs;
+// ============================================================================
+// TypeScript Interfaces
+// ============================================================================
 
-// Option editor component for managing {value, label} pairs
-const OptionEditor: React.FC<{
-  value?: OptionItem[];
-  onChange?: (value: OptionItem[]) => void;
-}> = ({ value = [], onChange }) => {
-  const [textValue, setTextValue] = useState('');
+interface SystemChoiceList {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  model_field_path: string;
+  is_extensible: boolean;
+  is_reorderable: boolean;
+  items_count: number;
+  created_at: string;
+  updated_at: string;
+}
 
-  useEffect(() => {
-    // Convert options array to text format (one per line)
-    const text = value.map(opt => 
-      opt.value === opt.label ? opt.label : `${opt.value}|${opt.label}`
-    ).join('\n');
-    setTextValue(text);
-  }, [value]);
+interface SystemChoiceItem {
+  id: string;
+  choice_list: string;
+  tenant: string | null;
+  value: string;
+  label: string;
+  extra_data: Record<string, any>;
+  order: number;
+  is_active: boolean;
+  is_default: boolean;
+  is_system_defined: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
-  const handleTextChange = (text: string) => {
-    setTextValue(text);
-    // Parse text to options
-    const lines = text.split('\n').filter(line => line.trim());
-    const options = lines.map(line => {
-      if (line.includes('|')) {
-        const [val, label] = line.split('|', 2);
-        return { value: val.trim(), label: label.trim() };
-      }
-      return { value: line.trim(), label: line.trim() };
-    });
-    onChange?.(options);
-  };
+// ============================================================================
+// Styled Components (following ProjectMeats design system)
+// ============================================================================
 
-  return (
-    <div>
-      <TextArea
-        rows={8}
-        value={textValue}
-        onChange={e => handleTextChange(e.target.value)}
-        placeholder="Enter options (one per line)&#10;Format: value|label or just value&#10;&#10;Example:&#10;beef|Beef&#10;pork|Pork&#10;chicken|Chicken"
-      />
-      <Text type="secondary" style={{ fontSize: 12 }}>
-        {value.length} options • Use "value|label" for custom values, or just text for same value/label
-      </Text>
-    </div>
-  );
-};
+const PageContainer = styled.div`
+  padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+`;
 
-// System Option Lists Tab
-const SystemListsTab: React.FC = () => {
-  const [lists, setLists] = useState<FieldOptionList[]>([]);
+const PageHeader = styled.div`
+  margin-bottom: 32px;
+`;
+
+const PageTitle = styled.h1`
+  font-size: 28px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+  margin: 0 0 8px 0;
+`;
+
+const PageDescription = styled.p`
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+  margin: 0;
+`;
+
+const SearchBar = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+`;
+
+const SearchIconWrapper = styled.div`
+  position: relative;
+  flex: 1;
+  
+  svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgb(var(--color-text-tertiary));
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 10px 12px 10px 40px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface));
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const ListsGrid = styled.div`
+  display: grid;
+  gap: 16px;
+`;
+
+const ListCard = styled.div<{ $expanded: boolean }>`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  
+  ${props => props.$expanded && `
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 2px 8px rgba(var(--color-primary), 0.1);
+  `}
+`;
+
+const ListHeader = styled.div`
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  
+  &:hover {
+    background: rgba(var(--color-primary), 0.02);
+  }
+`;
+
+const ListHeaderLeft = styled.div`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+`;
+
+const ListIcon = styled.div<{ $locked: boolean }>`
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${props => props.$locked 
+    ? 'rgba(239, 68, 68, 0.1)' 
+    : 'rgba(34, 197, 94, 0.1)'};
+  color: ${props => props.$locked ? 'rgb(239, 68, 68)' : 'rgb(34, 197, 94)'};
+  
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+`;
+
+const ListInfo = styled.div`
+  flex: 1;
+`;
+
+const ListName = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0 0 4px 0;
+`;
+
+const ListMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ListBadge = styled.span<{ $type: 'system' | 'extensible' | 'count' }>`
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  
+  ${props => props.$type === 'system' && `
+    background: rgba(239, 68, 68, 0.1);
+    color: rgb(239, 68, 68);
+  `}
+  
+  ${props => props.$type === 'extensible' && `
+    background: rgba(34, 197, 94, 0.1);
+    color: rgb(34, 197, 94);
+  `}
+  
+  ${props => props.$type === 'count' && `
+    background: rgba(var(--color-primary), 0.1);
+    color: rgb(var(--color-primary));
+  `}
+`;
+
+const ExpandIcon = styled.div<{ $expanded: boolean }>`
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  
+  svg {
+    width: 18px;
+    height: 18px;
+    color: rgb(var(--color-text-secondary));
+  }
+  
+  ${props => props.$expanded && `
+    background: rgba(var(--color-primary), 0.1);
+    
+    svg {
+      color: rgb(var(--color-primary));
+    }
+  `}
+`;
+
+const ListContent = styled.div<{ $expanded: boolean }>`
+  max-height: ${props => props.$expanded ? '1000px' : '0'};
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  border-top: ${props => props.$expanded ? '1px solid rgb(var(--color-border))' : 'none'};
+`;
+
+const ItemsContainer = styled.div`
+  padding: 20px;
+`;
+
+const ItemsHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+`;
+
+const ItemsTitle = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0;
+`;
+
+const AddItemButton = styled.button`
+  padding: 6px 12px;
+  background: transparent;
+  color: rgb(var(--color-primary));
+  border: 1px solid rgb(var(--color-primary));
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  
+  &:hover:not(:disabled) {
+    background: rgba(var(--color-primary), 0.1);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+const ItemsList = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const ItemRow = styled.div<{ $isSystem: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: ${props => props.$isSystem 
+    ? 'rgba(var(--color-surface), 0.5)' 
+    : 'rgb(var(--color-background))'};
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  
+  &:hover {
+    border-color: ${props => props.$isSystem 
+      ? 'rgb(var(--color-border))' 
+      : 'rgb(var(--color-primary))'};
+  }
+`;
+
+const ItemLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+`;
+
+const ItemIcon = styled.div<{ $isSystem: boolean }>`
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${props => props.$isSystem 
+    ? 'rgba(239, 68, 68, 0.1)' 
+    : 'rgba(34, 197, 94, 0.1)'};
+  
+  svg {
+    width: 12px;
+    height: 12px;
+    color: ${props => props.$isSystem ? 'rgb(239, 68, 68)' : 'rgb(34, 197, 94)'};
+  }
+`;
+
+const ItemDetails = styled.div`
+  flex: 1;
+`;
+
+const ItemLabel = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ItemValue = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+  font-family: 'Courier New', monospace;
+`;
+
+const ItemActions = styled.div`
+  display: flex;
+  gap: 4px;
+`;
+
+const IconButton = styled.button`
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgb(var(--color-text-secondary));
+  transition: all 0.15s ease;
+  
+  &:hover:not(:disabled) {
+    background: rgba(var(--color-primary), 0.1);
+    color: rgb(var(--color-primary));
+  }
+  
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+const EmptyState = styled.div`
+  padding: 48px 20px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+`;
+
+const LoadingState = styled.div`
+  padding: 48px 20px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+`;
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+const OptionListsPage: React.FC = () => {
+  const [lists, setLists] = useState<SystemChoiceList[]>([]);
+  const [expandedList, setExpandedList] = useState<string | null>(null);
+  const [listItems, setListItems] = useState<Record<string, SystemChoiceItem[]>>({});
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingList, setEditingList] = useState<FieldOptionList | null>(null);
-  const [form] = Form.useForm();
+  const [loadingItems, setLoadingItems] = useState<string | null>(null);
 
-  const loadLists = async () => {
+  // Load all choice lists on mount
+  useEffect(() => {
+    loadChoiceLists();
+  }, []);
+
+  const loadChoiceLists = async () => {
     setLoading(true);
     try {
-      const data = await optionListsService.getSystemOptionLists();
-      setLists(data);
-    } catch (err) {
-      message.error('Failed to load option lists');
+      const response = await adminClient.get('/system/choice-lists/');
+      setLists(response.data);
+    } catch (error) {
+      console.error('Failed to load choice lists:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadLists();
-  }, []);
-
-  const handleSave = async (values: any) => {
+  const loadListItems = async (slug: string) => {
+    setLoadingItems(slug);
     try {
-      if (editingList) {
-        await optionListsService.updateSystemOptionList(editingList.id, values);
-        message.success('Option list updated');
-      } else {
-        await optionListsService.createSystemOptionList(values);
-        message.success('Option list created');
-      }
-      setModalVisible(false);
-      setEditingList(null);
-      form.resetFields();
-      loadLists();
-    } catch (err) {
-      message.error('Failed to save option list');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await optionListsService.deleteSystemOptionList(id);
-      message.success('Option list deleted');
-      loadLists();
-    } catch (err) {
-      message.error('Failed to delete option list');
-    }
-  };
-
-  const columns: ColumnsType<FieldOptionList> = [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      render: (name, record) => (
-        <Space>
-          <span>{name}</span>
-          {record.is_system && <Tag color="blue">System</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: 'Options',
-      dataIndex: 'option_count',
-      key: 'option_count',
-      width: 100,
-      render: count => <Badge count={count} showZero color="#52c41a" />,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 120,
-      render: (_, record) => (
-        <Space>
-          <Tooltip title="Edit">
-            <Button
-              icon={<EditOutlined />}
-              size="small"
-              onClick={() => {
-                setEditingList(record);
-                form.setFieldsValue(record);
-                setModalVisible(true);
-              }}
-            />
-          </Tooltip>
-          {!record.is_system && (
-            <Popconfirm
-              title="Delete this option list?"
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <Tooltip title="Delete">
-                <Button icon={<DeleteOutlined />} size="small" danger />
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
-  return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Text type="secondary">
-          System-wide option lists available to all tenants
-        </Text>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadLists}>
-            Refresh
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingList(null);
-              form.resetFields();
-              setModalVisible(true);
-            }}
-          >
-            Create Option List
-          </Button>
-        </Space>
-      </div>
-
-      <Table
-        columns={columns}
-        dataSource={lists}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 10 }}
-      />
-
-      <Modal
-        title={editingList ? 'Edit Option List' : 'Create Option List'}
-        open={modalVisible}
-        onCancel={() => {
-          setModalVisible(false);
-          setEditingList(null);
-          form.resetFields();
-        }}
-        footer={null}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSave}
-        >
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[{ required: true, message: 'Please enter a name' }]}
-          >
-            <Input placeholder="e.g., Protein Types, Payment Terms" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <TextArea rows={2} placeholder="Describe what this list is used for" />
-          </Form.Item>
-
-          <Form.Item
-            name="options"
-            label="Options"
-            rules={[{ required: true, message: 'Please add at least one option' }]}
-          >
-            <OptionEditor />
-          </Form.Item>
-
-          <Form.Item
-            name="is_system"
-            valuePropName="checked"
-            initialValue={false}
-          >
-            <Select options={[
-              { value: false, label: 'Custom List (can be deleted)' },
-              { value: true, label: 'System List (protected)' },
-            ]} />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setModalVisible(false)}>Cancel</Button>
-              <Button type="primary" htmlType="submit">
-                {editingList ? 'Update' : 'Create'}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
-  );
-};
-
-// Entity Field Overrides Tab
-const EntityOverridesTab: React.FC = () => {
-  const [overrides, setOverrides] = useState<ChoiceOverride[]>([]);
-  const [entityFields, setEntityFields] = useState<EntityChoiceFields[]>([]);
-  const [systemLists, setSystemLists] = useState<FieldOptionList[]>([]);
-  const [tenants, setTenants] = useState<TenantInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingOverride, setEditingOverride] = useState<ChoiceOverride | null>(null);
-  const [form] = Form.useForm();
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [overridesData, fieldsData, listsData, tenantsData] = await Promise.all([
-        optionListsService.getChoiceOverrides(),
-        optionListsService.getEntityChoiceFields(),
-        optionListsService.getSystemOptionLists(),
-        optionListsService.getTenants().catch(() => []),
-      ]);
-      setOverrides(overridesData);
-      setEntityFields(fieldsData.entities);
-      setSystemLists(listsData);
-      setTenants(tenantsData);
-    } catch (err) {
-      message.error('Failed to load data');
+      const response = await adminClient.get(`/system/choice-lists/${slug}/items/`);
+      setListItems(prev => ({ ...prev, [slug]: response.data }));
+    } catch (error) {
+      console.error(`Failed to load items for ${slug}:`, error);
     } finally {
-      setLoading(false);
+      setLoadingItems(null);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const handleSave = async (values: any) => {
-    try {
-      // If using an option list, clear inline options
-      if (values.option_list) {
-        values.options = [];
+  const handleToggleExpand = (slug: string) => {
+    if (expandedList === slug) {
+      setExpandedList(null);
+    } else {
+      setExpandedList(slug);
+      if (!listItems[slug]) {
+        loadListItems(slug);
       }
-      
-      if (editingOverride) {
-        await optionListsService.updateChoiceOverride(editingOverride.id, values);
-        message.success('Override updated');
-      } else {
-        await optionListsService.createChoiceOverride(values);
-        message.success('Override created');
-      }
-      setModalVisible(false);
-      setEditingOverride(null);
-      form.resetFields();
-      loadData();
-    } catch (err: any) {
-      message.error(err.response?.data?.detail || 'Failed to save override');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await optionListsService.deleteChoiceOverride(id);
-      message.success('Override deleted');
-      loadData();
-    } catch (err) {
-      message.error('Failed to delete override');
-    }
-  };
-
-  // Build entity.field options for select
-  const entityFieldOptions = useMemo(() => {
-    return entityFields.flatMap(entity =>
-      entity.choice_fields.map(field => ({
-        value: `${entity.entity_type}|${field.name}`,
-        label: `${entity.entity_type}.${field.name}`,
-        entity: entity.entity_type,
-        field: field.name,
-      }))
-    );
-  }, [entityFields]);
-
-  const columns: ColumnsType<ChoiceOverride> = [
-    {
-      title: 'Entity.Field',
-      key: 'entity_field',
-      render: (_, record) => (
-        <Space>
-          <Tag color="purple">{record.entity_type}</Tag>
-          <span>{record.field_name}</span>
-        </Space>
-      ),
-    },
-    {
-      title: 'Scope',
-      dataIndex: 'tenant_name',
-      key: 'scope',
-      render: (name) => name ? (
-        <Tag icon={<TeamOutlined />} color="green">{name}</Tag>
-      ) : (
-        <Tag icon={<GlobalOutlined />} color="blue">System Default</Tag>
-      ),
-    },
-    {
-      title: 'Mode',
-      dataIndex: 'mode_display',
-      key: 'mode',
-    },
-    {
-      title: 'Options',
-      dataIndex: 'option_count',
-      key: 'options',
-      render: (count, record) => (
-        <Space>
-          <Badge count={count} showZero color="#52c41a" />
-          {record.option_list_name && (
-            <Tag color="cyan">from: {record.option_list_name}</Tag>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: 'Active',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      render: active => active ? 
-        <Tag color="success">Active</Tag> : 
-        <Tag color="default">Inactive</Tag>,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 120,
-      render: (_, record) => (
-        <Space>
-          <Tooltip title="Edit">
-            <Button
-              icon={<EditOutlined />}
-              size="small"
-              onClick={() => {
-                setEditingOverride(record);
-                form.setFieldsValue({
-                  ...record,
-                  entity_field: `${record.entity_type}|${record.field_name}`,
-                });
-                setModalVisible(true);
-              }}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="Delete this override?"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <Tooltip title="Delete">
-              <Button icon={<DeleteOutlined />} size="small" danger />
-            </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  // Filter lists by search query
+  const filteredLists = lists.filter(list => 
+    list.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    list.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    list.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Text type="secondary">
-          Override default choices for entity fields (e.g., Product.protein_type)
-        </Text>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData}>
-            Refresh
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingOverride(null);
-              form.resetFields();
-              setModalVisible(true);
-            }}
-          >
-            Create Override
-          </Button>
-        </Space>
-      </div>
+    <PageContainer>
+      <PageHeader>
+        <PageTitle>📋 Option Lists</PageTitle>
+        <PageDescription>
+          Manage system-wide choice lists for dropdown fields. System lists are locked and cannot be modified by tenants, while extensible lists allow tenant customizations.
+        </PageDescription>
+      </PageHeader>
+
+      <SearchBar>
+        <SearchIconWrapper>
+          <Search />
+          <SearchInput
+            type="text"
+            placeholder="Search option lists by name, slug, or description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </SearchIconWrapper>
+      </SearchBar>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 50 }}>
-          <Spin size="large" />
-        </div>
-      ) : overrides.length === 0 ? (
-        <Empty description="No overrides configured">
-          <Button type="primary" onClick={() => setModalVisible(true)}>
-            Create First Override
-          </Button>
-        </Empty>
+        <LoadingState>Loading option lists...</LoadingState>
+      ) : filteredLists.length === 0 ? (
+        <EmptyState>
+          {searchQuery ? 'No option lists match your search.' : 'No option lists found.'}
+        </EmptyState>
       ) : (
-        <Table
-          columns={columns}
-          dataSource={overrides}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-        />
+        <ListsGrid>
+          {filteredLists.map(list => {
+            const isExpanded = expandedList === list.slug;
+            const items = listItems[list.slug] || [];
+            const isLoadingItems = loadingItems === list.slug;
+
+            return (
+              <ListCard key={list.id} $expanded={isExpanded}>
+                <ListHeader onClick={() => handleToggleExpand(list.slug)}>
+                  <ListHeaderLeft>
+                    <ListIcon $locked={!list.is_extensible}>
+                      {list.is_extensible ? <Unlock /> : <Lock />}
+                    </ListIcon>
+                    
+                    <ListInfo>
+                      <ListName>{list.name}</ListName>
+                      <ListMeta>
+                        <code>{list.slug}</code>
+                        <span>•</span>
+                        {!list.is_extensible && (
+                          <>
+                            <ListBadge $type="system">System Locked</ListBadge>
+                            <span>•</span>
+                          </>
+                        )}
+                        {list.is_extensible && (
+                          <>
+                            <ListBadge $type="extensible">Tenant Customizable</ListBadge>
+                            <span>•</span>
+                          </>
+                        )}
+                        <ListBadge $type="count">{list.items_count} items</ListBadge>
+                      </ListMeta>
+                    </ListInfo>
+                  </ListHeaderLeft>
+                  
+                  <ExpandIcon $expanded={isExpanded}>
+                    {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                  </ExpandIcon>
+                </ListHeader>
+
+                <ListContent $expanded={isExpanded}>
+                  <ItemsContainer>
+                    <ItemsHeader>
+                      <ItemsTitle>
+                        {list.model_field_path || 'Choice Items'}
+                      </ItemsTitle>
+                      <AddItemButton 
+                        disabled={!list.is_extensible}
+                        title={list.is_extensible ? 'Add custom item' : 'System list - cannot add items'}
+                      >
+                        <Plus /> Add Item
+                      </AddItemButton>
+                    </ItemsHeader>
+
+                    {isLoadingItems ? (
+                      <LoadingState>Loading items...</LoadingState>
+                    ) : items.length === 0 ? (
+                      <EmptyState>No items in this list</EmptyState>
+                    ) : (
+                      <ItemsList>
+                        {items.map(item => (
+                          <ItemRow key={item.id} $isSystem={item.is_system_defined}>
+                            <ItemLeft>
+                              <ItemIcon $isSystem={item.is_system_defined}>
+                                {item.is_system_defined ? <Globe /> : <Building />}
+                              </ItemIcon>
+                              
+                              <ItemDetails>
+                                <ItemLabel>{item.label}</ItemLabel>
+                                <ItemValue>{item.value}</ItemValue>
+                              </ItemDetails>
+                            </ItemLeft>
+
+                            <ItemActions>
+                              <IconButton 
+                                disabled={item.is_system_defined}
+                                title={item.is_system_defined ? 'System item - cannot edit' : 'Edit item'}
+                              >
+                                <Edit2 />
+                              </IconButton>
+                              <IconButton 
+                                disabled={item.is_system_defined}
+                                title={item.is_system_defined ? 'System item - cannot delete' : 'Delete item'}
+                              >
+                                <Trash2 />
+                              </IconButton>
+                            </ItemActions>
+                          </ItemRow>
+                        ))}
+                      </ItemsList>
+                    )}
+                  </ItemsContainer>
+                </ListContent>
+              </ListCard>
+            );
+          })}
+        </ListsGrid>
       )}
-
-      <Modal
-        title={editingOverride ? 'Edit Override' : 'Create Override'}
-        open={modalVisible}
-        onCancel={() => {
-          setModalVisible(false);
-          setEditingOverride(null);
-          form.resetFields();
-        }}
-        footer={null}
-        width={700}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSave}
-        >
-          <Form.Item
-            name="entity_field"
-            label="Entity & Field"
-            rules={[{ required: true, message: 'Select entity and field' }]}
-          >
-            <Select
-              showSearch
-              placeholder="Select entity.field"
-              options={entityFieldOptions}
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              onChange={(value) => {
-                const [entity, field] = value.split('|');
-                form.setFieldsValue({ entity_type: entity, field_name: field });
-              }}
-              disabled={!!editingOverride}
-            />
-          </Form.Item>
-
-          {/* Hidden fields for actual values */}
-          <Form.Item name="entity_type" hidden><Input /></Form.Item>
-          <Form.Item name="field_name" hidden><Input /></Form.Item>
-
-          <Form.Item
-            name="tenant"
-            label="Scope"
-            help="Leave empty for system-wide default, or select tenant for tenant-specific override"
-          >
-            <Select
-              allowClear
-              placeholder="System Default (all tenants)"
-              options={[
-                { value: null, label: '🌐 System Default (applies to all tenants)' },
-                ...tenants.map(t => ({ value: t.id, label: `🏢 ${t.name}` }))
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="mode"
-            label="Override Mode"
-            initialValue="replace"
-            rules={[{ required: true }]}
-          >
-            <Select options={[
-              { value: 'replace', label: '🔄 Replace All - Completely replace default options' },
-              { value: 'append', label: '➕ Append - Add to end of default options' },
-              { value: 'prepend', label: '⬆️ Prepend - Add before default options' },
-              { value: 'filter', label: '🔍 Filter - Show only specified options from defaults' },
-            ]} />
-          </Form.Item>
-
-          <Form.Item
-            name="option_list"
-            label="Use Existing Option List"
-            help="Select a pre-defined option list, or leave empty to define inline"
-          >
-            <Select
-              allowClear
-              placeholder="(Define inline options below)"
-              options={systemLists.map(list => ({
-                value: list.id,
-                label: `${list.name} (${list.option_count} options)`,
-              }))}
-            />
-          </Form.Item>
-
-          <Form.Item
-            noStyle
-            shouldUpdate={(prev, curr) => prev.option_list !== curr.option_list}
-          >
-            {({ getFieldValue }) => 
-              !getFieldValue('option_list') && (
-                <Form.Item
-                  name="options"
-                  label="Inline Options"
-                  rules={[{ required: true, message: 'Add options or select an option list' }]}
-                >
-                  <OptionEditor />
-                </Form.Item>
-              )
-            }
-          </Form.Item>
-
-          <Form.Item
-            name="is_active"
-            label="Status"
-            initialValue={true}
-          >
-            <Select options={[
-              { value: true, label: '✅ Active' },
-              { value: false, label: '⏸️ Inactive' },
-            ]} />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setModalVisible(false)}>Cancel</Button>
-              <Button type="primary" htmlType="submit">
-                {editingOverride ? 'Update' : 'Create'}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
-  );
-};
-
-// Tenant Lists Tab
-const TenantListsTab: React.FC = () => {
-  const [lists, setLists] = useState<TenantList[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingList, setEditingList] = useState<TenantList | null>(null);
-  const [form] = Form.useForm();
-
-  const loadLists = async () => {
-    setLoading(true);
-    try {
-      const data = await optionListsService.getTenantLists();
-      setLists(data);
-    } catch (err) {
-      message.error('Failed to load tenant lists');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadLists();
-  }, []);
-
-  const handleSave = async (values: any) => {
-    try {
-      if (editingList) {
-        await optionListsService.updateTenantList(editingList.id, values);
-        message.success('Tenant list updated');
-      } else {
-        await optionListsService.createTenantList(values);
-        message.success('Tenant list created');
-      }
-      setModalVisible(false);
-      setEditingList(null);
-      form.resetFields();
-      loadLists();
-    } catch (err) {
-      message.error('Failed to save tenant list');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await optionListsService.deleteTenantList(id);
-      message.success('Tenant list deleted');
-      loadLists();
-    } catch (err) {
-      message.error('Failed to delete tenant list');
-    }
-  };
-
-  const columns: ColumnsType<TenantList> = [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-    },
-    {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: 'Options',
-      key: 'options',
-      width: 100,
-      render: (_, record) => (
-        <Badge count={record.options?.length || 0} showZero color="#52c41a" />
-      ),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      width: 100,
-      render: active => active ? 
-        <Tag color="success">Active</Tag> : 
-        <Tag color="default">Inactive</Tag>,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 120,
-      render: (_, record) => (
-        <Space>
-          <Tooltip title="Edit">
-            <Button
-              icon={<EditOutlined />}
-              size="small"
-              onClick={() => {
-                setEditingList(record);
-                form.setFieldsValue(record);
-                setModalVisible(true);
-              }}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="Delete this tenant list?"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <Tooltip title="Delete">
-              <Button icon={<DeleteOutlined />} size="small" danger />
-            </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
-  return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Text type="secondary">
-          Option lists specific to your tenant (not shared with other tenants)
-        </Text>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadLists}>
-            Refresh
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingList(null);
-              form.resetFields();
-              setModalVisible(true);
-            }}
-          >
-            Create Tenant List
-          </Button>
-        </Space>
-      </div>
-
-      <Table
-        columns={columns}
-        dataSource={lists}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 10 }}
-      />
-
-      <Modal
-        title={editingList ? 'Edit Tenant List' : 'Create Tenant List'}
-        open={modalVisible}
-        onCancel={() => {
-          setModalVisible(false);
-          setEditingList(null);
-          form.resetFields();
-        }}
-        footer={null}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSave}
-        >
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[{ required: true, message: 'Please enter a name' }]}
-          >
-            <Input placeholder="e.g., Custom Categories, Special Options" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <TextArea rows={2} placeholder="Describe what this list is used for" />
-          </Form.Item>
-
-          <Form.Item
-            name="options"
-            label="Options"
-            rules={[{ required: true, message: 'Please add at least one option' }]}
-          >
-            <OptionEditor />
-          </Form.Item>
-
-          <Form.Item
-            name="is_active"
-            label="Status"
-            initialValue={true}
-          >
-            <Select options={[
-              { value: true, label: '✅ Active' },
-              { value: false, label: '⏸️ Inactive' },
-            ]} />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setModalVisible(false)}>Cancel</Button>
-              <Button type="primary" htmlType="submit">
-                {editingList ? 'Update' : 'Create'}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
-  );
-};
-
-// Audit History Tab
-const AuditHistoryTab: React.FC = () => {
-  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [entityFilter, setEntityFilter] = useState<string | undefined>();
-  const [actionFilter, setActionFilter] = useState<string | undefined>();
-
-  const loadLogs = async () => {
-    setLoading(true);
-    try {
-      const data = await optionListsService.getAuditLogs({
-        entity_type: entityFilter,
-        action: actionFilter,
-        limit: 100,
-      });
-      setLogs(data);
-    } catch (err) {
-      message.error('Failed to load audit logs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadLogs();
-  }, [entityFilter, actionFilter]);
-
-  const getActionIcon = (action: string) => {
-    switch (action) {
-      case 'create': return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-      case 'update': return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
-      case 'delete': return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
-      case 'activate': return <CheckCircleOutlined style={{ color: '#1890ff' }} />;
-      case 'deactivate': return <CloseCircleOutlined style={{ color: '#8c8c8c' }} />;
-      default: return <HistoryOutlined />;
-    }
-  };
-
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case 'create': return 'green';
-      case 'update': return 'orange';
-      case 'delete': return 'red';
-      case 'activate': return 'blue';
-      case 'deactivate': return 'default';
-      default: return 'default';
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleString();
-  };
-
-  const columns: ColumnsType<AuditLogEntry> = [
-    {
-      title: 'Time',
-      dataIndex: 'performed_at',
-      key: 'performed_at',
-      width: 180,
-      render: date => formatDate(date),
-    },
-    {
-      title: 'Action',
-      dataIndex: 'action',
-      key: 'action',
-      width: 120,
-      render: (action, record) => (
-        <Space>
-          {getActionIcon(action)}
-          <Tag color={getActionColor(action)}>{record.action_display}</Tag>
-        </Space>
-      ),
-    },
-    {
-      title: 'Entity.Field',
-      key: 'entity_field',
-      render: (_, record) => (
-        <Space>
-          <Tag color="purple">{record.entity_type}</Tag>
-          <span>{record.field_name}</span>
-        </Space>
-      ),
-    },
-    {
-      title: 'Scope',
-      dataIndex: 'tenant_name',
-      key: 'tenant_name',
-      render: (name) => name ? (
-        <Tag icon={<TeamOutlined />} color="green">{name}</Tag>
-      ) : (
-        <Tag icon={<GlobalOutlined />} color="blue">System</Tag>
-      ),
-    },
-    {
-      title: 'User',
-      dataIndex: 'performed_by_name',
-      key: 'performed_by_name',
-      render: name => name || <Text type="secondary">System</Text>,
-    },
-    {
-      title: 'Changes',
-      key: 'changes',
-      ellipsis: true,
-      render: (_, record) => {
-        if (record.changes && record.changes.length > 0) {
-          return (
-            <Tooltip title={record.changes.map(c => `${c.field}: ${c.old} → ${c.new}`).join(', ')}>
-              <Text type="secondary">{record.changes.length} field(s) changed</Text>
-            </Tooltip>
-          );
-        }
-        return <Text type="secondary">—</Text>;
-      },
-    },
-  ];
-
-  // Get unique entity types for filter
-  const entityTypes = useMemo(() => {
-    const types = new Set(logs.map(l => l.entity_type));
-    return Array.from(types).sort();
-  }, [logs]);
-
-  return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Space>
-          <Text type="secondary">Audit trail of all choice override changes</Text>
-        </Space>
-        <Space>
-          <Select
-            allowClear
-            placeholder="Filter by entity"
-            style={{ width: 150 }}
-            value={entityFilter}
-            onChange={setEntityFilter}
-            options={entityTypes.map(t => ({ value: t, label: t }))}
-          />
-          <Select
-            allowClear
-            placeholder="Filter by action"
-            style={{ width: 150 }}
-            value={actionFilter}
-            onChange={setActionFilter}
-            options={[
-              { value: 'create', label: 'Created' },
-              { value: 'update', label: 'Updated' },
-              { value: 'delete', label: 'Deleted' },
-              { value: 'activate', label: 'Activated' },
-              { value: 'deactivate', label: 'Deactivated' },
-            ]}
-          />
-          <Button icon={<ReloadOutlined />} onClick={loadLogs}>
-            Refresh
-          </Button>
-        </Space>
-      </div>
-
-      <Table
-        columns={columns}
-        dataSource={logs}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 20 }}
-        expandable={{
-          expandedRowRender: (record) => (
-            <div style={{ padding: 16 }}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {record.changes && record.changes.length > 0 && (
-                  <div>
-                    <Text strong>Changes:</Text>
-                    <Timeline style={{ marginTop: 8 }}>
-                      {record.changes.map((change, idx) => (
-                        <Timeline.Item key={idx}>
-                          <Text code>{change.field}</Text>: {' '}
-                          <Text delete type="secondary">{JSON.stringify(change.old)}</Text>
-                          {' → '}
-                          <Text type="success">{JSON.stringify(change.new)}</Text>
-                        </Timeline.Item>
-                      ))}
-                    </Timeline>
-                  </div>
-                )}
-                {record.ip_address && (
-                  <Text type="secondary">IP: {record.ip_address}</Text>
-                )}
-              </Space>
-            </div>
-          ),
-        }}
-      />
-    </div>
-  );
-};
-
-// Main component
-const OptionListsPage: React.FC = () => {
-  return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>
-          <SettingOutlined /> Option Lists
-        </Title>
-        <Text type="secondary">
-          Manage dropdown options for select fields across the system.
-          Changes here affect form dropdowns throughout the application.
-        </Text>
-      </div>
-
-      <Card>
-        <Tabs defaultActiveKey="system">
-          <TabPane
-            tab={
-              <span>
-                <GlobalOutlined /> System Lists
-              </span>
-            }
-            key="system"
-          >
-            <SystemListsTab />
-          </TabPane>
-          <TabPane
-            tab={
-              <span>
-                <TeamOutlined /> Tenant Lists
-              </span>
-            }
-            key="tenant"
-          >
-            <TenantListsTab />
-          </TabPane>
-          <TabPane
-            tab={
-              <span>
-                <SettingOutlined /> Entity Field Overrides
-              </span>
-            }
-            key="overrides"
-          >
-            <EntityOverridesTab />
-          </TabPane>
-          <TabPane
-            tab={
-              <span>
-                <HistoryOutlined /> Audit History
-              </span>
-            }
-            key="audit"
-          >
-            <AuditHistoryTab />
-          </TabPane>
-        </Tabs>
-      </Card>
-    </div>
+    </PageContainer>
   );
 };
 
