@@ -71,6 +71,7 @@ import WorkFormsLayout from './pages/WorkForms';
 import WorkFormsCatalog from './pages/WorkForms/Catalog';
 import WorkFormsInProgress from './pages/WorkForms/InProgress';
 import WorkFormsHistory from './pages/WorkForms/History';
+import WorkFormsEditor from './pages/WorkForms/Editor';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -219,6 +220,8 @@ const App: React.FC = () => {
                   <Route path="in-progress" element={<WorkFormsInProgress />} />
                   <Route path="catalog" element={<WorkFormsCatalog />} />
                   <Route path="history" element={<WorkFormsHistory />} />
+                  <Route path="editor" element={<WorkFormsEditor />} />
+                  <Route path="editor/:id" element={<WorkFormsEditor />} />
                 </Route>
                 
                 {/* Legacy routes - redirect to WorkForms */}
