@@ -38,7 +38,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomIn, ZoomOut, Wand2, Eye, Code2 } from 'lucide-react';
 
 import {
   FormStepNode,
@@ -87,6 +87,49 @@ const EditorContainer = styled.div`
   border-radius: var(--radius-lg);
   overflow: hidden;
   position: relative;
+`;
+
+// ============================================================================
+// Mode Selector Components (Phase 2.2)
+// ============================================================================
+
+const ModeSelectorContainer = styled.div`
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+`;
+
+const ModeButton = styled.button<{ $active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  
+  &:hover {
+    background: ${props => props.$active ? 'rgba(var(--color-primary), 0.15)' : 'rgb(var(--color-surface-hover))'};
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
 `;
 
 const NodePalette = styled.div`
@@ -506,6 +549,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Proximity detection state
   const [nearbyNode, setNearbyNode] = useState<Node | null>(null);
+  
+  // ============================================================================
+  // Editor Mode State (Phase 2.2)
+  // ============================================================================
+  
+  type EditorMode = 'visual' | 'wizard' | 'expert';
+  const [editorMode, setEditorMode] = useState<EditorMode>(() => {
+    try {
+      const stored = localStorage.getItem('flow_editor_mode');
+      return (stored as EditorMode) || 'visual';
+    } catch {
+      return 'visual';
+    }
+  });
+  
+  // Persist mode preference
+  useEffect(() => {
+    localStorage.setItem('flow_editor_mode', editorMode);
+  }, [editorMode]);
 
   // ============================================================================
   // LocalStorage: Load favorites, recents, collapsed on mount
@@ -1120,8 +1182,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   return (
     <EditorContainer>
-      {/* Node Palette */}
-      {!readOnly && isPaletteVisible && (
+      {/* Node Palette - Visual Mode Only */}
+      {!readOnly && isPaletteVisible && editorMode === 'visual' && (
         <NodePalette>
           <PaletteTitle>Add Nodes</PaletteTitle>
           
@@ -1313,9 +1375,38 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <ZoomOut />
         </ViewportButton>
       </ViewportToolbar>
+      
+      {/* Mode Selector (Phase 2.2) */}
+      <ModeSelectorContainer>
+        <ModeButton
+          $active={editorMode === 'wizard'}
+          onClick={() => setEditorMode('wizard')}
+          title="Wizard Mode - Guided step-by-step creation"
+        >
+          <Wand2 />
+          Wizard
+        </ModeButton>
+        <ModeButton
+          $active={editorMode === 'visual'}
+          onClick={() => setEditorMode('visual')}
+          title="Visual Mode - Drag-and-drop canvas"
+        >
+          <Eye />
+          Visual
+        </ModeButton>
+        <ModeButton
+          $active={editorMode === 'expert'}
+          onClick={() => setEditorMode('expert')}
+          title="Expert Mode - JSON code editor"
+        >
+          <Code2 />
+          Expert
+        </ModeButton>
+      </ModeSelectorContainer>
 
-      {/* React Flow Canvas */}
-      <ReactFlow
+      {/* React Flow Canvas - Visual Mode */}
+      {editorMode === 'visual' && (
+        <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -1370,6 +1461,35 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           </EmptyState>
         )}
       </ReactFlow>
+      )}
+      
+      {/* Wizard Mode Placeholder (Phase 2.2 - Batch 3) */}
+      {editorMode === 'wizard' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          fontSize: '14px',
+          color: 'rgb(var(--color-text-secondary))'
+        }}>
+          🪄 Wizard Mode - Coming in Batch 3!
+        </div>
+      )}
+      
+      {/* Expert Mode Placeholder (Phase 2.2 - Batch 2) */}
+      {editorMode === 'expert' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          fontSize: '14px',
+          color: 'rgb(var(--color-text-secondary))'
+        }}>
+          💻 Expert Mode (JSON Editor) - Coming in Batch 2!
+        </div>
+      )}
 
       {/* Drag Ghost Preview */}
       {isDragging && dragPosition && dragNodeType && (
