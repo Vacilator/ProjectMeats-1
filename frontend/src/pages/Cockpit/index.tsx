@@ -159,7 +159,7 @@ const Content = styled.main`
 // ============================================================================
 
 const CockpitPage: React.FC = () => {
-  const [mode, setMode] = useState<CockpitMode>('wizard');
+  const [mode, setMode] = useState<CockpitMode>('dashboard');
   
   // Load saved mode from localStorage
   useEffect(() => {
