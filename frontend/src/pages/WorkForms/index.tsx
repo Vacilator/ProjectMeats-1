@@ -15,8 +15,9 @@
 import React from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
-import { CheckSquare, Clock, BookOpen, History, FileText } from 'lucide-react';
+import { CheckSquare, Clock, BookOpen, History, FileText, Workflow } from 'lucide-react';
 import { useActionItems } from '../../contexts/ActionItemsContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 // ============================================================================
 // Types
@@ -27,6 +28,7 @@ interface TabItem {
   label: string;
   icon: React.ReactNode;
   badgeKey?: string;
+  adminOnly?: boolean; // New: Restrict to admin users
 }
 
 // ============================================================================
@@ -38,6 +40,7 @@ const TABS: TabItem[] = [
   { path: '/workforms/in-progress', label: 'In Progress', icon: <Clock size={18} /> },
   { path: '/workforms/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
   { path: '/workforms/history', label: 'History', icon: <History size={18} /> },
+  { path: '/workforms/editor', label: 'Editor', icon: <Workflow size={18} />, adminOnly: true },
 ];
 
 // ============================================================================
@@ -187,6 +190,7 @@ const Content = styled.main`
 const WorkFormsLayout: React.FC = () => {
   const location = useLocation();
   const { counts } = useActionItems();
+  const { isAdmin } = useAuth();
   
   // Map badgeKey to counts
   const badgeCounts: Record<string, number> = {
@@ -195,6 +199,9 @@ const WorkFormsLayout: React.FC = () => {
     dueToday: counts.due_today,
     dueThisWeek: counts.due_this_week,
   };
+  
+  // Filter tabs based on admin status
+  const visibleTabs = TABS.filter(tab => !tab.adminOnly || isAdmin);
   
   return (
     <Container>
@@ -211,7 +218,7 @@ const WorkFormsLayout: React.FC = () => {
       </Header>
       
       <TabNav role="tablist">
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <TabLink
             key={tab.path}
             to={tab.path}
