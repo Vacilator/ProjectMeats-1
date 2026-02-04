@@ -192,9 +192,13 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   const renderAccordionHeader = (item: NavigationItem, isItemExpanded: boolean, active: boolean, hasActiveChild: boolean) => (
     <AccordionHeader
       onClick={(e) => {
+        // Only prevent default if the item doesn't have a path
+        // This allows items with both path and children to navigate when clicked
         if (!item.path) {
+          e.preventDefault();
           toggleExpand(item.label, e);
         }
+        // If item has a path, let the NavLink handle navigation
       }}
       $theme={theme}
       $level={level}
@@ -206,7 +210,12 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       {renderAccordionContent(item)}
       {sidebarExpanded && (
         <ExpandButton 
-          onClick={(e) => toggleExpand(item.label, e)}
+          onClick={(e) => {
+            // Stop propagation to prevent triggering parent's onClick
+            e.preventDefault();
+            e.stopPropagation();
+            toggleExpand(item.label, e);
+          }}
           $isExpanded={isItemExpanded}
           $isDarkMode={isDarkMode}
           aria-label={isItemExpanded ? 'Collapse' : 'Expand'}

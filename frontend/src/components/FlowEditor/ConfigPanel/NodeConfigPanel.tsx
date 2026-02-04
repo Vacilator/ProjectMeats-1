@@ -837,32 +837,85 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     const fields = (formData.fields || []) as FormField[];
     
     return (
-      <FormSection>
-        <SectionTitle>Form Fields</SectionTitle>
-        
-        <FormField>
-          <CheckboxLabel>
-            <Checkbox
-              type="checkbox"
-              checked={formData.allowBack || false}
-              onChange={(e) => handleFieldChange('allowBack', e.target.checked)}
-            />
-            Allow "Back" button
-          </CheckboxLabel>
-        </FormField>
+      <>
+        <FormSection>
+          <SectionTitle>Entity Configuration</SectionTitle>
+          
+          <FormField>
+            <FieldLabel>
+              Entity Type
+              <HelpIcon size={14} title="Select which business object this form creates or updates" />
+            </FieldLabel>
+            <Select
+              value={formData.entityType || ''}
+              onChange={(e) => handleFieldChange('entityType', e.target.value)}
+            >
+              <option value="">Select entity type...</option>
+              <option value="supplier">Supplier</option>
+              <option value="customer">Customer</option>
+              <option value="contact">Contact</option>
+              <option value="carrier">Carrier</option>
+              <option value="product">Product</option>
+              <option value="purchase_order">Purchase Order</option>
+              <option value="sales_order">Sales Order</option>
+              <option value="invoice">Invoice</option>
+              <option value="inquiry">Inquiry</option>
+              <option value="fulfillment">Fulfillment</option>
+            </Select>
+            <FieldHelp>
+              Choose the type of record this form will create or modify
+            </FieldHelp>
+          </FormField>
 
-        <FormField>
-          <CheckboxLabel>
-            <Checkbox
-              type="checkbox"
-              checked={formData.required || false}
-              onChange={(e) => handleFieldChange('required', e.target.checked)}
-            />
-            All fields required
-          </CheckboxLabel>
-        </FormField>
-        
-        {/* Field Templates */}
+          {formData.entityType && (
+            <FormField>
+              <FieldLabel>
+                Load Entity Fields
+                <HelpIcon size={14} title="Automatically add fields based on the selected entity schema" />
+              </FieldLabel>
+              <Button 
+                $variant="secondary" 
+                onClick={() => {
+                  // Placeholder: In production, fetch from API
+                  alert(`Would fetch fields for entity type: ${formData.entityType}\n\nAPI endpoint: /api/admin/entities/${formData.entityType}/fields/`);
+                }}
+              >
+                <Download size={16} />
+                Load Schema Fields
+              </Button>
+              <FieldHelp>
+                Import standard fields from the {formData.entityType.replace('_', ' ')} entity
+              </FieldHelp>
+            </FormField>
+          )}
+        </FormSection>
+
+        <FormSection>
+          <SectionTitle>Form Fields</SectionTitle>
+          
+          <FormField>
+            <CheckboxLabel>
+              <Checkbox
+                type="checkbox"
+                checked={formData.allowBack || false}
+                onChange={(e) => handleFieldChange('allowBack', e.target.checked)}
+              />
+              Allow "Back" button
+            </CheckboxLabel>
+          </FormField>
+
+          <FormField>
+            <CheckboxLabel>
+              <Checkbox
+                type="checkbox"
+                checked={formData.required || false}
+                onChange={(e) => handleFieldChange('required', e.target.checked)}
+              />
+              All fields required
+            </CheckboxLabel>
+          </FormField>
+          
+          {/* Field Templates */}
         {showTemplates && (
           <FormField>
             <FieldLabel>Quick Add from Templates</FieldLabel>
@@ -930,6 +983,19 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                         onChange={(e) => handleUpdateField(field.id, { placeholder: e.target.value })}
                         placeholder="Placeholder text (optional)"
                       />
+                      {(field.type === 'select' || field.type === 'radio') && (
+                        <div style={{ marginTop: '8px' }}>
+                          <InlineLabel>Options (comma-separated)</InlineLabel>
+                          <InlineInput
+                            type="text"
+                            value={(field as any).options?.join(', ') || ''}
+                            onChange={(e) => handleUpdateField(field.id, { 
+                              options: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean) 
+                            })}
+                            placeholder="e.g., Option 1, Option 2, Option 3"
+                          />
+                        </div>
+                      )}
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <IconButton
                           onClick={() => setEditingFieldId(null)}
@@ -985,7 +1051,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             {showTemplates ? 'Hide Templates' : 'Templates'}
           </Button>
         </div>
-      </FormSection>
+        </FormSection>
+      </>
     );
   };
 
@@ -1129,15 +1196,181 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   };
 
   const renderMappingTab = () => {
+    if (!node) return null;
+
+    // Get field mappings from node data
+    const mappings = formData.fieldMappings || [];
+
+    const handleAddMapping = () => {
+      const newMapping = {
+        id: `mapping_${Date.now()}`,
+        sourceNodeId: '',
+        sourceField: '',
+        targetField: '',
+        mode: 'copy' as 'copy' | 'lookup',
+      };
+      handleFieldChange('fieldMappings', [...mappings, newMapping]);
+    };
+
+    const handleUpdateMapping = (mappingId: string, updates: any) => {
+      const updatedMappings = mappings.map((m: any) =>
+        m.id === mappingId ? { ...m, ...updates } : m
+      );
+      handleFieldChange('fieldMappings', updatedMappings);
+    };
+
+    const handleRemoveMapping = (mappingId: string) => {
+      handleFieldChange('fieldMappings', mappings.filter((m: any) => m.id !== mappingId));
+    };
+
+    const handleAutoMap = () => {
+      // Auto-mapping logic: match fields by name/type
+      const currentFields = formData.fields || [];
+      const autoMappings: any[] = [];
+
+      currentFields.forEach((field: any) => {
+        // Simple auto-match by field name (case-insensitive)
+        const fieldName = field.label.toLowerCase();
+        
+        // Check if any previous nodes have matching fields
+        // Note: In production, you'd get this from actual previous node data
+        // For now, we'll create placeholder auto-mappings
+        if (fieldName.includes('email') || fieldName.includes('name') || fieldName.includes('phone')) {
+          autoMappings.push({
+            id: `mapping_${Date.now()}_${field.id}`,
+            sourceNodeId: 'previous_node', // Placeholder
+            sourceField: field.label,
+            targetField: field.id,
+            mode: 'copy',
+            isAutoMapped: true,
+          });
+        }
+      });
+
+      if (autoMappings.length > 0) {
+        handleFieldChange('fieldMappings', [...mappings, ...autoMappings]);
+        alert(`Auto-mapped ${autoMappings.length} field(s)`);
+      } else {
+        alert('No matching fields found for auto-mapping');
+      }
+    };
+
     return (
-      <EmptyState>
-        <EmptyIcon>🔗</EmptyIcon>
-        <EmptyText>
-          Data mapping interface coming soon
-          <br />
-          Connect fields from previous nodes
-        </EmptyText>
-      </EmptyState>
+      <FormSection>
+        <SectionTitle>
+          Field Mappings
+          <HelpIcon size={14} title="Map data from previous nodes to this node's fields" />
+        </SectionTitle>
+        
+        <FormField>
+          <FieldHelp>
+            Connect fields from previous workflow steps to automatically populate data.
+          </FieldHelp>
+        </FormField>
+
+        {mappings.length === 0 ? (
+          <EmptyState>
+            <EmptyIcon>🔗</EmptyIcon>
+            <EmptyText>No field mappings configured yet</EmptyText>
+          </EmptyState>
+        ) : (
+          <>
+            {mappings.map((mapping: any, index: number) => (
+              <Card key={mapping.id}>
+                <CardContent style={{ padding: '12px' }}>
+                  <FieldRow>
+                    <InlineLabel style={{ flex: '0 0 auto', marginBottom: '8px', width: '100%' }}>
+                      Mapping {index + 1}
+                      {mapping.isAutoMapped && (
+                        <span style={{ 
+                          marginLeft: '8px', 
+                          fontSize: '11px', 
+                          padding: '2px 6px', 
+                          background: 'rgba(34, 197, 94, 0.1)',
+                          color: 'rgb(34, 197, 94)',
+                          borderRadius: '4px'
+                        }}>
+                          Auto
+                        </span>
+                      )}
+                    </InlineLabel>
+                  </FieldRow>
+                  
+                  <FieldRow style={{ marginBottom: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <InlineLabel>Source Field</InlineLabel>
+                      <InlineInput
+                        value={mapping.sourceField || ''}
+                        onChange={(e) => handleUpdateMapping(mapping.id, { sourceField: e.target.value })}
+                        placeholder="Select source field"
+                      />
+                    </div>
+                  </FieldRow>
+
+                  <FieldRow style={{ marginBottom: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <InlineLabel>Target Field</InlineLabel>
+                      <InlineSelect
+                        value={mapping.targetField || ''}
+                        onChange={(e) => handleUpdateMapping(mapping.id, { targetField: e.target.value })}
+                      >
+                        <option value="">Select target field</option>
+                        {(formData.fields || []).map((field: FormField) => (
+                          <option key={field.id} value={field.id}>
+                            {field.label}
+                          </option>
+                        ))}
+                      </InlineSelect>
+                    </div>
+                  </FieldRow>
+
+                  <FieldRow style={{ alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <InlineLabel>Mapping Mode</InlineLabel>
+                      <InlineSelect
+                        value={mapping.mode || 'copy'}
+                        onChange={(e) => handleUpdateMapping(mapping.id, { mode: e.target.value })}
+                      >
+                        <option value="copy">Copy Value</option>
+                        <option value="lookup">Lookup Reference</option>
+                      </InlineSelect>
+                    </div>
+                    <IconButton
+                      onClick={() => handleRemoveMapping(mapping.id)}
+                      title="Remove mapping"
+                      style={{ marginTop: '16px' }}
+                    >
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </FieldRow>
+
+                  {mapping.mode === 'copy' && (
+                    <FieldHelp style={{ marginTop: '8px', fontSize: '11px' }}>
+                      Copies the value directly from source to target
+                    </FieldHelp>
+                  )}
+                  {mapping.mode === 'lookup' && (
+                    <FieldHelp style={{ marginTop: '8px', fontSize: '11px' }}>
+                      Looks up related record using the source value as key
+                    </FieldHelp>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+          <Button $variant="secondary" onClick={handleAddMapping}>
+            <Plus size={16} />
+            Add Mapping
+          </Button>
+          <Button $variant="secondary" onClick={handleAutoMap}>
+            <Sparkles size={16} />
+            Auto-Map Fields
+          </Button>
+        </div>
+      </FormSection>
     );
   };
 
