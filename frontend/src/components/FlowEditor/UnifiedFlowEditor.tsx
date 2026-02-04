@@ -39,7 +39,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomIn, ZoomOut, Wand2, Eye, Code2, Download, Upload, CheckCircle, AlertCircle, Copy } from 'lucide-react';
+import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomIn, ZoomOut, Wand2, Eye, Code2, Download, Upload, CheckCircle, AlertCircle, Copy, ArrowRight, Sparkles, Plus } from 'lucide-react';
 
 import {
   FormStepNode,
@@ -210,6 +210,259 @@ const StatusMessage = styled.div<{ $type?: 'success' | 'error' | 'info' }>`
   }};
   margin: 8px 16px;
   border-radius: var(--radius-sm);
+`;
+
+// ============================================================================
+// Wizard Mode Styled Components (Phase 2.2 Batch 3)
+// ============================================================================
+
+const WizardContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  background: linear-gradient(135deg, rgb(var(--color-background)) 0%, rgb(var(--color-surface)) 100%);
+`;
+
+const WizardCard = styled.div`
+  max-width: 600px;
+  width: 100%;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  padding: 48px;
+  text-align: center;
+`;
+
+const WizardIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 24px;
+  animation: float 3s ease-in-out infinite;
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+`;
+
+const WizardTitle = styled.h2`
+  font-size: 28px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+  margin: 0 0 12px 0;
+`;
+
+const WizardDescription = styled.p`
+  font-size: 16px;
+  color: rgb(var(--color-text-secondary));
+  margin: 0 0 32px 0;
+  line-height: 1.6;
+`;
+
+const WizardInput = styled.input`
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 2px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 24px;
+  transition: all 0.2s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 4px rgba(var(--color-primary), 0.1);
+  }
+  
+  &::placeholder {
+    color: rgb(var(--color-text-tertiary));
+  }
+`;
+
+const FlowTypeGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+`;
+
+const FlowTypeCard = styled.button<{ $selected: boolean }>`
+  padding: 24px;
+  border: 2px solid ${props => props.$selected ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border-radius: var(--radius-md);
+  background: ${props => props.$selected ? 'rgba(var(--color-primary), 0.05)' : 'rgb(var(--color-background))'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const FlowTypeIcon = styled.div`
+  font-size: 32px;
+  margin-bottom: 12px;
+`;
+
+const FlowTypeLabel = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 4px;
+`;
+
+const FlowTypeDesc = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  line-height: 1.4;
+`;
+
+const SuggestedNodesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+`;
+
+const SuggestedNodeCard = styled.button`
+  padding: 16px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  background: rgb(var(--color-background));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    background: rgb(var(--color-surface));
+    transform: translateX(4px);
+  }
+`;
+
+const NodeIconCircle = styled.div<{ $color: string }>`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: ${props => props.$color};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+`;
+
+const WizardNodeInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const WizardNodeLabel = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 2px;
+`;
+
+const WizardNodeDesc = styled.div`
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const WizardActions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+`;
+
+const WizardButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  ${props => {
+    if (props.$variant === 'primary') {
+      return `
+        background: rgb(var(--color-primary));
+        color: white;
+        border: none;
+        
+        &:hover {
+          opacity: 0.9;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
+        }
+        
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+      `;
+    } else if (props.$variant === 'secondary') {
+      return `
+        background: rgb(var(--color-surface));
+        color: rgb(var(--color-text-primary));
+        border: 1px solid rgb(var(--color-border));
+        
+        &:hover {
+          border-color: rgb(var(--color-primary));
+          background: rgb(var(--color-background));
+        }
+      `;
+    } else {
+      return `
+        background: transparent;
+        color: rgb(var(--color-text-secondary));
+        border: none;
+        
+        &:hover {
+          color: rgb(var(--color-text-primary));
+          background: rgba(var(--color-border), 0.5);
+        }
+      `;
+    }
+  }}
+`;
+
+const WizardProgress = styled.div`
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 32px;
+`;
+
+const ProgressDot = styled.div<{ $active: boolean; $completed: boolean }>`
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: ${props => {
+    if (props.$completed) return 'rgb(var(--color-success))';
+    if (props.$active) return 'rgb(var(--color-primary))';
+    return 'rgb(var(--color-border))';
+  }};
+  transition: all 0.2s ease;
 `;
 
 const EditorWrapper = styled.div`
@@ -662,6 +915,46 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   
+  // ============================================================================
+  // Wizard Mode State (Phase 2.2 Batch 3)
+  // ============================================================================
+  
+  type WizardStep = 'welcome' | 'flow-type' | 'add-nodes' | 'preview' | 'complete';
+  type FlowType = 'form' | 'workflow' | 'approval' | 'document';
+  
+  interface WizardState {
+    currentStep: WizardStep;
+    flowType: FlowType | null;
+    flowName: string;
+    flowDescription: string;
+    suggestedNodes: string[];
+    addedNodeCount: number;
+  }
+  
+  const [wizardState, setWizardState] = useState<WizardState>({
+    currentStep: 'welcome',
+    flowType: null,
+    flowName: '',
+    flowDescription: '',
+    suggestedNodes: [],
+    addedNodeCount: 0,
+  });
+  
+  // Reset wizard when entering wizard mode
+  useEffect(() => {
+    if (editorMode === 'wizard' && wizardState.currentStep !== 'welcome') {
+      // Only reset if switching from another mode, not on initial load
+      setWizardState({
+        currentStep: 'welcome',
+        flowType: null,
+        flowName: '',
+        flowDescription: '',
+        suggestedNodes: [],
+        addedNodeCount: 0,
+      });
+    }
+  }, [editorMode]);
+  
   // Sync nodes/edges to JSON when entering Expert Mode or when data changes
   useEffect(() => {
     if (editorMode === 'expert') {
@@ -785,6 +1078,99 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const copyJsonToClipboard = useCallback(() => {
     navigator.clipboard.writeText(jsonCode);
   }, [jsonCode]);
+
+  // ============================================================================
+  // Wizard Mode Functions (Phase 2.2 Batch 3)
+  // ============================================================================
+  
+  const wizardNextStep = useCallback(() => {
+    const { currentStep, flowType } = wizardState;
+    
+    if (currentStep === 'welcome') {
+      setWizardState(prev => ({ ...prev, currentStep: 'flow-type' }));
+    } else if (currentStep === 'flow-type' && flowType) {
+      // Generate suggested nodes based on flow type
+      const suggestions = getNodeSuggestionsForFlowType(flowType);
+      setWizardState(prev => ({ 
+        ...prev, 
+        currentStep: 'add-nodes',
+        suggestedNodes: suggestions,
+      }));
+    } else if (currentStep === 'add-nodes') {
+      setWizardState(prev => ({ ...prev, currentStep: 'preview' }));
+    } else if (currentStep === 'preview') {
+      setWizardState(prev => ({ ...prev, currentStep: 'complete' }));
+    }
+  }, [wizardState]);
+  
+  const wizardPrevStep = useCallback(() => {
+    const { currentStep } = wizardState;
+    
+    if (currentStep === 'flow-type') {
+      setWizardState(prev => ({ ...prev, currentStep: 'welcome' }));
+    } else if (currentStep === 'add-nodes') {
+      setWizardState(prev => ({ ...prev, currentStep: 'flow-type' }));
+    } else if (currentStep === 'preview') {
+      setWizardState(prev => ({ ...prev, currentStep: 'add-nodes' }));
+    }
+  }, [wizardState]);
+  
+  const setWizardFlowType = useCallback((type: FlowType) => {
+    setWizardState(prev => ({ ...prev, flowType: type }));
+  }, []);
+  
+  const setWizardFlowName = useCallback((name: string) => {
+    setWizardState(prev => ({ ...prev, flowName: name }));
+  }, []);
+  
+  const wizardAddNode = useCallback((nodeType: string) => {
+    const newNode = {
+      id: `node-${nodeIdCounter}`,
+      type: nodeType,
+      position: { x: 250 + (wizardState.addedNodeCount * 200), y: 100 },
+      data: { label: NODE_TYPE_REGISTRY[nodeType]?.label || 'New Node' },
+    };
+    
+    setNodes((nds) => [...nds, newNode]);
+    setNodeIdCounter((c) => c + 1);
+    setWizardState(prev => ({ 
+      ...prev, 
+      addedNodeCount: prev.addedNodeCount + 1,
+    }));
+    
+    // Auto-connect to previous node if exists
+    if (nodes.length > 0 && wizardState.addedNodeCount > 0) {
+      const prevNode = nodes[nodes.length - 1];
+      const newEdge: Edge = {
+        id: `edge-${prevNode.id}-${newNode.id}`,
+        source: prevNode.id,
+        target: newNode.id,
+      };
+      setEdges((eds) => [...eds, newEdge]);
+    }
+  }, [nodeIdCounter, wizardState.addedNodeCount, nodes, setNodes, setEdges]);
+  
+  const getNodeSuggestionsForFlowType = (flowType: FlowType): string[] => {
+    const suggestions = {
+      form: ['trigger', 'formStep', 'action', 'condition'],
+      workflow: ['trigger', 'condition', 'action', 'wait'],
+      approval: ['trigger', 'wait', 'condition', 'action'],
+      document: ['trigger', 'formStep', 'document', 'action'],
+    };
+    return suggestions[flowType] || [];
+  };
+  
+  const wizardSwitchToVisual = useCallback(() => {
+    setEditorMode('visual');
+    setWizardState({
+      currentStep: 'welcome',
+      flowType: null,
+      flowName: '',
+      flowDescription: '',
+      suggestedNodes: [],
+      addedNodeCount: 0,
+    });
+  }, []);
 
   // ============================================================================
   // LocalStorage: Load favorites, recents, collapsed on mount
@@ -1680,18 +2066,201 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       </ReactFlow>
       )}
       
-      {/* Wizard Mode Placeholder (Phase 2.2 - Batch 3) */}
+      {/* Wizard Mode - Typeform-inspired (Phase 2.2 Batch 3) */}
       {editorMode === 'wizard' && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          fontSize: '14px',
-          color: 'rgb(var(--color-text-secondary))'
-        }}>
-          🪄 Wizard Mode - Coming in Batch 3!
-        </div>
+        <WizardContainer>
+          <WizardCard>
+            {/* Progress Indicator */}
+            <WizardProgress>
+              <ProgressDot $active={wizardState.currentStep === 'welcome'} $completed={false} />
+              <ProgressDot $active={wizardState.currentStep === 'flow-type'} $completed={wizardState.flowType !== null} />
+              <ProgressDot $active={wizardState.currentStep === 'add-nodes'} $completed={wizardState.addedNodeCount > 0} />
+              <ProgressDot $active={wizardState.currentStep === 'preview'} $completed={false} />
+            </WizardProgress>
+
+            {/* Step 1: Welcome */}
+            {wizardState.currentStep === 'welcome' && (
+              <>
+                <WizardIcon>🪄</WizardIcon>
+                <WizardTitle>Let's build your flow!</WizardTitle>
+                <WizardDescription>
+                  I'll guide you step-by-step to create your custom form or workflow.
+                  You can switch to Visual Editor anytime if you prefer.
+                </WizardDescription>
+                <WizardInput
+                  type="text"
+                  placeholder="Give your flow a name..."
+                  value={wizardState.flowName}
+                  onChange={(e) => setWizardFlowName(e.target.value)}
+                  autoFocus
+                />
+                <WizardActions>
+                  <WizardButton $variant="ghost" onClick={wizardSwitchToVisual}>
+                    Switch to Visual Editor
+                  </WizardButton>
+                  <WizardButton 
+                    $variant="primary" 
+                    onClick={wizardNextStep}
+                    disabled={!wizardState.flowName.trim()}
+                  >
+                    Get Started <ArrowRight size={16} />
+                  </WizardButton>
+                </WizardActions>
+              </>
+            )}
+
+            {/* Step 2: Flow Type Selection */}
+            {wizardState.currentStep === 'flow-type' && (
+              <>
+                <WizardIcon>🎯</WizardIcon>
+                <WizardTitle>What type of flow is this?</WizardTitle>
+                <WizardDescription>
+                  This helps me suggest the right building blocks for your needs.
+                </WizardDescription>
+                
+                <FlowTypeGrid>
+                  <FlowTypeCard 
+                    $selected={wizardState.flowType === 'form'}
+                    onClick={() => setWizardFlowType('form')}
+                  >
+                    <FlowTypeIcon>📝</FlowTypeIcon>
+                    <FlowTypeLabel>Form</FlowTypeLabel>
+                    <FlowTypeDesc>Collect information from users</FlowTypeDesc>
+                  </FlowTypeCard>
+                  
+                  <FlowTypeCard 
+                    $selected={wizardState.flowType === 'workflow'}
+                    onClick={() => setWizardFlowType('workflow')}
+                  >
+                    <FlowTypeIcon>⚙️</FlowTypeIcon>
+                    <FlowTypeLabel>Workflow</FlowTypeLabel>
+                    <FlowTypeDesc>Automate business processes</FlowTypeDesc>
+                  </FlowTypeCard>
+                  
+                  <FlowTypeCard 
+                    $selected={wizardState.flowType === 'approval'}
+                    onClick={() => setWizardFlowType('approval')}
+                  >
+                    <FlowTypeIcon>✅</FlowTypeIcon>
+                    <FlowTypeLabel>Approval</FlowTypeLabel>
+                    <FlowTypeDesc>Multi-step approval process</FlowTypeDesc>
+                  </FlowTypeCard>
+                  
+                  <FlowTypeCard 
+                    $selected={wizardState.flowType === 'document'}
+                    onClick={() => setWizardFlowType('document')}
+                  >
+                    <FlowTypeIcon>📄</FlowTypeIcon>
+                    <FlowTypeLabel>Document</FlowTypeLabel>
+                    <FlowTypeDesc>Generate PDF documents</FlowTypeDesc>
+                  </FlowTypeCard>
+                </FlowTypeGrid>
+                
+                <WizardActions>
+                  <WizardButton $variant="secondary" onClick={wizardPrevStep}>
+                    Back
+                  </WizardButton>
+                  <WizardButton 
+                    $variant="primary" 
+                    onClick={wizardNextStep}
+                    disabled={!wizardState.flowType}
+                  >
+                    Continue <ArrowRight size={16} />
+                  </WizardButton>
+                </WizardActions>
+              </>
+            )}
+
+            {/* Step 3: Add Nodes */}
+            {wizardState.currentStep === 'add-nodes' && (
+              <>
+                <WizardIcon>✨</WizardIcon>
+                <WizardTitle>Add building blocks</WizardTitle>
+                <WizardDescription>
+                  Based on your {wizardState.flowType} flow, here are some recommended components.
+                  Click to add them to your flow.
+                </WizardDescription>
+                
+                <SuggestedNodesGrid>
+                  {wizardState.suggestedNodes.map((nodeType) => {
+                    const nodeConfig = NODE_TYPE_REGISTRY[nodeType];
+                    if (!nodeConfig) return null;
+                    
+                    return (
+                      <SuggestedNodeCard
+                        key={nodeType}
+                        onClick={() => wizardAddNode(nodeType)}
+                      >
+                        <NodeIconCircle $color={nodeConfig.color}>
+                          {nodeConfig.icon}
+                        </NodeIconCircle>
+                        <WizardNodeInfo>
+                          <WizardNodeLabel>{nodeConfig.label}</WizardNodeLabel>
+                          <WizardNodeDesc>{nodeConfig.description?.slice(0, 40)}...</WizardNodeDesc>
+                        </WizardNodeInfo>
+                        <Plus size={16} />
+                      </SuggestedNodeCard>
+                    );
+                  })}
+                </SuggestedNodesGrid>
+                
+                {wizardState.addedNodeCount > 0 && (
+                  <div style={{ 
+                    padding: '12px', 
+                    background: 'rgba(var(--color-success), 0.1)', 
+                    borderRadius: 'var(--radius-md)',
+                    color: 'rgb(var(--color-success))',
+                    marginBottom: '24px',
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    justifyContent: 'center'
+                  }}>
+                    <Sparkles size={16} />
+                    {wizardState.addedNodeCount} node{wizardState.addedNodeCount !== 1 ? 's' : ''} added to your flow!
+                  </div>
+                )}
+                
+                <WizardActions>
+                  <WizardButton $variant="secondary" onClick={wizardPrevStep}>
+                    Back
+                  </WizardButton>
+                  <WizardButton 
+                    $variant="primary" 
+                    onClick={wizardNextStep}
+                    disabled={wizardState.addedNodeCount === 0}
+                  >
+                    Preview Flow <ArrowRight size={16} />
+                  </WizardButton>
+                </WizardActions>
+              </>
+            )}
+
+            {/* Step 4: Preview & Complete */}
+            {wizardState.currentStep === 'preview' && (
+              <>
+                <WizardIcon>🎉</WizardIcon>
+                <WizardTitle>Your flow is ready!</WizardTitle>
+                <WizardDescription>
+                  <strong>{wizardState.flowName}</strong> has been created with {wizardState.addedNodeCount} node{wizardState.addedNodeCount !== 1 ? 's' : ''}.
+                  <br /><br />
+                  Switch to Visual Editor to see your flow on the canvas and customize it further.
+                </WizardDescription>
+                
+                <WizardActions>
+                  <WizardButton $variant="secondary" onClick={wizardPrevStep}>
+                    Add More Nodes
+                  </WizardButton>
+                  <WizardButton $variant="primary" onClick={wizardSwitchToVisual}>
+                    <Eye size={16} />
+                    Open in Visual Editor
+                  </WizardButton>
+                </WizardActions>
+              </>
+            )}
+          </WizardCard>
+        </WizardContainer>
       )}
       
       {/* Expert Mode - JSON Editor (Phase 2.2 Batch 2) */}
