@@ -2,11 +2,11 @@
 Django admin configuration for Carriers app.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Carrier
 
 
-@admin.register(Carrier)
 class CarrierAdmin(TenantFilteredAdmin):
     """Admin interface for Carrier model with tenant filtering."""
 
@@ -89,3 +89,7 @@ class CarrierAdmin(TenantFilteredAdmin):
         ),
     )
     filter_horizontal = ("contacts",)
+
+
+# Register models with custom admin site
+admin_site.register(Carrier, CarrierAdmin)

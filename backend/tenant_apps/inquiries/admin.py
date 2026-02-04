@@ -1,5 +1,6 @@
 """Admin configuration for Inquiries."""
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from .models import Inquiry, InquiryProduct, InquiryTemplate, InquiryTemplateProduct
 
 
@@ -16,7 +17,6 @@ class InquiryProductInline(admin.TabularInline):
     ]
 
 
-@admin.register(Inquiry)
 class InquiryAdmin(admin.ModelAdmin):
     """Admin for Inquiry model."""
     list_display = [
@@ -79,7 +79,6 @@ class InquiryTemplateProductInline(admin.TabularInline):
     fields = ['product', 'default_quantity', 'default_uom', 'default_price_per_unit', 'sort_order', 'notes']
 
 
-@admin.register(InquiryTemplate)
 class InquiryTemplateAdmin(admin.ModelAdmin):
     """Admin for InquiryTemplate model."""
     list_display = [
@@ -116,3 +115,8 @@ class InquiryTemplateAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Optimize queryset."""
         return super().get_queryset(request).select_related('tenant', 'created_by').prefetch_related('products')
+
+
+# Register models with custom admin site
+admin_site.register(Inquiry, InquiryAdmin)
+admin_site.register(InquiryTemplate, InquiryTemplateAdmin)

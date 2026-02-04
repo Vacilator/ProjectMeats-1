@@ -11,6 +11,7 @@ UX Enhancements:
 - Quick action buttons
 """
 from django.contrib import admin, messages
+from apps.core.admin_site import admin_site
 from django.db.models import Count
 from django.utils.html import format_html
 
@@ -31,7 +32,6 @@ from .forms import (
 # TENANT LIST ADMIN
 # =============================================================================
 
-@admin.register(TenantList)
 class TenantListAdmin(TenantFilteredAdmin):
     """Admin for tenant-specific option lists."""
     
@@ -125,7 +125,6 @@ class TenantFormRuleInline(admin.StackedInline):
     ]
 
 
-@admin.register(TenantForm)
 class TenantFormAdmin(TenantFilteredAdmin):
     """Admin for tenant custom forms with visual form builder."""
     
@@ -290,7 +289,6 @@ class TenantFormAdmin(TenantFilteredAdmin):
         super().save_model(request, obj, form, change)
 
 
-@admin.register(TenantFormEntity)
 class TenantFormEntityAdmin(admin.ModelAdmin):
     """Admin for form entities (usually edited inline)."""
     
@@ -358,7 +356,6 @@ class TenantWorkflowActionInline(admin.StackedInline):
     ]
 
 
-@admin.register(TenantWorkflow)
 class TenantWorkflowAdmin(TenantFilteredAdmin):
     """Admin for tenant workflows."""
     
@@ -474,7 +471,6 @@ class TenantWorkflowAdmin(TenantFilteredAdmin):
         super().save_model(request, obj, form, change)
 
 
-@admin.register(WorkflowExecutionLog)
 class WorkflowExecutionLogAdmin(admin.ModelAdmin):
     """Admin for viewing workflow execution logs."""
     
@@ -547,7 +543,6 @@ class FormStepSubmissionInline(admin.TabularInline):
         return False
 
 
-@admin.register(FormSubmission)
 class FormSubmissionAdmin(TenantFilteredAdmin):
     """Admin for form submissions."""
     
@@ -608,7 +603,6 @@ class FormSubmissionAdmin(TenantFilteredAdmin):
     progress_display.short_description = 'Progress'
 
 
-@admin.register(FormStepSubmission)
 class FormStepSubmissionAdmin(TenantFilteredAdmin):
     """Admin for step submissions (usually accessed via inline)."""
     
@@ -663,3 +657,13 @@ class FormStepSubmissionAdmin(TenantFilteredAdmin):
         return super().get_queryset(request).select_related(
             'submission', 'submission__form', 'step', 'completed_by'
         )
+
+
+# Register models with custom admin site
+admin_site.register(TenantList, TenantListAdmin)
+admin_site.register(TenantForm, TenantFormAdmin)
+admin_site.register(TenantFormEntity, TenantFormEntityAdmin)
+admin_site.register(TenantWorkflow, TenantWorkflowAdmin)
+admin_site.register(WorkflowExecutionLog, WorkflowExecutionLogAdmin)
+admin_site.register(FormSubmission, FormSubmissionAdmin)
+admin_site.register(FormStepSubmission, FormStepSubmissionAdmin)

@@ -2,11 +2,11 @@
 Django admin configuration for Suppliers app.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Supplier
 
 
-@admin.register(Supplier)
 class SupplierAdmin(TenantFilteredAdmin):
     """Admin interface for Supplier model with tenant filtering."""
 
@@ -97,3 +97,7 @@ class SupplierAdmin(TenantFilteredAdmin):
             {"fields": ("tenant", "created_on", "modified_on"), "classes": ("collapse",)},
         ),
     )
+
+
+# Register models with custom admin site
+admin_site.register(Supplier, SupplierAdmin)

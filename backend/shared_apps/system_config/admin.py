@@ -1,4 +1,5 @@
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from django.utils.html import mark_safe
 from .models import EntityBlueprint, BlueprintVersion, WorkflowRun
 
@@ -6,7 +7,6 @@ from .models import EntityBlueprint, BlueprintVersion, WorkflowRun
 # Force reload timestamp: 2026-01-23 18:30 UTC
 
 
-@admin.register(EntityBlueprint)
 class EntityBlueprintAdmin(admin.ModelAdmin):
     """Admin interface for Entity Blueprints."""
     list_display = ('name', 'slug', 'published_version', 'created_at', 'open_studio_button')
@@ -55,7 +55,6 @@ class EntityBlueprintAdmin(admin.ModelAdmin):
     open_studio_button.short_description = 'Visual Editor'
 
 
-@admin.register(BlueprintVersion)
 class BlueprintVersionAdmin(admin.ModelAdmin):
     """Admin interface for Blueprint Versions."""
     list_display = ('blueprint', 'version', 'status', 'created_at', 'open_studio_button')
@@ -97,7 +96,6 @@ class BlueprintVersionAdmin(admin.ModelAdmin):
     open_studio_button.short_description = 'Visual Editor'
 
 
-@admin.register(WorkflowRun)
 class WorkflowRunAdmin(admin.ModelAdmin):
     """Admin interface for Workflow Runs."""
     list_display = ('id', 'tenant', 'workflow_slug', 'status', 'created_on')
@@ -121,3 +119,9 @@ class WorkflowRunAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         """Prevent manual creation - workflows should be started via API."""
         return False
+
+
+# Register models with custom admin site
+admin_site.register(EntityBlueprint, EntityBlueprintAdmin)
+admin_site.register(BlueprintVersion, BlueprintVersionAdmin)
+admin_site.register(WorkflowRun, WorkflowRunAdmin)

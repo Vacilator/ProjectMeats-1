@@ -3,11 +3,11 @@ Django admin configuration for Locations app.
 Includes unified management for general locations and plant facilities.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Location
 
 
-@admin.register(Location)
 class LocationAdmin(TenantFilteredAdmin):
     """Admin interface for Location model with tenant filtering."""
 
@@ -89,3 +89,7 @@ class LocationAdmin(TenantFilteredAdmin):
     def is_plant_display(self, obj):
         """Display whether this location is a plant."""
         return obj.is_plant
+
+
+# Register models with custom admin site
+admin_site.register(Location, LocationAdmin)

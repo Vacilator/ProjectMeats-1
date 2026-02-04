@@ -14,8 +14,9 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 from .health import health_check, health_detailed, ready_check
+from apps.core.admin_site import admin_site
 
-# Configure admin site appearance
+# Keep default admin for backwards compatibility, but use custom site as primary
 admin.site.site_header = '🥩 Meats Central Admin'
 admin.site.site_title = 'Meats Central'
 admin.site.index_title = 'Admin Dashboard'
@@ -27,8 +28,10 @@ urlpatterns = [
     path("api/v1/ready/", ready_check, name="ready-check"),
     # System Configuration Studio (Blueprint Editor) - MUST come before admin/
     path("admin/system-config/", include("shared_apps.system_config.urls")),
-    # Admin interface
-    path("admin/", admin.site.urls),
+    # Admin interface (using custom three-tier admin site)
+    path("admin/", admin_site.urls),
+    # Legacy admin (redirect to custom admin)
+    path("admin-legacy/", admin.site.urls),
     # API v1 endpoints
     path("api/v1/system/", include("apps.system.urls")),  # NEW: Centralized config system (v2.0 Wave 1)
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
