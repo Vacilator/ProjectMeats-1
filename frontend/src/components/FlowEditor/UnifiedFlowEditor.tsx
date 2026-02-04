@@ -15,6 +15,7 @@
  * - Keyboard shortcuts
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
+ * Updated: 2026-02-04 - Phase 2.1 Batch 2 (Added Wait, Document, Utility, Terminal nodes)
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
@@ -32,10 +33,21 @@ import {
   BackgroundVariant,
   ReactFlowProvider,
   NodeTypes,
+  EdgeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { FormStepNode, TriggerNode, ConditionIfNode, ActionNode } from './nodes';
+import {
+  FormStepNode,
+  TriggerNode,
+  ConditionIfNode,
+  ActionNode,
+  WaitStateNode,
+  DocumentNode,
+  UtilityNode,
+  TerminalNode,
+} from './nodes';
+import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 
 // ============================================================================
@@ -224,7 +236,7 @@ const ToolbarButton = styled.button`
 `;
 
 // ============================================================================
-// Node Type Mapping
+// Node & Edge Type Mapping
 // ============================================================================
 
 const nodeTypes: NodeTypes = {
@@ -232,6 +244,14 @@ const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
   condition: ConditionIfNode,
   action: ActionNode,
+  waitState: WaitStateNode,
+  document: DocumentNode,
+  utility: UtilityNode,
+  terminal: TerminalNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  custom: CustomEdge,
 };
 
 // ============================================================================
@@ -373,6 +393,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onDrop={onDrop}
         onDragOver={onDragOver}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        defaultEdgeOptions={{ type: 'custom' }}
         fitView
         snapToGrid
         snapGrid={[15, 15]}

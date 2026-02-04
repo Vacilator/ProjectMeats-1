@@ -4,6 +4,7 @@
  * Exports all node components for the Unified Flow Editor.
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
+ * Updated: 2026-02-04 - Phase 2.1 Batch 2 (Added Wait, Document, Utility, Terminal nodes)
  */
 
 export { BaseNode } from './BaseNode';
@@ -20,3 +21,8 @@ export type { ConditionIfNodeData, ConditionRule } from './ConditionIfNode';
 
 export { ActionNode } from './ActionNode';
 export type { ActionNodeData } from './ActionNode';
+
+export { WaitStateNode } from './WaitStateNode';
+export { DocumentNode } from './DocumentNode';
+export { UtilityNode } from './UtilityNode';
+export { TerminalNode } from './TerminalNode';
