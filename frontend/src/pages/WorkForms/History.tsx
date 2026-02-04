@@ -368,7 +368,7 @@ const FormsFlowsHistory: React.FC = () => {
       if (endDate) params.end_date = endDate;
       if (searchQuery) params.search = searchQuery;
       
-      const response = await apiClient.get('/workflows/submissions/', { params });
+      const response = await apiClient.get('/workflows/form-submissions/', { params });
       setSubmissions(response.data.results || response.data || []);
       setTotalCount(response.data.count || 0);
     } catch (error) {

@@ -326,7 +326,7 @@ const FormsFlowsInProgress: React.FC = () => {
   const fetchSubmissions = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get('/workflows/submissions/', {
+      const response = await apiClient.get('/workflows/form-submissions/', {
         params: { status: 'in_progress,draft' }
       });
       setSubmissions(response.data.results || response.data || []);

@@ -219,22 +219,27 @@ Based on industry research, our editor will embody:
 
 **Solution**:
 
-- [ ] **1.4.1** Verify and fix InProgress.tsx
-  - Confirm API endpoint `/workflows/submissions/` works
-  - Add proper error handling
-  - Show empty state when no submissions
+- [x] **1.4.1** Fix InProgress.tsx API endpoint ✅ (2026-02-04)
+  - Updated endpoint from `/workflows/submissions/` to `/workflows/form-submissions/`
+  - Already has proper loading, error, and empty states
+  - Verified build passes
 
-- [ ] **1.4.2** Verify and fix History.tsx
-  - Same as above for completed submissions
+- [x] **1.4.2** Fix History.tsx API endpoint ✅ (2026-02-04)
+  - Updated endpoint from `/workflows/submissions/` to `/workflows/form-submissions/`
+  - Already has proper loading, error, and empty states
+  - Verified build passes
 
-- [ ] **1.4.3** Verify and fix Catalog.tsx
-  - Confirm it lists available form templates
-  - Wire to `GET /api/v1/workflows/forms/`
+- [x] **1.4.3** Verify Catalog.tsx ✅ (2026-02-04)
+  - Delegates to WorkflowList component
+  - Uses `admin/system-config/api/available-workflows/`
+  - Already has proper error handling and empty states
+  - No changes needed - working correctly
 
-- [ ] **1.4.4** Create Tasks.tsx (My Tasks page)
-  - File: `frontend/src/pages/WorkForms/Tasks.tsx`
-  - Show submissions requiring current user's action
-  - Filter by `assigned_to=current_user` or step assignments
+- [x] **1.4.4** Verify Tasks route ✅ (2026-02-04)
+  - Route `/workforms/tasks` already points to MyTasks component
+  - MyTasks.tsx exists and is functional
+  - Integrated with ActionItemsContext
+  - No changes needed - working correctly
 
 ---
 
