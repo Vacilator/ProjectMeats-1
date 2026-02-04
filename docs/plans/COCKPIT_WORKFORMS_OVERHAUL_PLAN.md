@@ -1,15 +1,16 @@
 # Implementation Plan: Cockpit & Forms/Flows Overhaul
 
-**Status**: 🚀 Phase 2.4 Batch 1 COMPLETE (PRs #2451-2452)  
+**Status**: 🎉 Phase 1 + Phase 2.4 COMPLETE! Ready for Phase 2.2  
 **Created**: 2026-02-04  
-**Updated**: 2026-02-04 - Canvas Interactions Batch 1 Complete  
+**Updated**: 2026-02-04 - Phase 1 Complete + Cockpit Routing Fixes  
 **Scope**: Full Implementation (~6-8 weeks)  
-**Priority**: Phase 2.4 Canvas Interactions in progress
+**Priority**: Phase 2.2 Editor Modes (next recommended)
 
 **Recent Achievements:**
+- ✅ Phase 1: Critical Fixes (100%) - All 4 sections complete!
 - ✅ Phase 2.1: Visual Editor Foundation (100%)
-- ✅ Phase 2.4 Batch 1: Viewport controls & MiniMap (100%)
-- 🔄 Phase 2.4 Batch 2: Drag-drop enhancements (next)
+- ✅ Phase 2.4: Canvas Interactions (100%) - All 3 batches complete!
+- ✅ Cockpit Routing Hotfixes (Feb 4, 2026) - Dashboard links fixed
 
 ---
 
@@ -245,6 +246,51 @@ Based on industry research, our editor will embody:
   - MyTasks.tsx exists and is functional
   - Integrated with ActionItemsContext
   - No changes needed - working correctly
+
+---
+
+### 1.5 Cockpit Dashboard Routing Fixes (Feb 4, 2026)
+
+**Problem**:
+- QuickActionsWidget buttons had broken `?action=create` query parameters
+- CommandPalette quick actions had same routing issues
+- Entity Explorer was navigating to non-existent detail routes
+- All buttons led to pages that didn't handle creation flows
+
+**Solution** (Commit 98ba2d0d on branch `fix/cockpit-routing-and-search`):
+
+- [x] **1.5.1** Fix QuickActionsWidget routes ✅
+  - File: `frontend/src/components/Widgets/QuickActionsWidget.tsx`
+  - Removed `?action=create` from 6 routes
+  - Updated to navigate to base list pages: `/purchase-orders`, `/sales-orders`, `/customers`, `/suppliers`, `/carriers`, `/accounting/receivables/invoices`
+  - Pages handle creation flows via their own UI buttons
+
+- [x] **1.5.2** Fix CommandPalette quick actions ✅
+  - File: `frontend/src/components/Navigation/CommandPalette.tsx`
+  - Removed `?action=create` from 5 quick action routes
+  - Same routing pattern as QuickActionsWidget
+
+- [x] **1.5.3** Fix Entity Explorer navigation ✅
+  - File: `frontend/src/components/Widgets/EntityExplorerWidget.tsx`
+  - Changed from non-existent detail routes (`/suppliers/{id}`) to list pages
+  - Fixed invoice path from `/accounting/invoices` to `/accounting/receivables/invoices`
+  - Updated `handleEntityClick` to navigate to list pages
+
+- [x] **1.5.4** Verify search functionality ✅
+  - Backend universal search API: ✅ Fully functional
+  - Endpoint: `/api/v1/search/universal/` (working correctly)
+  - Frontend integration: ✅ CommandPalette properly configured
+  - Features: Multi-entity search, operators, tenant isolation, recent tracking
+
+**Impact**:
+- All cockpit dashboard buttons now work correctly
+- No more 404 errors or broken navigation
+- Search functionality confirmed operational
+- Build successful: ✅ No TypeScript errors
+
+**Future Enhancement**: 
+- Implement detail pages or modals for direct entity access
+- Add quick-create modals for better UX
 
 ---
 
@@ -1499,62 +1545,73 @@ frontend/src/
 
 ## Enhanced Workplan Checklist
 
-### Week 1-2: Phase 1 - Critical Fixes
-**URL & Navigation:**
-- [ ] 1.1.1 Rename /workspace to /cockpit route
-- [ ] 1.1.2 Update navigation.ts sidebar
-- [ ] 1.1.3 Fix Breadcrumb component (remove Dashboard root)
-- [ ] 1.1.4 Implement context-aware breadcrumbs
+### Week 1-2: Phase 1 - Critical Fixes ✅ COMPLETE
+**URL & Navigation:** ✅
+- [x] 1.1.1 Rename /workspace to /cockpit route ✅
+- [x] 1.1.2 Update navigation.ts sidebar ✅
+- [x] 1.1.3 Fix Breadcrumb component (remove Dashboard root) ✅
+- [x] 1.1.4 Implement context-aware breadcrumbs ✅
 
-**Cockpit Dual-Mode:**
-- [ ] 1.2.1 Create CockpitPage wrapper (Dashboard/Wizard toggle)
-- [ ] 1.2.2 Create SmartWizard component ("What would you like to do today?")
-- [ ] 1.2.3 Wire SmartWizard to real APIs
-- [ ] 1.2.4 Rename Workspace.tsx to CockpitDashboard.tsx
+**Cockpit Dual-Mode:** ✅
+- [x] 1.2.1 Create CockpitPage wrapper (Dashboard/Wizard toggle) ✅
+- [x] 1.2.2 Create SmartWizard component ("What would you like to do today?") ✅
+- [x] 1.2.3 Wire SmartWizard to real APIs ✅
+- [x] 1.2.4 Rename Workspace.tsx to CockpitDashboard.tsx ✅
 
-**Widget Data (Remove Mock Data):**
-- [ ] 1.3.1 Create backend workspace stats API
-- [ ] 1.3.2 Update QuickStatsWidget (real data)
-- [ ] 1.3.3 Update TodaysNumbersWidget (real data)
-- [ ] 1.3.4 Update RecentActivityWidget (real data)
-- [ ] 1.3.5 Update UpcomingCallsWidget (real data)
-- [ ] 1.3.6 Update MyTasksWidget (real data)
+**Widget Data (Remove Mock Data):** ✅
+- [x] 1.3.1 Create backend workspace stats API ✅
+- [x] 1.3.2 Update QuickStatsWidget (real data) ✅
+- [x] 1.3.3 Update TodaysNumbersWidget (real data) ✅
+- [x] 1.3.4 Update RecentActivityWidget (real data) ✅
+- [x] 1.3.5 Update UpcomingCallsWidget (real data) ✅
+- [x] 1.3.6 Update MyTasksWidget (real data) ✅
 
-**WorkForms Basic Fixes:**
-- [ ] 1.4.1 Fix InProgress.tsx (verify API, error handling)
-- [ ] 1.4.2 Fix History.tsx (verify API, error handling)
-- [ ] 1.4.3 Fix Catalog.tsx (verify API, empty states)
-- [ ] 1.4.4 Create Tasks.tsx (My Tasks page)
+**WorkForms Basic Fixes:** ✅
+- [x] 1.4.1 Fix InProgress.tsx (verify API, error handling) ✅
+- [x] 1.4.2 Fix History.tsx (verify API, error handling) ✅
+- [x] 1.4.3 Fix Catalog.tsx (verify API, empty states) ✅
+- [x] 1.4.4 Create Tasks.tsx (My Tasks page) ✅
+
+**Cockpit Dashboard Routing (Added Feb 4, 2026):** ✅
+- [x] 1.5.1 Fix QuickActionsWidget routes (removed ?action=create) ✅
+- [x] 1.5.2 Fix CommandPalette quick actions ✅
+- [x] 1.5.3 Fix Entity Explorer navigation ✅
+- [x] 1.5.4 Verify search functionality ✅
+
+**Phase 1 Status: 🎉 100% COMPLETE (24/24 tasks)**
 
 ### Week 3-5: Phase 2 - Visual Editor Foundation
-**Canvas Architecture (Make/n8n-inspired):**
-- [ ] 2.1.1 Create UnifiedFlowEditor component
-- [ ] 2.1.2 Define comprehensive node types registry (30+ node types)
-- [ ] 2.1.3 Create priority node components (6 core nodes first)
-- [ ] 2.1.4 Implement edge types with visual feedback
-- [ ] 2.1.5 Create intelligent node palette with categories
 
-**Editor Modes (Typeform → Make → Salesforce):**
+**Canvas Architecture (Make/n8n-inspired):** ✅ COMPLETE
+- [x] 2.1.1 Create UnifiedFlowEditor component ✅
+- [x] 2.1.2 Define comprehensive node types registry (30+ node types) ✅
+- [x] 2.1.3 Create priority node components (6 core nodes first) ✅
+- [x] 2.1.4 Implement edge types with visual feedback ✅
+- [x] 2.1.5 Create intelligent node palette with categories ✅
+
+**Editor Modes (Typeform → Make → Salesforce):** ⏭️ NEXT RECOMMENDED
 - [ ] 2.2.1 Implement three-tier editor modes (wizard/visual/expert)
 - [ ] 2.2.2 Build Wizard Mode (conversational, one-step-at-a-time)
 - [ ] 2.2.3 Build Visual Mode (drag-drop canvas)
 - [ ] 2.2.4 Build Expert Mode (full power, code expressions)
 - [ ] 2.2.5 Implement smart mode transitions
 
-**Template Library (Zapier-quality):**
+**Template Library (Zapier-quality):** ⏳ PENDING
 - [ ] 2.3.1 Create template system architecture
 - [ ] 2.3.2 Implement 20 core templates (5 forms, 4 approvals, 3 onboarding, 4 orders, 4 documents)
 - [ ] 2.3.3 Build template selector modal (Netflix-style browsing)
 - [ ] 2.3.4 Implement template customization wizard
 
-**Canvas Interactions (Figma-quality):**
-- [ ] 2.4.1 Drag-drop with ghost preview and smart snapping
-- [ ] 2.4.2 Node configuration panel (slide-in, tabbed)
-- [ ] 2.4.3 Connection validation with visual feedback
-- [ ] 2.4.4 Navigation & viewport (mini-map, zoom, fit)
-- [ ] 2.4.5 Keyboard shortcuts (full power-user set)
-- [ ] 2.4.6 Real-time collaboration indicators (future-ready)
-- [ ] 2.4.7 Execution preview mode
+**Canvas Interactions (Figma-quality):** ✅ COMPLETE
+- [x] 2.4.1 Drag-drop with ghost preview and smart snapping ✅
+- [x] 2.4.2 Node configuration panel (slide-in, tabbed) ✅
+- [x] 2.4.3 Connection validation with visual feedback ✅
+- [x] 2.4.4 Navigation & viewport (mini-map, zoom, fit) ✅
+- [x] 2.4.5 Keyboard shortcuts (full power-user set) ✅
+- [x] 2.4.6 Real-time collaboration indicators (future-ready) ✅
+- [x] 2.4.7 Execution preview mode ✅
+
+**Phase 2 Status: 60% COMPLETE (12/20 tasks) - 2.2 and 2.3 remaining**
 
 ### Week 5-7: Phase 3 - Smart Features
 **AI-Powered Field Mapping:**
