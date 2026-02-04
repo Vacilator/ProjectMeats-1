@@ -556,13 +556,13 @@ Based on industry research, our editor will embody:
 
 ---
 
-### 2.4 Canvas Interactions (Make/Figma-Quality) ✅ BATCH 1 COMPLETE!
+### 2.4 Canvas Interactions (Make/Figma-Quality) ✅ BATCH 1 & 2 PART 1 COMPLETE!
 
 **Goal**: Buttery-smooth interactions that feel professional
 
-**Progress**: 2/7 tasks complete (29%)
+**Progress**: 4/7 tasks complete (57%)
 
-#### Batch 1 Complete (PRs #2451, #2452)
+#### Batch 1 Complete (PRs #2451, #2452, #2453)
 - ✅ **2.4.4** Navigation & viewport (Figma-quality)
   - Custom viewport toolbar with zoom in/out/fit buttons
   - Keyboard shortcuts: F (fit), 1 (100%), 2 (50%), 3 (fit)
@@ -573,8 +573,17 @@ Based on industry research, our editor will embody:
   - Build time: 16-19s
   - Status: ✅ Merged to development
 
+#### Batch 2 Part 1 Complete (PR #2455)
+- ✅ **2.4.1** Drag-drop from palette (Make-quality)
+  - Ghost preview during drag (semi-transparent)
+  - Smart grid snapping (15x15 grid)
+  - Cancel drag with Escape key
+  - Enhanced drag state tracking
+  - Build time: 17.11s
+  - Status: ✅ Merged to development
+
 #### Remaining Tasks
-- [ ] **2.4.1** Drag-drop from palette (Figma-quality)
+- [ ] **2.4.1** Drag-drop from palette (continued)
   - **Ghost preview** during drag
   - **Smart snapping** to grid and alignment guides
   - **Drop zone highlighting** 
