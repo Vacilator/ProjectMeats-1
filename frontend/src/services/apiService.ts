@@ -222,6 +222,7 @@ apiClient.interceptors.response.use(
           window.location.href = '/login';
           return Promise.reject(refreshError);
         } finally {
+          // CRITICAL: Always reset isRefreshing flag
           isRefreshing = false;
         }
       }
