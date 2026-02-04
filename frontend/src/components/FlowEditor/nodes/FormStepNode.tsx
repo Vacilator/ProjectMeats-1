@@ -5,6 +5,7 @@
  * Displays field summary and validation status.
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
+ * Updated: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  */
 import React from 'react';
 import styled from 'styled-components';
@@ -13,22 +14,108 @@ import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 
 // ============================================================================
-// TypeScript Interfaces
+// TypeScript Interfaces (Updated for Phase 5)
 // ============================================================================
+
+export type FormFieldType = 
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'email'
+  | 'phone'
+  | 'url'
+  | 'date'
+  | 'datetime'
+  | 'select'
+  | 'multi-select'
+  | 'checkbox'
+  | 'radio'
+  | 'file';
+
+export interface ValidationRule {
+  id: string;
+  type: string;
+  value?: any;
+  errorMessage?: string;
+}
+
+export interface ConditionRule {
+  id: string;
+  field: string;
+  operator: string;
+  value?: any;
+}
 
 export interface FormField {
   id: string;
-  type: 'text' | 'number' | 'email' | 'select' | 'textarea' | 'checkbox' | 'radio' | 'date' | 'file';
+  type: FormFieldType;
   label: string;
-  required?: boolean;
+  required: boolean;
   placeholder?: string;
-  options?: string[];
+  defaultValue?: any;
+  helpText?: string;
+  validationRules: ValidationRule[];
+  visibility?: {
+    mode: 'always' | 'conditional';
+    conditions?: ConditionRule[];
+    logic?: 'and' | 'or';
+  };
+  options?: {
+    source: 'manual' | 'tenant-list' | 'entity';
+    manualOptions?: string[];
+    tenantListId?: string;
+    entityType?: string;
+    entityField?: string;
+  };
+  dependencies?: Array<{
+    field: string;
+    action: 'enable' | 'disable' | 'show' | 'hide';
+    condition: ConditionRule;
+  }>;
+}
+
+export interface FieldMapping {
+  id: string;
+  formFieldId: string;
+  entityField: string;
+  transformation: {
+    type: 'direct' | 'lookup' | 'format' | 'calculated';
+    format?: string;
+    formula?: string;
+    lookupEntity?: string;
+  };
+  autoPopulate?: {
+    sourceStep: string;
+    sourceField: string;
+    mode: 'copy' | 'lookup';
+  };
 }
 
 export interface FormStepNodeData extends BaseNodeData {
   stepTitle?: string;
+  stepDescription?: string;
   fields?: FormField[];
-  validationRules?: Record<string, any>;
+  visibility?: {
+    mode: 'always' | 'conditional';
+    conditions?: ConditionRule[];
+    logic?: 'and' | 'or';
+  };
+  navigation?: {
+    allowBack: boolean;
+    allowSkip: boolean;
+    autoAdvance: boolean;
+    backLabel?: string;
+    nextLabel?: string;
+    skipLabel?: string;
+  };
+  validation?: {
+    mode: 'all' | 'minimum';
+    minimumRequired?: number;
+    customMessage?: string;
+  };
+  fieldMappings?: FieldMapping[];
+  targetEntity?: string;
+  validationRules?: Record<string, any>; // Legacy - kept for backward compatibility
 }
 
 // ============================================================================
@@ -86,10 +173,10 @@ const FieldCount = styled.div`
 `;
 
 // ============================================================================
-// Field Type Icons
+// Field Type Icons (Updated for Phase 5)
 // ============================================================================
 
-const FIELD_TYPE_ICONS: Record<string, string> = {
+const FIELD_TYPE_ICONS: Record<FormFieldType, string> = {
   text: '📝',
   number: '🔢',
   email: '📧',
@@ -99,6 +186,10 @@ const FIELD_TYPE_ICONS: Record<string, string> = {
   radio: '🔘',
   date: '📅',
   file: '📎',
+  phone: '📱',
+  url: '🔗',
+  datetime: '🕐',
+  'multi-select': '✅',
 };
 
 // ============================================================================
