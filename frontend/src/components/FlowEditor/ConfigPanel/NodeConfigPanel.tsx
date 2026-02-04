@@ -15,7 +15,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { X, HelpCircle, Play, Save, AlertCircle } from 'lucide-react';
+import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { Node } from '@xyflow/react';
 
 // ============================================================================
@@ -35,6 +35,22 @@ interface ValidationError {
   field: string;
   message: string;
   severity: 'error' | 'warning';
+}
+
+interface FormField {
+  id: string;
+  label: string;
+  type: string;
+  required: boolean;
+  placeholder?: string;
+  defaultValue?: any;
+}
+
+interface ConditionRule {
+  id: string;
+  field: string;
+  operator: string;
+  value: any;
 }
 
 // ============================================================================
@@ -402,6 +418,59 @@ const EmptyText = styled.div`
   line-height: 1.6;
 `;
 
+const FieldItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+`;
+
+const FieldItemContent = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const FieldItemLabel = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 2px;
+`;
+
+const FieldItemMeta = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const IconButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: rgb(var(--color-border));
+    color: rgb(var(--color-text-primary));
+  }
+  
+  &:hover.delete {
+    background: rgb(239, 68, 68);
+    color: white;
+  }
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -496,6 +565,55 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     }
   };
 
+  const handleAddField = () => {
+    const fields = formData.fields || [];
+    const newField: FormField = {
+      id: `field_${Date.now()}`,
+      label: `Field ${fields.length + 1}`,
+      type: 'text',
+      required: false,
+      placeholder: '',
+    };
+    handleFieldChange('fields', [...fields, newField]);
+  };
+
+  const handleRemoveField = (fieldId: string) => {
+    const fields = formData.fields || [];
+    handleFieldChange('fields', fields.filter((f: FormField) => f.id !== fieldId));
+  };
+
+  const handleUpdateField = (fieldId: string, updates: Partial<FormField>) => {
+    const fields = formData.fields || [];
+    handleFieldChange(
+      'fields',
+      fields.map((f: FormField) => (f.id === fieldId ? { ...f, ...updates } : f))
+    );
+  };
+
+  const handleAddRule = () => {
+    const rules = formData.rules || [];
+    const newRule: ConditionRule = {
+      id: `rule_${Date.now()}`,
+      field: '',
+      operator: 'equals',
+      value: '',
+    };
+    handleFieldChange('rules', [...rules, newRule]);
+  };
+
+  const handleRemoveRule = (ruleId: string) => {
+    const rules = formData.rules || [];
+    handleFieldChange('rules', rules.filter((r: ConditionRule) => r.id !== ruleId));
+  };
+
+  const handleUpdateRule = (ruleId: string, updates: Partial<ConditionRule>) => {
+    const rules = formData.rules || [];
+    handleFieldChange(
+      'rules',
+      rules.map((r: ConditionRule) => (r.id === ruleId ? { ...r, ...updates } : r))
+    );
+  };
+
   const handleClose = () => {
     if (hasUnsavedChanges) {
       if (window.confirm('You have unsaved changes. Close anyway?')) {
@@ -581,6 +699,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   };
 
   const renderFormStepConfig = () => {
+    const fields = (formData.fields || []) as FormField[];
+    
     return (
       <FormSection>
         <SectionTitle>Form Fields</SectionTitle>
@@ -607,9 +727,33 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           </CheckboxLabel>
         </FormField>
         
-        {/* Field builder will be added in next batch */}
-        <Button $variant="secondary">
-          + Add Field
+        {/* Field list */}
+        {fields.length > 0 && (
+          <FormField>
+            <FieldLabel>Fields ({fields.length})</FieldLabel>
+            {fields.map((field) => (
+              <FieldItem key={field.id}>
+                <FieldItemContent>
+                  <FieldItemLabel>{field.label}</FieldItemLabel>
+                  <FieldItemMeta>
+                    {field.type} {field.required && '• Required'}
+                  </FieldItemMeta>
+                </FieldItemContent>
+                <IconButton
+                  className="delete"
+                  onClick={() => handleRemoveField(field.id)}
+                  title="Remove field"
+                >
+                  <Trash2 size={14} />
+                </IconButton>
+              </FieldItem>
+            ))}
+          </FormField>
+        )}
+        
+        <Button $variant="secondary" onClick={handleAddField}>
+          <Plus size={16} />
+          Add Field
         </Button>
       </FormSection>
     );
@@ -644,6 +788,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   };
 
   const renderConditionConfig = () => {
+    const rules = (formData.rules || []) as ConditionRule[];
+    
     return (
       <FormSection>
         <SectionTitle>Condition Rules</SectionTitle>
@@ -661,9 +807,35 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           </Select>
         </FormField>
         
-        {/* Rule builder will be added in next batch */}
-        <Button $variant="secondary">
-          + Add Rule
+        {/* Rule list */}
+        {rules.length > 0 && (
+          <FormField>
+            <FieldLabel>Rules ({rules.length})</FieldLabel>
+            {rules.map((rule) => (
+              <FieldItem key={rule.id}>
+                <FieldItemContent>
+                  <FieldItemLabel>
+                    {rule.field || 'Untitled Rule'}
+                  </FieldItemLabel>
+                  <FieldItemMeta>
+                    {rule.operator} {rule.value && `"${rule.value}"`}
+                  </FieldItemMeta>
+                </FieldItemContent>
+                <IconButton
+                  className="delete"
+                  onClick={() => handleRemoveRule(rule.id)}
+                  title="Remove rule"
+                >
+                  <Trash2 size={14} />
+                </IconButton>
+              </FieldItem>
+            ))}
+          </FormField>
+        )}
+        
+        <Button $variant="secondary" onClick={handleAddRule}>
+          <Plus size={16} />
+          Add Rule
         </Button>
       </FormSection>
     );
