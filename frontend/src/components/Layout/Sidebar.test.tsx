@@ -45,6 +45,9 @@ vi.mock('../../config/navigation', () => ({
     { label: 'Dashboard', path: '/dashboard', icon: '📊' },
     { label: 'Products', path: '/products', icon: '📦' },
   ],
+  adminWorkspaceNavigation: [
+    { label: 'Option Lists', path: '/admin/option-lists', icon: '📋' },
+  ],
 }));
 
 // Helper to render with Router
@@ -80,7 +83,8 @@ describe('Sidebar', () => {
 
     it('renders navigation menu', () => {
       renderSidebar();
-      expect(screen.getByTestId('navigation-menu')).toBeInTheDocument();
+      // Now has 2 navigation menus: main nav + admin workspace nav
+      expect(screen.getAllByTestId('navigation-menu')).toHaveLength(2);
     });
 
     it('shows company name when expanded via keepOpen', () => {
@@ -186,14 +190,15 @@ describe('Sidebar', () => {
     it('passes isExpanded to NavigationMenu based on hover state', async () => {
       const { container } = renderSidebar({ isOpen: false });
 
-      const navMenu = screen.getByTestId('navigation-menu');
-      expect(navMenu).toHaveAttribute('data-expanded', 'false');
+      const navMenus = screen.getAllByTestId('navigation-menu');
+      const mainNavMenu = navMenus[0]; // First is main nav
+      expect(mainNavMenu).toHaveAttribute('data-expanded', 'false');
 
       const sidebar = container.firstChild as HTMLElement;
       fireEvent.mouseEnter(sidebar);
 
       await waitFor(() => {
-        expect(navMenu).toHaveAttribute('data-expanded', 'true');
+        expect(mainNavMenu).toHaveAttribute('data-expanded', 'true');
       });
     });
 
@@ -201,16 +206,17 @@ describe('Sidebar', () => {
       const { container } = renderSidebar({ isOpen: false });
 
       const sidebar = container.firstChild as HTMLElement;
-      const navMenu = screen.getByTestId('navigation-menu');
+      const navMenus = screen.getAllByTestId('navigation-menu');
+      const mainNavMenu = navMenus[0]; // First is main nav
 
       fireEvent.mouseEnter(sidebar);
       await waitFor(() => {
-        expect(navMenu).toHaveAttribute('data-expanded', 'true');
+        expect(mainNavMenu).toHaveAttribute('data-expanded', 'true');
       });
 
       fireEvent.mouseLeave(sidebar);
       await waitFor(() => {
-        expect(navMenu).toHaveAttribute('data-expanded', 'false');
+        expect(mainNavMenu).toHaveAttribute('data-expanded', 'false');
       });
     });
   });
@@ -232,21 +238,22 @@ describe('Sidebar', () => {
   describe('Navigation Menu Integration', () => {
     it('passes navigation items to NavigationMenu', () => {
       renderSidebar();
-      const navMenu = screen.getByTestId('navigation-menu');
-      expect(navMenu).toHaveTextContent('2 items');
+      const navMenus = screen.getAllByTestId('navigation-menu');
+      expect(navMenus[0]).toHaveTextContent('2 items'); // Main nav
+      expect(navMenus[1]).toHaveTextContent('1 items'); // Admin nav
     });
 
     it('passes expanded state to NavigationMenu when open via keepOpen', () => {
       localStorage.setItem('sidebarKeepOpen', 'true');
       renderSidebar({ isOpen: true });
-      const navMenu = screen.getByTestId('navigation-menu');
-      expect(navMenu).toHaveAttribute('data-expanded', 'true');
+      const navMenus = screen.getAllByTestId('navigation-menu');
+      expect(navMenus[0]).toHaveAttribute('data-expanded', 'true');
     });
 
     it('passes collapsed state to NavigationMenu when closed', () => {
       renderSidebar({ isOpen: false });
-      const navMenu = screen.getByTestId('navigation-menu');
-      expect(navMenu).toHaveAttribute('data-expanded', 'false');
+      const navMenus = screen.getAllByTestId('navigation-menu');
+      expect(navMenus[0]).toHaveAttribute('data-expanded', 'false');
     });
   });
 
@@ -266,7 +273,8 @@ describe('Sidebar', () => {
   describe('Accessibility', () => {
     it('navigation section is a nav element', () => {
       renderSidebar();
-      expect(screen.getByRole('navigation')).toBeInTheDocument();
+      // Now has 2 nav elements: main nav + admin nav
+      expect(screen.getAllByRole('navigation')).toHaveLength(2);
     });
 
     it('pin button has accessible label when visible', () => {
@@ -312,8 +320,8 @@ describe('Sidebar', () => {
       const onToggle = vi.fn();
       renderSidebar({ onToggle });
       
-      // onToggle is passed and component renders
-      expect(screen.getByTestId('navigation-menu')).toBeInTheDocument();
+      // onToggle is passed and component renders (now has 2 nav menus: main + admin)
+      expect(screen.getAllByTestId('navigation-menu')).toHaveLength(2);
     });
 
     it('onToggle is called when keepOpen state syncs with isOpen', () => {
