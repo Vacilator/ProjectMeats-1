@@ -113,10 +113,10 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'tenant', 'purchase_order', 'sales_order', 'invoice',
             'amount', 'payment_date', 'payment_method', 'reference_number',
-            'notes', 'created_by', 'created_by_name', 'created_on', 'updated_on',
+            'notes', 'created_by', 'created_by_name', 'created_on', 'modified_on',
             'entity_type', 'entity_reference'
         ]
-        read_only_fields = ['id', 'tenant', 'created_on', 'updated_on', 'created_by_name', 'entity_type', 'entity_reference']
+        read_only_fields = ['id', 'tenant', 'created_on', 'modified_on', 'created_by_name', 'entity_type', 'entity_reference']
     
     def get_created_by_name(self, obj):
         """Get the name of the user who created the payment."""
