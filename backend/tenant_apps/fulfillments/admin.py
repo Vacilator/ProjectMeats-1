@@ -1,5 +1,6 @@
 """Admin configuration for Fulfillments."""
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from .models import Fulfillment, FulfillmentProduct
 
 
@@ -11,7 +12,6 @@ class FulfillmentProductInline(admin.TabularInline):
     readonly_fields = ['total']
 
 
-@admin.register(Fulfillment)
 class FulfillmentAdmin(admin.ModelAdmin):
     """Admin for Fulfillment model."""
     list_display = [
@@ -53,3 +53,7 @@ class FulfillmentAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related(
             'tenant', 'inquiry', 'supplier', 'customer', 'carrier', 'created_by', 'shipped_by'
         )
+
+
+# Register models with custom admin site
+admin_site.register(Fulfillment, FulfillmentAdmin)

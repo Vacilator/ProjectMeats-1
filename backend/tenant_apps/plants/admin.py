@@ -2,11 +2,11 @@
 Django admin configuration for Plants app.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Plant
 
 
-@admin.register(Plant)
 class PlantAdmin(TenantFilteredAdmin):
     """Admin interface for Plant model with tenant filtering."""
 
@@ -41,3 +41,7 @@ class PlantAdmin(TenantFilteredAdmin):
             },
         ),
     )
+
+
+# Register models with custom admin site
+admin_site.register(Plant, PlantAdmin)

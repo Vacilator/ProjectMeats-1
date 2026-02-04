@@ -1,0 +1,135 @@
+{% extends "admin/index.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    /* Three-tier admin styling */
+    .tier-section {
+        margin: 25px 0;
+        padding: 20px;
+        border-radius: 8px;
+        background: #f8f9fa;
+    }
+    
+    .tier-header {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .tier-root {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        border-left: 5px solid #ff9800;
+    }
+    
+    .tier-system {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-left: 5px solid #4caf50;
+    }
+    
+    .tier-tenant {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-left: 5px solid #2196f3;
+    }
+    
+    .tier-header .emoji {
+        font-size: 24px;
+        margin-right: 10px;
+    }
+    
+    .tier-description {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 15px;
+        font-style: italic;
+    }
+    
+    #content-main .module {
+        margin-bottom: 15px;
+    }
+    
+    .app-label-link {
+        display: inline-block;
+        padding: 8px 12px;
+        background: white;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        transition: all 0.2s;
+    }
+    
+    .app-label-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ tier_description|safe }}
+
+<div id="content-main">
+    {% if app_list %}
+        {% regroup app_list by tier_name as tier_groups %}
+        {% for tier in tier_groups %}
+            <div class="tier-section tier-{% if 'Root' in tier.grouper %}root{% elif 'System' in tier.grouper %}system{% else %}tenant{% endif %}">
+                <div class="tier-header">
+                    {{ tier.grouper }}
+                </div>
+                <div class="tier-description">
+                    {% if 'Root' in tier.grouper %}
+                        Infrastructure & system-wide user management. Changes affect all tenants.
+                    {% elif 'System' in tier.grouper %}
+                        Global templates, configurations, and tenant management. Shared across tenants.
+                    {% else %}
+                        Tenant-specific business data. Isolated by tenant.
+                    {% endif %}
+                </div>
+                
+                <div class="app-list">
+                    {% for app in tier.list %}
+                        <div class="app-{{ app.app_label }} module">
+                            <table>
+                                <caption>
+                                    <a href="{{ app.app_url }}" class="section" title="{% blocktrans with name=app.name %}Models in the {{ name }} application{% endblocktrans %}">
+                                        {{ app.name }}
+                                    </a>
+                                </caption>
+                                {% for model in app.models %}
+                                    <tr class="model-{{ model.object_name|lower }}">
+                                        {% if model.admin_url %}
+                                            <th scope="row"><a href="{{ model.admin_url }}" class="app-label-link">{{ model.name }}</a></th>
+                                        {% else %}
+                                            <th scope="row">{{ model.name }}</th>
+                                        {% endif %}
+
+                                        {% if model.add_url %}
+                                            <td><a href="{{ model.add_url }}" class="addlink">{% trans 'Add' %}</a></td>
+                                        {% else %}
+                                            <td>&nbsp;</td>
+                                        {% endif %}
+
+                                        {% if model.admin_url %}
+                                            {% if model.view_only %}
+                                                <td><a href="{{ model.admin_url }}" class="viewlink">{% trans 'View' %}</a></td>
+                                            {% else %}
+                                                <td><a href="{{ model.admin_url }}" class="changelink">{% trans 'Change' %}</a></td>
+                                            {% endif %}
+                                        {% else %}
+                                            <td>&nbsp;</td>
+                                        {% endif %}
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>{% trans "You don't have permission to view or edit anything." %}</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -2,11 +2,11 @@
 Django admin configuration for Contacts app.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Contact
 
 
-@admin.register(Contact)
 class ContactAdmin(TenantFilteredAdmin):
     """Admin interface for Contact model with tenant filtering."""
 
@@ -57,3 +57,7 @@ class ContactAdmin(TenantFilteredAdmin):
             {"fields": ("tenant", "created_on", "modified_on", "created_at", "updated_at"), "classes": ("collapse",)},
         ),
     )
+
+
+# Register models with custom admin site
+admin_site.register(Contact, ContactAdmin)

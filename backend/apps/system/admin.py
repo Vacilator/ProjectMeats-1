@@ -13,6 +13,8 @@ Wave 4 enhancements:
 - Drag-drop reordering via SortableJS
 - JSON import/export for choice items
 - Tier-based permission checks (system vs tenant)
+
+ALL MODEL REGISTRATIONS use apps.core.admin_site.admin_site (custom three-tier admin)
 """
 import json
 from django.contrib import admin
@@ -20,6 +22,7 @@ from django.contrib.admin import SimpleListFilter
 from django.http import HttpResponse, JsonResponse
 from django.urls import path
 from django.utils.html import format_html
+from apps.core.admin_site import admin_site
 
 from apps.system.models import (
     SystemChoiceList,
@@ -64,7 +67,6 @@ class SystemChoiceItemInline(admin.TabularInline):
         return qs.filter(tenant__isnull=True)
 
 
-@admin.register(SystemChoiceList)
 class SystemChoiceListAdmin(admin.ModelAdmin):
     """
     Admin for SystemChoiceList with enhanced features:
@@ -449,7 +451,6 @@ class SystemChoiceListAdmin(admin.ModelAdmin):
         return super().has_delete_permission(request, obj)
 
 
-@admin.register(SystemChoiceItem)
 class SystemChoiceItemAdmin(admin.ModelAdmin):
     """Admin for SystemChoiceItem (separate view for tenant items)."""
     list_display = ('choice_list', 'value', 'label', 'order', 'is_active', 'is_default', 'tenant', 'scope_display')
@@ -529,7 +530,6 @@ class SystemChoiceItemAdmin(admin.ModelAdmin):
         return super().has_delete_permission(request, obj)
 
 
-@admin.register(SystemFieldSchema)
 class SystemFieldSchemaAdmin(admin.ModelAdmin):
     """Admin for SystemFieldSchema."""
     list_display = ('field_path', 'field_type', 'label', 'is_required', 'is_readonly', 'is_hidden', 'choice_list')
@@ -565,7 +565,6 @@ class SystemFieldSchemaAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(TenantConfig)
 class TenantConfigAdmin(admin.ModelAdmin):
     """Admin for TenantConfig."""
     list_display = ('tenant', 'key', 'category', 'value_preview', 'updated_at', 'updated_by')
@@ -625,7 +624,6 @@ class TenantProductPreferenceInline(admin.TabularInline):
         return False
 
 
-@admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     """
     Admin for system-wide Product catalog.
@@ -759,7 +757,6 @@ class ProductAdmin(admin.ModelAdmin):
         return response
 
 
-@admin.register(TenantProductPreference)
 class TenantProductPreferenceAdmin(admin.ModelAdmin):
     """
     Admin for tenant-specific product preferences.
@@ -839,7 +836,6 @@ class TenantProductPreferenceAdmin(admin.ModelAdmin):
 # Register ConfigAuditLog for admin access
 from apps.system.models import ConfigAuditLog
 
-@admin.register(ConfigAuditLog)
 class ConfigAuditLogAdmin(admin.ModelAdmin):
     """
     Read-only admin for config audit logs.
@@ -917,3 +913,13 @@ class ConfigAuditLogAdmin(admin.ModelAdmin):
             return obj.user.get_full_name() or obj.user.email
         return obj.user_email or 'System'
     user_display.short_description = 'User'
+
+
+# Register all models with custom admin site
+admin_site.register(SystemChoiceList, SystemChoiceListAdmin)
+admin_site.register(SystemChoiceItem, SystemChoiceItemAdmin)
+admin_site.register(SystemFieldSchema, SystemFieldSchemaAdmin)
+admin_site.register(TenantConfig, TenantConfigAdmin)
+admin_site.register(Product, ProductAdmin)
+admin_site.register(TenantProductPreference, TenantProductPreferenceAdmin)
+admin_site.register(ConfigAuditLog, ConfigAuditLogAdmin)
