@@ -1832,6 +1832,24 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }, 100);
   }, [setNodes, setEdges, reactFlowInstance]);
 
+  const handleStartBlank = useCallback(() => {
+    console.log('[Template] Starting blank canvas');
+    
+    // Clear canvas
+    setNodes([]);
+    setEdges([]);
+    
+    // Reset history
+    setHistory([{ nodes: [], edges: [] }]);
+    setHistoryIndex(0);
+    
+    // Reset node ID counter
+    setNodeIdCounter(1);
+    
+    // Close modal
+    setIsTemplateModalOpen(false);
+  }, [setNodes, setEdges]);
+
   // ============================================================================
   // Filter Nodes by Search Query
   // ============================================================================
@@ -2468,7 +2486,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       <TemplateSelector
         isOpen={isTemplateModalOpen}
         onClose={() => setIsTemplateModalOpen(false)}
-        onSelect={handleTemplateSelect}
+        onSelectTemplate={handleTemplateSelect}
+        onStartBlank={handleStartBlank}
       />
     </EditorContainer>
   );
