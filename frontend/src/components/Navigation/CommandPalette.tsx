@@ -17,6 +17,7 @@ import styled from 'styled-components';
 import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2, Package, Truck } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
+import { EntityDetailModal } from '../Shared/EntityDetailModal';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -436,6 +437,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const [recentItems, setRecentItems] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Entity detail modal state
+  const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: number } | null>(null);
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -556,8 +561,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       // Ignore tracking errors
     }
 
-    onClose();
-    navigate(item.route);
+    // Open entity detail modal instead of navigating
+    setSelectedEntity({ type: item.type, id: item.id });
   };
 
   const handleQuickAction = (action: QuickAction) => {
@@ -695,6 +700,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           </FooterHint>
         </Footer>
       </PaletteContainer>
+      
+      {/* Entity Detail Modal */}
+      {selectedEntity && (
+        <EntityDetailModal
+          isOpen={!!selectedEntity}
+          onClose={() => setSelectedEntity(null)}
+          entityType={selectedEntity.type}
+          entityId={selectedEntity.id}
+        />
+      )}
     </Overlay>
   );
 };

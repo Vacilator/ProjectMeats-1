@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
 import { apiClient } from '../../services/apiService';
+import { EntityDetailModal } from '../Shared/EntityDetailModal';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -237,6 +238,9 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
     invoices: [],
   });
   const [loading, setLoading] = useState(true);
+  
+  // Entity detail modal state
+  const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: string } | null>(null);
 
   const fetchEntities = useCallback(async () => {
     try {
@@ -307,8 +311,8 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
   }, [fetchEntities]);
 
   const handleEntityClick = (entity: RecentEntity) => {
-    const config = ENTITY_CONFIG[entity.type];
-    navigate(`${config.path}/${entity.id}`);
+    // Open entity detail modal instead of navigating
+    setSelectedEntity({ type: entity.type, id: entity.id });
   };
 
   const handleViewAll = () => {
@@ -380,6 +384,16 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
             <ChevronRight size={14} />
           </ViewAllLink>
         </>
+      )}
+      
+      {/* Entity Detail Modal */}
+      {selectedEntity && (
+        <EntityDetailModal
+          isOpen={!!selectedEntity}
+          onClose={() => setSelectedEntity(null)}
+          entityType={selectedEntity.type}
+          entityId={selectedEntity.id}
+        />
       )}
     </WidgetCard>
   );
