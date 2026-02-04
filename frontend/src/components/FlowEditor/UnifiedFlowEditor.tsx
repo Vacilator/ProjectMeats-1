@@ -391,6 +391,49 @@ const ViewportButton = styled.button`
   }
 `;
 
+const DragGhost = styled.div<{ $color?: string }>`
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.6;
+  padding: 12px 16px;
+  background: ${props => props.$color || 'rgb(var(--color-primary))'};
+  color: white;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &::before {
+    content: '✨';
+    font-size: 16px;
+  }
+`;
+
+const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $position: number }>`
+  position: absolute;
+  ${props => props.$orientation === 'horizontal' ? `
+    left: 0;
+    right: 0;
+    top: ${props.$position}px;
+    height: 1px;
+  ` : `
+    top: 0;
+    bottom: 0;
+    left: ${props.$position}px;
+    width: 1px;
+  `}
+  background: rgb(var(--color-primary));
+  opacity: 0.6;
+  z-index: 5;
+  pointer-events: none;
+`;
+
 // ============================================================================
 // Node & Edge Type Mapping
 // ============================================================================
@@ -449,6 +492,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   // Configuration Panel
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  
+  // Drag-drop state for ghost preview and smart snapping
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragNodeType, setDragNodeType] = useState<string | null>(null);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
 
   // ============================================================================
   // LocalStorage: Load favorites, recents, collapsed on mount
@@ -612,9 +660,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     event.dataTransfer.setData('application/reactflow-nodetype', nodeTypeId);
     event.dataTransfer.effectAllowed = 'move';
     
+    // Track drag state for ghost preview
+    setIsDragging(true);
+    setDragNodeType(nodeTypeId);
+    
     // Track as recently used
     addToRecent(nodeTypeId);
   }, [addToRecent]);
+  
+  const onDrag = useCallback((event: React.DragEvent) => {
+    if (event.clientX === 0 && event.clientY === 0) return; // Ignore end event
+    
+    // Update drag ghost position
+    setDragPosition({ x: event.clientX, y: event.clientY });
+  }, []);
+  
+  const onDragEnd = useCallback(() => {
+    // Clear drag state
+    setIsDragging(false);
+    setDragNodeType(null);
+    setDragPosition(null);
+  }, []);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -622,18 +688,29 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       const type = event.dataTransfer.getData('application/reactflow-nodetype');
       if (!type) return;
+      
+      // Clear drag state
+      setIsDragging(false);
+      setDragNodeType(null);
+      setDragPosition(null);
 
-      const position = {
-        x: event.clientX,
-        y: event.clientY,
-      };
+      // Get React Flow bounds and calculate position
+      const reactFlowBounds = event.currentTarget.getBoundingClientRect();
+      const position = reactFlowInstance.screenToFlowPosition({
+        x: event.clientX - reactFlowBounds.left,
+        y: event.clientY - reactFlowBounds.top,
+      });
+      
+      // Snap to grid (15x15)
+      position.x = Math.round(position.x / 15) * 15;
+      position.y = Math.round(position.y / 15) * 15;
 
       const newNode: Node = {
         id: `node-${nodeIdCounter}`,
         type: getReactFlowNodeType(type),
         position,
         data: {
-          label: NODE_TYPE_REGISTRY[type]?.name || 'New Node',
+          label: NODE_TYPE_REGISTRY.find(n => n.id === type)?.name || 'New Node',
           status: 'draft',
           ...getDefaultNodeData(type),
         },
@@ -641,8 +718,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       setNodes((nds) => nds.concat(newNode));
       setNodeIdCounter((prev) => prev + 1);
+      
+      // Add to history
+      addToHistory(nodes.concat(newNode), edges);
     },
-    [nodeIdCounter, setNodes]
+    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, addToHistory]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -782,9 +862,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
-      // Escape: Deselect all
+      // Escape: Deselect all / Cancel drag
       if (event.key === 'Escape') {
         event.preventDefault();
+        
+        // If dragging, cancel the drag
+        if (isDragging) {
+          setIsDragging(false);
+          setDragNodeType(null);
+          setDragPosition(null);
+          return;
+        }
+        
+        // Otherwise deselect all
         deselectAll();
         setSelectedNode(null);
         return;
@@ -793,7 +883,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaletteVisible, nodes, undo, redo, handleSave, setNodes, setEdges, fitView, zoomTo, selectAll, deselectAll, setSelectedNode]);
+  }, [isPaletteVisible, nodes, undo, redo, handleSave, setNodes, setEdges, fitView, zoomTo, selectAll, deselectAll, setSelectedNode, isDragging]);
 
   // ============================================================================
   // Node Selection & Configuration
@@ -911,6 +1001,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     $color={node.color}
                     draggable
                     onDragStart={(e) => onDragStart(e, node.id)}
+                    onDrag={onDrag}
+                    onDragEnd={onDragEnd}
                   >
                     <NodeIcon>{node.icon}</NodeIcon>
                     <NodeInfo>
@@ -951,6 +1043,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     $color={node.color}
                     draggable
                     onDragStart={(e) => onDragStart(e, node.id)}
+                    onDrag={onDrag}
+                    onDragEnd={onDragEnd}
                   >
                     <NodeIcon>{node.icon}</NodeIcon>
                     <NodeInfo>
@@ -997,6 +1091,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                       $color={node.color}
                       draggable
                       onDragStart={(e) => onDragStart(e, node.id)}
+                      onDrag={onDrag}
+                      onDragEnd={onDragEnd}
                     >
                       <NodeIcon>{node.icon}</NodeIcon>
                       <NodeInfo>
@@ -1121,6 +1217,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           </EmptyState>
         )}
       </ReactFlow>
+
+      {/* Drag Ghost Preview */}
+      {isDragging && dragPosition && dragNodeType && (
+        <DragGhost
+          style={{ left: dragPosition.x, top: dragPosition.y }}
+          $color={NODE_TYPE_REGISTRY.find(n => n.id === dragNodeType)?.color}
+        >
+          {NODE_TYPE_REGISTRY.find(n => n.id === dragNodeType)?.icon}
+          {NODE_TYPE_REGISTRY.find(n => n.id === dragNodeType)?.name}
+        </DragGhost>
+      )}
 
       {/* Configuration Panel */}
       <NodeConfigPanel
