@@ -579,6 +579,54 @@ All jobs passed in deployment run 21655912447:
 
 ---
 
+### 2026-02-04 - Cockpit Default Mode Hotfix (PR #2427 ✅ MERGED)
+
+**CRITICAL: Fixed Cockpit showing wrong default mode**:
+
+#### Problem:
+Users visiting `/cockpit` saw the **Smart Wizard** interface instead of the familiar **Dashboard** with widgets, making it appear as if "all the great functionality is now gone."
+
+#### Root Cause:
+Default mode was set to `'wizard'` instead of `'dashboard'` in the CockpitPage component's `useState`:
+
+```typescript
+// ❌ WRONG (before):
+const [mode, setMode] = useState<CockpitMode>('wizard');
+
+// ✅ CORRECT (after):
+const [mode, setMode] = useState<CockpitMode>('dashboard');
+```
+
+#### What Was Actually There (All Working!):
+
+**Dashboard Mode** (670 lines):
+- ✅ 7 fully functional widgets (Today's Numbers, My Tasks, Quick Stats, etc.)
+- ✅ Drag-and-drop layout customization
+- ✅ Widget catalog for adding new widgets
+- ✅ Edit mode toggle (lock/unlock)
+- ✅ Layout persistence (localStorage + backend API)
+- ✅ CommandBar (⌘K universal search)
+- ✅ All connected to real backend APIs (no mock data)
+
+**Smart Wizard Mode** (587 lines):
+- ✅ "What would you like to do today?" interface
+- ✅ 6 action category cards
+- ✅ Wired to real APIs (Quick Actions, Tasks)
+- ✅ Search bar with suggestions
+
+#### The Fix:
+Changed ONE line - the default mode value. That's it.
+
+#### Impact:
+- Users now see Dashboard with all widgets by default ✅
+- Smart Wizard still accessible via toggle button ✅
+- localStorage still remembers user's preference ✅
+- **No functionality was lost - it was just hidden** ✅
+
+**Total Phase 1 Cockpit Code**: 1,257 lines - all working perfectly!
+
+---
+
 ### 2026-02-02 - Wave 3: Major Frontend Components Sprint 🔥
 
 **Massive progress on Wave 3 with 13 PRs merged in one session!**
