@@ -255,14 +255,14 @@ Based on industry research, our editor will embody:
 - **Visual debugging** (like Make) with error routes and execution paths
 - **Template gallery** (like Zapier) for quick starts
 
-- [ ] **2.1.1** Create UnifiedFlowEditor component
+- [x] **2.1.1** Create UnifiedFlowEditor component ✅ **COMPLETE (PR #2425)**
   - File: `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`
   - Base on existing `WorkflowCanvas.tsx` from admin-studio (56KB already implemented!)
   - Use `@xyflow/react` (React Flow v13) - already installed
   - Add: Smooth zoom/pan with minimap (like Make)
   - Add: Floating toolbar for quick actions (like Figma)
 
-- [ ] **2.1.2** Define comprehensive node types registry
+- [x] **2.1.2** Define comprehensive node types registry ✅ **COMPLETE (PR #2425)**
   ```typescript
   const NODE_TYPES = {
     // === TRIGGERS (Entry Points) ===
@@ -324,7 +324,7 @@ Based on industry research, our editor will embody:
   };
   ```
 
-- [ ] **2.1.3** Create node components with industry-best UX
+- [x] **2.1.3** Create node components with industry-best UX ✅ **COMPLETE (PR #2425, #2434)**
   Each node has:
   - **Clear visual identity** (icon, color, shape)
   - **Status indicator** (draft, active, error, disabled)
@@ -333,18 +333,20 @@ Based on industry research, our editor will embody:
   - **Step number** for sequential flows
   - **Error route** option (like Make's error handling)
   
-  Priority order:
-  1. `FormStepNode.tsx` - Multi-field form step with drag-reorder
-  2. `TriggerNode.tsx` - Event triggers with clear iconography
-  3. `ConditionIfNode.tsx` - Visual if/else with true/false branches
-  4. `ActionNode.tsx` - Generic action with type selection
-  5. `ApprovalPendingNode.tsx` - Wait for approval with deadline
-  6. `DocumentGenerateNode.tsx` - PDF generation with template preview
+  Completed: 8/30+ node types (27% coverage)
+  1. `FormStepNode.tsx` - Multi-field form step ✅
+  2. `TriggerNode.tsx` - Event triggers with iconography ✅
+  3. `ConditionIfNode.tsx` - Visual if/else branches ✅
+  4. `ActionNode.tsx` - Generic action with type selection ✅
+  5. `WaitStateNode.tsx` - Wait for approval/document/response/payment ✅
+  6. `DocumentNode.tsx` - Generate/merge/sign/store documents ✅
+  7. `UtilityNode.tsx` - Transform/lookup/merge data ✅
+  8. `TerminalNode.tsx` - Success/error/cancel endpoints ✅
 
-- [ ] **2.1.4** Implement edge types with visual feedback
+- [x] **2.1.4** Implement edge types with visual feedback ✅ **COMPLETE (PR #2434)**
   ```typescript
   const EDGE_TYPES = {
-    default: DefaultEdge,           // Standard black line
+    custom: CustomEdge,             // Standard with animations and labels
     conditional: ConditionalEdge,   // Shows "Yes/No" or custom label
     success: SuccessEdge,           // Green, animated when executing
     error: ErrorEdge,               // Red dashed line
@@ -352,17 +354,24 @@ Based on industry research, our editor will embody:
   };
   ```
   Features:
-  - **Bezier curves** for clean appearance
-  - **Labels** on conditional edges
-  - **Animated dots** during execution preview
-  - **Click to add node** (insert between existing nodes)
+  - **Bezier curves** for clean appearance ✅
+  - **Labels** on conditional edges ✅
+  - **Animated dots** during execution preview ✅
+  - **Click to add node** (insert between existing nodes) ⏳ Future
 
-- [ ] **2.1.5** Create intelligent node palette/toolbar
-  - **Categorized accordion** with search filter
-  - **Drag preview** shows ghost node
-  - **Double-click** to add at center
-  - **Favorites/Recent** section at top
-  - **Quick add menu** (right-click on canvas)
+- [x] **2.1.5** Create intelligent node palette/toolbar ✅ **COMPLETE (PR #2436, #2438)**
+  - **Categorized accordion** with search filter ✅
+  - **Drag preview** shows ghost node ✅
+  - **Double-click** to add at center ⏳ Future
+  - **Favorites/Recent** section at top ✅
+  - **Quick add menu** (right-click on canvas) ⏳ Future
+  - **Search with / shortcut** ✅
+  - **Category collapse/expand** ✅
+  - **Star button to favorite nodes** ✅
+  - **Auto-track recent nodes** ✅
+  - **Keyboard shortcuts** (Tab, /, Del, Ctrl+Z/Y/S) ✅
+  - **Undo/Redo history** (50 snapshots) ✅
+  - **Connection validation** (maxInputs/maxOutputs) ✅
   
   Categories:
   ```

@@ -35,6 +35,7 @@ import {
   ReactFlowProvider,
   NodeTypes,
   EdgeTypes,
+  OnSelectionChangeParams,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2 } from 'lucide-react';
@@ -51,6 +52,7 @@ import {
 } from './nodes';
 import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
+import { NodeConfigPanel } from './ConfigPanel';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -404,6 +406,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isPaletteVisible, setIsPaletteVisible] = useState(true);
 
+  // Configuration Panel
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+
   // ============================================================================
   // LocalStorage: Load favorites, recents, collapsed on mount
   // ============================================================================
@@ -676,6 +681,40 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, edges, onSave]);
 
   // ============================================================================
+  // Node Selection & Configuration
+  // ============================================================================
+
+  const handleSelectionChange = useCallback((params: OnSelectionChangeParams) => {
+    // Open config panel when a single node is selected
+    const selectedNodes = params.nodes || [];
+    if (selectedNodes.length === 1) {
+      setSelectedNode(selectedNodes[0]);
+    } else {
+      setSelectedNode(null);
+    }
+  }, []);
+
+  const handleNodeUpdate = useCallback((nodeId: string, newData: Record<string, any>) => {
+    setNodes((nds) => 
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: { ...node.data, ...newData },
+          };
+        }
+        return node;
+      })
+    );
+    console.log(`Node ${nodeId} updated:`, newData);
+  }, [setNodes]);
+
+  const handleNodeTest = useCallback((nodeId: string) => {
+    console.log(`Testing node ${nodeId} with sample data...`);
+    // Test runner logic will be implemented in future batch
+  }, []);
+
+  // ============================================================================
   // Filter Nodes by Search Query
   // ============================================================================
   
@@ -908,6 +947,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onConnect={onConnect}
         onDrop={onDrop}
         onDragOver={onDragOver}
+        onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={{ type: 'custom' }}
@@ -938,6 +978,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           </EmptyState>
         )}
       </ReactFlow>
+
+      {/* Configuration Panel */}
+      <NodeConfigPanel
+        node={selectedNode}
+        onClose={() => setSelectedNode(null)}
+        onUpdate={handleNodeUpdate}
+        onTest={handleNodeTest}
+      />
     </EditorContainer>
   );
 };
