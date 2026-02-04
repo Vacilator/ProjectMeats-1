@@ -175,7 +175,7 @@ function getActionDetails(data: ActionNodeData) {
 
 export const ActionNode: React.FC<NodeProps<ActionNodeData>> = (props) => {
   const { data, selected, id } = props;
-  const { actionType } = data;
+  const { actionType = 'email' } = data; // Default to 'email' if undefined
   
   // Get the appropriate node type definition
   const nodeTypeMap = {
@@ -188,7 +188,7 @@ export const ActionNode: React.FC<NodeProps<ActionNodeData>> = (props) => {
     script: 'actionScript',
   };
   
-  const nodeType = getNodeTypeDefinition(nodeTypeMap[actionType])!;
+  const nodeType = getNodeTypeDefinition(nodeTypeMap[actionType]) || getNodeTypeDefinition('actionEmail')!;
   const { items } = getActionDetails(data);
 
   return (
@@ -200,7 +200,7 @@ export const ActionNode: React.FC<NodeProps<ActionNodeData>> = (props) => {
     >
       <div>
         <ActionBadge $type={actionType}>
-          {actionType.replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
+          {(actionType || 'email').replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
         </ActionBadge>
         
         {items.length === 0 ? (

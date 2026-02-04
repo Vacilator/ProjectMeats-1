@@ -888,6 +888,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const availableNodeTypes = useMemo(() => {
     let filteredNodes = Object.values(NODE_TYPE_REGISTRY);
     
+    console.log('[NodePalette] Total nodes in registry:', filteredNodes.length);
+    console.log('[NodePalette] Editor mode:', activeEditorMode);
+    console.log('[NodePalette] Allowed categories:', allowedNodeCategories);
+    
     // Step 1: Filter by editor mode
     if (activeEditorMode === 'wizard') {
       // Wizard mode: Limited to basic form creation nodes
@@ -902,12 +906,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
     // Expert mode: All nodes (no filtering by mode)
     
+    console.log('[NodePalette] After mode filtering:', filteredNodes.length);
+    
     // Step 2: Filter by permission categories (if restricted)
     if (allowedNodeCategories && allowedNodeCategories.length > 0) {
       filteredNodes = filteredNodes.filter(nodeType => 
         allowedNodeCategories.includes(nodeType.category)
       );
+      console.log('[NodePalette] After permission filtering:', filteredNodes.length);
     }
+    
+    console.log('[NodePalette] Final available nodes:', filteredNodes.length);
+    console.log('[NodePalette] Available node IDs:', filteredNodes.map(n => n.id));
     
     return filteredNodes;
   }, [activeEditorMode, allowedNodeCategories]);
