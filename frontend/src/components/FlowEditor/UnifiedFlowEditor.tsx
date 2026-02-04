@@ -21,6 +21,8 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import Editor from '@monaco-editor/react';
+import { useQuery } from '@tanstack/react-query';
+import { adminClient } from '../../services/apiService';
 import {
   ReactFlow,
   MiniMap,
@@ -54,6 +56,8 @@ import {
 import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { NodeConfigPanel } from './ConfigPanel';
+import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
+import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
 
@@ -945,6 +949,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Configuration Panel
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   
+  // FormStep specialized configuration (Phase 4.2.B Integration)
+  const [formStepModalOpen, setFormStepModalOpen] = useState(false);
+  const [selectedFormStep, setSelectedFormStep] = useState<Node | null>(null);
+  const [editingField, setEditingField] = useState<any | null>(null);
+  
+  // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
+  const { data: tenantLists = [] } = useQuery({
+    queryKey: ['workflows', 'tenant-lists'],
+    queryFn: async () => {
+      const response = await adminClient.get('/api/v1/workflows/lists/');
+      return response.data.results || response.data || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: formStepModalOpen || !!editingField, // Only fetch when needed
+  });
+  
   // Drag-drop state for ghost preview and smart snapping
   const [isDragging, setIsDragging] = useState(false);
   const [dragNodeType, setDragNodeType] = useState<string | null>(null);
@@ -1768,9 +1788,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Open config panel when a single node is selected
     const selectedNodes = params.nodes || [];
     if (selectedNodes.length === 1) {
-      setSelectedNode(selectedNodes[0]);
+      const node = selectedNodes[0];
+      
+      // Phase 4.2.B: Open specialized FormStep modal for formStep nodes
+      if (node.type === 'formStep') {
+        setSelectedFormStep(node);
+        setFormStepModalOpen(true);
+        setSelectedNode(null); // Don't open generic panel
+      } else {
+        setSelectedNode(node);
+        setSelectedFormStep(null);
+        setFormStepModalOpen(false);
+      }
     } else {
       setSelectedNode(null);
+      setSelectedFormStep(null);
+      setFormStepModalOpen(false);
     }
   }, []);
 
@@ -1787,7 +1820,92 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       })
     );
     console.log(`Node ${nodeId} updated:`, newData);
+    setHasUnsavedChanges(true);
   }, [setNodes]);
+
+  // Phase 4.2.B: FormStep-specific handlers
+  const handleFormStepUpdate = useCallback((updatedStepData: any) => {
+    if (!selectedFormStep) return;
+    
+    handleNodeUpdate(selectedFormStep.id, updatedStepData);
+    setFormStepModalOpen(false);
+    setSelectedFormStep(null);
+  }, [selectedFormStep, handleNodeUpdate]);
+  
+  // Get previous step fields for conditional logic
+  const getPreviousStepFields = useCallback((currentNodeId: string) => {
+    const allFields: any[] = [];
+    
+    // Find all FormStep nodes before the current one
+    const currentNode = nodes.find(n => n.id === currentNodeId);
+    if (!currentNode) return allFields;
+    
+    // Simple heuristic: nodes with lower Y position are "before" current node
+    const previousNodes = nodes.filter(n => 
+      n.type === 'formStep' && 
+      n.id !== currentNodeId &&
+      n.position.y < currentNode.position.y
+    );
+    
+    // Extract fields from previous FormStep nodes
+    previousNodes.forEach(node => {
+      const fields = node.data.fields || [];
+      fields.forEach((field: any) => {
+        allFields.push({
+          ...field,
+          stepTitle: node.data.stepTitle || node.data.label || 'Unnamed Step',
+        });
+      });
+    });
+    
+    return allFields;
+  }, [nodes]);
+  
+  const handleAddField = useCallback(() => {
+    // Create new blank field and open field editor
+    const newField = {
+      id: `field_${Date.now()}`,
+      label: 'New Field',
+      type: 'text',
+      required: false,
+      placeholder: '',
+      validationRules: [],
+    };
+    setEditingField(newField);
+  }, []);
+  
+  const handleEditField = useCallback((field: any) => {
+    setEditingField(field);
+  }, []);
+  
+  const handleFieldUpdate = useCallback((updatedField: any) => {
+    if (!selectedFormStep) return;
+    
+    const currentFields = selectedFormStep.data.fields || [];
+    const fieldIndex = currentFields.findIndex((f: any) => f.id === updatedField.id);
+    
+    let newFields;
+    if (fieldIndex >= 0) {
+      // Update existing field
+      newFields = currentFields.map((f: any) => 
+        f.id === updatedField.id ? updatedField : f
+      );
+    } else {
+      // Add new field
+      newFields = [...currentFields, updatedField];
+    }
+    
+    // Update the FormStep node with new fields
+    handleNodeUpdate(selectedFormStep.id, { fields: newFields });
+    
+    // Update selectedFormStep state for immediate UI update
+    setSelectedFormStep(prev => prev ? {
+      ...prev,
+      data: { ...prev.data, fields: newFields }
+    } : null);
+    
+    setEditingField(null);
+  }, [selectedFormStep, handleNodeUpdate]);
 
   const handleNodeTest = useCallback((nodeId: string) => {
     console.log(`Testing node ${nodeId} with sample data...`);
@@ -2489,6 +2607,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onSelectTemplate={handleTemplateSelect}
         onStartBlank={handleStartBlank}
       />
+      
+      {/* FormStep Configuration Modal (Phase 4.2.B Integration) */}
+      {formStepModalOpen && selectedFormStep && (
+        <FormStepConfigPanel
+          step={selectedFormStep.data}
+          onChange={handleFormStepUpdate}
+          onClose={() => {
+            setFormStepModalOpen(false);
+            setSelectedFormStep(null);
+          }}
+          onEditField={handleEditField}
+          onAddField={handleAddField}
+          availableFields={getPreviousStepFields(selectedFormStep.id)}
+        />
+      )}
+      
+      {/* FormField Configuration Modal (nested) */}
+      {editingField && (
+        <FormFieldConfigPanel
+          field={editingField}
+          onChange={handleFieldUpdate}
+          onClose={() => setEditingField(null)}
+          availableFields={selectedFormStep?.data?.fields || []}
+          tenantLists={tenantLists}
+        />
+      )}
     </EditorContainer>
   );
 };
