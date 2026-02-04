@@ -61,11 +61,14 @@ import { FlowTemplate } from './templates/flowTemplates';
 // TypeScript Interfaces
 // ============================================================================
 
+export type EditorMode = 'wizard' | 'visual' | 'expert';
+
 interface UnifiedFlowEditorProps {
   initialNodes?: Node[];
   initialEdges?: Edge[];
   onSave?: (nodes: Node[], edges: Edge[]) => void;
   readOnly?: boolean;
+  editorMode?: EditorMode;
 }
 
 interface HistoryState {
@@ -845,6 +848,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   initialEdges = [],
   onSave,
   readOnly = false,
+  editorMode = 'visual',
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -852,6 +856,49 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // React Flow instance for viewport controls
   const reactFlowInstance = useReactFlow();
+
+  // ============================================================================
+  // Editor Mode State & Filtering
+  // ============================================================================
+  
+  // Note: Editor mode can be passed as prop or managed internally
+  // If passed as prop, it overrides the internal state (controlled component)
+  const [internalEditorMode, setInternalEditorMode] = useState<EditorMode>(() => {
+    try {
+      const stored = localStorage.getItem('flow_editor_mode');
+      return (stored as EditorMode) || 'visual';
+    } catch {
+      return 'visual';
+    }
+  });
+  
+  // Use prop if provided, otherwise use internal state
+  const activeEditorMode = editorMode !== undefined ? editorMode : internalEditorMode;
+  
+  // Persist mode preference only if not controlled by prop
+  useEffect(() => {
+    if (editorMode === undefined) {
+      localStorage.setItem('flow_editor_mode', internalEditorMode);
+    }
+  }, [internalEditorMode, editorMode]);
+  
+  // Filter available node types based on editor mode
+  const availableNodeTypes = useMemo(() => {
+    if (activeEditorMode === 'wizard') {
+      // Wizard mode: Limited to basic form creation nodes
+      return Array.from(NODE_TYPE_REGISTRY.values()).filter(nodeType => 
+        ['formStep', 'formField', 'conditionIf', 'actionEmail', 'endSuccess'].includes(nodeType.id)
+      );
+    } else if (activeEditorMode === 'visual') {
+      // Visual mode: Most nodes except advanced features
+      return Array.from(NODE_TYPE_REGISTRY.values()).filter(nodeType => 
+        !['customCode', 'apiRequest', 'subflow'].includes(nodeType.id)
+      );
+    } else {
+      // Expert mode: All nodes available
+      return Array.from(NODE_TYPE_REGISTRY.values());
+    }
+  }, [activeEditorMode]);
 
   // ============================================================================
   // Enhanced Palette Features State
@@ -891,25 +938,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [nearbyNode, setNearbyNode] = useState<Node | null>(null);
   
   // ============================================================================
-  // Editor Mode State (Phase 2.2)
-  // ============================================================================
-  
-  type EditorMode = 'visual' | 'wizard' | 'expert';
-  const [editorMode, setEditorMode] = useState<EditorMode>(() => {
-    try {
-      const stored = localStorage.getItem('flow_editor_mode');
-      return (stored as EditorMode) || 'visual';
-    } catch {
-      return 'visual';
-    }
-  });
-  
-  // Persist mode preference
-  useEffect(() => {
-    localStorage.setItem('flow_editor_mode', editorMode);
-  }, [editorMode]);
-  
-  // ============================================================================
   // Expert Mode State (Phase 2.2 Batch 2)
   // ============================================================================
   
@@ -926,10 +954,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   // Wizard Mode State (Phase 2.2 Batch 3)
   // ============================================================================
-  
+
   type WizardStep = 'welcome' | 'flow-type' | 'add-nodes' | 'preview' | 'complete';
   type FlowType = 'form' | 'workflow' | 'approval' | 'document';
-  
+
   interface WizardState {
     currentStep: WizardStep;
     flowType: FlowType | null;
@@ -938,7 +966,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     suggestedNodes: string[];
     addedNodeCount: number;
   }
-  
+
   const [wizardState, setWizardState] = useState<WizardState>({
     currentStep: 'welcome',
     flowType: null,
@@ -947,10 +975,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     suggestedNodes: [],
     addedNodeCount: 0,
   });
-  
+
   // Reset wizard when entering wizard mode
   useEffect(() => {
-    if (editorMode === 'wizard' && wizardState.currentStep !== 'welcome') {
+    if (activeEditorMode === 'wizard' && wizardState.currentStep !== 'welcome') {
       // Only reset if switching from another mode, not on initial load
       setWizardState({
         currentStep: 'welcome',
@@ -961,11 +989,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         addedNodeCount: 0,
       });
     }
-  }, [editorMode]);
-  
+  }, [activeEditorMode]);
+
   // Sync nodes/edges to JSON when entering Expert Mode or when data changes
   useEffect(() => {
-    if (editorMode === 'expert') {
+    if (activeEditorMode === 'expert') {
       const flowData = {
         nodes,
         edges,
@@ -977,7 +1005,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       };
       setJsonCode(JSON.stringify(flowData, null, 2));
     }
-  }, [editorMode, nodes, edges, lastSyncTime]);
+  }, [activeEditorMode, nodes, edges, lastSyncTime]);
   
   // Validate and apply JSON changes
   const handleJsonChange = useCallback((value: string | undefined) => {
@@ -1800,7 +1828,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     const query = searchQuery.toLowerCase().trim();
     
-    Object.values(NODE_TYPE_REGISTRY).forEach(node => {
+    // Filter by available node types based on editor mode
+    availableNodeTypes.forEach(node => {
       // Filter by search query
       if (query && !node.name.toLowerCase().includes(query) && 
           !node.description.toLowerCase().includes(query)) {
@@ -1811,7 +1840,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     });
 
     return grouped;
-  }, [searchQuery]);
+  }, [searchQuery, availableNodeTypes]);
 
   // ============================================================================
   // Get Favorite & Recent Nodes
@@ -1831,8 +1860,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   return (
     <EditorContainer>
-      {/* Node Palette - Visual Mode Only */}
-      {!readOnly && isPaletteVisible && editorMode === 'visual' && (
+      {/* Node Palette - Visual & Expert Modes Only */}
+      {!readOnly && isPaletteVisible && (activeEditorMode === 'visual' || activeEditorMode === 'expert') && (
         <NodePalette>
           <PaletteTitle>Add Nodes</PaletteTitle>
           
@@ -2034,36 +2063,38 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ViewportButton>
       </ViewportToolbar>
       
-      {/* Mode Selector (Phase 2.2) */}
-      <ModeSelectorContainer>
-        <ModeButton
-          $active={editorMode === 'wizard'}
-          onClick={() => setEditorMode('wizard')}
-          title="Wizard Mode - Guided step-by-step creation"
-        >
-          <Wand2 />
-          Wizard
-        </ModeButton>
-        <ModeButton
-          $active={editorMode === 'visual'}
-          onClick={() => setEditorMode('visual')}
-          title="Visual Mode - Drag-and-drop canvas"
-        >
-          <Eye />
-          Visual
-        </ModeButton>
-        <ModeButton
-          $active={editorMode === 'expert'}
-          onClick={() => setEditorMode('expert')}
-          title="Expert Mode - JSON code editor"
-        >
-          <Code2 />
-          Expert
-        </ModeButton>
-      </ModeSelectorContainer>
+      {/* Mode Selector (Phase 2.2) - Only show if not controlled by prop */}
+      {editorMode === undefined && (
+        <ModeSelectorContainer>
+          <ModeButton
+            $active={activeEditorMode === 'wizard'}
+            onClick={() => setInternalEditorMode('wizard')}
+            title="Wizard Mode - Guided step-by-step creation"
+          >
+            <Wand2 />
+            Wizard
+          </ModeButton>
+          <ModeButton
+            $active={activeEditorMode === 'visual'}
+            onClick={() => setInternalEditorMode('visual')}
+            title="Visual Mode - Drag-and-drop canvas"
+          >
+            <Eye />
+            Visual
+          </ModeButton>
+          <ModeButton
+            $active={activeEditorMode === 'expert'}
+            onClick={() => setInternalEditorMode('expert')}
+            title="Expert Mode - JSON code editor"
+          >
+            <Code2 />
+            Expert
+          </ModeButton>
+        </ModeSelectorContainer>
+      )}
 
       {/* React Flow Canvas - Visual Mode */}
-      {editorMode === 'visual' && (
+      {activeEditorMode === 'visual' && (
         <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -2122,7 +2153,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       )}
       
       {/* Wizard Mode - Typeform-inspired (Phase 2.2 Batch 3) */}
-      {editorMode === 'wizard' && (
+      {activeEditorMode === 'wizard' && (
         <WizardContainer>
           <WizardCard>
             {/* Progress Indicator */}
@@ -2319,7 +2350,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       )}
       
       {/* Expert Mode - JSON Editor (Phase 2.2 Batch 2) */}
-      {editorMode === 'expert' && (
+      {activeEditorMode === 'expert' && (
         <ExpertModeContainer>
           <ExpertModeToolbar>
             <ToolbarSection>
