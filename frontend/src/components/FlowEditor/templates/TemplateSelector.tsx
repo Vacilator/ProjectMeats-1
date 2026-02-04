@@ -41,7 +41,7 @@ const Overlay = styled.div`
 `;
 
 const Modal = styled.div`
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-surface));
   border-radius: 12px;
   width: 100%;
   max-width: 1200px;
@@ -78,7 +78,7 @@ const CloseButton = styled.button`
   border-radius: 4px;
 
   &:hover {
-    background: rgb(var(--color-bg-secondary));
+    background: rgb(var(--color-surface));
   }
 `;
 
@@ -105,7 +105,7 @@ const SearchInput = styled.input`
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
-  background: rgb(var(--color-bg-secondary));
+  background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
 
   &:focus {
@@ -152,7 +152,7 @@ const TemplateGrid = styled.div`
 `;
 
 const TemplateCard = styled.div`
-  background: rgb(var(--color-bg-secondary));
+  background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   padding: 16px;
@@ -254,7 +254,7 @@ const EmptyStateText = styled.p`
 `;
 
 const StartBlankButton = styled.button`
-  background: rgb(var(--color-bg-secondary));
+  background: rgb(var(--color-surface));
   border: 2px dashed rgb(var(--color-border));
   border-radius: 8px;
   padding: 32px;
@@ -268,7 +268,7 @@ const StartBlankButton = styled.button`
 
   &:hover {
     border-color: rgb(var(--color-primary));
-    background: rgb(var(--color-bg-primary));
+    background: rgb(var(--color-background));
   }
 `;
 
