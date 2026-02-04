@@ -173,7 +173,10 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
     } else if (action.onClick) {
       action.onClick();
     } else if (action.path) {
-      navigate(action.path);
+      // Add ?action=create for "New X" actions
+      const isCreateAction = action.label.toLowerCase().startsWith('new ');
+      const path = isCreateAction ? `${action.path}?action=create` : action.path;
+      navigate(path);
     }
   };
 

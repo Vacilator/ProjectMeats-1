@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
@@ -9,6 +10,7 @@ import { US_STATES } from '../utils/constants/states';
 import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
 const Customers: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -29,6 +31,15 @@ const Customers: React.FC = () => {
     preferred_protein_types: [] as string[], // Phase 4: ArrayField integration
     products: [] as number[], // Product IDs for M2M
   });
+
+  // Auto-open form if ?action=create in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowForm(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     fetchCustomers();

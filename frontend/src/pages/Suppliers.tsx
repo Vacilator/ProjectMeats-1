@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import { US_STATES } from '../utils/constants/states';
@@ -10,6 +11,7 @@ import { Theme } from '../config/theme';
 
 const Suppliers: React.FC = () => {
   const { theme } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -29,6 +31,16 @@ const Suppliers: React.FC = () => {
     preferred_protein_types: [] as string[], // NEW: Protein filtering
     products: [] as number[], // Product IDs for M2M
   });
+
+  // Auto-open form if ?action=create in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowForm(true);
+      // Remove the parameter so it doesn't persist
+      searchParams.delete('action');
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     fetchSuppliers();
