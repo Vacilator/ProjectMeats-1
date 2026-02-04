@@ -582,8 +582,12 @@ describe('NotificationsContext', () => {
         wrapper: createWrapper(),
       });
 
+      // With graceful degradation (PR #2484), errors don't set error state
+      // Instead, APIs that fail return empty data and log warnings
       await waitFor(() => {
-        expect(result.current.error).toBe('Failed to fetch notifications');
+        expect(result.current.notifications).toEqual([]);
+        expect(result.current.error).toBeNull();
+        expect(result.current.loading).toBe(false);
       });
     });
   });
