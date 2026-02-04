@@ -20,7 +20,7 @@ import {
   ChevronRight, Star, Clock
 } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
-import axios from 'axios';
+import { apiClient } from '../../services/apiService';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -241,7 +241,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
   const fetchEntities = useCallback(async () => {
     try {
       // Try to fetch from API, fall back to mock data
-      const response = await axios.get('/api/v1/core/search/recent/').catch(() => null);
+      const response = await apiClient.get('search/recent/').catch(() => null);
       
       if (response?.data?.recent_items) {
         // Group by type
