@@ -20,6 +20,7 @@
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import Editor from '@monaco-editor/react';
 import {
   ReactFlow,
   MiniMap,
@@ -38,7 +39,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomIn, ZoomOut, Wand2, Eye, Code2 } from 'lucide-react';
+import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomIn, ZoomOut, Wand2, Eye, Code2, Download, Upload, CheckCircle, AlertCircle, Copy } from 'lucide-react';
 
 import {
   FormStepNode,
@@ -130,6 +131,90 @@ const ModeButton = styled.button<{ $active?: boolean }>`
     width: 16px;
     height: 16px;
   }
+`;
+
+// ============================================================================
+// Expert Mode Components (Phase 2.2 Batch 2)
+// ============================================================================
+
+const ExpertModeContainer = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: rgb(var(--color-background));
+`;
+
+const ExpertModeToolbar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgb(var(--color-surface));
+  border-bottom: 1px solid rgb(var(--color-border));
+`;
+
+const ToolbarSection = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+const ExpertToolbarButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+    border-color: rgb(var(--color-primary));
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+const StatusMessage = styled.div<{ $type?: 'success' | 'error' | 'info' }>`
+  padding: 8px 12px;
+  font-size: 12px;
+  background: ${props => {
+    if (props.$type === 'success') return 'rgba(var(--color-success), 0.1)';
+    if (props.$type === 'error') return 'rgba(var(--color-error), 0.1)';
+    return 'rgba(var(--color-info), 0.1)';
+  }};
+  color: ${props => {
+    if (props.$type === 'success') return 'rgb(var(--color-success))';
+    if (props.$type === 'error') return 'rgb(var(--color-error))';
+    return 'rgb(var(--color-info))';
+  }};
+  border-left: 3px solid ${props => {
+    if (props.$type === 'success') return 'rgb(var(--color-success))';
+    if (props.$type === 'error') return 'rgb(var(--color-error))';
+    return 'rgb(var(--color-info))';
+  }};
+  margin: 8px 16px;
+  border-radius: var(--radius-sm);
+`;
+
+const EditorWrapper = styled.div`
+  flex: 1;
+  overflow: hidden;
 `;
 
 const NodePalette = styled.div`
@@ -568,6 +653,138 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   useEffect(() => {
     localStorage.setItem('flow_editor_mode', editorMode);
   }, [editorMode]);
+  
+  // ============================================================================
+  // Expert Mode State (Phase 2.2 Batch 2)
+  // ============================================================================
+  
+  const [jsonCode, setJsonCode] = useState('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  
+  // Sync nodes/edges to JSON when entering Expert Mode or when data changes
+  useEffect(() => {
+    if (editorMode === 'expert') {
+      const flowData = {
+        nodes,
+        edges,
+        metadata: {
+          version: '1.0',
+          created: new Date().toISOString(),
+          lastModified: lastSyncTime?.toISOString() || new Date().toISOString(),
+        }
+      };
+      setJsonCode(JSON.stringify(flowData, null, 2));
+    }
+  }, [editorMode, nodes, edges, lastSyncTime]);
+  
+  // Validate and apply JSON changes
+  const handleJsonChange = useCallback((value: string | undefined) => {
+    if (!value) return;
+    
+    setJsonCode(value);
+    
+    try {
+      const parsed = JSON.parse(value);
+      
+      // Validate structure
+      if (!parsed.nodes || !Array.isArray(parsed.nodes)) {
+        throw new Error('Invalid format: "nodes" array is required');
+      }
+      if (!parsed.edges || !Array.isArray(parsed.edges)) {
+        throw new Error('Invalid format: "edges" array is required');
+      }
+      
+      // Clear error if valid
+      setJsonError(null);
+    } catch (err) {
+      setJsonError(err instanceof Error ? err.message : 'Invalid JSON');
+    }
+  }, []);
+  
+  // Apply JSON to visual mode
+  const applyJsonToVisual = useCallback(() => {
+    try {
+      const parsed = JSON.parse(jsonCode);
+      
+      if (!parsed.nodes || !Array.isArray(parsed.nodes)) {
+        throw new Error('Invalid format: "nodes" array is required');
+      }
+      if (!parsed.edges || !Array.isArray(parsed.edges)) {
+        throw new Error('Invalid format: "edges" array is required');
+      }
+      
+      setNodes(parsed.nodes);
+      setEdges(parsed.edges);
+      setLastSyncTime(new Date());
+      setJsonError(null);
+      
+      // Switch to visual mode to see changes
+      setEditorMode('visual');
+    } catch (err) {
+      setJsonError(err instanceof Error ? err.message : 'Failed to apply JSON');
+    }
+  }, [jsonCode, setNodes, setEdges]);
+  
+  // Export flow as JSON file
+  const exportJson = useCallback(() => {
+    const flowData = {
+      nodes,
+      edges,
+      metadata: {
+        version: '1.0',
+        exported: new Date().toISOString(),
+      }
+    };
+    
+    const blob = new Blob([JSON.stringify(flowData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `workflow-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [nodes, edges]);
+  
+  // Import JSON file
+  const importJson = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const content = event.target?.result as string;
+          const parsed = JSON.parse(content);
+          
+          if (!parsed.nodes || !parsed.edges) {
+            throw new Error('Invalid workflow file format');
+          }
+          
+          setNodes(parsed.nodes);
+          setEdges(parsed.edges);
+          setLastSyncTime(new Date());
+          setJsonError(null);
+          setEditorMode('visual');
+        } catch (err) {
+          setJsonError(err instanceof Error ? err.message : 'Failed to import file');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }, [setNodes, setEdges]);
+  
+  // Copy JSON to clipboard
+  const copyJsonToClipboard = useCallback(() => {
+    navigator.clipboard.writeText(jsonCode);
+  }, [jsonCode]);
 
   // ============================================================================
   // LocalStorage: Load favorites, recents, collapsed on mount
@@ -1477,18 +1694,73 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </div>
       )}
       
-      {/* Expert Mode Placeholder (Phase 2.2 - Batch 2) */}
+      {/* Expert Mode - JSON Editor (Phase 2.2 Batch 2) */}
       {editorMode === 'expert' && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          fontSize: '14px',
-          color: 'rgb(var(--color-text-secondary))'
-        }}>
-          💻 Expert Mode (JSON Editor) - Coming in Batch 2!
-        </div>
+        <ExpertModeContainer>
+          <ExpertModeToolbar>
+            <ToolbarSection>
+              <ExpertToolbarButton onClick={applyJsonToVisual} disabled={!!jsonError}>
+                <CheckCircle />
+                Apply to Visual
+              </ExpertToolbarButton>
+              <ExpertToolbarButton onClick={exportJson}>
+                <Download />
+                Export
+              </ExpertToolbarButton>
+              <ExpertToolbarButton onClick={importJson}>
+                <Upload />
+                Import
+              </ExpertToolbarButton>
+              <ExpertToolbarButton onClick={copyJsonToClipboard}>
+                <Copy />
+                Copy
+              </ExpertToolbarButton>
+            </ToolbarSection>
+            <ToolbarSection>
+              {lastSyncTime && (
+                <span style={{ fontSize: '12px', color: 'rgb(var(--color-text-tertiary))' }}>
+                  Last sync: {lastSyncTime.toLocaleTimeString()}
+                </span>
+              )}
+            </ToolbarSection>
+          </ExpertModeToolbar>
+          
+          {jsonError && (
+            <StatusMessage $type="error">
+              <AlertCircle style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
+              {jsonError}
+            </StatusMessage>
+          )}
+          
+          {!jsonError && lastSyncTime && (
+            <StatusMessage $type="success">
+              <CheckCircle style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
+              Valid JSON - Ready to apply
+            </StatusMessage>
+          )}
+          
+          <EditorWrapper>
+            <Editor
+              height="100%"
+              defaultLanguage="json"
+              value={jsonCode}
+              onChange={handleJsonChange}
+              theme="vs-dark"
+              options={{
+                minimap: { enabled: true },
+                fontSize: 13,
+                lineNumbers: 'on',
+                rulers: [80, 120],
+                wordWrap: 'on',
+                formatOnPaste: true,
+                formatOnType: true,
+                automaticLayout: true,
+                scrollBeyondLastLine: false,
+                tabSize: 2,
+              }}
+            />
+          </EditorWrapper>
+        </ExpertModeContainer>
       )}
 
       {/* Drag Ghost Preview */}
