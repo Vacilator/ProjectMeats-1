@@ -460,6 +460,104 @@ admin_site.register(MyModel, MyModelAdmin)
 
 ---
 
+## WorkForms Permission System (Phase 4.2)
+
+### Overview
+
+The WorkForms editor implements a granular **role-based permission system** that controls access to form creation, editing, and publishing capabilities.
+
+### Permission Matrix
+
+| **Role** | **Create** | **Edit Own** | **Edit All** | **Publish** | **Modes** | **Templates** |
+|----------|------------|--------------|--------------|-------------|-----------|---------------|
+| owner/admin | ✅ | ✅ | ✅ | ✅ | All (W/V/E) | System + Custom |
+| manager | ✅ | ✅ | ❌ | ❌ | Visual + Wizard | Use only |
+| user | ❌ | ❌ | ❌ | ❌ | View only | View only |
+| readonly | ❌ | ❌ | ❌ | ❌ | View only | View only |
+
+**Editor Modes**: W = Wizard, V = Visual, E = Expert
+
+### Backend Implementation
+
+**Location**: `backend/tenant_apps/workflows/permissions.py`
+
+**Permission Classes**:
+- `IsTenantAdminOrOwner` - For publish/delete/global templates
+- `CanEditWorkForm` - Admins edit any, managers edit own
+- `CanPublishWorkForm` - Owner/admin only
+
+**API Endpoint**: `GET /api/v1/workflows/permissions/`
+
+Returns permission metadata for frontend:
+```json
+{
+  "can_create": true,
+  "can_edit": true,
+  "can_publish": true,
+  "allowed_modes": ["wizard", "visual", "expert"],
+  "allowed_node_categories": ["trigger", "form", "condition", ...],
+  "role": "owner"
+}
+```
+
+### Frontend Integration
+
+**Hook**: `frontend/src/hooks/useWorkFormPermissions.ts`
+
+```typescript
+const { permissions, isLoading } = useWorkFormPermissions();
+
+if (permissions.can_create) {
+  // Show "Create New" button
+}
+```
+
+**UI Enforcement**:
+- Catalog: Create button disabled with Lock icon for unauthorized users
+- Editor: Mode switcher shows locked modes with upgrade tooltip
+- Node Palette: Filtered by `allowed_node_categories`
+
+### Node Categories
+
+- `trigger` - Entry points (Manual, Schedule, Webhook)
+- `form` - Form steps and fields
+- `condition` - If/Else logic
+- `action` - Email, API calls, updates
+- `wait` - Delays, approvals
+- `document` - PDF generation
+- `utility` - Transformations
+- `terminal` - Success/failure ends
+
+**Manager Restrictions**: Cannot access advanced `utility` nodes (custom code, API requests)
+
+### Security
+
+⚠️ **Frontend permissions are UX-only**. All enforcement on backend:
+- DRF permission classes validate every API request
+- Serializers add permission fields to responses
+- ViewSets filter by tenant and ownership
+- API returns 403 if unauthorized
+
+### Upgrading User Roles
+
+**Make user a manager**:
+```python
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+user = User.objects.get(email='user@example.com')
+user.tenant_role = 'manager'
+user.save()
+```
+
+**Make user tenant admin**:
+```python
+user.is_tenant_admin = True
+user.save()
+```
+
+---
+
 ## Related Documentation
 
 - **Multi-Tenancy**: `docs/ARCHITECTURE.md#multi-tenancy`
