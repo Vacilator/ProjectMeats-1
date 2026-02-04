@@ -164,19 +164,9 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   };
 
   // Render accordion header content (icon and label)
+  // Render accordion content - icon, label, badge
   const renderAccordionContent = (item: NavigationItem) => {
     const badgeValue = item.badge ?? getBadgeValue(counts, item.badgeKey);
-    if (item.path) {
-      return (
-        <AccordionNavLink to={item.path} $level={level}>
-          <NavIcon $color={item.color}>{item.icon}</NavIcon>
-          {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
-          {sidebarExpanded && badgeValue !== undefined && badgeValue > 0 && (
-            <Badge $isDarkMode={isDarkMode}>{badgeValue > 99 ? '99+' : badgeValue}</Badge>
-          )}
-        </AccordionNavLink>
-      );
-    }
     return (
       <>
         <NavIcon $color={item.color}>{item.icon}</NavIcon>
@@ -189,43 +179,73 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   };
 
   // Render accordion header with expand/collapse button
-  const renderAccordionHeader = (item: NavigationItem, isItemExpanded: boolean, active: boolean, hasActiveChild: boolean) => (
-    <AccordionHeader
-      onClick={(e) => {
-        // If item has NO path (pure parent), toggle accordion
-        if (!item.path) {
+  const renderAccordionHeader = (item: NavigationItem, isItemExpanded: boolean, active: boolean, hasActiveChild: boolean) => {
+    // If item has a path, wrap in NavLink for navigation
+    if (item.path) {
+      return (
+        <AccordionNavLinkWrapper
+          to={item.path}
+          $theme={theme}
+          $level={level}
+          $active={active}
+          $isExpanded={isItemExpanded}
+          $isDarkMode={isDarkMode}
+          $hasExactActiveChild={hasActiveChild}
+        >
+          {renderAccordionContent(item)}
+          {sidebarExpanded && (
+            <ExpandButton 
+              onClick={(e) => {
+                // Stop propagation to prevent navigation when clicking chevron
+                e.preventDefault();
+                e.stopPropagation();
+                toggleExpand(item.label, e);
+              }}
+              $isExpanded={isItemExpanded}
+              $isDarkMode={isDarkMode}
+              aria-label={isItemExpanded ? 'Collapse' : 'Expand'}
+            >
+              <ChevronIcon isExpanded={isItemExpanded} />
+            </ExpandButton>
+          )}
+        </AccordionNavLinkWrapper>
+      );
+    }
+    
+    // If item has NO path, use button for accordion toggle
+    return (
+      <AccordionHeader
+        onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           toggleExpand(item.label, e);
-        }
-        // If item HAS a path, the AccordionNavLink will handle navigation
-        // We don't toggle accordion on header click, only on chevron button click
-      }}
-      $theme={theme}
-      $level={level}
-      $active={active}
-      $isExpanded={isItemExpanded}
-      $isDarkMode={isDarkMode}
-      $hasExactActiveChild={hasActiveChild}
-    >
-      {renderAccordionContent(item)}
-      {sidebarExpanded && (
-        <ExpandButton 
-          onClick={(e) => {
-            // Stop propagation to prevent triggering parent's onClick
-            e.preventDefault();
-            e.stopPropagation();
-            toggleExpand(item.label, e);
-          }}
-          $isExpanded={isItemExpanded}
-          $isDarkMode={isDarkMode}
-          aria-label={isItemExpanded ? 'Collapse' : 'Expand'}
-        >
-          <ChevronIcon isExpanded={isItemExpanded} />
-        </ExpandButton>
-      )}
-    </AccordionHeader>
-  );
+        }}
+        $theme={theme}
+        $level={level}
+        $active={active}
+        $isExpanded={isItemExpanded}
+        $isDarkMode={isDarkMode}
+        $hasExactActiveChild={hasActiveChild}
+      >
+        {renderAccordionContent(item)}
+        {sidebarExpanded && (
+          <ExpandButton 
+            onClick={(e) => {
+              // Just for consistency, though the whole header is clickable
+              e.preventDefault();
+              e.stopPropagation();
+              toggleExpand(item.label, e);
+            }}
+            $isExpanded={isItemExpanded}
+            $isDarkMode={isDarkMode}
+            aria-label={isItemExpanded ? 'Collapse' : 'Expand'}
+          >
+            <ChevronIcon isExpanded={isItemExpanded} />
+          </ExpandButton>
+        )}
+      </AccordionHeader>
+    );
+  };
 
   // Render menu button (fallback for items without path or children)
   const renderMenuButton = (item: NavigationItem, active: boolean) => (
@@ -287,6 +307,8 @@ const MenuContainer = styled.div`
 
 const MenuItem = styled.div<{ $level: number }>`
   position: relative;
+  /* Ensure each menu item is in proper stacking context */
+  z-index: ${(props) => 100 - props.$level};
   /* Removed margin-bottom to ensure consistent spacing handled by baseItemStyles */
 `;
 
@@ -400,6 +422,28 @@ const AccordionNavLink = styled(NavLink)<{ $level: number }>`
   min-height: inherit;
 `;
 
+// Accordion header that's also a NavLink (for items with path + children)
+const AccordionNavLinkWrapper = styled(NavLink)<{ 
+  $theme: Theme; 
+  $level: number; 
+  $active: boolean; 
+  $isExpanded: boolean; 
+  $isDarkMode: boolean;
+  $hasExactActiveChild: boolean;
+}>`
+  ${baseItemStyles}
+  width: calc(100% - 16px);
+  cursor: pointer;
+  position: relative;
+  
+  /* Active states */
+  ${(props) => (props.$active || props.$hasExactActiveChild) && activeStyles}
+  
+  /* Ensure clickable even when child content expanded */
+  z-index: 10;
+  pointer-events: auto;
+`;
+
 const MenuButton = styled.button<{ $theme: Theme; $level: number; $active: boolean; $isDarkMode: boolean }>`
   ${baseItemStyles}
   width: calc(100% - 16px);
@@ -464,7 +508,10 @@ const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean
    * max-height is set to a large value to enable CSS transitions.
    * CSS cannot animate to 'auto' height, so we use a value large enough
    * to accommodate deeply nested navigation (supports ~25 items at 40px each).
+   * 
+   * CRITICAL: Set display:none when collapsed to prevent invisible overlay blocking clicks
    */
+  display: ${(props) => (props.$isExpanded ? 'block' : 'none')};
   max-height: ${(props) => (props.$isExpanded ? '2000px' : '0')};
   opacity: ${(props) => (props.$isExpanded ? 1 : 0)};
   transition: max-height 0.25s ease-out, opacity 0.2s ease;
@@ -475,6 +522,10 @@ const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean
   border-radius: 4px;
   margin-left: 8px;
   margin-right: 8px;
+  /* Ensure it doesn't block parent items */
+  pointer-events: ${(props) => (props.$isExpanded ? 'auto' : 'none')};
+  position: relative;
+  z-index: 1;
 `;
 
 const Badge = styled.span<{ $isDarkMode: boolean }>`
