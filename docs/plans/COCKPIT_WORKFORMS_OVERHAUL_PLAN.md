@@ -132,13 +132,13 @@ Based on industry research, our editor will embody:
 
 **Solution**:
 
-- [ ] **1.2.1** Create CockpitPage wrapper with mode toggle
+- [x] **1.2.1** Create CockpitPage wrapper with mode toggle ✅ (2026-02-04)
   - File: `frontend/src/pages/Cockpit/index.tsx` (new)
   - Two modes: "Dashboard" (widgets) and "Wizard" (guided actions)
   - Tab/toggle at top to switch modes
   - Remember last mode in localStorage
 
-- [ ] **1.2.2** Create SmartWizard component
+- [x] **1.2.2** Create SmartWizard component ✅ (2026-02-04)
   - File: `frontend/src/pages/Cockpit/SmartWizard.tsx` (new)
   - Heading: "What would you like to do today?"
   - Prominent search bar (reuse CommandBar)
@@ -152,14 +152,14 @@ Based on industry research, our editor will embody:
     📊 View Reports           → Analytics shortcuts
     ```
 
-- [ ] **1.2.3** Wire SmartWizard to real APIs
-  - Quick Actions: `GET /api/v1/workflows/forms/?is_quick_action_enabled=true`
+- [x] **1.2.3** Wire SmartWizard to real APIs ✅ (2026-02-04)
+  - Quick Actions: Uses `useQuickActions` context (GET /api/v1/workflows/forms/)
   - Entity suggestions: Based on recent activity
-  - Tasks: `GET /api/v1/workspace/tasks/my/`
+  - Tasks: Uses `useActionItems` context (GET /api/v1/workflows/action-items/)
 
-- [ ] **1.2.4** Rename Workspace.tsx to CockpitDashboard.tsx
-  - Move from `pages/Workspace.tsx` to `pages/Cockpit/CockpitDashboard.tsx`
-  - Update all imports
+- [x] **1.2.4** Rename Workspace.tsx to CockpitDashboard.tsx ✅ (2026-02-04)
+  - Created `pages/Cockpit/CockpitDashboard.tsx` (refactored from Workspace.tsx)
+  - Update all imports in App.tsx
 
 ---
 

@@ -64,7 +64,7 @@ import Fulfillments from './pages/Fulfillments';
 import InquiryTemplates from './pages/InquiryTemplates';
 import InquiryAnalytics from './pages/InquiryAnalytics';
 import OptionListsPage from './pages/Admin/OptionLists';
-import Workspace from './pages/Workspace';
+import CockpitPage from './pages/Cockpit';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
 import WorkFormsLayout from './pages/WorkForms';
@@ -236,7 +236,7 @@ const App: React.FC = () => {
                 <Route path="admin/option-lists" element={<OptionListsPage />} />
                 
                 {/* Cockpit (Command Center Dashboard) */}
-                <Route path="cockpit" element={<Workspace />} />
+                <Route path="cockpit" element={<CockpitPage />} />
                 <Route path="workspace" element={<Navigate to="/cockpit" replace />} />
               </Route>
             </Routes>
