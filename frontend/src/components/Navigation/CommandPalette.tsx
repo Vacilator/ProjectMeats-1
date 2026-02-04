@@ -66,7 +66,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     title: 'New Purchase Order',
     description: 'Create a purchase order',
     icon: <Plus size={16} />,
-    route: '/purchase-orders/new',
+    route: '/purchase-orders?action=create',
     color: 'rgb(59, 130, 246)',
   },
   {
@@ -74,7 +74,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     title: 'New Sales Order',
     description: 'Create a sales order',
     icon: <FileText size={16} />,
-    route: '/sales-orders/new',
+    route: '/sales-orders?action=create',
     color: 'rgb(34, 197, 94)',
   },
   {
@@ -82,7 +82,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     title: 'Add Supplier',
     description: 'Create a new supplier',
     icon: <Building2 size={16} />,
-    route: '/suppliers/new',
+    route: '/suppliers?action=create',
     color: 'rgb(168, 85, 247)',
   },
   {
@@ -90,23 +90,15 @@ const QUICK_ACTIONS: QuickAction[] = [
     title: 'Add Customer',
     description: 'Create a new customer',
     icon: <Users size={16} />,
-    route: '/customers/new',
+    route: '/customers?action=create',
     color: 'rgb(249, 115, 22)',
-  },
-  {
-    id: 'new-product',
-    title: 'Add Product',
-    description: 'Create a new product',
-    icon: <Package size={16} />,
-    route: '/products/new',
-    color: 'rgb(236, 72, 153)',
   },
   {
     id: 'new-carrier',
     title: 'Add Carrier',
     description: 'Create a new carrier',
     icon: <Truck size={16} />,
-    route: '/carriers/new',
+    route: '/carriers?action=create',
     color: 'rgb(20, 184, 166)',
   },
 ];

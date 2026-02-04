@@ -111,7 +111,7 @@ const defaultActions: QuickAction[] = [
     id: 'new_po',
     label: 'New Purchase Order',
     icon: <ShoppingCart size={16} />,
-    path: '/purchase-orders',
+    path: '/purchase-orders?action=create',
     shortcut: 'Alt + P',
     color: 'rgb(59, 130, 246)',
   },
@@ -119,7 +119,7 @@ const defaultActions: QuickAction[] = [
     id: 'new_so',
     label: 'New Sales Order',
     icon: <Package size={16} />,
-    path: '/sales-orders',
+    path: '/sales-orders?action=create',
     shortcut: 'Alt + S',
     color: 'rgb(34, 197, 94)',
   },
@@ -127,7 +127,7 @@ const defaultActions: QuickAction[] = [
     id: 'new_invoice',
     label: 'New Invoice',
     icon: <FileText size={16} />,
-    path: '/accounting/receivables/invoices',
+    path: '/accounting/receivables/invoices?action=create',
     shortcut: 'Alt + I',
     color: 'rgb(168, 85, 247)',
   },
@@ -135,7 +135,7 @@ const defaultActions: QuickAction[] = [
     id: 'new_customer',
     label: 'New Customer',
     icon: <Users size={16} />,
-    path: '/customers',
+    path: '/customers?action=create',
     shortcut: 'Alt + C',
     color: 'rgb(236, 72, 153)',
   },
@@ -173,10 +173,8 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({
     } else if (action.onClick) {
       action.onClick();
     } else if (action.path) {
-      // Add ?action=create for "New X" actions
-      const isCreateAction = action.label.toLowerCase().startsWith('new ');
-      const path = isCreateAction ? `${action.path}?action=create` : action.path;
-      navigate(path);
+      // Path already includes query params if needed
+      navigate(action.path);
     }
   };
 
