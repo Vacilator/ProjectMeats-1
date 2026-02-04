@@ -592,6 +592,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const isOpen = node !== null;
 
@@ -834,7 +835,6 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
   const renderFormStepConfig = () => {
     const fields = (formData.fields || []) as FormField[];
-    const [showTemplates, setShowTemplates] = useState(false);
     
     return (
       <FormSection>
