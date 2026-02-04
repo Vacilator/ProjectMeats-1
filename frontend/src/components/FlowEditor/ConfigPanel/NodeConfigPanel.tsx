@@ -15,7 +15,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2, Edit2, Check, GripVertical } from 'lucide-react';
 import { Node } from '@xyflow/react';
 
 // ============================================================================
@@ -471,6 +471,111 @@ const IconButton = styled.button`
   }
 `;
 
+const EditableFieldItem = styled.div<{ $isEditing: boolean }>`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: ${props => props.$isEditing ? 'rgb(var(--color-surface))' : 'rgb(var(--color-background))'};
+  border: 1px solid ${props => props.$isEditing ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+`;
+
+const FieldItemHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const DragHandle = styled.div`
+  color: rgb(var(--color-text-tertiary));
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  
+  &:active {
+    cursor: grabbing;
+  }
+`;
+
+const InlineInput = styled.input`
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const InlineSelect = styled.select`
+  padding: 6px 8px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const InlineCheckbox = styled.input`
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+`;
+
+const InlineLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+`;
+
+const FieldEditRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 120px 80px;
+  gap: 8px;
+  align-items: center;
+`;
+
+const FieldTemplate = styled.button`
+  padding: 8px 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  background: rgb(var(--color-background));
+  font-size: 12px;
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    background: rgb(var(--color-surface));
+  }
+`;
+
+const TemplatesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -485,6 +590,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
 
   const isOpen = node !== null;
 
@@ -626,6 +733,33 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   };
 
   // ============================================================================
+  // Field Templates
+  // ============================================================================
+  
+  const fieldTemplates = [
+    { label: 'Email Address', type: 'email', required: true, placeholder: 'user@example.com' },
+    { label: 'Phone Number', type: 'tel', required: false, placeholder: '(555) 123-4567' },
+    { label: 'Full Name', type: 'text', required: true, placeholder: 'John Doe' },
+    { label: 'Company Name', type: 'text', required: false, placeholder: 'Acme Corp' },
+    { label: 'Address', type: 'text', required: false, placeholder: '123 Main St' },
+    { label: 'Date of Birth', type: 'date', required: false, placeholder: '' },
+    { label: 'Comments', type: 'textarea', required: false, placeholder: 'Enter your comments...' },
+    { label: 'Agree to Terms', type: 'checkbox', required: true, placeholder: '' },
+  ];
+  
+  const addFieldFromTemplate = (template: typeof fieldTemplates[0]) => {
+    const fields = formData.fields || [];
+    const newField: FormField = {
+      id: `field_${Date.now()}`,
+      label: template.label,
+      type: template.type,
+      required: template.required,
+      placeholder: template.placeholder,
+    };
+    handleFieldChange('fields', [...fields, newField]);
+  };
+
+  // ============================================================================
   // Render Tab Content
   // ============================================================================
 
@@ -700,6 +834,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
   const renderFormStepConfig = () => {
     const fields = (formData.fields || []) as FormField[];
+    const [showTemplates, setShowTemplates] = useState(false);
     
     return (
       <FormSection>
@@ -727,34 +862,129 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           </CheckboxLabel>
         </FormField>
         
-        {/* Field list */}
-        {fields.length > 0 && (
+        {/* Field Templates */}
+        {showTemplates && (
           <FormField>
-            <FieldLabel>Fields ({fields.length})</FieldLabel>
-            {fields.map((field) => (
-              <FieldItem key={field.id}>
-                <FieldItemContent>
-                  <FieldItemLabel>{field.label}</FieldItemLabel>
-                  <FieldItemMeta>
-                    {field.type} {field.required && '• Required'}
-                  </FieldItemMeta>
-                </FieldItemContent>
-                <IconButton
-                  className="delete"
-                  onClick={() => handleRemoveField(field.id)}
-                  title="Remove field"
+            <FieldLabel>Quick Add from Templates</FieldLabel>
+            <TemplatesGrid>
+              {fieldTemplates.map((template, index) => (
+                <FieldTemplate
+                  key={index}
+                  onClick={() => {
+                    addFieldFromTemplate(template);
+                    setShowTemplates(false);
+                  }}
                 >
-                  <Trash2 size={14} />
-                </IconButton>
-              </FieldItem>
-            ))}
+                  {template.label}
+                </FieldTemplate>
+              ))}
+            </TemplatesGrid>
           </FormField>
         )}
         
-        <Button $variant="secondary" onClick={handleAddField}>
-          <Plus size={16} />
-          Add Field
-        </Button>
+        {/* Field list with inline editing */}
+        {fields.length > 0 && (
+          <FormField>
+            <FieldLabel>Fields ({fields.length})</FieldLabel>
+            {fields.map((field, index) => {
+              const isEditing = editingFieldId === field.id;
+              
+              return (
+                <EditableFieldItem key={field.id} $isEditing={isEditing}>
+                  {isEditing ? (
+                    <>
+                      <FieldEditRow>
+                        <InlineInput
+                          type="text"
+                          value={field.label}
+                          onChange={(e) => handleUpdateField(field.id, { label: e.target.value })}
+                          placeholder="Field label"
+                          autoFocus
+                        />
+                        <InlineSelect
+                          value={field.type}
+                          onChange={(e) => handleUpdateField(field.id, { type: e.target.value })}
+                        >
+                          <option value="text">Text</option>
+                          <option value="email">Email</option>
+                          <option value="tel">Phone</option>
+                          <option value="number">Number</option>
+                          <option value="date">Date</option>
+                          <option value="textarea">Text Area</option>
+                          <option value="select">Dropdown</option>
+                          <option value="checkbox">Checkbox</option>
+                          <option value="radio">Radio</option>
+                        </InlineSelect>
+                        <InlineLabel>
+                          <InlineCheckbox
+                            type="checkbox"
+                            checked={field.required}
+                            onChange={(e) => handleUpdateField(field.id, { required: e.target.checked })}
+                          />
+                          Required
+                        </InlineLabel>
+                      </FieldEditRow>
+                      <InlineInput
+                        type="text"
+                        value={field.placeholder || ''}
+                        onChange={(e) => handleUpdateField(field.id, { placeholder: e.target.value })}
+                        placeholder="Placeholder text (optional)"
+                      />
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <IconButton
+                          onClick={() => setEditingFieldId(null)}
+                          title="Done editing"
+                        >
+                          <Check size={14} />
+                        </IconButton>
+                      </div>
+                    </>
+                  ) : (
+                    <FieldItemHeader>
+                      <DragHandle>
+                        <GripVertical size={16} />
+                      </DragHandle>
+                      <FieldItemContent>
+                        <FieldItemLabel>{field.label}</FieldItemLabel>
+                        <FieldItemMeta>
+                          {field.type} {field.required && '• Required'}
+                          {field.placeholder && ` • "${field.placeholder}"`}
+                        </FieldItemMeta>
+                      </FieldItemContent>
+                      <IconButton
+                        onClick={() => setEditingFieldId(field.id)}
+                        title="Edit field"
+                      >
+                        <Edit2 size={14} />
+                      </IconButton>
+                      <IconButton
+                        className="delete"
+                        onClick={() => handleRemoveField(field.id)}
+                        title="Remove field"
+                      >
+                        <Trash2 size={14} />
+                      </IconButton>
+                    </FieldItemHeader>
+                  )}
+                </EditableFieldItem>
+              );
+            })}
+          </FormField>
+        )}
+        
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button $variant="secondary" onClick={handleAddField} style={{ flex: 1 }}>
+            <Plus size={16} />
+            Add Field
+          </Button>
+          <Button 
+            $variant="ghost" 
+            onClick={() => setShowTemplates(!showTemplates)}
+            title="Choose from templates"
+          >
+            {showTemplates ? 'Hide Templates' : 'Templates'}
+          </Button>
+        </div>
       </FormSection>
     );
   };
@@ -807,29 +1037,86 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           </Select>
         </FormField>
         
-        {/* Rule list */}
+        {/* Rule list with inline editing */}
         {rules.length > 0 && (
           <FormField>
             <FieldLabel>Rules ({rules.length})</FieldLabel>
-            {rules.map((rule) => (
-              <FieldItem key={rule.id}>
-                <FieldItemContent>
-                  <FieldItemLabel>
-                    {rule.field || 'Untitled Rule'}
-                  </FieldItemLabel>
-                  <FieldItemMeta>
-                    {rule.operator} {rule.value && `"${rule.value}"`}
-                  </FieldItemMeta>
-                </FieldItemContent>
-                <IconButton
-                  className="delete"
-                  onClick={() => handleRemoveRule(rule.id)}
-                  title="Remove rule"
-                >
-                  <Trash2 size={14} />
-                </IconButton>
-              </FieldItem>
-            ))}
+            {rules.map((rule) => {
+              const isEditing = editingRuleId === rule.id;
+              
+              return (
+                <EditableFieldItem key={rule.id} $isEditing={isEditing}>
+                  {isEditing ? (
+                    <>
+                      <InlineInput
+                        type="text"
+                        value={rule.field}
+                        onChange={(e) => handleUpdateRule(rule.id, { field: e.target.value })}
+                        placeholder="Field name (e.g., status, total, email)"
+                        autoFocus
+                      />
+                      <FieldEditRow>
+                        <InlineSelect
+                          value={rule.operator}
+                          onChange={(e) => handleUpdateRule(rule.id, { operator: e.target.value })}
+                        >
+                          <option value="equals">Equals</option>
+                          <option value="notEquals">Not Equals</option>
+                          <option value="contains">Contains</option>
+                          <option value="notContains">Does Not Contain</option>
+                          <option value="greaterThan">Greater Than</option>
+                          <option value="lessThan">Less Than</option>
+                          <option value="isEmpty">Is Empty</option>
+                          <option value="isNotEmpty">Is Not Empty</option>
+                        </InlineSelect>
+                        <InlineInput
+                          type="text"
+                          value={rule.value}
+                          onChange={(e) => handleUpdateRule(rule.id, { value: e.target.value })}
+                          placeholder="Value"
+                          disabled={rule.operator === 'isEmpty' || rule.operator === 'isNotEmpty'}
+                        />
+                      </FieldEditRow>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <IconButton
+                          onClick={() => setEditingRuleId(null)}
+                          title="Done editing"
+                        >
+                          <Check size={14} />
+                        </IconButton>
+                      </div>
+                    </>
+                  ) : (
+                    <FieldItemHeader>
+                      <DragHandle>
+                        <GripVertical size={16} />
+                      </DragHandle>
+                      <FieldItemContent>
+                        <FieldItemLabel>
+                          {rule.field || 'Untitled Rule'}
+                        </FieldItemLabel>
+                        <FieldItemMeta>
+                          {rule.operator} {rule.value && `"${rule.value}"`}
+                        </FieldItemMeta>
+                      </FieldItemContent>
+                      <IconButton
+                        onClick={() => setEditingRuleId(rule.id)}
+                        title="Edit rule"
+                      >
+                        <Edit2 size={14} />
+                      </IconButton>
+                      <IconButton
+                        className="delete"
+                        onClick={() => handleRemoveRule(rule.id)}
+                        title="Remove rule"
+                      >
+                        <Trash2 size={14} />
+                      </IconButton>
+                    </FieldItemHeader>
+                  )}
+                </EditableFieldItem>
+              );
+            })}
           </FormField>
         )}
         
