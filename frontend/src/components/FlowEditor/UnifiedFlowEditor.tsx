@@ -497,6 +497,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragNodeType, setDragNodeType] = useState<string | null>(null);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  
+  // Alignment guides state
+  const [alignmentGuides, setAlignmentGuides] = useState<{
+    horizontal: number[];
+    vertical: number[];
+  }>({ horizontal: [], vertical: [] });
+  
+  // Proximity detection state
+  const [nearbyNode, setNearbyNode] = useState<Node | null>(null);
 
   // ============================================================================
   // LocalStorage: Load favorites, recents, collapsed on mount
@@ -656,6 +665,44 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Drag & Drop Handlers
   // ============================================================================
   
+  // Helper: Find nearby node for auto-connect
+  const findNearbyNode = useCallback((position: { x: number; y: number }, threshold = 100) => {
+    for (const node of nodes) {
+      const dx = Math.abs(node.position.x - position.x);
+      const dy = Math.abs(node.position.y - position.y);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < threshold) {
+        return node;
+      }
+    }
+    return null;
+  }, [nodes]);
+  
+  // Helper: Detect alignment with existing nodes
+  const detectAlignment = useCallback((position: { x: number; y: number }, tolerance = 5) => {
+    const horizontalGuides: number[] = [];
+    const verticalGuides: number[] = [];
+    
+    nodes.forEach(node => {
+      // Check horizontal alignment (Y coordinate)
+      if (Math.abs(node.position.y - position.y) < tolerance) {
+        horizontalGuides.push(node.position.y);
+      }
+      
+      // Check vertical alignment (X coordinate)
+      if (Math.abs(node.position.x - position.x) < tolerance) {
+        verticalGuides.push(node.position.x);
+      }
+    });
+    
+    // Remove duplicates
+    return {
+      horizontal: Array.from(new Set(horizontalGuides)),
+      vertical: Array.from(new Set(verticalGuides)),
+    };
+  }, [nodes]);
+  
   const onDragStart = useCallback((event: React.DragEvent, nodeTypeId: string) => {
     event.dataTransfer.setData('application/reactflow-nodetype', nodeTypeId);
     event.dataTransfer.effectAllowed = 'move';
@@ -673,13 +720,36 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     // Update drag ghost position
     setDragPosition({ x: event.clientX, y: event.clientY });
-  }, []);
+    
+    // Detect alignment and proximity during drag
+    const reactFlowBounds = event.currentTarget.getBoundingClientRect();
+    const flowPosition = reactFlowInstance.screenToFlowPosition({
+      x: event.clientX - reactFlowBounds.left,
+      y: event.clientY - reactFlowBounds.top,
+    });
+    
+    // Snap to alignment
+    const snappedPosition = {
+      x: Math.round(flowPosition.x / 15) * 15,
+      y: Math.round(flowPosition.y / 15) * 15,
+    };
+    
+    // Detect alignment guides
+    const guides = detectAlignment(snappedPosition);
+    setAlignmentGuides(guides);
+    
+    // Detect nearby node for auto-connect
+    const nearby = findNearbyNode(snappedPosition);
+    setNearbyNode(nearby);
+  }, [reactFlowInstance, detectAlignment, findNearbyNode]);
   
   const onDragEnd = useCallback(() => {
     // Clear drag state
     setIsDragging(false);
     setDragNodeType(null);
     setDragPosition(null);
+    setAlignmentGuides({ horizontal: [], vertical: [] });
+    setNearbyNode(null);
   }, []);
 
   const onDrop = useCallback(
@@ -693,6 +763,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setIsDragging(false);
       setDragNodeType(null);
       setDragPosition(null);
+      setAlignmentGuides({ horizontal: [], vertical: [] });
 
       // Get React Flow bounds and calculate position
       const reactFlowBounds = event.currentTarget.getBoundingClientRect();
@@ -704,6 +775,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Snap to grid (15x15)
       position.x = Math.round(position.x / 15) * 15;
       position.y = Math.round(position.y / 15) * 15;
+      
+      // Check for nearby node to auto-connect
+      const nearby = findNearbyNode(position);
 
       const newNode: Node = {
         id: `node-${nodeIdCounter}`,
@@ -715,14 +789,31 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           ...getDefaultNodeData(type),
         },
       };
-
-      setNodes((nds) => nds.concat(newNode));
+      
+      const updatedNodes = nodes.concat(newNode);
+      setNodes(updatedNodes);
       setNodeIdCounter((prev) => prev + 1);
       
+      // Auto-connect to nearby node if found
+      let updatedEdges = edges;
+      if (nearby) {
+        const newEdge = {
+          id: `edge-${nearby.id}-${newNode.id}`,
+          source: nearby.id,
+          target: newNode.id,
+          type: 'custom',
+        };
+        updatedEdges = [...edges, newEdge];
+        setEdges(updatedEdges);
+      }
+      
+      // Clear nearby node state
+      setNearbyNode(null);
+      
       // Add to history
-      addToHistory(nodes.concat(newNode), edges);
+      addToHistory(updatedNodes, updatedEdges);
     },
-    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, addToHistory]
+    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, addToHistory, findNearbyNode, setEdges]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -1221,11 +1312,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* Drag Ghost Preview */}
       {isDragging && dragPosition && dragNodeType && (
         <DragGhost
-          style={{ left: dragPosition.x, top: dragPosition.y }}
+          style={{ 
+            left: dragPosition.x, 
+            top: dragPosition.y,
+            boxShadow: nearbyNode ? '0 0 0 3px rgba(var(--color-success), 0.5)' : '0 8px 24px rgba(0, 0, 0, 0.2)',
+          }}
           $color={NODE_TYPE_REGISTRY.find(n => n.id === dragNodeType)?.color}
         >
           {NODE_TYPE_REGISTRY.find(n => n.id === dragNodeType)?.icon}
           {NODE_TYPE_REGISTRY.find(n => n.id === dragNodeType)?.name}
+          {nearbyNode && <span style={{ marginLeft: '8px' }}>🔗</span>}
         </DragGhost>
       )}
 
