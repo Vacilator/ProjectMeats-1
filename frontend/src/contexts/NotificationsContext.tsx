@@ -129,28 +129,52 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 const API_BASE = '/api/v1/workflows';
 
 async function fetchNotificationsAPI(): Promise<Notification[]> {
-  const response = await fetch(`${API_BASE}/notifications/`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${localStorage.getItem('authToken')}`,
-    },
-  });
-  if (!response.ok) throw new Error('Failed to fetch notifications');
-  const data = await response.json();
-  // Handle both paginated response {results: []} and bare array
-  return Array.isArray(data) ? data : (data.results || []);
+  try {
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) return []; // Silently return empty if not authenticated
+    
+    const response = await fetch(`${API_BASE}/notifications/`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${authToken}`,
+      },
+    });
+    
+    // Silently return empty array for 401/404 (feature not available)
+    if (response.status === 401 || response.status === 404) return [];
+    if (!response.ok) throw new Error('Failed to fetch notifications');
+    
+    const data = await response.json();
+    // Handle both paginated response {results: []} and bare array
+    return Array.isArray(data) ? data : (data.results || []);
+  } catch (error) {
+    console.warn('[NotificationsContext] Notifications API not available:', error);
+    return []; // Graceful degradation
+  }
 }
 
 async function fetchUnreadCountAPI(): Promise<number> {
-  const response = await fetch(`${API_BASE}/notifications/unread-count/`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${localStorage.getItem('authToken')}`,
-    },
-  });
-  if (!response.ok) throw new Error('Failed to fetch unread count');
-  const data = await response.json();
-  return data.count;
+  try {
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) return 0; // Silently return 0 if not authenticated
+    
+    const response = await fetch(`${API_BASE}/notifications/unread-count/`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${authToken}`,
+      },
+    });
+    
+    // Silently return 0 for 401/404 (feature not available)
+    if (response.status === 401 || response.status === 404) return 0;
+    if (!response.ok) throw new Error('Failed to fetch unread count');
+    
+    const data = await response.json();
+    return data.count;
+  } catch (error) {
+    console.warn('[NotificationsContext] Unread count API not available:', error);
+    return 0; // Graceful degradation
+  }
 }
 
 async function markAsReadAPI(id: string): Promise<void> {
@@ -189,36 +213,72 @@ async function dismissNotificationAPI(id: string): Promise<void> {
 }
 
 async function fetchActionItemsAPI(): Promise<ActionItem[]> {
-  const response = await fetch(`${API_BASE}/action-items/`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${localStorage.getItem('authToken')}`,
-    },
-  });
-  if (!response.ok) throw new Error('Failed to fetch action items');
-  return response.json();
+  try {
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) return [];
+    
+    const response = await fetch(`${API_BASE}/action-items/`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${authToken}`,
+      },
+    });
+    
+    if (response.status === 401 || response.status === 404) return [];
+    if (!response.ok) throw new Error('Failed to fetch action items');
+    return response.json();
+  } catch (error) {
+    console.warn('[NotificationsContext] Action items API not available:', error);
+    return [];
+  }
 }
 
 async function fetchActionItemCountsAPI(): Promise<ActionItemCounts> {
-  const response = await fetch(`${API_BASE}/action-items/counts/`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${localStorage.getItem('authToken')}`,
-    },
-  });
-  if (!response.ok) throw new Error('Failed to fetch action item counts');
-  return response.json();
+  try {
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) return { pending: 0, overdue: 0, completed_today: 0 };
+    
+    const response = await fetch(`${API_BASE}/action-items/counts/`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${authToken}`,
+      },
+    });
+    
+    if (response.status === 401 || response.status === 404) {
+      return { pending: 0, overdue: 0, completed_today: 0 };
+    }
+    if (!response.ok) throw new Error('Failed to fetch action item counts');
+    return response.json();
+  } catch (error) {
+    console.warn('[NotificationsContext] Action item counts API not available:', error);
+    return { pending: 0, overdue: 0, completed_today: 0 };
+  }
 }
 
 async function fetchPreferencesAPI(): Promise<NotificationPreferences> {
-  const response = await fetch(`${API_BASE}/notification-preferences/`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${localStorage.getItem('authToken')}`,
-    },
-  });
-  if (!response.ok) throw new Error('Failed to fetch preferences');
-  return response.json();
+  try {
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      return { email_enabled: true, push_enabled: false, action_item_reminders: true };
+    }
+    
+    const response = await fetch(`${API_BASE}/notification-preferences/`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${authToken}`,
+      },
+    });
+    
+    if (response.status === 401 || response.status === 404) {
+      return { email_enabled: true, push_enabled: false, action_item_reminders: true };
+    }
+    if (!response.ok) throw new Error('Failed to fetch preferences');
+    return response.json();
+  } catch (error) {
+    console.warn('[NotificationsContext] Preferences API not available:', error);
+    return { email_enabled: true, push_enabled: false, action_item_reminders: true };
+  }
 }
 
 async function updatePreferencesAPI(prefs: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
@@ -332,7 +392,8 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
       setActionItems(items);
       setActionItemCounts(counts);
     } catch (err) {
-      console.error('Failed to fetch action items:', err);
+      // Silently fail - action items are optional feature
+      console.warn('[NotificationsContext] Action items not available');
     }
   }, [isAuthenticated]);
   
@@ -356,7 +417,10 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
     if (isAuthenticated) {
       fetchNotifications();
       fetchActionItems();
-      fetchPreferencesAPI().then(setPreferences).catch(console.error);
+      fetchPreferencesAPI().then(setPreferences).catch(() => {
+        // Silently fail - preferences are optional
+        console.warn('[NotificationsContext] Preferences API not available');
+      });
       setPollingActive(true);
     } else {
       setNotifications([]);
@@ -380,7 +444,8 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({
           await fetchNotifications();
         }
       } catch (err) {
-        console.error('Polling error:', err);
+        // Silently fail polling - it's not critical
+        // console.warn('[NotificationsContext] Polling failed');
       }
     }, pollingInterval);
     
