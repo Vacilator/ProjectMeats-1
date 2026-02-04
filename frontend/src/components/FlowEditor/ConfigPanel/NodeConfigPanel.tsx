@@ -836,6 +836,10 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   const renderFormStepConfig = () => {
     const fields = (formData.fields || []) as FormField[];
     
+    // Safe entity type access with fallback
+    const entityType = formData.entityType || '';
+    const entityTypeDisplay = entityType.replace('_', ' ');
+    
     return (
       <>
         <FormSection>
@@ -847,8 +851,14 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
               <HelpIcon size={14} title="Select which business object this form creates or updates" />
             </FieldLabel>
             <Select
-              value={formData.entityType || ''}
-              onChange={(e) => handleFieldChange('entityType', e.target.value)}
+              value={entityType}
+              onChange={(e) => {
+                try {
+                  handleFieldChange('entityType', e.target.value);
+                } catch (error) {
+                  console.error('[NodeConfigPanel] Error changing entity type:', error);
+                }
+              }}
             >
               <option value="">Select entity type...</option>
               <option value="supplier">Supplier</option>
@@ -867,7 +877,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             </FieldHelp>
           </FormField>
 
-          {formData.entityType && (
+          {entityType && (
             <FormField>
               <FieldLabel>
                 Load Entity Fields
@@ -877,14 +887,14 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                 $variant="secondary" 
                 onClick={() => {
                   // Placeholder: In production, fetch from API
-                  alert(`Would fetch fields for entity type: ${formData.entityType}\n\nAPI endpoint: /api/admin/entities/${formData.entityType}/fields/`);
+                  alert(`Would fetch fields for entity type: ${entityTypeDisplay}\n\nAPI endpoint: /api/admin/entities/${entityType}/fields/`);
                 }}
               >
                 <Download size={16} />
                 Load Schema Fields
               </Button>
               <FieldHelp>
-                Import standard fields from the {formData.entityType.replace('_', ' ')} entity
+                Import standard fields from the {entityTypeDisplay} entity
               </FieldHelp>
             </FormField>
           )}
