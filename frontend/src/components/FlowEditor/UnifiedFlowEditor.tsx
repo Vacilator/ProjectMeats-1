@@ -886,17 +886,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const availableNodeTypes = useMemo(() => {
     if (activeEditorMode === 'wizard') {
       // Wizard mode: Limited to basic form creation nodes
-      return Array.from(NODE_TYPE_REGISTRY.values()).filter(nodeType => 
+      return Object.values(NODE_TYPE_REGISTRY).filter(nodeType => 
         ['formStep', 'formField', 'conditionIf', 'actionEmail', 'endSuccess'].includes(nodeType.id)
       );
     } else if (activeEditorMode === 'visual') {
       // Visual mode: Most nodes except advanced features
-      return Array.from(NODE_TYPE_REGISTRY.values()).filter(nodeType => 
+      return Object.values(NODE_TYPE_REGISTRY).filter(nodeType => 
         !['customCode', 'apiRequest', 'subflow'].includes(nodeType.id)
       );
     } else {
       // Expert mode: All nodes available
-      return Array.from(NODE_TYPE_REGISTRY.values());
+      return Object.values(NODE_TYPE_REGISTRY);
     }
   }, [activeEditorMode]);
 

@@ -328,7 +328,7 @@ const FormsFlowsCatalog: React.FC = () => {
   const { data: forms, isLoading } = useQuery<TenantForm[]>({
     queryKey: ['tenant-forms'],
     queryFn: async () => {
-      const response = await adminClient.get('/admin/workflows/forms/');
+      const response = await adminClient.get('/api/v1/workflows/forms/');
       return response.data;
     },
   });
