@@ -28,12 +28,12 @@ export interface NavigationItem {
 
 export const navigation: NavigationItem[] = [
   {
-    label: 'Workspace',
-    icon: '💼',
+    label: 'Cockpit',
+    icon: '🎯',
     children: [
       {
-        label: 'Cockpit',
-        icon: '🎯',
+        label: 'Dashboard',
+        icon: '📊',
         path: '/cockpit',
       },
       {
