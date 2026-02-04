@@ -291,7 +291,7 @@ export const WorkFormsEditor: React.FC = () => {
   const { data: existingForm, isLoading: isLoadingForm } = useQuery<TenantForm>({
     queryKey: ['tenant-form', id],
     queryFn: async () => {
-      const response = await adminClient.get(`/admin/workflows/forms/${id}/`);
+      const response = await adminClient.get(`/api/v1/workflows/forms/${id}/`);
       return response.data;
     },
     enabled: !!id,
@@ -355,11 +355,11 @@ export const WorkFormsEditor: React.FC = () => {
 
       if (id) {
         // Update existing
-        const response = await adminClient.put(`/admin/workflows/forms/${id}/`, payload);
+        const response = await adminClient.put(`/api/v1/workflows/forms/${id}/`, payload);
         return response.data;
       } else {
         // Create new
-        const response = await adminClient.post('/admin/workflows/forms/', payload);
+        const response = await adminClient.post('/api/v1/workflows/forms/', payload);
         return response.data;
       }
     },
@@ -401,7 +401,7 @@ export const WorkFormsEditor: React.FC = () => {
       if (!id) {
         throw new Error('Cannot publish unsaved form');
       }
-      const response = await adminClient.patch(`/admin/workflows/forms/${id}/`, {
+      const response = await adminClient.patch(`/api/v1/workflows/forms/${id}/`, {
         status: 'active',
       });
       return response.data;
