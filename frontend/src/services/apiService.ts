@@ -177,9 +177,11 @@ apiClient.interceptors.response.use(
         console.error('[API] Max retry attempts reached, redirecting to login');
         clearTokens();
         localStorage.removeItem('user');
-        localStorage.removeItem('tenantId');
-        localStorage.removeItem('tenantName');
-        localStorage.removeItem('tenantSlug');
+        // KEEP tenant context for re-login - user should see same tenant after re-auth
+        // This prevents unexpected tenant switching mid-session
+        // localStorage.removeItem('tenantId');
+        // localStorage.removeItem('tenantName');
+        // localStorage.removeItem('tenantSlug');
         window.location.href = '/login';
         return Promise.reject(error);
       }
@@ -216,9 +218,11 @@ apiClient.interceptors.response.use(
           // Refresh failed, redirect to login
           clearTokens();
           localStorage.removeItem('user');
-          localStorage.removeItem('tenantId');
-          localStorage.removeItem('tenantName');
-          localStorage.removeItem('tenantSlug');
+          // KEEP tenant context for re-login - user should see same tenant after re-auth
+          // This prevents unexpected tenant switching mid-session
+          // localStorage.removeItem('tenantId');
+          // localStorage.removeItem('tenantName');
+          // localStorage.removeItem('tenantSlug');
           window.location.href = '/login';
           return Promise.reject(refreshError);
         } finally {
