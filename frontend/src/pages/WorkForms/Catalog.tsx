@@ -333,13 +333,29 @@ const FormsFlowsCatalog: React.FC = () => {
     queryKey: ['tenant-forms'],
     queryFn: async () => {
       const response = await adminClient.get('/api/v1/workflows/forms/');
-      return response.data;
+      // Handle both paginated and non-paginated responses
+      const data = response.data;
+      // If paginated response with results array
+      if (data && typeof data === 'object' && 'results' in data) {
+        return data.results;
+      }
+      // If direct array response
+      if (Array.isArray(data)) {
+        return data;
+      }
+      // Fallback to empty array
+      console.warn('[Catalog] Unexpected API response format:', data);
+      return [];
     },
   });
 
   // Filter forms based on search and filter
   const filteredForms = React.useMemo(() => {
-    if (!forms) return [];
+    // Safety check: ensure forms is an array
+    if (!forms || !Array.isArray(forms)) {
+      console.warn('[Catalog] Forms is not an array:', forms);
+      return [];
+    }
     
     let filtered = forms;
     
