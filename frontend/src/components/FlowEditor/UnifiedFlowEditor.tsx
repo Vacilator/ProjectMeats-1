@@ -23,7 +23,6 @@ import styled from 'styled-components';
 import {
   ReactFlow,
   MiniMap,
-  Controls,
   Background,
   useNodesState,
   useEdgesState,
@@ -1085,8 +1084,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         snapGrid={[15, 15]}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-        <Controls />
-        <MiniMap />
+        <MiniMap 
+          nodeColor={(node) => {
+            const registry = NODE_TYPE_REGISTRY.find(n => n.id === node.type);
+            return registry?.color || '#94a3b8';
+          }}
+          maskColor="rgba(0, 0, 0, 0.1)"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            border: '1px solid rgb(var(--color-border))',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          }}
+          pannable
+          zoomable
+        />
         
         {/* Empty State */}
         {nodes.length === 0 && (
