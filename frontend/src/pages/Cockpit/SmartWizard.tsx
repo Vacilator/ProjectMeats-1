@@ -428,7 +428,7 @@ export const SmartWizard: React.FC = () => {
   };
   
   // Get priority tasks (top 5)
-  const priorityTasks = actionItems
+  const priorityTasks = (actionItems || [])
     .filter(item => item.status !== 'completed')
     .slice(0, 5);
   
