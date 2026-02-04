@@ -1,11 +1,11 @@
 /**
- * Forms & Flows Layout Component
+ * WorkForms Layout Component
  * 
- * Parent layout for the Forms & Flows section with sub-navigation tabs.
- * Implements Phase 1 & 2 of the Forms & Flows Enhancement Plan.
+ * Parent layout for the WorkForms section with sub-navigation tabs.
+ * Implements Phase 1 of the Cockpit & WorkForms Enhancement Plan.
  * 
  * Created: 2026-02-03
- * Updated: 2026-02-03 - Phase 2: Connected badge counts
+ * Updated: 2026-02-04 - Renamed from Forms & Flows to WorkForms
  * 
  * Features:
  * - Sub-navigation tabs (My Tasks, In Progress, Catalog, History)
@@ -34,10 +34,10 @@ interface TabItem {
 // ============================================================================
 
 const TABS: TabItem[] = [
-  { path: '/forms-flows/tasks', label: 'My Tasks', icon: <CheckSquare size={18} />, badgeKey: 'actionRequired' },
-  { path: '/forms-flows/in-progress', label: 'In Progress', icon: <Clock size={18} /> },
-  { path: '/forms-flows/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
-  { path: '/forms-flows/history', label: 'History', icon: <History size={18} /> },
+  { path: '/workforms/tasks', label: 'My Tasks', icon: <CheckSquare size={18} />, badgeKey: 'actionRequired' },
+  { path: '/workforms/in-progress', label: 'In Progress', icon: <Clock size={18} /> },
+  { path: '/workforms/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
+  { path: '/workforms/history', label: 'History', icon: <History size={18} /> },
 ];
 
 // ============================================================================
@@ -184,7 +184,7 @@ const Content = styled.main`
 // Component
 // ============================================================================
 
-const FormsFlowsLayout: React.FC = () => {
+const WorkFormsLayout: React.FC = () => {
   const location = useLocation();
   const { counts } = useActionItems();
   
@@ -204,7 +204,7 @@ const FormsFlowsLayout: React.FC = () => {
             <FileText size={20} />
           </HeaderIcon>
           <div>
-            <HeaderTitle>Forms & Flows</HeaderTitle>
+            <HeaderTitle>WorkForms</HeaderTitle>
             <HeaderSubtitle>Manage your workflow tasks and form submissions</HeaderSubtitle>
           </div>
         </HeaderLeft>
@@ -234,4 +234,4 @@ const FormsFlowsLayout: React.FC = () => {
   );
 };
 
-export default FormsFlowsLayout;
+export default WorkFormsLayout;

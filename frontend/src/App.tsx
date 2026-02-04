@@ -66,11 +66,11 @@ import InquiryAnalytics from './pages/InquiryAnalytics';
 import OptionListsPage from './pages/Admin/OptionLists';
 import Workspace from './pages/Workspace';
 import { NotificationPreferences } from './pages/Settings/index';
-// Forms & Flows pages - Phase 1 Enhancement
-import FormsFlowsLayout from './pages/FormsFlows';
-import FormsFlowsCatalog from './pages/FormsFlows/Catalog';
-import FormsFlowsInProgress from './pages/FormsFlows/InProgress';
-import FormsFlowsHistory from './pages/FormsFlows/History';
+// WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
+import WorkFormsLayout from './pages/WorkForms';
+import WorkFormsCatalog from './pages/WorkForms/Catalog';
+import WorkFormsInProgress from './pages/WorkForms/InProgress';
+import WorkFormsHistory from './pages/WorkForms/History';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -212,31 +212,32 @@ const App: React.FC = () => {
                 <Route path="inquiries/analytics" element={<InquiryAnalytics />} />
                 <Route path="fulfillments" element={<Fulfillments />} />
                 
-                {/* Forms & Flows (replaces Workflows) */}
-                <Route path="forms-flows" element={<FormsFlowsLayout />}>
-                  <Route index element={<Navigate to="/forms-flows/tasks" replace />} />
+                {/* WorkForms (consolidated forms + workflows) */}
+                <Route path="workforms" element={<WorkFormsLayout />}>
+                  <Route index element={<Navigate to="/workforms/tasks" replace />} />
                   <Route path="tasks" element={<MyTasks />} />
-                  <Route path="in-progress" element={<FormsFlowsInProgress />} />
-                  <Route path="catalog" element={<FormsFlowsCatalog />} />
-                  <Route path="history" element={<FormsFlowsHistory />} />
+                  <Route path="in-progress" element={<WorkFormsInProgress />} />
+                  <Route path="catalog" element={<WorkFormsCatalog />} />
+                  <Route path="history" element={<WorkFormsHistory />} />
                 </Route>
                 
-                {/* Legacy Workflows routes - redirect to Forms & Flows */}
-                <Route path="workflows" element={<Navigate to="/forms-flows/catalog" replace />} />
+                {/* Legacy routes - redirect to WorkForms */}
+                <Route path="forms-flows/*" element={<Navigate to="/workforms" replace />} />
+                <Route path="workflows" element={<Navigate to="/workforms/catalog" replace />} />
                 <Route path="workflows/monitor" element={<WorkflowMonitor />} />
                 <Route path="workflows/run/:runId" element={<WorkflowRunner />} />
                 <Route path="workflows/details/:runId" element={<WorkflowExecutionDetails />} />
                 
                 {/* Form Submissions */}
                 <Route path="my-submissions" element={<MySubmissions />} />
-                <Route path="my-tasks" element={<Navigate to="/forms-flows/tasks" replace />} />
+                <Route path="my-tasks" element={<Navigate to="/workforms/tasks" replace />} />
                 
                 {/* Admin */}
                 <Route path="admin/option-lists" element={<OptionListsPage />} />
                 
-                {/* Workspace (Cockpit Command Center) */}
-                <Route path="workspace" element={<Workspace />} />
-                <Route path="cockpit" element={<Navigate to="/workspace" replace />} />
+                {/* Cockpit (Command Center Dashboard) */}
+                <Route path="cockpit" element={<Workspace />} />
+                <Route path="workspace" element={<Navigate to="/cockpit" replace />} />
               </Route>
             </Routes>
             {/* Form Submission Modal - rendered at app level */}

@@ -4,10 +4,10 @@
  * Defines the main navigation structure for the application.
  * This is the central location for managing navigation items.
  * 
- * Updated: 2026-02-03 - Phase 1 Forms & Flows Enhancement
- * - Renamed "Dashboard" to "Cockpit"
- * - Renamed "Call Log" to "Calls"
- * - Moved "Workflows" under "Workspace" as "Forms & Flows"
+ * Updated: 2026-02-04 - Phase 1 Cockpit & WorkForms Enhancement
+ * - Changed Cockpit path from /workspace to /cockpit
+ * - Renamed "Forms & Flows" to "WorkForms"
+ * - Updated all paths from /forms-flows to /workforms
  * - Added badge support for action item counts
  */
 
@@ -34,7 +34,7 @@ export const navigation: NavigationItem[] = [
       {
         label: 'Cockpit',
         icon: '🎯',
-        path: '/workspace',
+        path: '/cockpit',
       },
       {
         label: 'Calls',
@@ -47,31 +47,31 @@ export const navigation: NavigationItem[] = [
         path: '/reports',
       },
       {
-        label: 'Forms & Flows',
+        label: 'WorkForms',
         icon: '📋',
-        path: '/forms-flows',
+        path: '/workforms',
         badgeKey: 'actionRequired',
         children: [
           {
             label: 'My Tasks',
             icon: '✅',
-            path: '/forms-flows/tasks',
+            path: '/workforms/tasks',
             badgeKey: 'actionRequired',
           },
           {
             label: 'In Progress',
             icon: '⏳',
-            path: '/forms-flows/in-progress',
+            path: '/workforms/in-progress',
           },
           {
             label: 'Catalog',
             icon: '📚',
-            path: '/forms-flows/catalog',
+            path: '/workforms/catalog',
           },
           {
             label: 'History',
             icon: '📜',
-            path: '/forms-flows/history',
+            path: '/workforms/history',
           },
         ],
       },
