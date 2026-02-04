@@ -21,6 +21,8 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import Editor from '@monaco-editor/react';
+import { useQuery } from '@tanstack/react-query';
+import { adminClient } from '../../services/apiService';
 import {
   ReactFlow,
   MiniMap,
@@ -952,6 +954,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [selectedFormStep, setSelectedFormStep] = useState<Node | null>(null);
   const [editingField, setEditingField] = useState<any | null>(null);
   
+  // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
+  const { data: tenantLists = [] } = useQuery({
+    queryKey: ['workflows', 'tenant-lists'],
+    queryFn: async () => {
+      const response = await adminClient.get('/api/v1/workflows/lists/');
+      return response.data.results || response.data || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: formStepModalOpen || !!editingField, // Only fetch when needed
+  });
+  
   // Drag-drop state for ghost preview and smart snapping
   const [isDragging, setIsDragging] = useState(false);
   const [dragNodeType, setDragNodeType] = useState<string | null>(null);
@@ -1819,6 +1832,35 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setSelectedFormStep(null);
   }, [selectedFormStep, handleNodeUpdate]);
   
+  // Get previous step fields for conditional logic
+  const getPreviousStepFields = useCallback((currentNodeId: string) => {
+    const allFields: any[] = [];
+    
+    // Find all FormStep nodes before the current one
+    const currentNode = nodes.find(n => n.id === currentNodeId);
+    if (!currentNode) return allFields;
+    
+    // Simple heuristic: nodes with lower Y position are "before" current node
+    const previousNodes = nodes.filter(n => 
+      n.type === 'formStep' && 
+      n.id !== currentNodeId &&
+      n.position.y < currentNode.position.y
+    );
+    
+    // Extract fields from previous FormStep nodes
+    previousNodes.forEach(node => {
+      const fields = node.data.fields || [];
+      fields.forEach((field: any) => {
+        allFields.push({
+          ...field,
+          stepTitle: node.data.stepTitle || node.data.label || 'Unnamed Step',
+        });
+      });
+    });
+    
+    return allFields;
+  }, [nodes]);
+  
   const handleAddField = useCallback(() => {
     // Create new blank field and open field editor
     const newField = {
@@ -2559,7 +2601,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           }}
           onEditField={handleEditField}
           onAddField={handleAddField}
-          availableFields={[]} // TODO: Get previous step fields
+          availableFields={getPreviousStepFields(selectedFormStep.id)}
         />
       )}
       
@@ -2570,7 +2612,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           onChange={handleFieldUpdate}
           onClose={() => setEditingField(null)}
           availableFields={selectedFormStep?.data?.fields || []}
-          tenantLists={[]} // TODO: Fetch from API
+          tenantLists={tenantLists}
         />
       )}
     </EditorContainer>
