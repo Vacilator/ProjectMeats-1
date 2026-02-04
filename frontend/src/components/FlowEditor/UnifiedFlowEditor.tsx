@@ -54,6 +54,8 @@ import {
 import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { NodeConfigPanel } from './ConfigPanel';
+import { TemplateSelector } from './templates/TemplateSelector';
+import { FlowTemplate } from './templates/flowTemplates';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -916,6 +918,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   
   // ============================================================================
+  // Template Selector State (Phase 2.5 Integration)
+  // ============================================================================
+  
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  
+  // ============================================================================
   // Wizard Mode State (Phase 2.2 Batch 3)
   // ============================================================================
   
@@ -1737,6 +1745,44 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
 
   // ============================================================================
+  // Template Selection Handler (Phase 2.5 Integration)
+  // ============================================================================
+  
+  const handleTemplateSelect = useCallback((template: FlowTemplate) => {
+    console.log('[Template] Selected:', template.name);
+    
+    // Load template nodes and edges into canvas
+    setNodes(template.nodes);
+    setEdges(template.edges);
+    
+    // Reset history with template as initial state
+    const newHistory: HistoryState[] = [{
+      nodes: template.nodes,
+      edges: template.edges
+    }];
+    setHistory(newHistory);
+    setHistoryIndex(0);
+    
+    // Update node ID counter based on loaded nodes
+    const maxId = Math.max(
+      0,
+      ...template.nodes.map(n => {
+        const match = n.id.match(/node-(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+    );
+    setNodeIdCounter(maxId + 1);
+    
+    // Close modal
+    setIsTemplateModalOpen(false);
+    
+    // Fit view to show full template
+    setTimeout(() => {
+      reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+    }, 100);
+  }, [setNodes, setEdges, reactFlowInstance]);
+
+  // ============================================================================
   // Filter Nodes by Search Query
   // ============================================================================
   
@@ -1944,6 +1990,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* Toolbar */}
       {!readOnly && (
         <Toolbar>
+          <ToolbarButton 
+            onClick={() => setIsTemplateModalOpen(true)}
+            title="Browse Templates"
+            style={{ fontWeight: 600, color: 'rgb(var(--color-primary))' }}
+          >
+            <Sparkles size={14} style={{ marginRight: '4px' }} />
+            Use Template
+          </ToolbarButton>
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
           <ToolbarButton 
             onClick={undo} 
             disabled={historyIndex === 0}
@@ -2354,6 +2409,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onClose={() => setSelectedNode(null)}
         onUpdate={handleNodeUpdate}
         onTest={handleNodeTest}
+      />
+      
+      {/* Template Selector Modal (Phase 2.5 Integration) */}
+      <TemplateSelector
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        onSelect={handleTemplateSelect}
       />
     </EditorContainer>
   );

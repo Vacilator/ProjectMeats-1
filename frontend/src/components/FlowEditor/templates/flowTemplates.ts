@@ -1448,3 +1448,53 @@ export const CATEGORY_ICONS: Record<TemplateCategory, string> = {
   orders: '📦',
   documents: '📄',
 };
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Get popular templates (sorted by popularity score)
+ */
+export function getPopularTemplates(count: number = 6): FlowTemplate[] {
+  return [...FLOW_TEMPLATES]
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, count);
+}
+
+/**
+ * Get featured template (highest popularity)
+ */
+export function getFeaturedTemplate(): FlowTemplate {
+  return FLOW_TEMPLATES.reduce((prev, current) => 
+    current.popularity > prev.popularity ? current : prev
+  );
+}
+
+/**
+ * Search templates by name, description, or tags
+ */
+export function searchTemplates(query: string): FlowTemplate[] {
+  const lowerQuery = query.toLowerCase().trim();
+  if (!lowerQuery) return FLOW_TEMPLATES;
+  
+  return FLOW_TEMPLATES.filter(template =>
+    template.name.toLowerCase().includes(lowerQuery) ||
+    template.description.toLowerCase().includes(lowerQuery) ||
+    template.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
+  );
+}
+
+/**
+ * Get templates by category
+ */
+export function getTemplatesByCategory(category: TemplateCategory): FlowTemplate[] {
+  return FLOW_TEMPLATES.filter(template => template.category === category);
+}
+
+/**
+ * Get templates by difficulty
+ */
+export function getTemplatesByDifficulty(difficulty: TemplateDifficulty): FlowTemplate[] {
+  return FLOW_TEMPLATES.filter(template => template.difficulty === difficulty);
+}
