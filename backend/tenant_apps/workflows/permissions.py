@@ -217,7 +217,7 @@ class WorkFormPermissionHelper:
             'allowed_modes': ['wizard', 'visual', 'expert'],
             'allowed_node_categories': [
                 'trigger', 'form', 'logic', 'action', 
-                'wait', 'document', 'utility'
+                'wait', 'document', 'utility', 'terminal'
             ],
             'can_access_system_templates': True,
             'can_create_global_templates': True,
@@ -240,7 +240,7 @@ class WorkFormPermissionHelper:
                 'allowed_modes': ['wizard', 'visual', 'expert'],
                 'allowed_node_categories': [
                     'trigger', 'form', 'logic', 'action',
-                    'wait', 'document', 'utility'
+                    'wait', 'document', 'utility', 'terminal'
                 ],
                 'can_access_system_templates': True,
                 'can_create_global_templates': True,
@@ -259,7 +259,7 @@ class WorkFormPermissionHelper:
                 'allowed_modes': ['wizard', 'visual'],
                 'allowed_node_categories': [
                     'trigger', 'form', 'logic', 'action',
-                    'wait', 'document', 'utility'
+                    'wait', 'document', 'utility', 'terminal'
                 ],
                 'can_access_system_templates': True,
                 'can_create_global_templates': False,
