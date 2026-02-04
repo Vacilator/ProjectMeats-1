@@ -2,21 +2,23 @@
  * Quick Stats Widget
  * 
  * Displays key performance metrics in a compact grid.
- * Shows today's numbers: orders, revenue, shipments, etc.
+ * Shows business stats: orders, revenue, customers, suppliers.
  * 
  * Features:
- * - Real-time stat updates
- * - Trend indicators
- * - Color-coded status
+ * - Real-time stat updates from backend API
+ * - Auto-refresh every 5 minutes
+ * - Loading and error states
+ * 
+ * Updated: 2026-02-04 - Phase 1.3 - Connected to real API
  * 
  * Theme Compliance:
  * - Uses CSS custom properties
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import styled from 'styled-components';
-import { BarChart3, TrendingUp, TrendingDown, Package, DollarSign, Truck, Users } from 'lucide-react';
+import { BarChart3, Package, DollarSign, Users, Building } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
-import axios from 'axios';
+import { useCockpitStats } from '../../hooks/useCockpitStats';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -26,15 +28,12 @@ interface StatItem {
   id: string;
   label: string;
   value: string | number;
-  change?: number;
-  changeLabel?: string;
   icon: React.ReactNode;
   color: string;
 }
 
 export interface QuickStatsWidgetProps {
-  tenantId?: string;
-  refreshInterval?: number;
+  // Props for potential future customization
 }
 
 // ============================================================================
@@ -51,7 +50,7 @@ const StatCard = styled.div<{ $color: string }>`
   display: flex;
   flex-direction: column;
   padding: 12px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-md, 8px);
   background: rgb(var(--color-background));
   border: 1px solid rgb(var(--color-border));
 `;
@@ -69,7 +68,7 @@ const StatIconWrapper = styled.div<{ $color: string }>`
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-sm, 4px);
   background: ${props => props.$color}20;
   color: ${props => props.$color};
 `;
@@ -89,107 +88,55 @@ const StatValue = styled.span`
   margin-bottom: 4px;
 `;
 
-const StatChange = styled.div<{ $positive: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: ${props => props.$positive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'};
-`;
-
-const ChangeLabel = styled.span`
-  color: rgb(var(--color-text-tertiary));
-  font-weight: 400;
-`;
-
 // ============================================================================
 // Component
 // ============================================================================
 
-export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = ({
-  tenantId,
-  refreshInterval = 60000,
-}) => {
-  const [stats, setStats] = useState<StatItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
+  const { stats, isLoading, error, refetch } = useCockpitStats();
 
-  const fetchStats = useCallback(async () => {
-    try {
-      // Try to fetch from API, fall back to mock data
-      const response = await axios.get('/api/v1/workspace/stats/quick/').catch(() => null);
-      
-      if (response?.data) {
-        setStats(response.data.stats.map((s: any) => ({
-          ...s,
-          icon: getIconForStat(s.id),
-        })));
-      } else {
-        // Mock data for development
-        setStats([
-          {
-            id: 'orders_today',
-            label: 'Orders Today',
-            value: 24,
-            change: 12,
-            changeLabel: 'vs yesterday',
-            icon: <Package size={16} />,
-            color: 'rgb(59, 130, 246)',
-          },
-          {
-            id: 'revenue_today',
-            label: 'Revenue Today',
-            value: '$12,450',
-            change: 8.5,
-            changeLabel: 'vs last week',
-            icon: <DollarSign size={16} />,
-            color: 'rgb(34, 197, 94)',
-          },
-          {
-            id: 'shipments',
-            label: 'Shipments',
-            value: 18,
-            change: -3,
-            changeLabel: 'pending',
-            icon: <Truck size={16} />,
-            color: 'rgb(234, 179, 8)',
-          },
-          {
-            id: 'active_customers',
-            label: 'Active Customers',
-            value: 156,
-            change: 5,
-            changeLabel: 'this week',
-            icon: <Users size={16} />,
-            color: 'rgb(168, 85, 247)',
-          },
-        ]);
-      }
-      setError(null);
-    } catch (err) {
-      setError('Failed to load stats');
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId]);
-
-  useEffect(() => {
-    fetchStats();
-    const interval = setInterval(fetchStats, refreshInterval);
-    return () => clearInterval(interval);
-  }, [fetchStats, refreshInterval]);
+  // Format stats for display
+  const statItems: StatItem[] = stats ? [
+    {
+      id: 'total_orders',
+      label: 'Total Orders',
+      value: stats.quick_stats.total_orders.toLocaleString(),
+      icon: <Package size={16} />,
+      color: 'rgb(59, 130, 246)',
+    },
+    {
+      id: 'total_revenue',
+      label: 'Total Revenue',
+      value: `$${stats.quick_stats.total_revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      icon: <DollarSign size={16} />,
+      color: 'rgb(34, 197, 94)',
+    },
+    {
+      id: 'total_customers',
+      label: 'Total Customers',
+      value: stats.quick_stats.total_customers.toLocaleString(),
+      icon: <Users size={16} />,
+      color: 'rgb(168, 85, 247)',
+    },
+    {
+      id: 'total_suppliers',
+      label: 'Total Suppliers',
+      value: stats.quick_stats.total_suppliers.toLocaleString(),
+      icon: <Building size={16} />,
+      color: 'rgb(234, 179, 8)',
+    },
+  ] : [];
 
   return (
     <WidgetCard
       title="Quick Stats"
       icon={<BarChart3 size={16} />}
-      loading={loading}
-      error={error}
-      onRefresh={fetchStats}
+      loading={isLoading}
+      error={error || undefined}
+      onRefresh={refetch}
     >
       <StatsGrid>
-        {stats.map(stat => (
+        {statItems.map(stat => (
           <StatCard key={stat.id} $color={stat.color}>
             <StatHeader>
               <StatIconWrapper $color={stat.color}>
@@ -198,33 +145,11 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = ({
               <StatLabel>{stat.label}</StatLabel>
             </StatHeader>
             <StatValue>{stat.value}</StatValue>
-            {stat.change !== undefined && (
-              <StatChange $positive={stat.change >= 0}>
-                {stat.change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                {Math.abs(stat.change)}%
-                {stat.changeLabel && <ChangeLabel>{stat.changeLabel}</ChangeLabel>}
-              </StatChange>
-            )}
           </StatCard>
         ))}
       </StatsGrid>
     </WidgetCard>
   );
 };
-
-function getIconForStat(id: string): React.ReactNode {
-  switch (id) {
-    case 'orders_today':
-      return <Package size={16} />;
-    case 'revenue_today':
-      return <DollarSign size={16} />;
-    case 'shipments':
-      return <Truck size={16} />;
-    case 'active_customers':
-      return <Users size={16} />;
-    default:
-      return <BarChart3 size={16} />;
-  }
-}
 
 export default QuickStatsWidget;

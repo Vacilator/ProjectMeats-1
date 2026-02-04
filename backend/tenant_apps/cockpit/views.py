@@ -327,3 +327,130 @@ class WorkspaceLayoutView(APIView):
                 {"detail": "No saved layout to delete"},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class WorkspaceStatsView(APIView):
+    """
+    API view for Cockpit dashboard statistics.
+    
+    Returns aggregated stats for widgets:
+    - Quick stats (orders, revenue, shipments, customers)
+    - Today's numbers (detailed KPIs)
+    - Recent activity (last 10 activities)
+    - Upcoming calls (next 5 scheduled calls)
+    
+    Created: 2026-02-04 - Phase 1.3 Widget Real Data
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get workspace statistics for the current user's tenant."""
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {"error": "Tenant context required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tenant = request.tenant
+        today = timezone.now().date()
+        
+        try:
+            # Import models (local to avoid circular imports)
+            from tenant_apps.purchase_orders.models import PurchaseOrder
+            from tenant_apps.sales_orders.models import SalesOrder
+            from tenant_apps.customers.models import Customer
+            from tenant_apps.suppliers.models import Supplier
+            from django.db.models import Count, Sum, Q
+            from decimal import Decimal
+            
+            # Quick Stats
+            total_orders = PurchaseOrder.objects.filter(tenant=tenant).count()
+            total_customers = Customer.objects.filter(tenant=tenant).count()
+            total_suppliers = Supplier.objects.filter(tenant=tenant).count()
+            
+            # Revenue calculation (sum of completed sales orders)
+            total_revenue = SalesOrder.objects.filter(
+                tenant=tenant,
+                status__in=['shipped', 'delivered', 'completed']
+            ).aggregate(
+                total=Sum('total_amount')
+            )['total'] or Decimal('0.00')
+            
+            # Today's Numbers
+            orders_today = PurchaseOrder.objects.filter(
+                tenant=tenant,
+                created_on__date=today
+            ).count()
+            
+            pending_orders = PurchaseOrder.objects.filter(
+                tenant=tenant,
+                status__in=['pending', 'processing']
+            ).count()
+            
+            completed_today = PurchaseOrder.objects.filter(
+                tenant=tenant,
+                status='completed',
+                modified_on__date=today
+            ).count()
+            
+            # Recent Activity (last 10)
+            recent_activities = ActivityLog.objects.filter(
+                tenant=tenant
+            ).select_related('created_by').order_by('-created_on')[:10]
+            
+            activity_list = [{
+                'id': act.id,
+                'entity_type': act.entity_type,
+                'entity_id': act.entity_id,
+                'title': act.title or 'Activity',
+                'content': act.content[:100] + '...' if len(act.content) > 100 else act.content,
+                'created_by': act.created_by.get_full_name() if act.created_by else 'System',
+                'created_on': act.created_on.isoformat(),
+                'is_pinned': act.is_pinned,
+                'tags': act.tags,
+            } for act in recent_activities]
+            
+            # Upcoming Calls (next 5)
+            upcoming_calls = ScheduledCall.objects.filter(
+                tenant=tenant,
+                is_completed=False,
+                scheduled_for__gte=timezone.now()
+            ).select_related('assigned_to').order_by('scheduled_for')[:5]
+            
+            calls_list = [{
+                'id': call.id,
+                'entity_type': call.entity_type,
+                'entity_id': call.entity_id,
+                'title': call.title,
+                'description': call.description,
+                'scheduled_for': call.scheduled_for.isoformat(),
+                'duration_minutes': call.duration_minutes,
+                'assigned_to': call.assigned_to.get_full_name() if call.assigned_to else 'Unassigned',
+            } for call in upcoming_calls]
+            
+            # Compile response
+            stats = {
+                'quick_stats': {
+                    'total_orders': total_orders,
+                    'total_revenue': float(total_revenue),
+                    'total_customers': total_customers,
+                    'total_suppliers': total_suppliers,
+                },
+                'todays_numbers': {
+                    'orders_today': orders_today,
+                    'pending_orders': pending_orders,
+                    'completed_today': completed_today,
+                    'active_customers': total_customers,  # Can refine this later
+                },
+                'recent_activity': activity_list,
+                'upcoming_calls': calls_list,
+            }
+            
+            return Response(stats)
+            
+        except Exception as e:
+            logger.error(f"Error fetching workspace stats: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Failed to fetch stats", "detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

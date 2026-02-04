@@ -2,46 +2,31 @@
  * Recent Activity Widget
  * 
  * Displays a feed of recent system activity.
- * Shows events like orders created, shipments sent, etc.
+ * Shows events like orders created, customers updated, etc.
  * 
  * Features:
  * - Chronological activity feed
  * - Entity links
  * - Activity type icons
  * 
+ * Updated: 2026-02-04 - Phase 1.3 - Connected to real API
+ * 
  * Theme Compliance:
  * - Uses CSS custom properties
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import styled from 'styled-components';
-import { Activity, Package, Truck, FileText, Users, ShoppingCart, Clock } from 'lucide-react';
+import { Activity, Package, Users, FileText, DollarSign } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
-import axios from 'axios';
+import { useCockpitStats } from '../../hooks/useCockpitStats';
 import { formatDistanceToNow } from 'date-fns';
 
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
-interface ActivityItem {
-  id: string;
-  type: 'order' | 'shipment' | 'invoice' | 'customer' | 'supplier' | 'system';
-  action: string;
-  entity?: {
-    type: string;
-    id: string;
-    name: string;
-  };
-  user?: {
-    name: string;
-    avatar?: string;
-  };
-  timestamp: string;
-}
-
 export interface RecentActivityWidgetProps {
-  tenantId?: string;
-  limit?: number;
+  // Props for potential future customization
 }
 
 // ============================================================================
@@ -51,32 +36,37 @@ export interface RecentActivityWidgetProps {
 const ActivityList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px;
 `;
 
-const ActivityItemRow = styled.div`
+const ActivityItemCard = styled.div`
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 8px;
-  border-radius: var(--radius-md);
-  transition: background 0.15s ease;
+  padding: 10px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid rgb(var(--color-border));
+  transition: all 0.15s ease;
 
   &:hover {
-    background: rgb(var(--color-background));
+    background: rgb(var(--color-background-hover));
+    border-color: rgb(var(--color-primary));
   }
 `;
 
-const ActivityIcon = styled.div<{ $type: string }>`
+const ActivityIcon = styled.div<{ $color: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm, 4px);
+  background: ${props => props.$color}20;
+  color: ${props => props.$color};
   flex-shrink: 0;
-  background: ${props => getActivityColor(props.$type)}20;
-  color: ${props => getActivityColor(props.$type)};
 `;
 
 const ActivityContent = styled.div`
@@ -84,33 +74,16 @@ const ActivityContent = styled.div`
   min-width: 0;
 `;
 
-const ActivityText = styled.div`
+const ActivityTitle = styled.div`
   font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  line-height: 1.4;
-`;
-
-const EntityLink = styled.span`
   font-weight: 600;
-  color: rgb(var(--color-primary));
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 4px;
 `;
 
-const UserName = styled.span`
-  font-weight: 500;
-`;
-
-const ActivityTime = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
+const ActivityMeta = styled.div`
   font-size: 11px;
-  color: rgb(var(--color-text-tertiary));
-  margin-top: 2px;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const EmptyState = styled.div`
@@ -118,167 +91,85 @@ const EmptyState = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  padding: 40px 20px;
   text-align: center;
-  color: rgb(var(--color-text-tertiary));
-
-  svg {
-    margin-bottom: 8px;
-    opacity: 0.5;
-  }
+  color: rgb(var(--color-text-secondary));
 `;
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
-function getActivityColor(type: string): string {
-  switch (type) {
-    case 'order':
+const getIconForEntityType = (entityType: string) => {
+  switch (entityType.toLowerCase()) {
+    case 'purchaseorder':
+    case 'salesorder':
+      return <Package size={16} />;
+    case 'customer':
+      return <Users size={16} />;
+    case 'supplier':
+      return <Users size={16} />;
+    case 'invoice':
+      return <DollarSign size={16} />;
+    default:
+      return <FileText size={16} />;
+  }
+};
+
+const getColorForEntityType = (entityType: string) => {
+  switch (entityType.toLowerCase()) {
+    case 'purchaseorder':
       return 'rgb(59, 130, 246)';
-    case 'shipment':
+    case 'salesorder':
+      return 'rgb(168, 85, 247)';
+    case 'customer':
+      return 'rgb(34, 197, 94)';
+    case 'supplier':
       return 'rgb(234, 179, 8)';
     case 'invoice':
-      return 'rgb(34, 197, 94)';
-    case 'customer':
-      return 'rgb(168, 85, 247)';
-    case 'supplier':
-      return 'rgb(236, 72, 153)';
+      return 'rgb(239, 68, 68)';
     default:
-      return 'rgb(var(--color-text-tertiary))';
+      return 'rgb(107, 114, 128)';
   }
-}
-
-function getActivityIcon(type: string): React.ReactNode {
-  switch (type) {
-    case 'order':
-      return <ShoppingCart size={14} />;
-    case 'shipment':
-      return <Truck size={14} />;
-    case 'invoice':
-      return <FileText size={14} />;
-    case 'customer':
-      return <Users size={14} />;
-    case 'supplier':
-      return <Package size={14} />;
-    default:
-      return <Activity size={14} />;
-  }
-}
+};
 
 // ============================================================================
 // Component
 // ============================================================================
 
-export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = ({
-  tenantId,
-  limit = 10,
-}) => {
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchActivities = useCallback(async () => {
-    try {
-      // Try to fetch from API, fall back to mock data
-      const response = await axios.get(`/api/v1/workspace/activity/recent/?limit=${limit}`).catch(() => null);
-      
-      if (response?.data) {
-        setActivities(response.data.activities);
-      } else {
-        // Mock data for development
-        const now = new Date();
-        setActivities([
-          {
-            id: '1',
-            type: 'order',
-            action: 'created PO',
-            entity: { type: 'purchase_order', id: '1234', name: 'PO-2026-001234' },
-            user: { name: 'John Smith' },
-            timestamp: new Date(now.getTime() - 5 * 60000).toISOString(),
-          },
-          {
-            id: '2',
-            type: 'shipment',
-            action: 'shipped to',
-            entity: { type: 'customer', id: '456', name: 'Acme Foods Inc' },
-            user: { name: 'Maria Garcia' },
-            timestamp: new Date(now.getTime() - 15 * 60000).toISOString(),
-          },
-          {
-            id: '3',
-            type: 'invoice',
-            action: 'marked paid',
-            entity: { type: 'invoice', id: '789', name: 'INV-2026-000789' },
-            user: { name: 'David Lee' },
-            timestamp: new Date(now.getTime() - 45 * 60000).toISOString(),
-          },
-          {
-            id: '4',
-            type: 'customer',
-            action: 'added new customer',
-            entity: { type: 'customer', id: '101', name: 'Fresh Mart LLC' },
-            user: { name: 'Sarah Wilson' },
-            timestamp: new Date(now.getTime() - 2 * 3600000).toISOString(),
-          },
-          {
-            id: '5',
-            type: 'supplier',
-            action: 'updated supplier',
-            entity: { type: 'supplier', id: '202', name: 'Prime Beef Co' },
-            user: { name: 'John Smith' },
-            timestamp: new Date(now.getTime() - 4 * 3600000).toISOString(),
-          },
-        ]);
-      }
-      setError(null);
-    } catch (err) {
-      setError('Failed to load activity');
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId, limit]);
-
-  useEffect(() => {
-    fetchActivities();
-  }, [fetchActivities]);
+export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = () => {
+  const { stats, isLoading, error, refetch } = useCockpitStats();
 
   return (
     <WidgetCard
       title="Recent Activity"
       icon={<Activity size={16} />}
-      loading={loading}
-      error={error}
-      onRefresh={fetchActivities}
+      loading={isLoading}
+      error={error || undefined}
+      onRefresh={refetch}
     >
-      {activities.length === 0 ? (
-        <EmptyState>
-          <Activity size={24} />
-          <span>No recent activity</span>
-        </EmptyState>
-      ) : (
+      {stats && stats.recent_activity.length > 0 ? (
         <ActivityList>
-          {activities.map(activity => (
-            <ActivityItemRow key={activity.id}>
-              <ActivityIcon $type={activity.type}>
-                {getActivityIcon(activity.type)}
+          {stats.recent_activity.map(activity => (
+            <ActivityItemCard key={activity.id}>
+              <ActivityIcon $color={getColorForEntityType(activity.entity_type)}>
+                {getIconForEntityType(activity.entity_type)}
               </ActivityIcon>
               <ActivityContent>
-                <ActivityText>
-                  {activity.user && <UserName>{activity.user.name}</UserName>}{' '}
-                  {activity.action}{' '}
-                  {activity.entity && (
-                    <EntityLink>{activity.entity.name}</EntityLink>
-                  )}
-                </ActivityText>
-                <ActivityTime>
-                  <Clock size={10} />
-                  {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
-                </ActivityTime>
+                <ActivityTitle>{activity.title}</ActivityTitle>
+                <ActivityMeta>
+                  {activity.content} • {activity.created_by} •{' '}
+                  {formatDistanceToNow(new Date(activity.created_on), { addSuffix: true })}
+                </ActivityMeta>
               </ActivityContent>
-            </ActivityItemRow>
+            </ActivityItemCard>
           ))}
         </ActivityList>
+      ) : (
+        <EmptyState>
+          <Activity size={32} style={{ marginBottom: '8px', opacity: 0.3 }} />
+          <div>No recent activity</div>
+        </EmptyState>
       )}
     </WidgetCard>
   );

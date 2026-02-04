@@ -172,34 +172,42 @@ Based on industry research, our editor will embody:
 
 **Solution**:
 
-- [ ] **1.3.1** Create backend workspace stats API
-  - File: `backend/apps/workspace/views.py` (add endpoints)
-  - Endpoints:
-    - `GET /api/v1/workspace/stats/quick/` - orders, revenue, shipments, customers
-    - `GET /api/v1/workspace/stats/today/` - detailed KPIs
-    - `GET /api/v1/workspace/activity/recent/` - recent activity feed
-    - `GET /api/v1/workspace/calls/upcoming/` - scheduled calls
+- [x] **1.3.1** Create backend workspace stats API ✅ (2026-02-04)
+  - File: `backend/tenant_apps/cockpit/views.py` (added WorkspaceStatsView)
+  - Endpoint: `GET /api/v1/cockpit/stats/` - aggregated stats for all widgets:
+    - quick_stats: orders, revenue, customers, suppliers
+    - todays_numbers: orders today, pending, completed, active customers
+    - recent_activity: last 10 activity logs
+    - upcoming_calls: next 5 scheduled calls
 
-- [ ] **1.3.2** Update QuickStatsWidget to use real API
-  - Remove mock data fallback (or make it obvious it's mock)
-  - Show loading/error states properly
-  - Calculate stats from: purchase_orders, sales_orders, customers, suppliers
+- [x] **1.3.2** Update QuickStatsWidget to use real API ✅ (2026-02-04)
+  - Uses useCockpitStats hook
+  - Removed mock data fallback
+  - Shows loading/error states properly
+  - Fetches from `/api/v1/cockpit/stats/` (quick_stats)
 
-- [ ] **1.3.3** Update TodaysNumbersWidget to use real API
-  - Similar to QuickStatsWidget
-  - Add proper error handling
+- [x] **1.3.3** Update TodaysNumbersWidget to use real API ✅ (2026-02-04)
+  - Uses useCockpitStats hook
+  - Fetches from `/api/v1/cockpit/stats/` (todays_numbers)
+  - Proper error handling
+  - Clickable metrics to navigate to entity pages
 
-- [ ] **1.3.4** Update RecentActivityWidget 
-  - Wire to activity feed API
+- [x] **1.3.4** Update RecentActivityWidget ✅ (2026-02-04)
+  - Uses useCockpitStats hook
+  - Wire to `/api/v1/cockpit/stats/` (recent_activity)
   - Show real changes (orders created, customers updated, etc.)
+  - Entity type icons and colors
 
-- [ ] **1.3.5** Update UpcomingCallsWidget
-  - Wire to calls API
+- [x] **1.3.5** Update UpcomingCallsWidget ✅ (2026-02-04)
+  - Uses useCockpitStats hook
+  - Wire to `/api/v1/cockpit/stats/` (upcoming_calls)
   - Show actual scheduled callbacks
+  - Formatted timestamps and duration
 
-- [ ] **1.3.6** Update MyTasksWidget
-  - Wire to form submissions requiring action
-  - Show workflow tasks assigned to current user
+- [x] **1.3.6** Update MyTasksWidget ✅ (Already using ActionItemsContext)
+  - Already using NotificationsContext for action items
+  - No additional API call needed
+  - Properly integrated with existing context system
 
 ---
 
