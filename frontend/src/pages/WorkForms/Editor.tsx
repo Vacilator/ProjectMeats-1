@@ -2,15 +2,19 @@
  * WorkForms Editor Page
  * 
  * Visual editor for creating and editing forms/workflows.
- * Uses the UnifiedFlowEditor component.
+ * Phase 4.1.2: Load, edit, and save forms
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
+ * Updated: 2026-02-04 - Phase 4.1.2 Enhanced with API integration
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
+import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
+import { adminClient } from '../../services/apiService';
 
 // ============================================================================
 // Styled Components
@@ -134,57 +138,187 @@ const SaveIndicator = styled.div<{ $visible: boolean }>`
 `;
 
 // ============================================================================
+// TypeScript Interfaces
+// ============================================================================
+
+interface TenantForm {
+  id: string;
+  name: string;
+  description: string;
+  status: 'draft' | 'active' | 'inactive';
+  icon: string;
+  entity_count: number;
+  is_multi_entity: boolean;
+  flow_data?: {
+    nodes: Node[];
+    edges: Edge[];
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
 export const WorkFormsEditor: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
+  const templateId = searchParams.get('template');
   
   // State
-  const [status, setStatus] = useState<'draft' | 'published'>('draft');
+  const [status, setStatus] = useState<'draft' | 'active' | 'inactive'>('draft');
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedIndicator, setShowSavedIndicator] = useState(false);
-  const [flowName, setFlowName] = useState(id ? 'Existing Flow' : 'New Flow');
+  const [flowName, setFlowName] = useState('New Flow');
+  const [initialNodes, setInitialNodes] = useState<Node[]>([]);
+  const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // For now, start with empty canvas (we'll add loading from API later)
-  const [initialNodes] = useState<Node[]>([]);
-  const [initialEdges] = useState<Edge[]>([]);
+  // Load existing form if editing
+  const { data: existingForm, isLoading: isLoadingForm } = useQuery<TenantForm>({
+    queryKey: ['tenant-form', id],
+    queryFn: async () => {
+      const response = await adminClient.get(`/admin/workflows/forms/${id}/`);
+      return response.data;
+    },
+    enabled: !!id,
+  });
+
+  // Initialize editor with template or existing form
+  useEffect(() => {
+    if (isInitialized) return;
+
+    // Load from existing form
+    if (existingForm && id) {
+      setFlowName(existingForm.name);
+      setStatus(existingForm.status as 'draft' | 'active' | 'inactive');
+      
+      if (existingForm.flow_data) {
+        setInitialNodes(existingForm.flow_data.nodes || []);
+        setInitialEdges(existingForm.flow_data.edges || []);
+      }
+      
+      setIsInitialized(true);
+      return;
+    }
+
+    // Load from template
+    if (templateId && !id) {
+      const template = FLOW_TEMPLATES.find(t => t.id === templateId);
+      if (template) {
+        setFlowName(template.name);
+        setInitialNodes(template.nodes);
+        setInitialEdges(template.edges);
+        setIsInitialized(true);
+        return;
+      }
+    }
+
+    // Blank canvas
+    if (!id && !templateId) {
+      setIsInitialized(true);
+    }
+  }, [existingForm, id, templateId, isInitialized]);
+
+  // Save mutation
+  const saveMutation = useMutation({
+    mutationFn: async (data: { nodes: Node[]; edges: Edge[] }) => {
+      const payload = {
+        name: flowName,
+        description: `Flow with ${data.nodes.length} nodes`,
+        status: status,
+        flow_data: {
+          nodes: data.nodes,
+          edges: data.edges,
+        },
+      };
+
+      if (id) {
+        // Update existing
+        const response = await adminClient.put(`/admin/workflows/forms/${id}/`, payload);
+        return response.data;
+      } else {
+        // Create new
+        const response = await adminClient.post('/admin/workflows/forms/', payload);
+        return response.data;
+      }
+    },
+    onSuccess: (data) => {
+      // Show saved indicator
+      setShowSavedIndicator(true);
+      setTimeout(() => setShowSavedIndicator(false), 2000);
+
+      // If this was a new form, navigate to edit mode
+      if (!id && data.id) {
+        navigate(`/workforms/editor/${data.id}`, { replace: true });
+      }
+    },
+    onError: (error: any) => {
+      console.error('Error saving flow:', error);
+      alert(error.response?.data?.error || 'Failed to save. Please try again.');
+    },
+  });
 
   // Handle save
   const handleSave = useCallback(async (nodes: Node[], edges: Edge[]) => {
     setIsSaving(true);
     
     try {
-      // TODO: Call API to save flow
-      console.log('Saving flow:', { nodes, edges });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Show saved indicator
-      setShowSavedIndicator(true);
-      setTimeout(() => setShowSavedIndicator(false), 2000);
-      
-      // TODO: Handle response and update state
+      await saveMutation.mutateAsync({ nodes, edges });
     } catch (error) {
-      console.error('Error saving flow:', error);
-      // TODO: Show error notification
+      // Error handled in onError
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [saveMutation]);
+
+  // Publish mutation
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) {
+        throw new Error('Cannot publish unsaved form');
+      }
+      const response = await adminClient.patch(`/admin/workflows/forms/${id}/`, {
+        status: 'active',
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      setStatus('active');
+      alert('Form published successfully!');
+    },
+    onError: (error: any) => {
+      console.error('Error publishing flow:', error);
+      alert(error.response?.data?.error || 'Failed to publish. Please try again.');
+    },
+  });
 
   // Handle publish
   const handlePublish = useCallback(() => {
-    setStatus('published');
-    // TODO: Call API to publish flow
-  }, []);
+    if (!id) {
+      alert('Please save the form before publishing');
+      return;
+    }
+    publishMutation.mutate();
+  }, [id, publishMutation]);
 
   // Handle back
   const handleBack = useCallback(() => {
     navigate('/workforms/catalog');
   }, [navigate]);
+
+  // Show loading state
+  if (id && isLoadingForm) {
+    return (
+      <PageContainer>
+        <div style={{ textAlign: 'center', padding: '4rem', color: 'rgb(var(--color-text-secondary))' }}>
+          Loading form...
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
@@ -204,7 +338,7 @@ export const WorkFormsEditor: React.FC = () => {
           </SaveIndicator>
           
           <StatusBadge $status={status}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
+            {status === 'active' ? 'Active' : status === 'draft' ? 'Draft' : 'Inactive'}
           </StatusBadge>
           
           <ActionButton $variant="secondary">
@@ -214,19 +348,21 @@ export const WorkFormsEditor: React.FC = () => {
           <ActionButton 
             $variant="primary" 
             onClick={handlePublish}
-            disabled={status === 'published'}
+            disabled={status === 'active' || !id || publishMutation.isPending}
           >
-            {status === 'published' ? 'Published' : 'Publish'}
+            {publishMutation.isPending ? 'Publishing...' : status === 'active' ? 'Published' : 'Publish'}
           </ActionButton>
         </HeaderRight>
       </PageHeader>
 
       <EditorWrapper>
-        <UnifiedFlowEditor
-          initialNodes={initialNodes}
-          initialEdges={initialEdges}
-          onSave={handleSave}
-        />
+        {isInitialized && (
+          <UnifiedFlowEditor
+            initialNodes={initialNodes}
+            initialEdges={initialEdges}
+            onSave={handleSave}
+          />
+        )}
       </EditorWrapper>
     </PageContainer>
   );
