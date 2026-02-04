@@ -378,7 +378,7 @@ const formatDueDate = (dateStr: string | null): string => {
  * MyTasks page component.
  */
 export const MyTasks: React.FC = () => {
-  const { actionItems, actionItemCounts, loading, error, refreshData } = useNotifications();
+  const { actionItems, actionItemCounts, loading, error, fetchActionItems } = useNotifications();
   
   // Local filter state
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
@@ -492,13 +492,13 @@ export const MyTasks: React.FC = () => {
       // Close modal and refresh data
       setShowDelegateModal(false);
       setSelectedTask(null);
-      refreshData();
+      fetchActionItems();
     } catch (err) {
       console.error('Failed to delegate task:', err);
     } finally {
       setIsDelegating(false);
     }
-  }, [selectedTask, refreshData]);
+  }, [selectedTask, fetchActionItems]);
   
   // Handle revoke delegation
   const handleRevokeDelegation = useCallback(async (delegationId: string) => {
@@ -527,7 +527,7 @@ export const MyTasks: React.FC = () => {
             <CountBadge>{actionItemCounts.total}</CountBadge>
           )}
         </div>
-        <ActionButton onClick={() => refreshData()}>
+        <ActionButton onClick={() => fetchActionItems()}>
           Refresh
         </ActionButton>
       </Header>
