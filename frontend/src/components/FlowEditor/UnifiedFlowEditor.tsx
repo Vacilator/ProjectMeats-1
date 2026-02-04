@@ -721,11 +721,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       setEdges((eds) => addEdge(params, eds));
-      
-      // Add to history
-      addToHistory(nodes, [...edges, { ...params, id: `edge-${params.source}-${params.target}`, type: 'custom' } as Edge]);
     },
-    [nodes, edges, setEdges, isValidConnectionType, addToHistory]
+    [nodes, edges, setEdges, isValidConnectionType]
   );
 
   // ============================================================================
@@ -876,11 +873,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // Clear nearby node state
       setNearbyNode(null);
-      
-      // Add to history
-      addToHistory(updatedNodes, updatedEdges);
     },
-    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, addToHistory, findNearbyNode, setEdges]
+    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, findNearbyNode, setEdges]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
