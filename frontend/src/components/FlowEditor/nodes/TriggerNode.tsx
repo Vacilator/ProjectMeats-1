@@ -121,7 +121,19 @@ export const TriggerNode: React.FC<NodeProps<TriggerNodeData>> = (props) => {
     form: 'triggerForm',
   };
   
-  const nodeType = getNodeTypeDefinition(nodeTypeMap[triggerType])!;
+  const nodeTypeDef = getNodeTypeDefinition(nodeTypeMap[triggerType]);
+  
+  // Safety check: provide fallback if nodeType is undefined
+  const nodeType = nodeTypeDef || {
+    id: 'triggerManual',
+    name: 'Manual Trigger',
+    category: 'trigger' as const,
+    color: 'rgb(34, 197, 94)',
+    icon: 'Play',
+    maxInputs: 0,
+    maxOutputs: 1,
+    config: {},
+  };
 
   return (
     <BaseNode

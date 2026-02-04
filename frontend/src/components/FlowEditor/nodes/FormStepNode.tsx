@@ -198,7 +198,19 @@ const FIELD_TYPE_ICONS: Record<FormFieldType, string> = {
 
 export const FormStepNode: React.FC<NodeProps<FormStepNodeData>> = (props) => {
   const { data, selected, id } = props;
-  const nodeType = getNodeTypeDefinition('formStep')!;
+  const nodeTypeDef = getNodeTypeDefinition('formStep');
+  
+  // Safety check: provide fallback if nodeType is undefined
+  const nodeType = nodeTypeDef || {
+    id: 'formStep',
+    name: 'Form Step',
+    category: 'form' as const,
+    color: 'rgb(168, 85, 247)',
+    icon: 'ListChecks',
+    maxInputs: 1,
+    maxOutputs: 1,
+    config: {},
+  };
   
   const { stepTitle, fields = [] } = data;
   const fieldCount = fields.length;

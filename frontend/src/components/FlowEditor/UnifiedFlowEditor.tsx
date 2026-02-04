@@ -1091,7 +1091,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setJsonError(null);
       
       // Switch to visual mode to see changes
-      setEditorMode('visual');
+      setInternalEditorMode('visual');
     } catch (err) {
       setJsonError(err instanceof Error ? err.message : 'Failed to apply JSON');
     }
@@ -1142,7 +1142,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setEdges(parsed.edges);
           setLastSyncTime(new Date());
           setJsonError(null);
-          setEditorMode('visual');
+          setInternalEditorMode('visual');
         } catch (err) {
           setJsonError(err instanceof Error ? err.message : 'Failed to import file');
         }
@@ -1239,7 +1239,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   };
   
   const wizardSwitchToVisual = useCallback(() => {
-    setEditorMode('visual');
+    setInternalEditorMode('visual');
     setWizardState({
       currentStep: 'welcome',
       flowType: null,

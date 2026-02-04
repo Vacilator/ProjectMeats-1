@@ -188,7 +188,20 @@ export const ActionNode: React.FC<NodeProps<ActionNodeData>> = (props) => {
     script: 'actionScript',
   };
   
-  const nodeType = getNodeTypeDefinition(nodeTypeMap[actionType]) || getNodeTypeDefinition('actionEmail')!;
+  const nodeTypeDef = getNodeTypeDefinition(nodeTypeMap[actionType]) || getNodeTypeDefinition('actionEmail');
+  
+  // Safety check: if nodeType is still undefined, provide a fallback
+  const nodeType = nodeTypeDef || {
+    id: 'actionEmail',
+    name: 'Send Email',
+    category: 'action' as const,
+    color: 'rgb(59, 130, 246)',
+    icon: 'Mail',
+    maxInputs: 1,
+    maxOutputs: 1,
+    config: {},
+  };
+  
   const { items } = getActionDetails(data);
 
   return (

@@ -146,7 +146,19 @@ const OPERATOR_LABELS: Record<string, string> = {
 
 export const ConditionIfNode: React.FC<NodeProps<ConditionIfNodeData>> = (props) => {
   const { data, selected, id } = props;
-  const nodeType = getNodeTypeDefinition('conditionIf')!;
+  const nodeTypeDef = getNodeTypeDefinition('conditionIf');
+  
+  // Safety check: provide fallback if nodeType is undefined
+  const nodeType = nodeTypeDef || {
+    id: 'conditionIf',
+    name: 'If Condition',
+    category: 'logic' as const,
+    color: 'rgb(249, 115, 22)',
+    icon: 'GitBranch',
+    maxInputs: 1,
+    maxOutputs: 2,
+    config: {},
+  };
   
   const { rules = [], logicalOperator = 'AND' } = data;
 
