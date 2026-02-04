@@ -632,6 +632,62 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Connection Validation
   // ============================================================================
   
+  // Define connection compatibility rules
+  const isValidConnectionType = useCallback((sourceType: string, targetType: string): { valid: boolean; reason?: string } => {
+    // Triggers can only be at the start (no inputs)
+    if (targetType.startsWith('trigger')) {
+      return { valid: false, reason: 'Triggers cannot have incoming connections' };
+    }
+    
+    // Terminal nodes (success/error) can only be at the end (no outputs)
+    if (sourceType.startsWith('terminal')) {
+      return { valid: false, reason: 'Terminal nodes cannot have outgoing connections' };
+    }
+    
+    // Document nodes should typically connect to actions or conditions
+    if (sourceType.startsWith('document') && targetType.startsWith('trigger')) {
+      return { valid: false, reason: 'Documents cannot connect to triggers' };
+    }
+    
+    // Wait states should not connect to triggers
+    if (sourceType.startsWith('wait') && targetType.startsWith('trigger')) {
+      return { valid: false, reason: 'Wait states cannot connect to triggers' };
+    }
+    
+    // All other connections are valid
+    return { valid: true };
+  }, []);
+  
+  // Real-time connection validation for React Flow
+  const isValidConnection = useCallback((connection: Connection) => {
+    const sourceNode = nodes.find(n => n.id === connection.source);
+    const targetNode = nodes.find(n => n.id === connection.target);
+    
+    if (!sourceNode || !targetNode) return false;
+    
+    // Type-aware validation
+    const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
+    if (!typeCheck.valid) {
+      return false;
+    }
+    
+    // Check max outputs on source
+    const sourceOutputs = edges.filter(e => e.source === connection.source);
+    const sourceMaxOutputs = sourceNode.data.maxOutputs || Infinity;
+    if (sourceOutputs.length >= sourceMaxOutputs) {
+      return false;
+    }
+    
+    // Check max inputs on target
+    const targetInputs = edges.filter(e => e.target === connection.target);
+    const targetMaxInputs = targetNode.data.maxInputs || Infinity;
+    if (targetInputs.length >= targetMaxInputs) {
+      return false;
+    }
+    
+    return true;
+  }, [nodes, edges, isValidConnectionType]);
+  
   const onConnect = useCallback(
     (params: Connection) => {
       // Validate connection based on node constraints
@@ -639,6 +695,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const targetNode = nodes.find(n => n.id === params.target);
       
       if (!sourceNode || !targetNode) return;
+      
+      // Type-aware validation
+      const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
+      if (!typeCheck.valid) {
+        console.warn(`Invalid connection: ${typeCheck.reason}`);
+        // TODO: Show toast notification to user
+        return;
+      }
       
       // Check max outputs on source
       const sourceOutputs = edges.filter(e => e.source === params.source);
@@ -657,8 +721,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       setEdges((eds) => addEdge(params, eds));
+      
+      // Add to history
+      addToHistory(nodes, [...edges, { ...params, id: `edge-${params.source}-${params.target}`, type: 'custom' } as Edge]);
     },
-    [nodes, edges, setEdges]
+    [nodes, edges, setEdges, isValidConnectionType, addToHistory]
   );
 
   // ============================================================================
@@ -1260,6 +1327,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        isValidConnection={isValidConnection}
         onDrop={onDrop}
         onDragOver={onDragOver}
         onSelectionChange={handleSelectionChange}
