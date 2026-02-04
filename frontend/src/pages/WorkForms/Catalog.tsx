@@ -18,13 +18,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
-import { Plus, Search, Grid, List, Filter, Sparkles, FileText, Workflow, Clock, Star } from 'lucide-react';
+import { Plus, Search, Grid, List, Filter, Sparkles, FileText, Workflow, Clock, Star, Lock } from 'lucide-react';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { TemplateSelector } from '../../components/FlowEditor/templates/TemplateSelector';
 import { FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';
 import { adminClient } from '../../services/apiService';
+import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -323,6 +324,9 @@ const FormsFlowsCatalog: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filter, setFilter] = useState<FilterOption>('all');
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  
+  // Phase 4.2: Get user permissions
+  const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
 
   // Fetch existing forms
   const { data: forms, isLoading } = useQuery<TenantForm[]>({
@@ -407,7 +411,10 @@ const FormsFlowsCatalog: React.FC = () => {
           <Button
             variant="primary"
             onClick={() => setShowTemplateSelector(true)}
+            disabled={!permissions.can_create || permissionsLoading}
+            title={!permissions.can_create ? getUpgradeMessage(permissions.role, 'create') : 'Create a new form or workflow'}
           >
+            {!permissions.can_create && <Lock size={16} style={{ marginRight: '0.5rem' }} />}
             <Plus size={18} />
             Create New
           </Button>

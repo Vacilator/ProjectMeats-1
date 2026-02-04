@@ -513,6 +513,8 @@ export const WorkFormsEditor: React.FC = () => {
             initialEdges={initialEdges}
             onSave={handleSave}
             editorMode={editorMode}
+            readOnly={!permissions.can_edit}
+            allowedNodeCategories={permissions.allowed_node_categories}
           />
         )}
       </EditorWrapper>

@@ -69,6 +69,7 @@ interface UnifiedFlowEditorProps {
   onSave?: (nodes: Node[], edges: Edge[]) => void;
   readOnly?: boolean;
   editorMode?: EditorMode;
+  allowedNodeCategories?: string[]; // Phase 4.2: Filter nodes by permission
 }
 
 interface HistoryState {
@@ -849,6 +850,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   onSave,
   readOnly = false,
   editorMode = 'visual',
+  allowedNodeCategories, // Phase 4.2: Permission-based filtering
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -882,23 +884,33 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
   }, [internalEditorMode, editorMode]);
   
-  // Filter available node types based on editor mode
+  // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
+    let filteredNodes = Object.values(NODE_TYPE_REGISTRY);
+    
+    // Step 1: Filter by editor mode
     if (activeEditorMode === 'wizard') {
       // Wizard mode: Limited to basic form creation nodes
-      return Object.values(NODE_TYPE_REGISTRY).filter(nodeType => 
+      filteredNodes = filteredNodes.filter(nodeType => 
         ['formStep', 'formField', 'conditionIf', 'actionEmail', 'endSuccess'].includes(nodeType.id)
       );
     } else if (activeEditorMode === 'visual') {
       // Visual mode: Most nodes except advanced features
-      return Object.values(NODE_TYPE_REGISTRY).filter(nodeType => 
+      filteredNodes = filteredNodes.filter(nodeType => 
         !['customCode', 'apiRequest', 'subflow'].includes(nodeType.id)
       );
-    } else {
-      // Expert mode: All nodes available
-      return Object.values(NODE_TYPE_REGISTRY);
     }
-  }, [activeEditorMode]);
+    // Expert mode: All nodes (no filtering by mode)
+    
+    // Step 2: Filter by permission categories (if restricted)
+    if (allowedNodeCategories && allowedNodeCategories.length > 0) {
+      filteredNodes = filteredNodes.filter(nodeType => 
+        allowedNodeCategories.includes(nodeType.category)
+      );
+    }
+    
+    return filteredNodes;
+  }, [activeEditorMode, allowedNodeCategories]);
 
   // ============================================================================
   // Enhanced Palette Features State
