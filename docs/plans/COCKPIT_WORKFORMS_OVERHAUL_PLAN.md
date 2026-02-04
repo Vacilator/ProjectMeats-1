@@ -1,10 +1,15 @@
 # Implementation Plan: Cockpit & Forms/Flows Overhaul
 
-**Status**: 📋 PLANNING  
+**Status**: 🚀 Phase 2.4 Batch 1 COMPLETE (PRs #2451-2452)  
 **Created**: 2026-02-04  
-**Updated**: 2026-02-04 - Enhanced with industry research  
+**Updated**: 2026-02-04 - Canvas Interactions Batch 1 Complete  
 **Scope**: Full Implementation (~6-8 weeks)  
-**Priority**: Critical fixes first, then progressive enhancement
+**Priority**: Phase 2.4 Canvas Interactions in progress
+
+**Recent Achievements:**
+- ✅ Phase 2.1: Visual Editor Foundation (100%)
+- ✅ Phase 2.4 Batch 1: Viewport controls & MiniMap (100%)
+- 🔄 Phase 2.4 Batch 2: Drag-drop enhancements (next)
 
 ---
 
@@ -551,10 +556,24 @@ Based on industry research, our editor will embody:
 
 ---
 
-### 2.4 Canvas Interactions (Make/Figma-Quality)
+### 2.4 Canvas Interactions (Make/Figma-Quality) ✅ BATCH 1 COMPLETE!
 
 **Goal**: Buttery-smooth interactions that feel professional
 
+**Progress**: 2/7 tasks complete (29%)
+
+#### Batch 1 Complete (PRs #2451, #2452)
+- ✅ **2.4.4** Navigation & viewport (Figma-quality)
+  - Custom viewport toolbar with zoom in/out/fit buttons
+  - Keyboard shortcuts: F (fit), 1 (100%), 2 (50%), 3 (fit)
+  - Ctrl+A (select all), Escape (deselect all)
+  - Enhanced MiniMap with custom node colors
+  - Pannable and zoomable MiniMap
+  - Removed redundant default Controls
+  - Build time: 16-19s
+  - Status: ✅ Merged to development
+
+#### Remaining Tasks
 - [ ] **2.4.1** Drag-drop from palette (Figma-quality)
   - **Ghost preview** during drag
   - **Smart snapping** to grid and alignment guides
