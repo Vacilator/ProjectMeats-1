@@ -216,8 +216,8 @@ class WorkFormPermissionHelper:
             'can_delete': True,
             'allowed_modes': ['wizard', 'visual', 'expert'],
             'allowed_node_categories': [
-                'triggers', 'forms', 'logic', 'actions', 
-                'waits', 'documents', 'utilities'
+                'trigger', 'form', 'logic', 'action', 
+                'wait', 'document', 'utility'
             ],
             'can_access_system_templates': True,
             'can_create_global_templates': True,
@@ -239,8 +239,8 @@ class WorkFormPermissionHelper:
                 'can_delete': True,
                 'allowed_modes': ['wizard', 'visual', 'expert'],
                 'allowed_node_categories': [
-                    'triggers', 'forms', 'logic', 'actions',
-                    'waits', 'documents', 'utilities'
+                    'trigger', 'form', 'logic', 'action',
+                    'wait', 'document', 'utility'
                 ],
                 'can_access_system_templates': True,
                 'can_create_global_templates': True,
@@ -258,8 +258,8 @@ class WorkFormPermissionHelper:
                 'can_delete': True,   # Own forms only
                 'allowed_modes': ['wizard', 'visual'],
                 'allowed_node_categories': [
-                    'triggers', 'forms', 'logic', 'actions',
-                    'waits', 'documents', 'utilities'
+                    'trigger', 'form', 'logic', 'action',
+                    'wait', 'document', 'utility'
                 ],
                 'can_access_system_templates': True,
                 'can_create_global_templates': False,
