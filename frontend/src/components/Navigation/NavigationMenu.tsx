@@ -196,6 +196,15 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             $active={active}
             $isDarkMode={isDarkMode}
             $hasExactActiveChild={hasActiveChild}
+            onClick={(e) => {
+              console.log('[NavigationMenu] NavLink clicked:', {
+                path: item.path,
+                label: item.label,
+                active,
+                hasActiveChild,
+                timestamp: new Date().toISOString()
+              });
+            }}
           >
             {renderAccordionContent(item)}
           </AccordionNavLinkInner>
@@ -203,6 +212,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             <ExpandButton 
               onClick={(e) => {
                 // Prevent navigation for chevron click, only toggle accordion
+                console.log('[NavigationMenu] ExpandButton clicked:', {
+                  label: item.label,
+                  isExpanded: isItemExpanded,
+                  timestamp: new Date().toISOString()
+                });
                 e.preventDefault();
                 e.stopPropagation();
                 toggleExpand(item.label, e);
@@ -222,6 +236,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
     return (
       <AccordionHeader
         onClick={(e) => {
+          console.log('[NavigationMenu] AccordionHeader clicked (no path):', {
+            label: item.label,
+            isExpanded: isItemExpanded,
+            timestamp: new Date().toISOString()
+          });
           e.preventDefault();
           e.stopPropagation();
           toggleExpand(item.label, e);
@@ -491,6 +510,9 @@ const AccordionNavLinkInner = styled(NavLink)<{
   flex: 1;
   min-width: 0;
   cursor: pointer;
+  pointer-events: auto;
+  z-index: 1;
+  position: relative;
   
   /* Ensure it doesn't inherit container background */
   background: transparent;
@@ -528,6 +550,9 @@ const ExpandButton = styled.button<{ $isExpanded: boolean; $isDarkMode: boolean 
   transition: all 0.15s ease;
   margin-left: auto;
   flex-shrink: 0;
+  z-index: 2;
+  position: relative;
+  pointer-events: auto;
   
   &:hover {
     background: ${(props) => props.$isDarkMode 
