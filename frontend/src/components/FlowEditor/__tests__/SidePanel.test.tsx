@@ -6,10 +6,11 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { SidePanel } from '../SidePanel';
 
 describe('SidePanel', () => {
-  const mockOnClose = jest.fn();
+  const mockOnClose = vi.fn();
   const testContent = <div>Test Content</div>;
 
   beforeEach(() => {
