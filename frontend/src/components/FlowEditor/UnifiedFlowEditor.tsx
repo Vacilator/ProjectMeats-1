@@ -954,6 +954,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [selectedFormStep, setSelectedFormStep] = useState<Node | null>(null);
   const [editingField, setEditingField] = useState<any | null>(null);
   
+  // FormField specialized configuration (Phase 1 of Navigation Fix Plan)
+  const [formFieldModalOpen, setFormFieldModalOpen] = useState(false);
+  const [selectedFormField, setSelectedFormField] = useState<Node | null>(null);
+  
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
     queryKey: ['workflows', 'tenant-lists'],
@@ -1792,22 +1796,38 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       console.log('[UnifiedFlowEditor] Node selected:', node.type, node);
       
-      // Phase 4.2.B: Open specialized FormStep modal for formStep nodes
-      if (node.type === 'formStep') {
-        console.log('[UnifiedFlowEditor] Opening FormStep modal');
-        setSelectedFormStep(node);
-        setFormStepModalOpen(true);
-        setSelectedNode(null); // Don't open generic panel
-      } else {
-        console.log('[UnifiedFlowEditor] Opening generic config panel');
-        setSelectedNode(node);
-        setSelectedFormStep(null);
-        setFormStepModalOpen(false);
-      }
-    } else {
+      // Close all modals first
+      setFormStepModalOpen(false);
+      setFormFieldModalOpen(false);
       setSelectedNode(null);
       setSelectedFormStep(null);
+      setSelectedFormField(null);
+      
+      // Route to appropriate config panel based on node type
+      switch (node.type) {
+        case 'formStep':
+          console.log('[UnifiedFlowEditor] Opening FormStep modal');
+          setSelectedFormStep(node);
+          setFormStepModalOpen(true);
+          break;
+          
+        case 'formField':
+          console.log('[UnifiedFlowEditor] Opening FormField modal');
+          setSelectedFormField(node);
+          setFormFieldModalOpen(true);
+          break;
+          
+        default:
+          console.log('[UnifiedFlowEditor] Opening generic config panel');
+          setSelectedNode(node);
+      }
+    } else {
+      // Clear all selections
+      setSelectedNode(null);
+      setSelectedFormStep(null);
+      setSelectedFormField(null);
       setFormStepModalOpen(false);
+      setFormFieldModalOpen(false);
     }
   }, []);
 
@@ -2641,7 +2661,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         />
       )}
       
-      {/* FormField Configuration Modal (nested) */}
+      {/* FormField Configuration Modal - Direct Selection (Phase 1 of Navigation Fix Plan) */}
+      {formFieldModalOpen && selectedFormField && (
+        <FormFieldConfigPanel
+          field={selectedFormField.data}
+          onChange={(updatedFieldData) => {
+            handleNodeUpdate(selectedFormField.id, updatedFieldData);
+            setFormFieldModalOpen(false);
+            setSelectedFormField(null);
+          }}
+          onClose={() => {
+            setFormFieldModalOpen(false);
+            setSelectedFormField(null);
+          }}
+          availableFields={getPreviousStepFields(selectedFormField.id)}
+          tenantLists={tenantLists}
+        />
+      )}
+      
+      {/* FormField Configuration Modal (nested) - From within FormStep */}
       {editingField && (
         <FormFieldConfigPanel
           field={editingField}
