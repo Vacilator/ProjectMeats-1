@@ -1790,12 +1790,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     if (selectedNodes.length === 1) {
       const node = selectedNodes[0];
       
+      console.log('[UnifiedFlowEditor] Node selected:', node.type, node);
+      
       // Phase 4.2.B: Open specialized FormStep modal for formStep nodes
       if (node.type === 'formStep') {
+        console.log('[UnifiedFlowEditor] Opening FormStep modal');
         setSelectedFormStep(node);
         setFormStepModalOpen(true);
         setSelectedNode(null); // Don't open generic panel
       } else {
+        console.log('[UnifiedFlowEditor] Opening generic config panel');
         setSelectedNode(node);
         setSelectedFormStep(null);
         setFormStepModalOpen(false);

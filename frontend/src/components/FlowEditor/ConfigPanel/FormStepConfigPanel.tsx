@@ -544,7 +544,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     <Container>
       <Header>
         <Title>Configure Form Step</Title>
-        <Subtitle>{localStep.fields.length} field{localStep.fields.length !== 1 ? 's' : ''}</Subtitle>
+        <Subtitle>{(localStep.fields || []).length} field{(localStep.fields || []).length !== 1 ? 's' : ''}</Subtitle>
       </Header>
 
       <Content>

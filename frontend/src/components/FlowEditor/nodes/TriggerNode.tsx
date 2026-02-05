@@ -144,7 +144,7 @@ export const TriggerNode: React.FC<NodeProps<TriggerNodeData>> = (props) => {
     >
       <div>
         <TriggerBadge $type={triggerType}>
-          {triggerType.toUpperCase()}
+          {(triggerType || 'trigger').toUpperCase()}
         </TriggerBadge>
         
         {(schedule || webhookUrl || eventEntity || formId) && (
