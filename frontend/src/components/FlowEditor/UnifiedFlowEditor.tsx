@@ -63,6 +63,7 @@ import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
+import { SidePanel } from './SidePanel';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -2703,98 +2704,143 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       />
       
       {/* FormStep Configuration Modal (Phase 4.2.B Integration) */}
-      {formStepModalOpen && selectedFormStep && (
-        <FormStepConfigPanel
-          step={selectedFormStep.data}
-          onChange={handleFormStepUpdate}
-          onClose={() => {
-            setFormStepModalOpen(false);
-            setSelectedFormStep(null);
-          }}
-          onEditField={handleEditField}
-          onAddField={handleAddField}
-          availableFields={getPreviousStepFields(selectedFormStep.id)}
-        />
-      )}
+      <SidePanel
+        isOpen={formStepModalOpen && !!selectedFormStep}
+        onClose={() => {
+          setFormStepModalOpen(false);
+          setSelectedFormStep(null);
+        }}
+      >
+        {selectedFormStep && (
+          <FormStepConfigPanel
+            step={selectedFormStep.data}
+            onChange={handleFormStepUpdate}
+            onClose={() => {
+              setFormStepModalOpen(false);
+              setSelectedFormStep(null);
+            }}
+            onEditField={handleEditField}
+            onAddField={handleAddField}
+            availableFields={getPreviousStepFields(selectedFormStep.id)}
+          />
+        )}
+      </SidePanel>
       
       {/* FormField Configuration Modal - Direct Selection (Phase 1 of Navigation Fix Plan) */}
-      {formFieldModalOpen && selectedFormField && (
-        <FormFieldConfigPanel
-          field={selectedFormField.data}
-          onChange={(updatedFieldData) => {
-            handleNodeUpdate(selectedFormField.id, updatedFieldData);
-            setFormFieldModalOpen(false);
-            setSelectedFormField(null);
-          }}
-          onClose={() => {
-            setFormFieldModalOpen(false);
-            setSelectedFormField(null);
-          }}
-          availableFields={getPreviousStepFields(selectedFormField.id)}
-          tenantLists={tenantLists}
-        />
-      )}
+      <SidePanel
+        isOpen={formFieldModalOpen && !!selectedFormField}
+        onClose={() => {
+          setFormFieldModalOpen(false);
+          setSelectedFormField(null);
+        }}
+      >
+        {selectedFormField && (
+          <FormFieldConfigPanel
+            field={selectedFormField.data}
+            onChange={(updatedFieldData) => {
+              handleNodeUpdate(selectedFormField.id, updatedFieldData);
+              setFormFieldModalOpen(false);
+              setSelectedFormField(null);
+            }}
+            onClose={() => {
+              setFormFieldModalOpen(false);
+              setSelectedFormField(null);
+            }}
+            availableFields={getPreviousStepFields(selectedFormField.id)}
+            tenantLists={tenantLists}
+          />
+        )}
+      </SidePanel>
       
       {/* Section Configuration Modal - Direct Selection (Phase 1 Task 1.2) */}
-      {sectionModalOpen && selectedSection && (
-        <SectionConfigPanel
-          section={selectedSection.data}
-          onChange={(updatedSectionData) => {
-            handleNodeUpdate(selectedSection.id, updatedSectionData);
-            setSectionModalOpen(false);
-            setSelectedSection(null);
-          }}
-          onClose={() => {
-            setSectionModalOpen(false);
-            setSelectedSection(null);
-          }}
-          availableFields={getPreviousStepFields(selectedSection.id)}
-        />
-      )}
+      <SidePanel
+        isOpen={sectionModalOpen && !!selectedSection}
+        onClose={() => {
+          setSectionModalOpen(false);
+          setSelectedSection(null);
+        }}
+      >
+        {selectedSection && (
+          <SectionConfigPanel
+            section={selectedSection.data}
+            onChange={(updatedSectionData) => {
+              handleNodeUpdate(selectedSection.id, updatedSectionData);
+              setSectionModalOpen(false);
+              setSelectedSection(null);
+            }}
+            onClose={() => {
+              setSectionModalOpen(false);
+              setSelectedSection(null);
+            }}
+            availableFields={getPreviousStepFields(selectedSection.id)}
+          />
+        )}
+      </SidePanel>
       
       {/* Document Configuration Modal - Direct Selection (Phase 1 Task 1.3) */}
-      {documentModalOpen && selectedDocument && (
-        <DocumentConfigPanel
-          document={selectedDocument.data}
-          onChange={(updatedDocumentData) => {
-            handleNodeUpdate(selectedDocument.id, updatedDocumentData);
-            setDocumentModalOpen(false);
-            setSelectedDocument(null);
-          }}
-          onClose={() => {
-            setDocumentModalOpen(false);
-            setSelectedDocument(null);
-          }}
-          availableFields={getPreviousStepFields(selectedDocument.id)}
-        />
-      )}
+      <SidePanel
+        isOpen={documentModalOpen && !!selectedDocument}
+        onClose={() => {
+          setDocumentModalOpen(false);
+          setSelectedDocument(null);
+        }}
+      >
+        {selectedDocument && (
+          <DocumentConfigPanel
+            document={selectedDocument.data}
+            onChange={(updatedDocumentData) => {
+              handleNodeUpdate(selectedDocument.id, updatedDocumentData);
+              setDocumentModalOpen(false);
+              setSelectedDocument(null);
+            }}
+            onClose={() => {
+              setDocumentModalOpen(false);
+              setSelectedDocument(null);
+            }}
+            availableFields={getPreviousStepFields(selectedDocument.id)}
+          />
+        )}
+      </SidePanel>
       
       {/* Create Record Action Configuration Modal (Phase 2 Task 2.2) */}
-      {createRecordModalOpen && selectedCreateRecord && (
-        <CreateRecordConfigPanel
-          node={selectedCreateRecord}
-          onUpdate={(nodeId, data) => {
-            handleNodeUpdate(nodeId, data);
-            setCreateRecordModalOpen(false);
-            setSelectedCreateRecord(null);
-          }}
-          onClose={() => {
-            setCreateRecordModalOpen(false);
-            setSelectedCreateRecord(null);
-          }}
-        />
-      )}
+      <SidePanel
+        isOpen={createRecordModalOpen && !!selectedCreateRecord}
+        onClose={() => {
+          setCreateRecordModalOpen(false);
+          setSelectedCreateRecord(null);
+        }}
+      >
+        {selectedCreateRecord && (
+          <CreateRecordConfigPanel
+            node={selectedCreateRecord}
+            onUpdate={(nodeId, data) => {
+              handleNodeUpdate(nodeId, data);
+              setCreateRecordModalOpen(false);
+              setSelectedCreateRecord(null);
+            }}
+            onClose={() => {
+              setCreateRecordModalOpen(false);
+              setSelectedCreateRecord(null);
+            }}
+          />
+        )}
+      </SidePanel>
       
       {/* FormField Configuration Modal (nested) - From within FormStep */}
-      {editingField && (
-        <FormFieldConfigPanel
-          field={editingField}
-          onChange={handleFieldUpdate}
-          onClose={() => setEditingField(null)}
-          availableFields={selectedFormStep?.data?.fields || []}
-          tenantLists={tenantLists}
-        />
-      )}
+      <SidePanel
+        isOpen={!!editingField}
+        onClose={() => setEditingField(null)}
+      >
+        {editingField && (
+          <FormFieldConfigPanel
+            field={editingField}
+            onChange={handleFieldUpdate}
+            onClose={() => setEditingField(null)}
+            availableFields={selectedFormStep?.data?.fields || []}
+            tenantLists={tenantLists}
+          />
+        )}
+      </SidePanel>
     </EditorContainer>
   );
 };
