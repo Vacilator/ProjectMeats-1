@@ -731,8 +731,8 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
         entity_type: entityType,
         [entityType === 'supplier' ? 'supplier' : 'customer']: entityId,
         contact: contactId || undefined,
-        source,
-        scheduled_call: scheduledCallId || undefined,
+        source_type: source,  // Fixed: backend expects source_type not source
+        source_call: scheduledCallId || undefined,
         valid_until: validUntil || undefined,
         notes: notes || undefined,
         competitor_names: competitorNames || undefined,
