@@ -60,6 +60,7 @@ import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
+import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
 
@@ -968,6 +969,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Node | null>(null);
   
+  // Create Record action configuration (Phase 2 Task 2.2)
+  const [createRecordModalOpen, setCreateRecordModalOpen] = useState(false);
+  const [selectedCreateRecord, setSelectedCreateRecord] = useState<Node | null>(null);
+  
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
     queryKey: ['workflows', 'tenant-lists'],
@@ -1811,11 +1816,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setFormFieldModalOpen(false);
       setSectionModalOpen(false);
       setDocumentModalOpen(false);
+      setCreateRecordModalOpen(false);
       setSelectedNode(null);
       setSelectedFormStep(null);
       setSelectedFormField(null);
       setSelectedSection(null);
       setSelectedDocument(null);
+      setSelectedCreateRecord(null);
       
       // Route to appropriate config panel based on node type
       switch (node.type) {
@@ -1846,6 +1853,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setDocumentModalOpen(true);
           break;
           
+        case 'action':
+          // Route to specialized action config based on actionType
+          const actionType = node.data.actionType;
+          if (actionType === 'createRecord') {
+            console.log('[UnifiedFlowEditor] Opening CreateRecord action modal');
+            setSelectedCreateRecord(node);
+            setCreateRecordModalOpen(true);
+          } else {
+            // Fall through to generic config for other action types
+            console.log('[UnifiedFlowEditor] Opening generic config panel for action');
+            setSelectedNode(node);
+          }
+          break;
+          
         default:
           console.log('[UnifiedFlowEditor] Opening generic config panel');
           setSelectedNode(node);
@@ -1857,10 +1878,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSelectedFormField(null);
       setSelectedSection(null);
       setSelectedDocument(null);
+      setSelectedCreateRecord(null);
       setFormStepModalOpen(false);
       setFormFieldModalOpen(false);
       setSectionModalOpen(false);
       setDocumentModalOpen(false);
+      setCreateRecordModalOpen(false);
     }
   }, []);
 
@@ -2743,6 +2766,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             setSelectedDocument(null);
           }}
           availableFields={getPreviousStepFields(selectedDocument.id)}
+        />
+      )}
+      
+      {/* Create Record Action Configuration Modal (Phase 2 Task 2.2) */}
+      {createRecordModalOpen && selectedCreateRecord && (
+        <CreateRecordConfigPanel
+          node={selectedCreateRecord}
+          onUpdate={(nodeId, data) => {
+            handleNodeUpdate(nodeId, data);
+            setCreateRecordModalOpen(false);
+            setSelectedCreateRecord(null);
+          }}
+          onClose={() => {
+            setCreateRecordModalOpen(false);
+            setSelectedCreateRecord(null);
+          }}
         />
       )}
       
