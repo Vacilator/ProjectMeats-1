@@ -324,6 +324,7 @@ const FormsFlowsCatalog: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filter, setFilter] = useState<FilterOption>('all');
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [previewForm, setPreviewForm] = useState<TenantForm | null>(null);
   
   // Phase 4.2: Get user permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
@@ -397,9 +398,13 @@ const FormsFlowsCatalog: React.FC = () => {
     navigate('/workforms/editor');
   };
 
-  // Handle edit form
+  // Handle edit form (now opens preview modal)
   const handleEditForm = (formId: string) => {
-    navigate(`/workforms/editor/${formId}`);
+    console.log('[Catalog] Opening form preview for formId:', formId);
+    const form = forms?.find(f => f.id === formId);
+    if (form) {
+      setPreviewForm(form);
+    }
   };
 
   // Format date
@@ -580,6 +585,14 @@ const FormsFlowsCatalog: React.FC = () => {
         onSelectTemplate={handleTemplateSelect}
         onStartBlank={handleCreateBlank}
       />
+      
+      {/* Form Preview Modal */}
+      {previewForm && (
+        <FormPreviewModal
+          form={previewForm}
+          onClose={() => setPreviewForm(null)}
+        />
+      )}
     </Container>
   );
 };
