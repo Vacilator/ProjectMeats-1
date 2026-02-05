@@ -8,7 +8,7 @@
  * - Added badge rendering support for action item counts
  */
 import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import styled, { css } from 'styled-components';
 import { NavigationItem } from '../../config/navigation';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -46,6 +46,7 @@ const ChevronIcon: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => (
 const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: sidebarExpanded, level = 0 }) => {
   const { theme, themeName } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const { counts } = useActionItems();
   const { user, isAdmin } = useAuth();
   // Changed from Set to string | null for exclusive accordion (only one open at a time)
@@ -190,7 +191,20 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
           $isDarkMode={isDarkMode}
         >
           <AccordionNavLinkInner
-            to={item.path}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('[NavigationMenu] AccordionNavLinkInner clicked:', {
+                path: item.path,
+                label: item.label,
+                active,
+                hasActiveChild,
+                timestamp: new Date().toISOString()
+              });
+              if (item.path) {
+                navigate(item.path);
+              }
+            }}
             $theme={theme}
             $level={level}
             $active={active}
@@ -487,8 +501,9 @@ const AccordionHeaderContainer = styled.div<{
   }
 `;
 
-// NavLink for accordion item with path (sits inside AccordionHeaderContainer)
-const AccordionNavLinkInner = styled(NavLink)<{ 
+// Clickable div for accordion item with path (sits inside AccordionHeaderContainer)
+// Changed from NavLink to div with onClick handler for better click handling
+const AccordionNavLinkInner = styled.div<{ 
   $theme: Theme; 
   $level: number; 
   $active: boolean; 
