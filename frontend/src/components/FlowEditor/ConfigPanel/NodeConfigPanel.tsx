@@ -829,6 +829,11 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         {node.type === 'formStep' && renderFormStepConfig()}
         {node.type === 'action' && renderActionConfig()}
         {node.type === 'condition' && renderConditionConfig()}
+        {node.type === 'trigger' && renderTriggerConfig()}
+        {node.type === 'waitState' && renderWaitStateConfig()}
+        {node.type === 'document' && renderDocumentConfig()}
+        {node.type === 'utility' && renderUtilityConfig()}
+        {node.type === 'terminal' && renderTerminalConfig()}
       </>
     );
   };
@@ -1201,6 +1206,229 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <Plus size={16} />
           Add Rule
         </Button>
+      </FormSection>
+    );
+  };
+
+  const renderTriggerConfig = () => {
+    return (
+      <FormSection>
+        <SectionTitle>Trigger Configuration</SectionTitle>
+        
+        <FormField>
+          <FieldLabel>
+            Trigger Type <RequiredIndicator>*</RequiredIndicator>
+          </FieldLabel>
+          <Select
+            value={formData.triggerType || 'manual'}
+            onChange={(e) => handleFieldChange('triggerType', e.target.value)}
+          >
+            <option value="manual">Manual / On-Demand</option>
+            <option value="schedule">Scheduled (Cron)</option>
+            <option value="webhook">Webhook / API</option>
+            <option value="event">System Event</option>
+            <option value="recordCreated">Record Created</option>
+            <option value="recordUpdated">Record Updated</option>
+          </Select>
+          <FieldHelp>
+            How this workflow should be triggered
+          </FieldHelp>
+        </FormField>
+
+        {formData.triggerType === 'schedule' && (
+          <FormField>
+            <FieldLabel>Cron Expression</FieldLabel>
+            <TextInput
+              value={formData.cronExpression || ''}
+              onChange={(e) => handleFieldChange('cronExpression', e.target.value)}
+              placeholder="0 9 * * * (every day at 9 AM)"
+            />
+            <FieldHelp>
+              Enter a valid cron expression for scheduling
+            </FieldHelp>
+          </FormField>
+        )}
+
+        {formData.triggerType === 'webhook' && (
+          <FormField>
+            <FieldLabel>Webhook Path</FieldLabel>
+            <TextInput
+              value={formData.webhookPath || ''}
+              onChange={(e) => handleFieldChange('webhookPath', e.target.value)}
+              placeholder="/api/webhooks/custom-flow"
+            />
+            <FieldHelp>
+              Custom URL path for this webhook
+            </FieldHelp>
+          </FormField>
+        )}
+      </FormSection>
+    );
+  };
+
+  const renderWaitStateConfig = () => {
+    return (
+      <FormSection>
+        <SectionTitle>Wait Configuration</SectionTitle>
+        
+        <FormField>
+          <FieldLabel>
+            Wait Type <RequiredIndicator>*</RequiredIndicator>
+          </FieldLabel>
+          <Select
+            value={formData.waitType || 'duration'}
+            onChange={(e) => handleFieldChange('waitType', e.target.value)}
+          >
+            <option value="duration">Duration (Time Period)</option>
+            <option value="until">Until (Specific Date/Time)</option>
+            <option value="event">Until Event Occurs</option>
+          </Select>
+        </FormField>
+
+        {formData.waitType === 'duration' && (
+          <>
+            <FormField>
+              <FieldLabel>Duration Value</FieldLabel>
+              <TextInput
+                type="number"
+                value={formData.durationValue || ''}
+                onChange={(e) => handleFieldChange('durationValue', e.target.value)}
+                placeholder="5"
+              />
+            </FormField>
+            <FormField>
+              <FieldLabel>Duration Unit</FieldLabel>
+              <Select
+                value={formData.durationUnit || 'minutes'}
+                onChange={(e) => handleFieldChange('durationUnit', e.target.value)}
+              >
+                <option value="seconds">Seconds</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+                <option value="weeks">Weeks</option>
+              </Select>
+            </FormField>
+          </>
+        )}
+
+        {formData.waitType === 'until' && (
+          <FormField>
+            <FieldLabel>Date/Time</FieldLabel>
+            <TextInput
+              type="datetime-local"
+              value={formData.waitUntil || ''}
+              onChange={(e) => handleFieldChange('waitUntil', e.target.value)}
+            />
+          </FormField>
+        )}
+      </FormSection>
+    );
+  };
+
+  const renderDocumentConfig = () => {
+    return (
+      <FormSection>
+        <SectionTitle>Document Configuration</SectionTitle>
+        
+        <FormField>
+          <FieldLabel>
+            Document Type <RequiredIndicator>*</RequiredIndicator>
+          </FieldLabel>
+          <Select
+            value={formData.documentType || ''}
+            onChange={(e) => handleFieldChange('documentType', e.target.value)}
+          >
+            <option value="">Select document type...</option>
+            <option value="pdf">PDF Document</option>
+            <option value="excel">Excel Spreadsheet</option>
+            <option value="word">Word Document</option>
+            <option value="csv">CSV File</option>
+          </Select>
+        </FormField>
+
+        <FormField>
+          <FieldLabel>Template</FieldLabel>
+          <TextInput
+            value={formData.templatePath || ''}
+            onChange={(e) => handleFieldChange('templatePath', e.target.value)}
+            placeholder="/templates/invoice.pdf"
+          />
+          <FieldHelp>
+            Path to the document template
+          </FieldHelp>
+        </FormField>
+      </FormSection>
+    );
+  };
+
+  const renderUtilityConfig = () => {
+    return (
+      <FormSection>
+        <SectionTitle>Utility Configuration</SectionTitle>
+        
+        <FormField>
+          <FieldLabel>
+            Utility Type <RequiredIndicator>*</RequiredIndicator>
+          </FieldLabel>
+          <Select
+            value={formData.utilityType || ''}
+            onChange={(e) => handleFieldChange('utilityType', e.target.value)}
+          >
+            <option value="">Select utility...</option>
+            <option value="variable">Set Variable</option>
+            <option value="calculate">Calculate</option>
+            <option value="transform">Transform Data</option>
+            <option value="split">Split Flow</option>
+            <option value="merge">Merge Flows</option>
+          </Select>
+        </FormField>
+
+        <FormField>
+          <FieldLabel>Expression</FieldLabel>
+          <TextArea
+            value={formData.expression || ''}
+            onChange={(e) => handleFieldChange('expression', e.target.value)}
+            placeholder="result = input1 + input2"
+          />
+          <FieldHelp>
+            JavaScript expression or operation
+          </FieldHelp>
+        </FormField>
+      </FormSection>
+    );
+  };
+
+  const renderTerminalConfig = () => {
+    return (
+      <FormSection>
+        <SectionTitle>Termination Configuration</SectionTitle>
+        
+        <FormField>
+          <FieldLabel>
+            End Type <RequiredIndicator>*</RequiredIndicator>
+          </FieldLabel>
+          <Select
+            value={formData.endType || 'success'}
+            onChange={(e) => handleFieldChange('endType', e.target.value)}
+          >
+            <option value="success">Success</option>
+            <option value="error">Error</option>
+            <option value="cancelled">Cancelled</option>
+          </Select>
+        </FormField>
+
+        <FormField>
+          <FieldLabel>Message</FieldLabel>
+          <TextInput
+            value={formData.endMessage || ''}
+            onChange={(e) => handleFieldChange('endMessage', e.target.value)}
+            placeholder="Workflow completed successfully"
+          />
+          <FieldHelp>
+            Optional message to display when this endpoint is reached
+          </FieldHelp>
+        </FormField>
       </FormSection>
     );
   };

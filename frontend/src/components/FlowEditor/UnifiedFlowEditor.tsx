@@ -1919,13 +1919,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const handleTemplateSelect = useCallback((template: FlowTemplate) => {
     console.log('[Template] Selected:', template.name);
     
+    // Map template nodes to proper React Flow node types
+    const mappedNodes = template.nodes.map(node => {
+      // Ensure node has proper type mapping
+      const reactFlowType = getReactFlowNodeType(node.type);
+      return {
+        ...node,
+        type: reactFlowType, // Override with React Flow node type
+        data: {
+          ...node.data,
+          label: node.data.label || node.type, // Ensure label exists
+        }
+      };
+    });
+    
     // Load template nodes and edges into canvas
-    setNodes(template.nodes);
+    setNodes(mappedNodes);
     setEdges(template.edges);
     
     // Reset history with template as initial state
     const newHistory: HistoryState[] = [{
-      nodes: template.nodes,
+      nodes: mappedNodes,
       edges: template.edges
     }];
     setHistory(newHistory);
@@ -2651,6 +2665,10 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   if (nodeTypeId.startsWith('document')) return 'document';
   if (nodeTypeId.startsWith('utility')) return 'utility';
   if (nodeTypeId.startsWith('terminal')) return 'terminal';
+  if (nodeTypeId.startsWith('end')) return 'terminal'; // Map 'endSuccess', 'endError' to terminal
+  
+  // Log unknown type for debugging
+  console.warn(`Unknown node type: ${nodeTypeId}, defaulting to action`);
   
   // Default to action
   return 'action';
