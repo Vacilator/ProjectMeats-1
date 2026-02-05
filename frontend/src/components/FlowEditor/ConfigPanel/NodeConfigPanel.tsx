@@ -13,12 +13,14 @@
  * 
  * Created: 2026-02-04 - Phase 2.2 Configuration Panels
  * Updated: 2026-02-05 - Task 1.5 Integrated FieldMappingPanel
+ * Updated: 2026-02-05 - Task 2.1 Cascading Trigger Configuration
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2, Edit2, Check, GripVertical } from 'lucide-react';
 import { Node } from '@xyflow/react';
 import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
+import axios from 'axios';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -594,6 +596,12 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  
+  // Cascading configuration state (Task 2.1)
+  const [availableForms, setAvailableForms] = useState<any[]>([]);
+  const [availableFormFields, setAvailableFormFields] = useState<any[]>([]);
+  const [loadingForms, setLoadingForms] = useState(false);
+  const [loadingFields, setLoadingFields] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
 
   const isOpen = node !== null;
@@ -607,6 +615,69 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
       setActiveTab('config');
     }
   }, [node?.id]); // Only reset when node ID changes
+  
+  // Fetch available forms when trigger type is form-related (Task 2.1)
+  useEffect(() => {
+    const triggerType = formData.triggerType;
+    if (triggerType === 'form' || triggerType === 'formSubmitted' || triggerType === 'recordCreated' || triggerType === 'recordUpdated') {
+      setLoadingForms(true);
+      // Fetch forms from API
+      axios.get('/api/v1/workforms/')
+        .then(response => {
+          setAvailableForms(response.data.results || response.data || []);
+        })
+        .catch(error => {
+          console.error('Failed to fetch forms:', error);
+          setAvailableForms([]);
+        })
+        .finally(() => {
+          setLoadingForms(false);
+        });
+    } else {
+      setAvailableForms([]);
+      setAvailableFormFields([]);
+    }
+  }, [formData.triggerType]);
+  
+  // Fetch form fields when a form is selected (Task 2.1)
+  useEffect(() => {
+    const formId = formData.selectedFormId || formData.formId;
+    if (formId && availableForms.length > 0) {
+      setLoadingFields(true);
+      // Find the selected form from available forms
+      const selectedForm = availableForms.find(f => f.id === parseInt(formId) || f.id === formId);
+      if (selectedForm) {
+        // Parse workflow definition to get form fields
+        try {
+          const workflowDef = typeof selectedForm.workflow_definition === 'string'
+            ? JSON.parse(selectedForm.workflow_definition)
+            : selectedForm.workflow_definition;
+          
+          // Extract fields from workflow nodes
+          const fields: any[] = [];
+          if (workflowDef && workflowDef.nodes) {
+            workflowDef.nodes.forEach((node: any) => {
+              if (node.type === 'formField' && node.data) {
+                fields.push({
+                  id: node.id,
+                  label: node.data.label,
+                  type: node.data.fieldType || node.data.type || 'text',
+                  required: node.data.required || false,
+                });
+              }
+            });
+          }
+          setAvailableFormFields(fields);
+        } catch (error) {
+          console.error('Failed to parse workflow definition:', error);
+          setAvailableFormFields([]);
+        }
+      }
+      setLoadingFields(false);
+    } else {
+      setAvailableFormFields([]);
+    }
+  }, [formData.selectedFormId, formData.formId, availableForms]);
 
   // ============================================================================
   // Validation Logic
@@ -1231,6 +1302,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             <option value="event">System Event</option>
             <option value="recordCreated">Record Created</option>
             <option value="recordUpdated">Record Updated</option>
+            <option value="formSubmitted">Form Submitted</option>
           </Select>
           <FieldHelp>
             How this workflow should be triggered
@@ -1263,6 +1335,64 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
               Custom URL path for this webhook
             </FieldHelp>
           </FormField>
+        )}
+        
+        {/* Cascading Form Selection (Task 2.1) */}
+        {(formData.triggerType === 'formSubmitted' || formData.triggerType === 'recordCreated' || formData.triggerType === 'recordUpdated') && (
+          <>
+            <FormField>
+              <FieldLabel>
+                Select Form <RequiredIndicator>*</RequiredIndicator>
+              </FieldLabel>
+              <Select
+                value={formData.selectedFormId || formData.formId || ''}
+                onChange={(e) => {
+                  handleFieldChange('selectedFormId', e.target.value);
+                  handleFieldChange('formId', e.target.value);
+                }}
+                disabled={loadingForms}
+              >
+                <option value="">
+                  {loadingForms ? 'Loading forms...' : 'Select a form'}
+                </option>
+                {availableForms.map((form: any) => (
+                  <option key={form.id} value={form.id}>
+                    {form.title || form.name || `Form ${form.id}`}
+                  </option>
+                ))}
+              </Select>
+              <FieldHelp>
+                Choose which form submission will trigger this workflow
+              </FieldHelp>
+            </FormField>
+            
+            {/* Field Selection (appears after form is selected) */}
+            {(formData.selectedFormId || formData.formId) && (
+              <FormField>
+                <FieldLabel>
+                  Trigger Field (Optional)
+                </FieldLabel>
+                <Select
+                  value={formData.triggerFieldId || ''}
+                  onChange={(e) => handleFieldChange('triggerFieldId', e.target.value)}
+                  disabled={loadingFields || availableFormFields.length === 0}
+                >
+                  <option value="">
+                    {loadingFields ? 'Loading fields...' : availableFormFields.length === 0 ? 'No fields available' : 'Any field (trigger on any submission)'}
+                  </option>
+                  {availableFormFields.map((field: any) => (
+                    <option key={field.id} value={field.id}>
+                      {field.label} ({field.type})
+                      {field.required && ' *'}
+                    </option>
+                  ))}
+                </Select>
+                <FieldHelp>
+                  Optionally trigger only when a specific field is filled. Leave empty to trigger on any form submission.
+                </FieldHelp>
+              </FormField>
+            )}
+          </>
         )}
       </FormSection>
     );
