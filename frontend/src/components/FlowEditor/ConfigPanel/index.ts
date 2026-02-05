@@ -8,6 +8,7 @@ export { FormStepConfigPanel } from './FormStepConfigPanel';
 export { FormFieldConfigPanel } from './FormFieldConfigPanel';
 export { SectionConfigPanel } from './SectionConfigPanel';
 export { DocumentConfigPanel } from './DocumentConfigPanel';
+export { CreateRecordConfigPanel } from './CreateRecordConfigPanel';
 export { FieldMappingPanel } from './FieldMappingPanel';
 export { ConditionBuilder } from './ConditionBuilder';
 export { ValidationRuleBuilder } from './ValidationRuleBuilder';
