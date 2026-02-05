@@ -45,6 +45,7 @@ import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomI
 
 import {
   FormStepNode,
+  FormReferenceNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -834,6 +835,7 @@ const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $po
 
 const nodeTypes: NodeTypes = {
   formStep: FormStepNode,
+  formReference: FormReferenceNode,
   trigger: TriggerNode,
   condition: ConditionIfNode,
   action: ActionNode,
