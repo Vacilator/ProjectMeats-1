@@ -370,6 +370,32 @@ class AbstractContact(models.Model):
         abstract = True
 
 
+class TenantAwareModel(TimestampModel):
+    """
+    Abstract base model for tenant-aware entities.
+    
+    Provides tenant isolation via ForeignKey and dynamic schema extension
+    through custom_data JSONB field for System Blueprint features.
+    """
+    
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        help_text="Tenant this entity belongs to"
+    )
+    
+    custom_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Extensible schema data for dynamic fields defined in Blueprints.'
+    )
+    
+    objects = TenantManager()
+    
+    class Meta:
+        abstract = True
+
+
 class OwnedModel(TimestampModel):
     """Abstract base model for entities with ownership."""
 

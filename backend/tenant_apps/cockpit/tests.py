@@ -56,6 +56,7 @@ class CockpitSearchTestCase(TestCase):
         
         # Create test data with unique identifiers
         self.customer = Customer.objects.create(
+            tenant=self.tenant,
             name=f'Acme Corporation {unique_id}',
             contact_person=f'John Doe {unique_id}',
             email=f'john-{unique_id}@acme.com',
@@ -63,6 +64,7 @@ class CockpitSearchTestCase(TestCase):
         )
         
         self.supplier = Supplier.objects.create(
+            tenant=self.tenant,
             name=f'Global Supplies {unique_id}',
             contact_person=f'Jane Smith {unique_id}',
             email=f'jane-{unique_id}@global.com',
@@ -70,6 +72,7 @@ class CockpitSearchTestCase(TestCase):
         )
         
         self.purchase_order = PurchaseOrder.objects.create(
+            tenant=self.tenant,
             order_number=f'PO-2024-{unique_id}',
             our_purchase_order_num=f'INT-{unique_id}',
             supplier=self.supplier,

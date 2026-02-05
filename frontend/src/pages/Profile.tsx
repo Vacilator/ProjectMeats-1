@@ -20,8 +20,8 @@ const Profile: React.FC = () => {
   } | null>(null);
 
   const handleAvatarUpload = async (file: File) => {
-    // TODO: Implement actual API upload with tenant-isolated storage
-    // For now, create a local preview
+    // Note: API upload with tenant-isolated storage planned for Wave F (Features)
+    // Currently shows local preview only
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarUrl(reader.result as string);

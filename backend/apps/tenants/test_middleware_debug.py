@@ -5,7 +5,7 @@ These tests verify that the temporary debug logging for staging.meatscentral.com
 and uat.meatscentral.com doesn't interfere with normal middleware operation.
 """
 
-from django.test import TestCase, RequestFactory
+from django.test import TestCase, RequestFactory, override_settings
 from django.contrib.auth.models import User
 from apps.tenants.middleware import TenantMiddleware
 from apps.tenants.models import Tenant, TenantUser, TenantDomain
@@ -36,8 +36,16 @@ class TenantMiddlewareDebugLoggingTests(TestCase):
             password="testpass"
         )
 
+    @override_settings(ALLOWED_HOSTS=['example.com', 'testserver'])
     def test_middleware_works_without_debug_domains(self):
         """Test that middleware works normally for non-debug domains."""
+        # Create a domain for the test
+        TenantDomain.objects.create(
+            domain="example.com",
+            tenant=self.tenant,
+            is_primary=True
+        )
+        
         request = self.factory.get('/', HTTP_HOST='example.com')
         request.user = self.user
         

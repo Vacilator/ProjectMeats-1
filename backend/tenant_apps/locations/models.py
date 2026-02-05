@@ -2,11 +2,13 @@
 Locations models for ProjectMeats.
 
 Defines location entities for suppliers and customers.
+Also includes plant/facility locations (merged from plants app).
 
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 Row-level security (RLS) enabled for additional isolation at PostgreSQL level.
 """
 from django.db import models
+from django.contrib.auth.models import User
 
 from apps.tenants.models import Tenant
 from apps.core.models import (
@@ -16,8 +18,30 @@ from apps.core.models import (
 )
 
 
+class LocationTypeChoices(models.TextChoices):
+    """Location type choices including plant types."""
+    # General location types
+    WAREHOUSE = 'warehouse', 'Warehouse'
+    STORE = 'store', 'Store'
+    DISTRIBUTION_CENTER = 'distribution_center', 'Distribution Center'
+    OFFICE = 'office', 'Office'
+    # Plant types (merged from plants app)
+    PLANT_PROCESSING = 'plant_processing', 'Processing Plant'
+    PLANT_DISTRIBUTION = 'plant_distribution', 'Plant Distribution Center'
+    PLANT_WAREHOUSE = 'plant_warehouse', 'Plant Warehouse'
+    PLANT_RETAIL = 'plant_retail', 'Retail Location'
+    PLANT_OTHER = 'plant_other', 'Other Plant'
+    # Legacy/generic
+    OTHER = 'other', 'Other'
+
+
 class Location(TimestampModel):
-    """Location model for supplier and customer addresses."""
+    """
+    Unified Location model for supplier/customer addresses and plant facilities.
+    
+    This model consolidates the former Plant model with locations, using
+    location_type to distinguish between general locations and plant facilities.
+    """
 
     # Use the custom TenantManager to support .for_tenant() queries
     objects = TenantManager()
@@ -39,13 +63,14 @@ class Location(TimestampModel):
         max_length=50,
         blank=True,
         default='',
-        help_text="Location code or identifier"
+        db_index=True,
+        help_text="Location code or identifier (unique for plants)"
     )
     location_type = models.CharField(
         max_length=50,
-        blank=True,
-        default='',
-        help_text="Type of location (warehouse, store, distribution_center, office)"
+        choices=LocationTypeChoices.choices,
+        default=LocationTypeChoices.OTHER,
+        help_text="Type of location"
     )
     address = models.TextField(
         blank=True,
@@ -118,6 +143,44 @@ class Location(TimestampModel):
         help_text="Associated customer"
     )
 
+    # =========================================================================
+    # Plant-specific fields (from merged plants app)
+    # These fields are only used when location_type starts with 'plant_'
+    # =========================================================================
+    plant_est_num = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        help_text="Plant establishment number (USDA/FDA)",
+    )
+    manager = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Plant manager name"
+    )
+    capacity = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Capacity in units (for plants)"
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_locations',
+        help_text="User who created this location"
+    )
+    
+    # Legacy plant ID for migration tracking
+    legacy_plant_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Original Plant ID before migration (for reference)"
+    )
+
     class Meta:
         ordering = ['name']
         verbose_name = 'Location'
@@ -127,7 +190,32 @@ class Location(TimestampModel):
             models.Index(fields=['tenant', 'supplier']),
             models.Index(fields=['tenant', 'customer']),
             models.Index(fields=['tenant', 'location_type']),
+            models.Index(fields=['tenant', 'code']),
+        ]
+        constraints = [
+            # Plant codes should be unique within a tenant
+            models.UniqueConstraint(
+                fields=['tenant', 'code'],
+                condition=models.Q(code__gt=''),
+                name='unique_location_code_per_tenant'
+            ),
         ]
 
     def __str__(self):
+        if self.code:
+            return f"{self.code} - {self.name}"
         return f"{self.name} ({self.city or 'No city'})"
+
+    @property
+    def is_plant(self) -> bool:
+        """Check if this location is a plant/facility."""
+        return self.location_type.startswith('plant_')
+
+    @classmethod
+    def get_plant_type_choices(cls):
+        """Get only plant-related location types."""
+        return [
+            (choice.value, choice.label)
+            for choice in LocationTypeChoices
+            if choice.value.startswith('plant_')
+        ]

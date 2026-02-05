@@ -1,0 +1,85 @@
+/* Admin Studio Styles - Tailwind + CSS Variables Theme */
+
+/* Import main theme CSS variables BEFORE Tailwind */
+@import '../../index.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Studio-specific overrides */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Studio custom utilities */
+@layer components {
+  /* Studio-specific component styles */
+  .studio-table {
+    @apply border-collapse w-full;
+  }
+  
+  .studio-table th {
+    @apply bg-surface text-text-primary font-semibold text-left px-4 py-2 border border-border;
+  }
+  
+  .studio-table td {
+    @apply border border-border px-4 py-2;
+  }
+  
+  .studio-card {
+    @apply bg-surface border border-border rounded-lg shadow-sm p-4;
+  }
+  
+  .studio-button-primary {
+    @apply bg-primary text-white px-4 py-2 rounded hover:opacity-90 transition-opacity;
+  }
+  
+  .studio-button-secondary {
+    @apply bg-secondary text-white px-4 py-2 rounded hover:opacity-90 transition-opacity;
+  }
+  
+  .studio-input {
+    @apply border border-border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+}
+
+@layer utilities {
+  /* Studio-specific utility classes */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: rgb(var(--color-surface));
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-border));
+    border-radius: 4px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-text-muted));
+  }
+}

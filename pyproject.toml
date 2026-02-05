@@ -77,3 +77,99 @@ exclude = ["tests*", "frontend*", "backend*", "docs*", "config*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.md", "*.txt", "*.yaml", "*.yml"]
+
+# ============================================================================
+# Pytest Configuration
+# ============================================================================
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "projectmeats.settings.development"
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+testpaths = ["backend"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "-ra",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# ============================================================================
+# Coverage Configuration
+# ============================================================================
+
+[tool.coverage.run]
+source = ["backend/apps", "backend/projectmeats"]
+branch = true
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/admin.py",
+    "*/conftest.py",
+    "*_test.py",
+    "test_*.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if settings.DEBUG:",
+]
+show_missing = true
+precision = 2
+fail_under = 0
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ============================================================================
+# Black Configuration
+# ============================================================================
+
+[tool.black]
+line-length = 120
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | migrations
+    | node_modules
+)/
+'''
+
+# ============================================================================
+# isort Configuration
+# ============================================================================
+
+[tool.isort]
+profile = "black"
+line_length = 120
+known_django = ["django", "rest_framework"]
+known_first_party = ["apps", "projectmeats"]
+sections = ["FUTURE", "STDLIB", "DJANGO", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+skip = ["migrations", "node_modules", ".git", "__pycache__"]

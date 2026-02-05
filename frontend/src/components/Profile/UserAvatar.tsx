@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
+import { notify } from '../../utils/notify';
 
 interface UserAvatarProps {
   isEditMode: boolean;
@@ -40,23 +41,24 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
     // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      alert('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      notify.warning('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
       return;
     }
 
     // Validate file size (5MB max)
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      alert('File size must be less than 5MB');
+      notify.warning('File size must be less than 5MB');
       return;
     }
 
     try {
       setUploading(true);
       await onUpload(file);
+      notify.success('Image uploaded successfully');
     } catch (error) {
       console.error('Upload failed:', error);
-      alert('Failed to upload image. Please try again.');
+      notify.error('Failed to upload image. Please try again.');
     } finally {
       setUploading(false);
     }

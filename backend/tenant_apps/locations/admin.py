@@ -1,12 +1,13 @@
 """
 Django admin configuration for Locations app.
+Includes unified management for general locations and plant facilities.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Location
 
 
-@admin.register(Location)
 class LocationAdmin(TenantFilteredAdmin):
     """Admin interface for Location model with tenant filtering."""
 
@@ -20,6 +21,7 @@ class LocationAdmin(TenantFilteredAdmin):
         'supplier',
         'customer',
         'is_active',
+        'is_plant_display',
         'created_on',
     )
     list_filter = (
@@ -36,8 +38,10 @@ class LocationAdmin(TenantFilteredAdmin):
         'address',
         'contact_name',
         'email',
+        'plant_est_num',
+        'manager',
     )
-    readonly_fields = ('created_on', 'modified_on')
+    readonly_fields = ('created_on', 'modified_on', 'legacy_plant_id')
 
     fieldsets = (
         (
@@ -65,10 +69,27 @@ class LocationAdmin(TenantFilteredAdmin):
             },
         ),
         (
+            '🏭 Plant/Facility Details',
+            {
+                'fields': ('plant_est_num', 'manager', 'capacity', 'created_by'),
+                'classes': ('collapse',),
+                'description': 'These fields apply to plant/facility locations only.',
+            },
+        ),
+        (
             'Metadata',
             {
-                'fields': ('tenant', 'created_on', 'modified_on'),
+                'fields': ('tenant', 'legacy_plant_id', 'created_on', 'modified_on'),
                 'classes': ('collapse',)
             },
         ),
     )
+
+    @admin.display(boolean=True, description='Is Plant')
+    def is_plant_display(self, obj):
+        """Display whether this location is a plant."""
+        return obj.is_plant
+
+
+# Register models with custom admin site
+admin_site.register(Location, LocationAdmin)

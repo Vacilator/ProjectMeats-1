@@ -41,30 +41,40 @@ _DJANGO_CORE_APPS = [
 _THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_simplejwt.token_blacklist",  # JWT token blacklist (Wave S1)
     "corsheaders",
     "drf_spectacular",
     "django_filters",
+    "django_modal_actions",  # Modal dialogs for Django Admin actions
+    "flags",  # Feature flags for gradual rollout (v2.0 Wave 0)
 ]
 
 # ProjectMeats apps (all in shared schema with tenant_id isolation)
 _PROJECT_APPS = [
     "apps.core",
     "apps.tenants",  # Tenant management (shared-schema approach)
+    "apps.system",   # NEW: Centralized configuration system (v2.0 Wave 1)
+    # NOTE: apps.schema_builder DELETED in v2.0 Wave 1 (0 records, superseded by workflows)
+    "shared_apps.system_config",  # System Blueprint Engine (global configuration)
     # Business apps (all use tenant_id for data isolation)
-    "tenant_apps.accounts_receivables",
+    # NOTE: tenant_apps.accounts_receivables DELETED in v2.0 Wave 1 (0 records, merged into invoices)
     "tenant_apps.ai_assistant",
     "tenant_apps.bug_reports",
     "tenant_apps.carriers",
     "tenant_apps.cockpit",
     "tenant_apps.contacts",
     "tenant_apps.customers",
+    "tenant_apps.fulfillments",  # Fulfillment tracking
+    "tenant_apps.inquiries",  # Inquiry management
     "tenant_apps.invoices",
     "tenant_apps.locations",
+    "tenant_apps.orders",  # Wave 6: Abstract base order classes
     "tenant_apps.plants",
     "tenant_apps.products",
     "tenant_apps.purchase_orders",
     "tenant_apps.sales_orders",
     "tenant_apps.suppliers",
+    "tenant_apps.workflows",  # Bundle Two: Tenant Workflows & New Data Entities
 ]
 
 # All apps in one shared schema
@@ -161,11 +171,28 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FileUploadParser",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        # JWT Authentication (Wave S1: Security Hardening)
+        # Short-lived access tokens with refresh token rotation
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # Legacy token auth (for backward compatibility during migration)
         "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",  # For Studio and browsable API
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+    # Rate Limiting / Throttling (Wave S2: Security Hardening)
+    # Prevents brute force attacks and API abuse
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "20/minute",      # Anonymous users: 20 requests/minute
+        "user": "100/minute",     # Authenticated users: 100 requests/minute
+        "auth": "5/minute",       # Auth endpoints (login/register): 5/minute
+        "burst": "60/minute",     # Burst-allowed endpoints: 60/minute
+    },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_FILTER_BACKENDS": [
@@ -177,14 +204,113 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.core.exceptions.exception_handler",
 }
 
+# ==============================================================================
+# JWT AUTHENTICATION (Wave S1: Security Hardening)
+# ==============================================================================
+# Replace perpetual tokens with industry-standard JWT
+# Access tokens expire quickly; refresh tokens rotate on use
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    # Token lifetimes
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),  # Short-lived for security
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),     # Longer-lived, rotates on use
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=15),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+    
+    # Token rotation: issue new refresh token on each refresh
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,  # Blacklist old refresh tokens
+    
+    # Algorithm (uses SECRET_KEY for signing by default)
+    "ALGORITHM": "HS256",
+    
+    # Auth header
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    
+    # Token claims
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    
+    # Custom claims (add tenant info for multi-tenancy)
+    "TOKEN_OBTAIN_SERIALIZER": "apps.core.jwt_serializers.TenantAwareTokenObtainPairSerializer",
+}
+
 # API Documentation
 SPECTACULAR_SETTINGS = {
     "TITLE": "ProjectMeats API",
-    "DESCRIPTION": "REST API for meat sales broker management system",
-    "VERSION": "1.0.0",
+    "DESCRIPTION": """
+# ProjectMeats REST API v2.0
+
+Multi-tenant meat sales broker management system.
+
+## Authentication
+All endpoints require Token authentication via the `Authorization` header:
+```
+Authorization: Token your-auth-token
+```
+
+## Multi-Tenancy
+Include tenant context via the `X-Tenant-ID` header:
+```
+X-Tenant-ID: your-tenant-uuid
+```
+
+## API Modules
+- **System Configuration**: Choice lists, field schemas, tenant configs
+- **Accounts**: User authentication and profiles
+- **Tenants**: Multi-tenancy management
+- **Customers**: Customer CRM
+- **Suppliers**: Supplier management
+- **Products**: Product catalog
+- **Purchase Orders**: PO lifecycle management
+- **Sales Orders**: SO lifecycle management
+- **Invoices/Accounting**: Financial management
+- **Plants**: Processing facility management
+- **Carriers**: Shipping carrier management
+- **Workflows**: Form and approval workflows
+- **AI Assistant**: AI-powered recommendations
+
+## Response Format
+All responses follow standard REST conventions with JSON payloads.
+Paginated lists include `count`, `next`, `previous`, and `results` fields.
+    """,
+    "VERSION": "2.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "SORT_OPERATIONS": False,
+    "TAGS": [
+        {"name": "Health", "description": "Service health checks"},
+        {"name": "Auth", "description": "Authentication and tokens"},
+        {"name": "System", "description": "System configuration (choice lists, schemas)"},
+        {"name": "Tenants", "description": "Multi-tenancy management"},
+        {"name": "Customers", "description": "Customer CRM operations"},
+        {"name": "Suppliers", "description": "Supplier management"},
+        {"name": "Products", "description": "Product catalog"},
+        {"name": "Purchase Orders", "description": "Purchase order lifecycle"},
+        {"name": "Sales Orders", "description": "Sales order lifecycle"},
+        {"name": "Invoices", "description": "Invoice and accounting"},
+        {"name": "Plants", "description": "Processing facilities"},
+        {"name": "Carriers", "description": "Shipping carriers"},
+        {"name": "Contacts", "description": "Contact management"},
+        {"name": "Locations", "description": "Address and location management"},
+        {"name": "Workflows", "description": "Form and approval workflows"},
+        {"name": "Workspace", "description": "User workspace and dashboard"},
+        {"name": "AI Assistant", "description": "AI-powered features"},
+        {"name": "Feedback", "description": "Bug reports and feedback"},
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+        "displayOperationId": False,
+        "filter": True,
+    },
+    "REDOC_UI_SETTINGS": {
+        "hideDownloadButton": False,
+    },
 }
 
 # Ensure logs directory exists for file handlers
@@ -259,11 +385,7 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": False,
         },
-        "tenant_apps.accounts_receivables.views": {
-            "handlers": ["console", "debug_file"],
-            "level": "DEBUG",
-            "propagate": False,
-        },
+        # NOTE: tenant_apps.accounts_receivables DELETED in v2.0 Wave 1
         "apps.core.exceptions": {
             "handlers": ["console", "debug_file"],
             "level": "DEBUG",
@@ -300,3 +422,60 @@ SERVER_EMAIL = 'no-reply@meatscentral.com'
 # ⚠️  DO NOT ADD: EMAIL_HOST, EMAIL_PORT, EMAIL_USE_TLS, EMAIL_USE_SSL
 # ⚠️  These will cause Errno 111 (Connection Refused) and 504 timeouts
 # ==============================================================================
+
+# ==============================================================================
+# Feature Flags Configuration (v2.0 Wave 0)
+# ==============================================================================
+# django-flags for gradual feature rollout
+# See: https://django-flags.readthedocs.io/
+#
+# Usage in code:
+#   from flags.state import flag_enabled
+#   if flag_enabled('COCKPIT_V2'):
+#       # Use new cockpit
+#
+# Usage in templates:
+#   {% load feature_flags %}
+#   {% flag_enabled 'COCKPIT_V2' as cockpit_v2 %}
+#   {% if cockpit_v2 %}...{% endif %}
+# ==============================================================================
+
+FLAGS = {
+    # Wave 2: Cockpit Command Center
+    'COCKPIT_V2': [
+        {'condition': 'boolean', 'value': True},  # Enabled by default (already deployed)
+    ],
+    'ENTITY_GRAPH': [
+        {'condition': 'boolean', 'value': True},  # Enabled by default
+    ],
+    'COMMAND_PALETTE': [
+        {'condition': 'boolean', 'value': True},  # Enabled by default
+    ],
+    'WIDGET_SYSTEM': [
+        {'condition': 'boolean', 'value': True},  # Enabled by default
+    ],
+    
+    # Wave 3: Forms & Flows (ready for testing)
+    'FORMS_V2': [
+        {'condition': 'boolean', 'value': False},  # Not yet enabled
+    ],
+    'WORKFLOW_ENGINE': [
+        {'condition': 'boolean', 'value': False},  # Not yet enabled
+    ],
+    
+    # Wave 4: Admin Studio
+    'ADMIN_STUDIO_V2': [
+        {'condition': 'boolean', 'value': False},  # Not yet enabled
+    ],
+    
+    # Wave F: New Features
+    'FILE_ATTACHMENTS': [
+        {'condition': 'boolean', 'value': False},  # Coming in Wave F1
+    ],
+    'CARRIERS_MODULE': [
+        {'condition': 'boolean', 'value': False},  # Coming in Wave F2
+    ],
+    'AI_ASSISTANT_V2': [
+        {'condition': 'boolean', 'value': False},  # Coming in Wave F4
+    ],
+}

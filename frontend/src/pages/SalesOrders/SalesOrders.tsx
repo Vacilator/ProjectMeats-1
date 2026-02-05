@@ -13,6 +13,7 @@
  * Pattern: Follows Claims.tsx architecture for consistency
  */
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { ActivityFeed, CreateOrderModal } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
@@ -416,6 +417,7 @@ const DetailAmount = styled.div`
 // ============================================================================
 
 export const SalesOrdersPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -423,6 +425,15 @@ export const SalesOrdersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Auto-open modal if ?action=create in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setIsModalOpen(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     fetchOrders();

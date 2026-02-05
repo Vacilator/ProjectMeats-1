@@ -6,12 +6,16 @@
 # Core Django and DRF
 Django>=5.0
 djangorestframework>=3.15.0  # 3.15.0+ required for Django 6.0 compatibility
+djangorestframework-simplejwt>=5.3.0  # JWT authentication (Wave S1)
 django-cors-headers==4.3.1
 django-environ==0.12.0
 django-filter>=23.3  # Ensure latest compatible with Django 5.x
 
 # Multi-tenancy: Uses shared-schema approach (NO django-tenants)
 # All tenant isolation is via tenant_id foreign keys on business models
+
+# Admin Enhancements (Bundle One: Custom System Data)
+django-modal-actions==0.1.6  # Modal dialogs for Django Admin actions
 
 # Database
 psycopg[binary]>=3.2.0  # Modern PostgreSQL adapter (psycopg3)
@@ -32,6 +36,9 @@ flake8==6.1.0
 isort==5.12.0
 pre-commit==3.5.0
 
+# Feature Flags (Wave 0)
+django-flags==5.0.13
+
 # Production (optional for development)
 gunicorn==21.2.0
 whitenoise==6.6.0
@@ -47,3 +54,6 @@ requests>=2.31.0  # For GitHub API integration in bug reports
 # Email (SendGrid Web API)
 sendgrid>=6.11.0
 django-sendgrid-v5>=1.2.3
+
+# PDF Generation
+reportlab>=4.0.0  # For generating PDF quotes and invoices

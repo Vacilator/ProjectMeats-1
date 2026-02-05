@@ -7,7 +7,7 @@ from rest_framework import serializers
 from tenant_apps.customers.models import Customer
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.purchase_orders.models import PurchaseOrder
-from tenant_apps.cockpit.models import ActivityLog, ScheduledCall
+from tenant_apps.cockpit.models import ActivityLog, ScheduledCall, UserWorkspaceLayout
 
 
 class CustomerSlotSerializer(serializers.ModelSerializer):
@@ -77,6 +77,8 @@ class ScheduledCallSerializer(serializers.ModelSerializer):
     
     assigned_to_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
+    # Allow null/empty description since it's optional
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
     
     class Meta:
         model = ScheduledCall
@@ -100,6 +102,12 @@ class ScheduledCallSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_on", "modified_on", "assigned_to_name", "created_by_name"]
     
+    def validate_description(self, value):
+        """Convert null to empty string for database compatibility."""
+        if value is None:
+            return ''
+        return value
+    
     def get_assigned_to_name(self, obj):
         """Get the name of the user this call is assigned to."""
         if obj.assigned_to:
@@ -111,4 +119,44 @@ class ScheduledCallSerializer(serializers.ModelSerializer):
         if obj.created_by:
             return f"{obj.created_by.first_name} {obj.created_by.last_name}".strip() or obj.created_by.username
         return "System"
+
+
+class UserWorkspaceLayoutSerializer(serializers.ModelSerializer):
+    """Serializer for UserWorkspaceLayout model."""
+    
+    class Meta:
+        model = UserWorkspaceLayout
+        fields = [
+            "id",
+            "layout",
+            "widgets",
+            "version",
+            "created_on",
+            "modified_on",
+        ]
+        read_only_fields = ["id", "created_on", "modified_on"]
+    
+    def validate_layout(self, value):
+        """Validate layout is a list of layout items."""
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Layout must be a list")
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError("Each layout item must be an object")
+            required = {'i', 'x', 'y', 'w', 'h'}
+            if not required.issubset(item.keys()):
+                raise serializers.ValidationError(f"Layout items must have keys: {required}")
+        return value
+    
+    def validate_widgets(self, value):
+        """Validate widgets is a list of widget configs."""
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Widgets must be a list")
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError("Each widget config must be an object")
+            required = {'id', 'type', 'title'}
+            if not required.issubset(item.keys()):
+                raise serializers.ValidationError(f"Widget configs must have keys: {required}")
+        return value
 

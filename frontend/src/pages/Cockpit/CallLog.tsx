@@ -1,5 +1,5 @@
 /**
- * Cockpit Call Log Page - Professional Scheduling
+ * Calls Page - Professional Call Scheduling & Logging
  * 
  * Features:
  * - Multiple calendar views: Month, Week, Day, Agenda
@@ -7,11 +7,14 @@
  * - Drag-and-drop rescheduling (Week/Day views)
  * - Visual status indicators (upcoming, completed, overdue)
  * - Activity feed integration
+ * - Call timer for tracking call duration
  * 
  * Theme Compliance:
  * - Uses CSS custom properties (rgb(var(--color-primary)))
  * - No hardcoded colors
  * - Responsive design
+ * 
+ * Updated: 2026-02-03 - Renamed from "Call Log" to "Calls"
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
@@ -632,7 +635,7 @@ export const CallLog: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get('cockpit/scheduled-calls/');
+      const response = await apiClient.get('workspace/scheduled-calls/');
       const callsData = response.data.results || response.data;
 
       // Sort by scheduled_for (upcoming first)
@@ -661,7 +664,7 @@ export const CallLog: React.FC = () => {
 
   const handleCompleteCall = async (callId: number) => {
     try {
-      await apiClient.patch(`cockpit/scheduled-calls/${callId}/`, {
+      await apiClient.patch(`workspace/scheduled-calls/${callId}/`, {
         is_completed: true,
         outcome: 'Completed from call log',
       });
@@ -708,7 +711,7 @@ export const CallLog: React.FC = () => {
     }
     
     try {
-      await apiClient.delete(`cockpit/scheduled-calls/${callId}/`);
+      await apiClient.delete(`workspace/scheduled-calls/${callId}/`);
       await fetchScheduledCalls();
     } catch (err: any) {
       console.error('Failed to delete call:', err);
@@ -820,7 +823,7 @@ export const CallLog: React.FC = () => {
         .format('YYYY-MM-DDTHH:mm:ss');
       
       // Update backend
-      await apiClient.patch(`cockpit/scheduled-calls/${draggedCall.id}/`, {
+      await apiClient.patch(`workspace/scheduled-calls/${draggedCall.id}/`, {
         scheduled_for: newScheduledFor,
       });
       
@@ -1058,7 +1061,7 @@ export const CallLog: React.FC = () => {
   return (
     <PageContainer>
       <PageHeader>
-        <PageTitle>Call Log & Schedule</PageTitle>
+        <PageTitle>Calls</PageTitle>
         <HeaderActions>
           <PrimaryButton onClick={() => setShowScheduleModal(true)}>
             + Schedule New Call

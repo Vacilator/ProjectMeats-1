@@ -20,24 +20,13 @@ from apps.core.models import (
     OriginChoices,
     Protein,
     ProteinTypeChoices,
-    TimestampModel,
-    TenantManager,
+    TenantAwareModel,
 )
-from tenant_apps.plants.models import Plant
+from tenant_apps.locations.models import Location
 
 
-class Customer(TimestampModel):
+class Customer(TenantAwareModel):
     """Customer model for managing customer information."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="customers",
-        help_text="Tenant this customer belongs to"
-    )
 
     # Basic information - keeping existing fields with same names
     name = models.CharField(max_length=255, help_text="Customer company name")
@@ -70,11 +59,12 @@ class Customer(TimestampModel):
 
     # New enhanced fields based on spreadsheet requirements
     plant = models.ForeignKey(
-        Plant,
+        Location,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Associated plant establishment",
+        related_name='customer_plants',
+        help_text="Associated plant/location establishment",
     )
     proteins = models.ManyToManyField(
         Protein, blank=True, help_text="Protein types handled by this customer"
@@ -121,7 +111,7 @@ class Customer(TimestampModel):
         help_text="Multiple contacts associated with this customer",
     )
     products = models.ManyToManyField(
-        'products.Product',
+        'system.Product',
         related_name="customers",
         blank=True,
         help_text="Products associated with this customer",

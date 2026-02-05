@@ -3,13 +3,18 @@
  * 
  * Handles nested navigation with expandable/collapsible accordion submenus
  * Supports multi-level hierarchies with proper indentation and smooth animations
+ * 
+ * Updated: 2026-02-03 - Phase 2 Forms & Flows Enhancement
+ * - Added badge rendering support for action item counts
  */
 import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import styled, { css } from 'styled-components';
 import { NavigationItem } from '../../config/navigation';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
+import { useActionItems, getBadgeValue } from '../../contexts/ActionItemsContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface NavigationMenuProps {
   items: NavigationItem[];
@@ -41,9 +46,49 @@ const ChevronIcon: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => (
 const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: sidebarExpanded, level = 0 }) => {
   const { theme, themeName } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { counts } = useActionItems();
+  const { user, isAdmin } = useAuth();
   // Changed from Set to string | null for exclusive accordion (only one open at a time)
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const isDarkMode = themeName === 'dark';
+  
+  // Filter items based on user roles
+  const filterItemsByRole = (navItems: NavigationItem[]): NavigationItem[] => {
+    return navItems.filter(item => {
+      // If no roles specified, show to everyone
+      if (!item.roles || item.roles.length === 0) {
+        return true;
+      }
+      
+      // Check if user has any of the required roles
+      if (item.roles.includes('admin') && isAdmin) {
+        return true;
+      }
+      
+      if (item.roles.includes('superuser') && user?.is_superuser) {
+        return true;
+      }
+      
+      // Check against user's role if available
+      if (user?.role && item.roles.includes(user.role)) {
+        return true;
+      }
+      
+      return false;
+    }).map(item => {
+      // Recursively filter children
+      if (item.children) {
+        return {
+          ...item,
+          children: filterItemsByRole(item.children)
+        };
+      }
+      return item;
+    });
+  };
+  
+  const filteredItems = filterItemsByRole(items);
 
   // Auto-expand parent items when a child is active
   useEffect(() => {
@@ -62,11 +107,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       return null;
     };
     
-    const activeParent = findActiveParent(items);
+    const activeParent = findActiveParent(filteredItems);
     if (activeParent) {
       setExpandedItem(activeParent);
     }
-  }, [location.pathname, items]);
+  }, [location.pathname, filteredItems]);
 
   const toggleExpand = (label: string, e?: React.MouseEvent) => {
     if (e) {
@@ -99,66 +144,141 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   };
 
   // Render a simple navigation link (no children)
-  const renderNavLink = (item: NavigationItem, exactActive: boolean, active: boolean) => (
-    <StyledNavLink
-      to={item.path!}
-      $theme={theme}
-      $level={level}
-      $active={exactActive}
-      $hasActiveChild={active && !exactActive}
-      $isDarkMode={isDarkMode}
-    >
-      <NavIcon $color={item.color}>{item.icon}</NavIcon>
-      {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
-    </StyledNavLink>
-  );
+  const renderNavLink = (item: NavigationItem, exactActive: boolean, active: boolean) => {
+    const badgeValue = item.badge ?? getBadgeValue(counts, item.badgeKey);
+    return (
+      <StyledNavLink
+        to={item.path!}
+        $theme={theme}
+        $level={level}
+        $active={exactActive}
+        $hasActiveChild={active && !exactActive}
+        $isDarkMode={isDarkMode}
+      >
+        <NavIcon $color={item.color}>{item.icon}</NavIcon>
+        {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
+        {sidebarExpanded && badgeValue !== undefined && badgeValue > 0 && (
+          <Badge $isDarkMode={isDarkMode}>{badgeValue > 99 ? '99+' : badgeValue}</Badge>
+        )}
+      </StyledNavLink>
+    );
+  };
 
   // Render accordion header content (icon and label)
+  // Render accordion content - icon, label, badge
   const renderAccordionContent = (item: NavigationItem) => {
-    if (item.path) {
-      return (
-        <AccordionNavLink to={item.path} $level={level}>
-          <NavIcon $color={item.color}>{item.icon}</NavIcon>
-          {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
-        </AccordionNavLink>
-      );
-    }
+    const badgeValue = item.badge ?? getBadgeValue(counts, item.badgeKey);
     return (
       <>
         <NavIcon $color={item.color}>{item.icon}</NavIcon>
         {sidebarExpanded && <NavLabel>{item.label}</NavLabel>}
+        {sidebarExpanded && badgeValue !== undefined && badgeValue > 0 && (
+          <Badge $isDarkMode={isDarkMode}>{badgeValue > 99 ? '99+' : badgeValue}</Badge>
+        )}
       </>
     );
   };
 
   // Render accordion header with expand/collapse button
-  const renderAccordionHeader = (item: NavigationItem, isItemExpanded: boolean, active: boolean, hasActiveChild: boolean) => (
-    <AccordionHeader
-      onClick={(e) => {
-        if (!item.path) {
-          toggleExpand(item.label, e);
-        }
-      }}
-      $theme={theme}
-      $level={level}
-      $active={active}
-      $isExpanded={isItemExpanded}
-      $isDarkMode={isDarkMode}
-      $hasExactActiveChild={hasActiveChild}
-    >
-      {renderAccordionContent(item)}
-      {sidebarExpanded && (
-        <ExpandButton 
-          onClick={(e) => toggleExpand(item.label, e)}
-          $isExpanded={isItemExpanded}
+  const renderAccordionHeader = (item: NavigationItem, isItemExpanded: boolean, active: boolean, hasActiveChild: boolean) => {
+    // If item has a path, use a container with separate NavLink and ExpandButton
+    // FIX: Separate NavLink from ExpandButton so both can handle clicks independently
+    if (item.path) {
+      return (
+        <AccordionHeaderContainer
+          $level={level}
+          $active={active}
           $isDarkMode={isDarkMode}
-          aria-label={isItemExpanded ? 'Collapse' : 'Expand'}
         >
-          <ChevronIcon isExpanded={isItemExpanded} />
-        </ExpandButton>
-      )}
-    </AccordionHeader>
-  );
+          <AccordionNavLinkInner
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('[NavigationMenu] Parent item clicked:', {
+                path: item.path,
+                label: item.label,
+                active,
+                hasActiveChild,
+                timestamp: new Date().toISOString()
+              });
+              if (item.path) {
+                console.log('[NavigationMenu] Navigating to:', item.path);
+                navigate(item.path);
+              } else {
+                console.warn('[NavigationMenu] No path defined for:', item.label);
+              }
+            }}
+            $theme={theme}
+            $level={level}
+            $active={active}
+            $isDarkMode={isDarkMode}
+            $hasExactActiveChild={hasActiveChild}
+          >
+            {renderAccordionContent(item)}
+          </AccordionNavLinkInner>
+          {sidebarExpanded && (
+            <ExpandButton 
+              onClick={(e) => {
+                // Prevent navigation for chevron click, only toggle accordion
+                console.log('[NavigationMenu] ExpandButton clicked:', {
+                  label: item.label,
+                  isExpanded: isItemExpanded,
+                  timestamp: new Date().toISOString()
+                });
+                e.preventDefault();
+                e.stopPropagation();
+                toggleExpand(item.label, e);
+              }}
+              $isExpanded={isItemExpanded}
+              $isDarkMode={isDarkMode}
+              aria-label={isItemExpanded ? 'Collapse' : 'Expand'}
+            >
+              <ChevronIcon isExpanded={isItemExpanded} />
+            </ExpandButton>
+          )}
+        </AccordionHeaderContainer>
+      );
+    }
+    
+    // If item has NO path, use button for accordion toggle
+    return (
+      <AccordionHeader
+        onClick={(e) => {
+          console.log('[NavigationMenu] AccordionHeader clicked (no path):', {
+            label: item.label,
+            isExpanded: isItemExpanded,
+            timestamp: new Date().toISOString()
+          });
+          e.preventDefault();
+          e.stopPropagation();
+          toggleExpand(item.label, e);
+        }}
+        $theme={theme}
+        $level={level}
+        $active={active}
+        $isExpanded={isItemExpanded}
+        $isDarkMode={isDarkMode}
+        $hasExactActiveChild={hasActiveChild}
+      >
+        {renderAccordionContent(item)}
+        {sidebarExpanded && (
+          <ExpandButton 
+            onClick={(e) => {
+              // Just for consistency, though the whole header is clickable
+              e.preventDefault();
+              e.stopPropagation();
+              toggleExpand(item.label, e);
+            }}
+            $isExpanded={isItemExpanded}
+            $isDarkMode={isDarkMode}
+            aria-label={isItemExpanded ? 'Collapse' : 'Expand'}
+          >
+            <ChevronIcon isExpanded={isItemExpanded} />
+          </ExpandButton>
+        )}
+      </AccordionHeader>
+    );
+  };
 
   // Render menu button (fallback for items without path or children)
   const renderMenuButton = (item: NavigationItem, active: boolean) => (
@@ -176,7 +296,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
 
   return (
     <MenuContainer>
-      {items.map((item) => {
+      {filteredItems.map((item) => {
         const hasChildren = item.children && item.children.length > 0;
         const isItemExpanded = expandedItem === item.label; // Changed from Set.has() to direct comparison
         const active = isActive(item);
@@ -220,6 +340,8 @@ const MenuContainer = styled.div`
 
 const MenuItem = styled.div<{ $level: number }>`
   position: relative;
+  /* Ensure each menu item is in proper stacking context */
+  z-index: ${(props) => 100 - props.$level};
   /* Removed margin-bottom to ensure consistent spacing handled by baseItemStyles */
 `;
 
@@ -333,6 +455,82 @@ const AccordionNavLink = styled(NavLink)<{ $level: number }>`
   min-height: inherit;
 `;
 
+// Container for accordion header with NavLink and ExpandButton as siblings
+const AccordionHeaderContainer = styled.div<{ 
+  $level: number; 
+  $active: boolean; 
+  $isDarkMode: boolean;
+}>`
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  margin: 0 8px 4px 8px;
+  border-radius: 8px;
+  position: relative;
+  
+  /* Active state styling on container */
+  ${(props) => props.$active && css<{ $isDarkMode: boolean }>`
+    background-color: ${props.$isDarkMode 
+      ? 'rgba(var(--color-primary), 0.15)' 
+      : 'rgba(var(--color-primary), 0.1)'};
+    
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 24px;
+      background: rgb(var(--color-primary));
+      border-radius: 0 3px 3px 0;
+    }
+  `}
+  
+  &:hover {
+    background-color: ${(props) => props.$isDarkMode 
+      ? 'rgba(255, 255, 255, 0.08)' 
+      : 'rgba(0, 0, 0, 0.04)'};
+  }
+`;
+
+// Clickable div for accordion item with path (sits inside AccordionHeaderContainer)
+// Changed from NavLink to div with onClick handler for better click handling
+const AccordionNavLinkInner = styled.div<{ 
+  $theme: Theme; 
+  $level: number; 
+  $active: boolean; 
+  $isDarkMode: boolean;
+  $hasExactActiveChild: boolean;
+}>`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 12px;
+  padding-left: ${(props) => 12 + props.$level * 16}px;
+  color: ${(props) => props.$isDarkMode 
+    ? `rgba(255, 255, 255, ${props.$active ? 1 : 0.7})` 
+    : `rgba(30, 41, 59, ${props.$active ? 1 : 0.7})`};
+  text-decoration: none;
+  font-size: ${(props) => props.$level === 0 ? 14 : 13}px;
+  height: 60px;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 1;
+  position: relative;
+  
+  /* Ensure it doesn't inherit container background */
+  background: transparent;
+  
+  ${(props) => props.$hasExactActiveChild && css<{ $isDarkMode: boolean }>`
+    color: ${props.$isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgb(var(--color-text-primary))'};
+  `}
+`;
+
 const MenuButton = styled.button<{ $theme: Theme; $level: number; $active: boolean; $isDarkMode: boolean }>`
   ${baseItemStyles}
   width: calc(100% - 16px);
@@ -361,6 +559,9 @@ const ExpandButton = styled.button<{ $isExpanded: boolean; $isDarkMode: boolean 
   transition: all 0.15s ease;
   margin-left: auto;
   flex-shrink: 0;
+  z-index: 2;
+  position: relative;
+  pointer-events: auto;
   
   &:hover {
     background: ${(props) => props.$isDarkMode 
@@ -397,7 +598,10 @@ const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean
    * max-height is set to a large value to enable CSS transitions.
    * CSS cannot animate to 'auto' height, so we use a value large enough
    * to accommodate deeply nested navigation (supports ~25 items at 40px each).
+   * 
+   * CRITICAL: Set display:none when collapsed to prevent invisible overlay blocking clicks
    */
+  display: ${(props) => (props.$isExpanded ? 'block' : 'none')};
   max-height: ${(props) => (props.$isExpanded ? '2000px' : '0')};
   opacity: ${(props) => (props.$isExpanded ? 1 : 0)};
   transition: max-height 0.25s ease-out, opacity 0.2s ease;
@@ -408,6 +612,30 @@ const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean
   border-radius: 4px;
   margin-left: 8px;
   margin-right: 8px;
+  /* Ensure it doesn't block parent items */
+  pointer-events: ${(props) => (props.$isExpanded ? 'auto' : 'none')};
+  position: relative;
+  z-index: 1;
+`;
+
+const Badge = styled.span<{ $isDarkMode: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 9px;
+  background: rgb(var(--color-primary));
+  color: white;
+  margin-left: auto;
+  flex-shrink: 0;
+  box-shadow: ${(props) => props.$isDarkMode
+    ? '0 1px 3px rgba(0, 0, 0, 0.3)'
+    : '0 1px 3px rgba(0, 0, 0, 0.15)'};
 `;
 
 export default NavigationMenu;

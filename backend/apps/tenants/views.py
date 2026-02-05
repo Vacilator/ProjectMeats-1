@@ -137,7 +137,30 @@ class TenantViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def my_tenants(self, request):
-        """Get all tenants for the current user."""
+        """Get all tenants for the current user.
+        
+        For superusers/global admins, returns ALL tenants.
+        For regular users, returns only tenants they belong to.
+        """
+        user = request.user
+        
+        # Superusers can access all tenants
+        if user.is_superuser or getattr(user, 'is_global_admin', False):
+            tenants = Tenant.objects.filter(is_active=True).order_by('name')
+            # Return in same format as UserTenantSerializer
+            data = [
+                {
+                    'id': str(t.id),
+                    'name': t.name,
+                    'slug': t.slug,
+                    'role': 'owner',  # Superuser has full access
+                    'is_primary': False,
+                }
+                for t in tenants
+            ]
+            return Response(data)
+        
+        # Regular users - only tenants they belong to
         tenant_users = TenantUser.objects.filter(
             user=request.user, is_active=True
         ).select_related("tenant")

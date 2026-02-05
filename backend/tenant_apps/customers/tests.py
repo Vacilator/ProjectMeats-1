@@ -1,10 +1,10 @@
 """
 Tests for Customers API endpoints.
 
-Validates customer creation, validation, and error handling.
+Validates customer creation, validation, tenant isolation, and error handling.
+Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
-from unittest import skip
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APITestCase
@@ -13,7 +13,6 @@ from tenant_apps.customers.models import Customer
 from apps.tenants.models import Tenant, TenantUser
 
 
-@skip("Requires refactoring for schema-based multi-tenancy - see SCHEMA_ISOLATION_MIGRATION_COMPLETE.md")
 class CustomerAPITests(APITestCase):
     """Test cases for Customer API endpoints."""
 

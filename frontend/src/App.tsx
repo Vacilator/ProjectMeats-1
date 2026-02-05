@@ -5,12 +5,27 @@
  * Full Business Management System with AI Assistant
  */
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { QuickActionsProvider } from './contexts/QuickActionsContext';
+import { NotificationsProvider } from './contexts/NotificationsContext';
+import { ActionItemsProvider } from './contexts/ActionItemsContext';
 import Layout from './components/Layout/Layout';
-import Dashboard from './pages/Dashboard';
+
+// Create QueryClient for data fetching (React Query)
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
+// Page imports - Note: Dashboard replaced by Workspace, WorkflowList replaced by FormsFlows/Catalog
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
 import PurchaseOrders from './pages/PurchaseOrders';
@@ -30,7 +45,6 @@ import Claims from './pages/Accounting/Claims';
 import PayablePOs from './pages/Accounting/PayablePOs';
 import ReceivableSOs from './pages/Accounting/ReceivableSOs';
 import Invoices from './pages/Accounting/Invoices';
-import Processes from './pages/Processes';
 import Reports from './pages/Reports';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -38,6 +52,51 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import { ComingSoon } from './pages/ComingSoon';
 import ApiTestComponent from './components/ApiTestComponent';
+import { WorkflowRunner } from './pages/Workflows';
+import { WorkflowMonitor } from './pages/Workflows/WorkflowMonitor';
+import { WorkflowExecutionDetails } from './pages/Workflows/WorkflowExecutionDetails';
+import { FormSubmissionModal } from './components/FormSubmission';
+import { useQuickActions } from './contexts/QuickActionsContext';
+import MySubmissions from './pages/MySubmissions';
+import MyTasks from './pages/MyTasks';
+import Inquiries from './pages/Inquiries';
+import Fulfillments from './pages/Fulfillments';
+import InquiryTemplates from './pages/InquiryTemplates';
+import InquiryAnalytics from './pages/InquiryAnalytics';
+import OptionListsPage from './pages/Admin/OptionLists';
+import ConfigurationsPage from './pages/Admin/Configurations';
+import CustomizationsPage from './pages/Admin/Customizations';
+import UsersPage from './pages/Admin/Users';
+import AdminProfilePage from './pages/Admin/Profile';
+import BillingPage from './pages/Admin/Billing';
+import CockpitPage from './pages/Cockpit';
+import { NotificationPreferences } from './pages/Settings/index';
+// WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
+import WorkFormsLayout from './pages/WorkForms';
+import WorkFormsCatalog from './pages/WorkForms/Catalog';
+import WorkFormsInProgress from './pages/WorkForms/InProgress';
+import WorkFormsHistory from './pages/WorkForms/History';
+import WorkFormsEditor from './pages/WorkForms/Editor';
+
+// Wrapper component to access QuickActions context
+const FormSubmissionWrapper: React.FC = () => {
+  const { activeSubmission, isFormModalOpen, closeFormModal } = useQuickActions();
+  
+  // Always render if we have a submission and modal is open
+  if (!activeSubmission || !isFormModalOpen) {
+    return null;
+  }
+  
+  // Use key to force remount when submission changes
+  return (
+    <FormSubmissionModal
+      key={activeSubmission.id}
+      submission={activeSubmission}
+      isOpen={true}
+      onClose={closeFormModal}
+    />
+  );
+};
 
 const App: React.FC = () => {
   // Dynamic favicon and title based on environment
@@ -92,20 +151,24 @@ const App: React.FC = () => {
   }, []); // Run once on mount
 
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <Router
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <NavigationProvider>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<SignUp />} />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ThemeProvider>
+          <NotificationsProvider>
+            <ActionItemsProvider>
+              <QuickActionsProvider>
+              <Router
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true,
+                }}
+              >
+                <NavigationProvider>
+                  <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<SignUp />} />
               <Route path="/" element={<Layout />}>
-                <Route index element={<Dashboard />} />
+                <Route index element={<Navigate to="/cockpit" replace />} />
                 
                 {/* Suppliers & Related */}
                 <Route path="suppliers" element={<Suppliers />} />
@@ -140,18 +203,66 @@ const App: React.FC = () => {
                 <Route path="carriers" element={<Carriers />} />
                 <Route path="contacts" element={<Contacts />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
-                <Route path="call-log" element={<CallLog />} />
-                <Route path="processes" element={<Processes />} />
+                <Route path="calls" element={<CallLog />} />
+                <Route path="call-log" element={<Navigate to="/calls" replace />} />
+                <Route path="processes" element={<Navigate to="/forms-flows/catalog" replace />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="settings/notifications" element={<NotificationPreferences />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
+                
+                {/* Inquiries & Fulfillments */}
+                <Route path="inquiries" element={<Inquiries />} />
+                <Route path="inquiries/templates" element={<InquiryTemplates />} />
+                <Route path="inquiries/analytics" element={<InquiryAnalytics />} />
+                <Route path="fulfillments" element={<Fulfillments />} />
+                
+                {/* WorkForms (consolidated forms + workflows) */}
+                <Route path="workforms" element={<WorkFormsLayout />}>
+                  <Route index element={<Navigate to="/workforms/tasks" replace />} />
+                  <Route path="tasks" element={<MyTasks />} />
+                  <Route path="in-progress" element={<WorkFormsInProgress />} />
+                  <Route path="catalog" element={<WorkFormsCatalog />} />
+                  <Route path="history" element={<WorkFormsHistory />} />
+                  <Route path="editor" element={<WorkFormsEditor />} />
+                  <Route path="editor/:id" element={<WorkFormsEditor />} />
+                </Route>
+                
+                {/* Legacy routes - redirect to WorkForms */}
+                <Route path="forms-flows/*" element={<Navigate to="/workforms" replace />} />
+                <Route path="workflows" element={<Navigate to="/workforms/catalog" replace />} />
+                <Route path="workflows/monitor" element={<WorkflowMonitor />} />
+                <Route path="workflows/run/:runId" element={<WorkflowRunner />} />
+                <Route path="workflows/details/:runId" element={<WorkflowExecutionDetails />} />
+                
+                {/* Form Submissions */}
+                <Route path="my-submissions" element={<MySubmissions />} />
+                <Route path="my-tasks" element={<Navigate to="/workforms/tasks" replace />} />
+                
+                {/* Admin Workspace */}
+                <Route path="admin/option-lists" element={<OptionListsPage />} />
+                <Route path="admin/configurations" element={<ConfigurationsPage />} />
+                <Route path="admin/customizations" element={<CustomizationsPage />} />
+                <Route path="admin/users" element={<UsersPage />} />
+                <Route path="admin/profile" element={<AdminProfilePage />} />
+                <Route path="admin/billing" element={<BillingPage />} />
+                
+                {/* Cockpit (Command Center Dashboard) */}
+                <Route path="cockpit" element={<CockpitPage />} />
+                <Route path="workspace" element={<Navigate to="/cockpit" replace />} />
               </Route>
             </Routes>
+            {/* Form Submission Modal - rendered at app level */}
+            <FormSubmissionWrapper />
           </NavigationProvider>
         </Router>
-      </ThemeProvider>
-    </AuthProvider>
+              </QuickActionsProvider>
+            </ActionItemsProvider>
+          </NotificationsProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 };
 

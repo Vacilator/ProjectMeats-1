@@ -2,10 +2,20 @@
 Core admin for ProjectMeats.
 
 Admin interface for core models and base admin classes for multi-tenancy.
+
+ALL MODEL REGISTRATIONS use apps.core.admin_site.admin_site (custom three-tier admin)
 """
 from django.contrib import admin
+from django.contrib.auth.models import User, Group
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin, GroupAdmin as BaseGroupAdmin
+from apps.core.admin_site import admin_site
 from apps.core.models import Protein, UserPreferences
 from apps.tenants.models import TenantUser
+
+
+# Register Django's built-in User and Group models with custom admin site
+admin_site.register(User, BaseUserAdmin)
+admin_site.register(Group, BaseGroupAdmin)
 
 
 class TenantFilteredAdmin(admin.ModelAdmin):
@@ -218,7 +228,6 @@ class TenantFilteredAdmin(admin.ModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
-@admin.register(Protein)
 class ProteinAdmin(admin.ModelAdmin):
     """Admin interface for Protein model."""
 
@@ -227,7 +236,6 @@ class ProteinAdmin(admin.ModelAdmin):
     ordering = ["name"]
 
 
-@admin.register(UserPreferences)
 class UserPreferencesAdmin(admin.ModelAdmin):
     """Admin interface for UserPreferences model."""
 
@@ -252,3 +260,8 @@ class UserPreferencesAdmin(admin.ModelAdmin):
             "classes": ("collapse",)
         }),
     )
+
+
+# Register models with custom admin site
+admin_site.register(Protein, ProteinAdmin)
+admin_site.register(UserPreferences, UserPreferencesAdmin)

@@ -72,7 +72,7 @@ class Invoice(TimestampModel):
         help_text="Related sales order",
     )
     product = models.ForeignKey(
-        "products.Product",
+        "system.Product",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

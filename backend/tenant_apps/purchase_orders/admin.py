@@ -2,11 +2,11 @@
 Django admin configuration for Purchase Orders app.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import PurchaseOrder, CarrierPurchaseOrder, ColdStorageEntry, PurchaseOrderHistory
 
 
-@admin.register(PurchaseOrder)
 class PurchaseOrderAdmin(TenantFilteredAdmin):
     """Admin interface for PurchaseOrder model with tenant filtering."""
 
@@ -111,7 +111,6 @@ class PurchaseOrderAdmin(TenantFilteredAdmin):
 
 
 
-@admin.register(CarrierPurchaseOrder)
 class CarrierPurchaseOrderAdmin(TenantFilteredAdmin):
     """Admin interface for CarrierPurchaseOrder model with tenant filtering."""
 
@@ -217,7 +216,6 @@ class CarrierPurchaseOrderAdmin(TenantFilteredAdmin):
     )
 
 
-@admin.register(ColdStorageEntry)
 class ColdStorageEntryAdmin(TenantFilteredAdmin):
     """Admin interface for ColdStorageEntry model with tenant filtering."""
 
@@ -297,7 +295,6 @@ class ColdStorageEntryAdmin(TenantFilteredAdmin):
         ),
     )
 
-@admin.register(PurchaseOrderHistory)
 class PurchaseOrderHistoryAdmin(admin.ModelAdmin):
     """Admin interface for PurchaseOrderHistory model."""
 
@@ -350,3 +347,10 @@ class PurchaseOrderHistoryAdmin(admin.ModelAdmin):
         """Prevent deletion of history entries."""
         return False
 
+
+
+# Register models with custom admin site
+admin_site.register(PurchaseOrder, PurchaseOrderAdmin)
+admin_site.register(CarrierPurchaseOrder, CarrierPurchaseOrderAdmin)
+admin_site.register(ColdStorageEntry, ColdStorageEntryAdmin)
+admin_site.register(PurchaseOrderHistory, PurchaseOrderHistoryAdmin)

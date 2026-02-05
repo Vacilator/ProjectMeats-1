@@ -1,0 +1,1063 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}
+{{ block.super }}
+<!-- Alpine.js for reactivity -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<!-- Sortable.js for drag-drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<!-- Form Builder CSS -->
+<link rel="stylesheet" href="{% static 'admin/workflows/css/form_builder.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main" x-data="formBuilder()" x-init="init()">
+    
+    {% block object-tools %}
+    {% if change and not is_popup %}
+    <ul class="object-tools">
+        {% block object-tools-items %}
+        {% change_form_object_tools %}
+        <li>
+            <a href="#" @click.prevent="openPreview()" class="viewlink">
+                👁️ {% translate "Preview Form" %}
+            </a>
+        </li>
+        {% endblock %}
+    </ul>
+    {% endif %}
+    {% endblock %}
+
+    <form {% if has_file_field %}enctype="multipart/form-data" {% endif %}{% if form_url %}action="{{ form_url }}" {% endif %}method="post" id="{{ opts.model_name }}_form" novalidate>
+        {% csrf_token %}
+        {% block form_top %}{% endblock %}
+        
+        <div>
+            {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+            {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+            {% if save_on_top %}{% block submit_buttons_top %}{% submit_row %}{% endblock %}{% endif %}
+            
+            {% if errors %}
+            <p class="errornote">
+                {% blocktranslate count counter=errors|length %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}
+            </p>
+            {{ adminform.form.non_field_errors }}
+            {% endif %}
+
+            <!-- Standard fieldsets (Form Information, Status, etc.) -->
+            {% block field_sets %}
+            {% for fieldset in adminform %}
+                {% include "admin/includes/fieldset.html" with heading_level=2 prefix="fieldset" id_prefix=0 id_suffix=forloop.counter0 %}
+            {% endfor %}
+            {% endblock %}
+
+            {% block after_field_sets %}{% endblock %}
+
+            <!-- Custom Visual Form Builder Section -->
+            {% if change %}
+            <fieldset class="module form-builder-section">
+                <h2>📊 Form Steps 
+                    <span class="help-tooltip" title="Each step represents an entity (like Supplier, Customer, etc.) that users will fill out. Steps are completed in order from left to right.">ℹ️</span>
+                </h2>
+                <div class="form-builder-description">
+                    <p>Design your form by adding steps (entities) and configuring which fields appear in each step. Drag steps to reorder them.</p>
+                    <ul class="help-list">
+                        <li><strong>Edit Fields</strong> - Select which fields from the entity to include in this step</li>
+                        <li><strong>Rules</strong> - Create conditional visibility rules (show/hide fields based on values)</li>
+                        <li><strong>Settings</strong> - Configure advanced step settings</li>
+                    </ul>
+                    <p class="keyboard-hint">💡 <strong>Tip:</strong> Press <kbd>Esc</kbd> to close modals, <kbd>Ctrl+P</kbd> for preview</p>
+                </div>
+                
+                <!-- Step Cards Container -->
+                <div class="step-cards-container" id="step-cards" x-ref="stepCards">
+                    {% for inline in inline_admin_formsets %}
+                        {% if inline.opts.verbose_name == "Form Step" or inline.formset.prefix == "entities" %}
+                            <!-- Render step cards from entities inline -->
+                            {% for form in inline.formset %}
+                                {% if form.instance.pk and form.instance.entity_type %}
+                                <div class="step-card" 
+                                     data-step-id="{{ form.instance.pk }}"
+                                     data-order="{{ form.instance.order }}"
+                                     data-entity-type="{{ form.instance.entity_type }}"
+                                     x-data="{ expanded: false }">
+                                    <div class="step-card-header">
+                                        <span class="drag-handle" title="Drag to reorder">≡</span>
+                                        <span class="step-number">Step {{ forloop.counter }}</span>
+                                        <h3 class="step-title">
+                                            {% if form.instance.step_name %}
+                                                {{ form.instance.step_name }}
+                                            {% else %}
+                                                {{ form.instance.entity_type|title }}
+                                            {% endif %}
+                                        </h3>
+                                        <span class="step-entity-badge">{{ form.instance.entity_type }}</span>
+                                    </div>
+                                    <div class="step-card-body">
+                                        <div class="step-stats">
+                                            <span class="stat">
+                                                <strong>{{ form.instance.fields.count }}</strong> fields selected
+                                            </span>
+                                            <span class="stat">
+                                                <strong>{{ form.instance.form.rules.count }}</strong> rules
+                                            </span>
+                                        </div>
+                                        <div class="step-actions">
+                                            <button type="button" 
+                                                    class="step-action-btn"
+                                                    @click="openFieldEditor('{{ form.instance.pk }}')"
+                                                    title="Edit Fields">
+                                                ✏️ Edit Fields
+                                            </button>
+                                            <button type="button" 
+                                                    class="step-action-btn"
+                                                    @click="openRuleEditor('{{ form.instance.pk }}')"
+                                                    title="Configure Rules">
+                                                📜 Rules
+                                            </button>
+                                            <a href="{% url 'admin:workflows_tenantformentity_change' form.instance.pk %}" 
+                                               class="step-action-btn"
+                                               title="Advanced Settings">
+                                                ⚙️ Settings
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% empty %}
+                                <!-- No steps yet -->
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Add Step Card (Ghost) -->
+                    <div class="step-card step-card-add" @click="openAddStepModal()">
+                        <div class="add-step-content">
+                            <span class="add-icon">➕</span>
+                            <span class="add-text">Add Step</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Connection Lines (visual flow) -->
+                <div class="step-flow-indicator" x-show="stepCount > 1">
+                    <span class="flow-text">Form flows from left to right →</span>
+                </div>
+            </fieldset>
+            
+            <!-- Form-Wide Rules Section -->
+            <fieldset class="module form-rules-section">
+                <h2>📜 Conditional Rules 
+                    <span class="rules-count-badge" x-show="formRules.length > 0">(<span class="rules-count" x-text="formRules.length"></span>)</span>
+                    <span class="help-tooltip" title="Rules control when fields are shown or hidden based on values entered in other fields.">ℹ️</span>
+                </h2>
+                <div class="form-builder-description">
+                    <p>Define rules that show/hide fields based on values from other steps.</p>
+                    <ul class="help-list">
+                        <li><strong>WHEN</strong> - Select a step, field, and condition (e.g., "when order_type equals wholesale")</li>
+                        <li><strong>THEN</strong> - Choose to show or hide specific fields</li>
+                        <li>Rules are evaluated in real-time as users fill out the form</li>
+                    </ul>
+                </div>
+                
+                <!-- Loading indicator -->
+                <div x-show="rulesLoading" class="rules-loading">
+                    Loading rules...
+                </div>
+                
+                <div class="rules-list" id="form-rules" x-show="!rulesLoading">
+                    <!-- Dynamic rules from Alpine.js state -->
+                    <template x-for="rule in formRules" :key="rule.id">
+                        <div class="rule-item" :data-rule-id="rule.id">
+                            <div class="rule-content">
+                                <span class="rule-status" :class="rule.is_active ? 'active' : 'inactive'">
+                                    <span x-show="rule.is_active">✓</span>
+                                    <span x-show="!rule.is_active">○</span>
+                                </span>
+                                <span class="rule-name" x-text="rule.name || 'Unnamed Rule'"></span>
+                            </div>
+                            <div class="rule-actions">
+                                <button type="button" class="rule-edit-btn" @click="editRule(rule.id)">Edit</button>
+                                <button type="button" class="rule-delete-btn" @click="deleteRule(rule.id)">Delete</button>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- No rules message -->
+                    <p class="no-rules-message" x-show="formRules.length === 0 && !rulesLoading">
+                        No rules configured. Add a rule to create conditional field visibility.
+                    </p>
+                </div>
+                
+                <div class="rules-toolbar">
+                    <button type="button" class="add-rule-btn" @click="showAddRuleModal()">
+                        ➕ Add Rule
+                    </button>
+                </div>
+            </fieldset>
+            
+            <!-- Field Mappings Section -->
+            <fieldset class="module form-mappings-section">
+                <h2>🔗 Field Mappings 
+                    <span class="mappings-count-badge" x-show="fieldMappings.length > 0">(<span class="mappings-count" x-text="fieldMappings.length"></span>)</span>
+                    <span class="help-tooltip" title="Field mappings auto-populate fields with values from previous steps. Use Auto-Map to automatically detect and configure mappings.">ℹ️</span>
+                </h2>
+                <div class="form-builder-description">
+                    <p>Configure how data flows between steps. Mapped fields are automatically populated with values from earlier steps.</p>
+                    <ul class="help-list">
+                        <li><strong>Auto-Map</strong> - Automatically detect matching fields based on name and type</li>
+                        <li><strong>Manual</strong> - Click a mapping to edit source step and field</li>
+                        <li>Mappings copy values when users move between steps</li>
+                    </ul>
+                </div>
+                
+                <!-- Loading indicator -->
+                <div x-show="mappingsLoading" class="mappings-loading">
+                    Loading mappings...
+                </div>
+                
+                <!-- Auto-Map Toolbar -->
+                <div class="mappings-toolbar" x-show="formSteps.length > 1 && !mappingsLoading">
+                    <button type="button" 
+                            class="auto-map-btn" 
+                            @click="computeAutoMappings()"
+                            :disabled="autoMapLoading">
+                        <span x-show="!autoMapLoading">✨ Auto-Map Fields</span>
+                        <span x-show="autoMapLoading">⏳ Analyzing...</span>
+                    </button>
+                    <button type="button" 
+                            class="manual-map-btn" 
+                            @click="openManualMappingModal()">
+                        ➕ Add Manual Mapping
+                    </button>
+                    <span class="auto-map-hint">Auto-Map: Fuzzy matching | Manual: Custom configuration</span>
+                </div>
+                
+                <!-- Auto-Map Suggestions (shown when computed) -->
+                <div class="auto-map-suggestions" x-show="autoMapSuggestions.length > 0 && !mappingsLoading">
+                    <div class="suggestions-header">
+                        <h4>✨ Suggested Mappings (<span x-text="autoMapSuggestions.length"></span>)</h4>
+                        <div class="suggestions-actions">
+                            <button type="button" class="btn btn-primary btn-sm" @click="applyAllSuggestions()">
+                                ✓ Apply All
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" @click="clearSuggestions()">
+                                ✕ Dismiss
+                            </button>
+                        </div>
+                    </div>
+                    <div class="suggestions-list">
+                        <template x-for="(suggestion, index) in autoMapSuggestions" :key="index">
+                            <div class="suggestion-item">
+                                <div class="suggestion-flow">
+                                    <div class="flow-source">
+                                        <span class="step-badge" x-text="suggestion.source_step_name"></span>
+                                        <span class="field-badge" x-text="suggestion.source_field_label"></span>
+                                    </div>
+                                    <span class="flow-arrow">→</span>
+                                    <div class="flow-target">
+                                        <span class="step-badge" x-text="suggestion.target_step_name"></span>
+                                        <span class="field-badge" x-text="suggestion.target_field_label"></span>
+                                    </div>
+                                </div>
+                                <div class="suggestion-meta">
+                                    <span class="score-badge" :class="suggestion.score >= 80 ? 'high' : (suggestion.score >= 60 ? 'medium' : 'low')">
+                                        <span x-text="suggestion.score + '%'"></span> match
+                                    </span>
+                                    <span class="reasons-text" x-text="suggestion.reasons.join(', ')"></span>
+                                </div>
+                                <div class="suggestion-actions">
+                                    <button type="button" class="btn-apply-single" @click="applySingleSuggestion(suggestion)" title="Apply this mapping">✓</button>
+                                    <button type="button" class="btn-dismiss-single" @click="dismissSuggestion(index)" title="Dismiss">✕</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Current Mappings List -->
+                <div class="mappings-list" id="field-mappings" x-show="!mappingsLoading">
+                    <template x-for="mapping in fieldMappings" :key="mapping.target_field_id">
+                        <div class="mapping-item" :data-field-id="mapping.target_field_id">
+                            <div class="mapping-flow">
+                                <div class="flow-source">
+                                    <span class="step-name" x-text="mapping.source_step_name"></span>
+                                    <span class="dot">.</span>
+                                    <span class="field-name" x-text="mapping.source_field_label"></span>
+                                </div>
+                                <span class="flow-arrow">→</span>
+                                <div class="flow-target">
+                                    <span class="step-name" x-text="mapping.target_step_name"></span>
+                                    <span class="dot">.</span>
+                                    <span class="field-name" x-text="mapping.target_field_label"></span>
+                                </div>
+                            </div>
+                            <div class="mapping-mode" x-show="mapping.mode">
+                                <span class="mode-badge" x-text="mapping.mode === 'copy' ? '📋 Copy' : '🔍 Lookup'"></span>
+                            </div>
+                            <div class="mapping-actions">
+                                <button type="button" class="mapping-copy-btn" @click="copyMappingToClipboard(mapping)" title="Copy mapping info">📋</button>
+                                <button type="button" class="mapping-edit-btn" @click="editMapping(mapping)" title="Edit mapping">✏️</button>
+                                <button type="button" class="mapping-delete-btn" @click="deleteMapping(mapping.target_field_id)" title="Remove mapping">🗑️</button>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- No mappings message -->
+                    <p class="no-mappings-message" x-show="fieldMappings.length === 0 && autoMapSuggestions.length === 0 && !mappingsLoading && formSteps.length > 1">
+                        No field mappings configured. Click "Auto-Map Fields" or "Add Manual Mapping" to configure.
+                    </p>
+                    
+                    <!-- Single step message -->
+                    <p class="no-mappings-message" x-show="formSteps.length <= 1 && !mappingsLoading">
+                        ℹ️ Field mappings require at least 2 steps. Add another step to enable data flow between steps.
+                    </p>
+                </div>
+                
+                <!-- Data Flow Visualization -->
+                <div class="data-flow-viz" x-show="fieldMappings.length > 0 && !mappingsLoading">
+                    <h4>📊 Data Flow</h4>
+                    <div class="flow-diagram">
+                        <template x-for="mapping in fieldMappings" :key="mapping.target_field_id">
+                            <div class="flow-line">
+                                <div class="flow-box source">
+                                    <span class="box-step" x-text="mapping.source_step_name"></span>
+                                    <span class="box-field" x-text="mapping.source_field_key"></span>
+                                </div>
+                                <div class="flow-connector">
+                                    <span class="connector-arrow">→</span>
+                                </div>
+                                <div class="flow-box target">
+                                    <span class="box-step" x-text="mapping.target_step_name"></span>
+                                    <span class="box-field" x-text="mapping.target_field_key"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </fieldset>
+            {% endif %}
+
+            <!-- Original Django inlines (hidden, for form submission) -->
+            <div class="original-inlines" style="display: none;">
+                {% block inline_field_sets %}
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% include inline_admin_formset.opts.template %}
+                {% endfor %}
+                {% endblock %}
+            </div>
+
+            {% block after_related_objects %}{% endblock %}
+
+            {% block submit_buttons_bottom %}{% submit_row %}{% endblock %}
+
+            {% block admin_change_form_document_ready %}
+            <script id="django-admin-form-add-constants"
+                    src="{% static 'admin/js/change_form.js' %}"
+                    {% if adminform and add %}
+                        data-model-name="{{ opts.model_name }}"
+                    {% endif %}
+                    async>
+            </script>
+            {% endblock %}
+
+            {% prepopulated_fields_js %}
+        </div>
+    </form>
+    
+    <!-- Field Editor Modal -->
+    <div class="modal-overlay" x-show="showFieldModal" x-cloak @click.self="closeFieldModal()">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>✏️ Edit Fields for <span x-text="currentStepName"></span></h3>
+                <button type="button" class="modal-close" @click="closeFieldModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="field-editor-container">
+                    <!-- Selected Fields (draggable) -->
+                    <div class="field-list-section">
+                        <div class="section-header-row">
+                            <h4>Selected Fields <span class="field-count" x-text="'(' + selectedFields.length + ')'"></span></h4>
+                            <button type="button" class="btn btn-secondary btn-sm" @click="openTemplatesModal()" title="Add fields from template">
+                                📋 Add From Template
+                            </button>
+                        </div>
+                        <div class="field-list selected-fields" id="selected-fields-list" x-ref="selectedFieldsList">
+                            <template x-for="field in selectedFields" :key="field.key">
+                                <div class="field-item" :data-field-key="field.key">
+                                    <span class="drag-handle">≡</span>
+                                    <input type="checkbox" checked @change="toggleField(field.key)">
+                                    <span class="field-name" x-text="field.label"></span>
+                                    <span class="field-type-badge" x-text="field.type"></span>
+                                    <span class="field-required" x-show="field.required">Required</span>
+                                    <span class="field-auto-populate" x-show="field.hasAutoPopulate" :title="'Auto-populated from: ' + field.autoPopulateSource">🔄</span>
+                                    <button type="button" class="field-config-btn" @click="configureField(field.key)" title="Configure field">⚙️</button>
+                                </div>
+                            </template>
+                            <p x-show="selectedFields.length === 0" class="no-fields-message">
+                                No fields selected. Click fields below to add them.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Available Fields -->
+                    <div class="field-list-section">
+                        <h4>Available Fields</h4>
+                        <input type="text" 
+                               class="field-search" 
+                               placeholder="Search fields..."
+                               x-model="fieldSearch"
+                               @input="filterFields()">
+                        <div class="field-list available-fields">
+                            <template x-for="field in filteredAvailableFields" :key="field.key">
+                                <div class="field-item available" @click="addField(field.key)">
+                                    <input type="checkbox" :checked="isFieldSelected(field.key)" @click.stop="toggleField(field.key)">
+                                    <span class="field-name" x-text="field.label"></span>
+                                    <span class="field-type-badge" x-text="field.type"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeFieldModal()" :disabled="fieldsSaving">Cancel</button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @click="saveFieldSelection()"
+                        :disabled="fieldsSaving">
+                    <span x-show="!fieldsSaving">💾 Save Selection</span>
+                    <span x-show="fieldsSaving">Saving...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Field Configuration Modal (Phase 3) -->
+    <div class="modal-overlay" x-show="showFieldConfigModal" x-cloak @click.self="closeFieldConfigModal()">
+        <div class="modal-content modal-md">
+            <div class="modal-header">
+                <h3>⚙️ Configure Field: <span x-text="fieldConfig.fieldKey"></span></h3>
+                <button type="button" class="modal-close" @click="closeFieldConfigModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div x-show="fieldConfig.loading" class="loading-spinner">
+                    Loading configuration...
+                </div>
+                
+                <div x-show="!fieldConfig.loading" class="field-config-form">
+                    <!-- Basic Settings -->
+                    <div class="config-section">
+                        <h4>Display Settings</h4>
+                        
+                        <div class="form-group">
+                            <label for="customLabel">Custom Label</label>
+                            <input type="text" id="customLabel" 
+                                   x-model="fieldConfig.customLabel"
+                                   placeholder="Leave blank to use default label">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="customHelpText">Help Text</label>
+                            <input type="text" id="customHelpText" 
+                                   x-model="fieldConfig.customHelpText"
+                                   placeholder="Appears below the field">
+                        </div>
+                        
+                        <div class="form-group checkbox-group">
+                            <label>
+                                <input type="checkbox" x-model="fieldConfig.isRequired">
+                                Make this field required
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Auto-Population Settings -->
+                    <div class="config-section">
+                        <h4>🔄 Auto-Population</h4>
+                        <p class="section-description">
+                            Automatically fill this field with a value from a previous step.
+                        </p>
+                        
+                        <template x-if="fieldConfig.availableSourceSteps.length > 0">
+                            <div>
+                                <!-- Smart Suggestions -->
+                                <div x-show="fieldConfig.suggestions.length > 0" class="suggestions-panel">
+                                    <h5>✨ Smart Suggestions</h5>
+                                    <div class="suggestion-list">
+                                        <template x-for="suggestion in fieldConfig.suggestions" :key="suggestion.source_step_id + suggestion.source_field_key">
+                                            <div class="suggestion-item" @click="applySuggestion(suggestion)">
+                                                <span class="suggestion-score" x-text="suggestion.score + '%'"></span>
+                                                <span class="suggestion-text">
+                                                    <strong x-text="suggestion.source_field_label"></strong>
+                                                    from <em x-text="suggestion.source_step_name"></em>
+                                                </span>
+                                                <span class="suggestion-reasons" x-text="suggestion.reasons.join(', ')"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                                
+                                <!-- Manual Configuration -->
+                                <div class="form-group">
+                                    <label>Source Step</label>
+                                    <select x-model="fieldConfig.autoPopulate.sourceStep">
+                                        <option value="">-- No Auto-Population --</option>
+                                        <template x-for="step in fieldConfig.availableSourceSteps" :key="step.id">
+                                            <option :value="step.id" x-text="'Step ' + (step.order + 1) + ': ' + step.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group" x-show="fieldConfig.autoPopulate.sourceStep">
+                                    <label>Source Field</label>
+                                    <select x-model="fieldConfig.autoPopulate.sourceField">
+                                        <option value="">-- Select Field --</option>
+                                        <template x-for="field in getSourceStepFields()" :key="field.key">
+                                            <option :value="field.key" x-text="field.label + ' (' + field.type + ')'"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group" x-show="fieldConfig.autoPopulate.sourceStep && fieldConfig.autoPopulate.sourceField">
+                                    <label>Auto-Population Mode</label>
+                                    <select x-model="fieldConfig.autoPopulate.mode">
+                                        <option value="copy">Copy Value (direct copy)</option>
+                                        <option value="lookup">Lookup Reference (fetch related record)</option>
+                                    </select>
+                                    <small class="help-text" x-show="fieldConfig.autoPopulate.mode === 'copy'">
+                                        The value will be copied directly from the source field.
+                                    </small>
+                                    <small class="help-text" x-show="fieldConfig.autoPopulate.mode === 'lookup'">
+                                        The value will be used to look up a related record.
+                                    </small>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <div x-show="fieldConfig.availableSourceSteps.length === 0" class="no-sources-message">
+                            <p>ℹ️ This field is in the first step. Auto-population requires prior steps to pull from.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeFieldConfigModal()">Cancel</button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @click="saveFieldConfig()"
+                        :disabled="fieldConfig.saving">
+                    <span x-show="!fieldConfig.saving">💾 Save Configuration</span>
+                    <span x-show="fieldConfig.saving">Saving...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Field Templates Modal -->
+    <div class="modal-overlay" x-show="showTemplatesModal" x-cloak @click.self="closeTemplatesModal()">
+        <div class="modal-content modal-md">
+            <div class="modal-header">
+                <h3>📋 Add Fields from Template</h3>
+                <button type="button" class="modal-close" @click="closeTemplatesModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div x-show="templatesLoading" class="loading-spinner">
+                    Loading templates...
+                </div>
+                
+                <div x-show="!templatesLoading">
+                    <!-- Template Selection -->
+                    <div class="templates-grid">
+                        <template x-for="template in fieldTemplates" :key="template.id">
+                            <div class="template-card" 
+                                 :class="{ 'selected': selectedTemplate === template.id }"
+                                 @click="selectTemplate(template.id)">
+                                <div class="template-icon" x-text="template.icon"></div>
+                                <div class="template-info">
+                                    <div class="template-name" x-text="template.name"></div>
+                                    <div class="template-description" x-text="template.description"></div>
+                                    <div class="template-field-count" x-text="template.field_count + ' fields'"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Template Preview -->
+                    <div x-show="templateFields.length > 0" class="template-preview">
+                        <h4>Fields to be added:</h4>
+                        <div class="template-fields-list">
+                            <template x-for="field in templateFields" :key="field.key">
+                                <div class="template-field-item">
+                                    <span class="field-name" x-text="field.label"></span>
+                                    <span class="field-type-badge" x-text="field.type"></span>
+                                    <span class="field-required" x-show="field.required">Required</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeTemplatesModal()">Cancel</button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @click="addTemplateFields()"
+                        :disabled="!templateFields.length">
+                    ➕ Add Fields
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Rule Builder Modal -->
+    <div class="modal-overlay" x-show="showRuleModal" x-cloak @click.self="closeRuleModal()">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>📜 <span x-text="editingRuleId ? 'Edit' : 'Add'"></span> Conditional Rule</h3>
+                <button type="button" class="modal-close" @click="closeRuleModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="rule-builder">
+                    <div class="form-group">
+                        <label>Rule Name (optional)</label>
+                        <input type="text" x-model="ruleForm.name" placeholder="e.g., Show shipping fields when delivery selected">
+                    </div>
+                    
+                    <div class="rule-section">
+                        <h4>WHEN (Conditions)</h4>
+                        <div class="condition-builder">
+                            <select x-model="ruleForm.conditionStep" @change="loadConditionFields()" class="condition-step">
+                                <option value="">-- Select Step --</option>
+                                <template x-for="step in formSteps" :key="step.id">
+                                    <option :value="step.id" x-text="'Step ' + (step.order + 1) + ': ' + step.name"></option>
+                                </template>
+                            </select>
+                            <span class="condition-dot">.</span>
+                            <select x-model="ruleForm.conditionField" class="condition-field">
+                                <option value="">-- Select Field --</option>
+                                <template x-for="field in conditionFields" :key="field.key">
+                                    <option :value="field.key" x-text="field.label"></option>
+                                </template>
+                            </select>
+                            <select x-model="ruleForm.conditionOperator" class="condition-operator">
+                                <option value="eq">equals</option>
+                                <option value="neq">does not equal</option>
+                                <option value="contains">contains</option>
+                                <option value="not_contains">does not contain</option>
+                                <option value="gt">is greater than</option>
+                                <option value="lt">is less than</option>
+                                <option value="is_empty">is empty</option>
+                                <option value="is_not_empty">is not empty</option>
+                            </select>
+                            <input type="text" 
+                                   x-model="ruleForm.conditionValue" 
+                                   class="condition-value"
+                                   placeholder="value"
+                                   x-show="!['is_empty', 'is_not_empty'].includes(ruleForm.conditionOperator)">
+                        </div>
+                    </div>
+                    
+                    <div class="rule-section">
+                        <h4>THEN (Action)</h4>
+                        <div class="action-builder">
+                            <select x-model="ruleForm.actionType" @change="onActionTypeChange()" class="action-type">
+                                <optgroup label="Field Actions">
+                                    <option value="display_fields">Show Fields</option>
+                                    <option value="hide_fields">Hide Fields</option>
+                                    <option value="set_value">Set Field Value</option>
+                                </optgroup>
+                                <optgroup label="Step Actions">
+                                    <option value="display_steps">Show Steps</option>
+                                    <option value="hide_steps">Hide Steps</option>
+                                </optgroup>
+                            </select>
+                            <span class="action-arrow">→</span>
+                            
+                            <!-- Step selection (for field actions) -->
+                            <template x-if="isFieldAction()">
+                                <select x-model="ruleForm.actionStep" @change="loadActionFields()" class="action-step">
+                                    <option value="">-- Select Step --</option>
+                                    <template x-for="step in formSteps" :key="step.id">
+                                        <option :value="step.id" x-text="'Step ' + (step.order + 1) + ': ' + step.name"></option>
+                                    </template>
+                                </select>
+                            </template>
+                            
+                            <!-- Field checkboxes (for show/hide field actions) -->
+                            <div class="action-fields-select" x-show="isFieldAction() && ruleForm.actionType !== 'set_value' && actionFields.length > 0">
+                                <template x-for="field in actionFields" :key="field.key">
+                                    <label class="field-checkbox">
+                                        <input type="checkbox" 
+                                               :value="field.key" 
+                                               x-model="ruleForm.actionTargetFields">
+                                        <span x-text="field.label"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            
+                            <!-- Field-Value pairs (for set_value action) -->
+                            <div class="action-set-value-container" x-show="ruleForm.actionType === 'set_value' && ruleForm.actionStep && actionFields.length > 0">
+                                <p class="select-hint">Select fields and set their values:</p>
+                                <div class="field-value-list">
+                                    <template x-for="field in actionFields" :key="field.key">
+                                        <div class="field-value-row">
+                                            <label class="field-checkbox">
+                                                <input type="checkbox" 
+                                                       :value="field.key" 
+                                                       x-model="ruleForm.actionTargetFields"
+                                                       @change="initFieldValue(field.key)">
+                                                <span x-text="field.label"></span>
+                                            </label>
+                                            <input type="text" 
+                                                   class="field-value-input"
+                                                   x-show="ruleForm.actionTargetFields.includes(field.key)"
+                                                   :placeholder="'Value for ' + field.label"
+                                                   x-model="ruleForm.fieldValues[field.key]">
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <p x-show="isFieldAction() && actionFields.length === 0 && ruleForm.actionStep" class="no-fields-message">
+                                Select a step to see available fields...
+                            </p>
+                            
+                            <!-- Step checkboxes (for step actions) -->
+                            <div class="action-steps-select" x-show="isStepAction()">
+                                <p class="select-hint">Select step(s) to show/hide:</p>
+                                <div class="step-checkbox-list">
+                                    <template x-for="step in formSteps" :key="step.id">
+                                        <label class="step-checkbox">
+                                            <input type="checkbox" 
+                                                   :value="step.id" 
+                                                   x-model="ruleForm.actionTargetSteps">
+                                            <span class="step-badge" x-text="'Step ' + (step.order + 1)"></span>
+                                            <span x-text="step.name"></span>
+                                            <span class="entity-type" x-text="'(' + step.entityType + ')'"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-preview">
+                        <h4>Preview</h4>
+                        <p class="preview-text" x-text="rulePreviewText"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeRuleModal()">Cancel</button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @click="saveRule()"
+                        :disabled="ruleSaving">
+                    <span x-show="!ruleSaving">💾 Save Rule</span>
+                    <span x-show="ruleSaving">Saving...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Step Modal -->
+    <div class="modal-overlay" x-show="showAddStepModal" x-cloak @click.self="closeAddStepModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Add Form Step</h3>
+                <button type="button" class="modal-close" @click="closeAddStepModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Entity Type</label>
+                    <select x-model="newStep.entityType" class="entity-select" :disabled="newStep.saving">
+                        <option value="">-- Select Entity --</option>
+                        <option value="supplier">Supplier</option>
+                        <option value="customer">Customer</option>
+                        <option value="purchase_order">Purchase Order</option>
+                        <option value="sales_order">Sales Order</option>
+                        <option value="product">Product</option>
+                        <option value="plant">Plant</option>
+                        <option value="location">Location</option>
+                        <option value="contact">Contact</option>
+                        <option value="carrier">Carrier</option>
+                        <option value="invoice">Invoice</option>
+                        <option value="inquiry">Inquiry</option>
+                        <option value="fulfillment">Fulfillment</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Step Name (optional)</label>
+                    <input type="text" x-model="newStep.stepName" placeholder="e.g., Supplier Information" :disabled="newStep.saving">
+                    <small>Leave blank to use entity name</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeAddStepModal()" :disabled="newStep.saving">Cancel</button>
+                <button type="button" class="btn btn-primary" @click="addStep()" :disabled="newStep.saving">
+                    <span x-show="!newStep.saving">➕ Add Step</span>
+                    <span x-show="newStep.saving">⏳ Adding...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Manual Mapping Modal -->
+    <div class="modal-overlay" x-show="showManualMappingModal" x-cloak @click.self="closeManualMappingModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 x-text="editingMapping ? '✏️ Edit Field Mapping' : '➕ Add Manual Mapping'"></h3>
+                <button type="button" class="modal-close" @click="closeManualMappingModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="mapping-form">
+                    <!-- Target Step & Field Selection -->
+                    <div class="mapping-section">
+                        <h4>🎯 Target (field to auto-populate)</h4>
+                        <div class="form-group">
+                            <label>Target Step</label>
+                            <select x-model="manualMapping.targetStep" 
+                                    class="step-select" 
+                                    @change="loadTargetFieldsForStep(manualMapping.targetStep); manualMapping.targetField = '';"
+                                    :disabled="manualMapping.saving || editingMapping">
+                                <option value="">-- Select Step --</option>
+                                <template x-for="step in getTargetStepsForMapping()" :key="step.id">
+                                    <option :value="step.id" x-text="step.name || step.entityType"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="form-group" x-show="manualMapping.targetStep">
+                            <label>Target Field</label>
+                            <select x-model="manualMapping.targetField" 
+                                    class="field-select"
+                                    :disabled="manualMapping.saving || editingMapping">
+                                <option value="">-- Select Field --</option>
+                                <template x-for="field in manualMapping.targetStepFields" :key="field.id">
+                                    <option :value="field.id" x-text="field.label || field.key"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Source Step & Field Selection -->
+                    <div class="mapping-section">
+                        <h4>📤 Source (field to copy from)</h4>
+                        <div class="form-group">
+                            <label>Source Step</label>
+                            <select x-model="manualMapping.sourceStep" 
+                                    class="step-select"
+                                    @change="loadSourceFieldsForStep(manualMapping.sourceStep); manualMapping.sourceField = '';"
+                                    :disabled="manualMapping.saving || !manualMapping.targetStep">
+                                <option value="">-- Select Step --</option>
+                                <template x-for="step in getSourceStepsForMapping(manualMapping.targetStep)" :key="step.id">
+                                    <option :value="step.id" x-text="step.name || step.entityType"></option>
+                                </template>
+                            </select>
+                            <small x-show="!manualMapping.targetStep">Select a target step first</small>
+                        </div>
+                        <div class="form-group" x-show="manualMapping.sourceStep">
+                            <label>Source Field</label>
+                            <select x-model="manualMapping.sourceField" 
+                                    class="field-select"
+                                    :disabled="manualMapping.saving">
+                                <option value="">-- Select Field --</option>
+                                <template x-for="field in manualMapping.sourceStepFields" :key="field.key">
+                                    <option :value="field.key" x-text="field.label || field.key"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Mapping Mode -->
+                    <div class="mapping-section" x-show="manualMapping.sourceField">
+                        <h4>⚙️ Mapping Mode</h4>
+                        <div class="form-group">
+                            <div class="mode-options">
+                                <label class="mode-option">
+                                    <input type="radio" x-model="manualMapping.mode" value="copy" :disabled="manualMapping.saving">
+                                    <span class="mode-label">📋 Copy</span>
+                                    <span class="mode-desc">Copy the value directly</span>
+                                </label>
+                                <label class="mode-option">
+                                    <input type="radio" x-model="manualMapping.mode" value="lookup" :disabled="manualMapping.saving">
+                                    <span class="mode-label">🔍 Lookup</span>
+                                    <span class="mode-desc">Use as reference to fetch related data</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Mapping Preview -->
+                    <div class="mapping-preview" x-show="manualMapping.targetField && manualMapping.sourceField">
+                        <h4>📄 Preview</h4>
+                        <div class="preview-flow">
+                            <span class="preview-source" x-text="manualMapping.sourceStepFields.find(f => f.key === manualMapping.sourceField)?.label || manualMapping.sourceField"></span>
+                            <span class="preview-arrow">→</span>
+                            <span class="preview-target" x-text="manualMapping.targetStepFields.find(f => f.id === manualMapping.targetField)?.label || 'Target Field'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeManualMappingModal()" :disabled="manualMapping.saving">Cancel</button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @click="saveManualMapping()" 
+                        :disabled="manualMapping.saving || !manualMapping.targetField || !manualMapping.sourceField">
+                    <span x-show="!manualMapping.saving" x-text="editingMapping ? '💾 Update Mapping' : '💾 Save Mapping'"></span>
+                    <span x-show="manualMapping.saving">⏳ Saving...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Form Preview Modal -->
+    <div class="modal-overlay" x-show="showPreviewModal" x-cloak @click.self="closePreview()">
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h3>👁️ Form Preview</h3>
+                <div class="modal-header-actions">
+                    <button type="button" 
+                            class="btn btn-sm btn-test-data" 
+                            @click="fillWithTestData()"
+                            title="Fill all fields with realistic test data">
+                        🎲 Fill with Test Data
+                    </button>
+                    <button type="button" 
+                            class="btn btn-sm btn-clear" 
+                            @click="clearPreviewData()"
+                            title="Clear all field values">
+                        🗑️ Clear
+                    </button>
+                </div>
+                <button type="button" class="modal-close" @click="closePreview()">✕</button>
+            </div>
+            <div class="modal-body">
+                <!-- Loading state -->
+                <div x-show="previewData.loading" class="preview-loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading form preview...</p>
+                </div>
+                
+                <!-- Preview content -->
+                <div class="form-preview-container" x-show="!previewData.loading">
+                    <!-- Empty state -->
+                    <div x-show="previewData.steps.length === 0" class="preview-empty">
+                        <p>📋 No steps configured yet. Add steps and fields to see a preview.</p>
+                    </div>
+                    
+                    <!-- Step progress indicator -->
+                    <div class="preview-progress" x-show="previewData.steps.length > 0">
+                        <template x-for="(step, idx) in previewData.steps" :key="step.id">
+                            <div class="progress-step" 
+                                 :class="{ 'active': idx === previewData.currentStep, 'completed': idx < previewData.currentStep }"
+                                 @click="previewData.currentStep = idx">
+                                <span class="progress-number" x-text="idx + 1"></span>
+                                <span class="progress-label" x-text="step.name"></span>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Current step preview -->
+                    <div class="preview-step-content" x-show="currentPreviewStep">
+                        <div class="preview-step-header">
+                            <h4 x-text="currentPreviewStep?.name"></h4>
+                            <span class="preview-entity-badge" x-text="currentPreviewStep?.entityType?.replace('_', ' ')"></span>
+                        </div>
+                        
+                        <!-- Fields list -->
+                        <div class="preview-fields">
+                            <template x-for="field in (currentPreviewStep?.fields || [])" :key="field.key">
+                                <div class="preview-field">
+                                    <div class="preview-field-header">
+                                        <span class="field-icon" x-text="getFieldTypeIcon(field.type)"></span>
+                                        <label class="preview-field-label">
+                                            <span x-text="field.config?.custom_label || field.label"></span>
+                                            <span class="required-indicator" x-show="field.required || field.config?.is_required">*</span>
+                                        </label>
+                                        <span class="field-type-badge" x-text="field.type"></span>
+                                    </div>
+                                    
+                                    <!-- Field input placeholder -->
+                                    <div class="preview-field-input">
+                                        <template x-if="field.type === 'boolean'">
+                                            <label class="preview-checkbox">
+                                                <input type="checkbox" disabled>
+                                                <span x-text="field.label"></span>
+                                            </label>
+                                        </template>
+                                        <template x-if="field.type === 'textarea'">
+                                            <textarea class="preview-textarea" disabled :placeholder="field.config?.custom_help_text || 'Enter text...'"></textarea>
+                                        </template>
+                                        <template x-if="field.type === 'select' || field.type === 'foreignkey'">
+                                            <select class="preview-select" disabled>
+                                                <option x-text="'Select ' + field.label + '...'"></option>
+                                            </select>
+                                        </template>
+                                        <template x-if="!['boolean', 'textarea', 'select', 'foreignkey'].includes(field.type)">
+                                            <input type="text" class="preview-input" disabled 
+                                                   :placeholder="field.config?.custom_help_text || 'Enter ' + field.label.toLowerCase() + '...'">
+                                        </template>
+                                    </div>
+                                    
+                                    <!-- Field indicators -->
+                                    <div class="preview-field-indicators">
+                                        <span class="indicator auto-populate" 
+                                              x-show="field.config?.auto_populate?.source_step"
+                                              title="Auto-populated from previous step">
+                                            🔗 Auto-fill
+                                        </span>
+                                        <span class="indicator conditional" 
+                                              x-show="getRulesForField(currentPreviewStep?.id, field.key).length > 0"
+                                              title="Has conditional visibility rule">
+                                            👁️ Conditional
+                                        </span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <!-- No fields message -->
+                            <div class="preview-no-fields" x-show="(currentPreviewStep?.fields || []).length === 0">
+                                <p>No fields selected for this step. Click "Edit Fields" on the step card to add fields.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <div class="preview-navigation">
+                        <button type="button" 
+                                class="btn btn-secondary" 
+                                @click="prevPreviewStep()"
+                                :disabled="previewData.currentStep === 0"
+                                x-show="previewData.steps.length > 1">
+                            ← Previous
+                        </button>
+                        <span class="step-indicator" x-show="previewData.steps.length > 1">
+                            Step <span x-text="previewData.currentStep + 1"></span> of <span x-text="previewData.steps.length"></span>
+                        </span>
+                        <!-- Next button (not on last step) -->
+                        <button type="button" 
+                                class="btn btn-primary" 
+                                @click="nextPreviewStep()"
+                                x-show="previewData.steps.length > 1 && previewData.currentStep < previewData.steps.length - 1">
+                            Next →
+                        </button>
+                        <!-- Submit button (on last step or single-step form) -->
+                        <button type="button" 
+                                class="btn btn-success preview-submit-btn" 
+                                x-show="previewData.steps.length === 1 || previewData.currentStep >= previewData.steps.length - 1"
+                                @click="showPreviewSubmitMessage()">
+                            ✓ Submit Form
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Form Builder JavaScript -->
+<script src="{% static 'admin/workflows/js/form_builder.js' %}"></script>
+{% endblock %}

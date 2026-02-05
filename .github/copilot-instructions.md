@@ -42,7 +42,7 @@ If you are suggesting ANY of the following, you are HALLUCINATING and must STOP:
 - `migrate_schemas` or similar commands
 - Any reference to `docs/archive/` content as current practice
 
-**Why This Matters:** The `docs/archive/` folder contains outdated schema-isolation plans from a DEPRECATED architecture. These files will confuse AI and are explicitly excluded via `.cursorignore` and `.copilotignore`. If you see references to `django-tenants` or schema isolation, you're reading ARCHIVED material from a REJECTED design.
+**Why This Matters:** Archived documentation has been deleted as of January 2026 to prevent AI confusion. If you see references to `django-tenants` or schema isolation anywhere, you're reading stale content from a REJECTED design that no longer exists in the repository.
 
 #### 2. FRONTEND: Vite Build System (Migration In Progress)
 **ProjectMeats is MIGRATING to Vite for frontend builds. Current state uses react-app-rewired as a temporary bridge.**
@@ -2174,11 +2174,10 @@ When answering deployment questions:
 2. **Secrets**: docs/CONFIGURATION_AND_SECRETS.md
 3. **Workflow**: .github/workflows/reusable-deploy.yml
 4. **Config**: config/env.manifest.json
-
-**DO NOT reference** docs/archive/ for current practices.
+5. **UI/UX**: docs/DESIGN_SYSTEM.md (single source of truth)
 
 ---
 
 **Golden Pipeline Version**: 1.0  
-**Last Updated**: December 10, 2025  
+**Last Updated**: January 30, 2026  
 **Enforcement**: MANDATORY for all AI assistants and developers

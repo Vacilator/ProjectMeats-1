@@ -4,15 +4,16 @@ Sales Orders models for ProjectMeats.
 Defines sales order entities and related business logic.
 
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
+Uses OrderMethodsMixin for shared order behavior (payment calculations, status checks).
 """
 from django.db import models
 from apps.tenants.models import Tenant
 from apps.core.models import (
     CarrierReleaseFormatChoices,
-    TimestampModel,
+    TenantAwareModel,
     WeightUnitChoices,
-    TenantManager,
 )
+from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus, BaseOrderStatus
 
 
 class SalesOrderStatus(models.TextChoices):
@@ -25,26 +26,23 @@ class SalesOrderStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
-class PaymentStatus(models.TextChoices):
-    """Payment status choices for sales orders."""
+# Note: PaymentStatus is now imported from orders.models for consistency
+# Local definition kept for backward compatibility reference:
+# class PaymentStatus(models.TextChoices):
+#     UNPAID = "unpaid", "Unpaid"
+#     PARTIAL = "partial", "Partial"
+#     PAID = "paid", "Paid"
 
-    UNPAID = "unpaid", "Unpaid"
-    PARTIAL = "partial", "Partial"
-    PAID = "paid", "Paid"
 
-
-class SalesOrder(TimestampModel):
-    """Sales Order model for managing customer sales orders."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="sales_orders",
-        help_text="Tenant this salesorder belongs to"
-    )
-
+class SalesOrder(OrderMethodsMixin, TenantAwareModel):
+    """
+    Sales Order model for managing customer sales orders.
+    
+    Inherits from OrderMethodsMixin for shared order behavior:
+    - is_paid, is_complete, has_outstanding_balance properties
+    - calculate_outstanding(), update_payment_status() methods
+    """
+    
     # Order identification
     our_sales_order_num = models.CharField(
         max_length=100,
@@ -74,18 +72,19 @@ class SalesOrder(TimestampModel):
         help_text="Carrier for this sales order",
     )
     product = models.ForeignKey(
-        "products.Product",
+        "system.Product",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         help_text="Product being sold",
     )
     plant = models.ForeignKey(
-        "plants.Plant",
+        "locations.Location",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Plant/facility for this order",
+        related_name="plant_sales_orders",
+        help_text="Plant/facility for this order (location with plant_* type)",
     )
     pick_up_location = models.ForeignKey(
         "locations.Location",

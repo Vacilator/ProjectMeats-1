@@ -390,3 +390,266 @@ export interface Invoice {
   created_on: string;
   modified_on: string;
 }
+
+// ============================================================================
+// Inquiry & Fulfillment Types (Phase 2-3)
+// ============================================================================
+
+/**
+ * Inquiry status choices
+ */
+export type InquiryStatus = 'draft' | 'pending' | 'quoted' | 'accepted' | 'rejected' | 'expired' | 'fulfilled';
+
+/**
+ * Inquiry entity type choices
+ */
+export type InquiryEntityType = 'supplier' | 'customer';
+
+/**
+ * Inquiry source choices
+ */
+export type InquirySource = 'scheduled_call' | 'inbound_call' | 'email' | 'website' | 'referral' | 'trade_show' | 'other';
+
+/**
+ * InquiryProduct - line items with desired vs actual values
+ */
+export interface InquiryProduct {
+  id: string;
+  inquiry: string;
+  product: string;
+  product_code?: string;
+  product_description?: string;
+  quantity: number;
+  // Desired values (customer request)
+  desired_total?: number;
+  desired_price_per_unit?: number;
+  desired_uom?: string;
+  desired_uom_value?: number;
+  desired_processed_date?: string;
+  desired_expiration_date?: string;
+  desired_available_date?: string;
+  desired_shipping_date?: string;
+  desired_delivery_date?: string;
+  // Actual values (quoted/confirmed)
+  actual_total?: number;
+  actual_price_per_unit?: number;
+  actual_uom?: string;
+  actual_uom_value?: number;
+  actual_processed_date?: string;
+  actual_expiration_date?: string;
+  actual_available_date?: string;
+  actual_shipping_date?: string;
+  actual_delivery_date?: string;
+  // Calculated fields
+  margin?: number;
+  margin_percent?: number;
+  notes?: string;
+  created_on: string;
+  modified_on: string;
+}
+
+/**
+ * Inquiry entity - tracks product interest from calls
+ */
+export interface Inquiry {
+  id: string;
+  tenant: string;
+  inquiry_number: string;
+  status: InquiryStatus;
+  entity_type: InquiryEntityType;
+  supplier?: string;
+  supplier_name?: string;
+  customer?: string;
+  customer_name?: string;
+  contact?: string;
+  contact_name?: string;
+  // Contact snapshot (preserved at inquiry time)
+  contact_snapshot_name?: string;
+  contact_snapshot_email?: string;
+  contact_snapshot_phone?: string;
+  contact_snapshot_company?: string;
+  contact_snapshot_position?: string;
+  // Source tracking
+  source: InquirySource;
+  scheduled_call?: string;
+  // Products (through InquiryProduct)
+  products: InquiryProduct[];
+  // Quote details
+  valid_until?: string;
+  is_expired?: boolean;
+  // Competitor tracking
+  competitor_names?: string;
+  competitor_pricing_notes?: string;
+  win_loss_reason?: string;
+  // Aggregates
+  total_desired?: number;
+  total_actual?: number;
+  total_margin?: number;
+  total_margin_percent?: number;
+  // Metadata
+  notes?: string;
+  created_by?: string;
+  created_by_name?: string;
+  created_on: string;
+  modified_on: string;
+}
+
+/**
+ * Fulfillment status choices
+ */
+export type FulfillmentStatus = 'pending' | 'in_progress' | 'shipped' | 'delivered' | 'completed' | 'cancelled';
+
+/**
+ * FulfillmentProduct - tracks quantity fulfilled per line
+ */
+export interface FulfillmentProduct {
+  id: string;
+  fulfillment: string;
+  inquiry_product: string;
+  product?: string;
+  product_code?: string;
+  product_description?: string;
+  quantity_ordered: number;
+  quantity_fulfilled: number;
+  unit_price?: number;
+  total_price?: number;
+  notes?: string;
+  created_on: string;
+  modified_on: string;
+}
+
+/**
+ * Fulfillment entity - tracks shipments
+ */
+export interface Fulfillment {
+  id: string;
+  tenant: string;
+  fulfillment_number: string;
+  inquiry: string;
+  inquiry_number?: string;
+  supplier?: string;
+  supplier_name?: string;
+  customer?: string;
+  customer_name?: string;
+  status: FulfillmentStatus;
+  // Shipping info
+  shipped_by?: string;
+  shipped_by_name?: string;
+  tracking_numbers?: string[];
+  shipped_date?: string;
+  estimated_delivery?: string;
+  actual_delivery?: string;
+  // Products
+  products: FulfillmentProduct[];
+  is_partial?: boolean;
+  // Metadata
+  notes?: string;
+  created_by?: string;
+  created_by_name?: string;
+  created_on: string;
+  modified_on: string;
+}
+
+/**
+ * Inquiry list item (lighter version for lists)
+ */
+export interface InquiryListItem {
+  id: string;
+  inquiry_number: string;
+  status: InquiryStatus;
+  entity_type: InquiryEntityType;
+  supplier_name?: string;
+  customer_name?: string;
+  contact_name?: string;
+  source: InquirySource;
+  total_desired?: number;
+  total_actual?: number;
+  total_margin?: number;
+  product_count?: number;
+  valid_until?: string;
+  is_expired?: boolean;
+  created_on: string;
+}
+
+/**
+ * Fulfillment list item (lighter version for lists)
+ */
+export interface FulfillmentListItem {
+  id: string;
+  fulfillment_number: string;
+  inquiry_number?: string;
+  supplier_name?: string;
+  customer_name?: string;
+  status: FulfillmentStatus;
+  tracking_numbers?: string[];
+  shipped_date?: string;
+  estimated_delivery?: string;
+  is_partial?: boolean;
+  created_on: string;
+}
+
+// ============================================================================
+// Inquiry Templates (Phase 5)
+// ============================================================================
+
+/**
+ * Inquiry template product - default values for quick inquiry creation
+ */
+export interface InquiryTemplateProduct {
+  id: string;
+  product: string;
+  product_code?: string;
+  product_description?: string;
+  default_quantity: number;
+  default_uom: string;
+  default_price_per_unit?: number;
+  notes?: string;
+  sort_order: number;
+}
+
+/**
+ * Inquiry template for reusable inquiry configurations
+ */
+export interface InquiryTemplate {
+  id: string;
+  tenant: string;
+  name: string;
+  description?: string;
+  entity_type: InquiryEntityType;
+  is_active: boolean;
+  default_valid_days: number;
+  default_notes?: string;
+  use_count: number;
+  products: InquiryTemplateProduct[];
+  product_count?: number;
+  created_by?: string;
+  created_by_name?: string;
+  created_on: string;
+  modified_on: string;
+}
+
+/**
+ * Inquiry template list item (lightweight)
+ */
+export interface InquiryTemplateListItem {
+  id: string;
+  name: string;
+  description?: string;
+  entity_type: InquiryEntityType;
+  is_active: boolean;
+  default_valid_days: number;
+  use_count: number;
+  product_count: number;
+  created_on: string;
+  modified_on: string;
+}
+
+/**
+ * Clone inquiry request payload
+ */
+export interface CloneInquiryPayload {
+  include_products?: boolean;
+  include_pricing?: boolean;
+  new_entity_id?: string;
+  new_contact_id?: string;
+}

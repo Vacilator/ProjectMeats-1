@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
-import { navigation } from '../../config/navigation';
+import { navigation, adminWorkspaceNavigation } from '../../config/navigation';
 import NavigationMenu from '../Navigation/NavigationMenu';
 
 interface SidebarProps {
@@ -145,6 +145,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
         <NavigationMenu items={navigation} isExpanded={isExpanded} />
       </NavigationSection>
 
+      {/* Admin Workspace Section - Bottom Navigation */}
+      <AdminWorkspaceSection $isDarkMode={isDarkMode}>
+        <NavigationMenu items={adminWorkspaceNavigation} isExpanded={isExpanded} />
+      </AdminWorkspaceSection>
+
       <SidebarFooter $isExpanded={isExpanded} $isDarkMode={isDarkMode}>
         {isExpanded && (
           <FooterText $isDarkMode={isDarkMode}>
@@ -280,6 +285,19 @@ const NavigationSection = styled.nav<{ $isDarkMode: boolean }>`
         : 'rgba(0, 0, 0, 0.25)'};
     }
   }
+`;
+
+const AdminWorkspaceSection = styled.nav<{ $isDarkMode: boolean }>`
+  border-top: 1px solid ${(props) => props.$isDarkMode 
+    ? 'rgba(255, 255, 255, 0.08)' 
+    : 'rgba(0, 0, 0, 0.08)'};
+  padding: 8px 0;
+  margin-top: auto;
+  
+  /* Subtle background to differentiate admin section */
+  background: ${(props) => props.$isDarkMode 
+    ? 'rgba(0, 0, 0, 0.1)' 
+    : 'rgba(0, 0, 0, 0.02)'};
 `;
 
 const SidebarFooter = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean }>`

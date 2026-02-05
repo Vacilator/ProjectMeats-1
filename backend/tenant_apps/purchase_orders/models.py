@@ -4,6 +4,7 @@ Purchase Orders models for ProjectMeats.
 Defines purchase order entities and related business logic.
 
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
+Uses OrderMethodsMixin for shared order behavior (payment calculations, status checks).
 """
 from decimal import Decimal
 from django.db import models
@@ -27,6 +28,7 @@ from apps.core.models import (
     WeightUnitChoices,
     TenantManager,
 )
+from tenant_apps.orders.models import OrderMethodsMixin, PaymentStatus
 
 
 class PurchaseOrderStatus(models.TextChoices):
@@ -38,12 +40,12 @@ class PurchaseOrderStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
-class PaymentStatus(models.TextChoices):
-    """Payment status choices for purchase orders."""
-
-    UNPAID = "unpaid", "Unpaid"
-    PARTIAL = "partial", "Partial"
-    PAID = "paid", "Paid"
+# Note: PaymentStatus is now imported from orders.models for consistency
+# Local definition kept for backward compatibility reference:
+# class PaymentStatus(models.TextChoices):
+#     UNPAID = "unpaid", "Unpaid"
+#     PARTIAL = "partial", "Partial"
+#     PAID = "paid", "Paid"
 
 
 class LogisticsScenarioChoices(models.TextChoices):
@@ -54,8 +56,14 @@ class LogisticsScenarioChoices(models.TextChoices):
     WE_PICKUP = "we_pickup", "We Pickup (Our Logistics)"
 
 
-class PurchaseOrder(TimestampModel):
-    """Purchase Order model for managing purchase orders."""
+class PurchaseOrder(OrderMethodsMixin, TimestampModel):
+    """
+    Purchase Order model for managing purchase orders.
+    
+    Inherits from OrderMethodsMixin for shared order behavior:
+    - is_paid, is_complete, has_outstanding_balance properties
+    - calculate_outstanding(), update_payment_status() methods
+    """
     # Use custom manager for multi-tenancy
     objects = TenantManager()
 
@@ -74,7 +82,7 @@ class PurchaseOrder(TimestampModel):
         help_text="Supplier for this purchase order",
     )
     product = models.ForeignKey(
-        "products.Product",
+        "system.Product",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -263,11 +271,12 @@ class PurchaseOrder(TimestampModel):
     
     # Facility and Contact
     plant = models.ForeignKey(
-        "plants.Plant",
+        "locations.Location",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Plant/facility for this order",
+        related_name="plant_purchase_orders",
+        help_text="Plant/facility for this order (location with plant_* type)",
     )
     pick_up_location = models.ForeignKey(
         "locations.Location",
@@ -440,11 +449,12 @@ class CarrierPurchaseOrder(TimestampModel):
         help_text="Supplier for this carrier purchase order",
     )
     plant = models.ForeignKey(
-        "plants.Plant",
+        "locations.Location",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Plant/facility for this order",
+        related_name="plant_carrier_purchase_orders",
+        help_text="Plant/facility for this order (location with plant_* type)",
     )
     pick_up_location = models.ForeignKey(
         "locations.Location",
@@ -463,7 +473,7 @@ class CarrierPurchaseOrder(TimestampModel):
         help_text="Delivery location for this carrier order",
     )
     product = models.ForeignKey(
-        "products.Product",
+        "system.Product",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -664,7 +674,7 @@ class ColdStorageEntry(TimestampModel):
         help_text="Related customer sales order",
     )
     product = models.ForeignKey(
-        "products.Product",
+        "system.Product",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
