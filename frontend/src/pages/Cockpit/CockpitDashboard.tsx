@@ -30,6 +30,8 @@ import {
   EntityExplorerWidget,
   MyTasksWidget,
   TodaysNumbersWidget,
+  ActionItemsWidget,
+  CalendarWidget,
 } from '../../components/Widgets';
 import { CommandBar } from '../../components/Cockpit';
 import { CommandPalette } from '../../components/Navigation/CommandPalette';
@@ -557,6 +559,11 @@ export const CockpitDashboard: React.FC = () => {
         return <MyTasksWidget />;
       case 'TodaysNumbersWidget':
         return <TodaysNumbersWidget />;
+      case 'ActionItemsWidget':
+        return <ActionItemsWidget />;
+      case 'CalendarWidget':
+      case 'calendar': // Handle lowercase directly
+        return <CalendarWidget />;
       default:
         console.warn(`Unknown widget type: ${widget.type} (normalized: ${normalizedType})`);
         return (
