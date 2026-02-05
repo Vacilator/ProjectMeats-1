@@ -58,6 +58,7 @@ import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } fro
 import { NodeConfigPanel } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
+import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
 
@@ -958,6 +959,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [formFieldModalOpen, setFormFieldModalOpen] = useState(false);
   const [selectedFormField, setSelectedFormField] = useState<Node | null>(null);
   
+  // Section specialized configuration (Phase 1 Task 1.2 of Navigation Fix Plan)
+  const [sectionModalOpen, setSectionModalOpen] = useState(false);
+  const [selectedSection, setSelectedSection] = useState<Node | null>(null);
+  
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
     queryKey: ['workflows', 'tenant-lists'],
@@ -1799,9 +1804,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Close all modals first
       setFormStepModalOpen(false);
       setFormFieldModalOpen(false);
+      setSectionModalOpen(false);
       setSelectedNode(null);
       setSelectedFormStep(null);
       setSelectedFormField(null);
+      setSelectedSection(null);
       
       // Route to appropriate config panel based on node type
       switch (node.type) {
@@ -1817,6 +1824,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setFormFieldModalOpen(true);
           break;
           
+        case 'formSection':
+        case 'section':
+          console.log('[UnifiedFlowEditor] Opening Section modal');
+          setSelectedSection(node);
+          setSectionModalOpen(true);
+          break;
+          
         default:
           console.log('[UnifiedFlowEditor] Opening generic config panel');
           setSelectedNode(node);
@@ -1826,8 +1840,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSelectedNode(null);
       setSelectedFormStep(null);
       setSelectedFormField(null);
+      setSelectedSection(null);
       setFormStepModalOpen(false);
       setFormFieldModalOpen(false);
+      setSectionModalOpen(false);
     }
   }, []);
 
@@ -2676,6 +2692,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           }}
           availableFields={getPreviousStepFields(selectedFormField.id)}
           tenantLists={tenantLists}
+        />
+      )}
+      
+      {/* Section Configuration Modal - Direct Selection (Phase 1 Task 1.2) */}
+      {sectionModalOpen && selectedSection && (
+        <SectionConfigPanel
+          section={selectedSection.data}
+          onChange={(updatedSectionData) => {
+            handleNodeUpdate(selectedSection.id, updatedSectionData);
+            setSectionModalOpen(false);
+            setSelectedSection(null);
+          }}
+          onClose={() => {
+            setSectionModalOpen(false);
+            setSelectedSection(null);
+          }}
+          availableFields={getPreviousStepFields(selectedSection.id)}
         />
       )}
       
