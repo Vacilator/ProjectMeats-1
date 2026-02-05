@@ -7,6 +7,7 @@ export { NodeConfigPanel } from './NodeConfigPanel';
 export { FormStepConfigPanel } from './FormStepConfigPanel';
 export { FormFieldConfigPanel } from './FormFieldConfigPanel';
 export { SectionConfigPanel } from './SectionConfigPanel';
+export { DocumentConfigPanel } from './DocumentConfigPanel';
 export { FieldMappingPanel } from './FieldMappingPanel';
 export { ConditionBuilder } from './ConditionBuilder';
 export { ValidationRuleBuilder } from './ValidationRuleBuilder';

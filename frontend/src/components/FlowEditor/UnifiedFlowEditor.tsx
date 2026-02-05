@@ -59,6 +59,7 @@ import { NodeConfigPanel } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
+import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
 
@@ -963,6 +964,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [sectionModalOpen, setSectionModalOpen] = useState(false);
   const [selectedSection, setSelectedSection] = useState<Node | null>(null);
   
+  // Document/Upload specialized configuration (Phase 1 Task 1.3 of Navigation Fix Plan)
+  const [documentModalOpen, setDocumentModalOpen] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<Node | null>(null);
+  
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
     queryKey: ['workflows', 'tenant-lists'],
@@ -1805,10 +1810,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setFormStepModalOpen(false);
       setFormFieldModalOpen(false);
       setSectionModalOpen(false);
+      setDocumentModalOpen(false);
       setSelectedNode(null);
       setSelectedFormStep(null);
       setSelectedFormField(null);
       setSelectedSection(null);
+      setSelectedDocument(null);
       
       // Route to appropriate config panel based on node type
       switch (node.type) {
@@ -1831,6 +1838,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setSectionModalOpen(true);
           break;
           
+        case 'formFileUpload':
+        case 'document':
+        case 'upload':
+          console.log('[UnifiedFlowEditor] Opening Document modal');
+          setSelectedDocument(node);
+          setDocumentModalOpen(true);
+          break;
+          
         default:
           console.log('[UnifiedFlowEditor] Opening generic config panel');
           setSelectedNode(node);
@@ -1841,9 +1856,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSelectedFormStep(null);
       setSelectedFormField(null);
       setSelectedSection(null);
+      setSelectedDocument(null);
       setFormStepModalOpen(false);
       setFormFieldModalOpen(false);
       setSectionModalOpen(false);
+      setDocumentModalOpen(false);
     }
   }, []);
 
@@ -2709,6 +2726,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             setSelectedSection(null);
           }}
           availableFields={getPreviousStepFields(selectedSection.id)}
+        />
+      )}
+      
+      {/* Document Configuration Modal - Direct Selection (Phase 1 Task 1.3) */}
+      {documentModalOpen && selectedDocument && (
+        <DocumentConfigPanel
+          document={selectedDocument.data}
+          onChange={(updatedDocumentData) => {
+            handleNodeUpdate(selectedDocument.id, updatedDocumentData);
+            setDocumentModalOpen(false);
+            setSelectedDocument(null);
+          }}
+          onClose={() => {
+            setDocumentModalOpen(false);
+            setSelectedDocument(null);
+          }}
+          availableFields={getPreviousStepFields(selectedDocument.id)}
         />
       )}
       
