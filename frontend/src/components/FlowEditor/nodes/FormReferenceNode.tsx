@@ -1,0 +1,279 @@
+/**
+ * Form Reference Node Component
+ * 
+ * References a reusable form created with the FormBuilder.
+ * Allows embedding complete forms in workflows without rebuilding.
+ * 
+ * Created: 2026-02-05 - Phase 3 Task 3.2
+ * Part of: WORKFORMS_NAVIGATION_FIX_PLAN Phase 3
+ */
+import React from 'react';
+import styled from 'styled-components';
+import { NodeProps } from '@xyflow/react';
+import { BaseNode, BaseNodeData } from './BaseNode';
+import { FileText, ExternalLink, Edit, Eye } from 'lucide-react';
+
+// ============================================================================
+// TypeScript Interfaces
+// ============================================================================
+
+export interface FormReferenceNodeData extends BaseNodeData {
+  formId?: string;
+  formName?: string;
+  formDescription?: string;
+  fieldCount?: number;
+  sectionCount?: number;
+  allowEdit?: boolean;
+  prefillData?: Record<string, any>;
+  onComplete?: {
+    action: 'continue' | 'redirect' | 'save';
+    target?: string;
+  };
+}
+
+// ============================================================================
+// Styled Components
+// ============================================================================
+
+const Container = styled.div`
+  min-width: 300px;
+`;
+
+const FormInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgb(var(--color-surface));
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+`;
+
+const FormHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const FormIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(var(--color-primary), 0.1);
+  color: rgb(var(--color-primary));
+`;
+
+const FormDetails = styled.div`
+  flex: 1;
+`;
+
+const FormName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 4px;
+`;
+
+const FormDescription = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  line-height: 1.4;
+`;
+
+const FormStats = styled.div`
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  background: rgba(var(--color-primary), 0.05);
+  border-radius: 6px;
+`;
+
+const StatItem = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const StatLabel = styled.span`
+  font-size: 11px;
+  color: rgb(var(--color-text-tertiary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+`;
+
+const StatValue = styled.span`
+  font-size: 16px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+`;
+
+const EmptyState = styled.div`
+  padding: 24px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary));
+  background: rgba(var(--color-warning), 0.05);
+  border: 1px dashed rgb(var(--color-warning));
+  border-radius: 8px;
+`;
+
+const EmptyIcon = styled.div`
+  font-size: 32px;
+  margin-bottom: 8px;
+  opacity: 0.5;
+`;
+
+const EmptyText = styled.div`
+  font-size: 13px;
+  line-height: 1.5;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(var(--color-border));
+`;
+
+const ActionButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--color-text-secondary));
+  background: transparent;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: rgba(var(--color-primary), 0.05);
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
+  }
+`;
+
+const Badge = styled.span<{ $type?: 'warning' | 'info' }>`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  ${props => {
+    if (props.$type === 'warning') {
+      return `
+        background: rgba(var(--color-warning), 0.1);
+        color: rgb(var(--color-warning));
+      `;
+    } else {
+      return `
+        background: rgba(var(--color-info), 0.1);
+        color: rgb(var(--color-info));
+      `;
+    }
+  }}
+`;
+
+// ============================================================================
+// Form Reference Node Component
+// ============================================================================
+
+export const FormReferenceNode: React.FC<NodeProps<FormReferenceNodeData>> = ({ data, selected }) => {
+  const hasForm = data.formId && data.formName;
+  
+  const handleEditForm = () => {
+    // TODO: Open form in FormBuilder
+    console.log('Edit form:', data.formId);
+  };
+  
+  const handlePreviewForm = () => {
+    // TODO: Open form preview modal
+    console.log('Preview form:', data.formId);
+  };
+  
+  const handleChangeForm = () => {
+    // TODO: Open form selector modal
+    console.log('Change form');
+  };
+  
+  return (
+    <BaseNode
+      data={data}
+      selected={selected}
+      icon={<FileText size={20} />}
+      color="var(--color-primary)"
+    >
+      <Container>
+        {hasForm ? (
+          <>
+            <FormInfo>
+              <FormHeader>
+                <FormIcon>
+                  <FileText size={20} />
+                </FormIcon>
+                <FormDetails>
+                  <FormName>{data.formName}</FormName>
+                  {data.formDescription && (
+                    <FormDescription>{data.formDescription}</FormDescription>
+                  )}
+                </FormDetails>
+              </FormHeader>
+              
+              <FormStats>
+                <StatItem>
+                  <StatLabel>Sections</StatLabel>
+                  <StatValue>{data.sectionCount || 0}</StatValue>
+                </StatItem>
+                <StatItem>
+                  <StatLabel>Fields</StatLabel>
+                  <StatValue>{data.fieldCount || 0}</StatValue>
+                </StatItem>
+              </FormStats>
+              
+              {data.allowEdit && (
+                <Badge $type="info">User can edit</Badge>
+              )}
+              
+              {data.prefillData && Object.keys(data.prefillData).length > 0 && (
+                <Badge $type="info">
+                  {Object.keys(data.prefillData).length} fields prefilled
+                </Badge>
+              )}
+            </FormInfo>
+            
+            <ActionButtons>
+              <ActionButton onClick={handlePreviewForm} title="Preview form">
+                <Eye size={14} />
+                Preview
+              </ActionButton>
+              <ActionButton onClick={handleEditForm} title="Edit form in builder">
+                <Edit size={14} />
+                Edit
+              </ActionButton>
+              <ActionButton onClick={handleChangeForm} title="Select different form">
+                <ExternalLink size={14} />
+                Change
+              </ActionButton>
+            </ActionButtons>
+          </>
+        ) : (
+          <EmptyState>
+            <EmptyIcon>📋</EmptyIcon>
+            <EmptyText>
+              No form selected.<br />
+              Click to select a form from the library.
+            </EmptyText>
+          </EmptyState>
+        )}
+      </Container>
+    </BaseNode>
+  );
+};
+
+export default FormReferenceNode;

@@ -112,6 +112,18 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
   },
   
+  formReference: {
+    id: 'formReference',
+    name: 'Form Reference',
+    category: 'form',
+    icon: '📄',
+    color: '#3b82f6',
+    description: 'Reference a reusable form from the library',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+  },
+  
   formField: {
     id: 'formField',
     name: 'Form Field',

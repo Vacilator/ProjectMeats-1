@@ -45,6 +45,7 @@ import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomI
 
 import {
   FormStepNode,
+  FormReferenceNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -61,6 +62,7 @@ import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
+import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
 
@@ -834,6 +836,7 @@ const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $po
 
 const nodeTypes: NodeTypes = {
   formStep: FormStepNode,
+  formReference: FormReferenceNode,
   trigger: TriggerNode,
   condition: ConditionIfNode,
   action: ActionNode,
@@ -972,6 +975,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Create Record action configuration (Phase 2 Task 2.2)
   const [createRecordModalOpen, setCreateRecordModalOpen] = useState(false);
   const [selectedCreateRecord, setSelectedCreateRecord] = useState<Node | null>(null);
+  
+  // Form Reference configuration (Phase 3 Task 3.3)
+  const [formReferenceModalOpen, setFormReferenceModalOpen] = useState(false);
+  const [selectedFormReference, setSelectedFormReference] = useState<Node | null>(null);
   
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
@@ -1817,12 +1824,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSectionModalOpen(false);
       setDocumentModalOpen(false);
       setCreateRecordModalOpen(false);
+      setFormReferenceModalOpen(false);
       setSelectedNode(null);
       setSelectedFormStep(null);
       setSelectedFormField(null);
       setSelectedSection(null);
       setSelectedDocument(null);
       setSelectedCreateRecord(null);
+      setSelectedFormReference(null);
       
       // Route to appropriate config panel based on node type
       switch (node.type) {
@@ -1830,6 +1839,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           console.log('[UnifiedFlowEditor] Opening FormStep modal');
           setSelectedFormStep(node);
           setFormStepModalOpen(true);
+          break;
+          
+        case 'formReference':
+          console.log('[UnifiedFlowEditor] Opening FormReference modal');
+          setSelectedFormReference(node);
+          setFormReferenceModalOpen(true);
           break;
           
         case 'formField':
@@ -1879,11 +1894,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSelectedSection(null);
       setSelectedDocument(null);
       setSelectedCreateRecord(null);
+      setSelectedFormReference(null);
       setFormStepModalOpen(false);
       setFormFieldModalOpen(false);
       setSectionModalOpen(false);
       setDocumentModalOpen(false);
       setCreateRecordModalOpen(false);
+      setFormReferenceModalOpen(false);
     }
   }, []);
 
@@ -2781,6 +2798,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           onClose={() => {
             setCreateRecordModalOpen(false);
             setSelectedCreateRecord(null);
+          }}
+        />
+      )}
+      
+      {/* Form Reference Configuration Modal (Phase 3 Task 3.3) */}
+      {formReferenceModalOpen && selectedFormReference && (
+        <FormReferenceConfigPanel
+          node={selectedFormReference}
+          onUpdate={(nodeId, data) => {
+            handleNodeUpdate(nodeId, data);
+            setFormReferenceModalOpen(false);
+            setSelectedFormReference(null);
+          }}
+          onClose={() => {
+            setFormReferenceModalOpen(false);
+            setSelectedFormReference(null);
           }}
         />
       )}

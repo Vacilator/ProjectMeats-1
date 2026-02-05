@@ -5,6 +5,7 @@
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-04 - Phase 2.1 Batch 2 (Added Wait, Document, Utility, Terminal nodes)
+ * Updated: 2026-02-05 - Phase 3 Task 3.2 (Added FormReference node)
  */
 
 export { BaseNode } from './BaseNode';
@@ -12,6 +13,9 @@ export type { BaseNodeData, BaseNodeProps } from './BaseNode';
 
 export { FormStepNode } from './FormStepNode';
 export type { FormStepNodeData, FormField } from './FormStepNode';
+
+export { FormReferenceNode } from './FormReferenceNode';
+export type { FormReferenceNodeData } from './FormReferenceNode';
 
 export { TriggerNode } from './TriggerNode';
 export type { TriggerNodeData } from './TriggerNode';
