@@ -1,0 +1,136 @@
+{% load static %}
+<div class="icon-selector-container" data-field-id="{{ widget.attrs.id }}">
+    <div class="icon-selector-preview">
+        <span class="icon-preview-icon" data-icon="{{ current_value }}">
+            <i data-lucide="{{ current_value }}"></i>
+        </span>
+        <input type="text" 
+               name="{{ widget.name }}" 
+               id="{{ widget.attrs.id }}"
+               value="{{ current_value }}"
+               class="icon-selector-input"
+               readonly>
+        <button type="button" class="icon-selector-btn">Change Icon</button>
+    </div>
+    
+    <div class="icon-selector-dropdown" style="display: none;">
+        <div class="icon-selector-search">
+            <input type="text" placeholder="Search icons..." class="icon-search-input">
+        </div>
+        
+        <div class="icon-selector-categories">
+            <button type="button" class="icon-category-btn active" data-category="all">All</button>
+            {% for cat_id, cat_label in categories %}
+            <button type="button" class="icon-category-btn" data-category="{{ cat_id }}">{{ cat_label }}</button>
+            {% endfor %}
+        </div>
+        
+        <div class="icon-selector-grid">
+            {% for icon_name, icon_label, icon_category in icons %}
+            <div class="icon-option {% if icon_name == current_value %}selected{% endif %}" 
+                 data-icon="{{ icon_name }}" 
+                 data-label="{{ icon_label }}"
+                 data-category="{{ icon_category }}"
+                 title="{{ icon_label }}">
+                <i data-lucide="{{ icon_name }}"></i>
+                <span class="icon-label">{{ icon_label }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+(function() {
+    // Initialize Lucide icons once the script loads
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
+    // Wait for DOM to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        const container = document.querySelector('.icon-selector-container[data-field-id="{{ widget.attrs.id }}"]');
+        if (!container) return;
+        
+        const input = container.querySelector('.icon-selector-input');
+        const btn = container.querySelector('.icon-selector-btn');
+        const dropdown = container.querySelector('.icon-selector-dropdown');
+        const previewIcon = container.querySelector('.icon-preview-icon');
+        const searchInput = container.querySelector('.icon-search-input');
+        const categoryBtns = container.querySelectorAll('.icon-category-btn');
+        const iconOptions = container.querySelectorAll('.icon-option');
+        
+        // Toggle dropdown
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+            if (dropdown.style.display === 'block') {
+                searchInput.focus();
+            }
+        });
+        
+        // Close dropdown on outside click
+        document.addEventListener('click', function(e) {
+            if (!container.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+        
+        // Select icon
+        iconOptions.forEach(function(opt) {
+            opt.addEventListener('click', function() {
+                const iconName = this.dataset.icon;
+                input.value = iconName;
+                previewIcon.dataset.icon = iconName;
+                previewIcon.innerHTML = '<i data-lucide="' + iconName + '"></i>';
+                
+                // Update selection
+                iconOptions.forEach(o => o.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                // Re-render Lucide icons
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+                
+                dropdown.style.display = 'none';
+            });
+        });
+        
+        // Search filter
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            iconOptions.forEach(function(opt) {
+                const label = opt.dataset.label.toLowerCase();
+                const name = opt.dataset.icon.toLowerCase();
+                opt.style.display = (label.includes(query) || name.includes(query)) ? '' : 'none';
+            });
+        });
+        
+        // Category filter
+        categoryBtns.forEach(function(catBtn) {
+            catBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const category = this.dataset.category;
+                
+                categoryBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                iconOptions.forEach(function(opt) {
+                    if (category === 'all' || opt.dataset.category === category) {
+                        opt.style.display = '';
+                    } else {
+                        opt.style.display = 'none';
+                    }
+                });
+            });
+        });
+    });
+})();
+</script>

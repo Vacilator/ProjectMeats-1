@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
@@ -9,6 +10,7 @@ import { US_STATES } from '../utils/constants/states';
 import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
 const Customers: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -30,10 +32,29 @@ const Customers: React.FC = () => {
     products: [] as number[], // Product IDs for M2M
   });
 
+  // Auto-open form if ?action=create in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowForm(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, setSearchParams]);
+
   useEffect(() => {
     fetchCustomers();
     fetchProducts();
   }, []);
+
+  // Auto-fetch products when preferred_protein_types changes
+  useEffect(() => {
+    if (formData.preferred_protein_types && formData.preferred_protein_types.length > 0) {
+      fetchFilteredProducts(formData.preferred_protein_types);
+    } else {
+      // Reset to all products if no protein types selected
+      fetchProducts();
+    }
+  }, [formData.preferred_protein_types]);
 
   const fetchCustomers = async () => {
     try {
@@ -51,7 +72,7 @@ const Customers: React.FC = () => {
     try {
       const response = await fetch('/api/v1/products/', {
         headers: {
-          'Authorization': `Token ${localStorage.getItem('token')}`,
+          'Authorization': `Token ${localStorage.getItem('authToken')}`,
         },
       });
       if (response.ok) {
@@ -60,6 +81,33 @@ const Customers: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+    }
+  };
+
+  const fetchFilteredProducts = async (proteinTypes: string[]) => {
+    try {
+      // Build query string with multiple protein parameters
+      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
+      const response = await fetch(`/api/v1/products/?${proteinParams}`, {
+        headers: {
+          'Authorization': `Token ${localStorage.getItem('authToken')}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
+        
+        // Auto-select filtered products
+        const filteredProductIds = data.map((p: any) => p.id);
+        setFormData(prev => ({
+          ...prev,
+          products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
+        }));
+        
+        console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
+      }
+    } catch (error) {
+      console.error('Error fetching filtered products:', error);
     }
   };
 
@@ -298,6 +346,11 @@ const Customers: React.FC = () => {
                     label="Products"
                     placeholder="Select products to associate (hold Ctrl/Cmd for multiple)"
                   />
+                  {formData.preferred_protein_types.length > 0 && (
+                    <HelperText $theme={theme}>
+                      Showing {products.length} product(s) filtered by selected protein types
+                    </HelperText>
+                  )}
                 </FormGroup>
               </FormGrid>
 
@@ -612,6 +665,13 @@ const DeleteButton = styled.button`
   &:hover {
     background: rgb(var(--color-primary));
   }
+`;
+
+const HelperText = styled.div<{ $theme: Theme }>`
+  margin-top: 8px;
+  font-size: 12px;
+  color: ${(props) => props.$theme.colors.textSecondary};
+  font-style: italic;
 `;
 
 export default Customers;

@@ -128,7 +128,8 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
         invitation.expires_at = timezone.now() + timezone.timedelta(days=7)
         invitation.save()
         
-        # TODO: Send email notification
+        # Note: Email notification planned for Wave I (Infrastructure)
+        # Task I3.2: Email sending (async)
         logger.info(f"Resent invitation {invitation.id} to {invitation.email}")
         
         serializer = self.get_serializer(invitation)

@@ -2,10 +2,10 @@
 Bug Reports admin configuration.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from .models import BugReport
 
 
-@admin.register(BugReport)
 class BugReportAdmin(admin.ModelAdmin):
     """Admin interface for BugReport model."""
 
@@ -53,3 +53,7 @@ class BugReportAdmin(admin.ModelAdmin):
             },
         ),
     ]
+
+
+# Register models with custom admin site
+admin_site.register(BugReport, BugReportAdmin)

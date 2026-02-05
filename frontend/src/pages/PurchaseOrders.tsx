@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { apiService, PurchaseOrder, Supplier } from '../services/apiService';
 import { LocationSelector } from '../components/Shared';
@@ -350,6 +351,7 @@ const SubmitButton = styled.button`
 `;
 
 const PurchaseOrders: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -367,6 +369,15 @@ const PurchaseOrders: React.FC = () => {
     pick_up_location: null as string | null, // Phase 4: Location integration
     delivery_location: null as string | null, // Phase 4: Location integration
   });
+
+  // Auto-open form if ?action=create in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowForm(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     loadData();

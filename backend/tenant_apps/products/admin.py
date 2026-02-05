@@ -2,11 +2,11 @@
 Django admin configuration for Products app.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Product
 
 
-@admin.register(Product)
 class ProductAdmin(TenantFilteredAdmin):
     """Admin interface for Product model with tenant filtering."""
 
@@ -115,3 +115,7 @@ class ProductAdmin(TenantFilteredAdmin):
             },
         ),
     )
+
+
+# Register models with custom admin site
+admin_site.register(Product, ProductAdmin)

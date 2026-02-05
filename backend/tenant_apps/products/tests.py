@@ -1,12 +1,15 @@
 """
 Tests for Products app models.
+
+Uses shared-schema multi-tenancy with tenant ForeignKey isolation.
 """
 import uuid
 from decimal import Decimal
-from unittest import skip
 from django.test import TestCase
+from django.contrib.auth.models import User
 from tenant_apps.products.models import Product
 from tenant_apps.suppliers.models import Supplier
+from apps.tenants.models import Tenant, TenantUser
 from apps.core.models import (
     CartonTypeChoices,
     EdibleInedibleChoices,
@@ -17,16 +20,28 @@ from apps.core.models import (
 )
 
 
-@skip("Requires tenant-scoped objects - needs schema-based test setup")
 class ProductModelTest(TestCase):
     """Test cases for Product model."""
 
     def setUp(self):
-        """Set up test data."""
+        """Set up test data with tenant context."""
         unique_id = uuid.uuid4().hex[:8]
+        self.user = User.objects.create_user(
+            username=f"testuser-{unique_id}",
+            email=f"test-{unique_id}@example.com",
+            password="testpass123"
+        )
+        self.tenant = Tenant.objects.create(
+            name=f"Test Company {unique_id}",
+            slug=f"test-company-{unique_id}",
+            contact_email=f"admin-{unique_id}@testcompany.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
         self.supplier = Supplier.objects.create(
             name=f"Test Supplier {unique_id}",
             email=f"supplier-{unique_id}@test.com",
+            tenant=self.tenant,
         )
 
     def test_create_product(self):
@@ -40,6 +55,7 @@ class ProductModelTest(TestCase):
             package_type=PackageTypeChoices.BOXED_WAX_LINED,
             tested_product=True,
             is_active=True,
+            tenant=self.tenant,
         )
         
         self.assertEqual(product.product_code, f"TEST-{unique_id}")
@@ -53,6 +69,7 @@ class ProductModelTest(TestCase):
         product = Product.objects.create(
             product_code=f"TEST-{unique_id}",
             description_of_product_item="Test Chicken Product",
+            tenant=self.tenant,
         )
         
         self.assertIn(f"TEST-{unique_id}", str(product))
@@ -68,6 +85,7 @@ class ProductModelTest(TestCase):
             supplier_item_number=f"SUP-{unique_id}",
             plants_available="TX, WI, MI",
             origin=OriginChoices.DOMESTIC,
+            tenant=self.tenant,
         )
         
         self.assertEqual(product.supplier, self.supplier)
@@ -88,6 +106,7 @@ class ProductModelTest(TestCase):
             uom="LB",
             edible_or_inedible=EdibleInedibleChoices.EDIBLE,
             tested_product=True,
+            tenant=self.tenant,
         )
         
         self.assertEqual(product.carton_type, "Waxed Lined")
@@ -104,6 +123,7 @@ class ProductModelTest(TestCase):
             namp="82265",
             usda="USDA123",
             ub="UB456",
+            tenant=self.tenant,
         )
         
         self.assertEqual(product.namp, "82265")
@@ -117,8 +137,49 @@ class ProductModelTest(TestCase):
             product_code=f"TEST-{unique_id}",
             description_of_product_item="Test Product with Weight",
             unit_weight=Decimal("50.25"),
+            tenant=self.tenant,
         )
         
         self.assertEqual(product.unit_weight, Decimal("50.25"))
+
+    def test_product_tenant_isolation(self):
+        """Test that products are properly isolated by tenant."""
+        unique_id = uuid.uuid4().hex[:8]
+        
+        # Create product for first tenant
+        product1 = Product.objects.create(
+            product_code=f"TEST-{unique_id}-1",
+            description_of_product_item="Product for Tenant 1",
+            tenant=self.tenant,
+        )
+        
+        # Create second tenant
+        other_user = User.objects.create_user(
+            username=f"otheruser-{unique_id}",
+            email=f"other-{unique_id}@example.com",
+            password="testpass123"
+        )
+        other_tenant = Tenant.objects.create(
+            name=f"Other Company {unique_id}",
+            slug=f"other-company-{unique_id}",
+            contact_email=f"admin-{unique_id}@othercompany.com",
+            created_by=other_user,
+        )
+        
+        # Create product for second tenant
+        product2 = Product.objects.create(
+            product_code=f"TEST-{unique_id}-2",
+            description_of_product_item="Product for Tenant 2",
+            tenant=other_tenant,
+        )
+        
+        # Verify tenant isolation using for_tenant manager
+        tenant1_products = Product.objects.for_tenant(self.tenant)
+        tenant2_products = Product.objects.for_tenant(other_tenant)
+        
+        self.assertEqual(tenant1_products.count(), 1)
+        self.assertEqual(tenant2_products.count(), 1)
+        self.assertEqual(tenant1_products.first().description_of_product_item, "Product for Tenant 1")
+        self.assertEqual(tenant2_products.first().description_of_product_item, "Product for Tenant 2")
 
 

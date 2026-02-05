@@ -2,11 +2,11 @@
 Django admin configuration for Customers app.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Customer
 
 
-@admin.register(Customer)
 class CustomerAdmin(TenantFilteredAdmin):
     """Admin interface for Customer model with tenant filtering."""
 
@@ -93,3 +93,7 @@ class CustomerAdmin(TenantFilteredAdmin):
             {"fields": ("tenant", "created_on", "modified_on"), "classes": ("collapse",)},
         ),
     )
+
+
+# Register models with custom admin site
+admin_site.register(Customer, CustomerAdmin)

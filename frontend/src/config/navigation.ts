@@ -3,6 +3,12 @@
  * 
  * Defines the main navigation structure for the application.
  * This is the central location for managing navigation items.
+ * 
+ * Updated: 2026-02-04 - Phase 1 Cockpit & WorkForms Enhancement
+ * - Changed Cockpit path from /workspace to /cockpit
+ * - Renamed "Forms & Flows" to "WorkForms"
+ * - Updated all paths from /forms-flows to /workforms
+ * - Added badge support for action item counts
  */
 
 export interface NavigationItem {
@@ -14,32 +20,66 @@ export interface NavigationItem {
   roles?: string[];
   onClick?: () => void;
   color?: string;
+  /** Badge count or text to display next to the item (e.g., "3" for action items) */
+  badge?: number | string;
+  /** Key for fetching dynamic badge count from context */
+  badgeKey?: 'actionRequired' | 'waiting' | 'overdue' | 'total';
 }
 
 export const navigation: NavigationItem[] = [
   {
-    label: 'Workspace',
-    icon: '💼',
+    label: 'Cockpit',
+    icon: '🎯',
     children: [
       {
         label: 'Dashboard',
         icon: '📊',
-        path: '/',
+        path: '/cockpit',
       },
       {
-        label: 'Call Log',
+        label: 'Calls',
         icon: '📞',
-        path: '/call-log',
-      },
-      {
-        label: 'Processes',
-        icon: '⚙️',
-        path: '/processes',
+        path: '/calls',
       },
       {
         label: 'Reports',
         icon: '📈',
         path: '/reports',
+      },
+      {
+        label: 'WorkForms',
+        icon: '📋',
+        path: '/workforms',
+        badgeKey: 'actionRequired',
+        children: [
+          {
+            label: 'My Tasks',
+            icon: '✅',
+            path: '/workforms/tasks',
+            badgeKey: 'actionRequired',
+          },
+          {
+            label: 'In Progress',
+            icon: '⏳',
+            path: '/workforms/in-progress',
+          },
+          {
+            label: 'Catalog',
+            icon: '📚',
+            path: '/workforms/catalog',
+          },
+          {
+            label: 'History',
+            icon: '📜',
+            path: '/workforms/history',
+          },
+          {
+            label: 'Editor',
+            icon: '🎨',
+            path: '/workforms/editor',
+            roles: ['admin', 'superuser'],
+          },
+        ],
       },
     ],
   },
@@ -81,6 +121,28 @@ export const navigation: NavigationItem[] = [
     label: 'Orders',
     icon: '📋',
     children: [
+      {
+        label: 'Inquiries',
+        icon: '📋',
+        path: '/inquiries',
+        children: [
+          {
+            label: 'Templates',
+            icon: '📝',
+            path: '/inquiries/templates',
+          },
+          {
+            label: 'Analytics',
+            icon: '📊',
+            path: '/inquiries/analytics',
+          },
+        ],
+      },
+      {
+        label: 'Fulfillments',
+        icon: '📦',
+        path: '/fulfillments',
+      },
       {
         label: "P.O.'s",
         icon: '📦',
@@ -161,6 +223,55 @@ export const navigation: NavigationItem[] = [
     label: 'Logistics',
     icon: '🚛',
     path: '/carriers',
+  },
+];
+
+/**
+ * Admin Workspace Navigation (Bottom Section)
+ * Tenant-specific administration and configuration pages
+ */
+export const adminWorkspaceNavigation: NavigationItem[] = [
+  {
+    label: 'Admin Workspace',
+    icon: '⚙️',
+    children: [
+      {
+        label: 'Configurations',
+        icon: '🔧',
+        path: '/admin/configurations',
+        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Customizations',
+        icon: '🎨',
+        path: '/admin/customizations',
+        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Users & Invitations',
+        icon: '👥',
+        path: '/admin/users',
+        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Profile',
+        icon: '🏢',
+        path: '/admin/profile',
+        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Billing',
+        icon: '💳',
+        path: '/admin/billing',
+        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Option Lists',
+        icon: '📋',
+        path: '/admin/option-lists',
+        roles: ['admin', 'superuser'],
+      },
+    ],
   },
 ];
 

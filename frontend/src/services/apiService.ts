@@ -2,12 +2,51 @@
  * General API Service for ProjectMeats Business Management
  *
  * Handles communication with all Django REST API endpoints.
+ * 
+ * Wave S1: JWT Authentication Support
+ * - Uses Bearer tokens for JWT authentication
+ * - Falls back to Token auth for legacy compatibility
+ * - Automatic token refresh on 401 responses
  */
-import axios from 'axios';
+import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 'axios';
 import { config } from '../config/runtime';
+import {
+  getAuthHeader,
+  needsRefresh,
+  refreshAccessToken,
+  clearTokens,
+  isUsingJwt,
+} from './jwtService';
 
 // API Configuration
 const API_BASE_URL = config.API_BASE_URL;
+
+// Extract base URL without /api/v1/ suffix for admin endpoints
+const BASE_DOMAIN = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+
+// Flag to prevent redirect loops
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: InternalAxiosRequestConfig) => void;
+  reject: (error: unknown) => void;
+  config: InternalAxiosRequestConfig;
+}> = [];
+
+const processQueue = (error: unknown | null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      // Retry with new token
+      const authHeader = getAuthHeader();
+      if (authHeader && prom.config.headers) {
+        prom.config.headers.Authorization = authHeader;
+      }
+      prom.resolve(prom.config);
+    }
+  });
+  failedQueue = [];
+};
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -20,33 +59,236 @@ const apiClient = axios.create({
   xsrfHeaderName: 'X-CSRFToken', // Django's expected CSRF header
 });
 
-// Request interceptor for authentication and tenant context
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Token ${token}`;
-    }
-    
-    // Add tenant ID header if available
-    const tenantId = localStorage.getItem('tenantId');
-    if (tenantId) {
-      config.headers['X-Tenant-ID'] = tenantId;
-    }
-    
-    return config;
+// Admin client for /admin/* endpoints (no /api/v1/ prefix)
+const adminClient = axios.create({
+  baseURL: BASE_DOMAIN,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  (error) => Promise.reject(error)
+  withCredentials: true,
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
+});
+
+// Request interceptor for authentication and tenant context (apiClient)
+apiClient.interceptors.request.use(
+  async (config) => {
+    try {
+      // Check if token needs refresh before making request
+      if (isUsingJwt() && needsRefresh() && !isRefreshing) {
+        console.debug('[API] Token needs refresh, refreshing before request...');
+        try {
+          await refreshAccessToken();
+        } catch (error) {
+          console.error('[API] Token refresh failed in request interceptor:', error);
+          // Don't block the request, let response interceptor handle it
+        }
+      }
+      
+      // Get auth header (supports both JWT Bearer and legacy Token)
+      const authHeader = getAuthHeader();
+      if (authHeader) {
+        config.headers.Authorization = authHeader;
+      } else {
+        console.warn('[API] No auth header available for request to:', config.url);
+      }
+      
+      // Add tenant ID header if available
+      const tenantId = localStorage.getItem('tenantId');
+      if (tenantId) {
+        config.headers['X-Tenant-ID'] = tenantId;
+      }
+      
+      return config;
+    } catch (error) {
+      console.error('[API] Request interceptor error:', error);
+      return config;
+    }
+  },
+  (error) => {
+    console.error('[API] Request interceptor rejected:', error);
+    return Promise.reject(error);
+  }
 );
 
-// Response interceptor for error handling
+// Request interceptor for authentication and tenant context (adminClient)
+adminClient.interceptors.request.use(
+  async (config) => {
+    try {
+      // Check if token needs refresh before making request
+      if (isUsingJwt() && needsRefresh() && !isRefreshing) {
+        console.debug('[Admin API] Token needs refresh, refreshing before request...');
+        try {
+          await refreshAccessToken();
+        } catch (error) {
+          console.error('[Admin API] Token refresh failed in request interceptor:', error);
+        }
+      }
+      
+      const authHeader = getAuthHeader();
+      if (authHeader) {
+        config.headers.Authorization = authHeader;
+      } else {
+        console.warn('[Admin API] No auth header available for request to:', config.url);
+      }
+      
+      // Add tenant ID header if available
+      const tenantId = localStorage.getItem('tenantId');
+      if (tenantId) {
+        config.headers['X-Tenant-ID'] = tenantId;
+      }
+      
+      return config;
+    } catch (error) {
+      console.error('[Admin API] Request interceptor error:', error);
+      return config;
+    }
+  },
+  (error) => {
+    console.error('[Admin API] Request interceptor rejected:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor with JWT refresh logic (apiClient)
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error: AxiosErrorType) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+    
+    // Log the error for debugging
     if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
+      console.warn('[API] 401 Unauthorized:', {
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+        hasAuth: !!originalRequest?.headers?.Authorization,
+        isUsingJwt: isUsingJwt(),
+        retry: originalRequest?._retry,
+        retryCount: originalRequest?._retryCount || 0
+      });
+    }
+    
+    // Handle 401 Unauthorized
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      // Prevent infinite retry loops
+      const retryCount = (originalRequest._retryCount || 0) + 1;
+      if (retryCount > 2) {
+        console.error('[API] Max retry attempts reached, redirecting to login');
+        clearTokens();
+        localStorage.removeItem('user');
+        // KEEP tenant context for re-login - user should see same tenant after re-auth
+        // This prevents unexpected tenant switching mid-session
+        // localStorage.removeItem('tenantId');
+        // localStorage.removeItem('tenantName');
+        // localStorage.removeItem('tenantSlug');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+      
+      // If using JWT and we have a refresh token, try to refresh
+      if (isUsingJwt()) {
+        if (isRefreshing) {
+          // Queue this request while refresh is in progress
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject, config: originalRequest });
+          }).then((config) => apiClient(config as InternalAxiosRequestConfig));
+        }
+        
+        originalRequest._retry = true;
+        originalRequest._retryCount = retryCount;
+        isRefreshing = true;
+        
+        try {
+          const newToken = await refreshAccessToken();
+          
+          if (newToken) {
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            processQueue(null);
+            console.debug('[API] Retrying request with refreshed token');
+            return apiClient(originalRequest);
+          } else {
+            // Refresh returned null - tokens are invalid
+            throw new Error('Token refresh returned null');
+          }
+        } catch (refreshError) {
+          console.error('[API] Token refresh failed:', refreshError);
+          processQueue(refreshError);
+          // Refresh failed, redirect to login
+          clearTokens();
+          localStorage.removeItem('user');
+          // KEEP tenant context for re-login - user should see same tenant after re-auth
+          // This prevents unexpected tenant switching mid-session
+          // localStorage.removeItem('tenantId');
+          // localStorage.removeItem('tenantName');
+          // localStorage.removeItem('tenantSlug');
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
+        } finally {
+          // CRITICAL: Always reset isRefreshing flag
+          isRefreshing = false;
+        }
+      }
+      
+      // No JWT or refresh failed, clear auth and redirect
+      console.warn('[API] No JWT auth available, redirecting to login');
+      clearTokens();
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
+    
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for error handling (adminClient)
+adminClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosErrorType) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+    
+    // Log the error for debugging
+    if (error.response?.status === 401) {
+      console.warn('[Admin API] 401 Unauthorized:', {
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+        hasAuth: !!originalRequest?.headers?.Authorization,
+        isUsingJwt: isUsingJwt(),
+        retry: originalRequest?._retry,
+        retryCount: originalRequest?._retryCount || 0
+      });
+    }
+    
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      // Prevent infinite retry loops
+      const retryCount = (originalRequest._retryCount || 0) + 1;
+      if (retryCount > 2) {
+        console.error('[Admin API] Max retry attempts reached, redirecting to login');
+        clearTokens();
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+      
+      if (isUsingJwt()) {
+        originalRequest._retry = true;
+        originalRequest._retryCount = retryCount;
+        const newToken = await refreshAccessToken();
+        
+        if (newToken) {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          console.debug('[Admin API] Retrying request with refreshed token');
+          return adminClient(originalRequest);
+        }
+      }
+      
+      console.warn('[Admin API] No JWT auth available, redirecting to login');
+      clearTokens();
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -160,6 +402,7 @@ export interface Supplier {
   zip_code?: string;
   country?: string;
   departments_array?: string[]; // Phase 4: ArrayField
+  preferred_protein_types?: string[]; // NEW: Protein filtering
   products?: number[]; // Product IDs for M2M relationship
   created_at: string;
   updated_at: string;
@@ -541,4 +784,4 @@ export class ApiService {
 export const apiService = new ApiService();
 
 // Export apiClient for direct axios usage in components
-export { apiClient };
+export { apiClient, adminClient };

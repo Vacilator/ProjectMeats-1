@@ -2,11 +2,11 @@
 Django admin configuration for Invoices app.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
 from .models import Invoice, Claim, PaymentTransaction
 
 
-@admin.register(Invoice)
 class InvoiceAdmin(TenantFilteredAdmin):
     """Admin interface for Invoice model with tenant filtering."""
 
@@ -132,7 +132,6 @@ class InvoiceAdmin(TenantFilteredAdmin):
 
 
 
-@admin.register(Claim)
 class ClaimAdmin(TenantFilteredAdmin):
     """Admin interface for Claim model with tenant filtering."""
     
@@ -160,7 +159,6 @@ class ClaimAdmin(TenantFilteredAdmin):
     raw_id_fields = ("supplier", "customer", "purchase_order", "sales_order", "invoice", "assigned_to", "created_by")
 
 
-@admin.register(PaymentTransaction)
 class PaymentTransactionAdmin(TenantFilteredAdmin):
     """Admin interface for PaymentTransaction model with tenant filtering."""
 
@@ -185,3 +183,9 @@ class PaymentTransactionAdmin(TenantFilteredAdmin):
             "classes": ("collapse",)
         }),
     )
+
+
+# Register models with custom admin site
+admin_site.register(Invoice, InvoiceAdmin)
+admin_site.register(Claim, ClaimAdmin)
+admin_site.register(PaymentTransaction, PaymentTransactionAdmin)

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import { US_STATES } from '../utils/constants/states';
-import { DEPARTMENT_CHOICES } from '../utils/constants/choices';
+import { DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
 import { apiService, Supplier } from '../services/apiService';
 import { useTheme } from '../contexts/ThemeContext';
@@ -10,6 +11,7 @@ import { Theme } from '../config/theme';
 
 const Suppliers: React.FC = () => {
   const { theme } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -26,13 +28,34 @@ const Suppliers: React.FC = () => {
     zip_code: '',
     country: '',
     departments_array: [] as string[], // Phase 4: ArrayField integration
+    preferred_protein_types: [] as string[], // NEW: Protein filtering
     products: [] as number[], // Product IDs for M2M
   });
+
+  // Auto-open form if ?action=create in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowForm(true);
+      // Remove the parameter so it doesn't persist
+      searchParams.delete('action');
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     fetchSuppliers();
     fetchProducts();
   }, []);
+
+  // Auto-fetch products when preferred_protein_types changes
+  useEffect(() => {
+    if (formData.preferred_protein_types && formData.preferred_protein_types.length > 0) {
+      fetchFilteredProducts(formData.preferred_protein_types);
+    } else {
+      // Reset to all products if no protein types selected
+      fetchProducts();
+    }
+  }, [formData.preferred_protein_types]);
 
   const fetchSuppliers = async () => {
     try {
@@ -50,7 +73,7 @@ const Suppliers: React.FC = () => {
     try {
       const response = await fetch('/api/v1/products/', {
         headers: {
-          'Authorization': `Token ${localStorage.getItem('token')}`,
+          'Authorization': `Token ${localStorage.getItem('authToken')}`,
         },
       });
       if (response.ok) {
@@ -59,6 +82,33 @@ const Suppliers: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+    }
+  };
+
+  const fetchFilteredProducts = async (proteinTypes: string[]) => {
+    try {
+      // Build query string with multiple protein parameters
+      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
+      const response = await fetch(`/api/v1/products/?${proteinParams}`, {
+        headers: {
+          'Authorization': `Token ${localStorage.getItem('authToken')}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
+        
+        // Auto-select filtered products
+        const filteredProductIds = data.map((p: any) => p.id);
+        setFormData(prev => ({
+          ...prev,
+          products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
+        }));
+        
+        console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
+      }
+    } catch (error) {
+      console.error('Error fetching filtered products:', error);
     }
   };
 
@@ -105,6 +155,7 @@ const Suppliers: React.FC = () => {
       zip_code: supplier.zip_code || '',
       country: supplier.country || '',
       departments_array: supplier.departments_array || [], // Phase 4: Populate array
+      preferred_protein_types: supplier.preferred_protein_types || [], // NEW: Populate protein types
       products: supplier.products || [], // Populate product IDs
     });
     setShowForm(true);
@@ -142,6 +193,7 @@ const Suppliers: React.FC = () => {
       zip_code: '',
       country: '',
       departments_array: [], // Phase 4: Reset array
+      preferred_protein_types: [], // NEW: Reset protein types
       products: [], // Reset products
     });
   };
@@ -283,6 +335,16 @@ const Suppliers: React.FC = () => {
                     options={DEPARTMENT_CHOICES}
                     label="Departments"
                     placeholder="Select departments (hold Ctrl/Cmd for multiple)"
+                  />
+                </FormGroup>
+
+                <FormGroup $fullWidth>
+                  <MultiSelect
+                    value={formData.preferred_protein_types}
+                    onChange={(values) => setFormData({ ...formData, preferred_protein_types: values })}
+                    options={PROTEIN_TYPE_CHOICES}
+                    label="Preferred Protein Types"
+                    placeholder="Select protein types (hold Ctrl/Cmd for multiple)"
                   />
                 </FormGroup>
 

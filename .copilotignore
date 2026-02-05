@@ -2,15 +2,11 @@
 # This file prevents GitHub Copilot from indexing specified directories and files
 # to avoid confusion from outdated or contradictory documentation
 
-# Archive directory (contains old schema isolation plans and zombie knowledge)
-# CRITICAL: These files reference deprecated django-tenants and schema isolation
-docs/archive/**
+# Implementation history (completed features, not current practices)
+docs/implementation-history/**
 
 # Archived infrastructure and old configs
 archived/**
-
-# Legacy documentation with outdated patterns
-docs/archive/legacy_2025/**
 
 # Build artifacts and dependencies
 node_modules/**

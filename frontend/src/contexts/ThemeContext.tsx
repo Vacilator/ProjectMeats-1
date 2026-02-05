@@ -60,7 +60,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Sync theme to backend when it changes
   useEffect(() => {
     const syncThemeToBackend = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       if (!token) return;
 
       try {
@@ -86,7 +86,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Load tenant branding from backend on mount (only once)
   useEffect(() => {
     const loadTenantBranding = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       if (!token) return;
 
       try {
@@ -156,7 +156,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Load theme from backend on mount
   useEffect(() => {
     const loadThemeFromBackend = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       if (!token) return;
 
       try {

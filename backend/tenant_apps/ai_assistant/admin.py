@@ -2,10 +2,10 @@
 Django admin configuration for AI Assistant app.
 """
 from django.contrib import admin
+from apps.core.admin_site import admin_site
 from .models import ChatSession, ChatMessage, AIConfiguration
 
 
-@admin.register(ChatSession)
 class ChatSessionAdmin(admin.ModelAdmin):
     """Admin interface for ChatSession model."""
 
@@ -43,7 +43,6 @@ class ChatSessionAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
     """Admin interface for ChatMessage model."""
 
@@ -79,7 +78,6 @@ class ChatMessageAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(AIConfiguration)
 class AIConfigurationAdmin(admin.ModelAdmin):
     """Admin interface for AIConfiguration model."""
 
@@ -100,3 +98,9 @@ class AIConfigurationAdmin(admin.ModelAdmin):
         ("Settings", {"fields": ("is_active", "is_default")}),
         ("Metadata", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
+
+
+# Register models with custom admin site
+admin_site.register(ChatSession, ChatSessionAdmin)
+admin_site.register(ChatMessage, ChatMessageAdmin)
+admin_site.register(AIConfiguration, AIConfigurationAdmin)

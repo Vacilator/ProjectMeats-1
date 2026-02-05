@@ -26,25 +26,13 @@ from apps.core.models import (
     Protein,
     ProteinTypeChoices,
     ShippingOfferedChoices,
-    TenantManager,
-    TimestampModel,
+    TenantAwareModel,
 )
-from tenant_apps.plants.models import Plant
+from tenant_apps.locations.models import Location
 
 
-class Supplier(TimestampModel):
+class Supplier(TenantAwareModel):
     """Supplier model for managing supplier information."""
-
-    # Use the custom TenantManager to support .for_tenant() queries
-    objects = TenantManager()
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="suppliers",
-        help_text="Tenant this supplier belongs to"
-    )
 
     # Basic information - keeping existing fields with same names
     name = models.CharField(max_length=255, help_text="Supplier company name")
@@ -77,12 +65,12 @@ class Supplier(TimestampModel):
 
     # New enhanced fields based on spreadsheet requirements
     plant = models.ForeignKey(
-        Plant,
+        Location,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='supplier_assignments',
-        help_text="Associated plant establishment",
+        help_text="Associated plant/location establishment",
     )
     proteins = models.ManyToManyField(
         Protein, blank=True, help_text="Protein types supplied by this supplier"
@@ -132,7 +120,7 @@ class Supplier(TimestampModel):
         help_text="Multiple contacts associated with this supplier",
     )
     products = models.ManyToManyField(
-        'products.Product',
+        'system.Product',
         related_name="suppliers",
         blank=True,
         help_text="Products available from this supplier",
@@ -208,6 +196,12 @@ class Supplier(TimestampModel):
         blank=True,
         default=list,
         help_text="Departments (multi-select: Sales, Doc's BOL, Doc's COA, etc.) - NEW",
+    )
+    preferred_protein_types = ArrayField(
+        models.CharField(max_length=50, choices=ProteinTypeChoices.choices),
+        blank=True,
+        default=list,
+        help_text="Preferred protein types (multi-select: Beef, Chicken, Pork, etc.)",
     )
     
     # Deprecated fields - keeping for backward compatibility

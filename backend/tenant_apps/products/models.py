@@ -15,23 +15,12 @@ from apps.core.models import (
     OriginChoices,
     PackageTypeChoices,
     ProteinTypeChoices,
-    TimestampModel,
-    TenantManager,
+    TenantAwareModel,
 )
 
 
-class Product(TimestampModel):
+class Product(TenantAwareModel):
     """Product model for master product list."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="products",
-        help_text="Tenant this product belongs to"
-    )
 
     # Product identification
     product_code = models.CharField(

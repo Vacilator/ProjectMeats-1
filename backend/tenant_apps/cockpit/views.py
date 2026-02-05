@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
+from rest_framework.views import APIView
 from django.db.models import Q
 from django.db import IntegrityError
 from django.utils import timezone
@@ -19,8 +20,9 @@ from .serializers import (
     OrderSlotSerializer,
     ActivityLogSerializer,
     ScheduledCallSerializer,
+    UserWorkspaceLayoutSerializer,
 )
-from .models import ActivityLog, ScheduledCall
+from .models import ActivityLog, ScheduledCall, UserWorkspaceLayout
 from tenant_apps.customers.models import Customer
 
 logger = logging.getLogger(__name__)
@@ -231,16 +233,15 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
             title = f"Call Scheduled: {scheduled_call.title}"
             content = (
                 f"Scheduled call for {scheduled_call.scheduled_for.strftime('%Y-%m-%d %H:%M')}.\n"
-                f"Duration: {scheduled_call.duration_minutes} minutes\n"
-                f"Purpose: {scheduled_call.call_purpose}"
+                f"Duration: {scheduled_call.duration_minutes} minutes"
             )
             if scheduled_call.description:
                 content += f"\n\nNotes: {scheduled_call.description}"
         elif action == 'completed':
             title = f"Call Completed: {scheduled_call.title}"
-            content = f"Call was completed."
-            if scheduled_call.outcome:
-                content += f"\n\nOutcome: {scheduled_call.outcome}"
+            content = f"Call was completed on {scheduled_call.completed_at.strftime('%Y-%m-%d %H:%M') if scheduled_call.completed_at else 'N/A'}."
+            if scheduled_call.description:
+                content += f"\n\nNotes: {scheduled_call.description}"
         else:
             title = f"Call Updated: {scheduled_call.title}"
             content = "Call details were updated."
@@ -255,3 +256,223 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
             created_by=user,
             tags='call,scheduled-call,auto-generated'
         )
+
+
+class WorkspaceLayoutView(APIView):
+    """
+    API view for managing user workspace layouts.
+    
+    GET: Retrieve the current user's workspace layout
+    PUT: Save/update the current user's workspace layout
+    DELETE: Reset to default layout (deletes saved layout)
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Get the current user's workspace layout.
+        
+        Returns saved layout if exists, otherwise returns a sensible default
+        layout that matches frontend expectations. This prevents 404 errors
+        and provides a better first-time user experience.
+        """
+        try:
+            layout = UserWorkspaceLayout.objects.get(user=request.user)
+            serializer = UserWorkspaceLayoutSerializer(layout)
+            return Response(serializer.data)
+        except UserWorkspaceLayout.DoesNotExist:
+            # Return default layout instead of 404
+            # This matches frontend's DEFAULT_WIDGETS and DEFAULT_LAYOUT
+            default_response = {
+                "version": 1,
+                "layout": [
+                    {"i": "quick-actions", "x": 0, "y": 0, "w": 3, "h": 8, "minW": 2, "minH": 4},
+                    {"i": "recent-activity", "x": 3, "y": 0, "w": 6, "h": 8, "minW": 4, "minH": 6},
+                    {"i": "action-items", "x": 9, "y": 0, "w": 3, "h": 8, "minW": 2, "minH": 4},
+                    {"i": "entity-explorer", "x": 0, "y": 8, "w": 6, "h": 8, "minW": 4, "minH": 6},
+                    {"i": "calendar", "x": 6, "y": 8, "w": 6, "h": 8, "minW": 4, "minH": 6},
+                ],
+                "widgets": [
+                    {"id": "quick-actions", "type": "quick-actions", "title": "Quick Actions"},
+                    {"id": "recent-activity", "type": "recent-activity", "title": "Recent Activity"},
+                    {"id": "action-items", "type": "action-items", "title": "Action Items"},
+                    {"id": "entity-explorer", "type": "entity-explorer", "title": "Entity Explorer"},
+                    {"id": "calendar", "type": "calendar", "title": "Calendar"},
+                ],
+            }
+            return Response(default_response, status=status.HTTP_200_OK)
+    
+    def put(self, request):
+        """Save or update the user's workspace layout."""
+        try:
+            layout, created = UserWorkspaceLayout.objects.get_or_create(
+                user=request.user,
+                defaults={
+                    'layout': request.data.get('layout', []),
+                    'widgets': request.data.get('widgets', []),
+                    'version': request.data.get('version', 1),
+                }
+            )
+            
+            if not created:
+                # Update existing layout
+                serializer = UserWorkspaceLayoutSerializer(
+                    layout, 
+                    data=request.data, 
+                    partial=True
+                )
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                return Response(serializer.data)
+            
+            serializer = UserWorkspaceLayoutSerializer(layout)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Error saving workspace layout: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Failed to save layout", "detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    def delete(self, request):
+        """Delete the user's saved layout (reset to default)."""
+        try:
+            layout = UserWorkspaceLayout.objects.get(user=request.user)
+            layout.delete()
+            return Response(
+                {"detail": "Layout reset to default"},
+                status=status.HTTP_204_NO_CONTENT
+            )
+        except UserWorkspaceLayout.DoesNotExist:
+            return Response(
+                {"detail": "No saved layout to delete"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class WorkspaceStatsView(APIView):
+    """
+    API view for Cockpit dashboard statistics.
+    
+    Returns aggregated stats for widgets:
+    - Quick stats (orders, revenue, shipments, customers)
+    - Today's numbers (detailed KPIs)
+    - Recent activity (last 10 activities)
+    - Upcoming calls (next 5 scheduled calls)
+    
+    Created: 2026-02-04 - Phase 1.3 Widget Real Data
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get workspace statistics for the current user's tenant."""
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {"error": "Tenant context required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tenant = request.tenant
+        today = timezone.now().date()
+        
+        try:
+            # Import models (local to avoid circular imports)
+            from tenant_apps.purchase_orders.models import PurchaseOrder
+            from tenant_apps.sales_orders.models import SalesOrder
+            from tenant_apps.customers.models import Customer
+            from tenant_apps.suppliers.models import Supplier
+            from django.db.models import Count, Sum, Q
+            from decimal import Decimal
+            
+            # Quick Stats
+            total_orders = PurchaseOrder.objects.filter(tenant=tenant).count()
+            total_customers = Customer.objects.filter(tenant=tenant).count()
+            total_suppliers = Supplier.objects.filter(tenant=tenant).count()
+            
+            # Revenue calculation (sum of completed sales orders)
+            total_revenue = SalesOrder.objects.filter(
+                tenant=tenant,
+                status__in=['shipped', 'delivered', 'completed']
+            ).aggregate(
+                total=Sum('total_amount')
+            )['total'] or Decimal('0.00')
+            
+            # Today's Numbers
+            orders_today = PurchaseOrder.objects.filter(
+                tenant=tenant,
+                created_on__date=today
+            ).count()
+            
+            pending_orders = PurchaseOrder.objects.filter(
+                tenant=tenant,
+                status__in=['pending', 'processing']
+            ).count()
+            
+            completed_today = PurchaseOrder.objects.filter(
+                tenant=tenant,
+                status='completed',
+                modified_on__date=today
+            ).count()
+            
+            # Recent Activity (last 10)
+            recent_activities = ActivityLog.objects.filter(
+                tenant=tenant
+            ).select_related('created_by').order_by('-created_on')[:10]
+            
+            activity_list = [{
+                'id': act.id,
+                'entity_type': act.entity_type,
+                'entity_id': act.entity_id,
+                'title': act.title or 'Activity',
+                'content': act.content[:100] + '...' if len(act.content) > 100 else act.content,
+                'created_by': act.created_by.get_full_name() if act.created_by else 'System',
+                'created_on': act.created_on.isoformat(),
+                'is_pinned': act.is_pinned,
+                'tags': act.tags,
+            } for act in recent_activities]
+            
+            # Upcoming Calls (next 5)
+            upcoming_calls = ScheduledCall.objects.filter(
+                tenant=tenant,
+                is_completed=False,
+                scheduled_for__gte=timezone.now()
+            ).select_related('assigned_to').order_by('scheduled_for')[:5]
+            
+            calls_list = [{
+                'id': call.id,
+                'entity_type': call.entity_type,
+                'entity_id': call.entity_id,
+                'title': call.title,
+                'description': call.description,
+                'scheduled_for': call.scheduled_for.isoformat(),
+                'duration_minutes': call.duration_minutes,
+                'assigned_to': call.assigned_to.get_full_name() if call.assigned_to else 'Unassigned',
+            } for call in upcoming_calls]
+            
+            # Compile response
+            stats = {
+                'quick_stats': {
+                    'total_orders': total_orders,
+                    'total_revenue': float(total_revenue),
+                    'total_customers': total_customers,
+                    'total_suppliers': total_suppliers,
+                },
+                'todays_numbers': {
+                    'orders_today': orders_today,
+                    'pending_orders': pending_orders,
+                    'completed_today': completed_today,
+                    'active_customers': total_customers,  # Can refine this later
+                },
+                'recent_activity': activity_list,
+                'upcoming_calls': calls_list,
+            }
+            
+            return Response(stats)
+            
+        except Exception as e:
+            logger.error(f"Error fetching workspace stats: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Failed to fetch stats", "detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

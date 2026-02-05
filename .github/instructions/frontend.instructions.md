@@ -96,18 +96,30 @@ npm run type-check
 
 ## Styling
 
-### CSS Modules or Styled Components
+> **📚 IMPORTANT**: For complete styling guidelines, see [docs/DESIGN_SYSTEM.md](/docs/DESIGN_SYSTEM.md)
+
+### Theme Variables (MANDATORY)
 ```typescript
-// CSS Modules
-import styles from './MyComponent.module.css';
-
-// Styled Components
-import styled from 'styled-components';
-
+// ✅ CORRECT - Use CSS custom properties
 const Button = styled.button`
-  background: blue;
-  color: white;
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-text-primary));
+  border: 1px solid rgb(var(--color-border));
 `;
+
+// ❌ WRONG - Never hardcode colors
+const Button = styled.button`
+  background: #667eea;
+  color: #2c3e50;
+`;
+```
+
+### Standardized Status Colors
+```typescript
+// Success: rgb(34, 197, 94)
+// Warning: rgb(234, 179, 8)
+// Error: rgb(239, 68, 68)
+// Info: rgb(59, 130, 246)
 ```
 
 ### Responsive Design

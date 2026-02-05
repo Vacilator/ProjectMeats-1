@@ -6,6 +6,7 @@
  * - Edit existing calls (via initialData prop)
  * - Full form validation
  * - Theme-compliant styling
+ * - Call timer for tracking call duration
  * 
  * Usage:
  * ```tsx
@@ -20,10 +21,14 @@
  *   onSuccess={...}
  * />
  * ```
+ * 
+ * Updated: 2026-02-03 - Added CallTimer support
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '../../services/apiService';
+import { CreateInquiryModal } from '../Inquiry';
+import { CallTimer } from '../Calls';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -190,7 +195,8 @@ const ModalFooter = styled.div`
   padding: 1.5rem;
   border-top: 1px solid rgb(var(--color-border));
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 0.75rem;
 `;
 
@@ -244,6 +250,63 @@ const HelpText = styled.p`
   margin-top: 0.25rem;
 `;
 
+const NewInquiryButton = styled.button`
+  padding: 0.625rem 1.25rem;
+  border: 2px solid rgb(var(--color-primary));
+  border-radius: var(--radius-md);
+  background: rgba(var(--color-primary), 0.1);
+  color: rgb(var(--color-primary));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  
+  &:hover:not(:disabled) {
+    background: rgba(var(--color-primary), 0.2);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ModalFooterLeft = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+const ModalFooterRight = styled.div`
+  display: flex;
+  gap: 0.75rem;
+`;
+
+const TimerSection = styled.div`
+  padding: 1rem;
+  background: rgba(var(--color-primary), 0.05);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(var(--color-primary), 0.1);
+  margin-top: 0.5rem;
+`;
+
+const TimerLabel = styled.div`
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const TimerWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -266,6 +329,13 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   const [outcome, setOutcome] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Call timer state (for logging call duration)
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [timerDurationSeconds, setTimerDurationSeconds] = useState(0);
+  
+  // Inquiry modal state
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
 
   // Dynamic entity options
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
@@ -378,10 +448,10 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
 
       if (isEditMode && initialData?.id) {
         // Update existing call
-        await apiClient.patch(`cockpit/scheduled-calls/${initialData.id}/`, payload);
+        await apiClient.patch(`workspace/scheduled-calls/${initialData.id}/`, payload);
       } else {
         // Create new call
-        await apiClient.post('cockpit/scheduled-calls/', payload);
+        await apiClient.post('workspace/scheduled-calls/', payload);
       }
 
       // Success
@@ -528,19 +598,71 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
               </FormGroup>
             )}
 
+            {/* Call Timer - shown in edit mode for logging calls */}
+            {isEditMode && !initialData?.is_completed && (
+              <TimerSection>
+                <TimerLabel>Call Timer (optional)</TimerLabel>
+                <TimerWrapper>
+                  <CallTimer
+                    mode="full"
+                    onStop={(seconds) => {
+                      setTimerDurationSeconds(seconds);
+                      // Update duration in minutes, rounded up
+                      setDurationMinutes(String(Math.ceil(seconds / 60)));
+                      setIsTimerActive(false);
+                    }}
+                    onTick={(seconds) => setTimerDurationSeconds(seconds)}
+                    isActive={isTimerActive}
+                  />
+                </TimerWrapper>
+                <HelpText style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                  Start the timer when you begin your call. Duration will be saved automatically.
+                </HelpText>
+              </TimerSection>
+            )}
+
             {error && <ErrorMessage>{error}</ErrorMessage>}
           </ModalBody>
 
           <ModalFooter>
-            <CancelButton type="button" onClick={handleClose} disabled={submitting}>
-              Cancel
-            </CancelButton>
-            <SubmitButton type="submit" disabled={submitting}>
-              {submitting ? (isEditMode ? 'Updating...' : 'Scheduling...') : (isEditMode ? 'Update Call' : 'Schedule Call')}
-            </SubmitButton>
+            <ModalFooterLeft>
+              {isEditMode && initialData?.id && entityId && (
+                <NewInquiryButton
+                  type="button"
+                  onClick={() => setShowInquiryModal(true)}
+                  disabled={submitting}
+                >
+                  📋 New Inquiry
+                </NewInquiryButton>
+              )}
+            </ModalFooterLeft>
+            <ModalFooterRight>
+              <CancelButton type="button" onClick={handleClose} disabled={submitting}>
+                Cancel
+              </CancelButton>
+              <SubmitButton type="submit" disabled={submitting}>
+                {submitting ? (isEditMode ? 'Updating...' : 'Scheduling...') : (isEditMode ? 'Update Call' : 'Schedule Call')}
+              </SubmitButton>
+            </ModalFooterRight>
           </ModalFooter>
         </form>
       </Modal>
+
+      {/* Inquiry Modal */}
+      {showInquiryModal && initialData?.id && (
+        <CreateInquiryModal
+          isOpen={showInquiryModal}
+          onClose={() => setShowInquiryModal(false)}
+          onSuccess={(inquiry) => {
+            setShowInquiryModal(false);
+            // Optionally close the call modal and trigger refresh
+            console.log('Inquiry created:', inquiry.inquiry_number);
+          }}
+          scheduledCallId={String(initialData.id)}
+          entityType={entityType as 'supplier' | 'customer'}
+          entityId={entityId}
+        />
+      )}
     </Overlay>
   );
 };

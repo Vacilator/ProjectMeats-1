@@ -126,8 +126,8 @@ def _populate_tenant_business_data(tenant, user, verbosity=1):
     # === STEP 0: Delete existing business data for this tenant ===
     # This ensures we maintain "exactly 3 rows per model" rule on re-runs
     try:
-        from tenant_apps.plants.models import Plant
-        Plant.objects.filter(tenant=tenant).delete()
+        from tenant_apps.locations.models import Location
+        Location.objects.filter(tenant=tenant).delete()
     except ImportError:
         pass
     
@@ -188,39 +188,39 @@ def _populate_tenant_business_data(tenant, user, verbosity=1):
             print(f"  ⚠️  Could not import Protein model: {e}")
         protein_objs = []
     
-    # === STEP 2: Create Plants (tenant-isolated) ===
-    plants = []
+    # === STEP 2: Create Locations/Plants (tenant-isolated) ===
+    locations = []
     try:
-        from tenant_apps.plants.models import Plant
+        from tenant_apps.locations.models import Location
         
         for i in range(1, 4):
-            plant, _ = Plant.objects.get_or_create(
+            location, _ = Location.objects.get_or_create(
                 tenant=tenant,
-                code=f"PLT-{tenant.slug}-{i}",  # Globally unique
+                code=f"LOC-{tenant.slug}-{i}",  # Globally unique
                 defaults={
-                    'name': f"Plant {i} - {tenant.name}",
-                    'plant_type': 'processing',
+                    'name': f"Location {i} - {tenant.name}",
+                    'location_type': 'plant_processing',
                     'address': f"{i}00 Industrial Blvd",
                     'city': f"City {i}",
                     'state': 'TX',
                     'zip_code': f"7500{i}",
                     'country': 'USA',
                     'phone': f"555-010{i}",
-                    'email': f"plant{i}@{tenant.slug}.example.com",
+                    'email': f"location{i}@{tenant.slug}.example.com",
                     'manager': f"Manager {i}",
                     'capacity': 1000 * i,
                     'is_active': True,
                     'created_by': user
                 }
             )
-            plants.append(plant)
+            locations.append(location)
         
         if verbosity >= 2:
-            print(f"  🏭 Created 3 plants")
+            print(f"  📍 Created 3 locations")
             
     except ImportError as e:
         if verbosity >= 1:
-            print(f"  ⚠️  Plant model not available: {e}")
+            print(f"  ⚠️  Location model not available: {e}")
     
     # === STEP 3: Create Contacts (tenant-isolated) ===
     contacts = []
@@ -301,9 +301,9 @@ def _populate_tenant_business_data(tenant, user, verbosity=1):
                 'country': 'USA'
             }
             
-            # Assign random Plant if available
-            if plants:
-                supplier_defaults['plant'] = random.choice(plants)
+            # Assign random Location if available
+            if locations:
+                supplier_defaults['plant'] = random.choice(locations)
             
             supplier, _ = Supplier.objects.get_or_create(
                 tenant=tenant,
@@ -340,9 +340,9 @@ def _populate_tenant_business_data(tenant, user, verbosity=1):
                 'country': 'USA'
             }
             
-            # Assign random Plant if available
-            if plants:
-                customer_defaults['plant'] = random.choice(plants)
+            # Assign random Location if available
+            if locations:
+                customer_defaults['plant'] = random.choice(locations)
             
             customer, _ = Customer.objects.get_or_create(
                 tenant=tenant,

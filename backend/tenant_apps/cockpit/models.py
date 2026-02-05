@@ -25,6 +25,8 @@ class EntityTypeChoices(models.TextChoices):
     PRODUCT = "product", "Product"
     INVOICE = "invoice", "Invoice"
     CONTACT = "contact", "Contact"
+    INQUIRY = "inquiry", "Inquiry"
+    FULFILLMENT = "fulfillment", "Fulfillment"
 
 
 class ActivityLog(TimestampModel):
@@ -221,3 +223,45 @@ class ScheduledCall(TimestampModel):
     
     def __str__(self):
         return f"{self.title} - {self.scheduled_for.strftime('%Y-%m-%d %H:%M')}"
+
+
+class UserWorkspaceLayout(models.Model):
+    """
+    Persists user's Workspace/Cockpit layout configuration.
+    
+    Stores the widget positions, sizes, and enabled widgets per user.
+    Falls back to default layout if no saved layout exists.
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="workspace_layout",
+        help_text="User this layout belongs to"
+    )
+    
+    # Layout data stored as JSON
+    layout = models.JSONField(
+        default=list,
+        help_text="Widget layout positions (react-grid-layout format)"
+    )
+    widgets = models.JSONField(
+        default=list,
+        help_text="Widget configurations (id, type, title)"
+    )
+    
+    # Version for migrations if layout schema changes
+    version = models.PositiveIntegerField(
+        default=1,
+        help_text="Layout schema version for future migrations"
+    )
+    
+    # Timestamps
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "User Workspace Layout"
+        verbose_name_plural = "User Workspace Layouts"
+    
+    def __str__(self):
+        return f"{self.user.username}'s Workspace Layout"

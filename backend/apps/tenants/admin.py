@@ -7,6 +7,7 @@ from django.urls import path
 from django import forms
 from django.contrib.auth.models import User
 from apps.core.admin import TenantFilteredAdmin
+from apps.core.admin_site import admin_site
 from .models import Tenant, TenantUser, TenantInvitation, TenantDomain
 import logging
 
@@ -58,7 +59,6 @@ class FullOnboardForm(forms.Form):
     )
 
 
-@admin.register(Tenant)
 class TenantAdmin(admin.ModelAdmin):
     """
     Admin interface for Tenant model with tiered actions.
@@ -430,7 +430,6 @@ class TenantAdmin(admin.ModelAdmin):
     test_credentials_display.short_description = "Test Login Credentials"
 
 
-@admin.register(TenantUser)
 class TenantUserAdmin(TenantFilteredAdmin):
     """Admin interface for TenantUser associations with tenant filtering."""
 
@@ -452,7 +451,6 @@ class TenantUserAdmin(TenantFilteredAdmin):
         return qs.select_related("user", "tenant")
 
 
-@admin.register(TenantInvitation)
 class TenantInvitationAdmin(TenantFilteredAdmin):
     """Admin interface for TenantInvitation model with tenant filtering."""
 
@@ -619,7 +617,6 @@ class TenantInvitationAdmin(TenantFilteredAdmin):
         return qs.select_related("tenant", "invited_by", "accepted_by")
 
 
-@admin.register(TenantDomain)
 class TenantDomainAdmin(admin.ModelAdmin):
     """Admin interface for TenantDomain model."""
 
@@ -636,3 +633,10 @@ class TenantDomainAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related("tenant")
+
+
+# Register models with custom admin site
+admin_site.register(Tenant, TenantAdmin)
+admin_site.register(TenantUser, TenantUserAdmin)
+admin_site.register(TenantInvitation, TenantInvitationAdmin)
+admin_site.register(TenantDomain, TenantDomainAdmin)

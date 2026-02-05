@@ -31,41 +31,12 @@ updates:
       include: "scope"
     # Group related dependencies into single PRs
     groups:
-      # Django framework and DRF updates (critical path)
-      django:
+      # Unified backend group to reduce PR noise
+      backend-unified:
         patterns:
-          - "django*"
-          - "drf*"
-          - "djangorestframework*"
-        # Update on any version change (minor/patch)
+          - "*"
         update-types:
-          - "minor"
-          - "patch"
-      # Testing tools (non-critical path)
-      testing:
-        patterns:
-          - "pytest*"
-          - "factory*"
-          - "coverage*"
-          - "faker*"
-        # Only update on minor versions, skip patch
-        update-types:
-          - "minor"
-      # Database drivers and adapters
-      database:
-        patterns:
-          - "psycopg*"
-          - "sqlparse*"
-        update-types:
-          - "minor"
-          - "patch"
-      # Security and authentication
-      security:
-        patterns:
-          - "cryptography*"
-          - "pyjwt*"
-          - "django-cors*"
-        update-types:
+          - "major"
           - "minor"
           - "patch"
     # Ignore patch updates for these non-critical dependencies
@@ -105,6 +76,7 @@ updates:
         patterns:
           - "*"  # Catch everything
         update-types:
+          - "major"
           - "minor"
           - "patch"
     # Ignore patch updates for non-critical dev dependencies
@@ -145,6 +117,7 @@ updates:
         patterns:
           - "*"  # Catch everything
         update-types:
+          - "major"
           - "minor"
           - "patch"
 
@@ -169,6 +142,7 @@ updates:
         patterns:
           - "*"
         update-types:
+          - "major"
           - "minor"
           - "patch"
     # Only update on minor versions (e.g., Python 3.11 -> 3.12)
@@ -199,6 +173,7 @@ updates:
         patterns:
           - "*"
         update-types:
+          - "major"
           - "minor"
           - "patch"
     ignore:
