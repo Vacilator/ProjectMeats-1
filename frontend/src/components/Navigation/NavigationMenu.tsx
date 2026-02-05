@@ -194,7 +194,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('[NavigationMenu] AccordionNavLinkInner clicked:', {
+              console.log('[NavigationMenu] Parent item clicked:', {
                 path: item.path,
                 label: item.label,
                 active,
@@ -202,7 +202,10 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
                 timestamp: new Date().toISOString()
               });
               if (item.path) {
+                console.log('[NavigationMenu] Navigating to:', item.path);
                 navigate(item.path);
+              } else {
+                console.warn('[NavigationMenu] No path defined for:', item.label);
               }
             }}
             $theme={theme}
@@ -210,15 +213,6 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             $active={active}
             $isDarkMode={isDarkMode}
             $hasExactActiveChild={hasActiveChild}
-            onClick={(e) => {
-              console.log('[NavigationMenu] NavLink clicked:', {
-                path: item.path,
-                label: item.label,
-                active,
-                hasActiveChild,
-                timestamp: new Date().toISOString()
-              });
-            }}
           >
             {renderAccordionContent(item)}
           </AccordionNavLinkInner>
