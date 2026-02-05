@@ -181,8 +181,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   // Render accordion header with expand/collapse button
   const renderAccordionHeader = (item: NavigationItem, isItemExpanded: boolean, active: boolean, hasActiveChild: boolean) => {
     // If item has a path, wrap in NavLink for navigation
-    // CRITICAL FIX: When parent has children, ALWAYS toggle accordion on click
-    // Don't navigate to parent path - let user click children instead
+    // FIX: Allow navigation to parent, but chevron toggles accordion
     if (item.path) {
       return (
         <AccordionNavLinkWrapper
@@ -193,18 +192,13 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
           $isExpanded={isItemExpanded}
           $isDarkMode={isDarkMode}
           $hasExactActiveChild={hasActiveChild}
-          onClick={(e) => {
-            // CRITICAL: Prevent navigation, toggle accordion instead
-            e.preventDefault();
-            e.stopPropagation();
-            toggleExpand(item.label);
-          }}
+          // Remove onClick - allow natural NavLink navigation
         >
           {renderAccordionContent(item)}
           {sidebarExpanded && (
             <ExpandButton 
               onClick={(e) => {
-                // Stop propagation to prevent double-toggle
+                // Prevent navigation for chevron click, only toggle accordion
                 e.preventDefault();
                 e.stopPropagation();
                 toggleExpand(item.label, e);
