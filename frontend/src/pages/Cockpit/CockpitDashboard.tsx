@@ -502,13 +502,16 @@ export const CockpitDashboard: React.FC = () => {
     setLayout(DEFAULT_LAYOUT);
     localStorage.removeItem(STORAGE_KEY);
     
-    // Also delete from backend
+    // Also delete from backend (silently handle 404 as expected)
     try {
       await apiClient.delete('cockpit/workspace-layout/');
     } catch (err) {
+      // Silently ignore 404 (expected when no saved layout exists)
+      // Only log other errors
       if ((err as any).response?.status !== 404) {
         console.error('Failed to reset cockpit layout in API:', err);
       }
+      // Suppress 404 completely - it's expected
     }
     
     setIsEditing(false);
@@ -533,7 +536,13 @@ export const CockpitDashboard: React.FC = () => {
 
   // Render widget based on type
   const renderWidget = useCallback((widget: WidgetConfig) => {
-    switch (widget.type) {
+    // Handle both old format (widget id as type) and new format (widget type)
+    // Old saved data may use 'quick-actions' instead of 'QuickActionsWidget'
+    const normalizedType = widget.type.includes('-') 
+      ? widget.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('') + 'Widget'
+      : widget.type;
+    
+    switch (normalizedType) {
       case 'QuickStatsWidget':
         return <QuickStatsWidget />;
       case 'RecentActivityWidget':
@@ -549,7 +558,17 @@ export const CockpitDashboard: React.FC = () => {
       case 'TodaysNumbersWidget':
         return <TodaysNumbersWidget />;
       default:
-        return <div>Unknown widget: {widget.type}</div>;
+        console.warn(`Unknown widget type: ${widget.type} (normalized: ${normalizedType})`);
+        return (
+          <div style={{ 
+            padding: '20px', 
+            textAlign: 'center', 
+            color: 'rgb(var(--color-text-tertiary))' 
+          }}>
+            <p>⚠️ Widget not found</p>
+            <p style={{ fontSize: '12px' }}>Type: {widget.type}</p>
+          </div>
+        );
     }
   }, []);
 
