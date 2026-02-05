@@ -180,21 +180,25 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
 
   // Render accordion header with expand/collapse button
   const renderAccordionHeader = (item: NavigationItem, isItemExpanded: boolean, active: boolean, hasActiveChild: boolean) => {
-    // If item has a path, wrap in NavLink for navigation
-    // FIX: Allow navigation to parent, but chevron toggles accordion
+    // If item has a path, use a container with separate NavLink and ExpandButton
+    // FIX: Separate NavLink from ExpandButton so both can handle clicks independently
     if (item.path) {
       return (
-        <AccordionNavLinkWrapper
-          to={item.path}
-          $theme={theme}
+        <AccordionHeaderContainer
           $level={level}
           $active={active}
-          $isExpanded={isItemExpanded}
           $isDarkMode={isDarkMode}
-          $hasExactActiveChild={hasActiveChild}
-          // Remove onClick - allow natural NavLink navigation
         >
-          {renderAccordionContent(item)}
+          <AccordionNavLinkInner
+            to={item.path}
+            $theme={theme}
+            $level={level}
+            $active={active}
+            $isDarkMode={isDarkMode}
+            $hasExactActiveChild={hasActiveChild}
+          >
+            {renderAccordionContent(item)}
+          </AccordionNavLinkInner>
           {sidebarExpanded && (
             <ExpandButton 
               onClick={(e) => {
@@ -210,7 +214,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
               <ChevronIcon isExpanded={isItemExpanded} />
             </ExpandButton>
           )}
-        </AccordionNavLinkWrapper>
+        </AccordionHeaderContainer>
       );
     }
     
@@ -424,26 +428,76 @@ const AccordionNavLink = styled(NavLink)<{ $level: number }>`
   min-height: inherit;
 `;
 
-// Accordion header that's also a NavLink (for items with path + children)
-const AccordionNavLinkWrapper = styled(NavLink)<{ 
+// Container for accordion header with NavLink and ExpandButton as siblings
+const AccordionHeaderContainer = styled.div<{ 
+  $level: number; 
+  $active: boolean; 
+  $isDarkMode: boolean;
+}>`
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  margin: 0 8px 4px 8px;
+  border-radius: 8px;
+  position: relative;
+  
+  /* Active state styling on container */
+  ${(props) => props.$active && css<{ $isDarkMode: boolean }>`
+    background-color: ${props.$isDarkMode 
+      ? 'rgba(var(--color-primary), 0.15)' 
+      : 'rgba(var(--color-primary), 0.1)'};
+    
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 24px;
+      background: rgb(var(--color-primary));
+      border-radius: 0 3px 3px 0;
+    }
+  `}
+  
+  &:hover {
+    background-color: ${(props) => props.$isDarkMode 
+      ? 'rgba(255, 255, 255, 0.08)' 
+      : 'rgba(0, 0, 0, 0.04)'};
+  }
+`;
+
+// NavLink for accordion item with path (sits inside AccordionHeaderContainer)
+const AccordionNavLinkInner = styled(NavLink)<{ 
   $theme: Theme; 
   $level: number; 
   $active: boolean; 
-  $isExpanded: boolean; 
   $isDarkMode: boolean;
   $hasExactActiveChild: boolean;
 }>`
-  ${baseItemStyles}
-  width: calc(100% - 16px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 12px;
+  padding-left: ${(props) => 12 + props.$level * 16}px;
+  color: ${(props) => props.$isDarkMode 
+    ? `rgba(255, 255, 255, ${props.$active ? 1 : 0.7})` 
+    : `rgba(30, 41, 59, ${props.$active ? 1 : 0.7})`};
+  text-decoration: none;
+  font-size: ${(props) => props.$level === 0 ? 14 : 13}px;
+  height: 60px;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
   cursor: pointer;
-  position: relative;
   
-  /* Active states */
-  ${(props) => (props.$active || props.$hasExactActiveChild) && activeStyles}
+  /* Ensure it doesn't inherit container background */
+  background: transparent;
   
-  /* Ensure clickable even when child content expanded */
-  z-index: 10;
-  pointer-events: auto;
+  ${(props) => props.$hasExactActiveChild && css<{ $isDarkMode: boolean }>`
+    color: ${props.$isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgb(var(--color-text-primary))'};
+  `}
 `;
 
 const MenuButton = styled.button<{ $theme: Theme; $level: number; $active: boolean; $isDarkMode: boolean }>`
