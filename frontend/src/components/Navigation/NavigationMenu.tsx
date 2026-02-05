@@ -196,6 +196,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             $active={active}
             $isDarkMode={isDarkMode}
             $hasExactActiveChild={hasActiveChild}
+            onClick={(e) => {
+              // Log to help debug
+              console.log('[NavigationMenu] NavLink clicked:', item.path);
+              // Don't prevent default - let NavLink handle navigation
+            }}
           >
             {renderAccordionContent(item)}
           </AccordionNavLinkInner>
@@ -203,6 +208,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             <ExpandButton 
               onClick={(e) => {
                 // Prevent navigation for chevron click, only toggle accordion
+                console.log('[NavigationMenu] ExpandButton clicked:', item.label);
                 e.preventDefault();
                 e.stopPropagation();
                 toggleExpand(item.label, e);
@@ -441,6 +447,7 @@ const AccordionHeaderContainer = styled.div<{
   margin: 0 8px 4px 8px;
   border-radius: 8px;
   position: relative;
+  min-height: 60px; /* Ensure container has height */
   
   /* Active state styling on container */
   ${(props) => props.$active && css<{ $isDarkMode: boolean }>`
@@ -491,6 +498,9 @@ const AccordionNavLinkInner = styled(NavLink)<{
   flex: 1;
   min-width: 0;
   cursor: pointer;
+  pointer-events: auto; /* Explicitly enable pointer events */
+  position: relative; /* Create stacking context */
+  z-index: 1; /* Ensure it's above container */
   
   /* Ensure it doesn't inherit container background */
   background: transparent;
