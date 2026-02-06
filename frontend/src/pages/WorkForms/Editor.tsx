@@ -507,7 +507,7 @@ export const WorkFormsEditor: React.FC = () => {
       </PageHeader>
 
       <EditorWrapper>
-        {isInitialized && (
+        {isInitialized && !permissionsLoading && (
           <UnifiedFlowEditor
             initialNodes={initialNodes}
             initialEdges={initialEdges}
@@ -516,6 +516,17 @@ export const WorkFormsEditor: React.FC = () => {
             readOnly={!permissions.can_edit}
             allowedNodeCategories={permissions.allowed_node_categories}
           />
+        )}
+        {permissionsLoading && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '400px',
+            color: 'rgb(var(--color-text-secondary))'
+          }}>
+            Loading permissions...
+          </div>
         )}
       </EditorWrapper>
     </PageContainer>
