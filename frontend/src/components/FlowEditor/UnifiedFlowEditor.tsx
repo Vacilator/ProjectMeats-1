@@ -2024,6 +2024,35 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setHoveredContainerId(null); // Phase E: Clear container hover
   }, []);
 
+  // ============================================================================
+  // Container Detection Helper (Phase E)
+  // ============================================================================
+  
+  /**
+   * Detect if a position is inside a container node
+   */
+  const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
+    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
+    
+    for (const container of containerNodes) {
+      // Approximate container bounds (typical node is ~300px wide, ~200px tall)
+      const containerWidth = 400; // Container nodes are wider
+      const containerHeight = 300;
+      
+      const isInside = 
+        position.x >= container.position.x &&
+        position.x <= container.position.x + containerWidth &&
+        position.y >= container.position.y &&
+        position.y <= container.position.y + containerHeight;
+      
+      if (isInside) {
+        return container;
+      }
+    }
+    
+    return null;
+  }, [nodes]);
+
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
@@ -2114,31 +2143,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   // Container Drag-Drop Logic (Phase 4.4)
   // ============================================================================
-  
-  /**
-   * Detect if a position is inside a container node
-   */
-  const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
-    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
-    
-    for (const container of containerNodes) {
-      // Approximate container bounds (typical node is ~300px wide, ~200px tall)
-      const containerWidth = 400; // Container nodes are wider
-      const containerHeight = 300;
-      
-      const isInside = 
-        position.x >= container.position.x &&
-        position.x <= container.position.x + containerWidth &&
-        position.y >= container.position.y &&
-        position.y <= container.position.y + containerHeight;
-      
-      if (isInside) {
-        return container;
-      }
-    }
-    
-    return null;
-  }, [nodes]);
   
   /**
    * Handle node drag stop - check if node was dropped in/out of container (Phase E)
