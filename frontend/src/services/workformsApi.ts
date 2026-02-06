@@ -356,6 +356,76 @@ export const validateWorkForm = async (
 };
 
 // ============================================================================
+// Container APIs (Phase 4)
+// ============================================================================
+
+export interface ContainerSummary {
+  id: string;
+  name: string;
+  node_count: number;
+  node_types: Record<string, number>;
+  form_references: string[];
+}
+
+export interface ContainerDetail {
+  container_id: string;
+  container_name: string;
+  total_nodes: number;
+  node_types: Record<string, number>;
+  form_references: string[];
+  nodes: any[];
+}
+
+/**
+ * Get all containers in a workflow
+ */
+export const listWorkFormContainers = async (
+  workformId: string
+): Promise<{ containers: ContainerSummary[] }> => {
+  const response = await apiService.get(`/api/v1/tenant-workforms/${workformId}/containers/`);
+  return response.data;
+};
+
+/**
+ * Get details of a specific container
+ */
+export const getContainerDetail = async (
+  workformId: string,
+  containerId: string
+): Promise<ContainerDetail> => {
+  const response = await apiService.get(`/api/v1/tenant-workforms/${workformId}/containers/${containerId}/`);
+  return response.data;
+};
+
+/**
+ * Add a node to a container
+ */
+export const addNodeToContainer = async (
+  workformId: string,
+  nodeId: string,
+  containerId: string
+): Promise<{ message: string; node_id: string; container_id: string }> => {
+  const response = await apiService.post(`/api/v1/tenant-workforms/${workformId}/containers/add-node/`, {
+    node_id: nodeId,
+    container_id: containerId
+  });
+  return response.data;
+};
+
+/**
+ * Remove a node from its container
+ */
+export const removeNodeFromContainer = async (
+  workformId: string,
+  nodeId: string
+): Promise<{ message: string; node_id: string }> => {
+  const response = await apiService.post(`/api/v1/tenant-workforms/${workformId}/containers/remove-node/`, {
+    node_id: nodeId
+  });
+  return response.data;
+};
+
+// ============================================================================
 // Export all
 // ============================================================================
 
@@ -387,6 +457,12 @@ const workformsApi = {
   cloneWorkForm,
   getWorkFormUsage,
   validateWorkForm,
+  
+  // Container utilities
+  listWorkFormContainers,
+  getContainerDetail,
+  addNodeToContainer,
+  removeNodeFromContainer,
 };
 
 export default workformsApi;

@@ -231,6 +231,139 @@ class TenantWorkFormViewSet(viewsets.ModelViewSet):
         validation_result = workform.validate_form_references()
         
         return Response(validation_result)
+    
+    @action(detail=True, methods=['get'], url_path='containers')
+    def list_containers(self, request, pk=None):
+        """
+        Get all container nodes in the workflow.
+        
+        GET /api/v1/tenant-workforms/{id}/containers/
+        
+        Response: {
+            "containers": [
+                {
+                    "id": "node-container-1",
+                    "name": "Onboarding Flow",
+                    "node_count": 5,
+                    "node_types": {"formStep": 3, "actionEmail": 1, "conditionIf": 1}
+                }
+            ]
+        }
+        """
+        workform = self.get_object()
+        container_nodes = workform.get_container_nodes()
+        
+        containers_data = []
+        for container in container_nodes:
+            container_id = container.get('id')
+            summary = workform.get_container_summary(container_id)
+            containers_data.append({
+                "id": container_id,
+                "name": summary['container_name'],
+                "node_count": summary['total_nodes'],
+                "node_types": summary['node_types'],
+                "form_references": summary['form_references']
+            })
+        
+        return Response({"containers": containers_data})
+    
+    @action(detail=True, methods=['get'], url_path='containers/(?P<container_id>[^/.]+)')
+    def container_detail(self, request, pk=None, container_id=None):
+        """
+        Get details of a specific container.
+        
+        GET /api/v1/tenant-workforms/{id}/containers/{container_id}/
+        
+        Response: {
+            "container_id": "node-container-1",
+            "container_name": "Onboarding Flow",
+            "total_nodes": 5,
+            "node_types": {"formStep": 3, "actionEmail": 1},
+            "form_references": ["uuid1", "uuid2"],
+            "nodes": [...]
+        }
+        """
+        workform = self.get_object()
+        summary = workform.get_container_summary(container_id)
+        nodes = workform.get_nodes_in_container(container_id)
+        
+        return Response({
+            "container_id": container_id,
+            "container_name": summary['container_name'],
+            "total_nodes": summary['total_nodes'],
+            "node_types": summary['node_types'],
+            "form_references": summary['form_references'],
+            "nodes": nodes
+        })
+    
+    @action(detail=True, methods=['post'], url_path='containers/add-node')
+    def add_node_to_container(self, request, pk=None):
+        """
+        Add a node to a container.
+        
+        POST /api/v1/tenant-workforms/{id}/containers/add-node/
+        Body: {
+            "node_id": "node-5",
+            "container_id": "node-container-1"
+        }
+        """
+        workform = self.get_object()
+        node_id = request.data.get('node_id')
+        container_id = request.data.get('container_id')
+        
+        if not node_id or not container_id:
+            return Response(
+                {"error": "node_id and container_id are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        success = workform.update_node_container(node_id, container_id)
+        
+        if success:
+            workform.save(update_fields=['workflow_definition'])
+            return Response({
+                "message": f"Node {node_id} added to container {container_id}",
+                "node_id": node_id,
+                "container_id": container_id
+            })
+        else:
+            return Response(
+                {"error": f"Node {node_id} not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=['post'], url_path='containers/remove-node')
+    def remove_node_from_container(self, request, pk=None):
+        """
+        Remove a node from its container.
+        
+        POST /api/v1/tenant-workforms/{id}/containers/remove-node/
+        Body: {
+            "node_id": "node-5"
+        }
+        """
+        workform = self.get_object()
+        node_id = request.data.get('node_id')
+        
+        if not node_id:
+            return Response(
+                {"error": "node_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        success = workform.update_node_container(node_id, None)
+        
+        if success:
+            workform.save(update_fields=['workflow_definition'])
+            return Response({
+                "message": f"Node {node_id} removed from container",
+                "node_id": node_id
+            })
+        else:
+            return Response(
+                {"error": f"Node {node_id} not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 @api_view(['POST'])

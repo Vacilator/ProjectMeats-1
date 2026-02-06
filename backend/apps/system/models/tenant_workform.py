@@ -286,3 +286,93 @@ class TenantWorkForm(models.Model):
         """Increment clone count when this workflow is cloned."""
         self.clone_count += 1
         self.save(update_fields=['clone_count'])
+    
+    def get_container_nodes(self):
+        """
+        Get all container nodes in this workflow.
+        
+        Returns:
+            list: List of container node objects
+        """
+        nodes = self.workflow_definition.get('nodes', [])
+        return [node for node in nodes if node.get('type') == 'formMultiStepContainer']
+    
+    def get_nodes_in_container(self, container_id):
+        """
+        Get all nodes that belong to a specific container.
+        
+        Args:
+            container_id (str): ID of the container node
+            
+        Returns:
+            list: List of node objects that have containerNodeId == container_id
+        """
+        nodes = self.workflow_definition.get('nodes', [])
+        return [
+            node for node in nodes 
+            if node.get('data', {}).get('containerNodeId') == container_id
+        ]
+    
+    def get_container_summary(self, container_id):
+        """
+        Get summary of nodes within a container.
+        
+        Args:
+            container_id (str): ID of the container node
+            
+        Returns:
+            dict: {
+                "container_name": str,
+                "total_nodes": int,
+                "node_types": {"formStep": 2, "actionEmail": 1, ...},
+                "form_references": [uuid1, uuid2, ...]
+            }
+        """
+        container_nodes = self.get_nodes_in_container(container_id)
+        container_node = next(
+            (n for n in self.workflow_definition.get('nodes', []) if n.get('id') == container_id),
+            None
+        )
+        
+        # Count node types
+        node_types = {}
+        form_refs = set()
+        for node in container_nodes:
+            node_type = node.get('type', 'unknown')
+            node_types[node_type] = node_types.get(node_type, 0) + 1
+            
+            # Extract form references
+            node_data = node.get('data', {})
+            if node_type in ['formStep', 'formReference'] and node_data.get('tenantFormId'):
+                form_refs.add(node_data['tenantFormId'])
+        
+        return {
+            "container_name": container_node.get('data', {}).get('label', 'Unnamed Container') if container_node else 'Unknown',
+            "total_nodes": len(container_nodes),
+            "node_types": node_types,
+            "form_references": list(form_refs)
+        }
+    
+    def update_node_container(self, node_id, container_id=None):
+        """
+        Update a node's containerNodeId field.
+        
+        Args:
+            node_id (str): ID of the node to update
+            container_id (str|None): ID of container to assign (None to remove from container)
+            
+        Returns:
+            bool: True if node was found and updated, False otherwise
+        """
+        nodes = self.workflow_definition.get('nodes', [])
+        
+        for node in nodes:
+            if node.get('id') == node_id:
+                if container_id:
+                    node.setdefault('data', {})['containerNodeId'] = container_id
+                else:
+                    # Remove containerNodeId
+                    node.get('data', {}).pop('containerNodeId', None)
+                return True
+        
+        return False

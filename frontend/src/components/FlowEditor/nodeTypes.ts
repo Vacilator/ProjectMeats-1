@@ -171,6 +171,18 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
   },
   
+  formMultiStepContainer: {
+    id: 'formMultiStepContainer',
+    name: 'Form Multi-Step Container',
+    category: 'form',
+    icon: '📦',
+    color: '#8b5cf6', // purple - distinct from regular form blue
+    description: 'Container for grouping multiple form steps and workflow nodes into a sequential flow',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+  },
+  
   // === LOGIC & ROUTING ===
   conditionIf: {
     id: 'conditionIf',
