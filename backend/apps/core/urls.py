@@ -12,8 +12,8 @@ router.register(r'preferences', views.UserPreferencesViewSet, basename='user-pre
 
 # WorkForms router (Phase 1.4-1.6)
 workforms_router = DefaultRouter()
-workforms_router.register(r'v1/tenant-forms', workform_views.TenantFormViewSet, basename='tenant-form')
-workforms_router.register(r'v1/tenant-workforms', workform_views.TenantWorkFormViewSet, basename='tenant-workform')
+workforms_router.register(r'tenant-forms', workform_views.TenantFormViewSet, basename='tenant-form')
+workforms_router.register(r'tenant-workforms', workform_views.TenantWorkFormViewSet, basename='tenant-workform')
 
 urlpatterns = [
     # Legacy auth endpoints (for backward compatibility)
@@ -50,13 +50,13 @@ urlpatterns = [
     
     # WorkForms Enhancement API (Phase 1: WF-ENH-2026-Q1)
     # Entity Registry & Schema Endpoints (Phase 1.1-1.3)
-    path("v1/entities/", entity_views.entity_registry, name="entity-registry"),
-    path("v1/entities/<str:entity_type>/schema/", entity_views.entity_schema, name="entity-schema"),
-    path("v1/entities/<str:entity_type>/lookup/", entity_views.entity_lookup, name="entity-lookup"),
+    path("entities/", entity_views.entity_registry, name="entity-registry"),
+    path("entities/<str:entity_type>/schema/", entity_views.entity_schema, name="entity-schema"),
+    path("entities/<str:entity_type>/lookup/", entity_views.entity_lookup, name="entity-lookup"),
     
     # Form Management Endpoints (Phase 1.5)
-    path("v1/tenant-forms/merge/", workform_views.merge_forms, name="tenant-forms-merge"),
-    path("v1/tenant-forms/split/", workform_views.split_form, name="tenant-forms-split"),
+    path("tenant-forms/merge/", workform_views.merge_forms, name="tenant-forms-merge"),
+    path("tenant-forms/split/", workform_views.split_form, name="tenant-forms-split"),
     
     # Include router URLs
     path("", include(router.urls)),
