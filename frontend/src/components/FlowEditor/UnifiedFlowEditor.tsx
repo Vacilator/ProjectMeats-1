@@ -1059,9 +1059,53 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   editorMode = 'visual',
   allowedNodeCategories, // Phase 4.2: Permission-based filtering
 }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeIdCounter, setNodeIdCounter] = useState(initialNodes.length + 1);
+  
+  // Phase E: Wrap onNodesChange to handle container deletion
+  const onNodesChange = useCallback((changes: any[]) => {
+    // Check if any containers are being removed
+    const removedNodeIds = changes
+      .filter(change => change.type === 'remove')
+      .map(change => change.id);
+    
+    if (removedNodeIds.length > 0) {
+      const removedContainerIds = removedNodeIds.filter(id => 
+        nodes.find(n => n.id === id && n.type === 'formMultiStepContainer')
+      );
+      
+      if (removedContainerIds.length > 0) {
+        // Unparent all children of deleted containers
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (removedContainerIds.includes(n.parentNode || '')) {
+              // Calculate absolute position before unparenting
+              const parent = nds.find(p => p.id === n.parentNode);
+              const absolutePosition = parent
+                ? {
+                    x: n.position.x + parent.position.x,
+                    y: n.position.y + parent.position.y,
+                  }
+                : n.position;
+              
+              console.log(`[Container] Unparenting node ${n.id} from deleted container`);
+              return {
+                ...n,
+                position: absolutePosition,
+                parentNode: undefined,
+                extent: undefined,
+              };
+            }
+            return n;
+          })
+        );
+      }
+    }
+    
+    // Apply the original changes
+    onNodesChangeBase(changes);
+  }, [nodes, setNodes, onNodesChangeBase]);
   
   // React Flow instance for viewport controls
   const reactFlowInstance = useReactFlow();
@@ -2443,9 +2487,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   const handleSave = useCallback(() => {
     if (onSave) {
-      // Log container information for debugging
+      // Log container information for debugging (Phase E)
       const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
-      const nodesInContainers = nodes.filter(n => n.data?.containerNodeId);
+      const nodesInContainers = nodes.filter(n => n.parentNode); // Phase E: Using React Flow parentNode
       
       console.log('[Save] Workflow saved with container state:');
       console.log(`  - ${containerNodes.length} container(s)`);
@@ -2453,13 +2497,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       if (containerNodes.length > 0) {
         containerNodes.forEach(container => {
-          const childNodes = nodes.filter(n => n.data?.containerNodeId === container.id);
+          const childNodes = nodes.filter(n => n.parentNode === container.id); // Phase E: Using parentNode
           console.log(`  - Container ${container.id}: ${childNodes.length} nodes`);
         });
       }
       
       onSave(nodes, edges);
       console.log('Flow saved successfully!');
+      setHasUnsavedChanges(false);
     }
   }, [nodes, edges, onSave]);
 
