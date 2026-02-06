@@ -495,11 +495,18 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   onAddField,
   availableFields = [],
 }) => {
-  const [localStep, setLocalStep] = useState<FormStepData>(step);
+  // Ensure fields array is always initialized
+  const [localStep, setLocalStep] = useState<FormStepData>({
+    ...step,
+    fields: step.fields || [],
+  });
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    setLocalStep(step);
+    setLocalStep({
+      ...step,
+      fields: step.fields || [],
+    });
   }, [step]);
 
   const handleUpdate = (updates: Partial<FormStepData>) => {
