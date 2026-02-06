@@ -491,6 +491,66 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   }, []);
   
   /**
+   * Log preview updates when nodes change
+   */
+  useEffect(() => {
+    if (isVisible && nodes.length > 0) {
+      console.log('[PreviewPanel] Auto-update: nodes changed', {
+        nodeCount: nodes.length,
+        formNodes: nodes.filter(n => n.type === 'formStep' || n.type === 'formField').length,
+      });
+    }
+  }, [nodes, isVisible]);
+  
+  /**
+   * Extract form fields from nodes
+   * Filters for formField and formStep nodes and extracts their field definitions
+   * Auto-updates when nodes change (real-time preview)
+   */
+  const formFields = useMemo(() => {
+    const fields: any[] = [];
+    
+    // Find all form-related nodes
+    nodes.forEach(node => {
+      if (node.type === 'formStep' && node.data?.fields) {
+        // FormStep node with multiple fields
+        node.data.fields.forEach((field: any) => {
+          fields.push({
+            id: field.id || field.name,
+            label: field.label || field.name,
+            type: field.type || field.fieldType || 'text',
+            placeholder: field.placeholder || '',
+            helpText: field.helpText || field.description || '',
+            required: field.required || false,
+            options: field.options || [],
+            min: field.min,
+            max: field.max,
+            pattern: field.pattern,
+            validation: field.validation || {},
+          });
+        });
+      } else if (node.type === 'formField') {
+        // Individual FormField node
+        fields.push({
+          id: node.id,
+          label: node.data?.label || 'Untitled Field',
+          type: node.data?.fieldType || node.data?.type || 'text',
+          placeholder: node.data?.placeholder || '',
+          helpText: node.data?.helpText || node.data?.description || '',
+          required: node.data?.required || false,
+          options: node.data?.options || [],
+          min: node.data?.min,
+          max: node.data?.max,
+          pattern: node.data?.pattern,
+          validation: node.data?.validation || {},
+        });
+      }
+    });
+    
+    return fields;
+  }, [nodes, refreshKey]);
+  
+  /**
    * Validate all fields in the form
    */
   const validateForm = useCallback(() => {
@@ -550,66 +610,6 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       }
     });
   }, [formData, validateField]);
-  
-  /**
-   * Log preview updates when nodes change
-   */
-  useEffect(() => {
-    if (isVisible && nodes.length > 0) {
-      console.log('[PreviewPanel] Auto-update: nodes changed', {
-        nodeCount: nodes.length,
-        formNodes: nodes.filter(n => n.type === 'formStep' || n.type === 'formField').length,
-      });
-    }
-  }, [nodes, isVisible]);
-  
-  /**
-   * Extract form fields from nodes
-   * Filters for formField and formStep nodes and extracts their field definitions
-   * Auto-updates when nodes change (real-time preview)
-   */
-  const formFields = useMemo(() => {
-    const fields: any[] = [];
-    
-    // Find all form-related nodes
-    nodes.forEach(node => {
-      if (node.type === 'formStep' && node.data?.fields) {
-        // FormStep node with multiple fields
-        node.data.fields.forEach((field: any) => {
-          fields.push({
-            id: field.id || field.name,
-            label: field.label || field.name,
-            type: field.type || field.fieldType || 'text',
-            placeholder: field.placeholder || '',
-            helpText: field.helpText || field.description || '',
-            required: field.required || false,
-            options: field.options || [],
-            min: field.min,
-            max: field.max,
-            pattern: field.pattern,
-            validation: field.validation || {},
-          });
-        });
-      } else if (node.type === 'formField') {
-        // Individual FormField node
-        fields.push({
-          id: node.id,
-          label: node.data?.label || 'Untitled Field',
-          type: node.data?.fieldType || node.data?.type || 'text',
-          placeholder: node.data?.placeholder || '',
-          helpText: node.data?.helpText || node.data?.description || '',
-          required: node.data?.required || false,
-          options: node.data?.options || [],
-          min: node.data?.min,
-          max: node.data?.max,
-          pattern: node.data?.pattern,
-          validation: node.data?.validation || {},
-        });
-      }
-    });
-    
-    return fields;
-  }, [nodes, refreshKey]);
   
   const handleRefresh = useCallback(() => {
     setRefreshKey(prev => prev + 1);
