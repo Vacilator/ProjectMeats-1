@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 from . import views
 from .jwt_serializers import TenantAwareTokenObtainPairView
+from . import entity_views  # Phase 1: WorkForms Enhancement
 
 # Create a router for ViewSets
 router = DefaultRouter()
@@ -40,6 +41,13 @@ urlpatterns = [
     path("workspace/stats/quick/", views.WorkspaceStatsView.as_view(), name="workspace-stats"),
     path("workspace/activity/recent/", views.WorkspaceActivityView.as_view(), name="workspace-activity"),
     path("workspace/calls/upcoming/", views.WorkspaceCallsView.as_view(), name="workspace-calls"),
+    
+    # WorkForms Enhancement API (Phase 1: WF-ENH-2026-Q1)
+    # Entity Registry & Schema Endpoints
+    path("v1/entities/", entity_views.entity_registry, name="entity-registry"),
+    path("v1/entities/<str:entity_type>/schema/", entity_views.entity_schema, name="entity-schema"),
+    path("v1/entities/<str:entity_type>/lookup/", entity_views.entity_lookup, name="entity-lookup"),
+    
     # Include router URLs
     path("", include(router.urls)),
 ]
