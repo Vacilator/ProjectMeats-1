@@ -66,8 +66,8 @@ import {
   AlignVerticalDistributeCenter,
   AlignLeft,
   AlignRight,
-  AlignTop,
-  AlignBottom,
+  AlignStartVertical,
+  AlignEndVertical,
   AlignCenterHorizontal,
   AlignCenterVertical,
 } from 'lucide-react';
@@ -98,6 +98,7 @@ import { FlowTemplate } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
 import { EntityFormStepModal, type FormStepData } from './Modals/EntityFormStepModal';
 import { FormMultiStepContainerModal, type ContainerData } from './Modals/FormMultiStepContainerModal';
+import { PreviewPanel } from './panels/PreviewPanel';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -1200,6 +1201,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Container configuration (Phase 4.3)
   const [containerModalOpen, setContainerModalOpen] = useState(false);
   const [selectedContainer, setSelectedContainer] = useState<Node | null>(null);
+  
+  // Preview panel (Phase 5.1)
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
@@ -3069,6 +3073,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <ToolbarButton onClick={handleSave} title="Save Flow (Ctrl+S)">
             Save Flow
           </ToolbarButton>
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          <ToolbarButton 
+            onClick={() => setIsPreviewVisible(!isPreviewVisible)} 
+            title={isPreviewVisible ? "Hide Preview" : "Show Preview"}
+            style={isPreviewVisible ? { 
+              background: 'rgb(var(--color-primary))', 
+              color: 'white',
+              borderColor: 'rgb(var(--color-primary))'
+            } : {}}
+          >
+            <Eye size={14} style={{ marginRight: '4px' }} />
+            {isPreviewVisible ? 'Hide Preview' : 'Show Preview'}
+          </ToolbarButton>
         </Toolbar>
       )}
 
@@ -3194,13 +3211,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <div style={{ width: '1px', height: '24px', background: 'rgb(var(--color-border))', margin: '0 4px' }} />
           
           <AlignmentButton onClick={alignTop} title="Align Top (Ctrl+Shift+T)">
-            <AlignTop />
+            <AlignStartVertical />
           </AlignmentButton>
           <AlignmentButton onClick={alignCenterY} title="Align Center Y (Ctrl+Shift+Y)">
             <AlignCenterVertical />
           </AlignmentButton>
           <AlignmentButton onClick={alignBottom} title="Align Bottom (Ctrl+Shift+B)">
-            <AlignBottom />
+            <AlignEndVertical />
           </AlignmentButton>
           
           <div style={{ width: '1px', height: '24px', background: 'rgb(var(--color-border))', margin: '0 4px' }} />
@@ -3668,6 +3685,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           />
         )}
       </SidePanel>
+      
+      {/* Preview Panel (Phase 5.1) */}
+      <PreviewPanel
+        nodes={nodes}
+        isVisible={isPreviewVisible}
+        onClose={() => setIsPreviewVisible(false)}
+      />
     </EditorContainer>
   );
 };

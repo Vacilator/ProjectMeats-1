@@ -12,7 +12,7 @@
  * Created: 2026-02-06
  */
 
-import apiService from './apiService';
+import { apiClient } from './apiService';
 
 // ============================================================================
 // Types
@@ -123,7 +123,7 @@ export interface TenantWorkForm {
  * Get list of all tenant entities with metadata
  */
 export const getEntityRegistry = async (): Promise<Entity[]> => {
-  const response = await apiService.get('/api/v1/entities/');
+  const response = await apiClient.get('/api/v1/entities/');
   return response.data.entities;
 };
 
@@ -131,7 +131,7 @@ export const getEntityRegistry = async (): Promise<Entity[]> => {
  * Get field schema for a specific entity type
  */
 export const getEntitySchema = async (entityType: string): Promise<EntitySchema> => {
-  const response = await apiService.get(`/api/v1/entities/${entityType}/schema/`);
+  const response = await apiClient.get(`/api/v1/entities/${entityType}/schema/`);
   return response.data;
 };
 
@@ -146,7 +146,7 @@ export const getEntityLookup = async (
     page_size?: number;
   }
 ): Promise<LookupResponse> => {
-  const response = await apiService.get(`/api/v1/entities/${entityType}/lookup/`, { params });
+  const response = await apiClient.get(`/api/v1/entities/${entityType}/lookup/`, { params });
   return response.data;
 };
 
@@ -161,7 +161,7 @@ export const listTenantForms = async (params?: {
   type?: 'single_step' | 'multi_step';
   search?: string;
 }): Promise<TenantForm[]> => {
-  const response = await apiService.get('/api/v1/tenant-forms/', { params });
+  const response = await apiClient.get('/api/v1/tenant-forms/', { params });
   return response.data;
 };
 
@@ -169,7 +169,7 @@ export const listTenantForms = async (params?: {
  * Get a specific tenant form by ID
  */
 export const getTenantForm = async (formId: string): Promise<TenantForm> => {
-  const response = await apiService.get(`/api/v1/tenant-forms/${formId}/`);
+  const response = await apiClient.get(`/api/v1/tenant-forms/${formId}/`);
   return response.data;
 };
 
@@ -182,7 +182,7 @@ export const createTenantForm = async (data: {
   type: 'single_step' | 'multi_step';
   form_definition: any;
 }): Promise<TenantForm> => {
-  const response = await apiService.post('/api/v1/tenant-forms/', data);
+  const response = await apiClient.post('/api/v1/tenant-forms/', data);
   return response.data;
 };
 
@@ -193,7 +193,7 @@ export const updateTenantForm = async (
   formId: string,
   data: Partial<TenantForm>
 ): Promise<TenantForm> => {
-  const response = await apiService.put(`/api/v1/tenant-forms/${formId}/`, data);
+  const response = await apiClient.put(`/api/v1/tenant-forms/${formId}/`, data);
   return response.data;
 };
 
@@ -201,7 +201,7 @@ export const updateTenantForm = async (
  * Delete a tenant form (only if usage_count === 0)
  */
 export const deleteTenantForm = async (formId: string): Promise<void> => {
-  await apiService.delete(`/api/v1/tenant-forms/${formId}/`);
+  await apiClient.delete(`/api/v1/tenant-forms/${formId}/`);
 };
 
 // ============================================================================
@@ -223,7 +223,7 @@ export const mergeForms = async (data: {
   deleted_form_ids: string[];
   message: string;
 }> => {
-  const response = await apiService.post('/api/v1/tenant-forms/merge/', data);
+  const response = await apiClient.post('/api/v1/tenant-forms/merge/', data);
   return response.data;
 };
 
@@ -243,7 +243,7 @@ export const splitForm = async (data: {
   created_form_name: string;
   message: string;
 }> => {
-  const response = await apiService.post('/api/v1/tenant-forms/split/', data);
+  const response = await apiClient.post('/api/v1/tenant-forms/split/', data);
   return response.data;
 };
 
@@ -258,7 +258,7 @@ export const listTenantWorkForms = async (params?: {
   status?: 'draft' | 'active' | 'archived';
   search?: string;
 }): Promise<TenantWorkForm[]> => {
-  const response = await apiService.get('/api/v1/tenant-workforms/', { params });
+  const response = await apiClient.get('/api/v1/tenant-workforms/', { params });
   return response.data;
 };
 
@@ -266,7 +266,7 @@ export const listTenantWorkForms = async (params?: {
  * Get a specific tenant workflow by ID
  */
 export const getTenantWorkForm = async (workformId: string): Promise<TenantWorkForm> => {
-  const response = await apiService.get(`/api/v1/tenant-workforms/${workformId}/`);
+  const response = await apiClient.get(`/api/v1/tenant-workforms/${workformId}/`);
   return response.data;
 };
 
@@ -279,7 +279,7 @@ export const createTenantWorkForm = async (data: {
   status?: 'draft' | 'active' | 'archived';
   workflow_definition: any;
 }): Promise<TenantWorkForm> => {
-  const response = await apiService.post('/api/v1/tenant-workforms/', data);
+  const response = await apiClient.post('/api/v1/tenant-workforms/', data);
   return response.data;
 };
 
@@ -290,7 +290,7 @@ export const updateTenantWorkForm = async (
   workformId: string,
   data: Partial<TenantWorkForm>
 ): Promise<TenantWorkForm> => {
-  const response = await apiService.put(`/api/v1/tenant-workforms/${workformId}/`, data);
+  const response = await apiClient.put(`/api/v1/tenant-workforms/${workformId}/`, data);
   return response.data;
 };
 
@@ -298,7 +298,7 @@ export const updateTenantWorkForm = async (
  * Delete a tenant workflow
  */
 export const deleteTenantWorkForm = async (workformId: string): Promise<void> => {
-  await apiService.delete(`/api/v1/tenant-workforms/${workformId}/`);
+  await apiClient.delete(`/api/v1/tenant-workforms/${workformId}/`);
 };
 
 // ============================================================================
@@ -316,7 +316,7 @@ export const cloneWorkForm = async (
     include_form_references?: boolean;
   }
 ): Promise<TenantWorkForm> => {
-  const response = await apiService.post(`/api/v1/tenant-workforms/${workformId}/clone/`, data);
+  const response = await apiClient.post(`/api/v1/tenant-workforms/${workformId}/clone/`, data);
   return response.data;
 };
 
@@ -337,7 +337,7 @@ export const getWorkFormUsage = async (
   created_at: string;
   updated_at: string;
 }> => {
-  const response = await apiService.get(`/api/v1/tenant-workforms/${workformId}/usage/`);
+  const response = await apiClient.get(`/api/v1/tenant-workforms/${workformId}/usage/`);
   return response.data;
 };
 
@@ -351,7 +351,7 @@ export const validateWorkForm = async (
   missing_forms: string[];
   total_references: number;
 }> => {
-  const response = await apiService.post(`/api/v1/tenant-workforms/${workformId}/validate/`);
+  const response = await apiClient.post(`/api/v1/tenant-workforms/${workformId}/validate/`);
   return response.data;
 };
 
@@ -382,7 +382,7 @@ export interface ContainerDetail {
 export const listWorkFormContainers = async (
   workformId: string
 ): Promise<{ containers: ContainerSummary[] }> => {
-  const response = await apiService.get(`/api/v1/tenant-workforms/${workformId}/containers/`);
+  const response = await apiClient.get(`/api/v1/tenant-workforms/${workformId}/containers/`);
   return response.data;
 };
 
@@ -393,7 +393,7 @@ export const getContainerDetail = async (
   workformId: string,
   containerId: string
 ): Promise<ContainerDetail> => {
-  const response = await apiService.get(`/api/v1/tenant-workforms/${workformId}/containers/${containerId}/`);
+  const response = await apiClient.get(`/api/v1/tenant-workforms/${workformId}/containers/${containerId}/`);
   return response.data;
 };
 
@@ -405,7 +405,7 @@ export const addNodeToContainer = async (
   nodeId: string,
   containerId: string
 ): Promise<{ message: string; node_id: string; container_id: string }> => {
-  const response = await apiService.post(`/api/v1/tenant-workforms/${workformId}/containers/add-node/`, {
+  const response = await apiClient.post(`/api/v1/tenant-workforms/${workformId}/containers/add-node/`, {
     node_id: nodeId,
     container_id: containerId
   });
@@ -419,7 +419,7 @@ export const removeNodeFromContainer = async (
   workformId: string,
   nodeId: string
 ): Promise<{ message: string; node_id: string }> => {
-  const response = await apiService.post(`/api/v1/tenant-workforms/${workformId}/containers/remove-node/`, {
+  const response = await apiClient.post(`/api/v1/tenant-workforms/${workformId}/containers/remove-node/`, {
     node_id: nodeId
   });
   return response.data;
@@ -465,4 +465,5 @@ const workformsApi = {
   removeNodeFromContainer,
 };
 
+export { workformsApi };
 export default workformsApi;
