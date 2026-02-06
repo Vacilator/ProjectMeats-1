@@ -491,21 +491,11 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   }, []);
   
   /**
-   * Log preview updates when nodes change
-   */
-  useEffect(() => {
-    if (isVisible && nodes.length > 0) {
-      console.log('[PreviewPanel] Auto-update: nodes changed', {
-        nodeCount: nodes.length,
-        formNodes: nodes.filter(n => n.type === 'formStep' || n.type === 'formField').length,
-      });
-    }
-  }, [nodes, isVisible]);
-  
-  /**
    * Extract form fields from nodes
    * Filters for formField and formStep nodes and extracts their field definitions
    * Auto-updates when nodes change (real-time preview)
+   * 
+   * CRITICAL: This MUST be defined BEFORE callbacks that depend on it!
    */
   const formFields = useMemo(() => {
     const fields: any[] = [];
@@ -549,6 +539,18 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     
     return fields;
   }, [nodes, refreshKey]);
+  
+  /**
+   * Log preview updates when nodes change
+   */
+  useEffect(() => {
+    if (isVisible && nodes.length > 0) {
+      console.log('[PreviewPanel] Auto-update: nodes changed', {
+        nodeCount: nodes.length,
+        formNodes: nodes.filter(n => n.type === 'formStep' || n.type === 'formField').length,
+      });
+    }
+  }, [nodes, isVisible]);
   
   /**
    * Validate all fields in the form
