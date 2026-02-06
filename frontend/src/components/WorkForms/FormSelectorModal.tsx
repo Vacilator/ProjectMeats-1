@@ -314,7 +314,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
   const { data: forms = [], isLoading } = useQuery({
     queryKey: ['forms', 'library'],
     queryFn: async () => {
-      const response = await adminClient.get('/api/v1/workforms/');
+      const response = await adminClient.get('/workforms/');
       return response.data.results || response.data || [];
     },
     enabled: isOpen,

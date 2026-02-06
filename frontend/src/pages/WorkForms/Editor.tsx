@@ -291,7 +291,7 @@ export const WorkFormsEditor: React.FC = () => {
   const { data: existingForm, isLoading: isLoadingForm } = useQuery<TenantForm>({
     queryKey: ['tenant-form', id],
     queryFn: async () => {
-      const response = await adminClient.get(`/api/v1/workflows/forms/${id}/`);
+      const response = await adminClient.get(`/workflows/forms/${id}/`);
       return response.data;
     },
     enabled: !!id,
@@ -355,11 +355,11 @@ export const WorkFormsEditor: React.FC = () => {
 
       if (id) {
         // Update existing
-        const response = await adminClient.put(`/api/v1/workflows/forms/${id}/`, payload);
+        const response = await adminClient.put(`/workflows/forms/${id}/`, payload);
         return response.data;
       } else {
         // Create new
-        const response = await adminClient.post('/api/v1/workflows/forms/', payload);
+        const response = await adminClient.post('/workflows/forms/', payload);
         return response.data;
       }
     },

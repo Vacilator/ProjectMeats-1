@@ -333,7 +333,7 @@ const FormsFlowsCatalog: React.FC = () => {
   const { data: forms, isLoading } = useQuery<TenantForm[]>({
     queryKey: ['tenant-forms'],
     queryFn: async () => {
-      const response = await adminClient.get('/api/v1/workflows/forms/');
+      const response = await adminClient.get('/workflows/forms/');
       // Handle both paginated and non-paginated responses
       const data = response.data;
       // If paginated response with results array

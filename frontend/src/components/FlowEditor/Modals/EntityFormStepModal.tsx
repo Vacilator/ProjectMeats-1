@@ -380,6 +380,18 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
   // Initialize with initial data
   useEffect(() => {
     if (isOpen && initialData) {
+      // Determine the correct step based on configuration state
+      let startStep = 1;
+      
+      if (initialData.mode === 'existing' && initialData.formId) {
+        // Editing an existing form - skip to preview (step 3)
+        startStep = 3;
+      } else if (initialData.entityType && initialData.fields && initialData.fields.length > 0) {
+        // Already configured - skip to entity/field selection (step 2)
+        startStep = 2;
+      }
+      // Otherwise, start at step 1 for new/unconfigured forms
+      
       setState(prev => ({
         ...prev,
         mode: initialData.mode,
@@ -387,7 +399,7 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
         selectedFormId: initialData.formId || null,
         entityType: initialData.entityType,
         fields: initialData.fields,
-        currentStep: initialData.mode === 'existing' ? 3 : 2,
+        currentStep: startStep,
       }));
     }
   }, [isOpen, initialData]);

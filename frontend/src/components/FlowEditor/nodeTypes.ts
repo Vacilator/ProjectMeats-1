@@ -32,6 +32,8 @@ export interface NodeTypeDefinition {
   maxInputs?: number;
   maxOutputs?: number;
   requiresConfig?: boolean;
+  /** If true, this node type is hidden from the palette */
+  hidden?: boolean;
 }
 
 // ============================================================================
@@ -565,6 +567,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true, // Phase 6: Hide from palette (node still renders in existing flows)
   },
   
   formSection: {
@@ -576,6 +579,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     description: '[DEPRECATED] Use Form Step with section header. This node will be migrated automatically.',
     maxInputs: 1,
     maxOutputs: 1,
+    hidden: true, // Phase 6: Hide from palette (node still renders in existing flows)
   },
 };
 

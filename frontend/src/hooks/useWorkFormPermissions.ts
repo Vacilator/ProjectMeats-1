@@ -37,7 +37,7 @@ export function useWorkFormPermissions() {
   const query = useQuery<WorkFormPermissions>({
     queryKey: ['workforms', 'permissions'],
     queryFn: async () => {
-      const response = await adminClient.get('/api/v1/workflows/permissions/');
+      const response = await adminClient.get('/workflows/permissions/');
       return response.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - permissions don't change often

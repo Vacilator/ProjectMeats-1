@@ -130,14 +130,19 @@ interface FavoritesState {
 // Styled Components
 // ============================================================================
 
-const EditorContainer = styled.div`
+const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   width: 100%;
-  height: 600px;
+  height: ${props => props.$isFullscreen ? '100vh' : '600px'};
   background: rgb(var(--color-background));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
+  border: ${props => props.$isFullscreen ? 'none' : '1px solid rgb(var(--color-border))'};
+  border-radius: ${props => props.$isFullscreen ? '0' : 'var(--radius-lg)'};
   overflow: hidden;
-  position: relative;
+  position: ${props => props.$isFullscreen ? 'fixed' : 'relative'};
+  top: ${props => props.$isFullscreen ? '0' : 'auto'};
+  left: ${props => props.$isFullscreen ? '0' : 'auto'};
+  right: ${props => props.$isFullscreen ? '0' : 'auto'};
+  bottom: ${props => props.$isFullscreen ? '0' : 'auto'};
+  z-index: ${props => props.$isFullscreen ? '9990' : 'auto'};
 `;
 
 // ============================================================================
@@ -1214,30 +1219,33 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   });
   
   const toggleFullscreen = useCallback(() => {
-    if (!isFullscreen) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-      localStorage.setItem('workforms_fullscreen_enabled', 'true');
-    } else {
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      }
-      setIsFullscreen(false);
-      localStorage.setItem('workforms_fullscreen_enabled', 'false');
-    }
+    const newFullscreenState = !isFullscreen;
+    setIsFullscreen(newFullscreenState);
+    localStorage.setItem('workforms_fullscreen_enabled', newFullscreenState ? 'true' : 'false');
   }, [isFullscreen]);
   
-  // Listen for fullscreen changes (e.g., ESC key)
+  // ESC key handler for CSS-based fullscreen exit
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      const isCurrentlyFullscreen = !!document.fullscreenElement;
-      setIsFullscreen(isCurrentlyFullscreen);
-      localStorage.setItem('workforms_fullscreen_enabled', isCurrentlyFullscreen ? 'true' : 'false');
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+        localStorage.setItem('workforms_fullscreen_enabled', 'false');
+      }
     };
     
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+    if (isFullscreen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Prevent body scroll when in fullscreen
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isFullscreen]);
   
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
@@ -1246,6 +1254,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     console.log('[NodePalette] Total nodes in registry:', filteredNodes.length);
     console.log('[NodePalette] Editor mode:', activeEditorMode);
     console.log('[NodePalette] Allowed categories:', allowedNodeCategories);
+    
+    // Step 0: Filter out hidden/deprecated nodes (Phase 6)
+    filteredNodes = filteredNodes.filter(nodeType => !nodeType.hidden);
+    console.log('[NodePalette] After hidden filtering:', filteredNodes.length);
     
     // Step 1: Filter by editor mode
     if (activeEditorMode === 'wizard') {
@@ -1341,7 +1353,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const { data: tenantLists = [] } = useQuery({
     queryKey: ['workflows', 'tenant-lists'],
     queryFn: async () => {
-      const response = await adminClient.get('/api/v1/workflows/lists/');
+      const response = await adminClient.get('/workflows/lists/');
       return response.data.results || response.data || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -3090,7 +3102,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [recentNodes]);
 
   return (
-    <EditorContainer>
+    <EditorContainer $isFullscreen={isFullscreen}>
       {/* Deprecation Banner (Phase 6.1) */}
       {hasDeprecatedNodes && !bannerDismissed && (
         <DeprecationBanner>
