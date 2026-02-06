@@ -4,15 +4,16 @@
  * Live preview of form as it's being built in the WorkForms editor.
  * Shows real-time rendering of form fields, validation, and user experience.
  * 
- * Phase 5 Batch 1-3 of WF-ENH-2026-Q1
+ * Phase 5 Batch 1-4 of WF-ENH-2026-Q1
  * Created: 2026-02-06
  * Enhanced: 2026-02-06 (Batch 2 - Advanced field types, auto-updates)
  * Enhanced: 2026-02-06 (Batch 3 - Test data injection)
+ * Enhanced: 2026-02-06 (Batch 4 - Validation preview with error highlighting)
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import { Node } from '@xyflow/react';
-import { X, Smartphone, Monitor, Tablet, RefreshCw, Eye, TestTube2, Eraser } from 'lucide-react';
+import { X, Smartphone, Monitor, Tablet, RefreshCw, Eye, TestTube2, Eraser, AlertCircle } from 'lucide-react';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -169,19 +170,19 @@ const FieldLabel = styled.label`
   color: rgb(var(--color-text-primary));
 `;
 
-const FieldInput = styled.input`
+const FieldInput = styled.input<{ $hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
+  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
+  background: ${props => props.$hasError ? 'rgb(254, 242, 242)' : 'rgb(var(--color-surface))'};
   transition: all 0.15s ease;
   
   &:focus {
     outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
   
   &::placeholder {
@@ -189,13 +190,13 @@ const FieldInput = styled.input`
   }
 `;
 
-const FieldTextarea = styled.textarea`
+const FieldTextarea = styled.textarea<{ $hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
+  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
+  background: ${props => props.$hasError ? 'rgb(254, 242, 242)' : 'rgb(var(--color-surface))'};
   font-family: inherit;
   resize: vertical;
   min-height: 80px;
@@ -203,8 +204,8 @@ const FieldTextarea = styled.textarea`
   
   &:focus {
     outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
   
   &::placeholder {
@@ -212,26 +213,65 @@ const FieldTextarea = styled.textarea`
   }
 `;
 
-const FieldSelect = styled.select`
+const FieldSelect = styled.select<{ $hasError?: boolean }>`
   padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
+  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
   border-radius: var(--radius-md);
   font-size: 14px;
   color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
+  background: ${props => props.$hasError ? 'rgb(254, 242, 242)' : 'rgb(var(--color-surface))'};
   cursor: pointer;
   transition: all 0.15s ease;
   
   &:focus {
     outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
   }
 `;
 
 const FieldHelpText = styled.span`
   font-size: 12px;
   color: rgb(var(--color-text-secondary));
+`;
+
+const FieldError = styled.div`
+  font-size: 12px;
+  color: rgb(239, 68, 68);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+`;
+
+const ValidationSummary = styled.div`
+  background: rgb(254, 226, 226);
+  border: 1px solid rgb(239, 68, 68);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+`;
+
+const ValidationTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgb(239, 68, 68);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+`;
+
+const ValidationList = styled.ul`
+  margin: 0;
+  padding-left: 20px;
+  color: rgb(185, 28, 28);
+  font-size: 13px;
+  
+  li {
+    margin: 4px 0;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -290,6 +330,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   const [viewport, setViewport] = useState<ViewportSize>('desktop');
   const [refreshKey, setRefreshKey] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   
   /**
    * Generate test data for a field based on its type
@@ -366,8 +408,148 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
    */
   const handleClearForm = useCallback(() => {
     setFormData({});
+    setValidationErrors({});
+    setTouched({});
     console.log('[PreviewPanel] Form data cleared');
   }, []);
+  
+  /**
+   * Validate a single field
+   */
+  const validateField = useCallback((field: any, value: any): string | null => {
+    // Required validation
+    if (field.required) {
+      if (value === undefined || value === null || value === '') {
+        return 'This field is required';
+      }
+      if (Array.isArray(value) && value.length === 0) {
+        return 'This field is required';
+      }
+    }
+    
+    // Skip other validations if value is empty and not required
+    if (!value && !field.required) {
+      return null;
+    }
+    
+    // Type-specific validations
+    switch (field.type) {
+      case 'email':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+          return 'Please enter a valid email address';
+        }
+        break;
+      
+      case 'url':
+        try {
+          new URL(value);
+        } catch {
+          return 'Please enter a valid URL';
+        }
+        break;
+      
+      case 'number':
+        const num = Number(value);
+        if (isNaN(num)) {
+          return 'Please enter a valid number';
+        }
+        if (field.min !== undefined && num < field.min) {
+          return `Value must be at least ${field.min}`;
+        }
+        if (field.max !== undefined && num > field.max) {
+          return `Value must be at most ${field.max}`;
+        }
+        break;
+      
+      case 'tel':
+      case 'phone':
+        const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+        if (!phoneRegex.test(value)) {
+          return 'Please enter a valid phone number';
+        }
+        break;
+      
+      case 'text':
+      case 'textarea':
+        if (field.pattern) {
+          const regex = new RegExp(field.pattern);
+          if (!regex.test(value)) {
+            return field.validation?.message || 'Value does not match the required pattern';
+          }
+        }
+        if (field.validation?.minLength && value.length < field.validation.minLength) {
+          return `Must be at least ${field.validation.minLength} characters`;
+        }
+        if (field.validation?.maxLength && value.length > field.validation.maxLength) {
+          return `Must be at most ${field.validation.maxLength} characters`;
+        }
+        break;
+    }
+    
+    return null;
+  }, []);
+  
+  /**
+   * Validate all fields in the form
+   */
+  const validateForm = useCallback(() => {
+    const errors: Record<string, string> = {};
+    
+    formFields.forEach(field => {
+      const value = formData[field.id];
+      const error = validateField(field, value);
+      if (error) {
+        errors[field.id] = error;
+      }
+    });
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [formFields, formData, validateField]);
+  
+  /**
+   * Handle field value change with validation
+   */
+  const handleFieldChange = useCallback((fieldId: string, field: any, value: any) => {
+    setFormData(prev => ({ ...prev, [fieldId]: value }));
+    
+    // Mark field as touched
+    if (!touched[fieldId]) {
+      setTouched(prev => ({ ...prev, [fieldId]: true }));
+    }
+    
+    // Validate field if it has been touched
+    if (touched[fieldId] || value) {
+      const error = validateField(field, value);
+      setValidationErrors(prev => {
+        if (error) {
+          return { ...prev, [fieldId]: error };
+        } else {
+          const { [fieldId]: _, ...rest } = prev;
+          return rest;
+        }
+      });
+    }
+  }, [touched, validateField]);
+  
+  /**
+   * Handle field blur (mark as touched and validate)
+   */
+  const handleFieldBlur = useCallback((fieldId: string, field: any) => {
+    setTouched(prev => ({ ...prev, [fieldId]: true }));
+    
+    const value = formData[fieldId];
+    const error = validateField(field, value);
+    setValidationErrors(prev => {
+      if (error) {
+        return { ...prev, [fieldId]: error };
+      } else {
+        const { [fieldId]: _, ...rest } = prev;
+        return rest;
+      }
+    });
+  }, [formData, validateField]);
   
   /**
    * Log preview updates when nodes change
@@ -499,92 +681,133 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         {hasFormFields ? (
           <PreviewViewport $size={viewport}>
             <PreviewForm onSubmit={(e) => e.preventDefault()}>
-              {formFields.map((field) => (
-                <FormField key={field.id}>
-                  <FieldLabel>
-                    {field.label}
-                    {field.required && <span style={{ color: 'rgb(239, 68, 68)' }}> *</span>}
-                  </FieldLabel>
-                  
-                  {/* Textarea */}
-                  {field.type === 'textarea' ? (
-                    <FieldTextarea
-                      placeholder={field.placeholder}
-                      required={field.required}
-                      value={formData[field.id] || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                    />
-                  ) : /* Select dropdown */
-                  field.type === 'select' || field.type === 'dropdown' ? (
-                    <FieldSelect 
-                      required={field.required}
-                      value={formData[field.id] || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                    >
-                      <option value="">Select an option...</option>
-                      {field.options.map((option: string, idx: number) => (
-                        <option key={idx} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </FieldSelect>
-                  ) : /* Checkbox */
-                  field.type === 'checkbox' || field.type === 'boolean' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input
-                        type="checkbox"
-                        id={field.id}
-                        checked={formData[field.id] || false}
-                        onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.checked }))}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              {/* Validation Summary */}
+              {Object.keys(validationErrors).length > 0 && (
+                <ValidationSummary>
+                  <ValidationTitle>
+                    <AlertCircle size={16} />
+                    Please fix the following errors:
+                  </ValidationTitle>
+                  <ValidationList>
+                    {Object.entries(validationErrors).map(([fieldId, error]) => {
+                      const field = formFields.find(f => f.id === fieldId);
+                      return (
+                        <li key={fieldId}>
+                          <strong>{field?.label || 'Field'}:</strong> {error}
+                        </li>
+                      );
+                    })}
+                  </ValidationList>
+                </ValidationSummary>
+              )}
+              
+              {formFields.map((field) => {
+                const hasError = !!validationErrors[field.id];
+                const fieldValue = formData[field.id];
+                
+                return (
+                  <FormField key={field.id}>
+                    <FieldLabel>
+                      {field.label}
+                      {field.required && <span style={{ color: 'rgb(239, 68, 68)' }}> *</span>}
+                    </FieldLabel>
+                    
+                    {/* Textarea */}
+                    {field.type === 'textarea' ? (
+                      <FieldTextarea
+                        placeholder={field.placeholder}
+                        required={field.required}
+                        value={fieldValue || ''}
+                        onChange={(e) => handleFieldChange(field.id, field, e.target.value)}
+                        onBlur={() => handleFieldBlur(field.id, field)}
+                        $hasError={hasError}
                       />
-                      {field.helpText && (
-                        <label htmlFor={field.id} style={{ cursor: 'pointer', fontSize: '14px' }}>
-                          {field.helpText}
-                        </label>
-                      )}
-                    </div>
-                  ) : /* Radio buttons */
-                  field.type === 'radio' && field.options.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {field.options.map((option: string, idx: number) => (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input
-                            type="radio"
-                            name={field.id}
-                            id={`${field.id}-${idx}`}
-                            value={option}
-                            checked={formData[field.id] === option}
-                            onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                          />
-                          <label htmlFor={`${field.id}-${idx}`} style={{ cursor: 'pointer', fontSize: '14px' }}>
+                    ) : /* Select dropdown */
+                    field.type === 'select' || field.type === 'dropdown' ? (
+                      <FieldSelect 
+                        required={field.required}
+                        value={fieldValue || ''}
+                        onChange={(e) => handleFieldChange(field.id, field, e.target.value)}
+                        onBlur={() => handleFieldBlur(field.id, field)}
+                        $hasError={hasError}
+                      >
+                        <option value="">Select an option...</option>
+                        {field.options.map((option: string, idx: number) => (
+                          <option key={idx} value={option}>
                             {option}
+                          </option>
+                        ))}
+                      </FieldSelect>
+                    ) : /* Checkbox */
+                    field.type === 'checkbox' || field.type === 'boolean' ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="checkbox"
+                          id={field.id}
+                          checked={fieldValue || false}
+                          onChange={(e) => handleFieldChange(field.id, field, e.target.checked)}
+                          onBlur={() => handleFieldBlur(field.id, field)}
+                          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                        />
+                        {field.helpText && (
+                          <label htmlFor={field.id} style={{ cursor: 'pointer', fontSize: '14px' }}>
+                            {field.helpText}
                           </label>
-                        </div>
-                      ))}
-                    </div>
-                  ) : /* Default: text, email, number, date, tel, url, etc. */
-                  (
-                    <FieldInput
-                      type={field.type}
-                      placeholder={field.placeholder}
-                      required={field.required}
-                      min={field.min}
-                      max={field.max}
-                      pattern={field.pattern}
-                      title={field.validation?.message || ''}
-                      value={formData[field.id] || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                    />
-                  )}
-                  
-                  {/* Help text (except for checkbox which shows it inline) */}
-                  {field.helpText && field.type !== 'checkbox' && field.type !== 'boolean' && (
-                    <FieldHelpText>{field.helpText}</FieldHelpText>
-                  )}
-                </FormField>
-              ))}
+                        )}
+                      </div>
+                    ) : /* Radio buttons */
+                    field.type === 'radio' && field.options.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {field.options.map((option: string, idx: number) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="radio"
+                              name={field.id}
+                              id={`${field.id}-${idx}`}
+                              value={option}
+                              checked={fieldValue === option}
+                              onChange={(e) => handleFieldChange(field.id, field, e.target.value)}
+                              onBlur={() => handleFieldBlur(field.id, field)}
+                              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
+                            <label htmlFor={`${field.id}-${idx}`} style={{ cursor: 'pointer', fontSize: '14px' }}>
+                              {option}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    ) : /* Default: text, email, number, date, tel, url, etc. */
+                    (
+                      <FieldInput
+                        type={field.type}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                        min={field.min}
+                        max={field.max}
+                        pattern={field.pattern}
+                        title={field.validation?.message || ''}
+                        value={fieldValue || ''}
+                        onChange={(e) => handleFieldChange(field.id, field, e.target.value)}
+                        onBlur={() => handleFieldBlur(field.id, field)}
+                        $hasError={hasError}
+                      />
+                    )}
+                    
+                    {/* Validation Error */}
+                    {hasError && (
+                      <FieldError>
+                        <AlertCircle size={14} />
+                        {validationErrors[field.id]}
+                      </FieldError>
+                    )}
+                    
+                    {/* Help text (except for checkbox which shows it inline) */}
+                    {field.helpText && field.type !== 'checkbox' && field.type !== 'boolean' && !hasError && (
+                      <FieldHelpText>{field.helpText}</FieldHelpText>
+                    )}
+                  </FormField>
+                );
+              })}
             </PreviewForm>
           </PreviewViewport>
         ) : (
