@@ -41,7 +41,36 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, Minimize2, ZoomIn, ZoomOut, Wand2, Eye, Code2, Download, Upload, CheckCircle, AlertCircle, Copy, ArrowRight, Sparkles, Plus } from 'lucide-react';
+import { 
+  Star, 
+  Search as SearchIcon, 
+  ChevronDown, 
+  Undo2, 
+  Redo2, 
+  Maximize2, 
+  Minimize2, 
+  ZoomIn, 
+  ZoomOut, 
+  Wand2, 
+  Eye, 
+  Code2, 
+  Download, 
+  Upload, 
+  CheckCircle, 
+  AlertCircle, 
+  Copy, 
+  ArrowRight, 
+  Sparkles, 
+  Plus,
+  AlignHorizontalDistributeCenter,
+  AlignVerticalDistributeCenter,
+  AlignLeft,
+  AlignRight,
+  AlignTop,
+  AlignBottom,
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+} from 'lucide-react';
 
 import {
   FormStepNode,
@@ -783,6 +812,60 @@ const ViewportButton = styled.button`
   
   &:active {
     transform: scale(0.95);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const AlignmentToolbar = styled.div`
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 15;
+  
+  /* Hide when no nodes selected */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  
+  &.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+`;
+
+const AlignmentButton = styled.button`
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: rgb(var(--color-background));
+    color: rgb(var(--color-primary));
+  }
+  
+  &:active {
+    background: rgb(var(--color-primary));
+    color: white;
   }
   
   svg {
@@ -1912,6 +1995,228 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
 
   // ============================================================================
+  // Node Alignment Tools (Phase 4 Batch 6)
+  // ============================================================================
+  
+  /**
+   * Align selected nodes horizontally (distribute along x-axis)
+   */
+  const alignHorizontal = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    // Sort by x position
+    const sorted = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const totalWidth = last.position.x - first.position.x;
+    const spacing = totalWidth / (sorted.length - 1);
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        const index = sorted.findIndex(s => s.id === n.id);
+        if (index !== -1 && index !== 0 && index !== sorted.length - 1) {
+          return {
+            ...n,
+            position: {
+              ...n.position,
+              x: first.position.x + (spacing * index),
+            },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Distributed ${selectedNodes.length} nodes horizontally`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes vertically (distribute along y-axis)
+   */
+  const alignVertical = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    // Sort by y position
+    const sorted = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const totalHeight = last.position.y - first.position.y;
+    const spacing = totalHeight / (sorted.length - 1);
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        const index = sorted.findIndex(s => s.id === n.id);
+        if (index !== -1 && index !== 0 && index !== sorted.length - 1) {
+          return {
+            ...n,
+            position: {
+              ...n.position,
+              y: first.position.y + (spacing * index),
+            },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Distributed ${selectedNodes.length} nodes vertically`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to the left (align x to leftmost node)
+   */
+  const alignLeft = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const minX = Math.min(...selectedNodes.map(n => n.position.x));
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, x: minX },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to left (x=${minX})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to the right (align x to rightmost node)
+   */
+  const alignRight = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const maxX = Math.max(...selectedNodes.map(n => n.position.x));
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, x: maxX },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to right (x=${maxX})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to the top (align y to topmost node)
+   */
+  const alignTop = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const minY = Math.min(...selectedNodes.map(n => n.position.y));
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, y: minY },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to top (y=${minY})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to the bottom (align y to bottommost node)
+   */
+  const alignBottom = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const maxY = Math.max(...selectedNodes.map(n => n.position.y));
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, y: maxY },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to bottom (y=${maxY})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to center horizontally
+   */
+  const alignCenterX = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const avgX = selectedNodes.reduce((sum, n) => sum + n.position.x, 0) / selectedNodes.length;
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, x: avgX },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to center X (x=${avgX.toFixed(0)})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to center vertically
+   */
+  const alignCenterY = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const avgY = selectedNodes.reduce((sum, n) => sum + n.position.y, 0) / selectedNodes.length;
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, y: avgY },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to center Y (y=${avgY.toFixed(0)})`);
+  }, [nodes, setNodes]);
+
+  // ============================================================================
   // Save Handler
   // ============================================================================
   
@@ -2023,6 +2328,63 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
+      // Alignment shortcuts (Phase 4 Batch 6)
+      // Ctrl+Shift+H: Align horizontal (distribute X)
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'H') {
+        event.preventDefault();
+        alignHorizontal();
+        return;
+      }
+      
+      // Ctrl+Shift+V: Align vertical (distribute Y)
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'V') {
+        event.preventDefault();
+        alignVertical();
+        return;
+      }
+      
+      // Ctrl+Shift+L: Align left
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'L') {
+        event.preventDefault();
+        alignLeft();
+        return;
+      }
+      
+      // Ctrl+Shift+R: Align right
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'R') {
+        event.preventDefault();
+        alignRight();
+        return;
+      }
+      
+      // Ctrl+Shift+T: Align top
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'T') {
+        event.preventDefault();
+        alignTop();
+        return;
+      }
+      
+      // Ctrl+Shift+B: Align bottom
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'B') {
+        event.preventDefault();
+        alignBottom();
+        return;
+      }
+      
+      // Ctrl+Shift+X: Center horizontally
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'X') {
+        event.preventDefault();
+        alignCenterX();
+        return;
+      }
+      
+      // Ctrl+Shift+Y: Center vertically
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'Y') {
+        event.preventDefault();
+        alignCenterY();
+        return;
+      }
+      
       // F: Fit to view
       if (event.key === 'f' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
         event.preventDefault();
@@ -2079,7 +2441,29 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaletteVisible, nodes, undo, redo, handleSave, setNodes, setEdges, fitView, zoomTo, selectAll, deselectAll, setSelectedNode, isDragging]);
+  }, [
+    isPaletteVisible, 
+    nodes, 
+    undo, 
+    redo, 
+    handleSave, 
+    setNodes, 
+    setEdges, 
+    fitView, 
+    zoomTo, 
+    selectAll, 
+    deselectAll, 
+    setSelectedNode, 
+    isDragging,
+    alignHorizontal,
+    alignVertical,
+    alignLeft,
+    alignRight,
+    alignTop,
+    alignBottom,
+    alignCenterX,
+    alignCenterY,
+  ]);
 
   // ============================================================================
   // Node Selection & Configuration
@@ -2789,9 +3173,45 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               Ctrl+Z: Undo | Ctrl+Y: Redo | Ctrl+S: Save
               <br />
               F: Fit view | 1: 100% | 2: 50% | Ctrl+A: Select all | Esc: Deselect
+              <br />
+              Ctrl+Shift+H/V: Distribute | Ctrl+Shift+L/R/T/B: Align edges | Ctrl+Shift+X/Y: Center
             </EmptyText>
           </EmptyState>
         )}
+        
+        {/* Alignment Toolbar (Phase 4 Batch 6) - Shows when 2+ nodes selected */}
+        <AlignmentToolbar className={nodes.filter(n => n.selected).length >= 2 ? 'visible' : ''}>
+          <AlignmentButton onClick={alignLeft} title="Align Left (Ctrl+Shift+L)">
+            <AlignLeft />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignCenterX} title="Align Center X (Ctrl+Shift+X)">
+            <AlignCenterHorizontal />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignRight} title="Align Right (Ctrl+Shift+R)">
+            <AlignRight />
+          </AlignmentButton>
+          
+          <div style={{ width: '1px', height: '24px', background: 'rgb(var(--color-border))', margin: '0 4px' }} />
+          
+          <AlignmentButton onClick={alignTop} title="Align Top (Ctrl+Shift+T)">
+            <AlignTop />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignCenterY} title="Align Center Y (Ctrl+Shift+Y)">
+            <AlignCenterVertical />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignBottom} title="Align Bottom (Ctrl+Shift+B)">
+            <AlignBottom />
+          </AlignmentButton>
+          
+          <div style={{ width: '1px', height: '24px', background: 'rgb(var(--color-border))', margin: '0 4px' }} />
+          
+          <AlignmentButton onClick={alignHorizontal} title="Distribute Horizontal (Ctrl+Shift+H)">
+            <AlignHorizontalDistributeCenter />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignVertical} title="Distribute Vertical (Ctrl+Shift+V)">
+            <AlignVerticalDistributeCenter />
+          </AlignmentButton>
+        </AlignmentToolbar>
       </ReactFlow>
       )}
       
