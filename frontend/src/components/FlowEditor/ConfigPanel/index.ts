@@ -14,4 +14,12 @@ export { FieldMappingPanel } from './FieldMappingPanel';
 export { ConditionBuilder } from './ConditionBuilder';
 export { ValidationRuleBuilder } from './ValidationRuleBuilder';
 
+// Phase 2: WorkForms Enhancement (WF-ENH-2026-Q1)
+export { FormSelectionPanel } from './FormSelectionPanel';
+export { EntityFieldPicker } from './EntityFieldPicker';
+export { FieldConfigurationPanel } from './FieldConfigurationPanel';
+
 export type { NodeConfigPanelProps } from './NodeConfigPanel';
+export type { FormSelectionPanelProps } from './FormSelectionPanel';
+export type { EntityFieldPickerProps, SelectedField } from './EntityFieldPicker';
+export type { FieldConfigurationPanelProps, FieldConfig } from './FieldConfigurationPanel';
