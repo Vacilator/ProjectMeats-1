@@ -1700,6 +1700,128 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
 
   // ============================================================================
+  // Container Drag-Drop Logic (Phase 4.4)
+  // ============================================================================
+  
+  /**
+   * Detect if a position is inside a container node
+   */
+  const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
+    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
+    
+    for (const container of containerNodes) {
+      // Approximate container bounds (typical node is ~300px wide, ~200px tall)
+      const containerWidth = 400; // Container nodes are wider
+      const containerHeight = 300;
+      
+      const isInside = 
+        position.x >= container.position.x &&
+        position.x <= container.position.x + containerWidth &&
+        position.y >= container.position.y &&
+        position.y <= container.position.y + containerHeight;
+      
+      if (isInside) {
+        return container;
+      }
+    }
+    
+    return null;
+  }, [nodes]);
+  
+  /**
+   * Handle node drag stop - check if node was dropped in/out of container
+   */
+  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    const container = findContainerAtPosition(node.position);
+    
+    // Check if node's container status changed
+    const currentContainerId = node.data?.containerNodeId;
+    const newContainerId = container?.id || null;
+    
+    if (currentContainerId !== newContainerId) {
+      // Update node's containerNodeId
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id === node.id) {
+            const updatedData = { ...n.data };
+            
+            if (newContainerId) {
+              updatedData.containerNodeId = newContainerId;
+              console.log(`[Container] Node ${node.id} added to container ${newContainerId}`);
+            } else {
+              delete updatedData.containerNodeId;
+              console.log(`[Container] Node ${node.id} removed from container`);
+            }
+            
+            return { ...n, data: updatedData };
+          }
+          return n;
+        })
+      );
+      
+      // Update container's node count
+      if (newContainerId) {
+        updateContainerStats(newContainerId);
+      }
+      if (currentContainerId) {
+        updateContainerStats(currentContainerId);
+      }
+      
+      setHasUnsavedChanges(true);
+    }
+  }, [nodes, findContainerAtPosition, setNodes]);
+  
+  /**
+   * Update container node statistics
+   */
+  const updateContainerStats = useCallback((containerId: string) => {
+    setNodes((nds) => {
+      // Count nodes in this container
+      const childNodes = nds.filter(n => n.data?.containerNodeId === containerId);
+      const nodeTypeBreakdown: Record<string, number> = {};
+      const formReferences: string[] = [];
+      
+      childNodes.forEach(node => {
+        const nodeType = node.type || 'unknown';
+        nodeTypeBreakdown[nodeType] = (nodeTypeBreakdown[nodeType] || 0) + 1;
+        
+        // Collect form references
+        if (node.data?.formId) {
+          formReferences.push(node.data.formId);
+        }
+        if (node.data?.tenantFormId) {
+          formReferences.push(node.data.tenantFormId);
+        }
+      });
+      
+      return nds.map((n) => {
+        if (n.id === containerId) {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              nodeCount: childNodes.length,
+              nodeTypeBreakdown,
+              formReferences: [...new Set(formReferences)],
+              childNodes: childNodes.map(c => c.id),
+            },
+          };
+        }
+        return n;
+      });
+    });
+  }, [setNodes]);
+  
+  /**
+   * Validate if node can be added to container
+   */
+  const canAddToContainer = useCallback((nodeType: string): boolean => {
+    // Triggers cannot be inside containers
+    const invalidTypes = ['triggerManual', 'triggerSchedule', 'triggerWebhook', 'triggerEvent', 'triggerForm'];
+    return !invalidTypes.includes(nodeType);
+  }, []);
+
+  // ============================================================================
   // Save Handler
   // ============================================================================
   
@@ -2519,6 +2641,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         isValidConnection={isValidConnection}
         onDrop={onDrop}
         onDragOver={onDragOver}
+        onNodeDragStop={onNodeDragStop}
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

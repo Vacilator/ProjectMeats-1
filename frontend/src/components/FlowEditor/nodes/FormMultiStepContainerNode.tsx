@@ -50,6 +50,7 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
     0 4px 6px rgba(0, 0, 0, 0.1),
     0 0 0 4px rgba(139, 92, 246, 0.1);
   transition: all 0.2s ease;
+  position: relative;
   
   &:hover {
     box-shadow: 
@@ -62,6 +63,15 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
     box-shadow: 
       0 8px 16px rgba(0, 0, 0, 0.2),
       0 0 0 4px rgba(139, 92, 246, 0.3);
+  }
+  
+  /* Drop zone indicator when dragging nodes */
+  &.drag-over {
+    border-color: rgb(34, 197, 94);
+    box-shadow: 
+      0 8px 16px rgba(34, 197, 94, 0.2),
+      0 0 0 4px rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.05);
   }
 `;
 
@@ -198,6 +208,17 @@ const EmptyState = styled.div`
   .message {
     font-size: 13px;
     line-height: 1.5;
+  }
+  
+  .drop-hint {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px dashed rgba(139, 92, 246, 0.3);
+    border-radius: 6px;
+    font-size: 12px;
+    color: rgb(139, 92, 246);
+    font-weight: 500;
   }
 `;
 
@@ -356,6 +377,9 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                   <div className="message">
                     This container is empty.<br />
                     Drag nodes here to group them into a sequential flow.
+                  </div>
+                  <div className="drop-hint">
+                    💡 Tip: Drag any node (except triggers) into this container to add it
                   </div>
                   <ConfigButton onClick={handleConfigClick}>
                     Configure Container
