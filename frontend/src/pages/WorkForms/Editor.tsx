@@ -277,7 +277,17 @@ export const WorkFormsEditor: React.FC = () => {
   // Phase 4.2: Permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
   
-  // DEBUG: Log permissions state
+  // State
+  const [status, setStatus] = useState<'draft' | 'active' | 'inactive'>('draft');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSavedIndicator, setShowSavedIndicator] = useState(false);
+  const [flowName, setFlowName] = useState('New Flow');
+  const [initialNodes, setInitialNodes] = useState<Node[]>([]);
+  const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [editorMode, setEditorMode] = useState<EditorMode>('visual'); // Default to visual mode
+  
+  // DEBUG: Log permissions state (MUST be after state declarations)
   useEffect(() => {
     console.log('[Editor DEBUG]', {
       permissionsLoading,
@@ -288,16 +298,6 @@ export const WorkFormsEditor: React.FC = () => {
       timestamp: new Date().toISOString()
     });
   }, [permissions, permissionsLoading, isInitialized]);
-  
-  // State
-  const [status, setStatus] = useState<'draft' | 'active' | 'inactive'>('draft');
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSavedIndicator, setShowSavedIndicator] = useState(false);
-  const [flowName, setFlowName] = useState('New Flow');
-  const [initialNodes, setInitialNodes] = useState<Node[]>([]);
-  const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [editorMode, setEditorMode] = useState<EditorMode>('visual'); // Default to visual mode
 
   // Load existing form if editing
   const { data: existingForm, isLoading: isLoadingForm } = useQuery<TenantForm>({
