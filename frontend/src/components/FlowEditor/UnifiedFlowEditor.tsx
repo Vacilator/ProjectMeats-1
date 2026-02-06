@@ -1982,6 +1982,36 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     addToRecent(nodeTypeId);
   }, [addToRecent]);
   
+  // ============================================================================
+  // Container Detection Helper (Phase E)
+  // ============================================================================
+  
+  /**
+   * Detect if a position is inside a container node
+   * Used by onDrag, onDrop, and onNodeDragStop
+   */
+  const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
+    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
+    
+    for (const container of containerNodes) {
+      // Approximate container bounds (typical node is ~300px wide, ~200px tall)
+      const containerWidth = 400; // Container nodes are wider
+      const containerHeight = 300;
+      
+      const isInside = 
+        position.x >= container.position.x &&
+        position.x <= container.position.x + containerWidth &&
+        position.y >= container.position.y &&
+        position.y <= container.position.y + containerHeight;
+      
+      if (isInside) {
+        return container;
+      }
+    }
+    
+    return null;
+  }, [nodes]);
+  
   const onDrag = useCallback((event: React.DragEvent) => {
     if (event.clientX === 0 && event.clientY === 0) return; // Ignore end event
     
@@ -2023,35 +2053,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setNearbyNode(null);
     setHoveredContainerId(null); // Phase E: Clear container hover
   }, []);
-
-  // ============================================================================
-  // Container Detection Helper (Phase E)
-  // ============================================================================
-  
-  /**
-   * Detect if a position is inside a container node
-   */
-  const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
-    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
-    
-    for (const container of containerNodes) {
-      // Approximate container bounds (typical node is ~300px wide, ~200px tall)
-      const containerWidth = 400; // Container nodes are wider
-      const containerHeight = 300;
-      
-      const isInside = 
-        position.x >= container.position.x &&
-        position.x <= container.position.x + containerWidth &&
-        position.y >= container.position.y &&
-        position.y <= container.position.y + containerHeight;
-      
-      if (isInside) {
-        return container;
-      }
-    }
-    
-    return null;
-  }, [nodes]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
