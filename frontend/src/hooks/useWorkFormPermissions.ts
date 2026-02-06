@@ -37,11 +37,19 @@ export function useWorkFormPermissions() {
   const query = useQuery<WorkFormPermissions>({
     queryKey: ['workforms', 'permissions'],
     queryFn: async () => {
-      const response = await adminClient.get('/workflows/permissions/');
-      return response.data;
+      try {
+        const response = await adminClient.get('/workflows/permissions/');
+        return response.data;
+      } catch (error) {
+        console.error('[useWorkFormPermissions] Failed to fetch permissions:', error);
+        // Return default permissions on error
+        return getDefaultPermissions();
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - permissions don't change often
     retry: 1,
+    // Ensure we always have valid permissions
+    placeholderData: getDefaultPermissions(),
   });
 
   return {
@@ -75,9 +83,12 @@ function getDefaultPermissions(): WorkFormPermissions {
  * Helper function to check if a specific editor mode is allowed.
  */
 export function canUseEditorMode(
-  permissions: WorkFormPermissions,
+  permissions: WorkFormPermissions | undefined,
   mode: 'wizard' | 'visual' | 'expert'
 ): boolean {
+  if (!permissions || !permissions.allowed_modes) {
+    return false; // Defensive: if permissions not loaded, deny access
+  }
   return permissions.allowed_modes.includes(mode);
 }
 
@@ -85,9 +96,16 @@ export function canUseEditorMode(
  * Helper function to check if a specific node category is allowed.
  */
 export function canUseNodeCategory(
-  permissions: WorkFormPermissions,
+  permissions: WorkFormPermissions | undefined,
   category: string
 ): boolean {
+  if (!permissions || !permissions.allowed_node_categories) {
+    return false; // Defensive: if permissions not loaded, deny access
+  }
+  // If allowed_node_categories is empty, allow all categories
+  if (permissions.allowed_node_categories.length === 0) {
+    return true;
+  }
   return permissions.allowed_node_categories.includes(category);
 }
 
