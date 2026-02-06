@@ -4,14 +4,15 @@
  * Live preview of form as it's being built in the WorkForms editor.
  * Shows real-time rendering of form fields, validation, and user experience.
  * 
- * Phase 5 Batch 1-2 of WF-ENH-2026-Q1
+ * Phase 5 Batch 1-3 of WF-ENH-2026-Q1
  * Created: 2026-02-06
  * Enhanced: 2026-02-06 (Batch 2 - Advanced field types, auto-updates)
+ * Enhanced: 2026-02-06 (Batch 3 - Test data injection)
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import { Node } from '@xyflow/react';
-import { X, Smartphone, Monitor, Tablet, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { X, Smartphone, Monitor, Tablet, RefreshCw, Eye, TestTube2, Eraser } from 'lucide-react';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -288,6 +289,85 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 }) => {
   const [viewport, setViewport] = useState<ViewportSize>('desktop');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [formData, setFormData] = useState<Record<string, any>>({});
+  
+  /**
+   * Generate test data for a field based on its type
+   */
+  const generateTestDataForField = useCallback((field: any): any => {
+    switch (field.type) {
+      case 'text':
+        return field.label?.includes('Name') ? 'John Doe' : 
+               field.label?.includes('Company') ? 'Acme Corporation' :
+               field.label?.includes('Title') ? 'Senior Manager' : 
+               'Sample Text';
+      
+      case 'email':
+        return 'john.doe@example.com';
+      
+      case 'number':
+        const min = field.min || 1;
+        const max = field.max || 100;
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      
+      case 'tel':
+      case 'phone':
+        return '+1 (555) 123-4567';
+      
+      case 'url':
+        return 'https://example.com';
+      
+      case 'date':
+        return new Date().toISOString().split('T')[0];
+      
+      case 'time':
+        return '14:30';
+      
+      case 'datetime-local':
+        return new Date().toISOString().slice(0, 16);
+      
+      case 'textarea':
+        return 'This is a sample multi-line text response. It demonstrates how longer content will appear in the preview.';
+      
+      case 'select':
+      case 'dropdown':
+        return field.options && field.options.length > 0 
+          ? field.options[0] 
+          : '';
+      
+      case 'radio':
+        return field.options && field.options.length > 0 
+          ? field.options[0] 
+          : '';
+      
+      case 'checkbox':
+      case 'boolean':
+        return true;
+      
+      default:
+        return 'Sample value';
+    }
+  }, []);
+  
+  /**
+   * Fill form with test data
+   */
+  const handleFillTestData = useCallback(() => {
+    const testData: Record<string, any> = {};
+    formFields.forEach(field => {
+      testData[field.id] = generateTestDataForField(field);
+    });
+    setFormData(testData);
+    console.log('[PreviewPanel] Test data generated:', testData);
+  }, [formFields, generateTestDataForField]);
+  
+  /**
+   * Clear all form data
+   */
+  const handleClearForm = useCallback(() => {
+    setFormData({});
+    console.log('[PreviewPanel] Form data cleared');
+  }, []);
   
   /**
    * Log preview updates when nodes change
@@ -366,8 +446,19 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           </PanelTitle>
         </HeaderLeft>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <RefreshButton onClick={handleRefresh} title="Refresh Preview">
-            <RefreshCw />
+          <RefreshButton 
+            onClick={handleFillTestData} 
+            title="Fill with Test Data"
+            disabled={!hasFormFields}
+          >
+            <TestTube2 size={14} />
+          </RefreshButton>
+          <RefreshButton 
+            onClick={handleClearForm} 
+            title="Clear Form"
+            disabled={!hasFormFields}
+          >
+            <Eraser size={14} />
           </RefreshButton>
           <CloseButton onClick={onClose} title="Close Preview">
             <X />
@@ -420,10 +511,16 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                     <FieldTextarea
                       placeholder={field.placeholder}
                       required={field.required}
+                      value={formData[field.id] || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
                     />
                   ) : /* Select dropdown */
                   field.type === 'select' || field.type === 'dropdown' ? (
-                    <FieldSelect required={field.required}>
+                    <FieldSelect 
+                      required={field.required}
+                      value={formData[field.id] || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
+                    >
                       <option value="">Select an option...</option>
                       {field.options.map((option: string, idx: number) => (
                         <option key={idx} value={option}>
@@ -437,6 +534,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                       <input
                         type="checkbox"
                         id={field.id}
+                        checked={formData[field.id] || false}
+                        onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.checked }))}
                         style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                       />
                       {field.helpText && (
@@ -455,6 +554,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                             name={field.id}
                             id={`${field.id}-${idx}`}
                             value={option}
+                            checked={formData[field.id] === option}
+                            onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
                             style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                           />
                           <label htmlFor={`${field.id}-${idx}`} style={{ cursor: 'pointer', fontSize: '14px' }}>
@@ -473,6 +574,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                       max={field.max}
                       pattern={field.pattern}
                       title={field.validation?.message || ''}
+                      value={formData[field.id] || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
                     />
                   )}
                   
