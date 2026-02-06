@@ -8,6 +8,7 @@
  */
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useActionItemCounts, ActionItemCounts, POLL_INTERVAL_BACKGROUND } from '../hooks/useActionItemCounts';
+import { useAuth } from './AuthContext';
 
 // ============================================================================
 // Types
@@ -39,7 +40,12 @@ export const ActionItemsProvider: React.FC<ActionItemsProviderProps> = ({
   children,
   pollingInterval = POLL_INTERVAL_BACKGROUND 
 }) => {
-  const { counts, loading, error, refetch } = useActionItemCounts(pollingInterval, true);
+  const { user, loading: authLoading } = useAuth();
+  
+  // Only enable polling if user is authenticated
+  const enabled = !!user && !authLoading;
+  
+  const { counts, loading, error, refetch } = useActionItemCounts(pollingInterval, enabled);
 
   return (
     <ActionItemsContext.Provider value={{ counts, loading, error, refetch }}>
