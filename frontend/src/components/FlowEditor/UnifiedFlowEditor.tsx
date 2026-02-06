@@ -66,6 +66,7 @@ import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
+import { EntityFormStepModal, type FormStepData } from './Modals/EntityFormStepModal';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -1969,6 +1970,45 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setSelectedFormStep(null);
   }, [selectedFormStep, handleNodeUpdate]);
   
+  // Convert node data to EntityFormStepModal format (Phase 3 - WF-ENH-2026-Q1)
+  const convertNodeDataToFormStepData = useCallback((node: Node): FormStepData | undefined => {
+    if (!node.data) return undefined;
+    
+    return {
+      formId: node.data.formId,
+      formName: node.data.formName || node.data.stepTitle || node.data.label || 'Untitled Form',
+      entityType: node.data.entityType || 'supplier',
+      fields: node.data.fields || [],
+      mode: node.data.formId ? 'existing' : 'new',
+    };
+  }, []);
+  
+  // Handle EntityFormStepModal save (Phase 3 - WF-ENH-2026-Q1)
+  const handleEntityFormStepSave = useCallback((formData: FormStepData) => {
+    if (!selectedFormStep) return;
+    
+    console.log('[UnifiedFlowEditor] Saving EntityFormStep:', formData);
+    
+    // Update node data with form configuration
+    const updatedNodeData = {
+      ...selectedFormStep.data,
+      formId: formData.formId,
+      formName: formData.formName,
+      stepTitle: formData.formName,
+      label: formData.formName,
+      entityType: formData.entityType,
+      fields: formData.fields,
+      mode: formData.mode,
+      // Visual metadata for the node
+      configured: true,
+      fieldCount: formData.fields.length,
+    };
+    
+    handleNodeUpdate(selectedFormStep.id, updatedNodeData);
+    setFormStepModalOpen(false);
+    setSelectedFormStep(null);
+  }, [selectedFormStep, handleNodeUpdate]);
+  
   // Get previous step fields for conditional logic
   const getPreviousStepFields = useCallback((currentNodeId: string) => {
     const allFields: any[] = [];
@@ -2763,28 +2803,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onStartBlank={handleStartBlank}
       />
       
-      {/* FormStep Configuration Modal (Phase 4.2.B Integration) */}
-      <SidePanel
+      {/* EntityFormStep Configuration Modal (Phase 3 - WF-ENH-2026-Q1) */}
+      <EntityFormStepModal
         isOpen={formStepModalOpen && !!selectedFormStep}
         onClose={() => {
           setFormStepModalOpen(false);
           setSelectedFormStep(null);
         }}
-      >
-        {selectedFormStep && (
-          <FormStepConfigPanel
-            step={selectedFormStep.data}
-            onChange={handleFormStepUpdate}
-            onClose={() => {
-              setFormStepModalOpen(false);
-              setSelectedFormStep(null);
-            }}
-            onEditField={handleEditField}
-            onAddField={handleAddField}
-            availableFields={getPreviousStepFields(selectedFormStep.id)}
-          />
-        )}
-      </SidePanel>
+        onSave={handleEntityFormStepSave}
+        initialData={selectedFormStep ? convertNodeDataToFormStepData(selectedFormStep) : undefined}
+        nodeId={selectedFormStep?.id}
+      />
       
       {/* FormField Configuration Modal - Direct Selection (Phase 1 of Navigation Fix Plan) */}
       <SidePanel
