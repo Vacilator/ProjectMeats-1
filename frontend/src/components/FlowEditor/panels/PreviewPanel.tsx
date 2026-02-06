@@ -4,10 +4,11 @@
  * Live preview of form as it's being built in the WorkForms editor.
  * Shows real-time rendering of form fields, validation, and user experience.
  * 
- * Phase 5 Batch 1 of WF-ENH-2026-Q1
+ * Phase 5 Batch 1-2 of WF-ENH-2026-Q1
  * Created: 2026-02-06
+ * Enhanced: 2026-02-06 (Batch 2 - Advanced field types, auto-updates)
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import { Node } from '@xyflow/react';
 import { X, Smartphone, Monitor, Tablet, RefreshCw, Eye, EyeOff } from 'lucide-react';
@@ -289,8 +290,21 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   const [refreshKey, setRefreshKey] = useState(0);
   
   /**
+   * Log preview updates when nodes change
+   */
+  useEffect(() => {
+    if (isVisible && nodes.length > 0) {
+      console.log('[PreviewPanel] Auto-update: nodes changed', {
+        nodeCount: nodes.length,
+        formNodes: nodes.filter(n => n.type === 'formStep' || n.type === 'formField').length,
+      });
+    }
+  }, [nodes, isVisible]);
+  
+  /**
    * Extract form fields from nodes
    * Filters for formField and formStep nodes and extracts their field definitions
+   * Auto-updates when nodes change (real-time preview)
    */
   const formFields = useMemo(() => {
     const fields: any[] = [];
@@ -303,11 +317,15 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           fields.push({
             id: field.id || field.name,
             label: field.label || field.name,
-            type: field.type || 'text',
+            type: field.type || field.fieldType || 'text',
             placeholder: field.placeholder || '',
-            helpText: field.helpText || '',
+            helpText: field.helpText || field.description || '',
             required: field.required || false,
             options: field.options || [],
+            min: field.min,
+            max: field.max,
+            pattern: field.pattern,
+            validation: field.validation || {},
           });
         });
       } else if (node.type === 'formField') {
@@ -315,11 +333,15 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         fields.push({
           id: node.id,
           label: node.data?.label || 'Untitled Field',
-          type: node.data?.fieldType || 'text',
+          type: node.data?.fieldType || node.data?.type || 'text',
           placeholder: node.data?.placeholder || '',
-          helpText: node.data?.helpText || '',
+          helpText: node.data?.helpText || node.data?.description || '',
           required: node.data?.required || false,
           options: node.data?.options || [],
+          min: node.data?.min,
+          max: node.data?.max,
+          pattern: node.data?.pattern,
+          validation: node.data?.validation || {},
         });
       }
     });
@@ -393,12 +415,14 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                     {field.required && <span style={{ color: 'rgb(239, 68, 68)' }}> *</span>}
                   </FieldLabel>
                   
+                  {/* Textarea */}
                   {field.type === 'textarea' ? (
                     <FieldTextarea
                       placeholder={field.placeholder}
                       required={field.required}
                     />
-                  ) : field.type === 'select' ? (
+                  ) : /* Select dropdown */
+                  field.type === 'select' || field.type === 'dropdown' ? (
                     <FieldSelect required={field.required}>
                       <option value="">Select an option...</option>
                       {field.options.map((option: string, idx: number) => (
@@ -407,15 +431,53 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                         </option>
                       ))}
                     </FieldSelect>
-                  ) : (
+                  ) : /* Checkbox */
+                  field.type === 'checkbox' || field.type === 'boolean' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        id={field.id}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      {field.helpText && (
+                        <label htmlFor={field.id} style={{ cursor: 'pointer', fontSize: '14px' }}>
+                          {field.helpText}
+                        </label>
+                      )}
+                    </div>
+                  ) : /* Radio buttons */
+                  field.type === 'radio' && field.options.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {field.options.map((option: string, idx: number) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="radio"
+                            name={field.id}
+                            id={`${field.id}-${idx}`}
+                            value={option}
+                            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                          />
+                          <label htmlFor={`${field.id}-${idx}`} style={{ cursor: 'pointer', fontSize: '14px' }}>
+                            {option}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  ) : /* Default: text, email, number, date, tel, url, etc. */
+                  (
                     <FieldInput
                       type={field.type}
                       placeholder={field.placeholder}
                       required={field.required}
+                      min={field.min}
+                      max={field.max}
+                      pattern={field.pattern}
+                      title={field.validation?.message || ''}
                     />
                   )}
                   
-                  {field.helpText && (
+                  {/* Help text (except for checkbox which shows it inline) */}
+                  {field.helpText && field.type !== 'checkbox' && field.type !== 'boolean' && (
                     <FieldHelpText>{field.helpText}</FieldHelpText>
                   )}
                 </FormField>
