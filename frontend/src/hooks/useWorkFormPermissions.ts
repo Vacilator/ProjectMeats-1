@@ -37,19 +37,35 @@ export function useWorkFormPermissions() {
   const query = useQuery<WorkFormPermissions>({
     queryKey: ['workforms', 'permissions'],
     queryFn: async () => {
+      console.log('[useWorkFormPermissions] Fetching permissions...');
       try {
         const response = await adminClient.get('/workflows/permissions/');
+        console.log('[useWorkFormPermissions] SUCCESS - Response:', response.data);
         return response.data;
-      } catch (error) {
-        console.error('[useWorkFormPermissions] Failed to fetch permissions:', error);
+      } catch (error: any) {
+        console.error('[useWorkFormPermissions] FAILED - Error:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message,
+          error
+        });
         // Return default permissions on error
-        return getDefaultPermissions();
+        const defaults = getDefaultPermissions();
+        console.warn('[useWorkFormPermissions] Returning default permissions:', defaults);
+        return defaults;
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - permissions don't change often
     retry: 1,
     // Ensure we always have valid permissions
     placeholderData: getDefaultPermissions(),
+  });
+
+  console.log('[useWorkFormPermissions] Query state:', {
+    isLoading: query.isLoading,
+    isError: query.isError,
+    data: query.data,
+    error: query.error
   });
 
   return {

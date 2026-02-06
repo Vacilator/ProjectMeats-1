@@ -277,6 +277,18 @@ export const WorkFormsEditor: React.FC = () => {
   // Phase 4.2: Permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
   
+  // DEBUG: Log permissions state
+  useEffect(() => {
+    console.log('[Editor DEBUG]', {
+      permissionsLoading,
+      permissions,
+      can_edit: permissions.can_edit,
+      readOnly: !permissions.can_edit,
+      willRenderEditor: isInitialized && !permissionsLoading,
+      timestamp: new Date().toISOString()
+    });
+  }, [permissions, permissionsLoading, isInitialized]);
+  
   // State
   const [status, setStatus] = useState<'draft' | 'active' | 'inactive'>('draft');
   const [isSaving, setIsSaving] = useState(false);
