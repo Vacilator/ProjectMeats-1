@@ -68,6 +68,7 @@ import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
 import { EntityFormStepModal, type FormStepData } from './Modals/EntityFormStepModal';
+import { FormMultiStepContainerModal, type ContainerData } from './Modals/FormMultiStepContainerModal';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -1023,6 +1024,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [formReferenceModalOpen, setFormReferenceModalOpen] = useState(false);
   const [selectedFormReference, setSelectedFormReference] = useState<Node | null>(null);
   
+  // Container configuration (Phase 4.3)
+  const [containerModalOpen, setContainerModalOpen] = useState(false);
+  const [selectedContainer, setSelectedContainer] = useState<Node | null>(null);
+  
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
     queryKey: ['workflows', 'tenant-lists'],
@@ -1868,6 +1873,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setDocumentModalOpen(false);
       setCreateRecordModalOpen(false);
       setFormReferenceModalOpen(false);
+      setContainerModalOpen(false);
       setSelectedNode(null);
       setSelectedFormStep(null);
       setSelectedFormField(null);
@@ -1875,6 +1881,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSelectedDocument(null);
       setSelectedCreateRecord(null);
       setSelectedFormReference(null);
+      setSelectedContainer(null);
       
       // Route to appropriate config panel based on node type
       switch (node.type) {
@@ -1882,6 +1889,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           console.log('[UnifiedFlowEditor] Opening FormStep modal');
           setSelectedFormStep(node);
           setFormStepModalOpen(true);
+          break;
+        
+        case 'formMultiStepContainer':
+          console.log('[UnifiedFlowEditor] Opening Container modal');
+          setSelectedContainer(node);
+          setContainerModalOpen(true);
           break;
           
         case 'formReference':
@@ -1938,12 +1951,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSelectedDocument(null);
       setSelectedCreateRecord(null);
       setSelectedFormReference(null);
+      setSelectedContainer(null);
       setFormStepModalOpen(false);
       setFormFieldModalOpen(false);
       setSectionModalOpen(false);
       setDocumentModalOpen(false);
       setCreateRecordModalOpen(false);
       setFormReferenceModalOpen(false);
+      setContainerModalOpen(false);
     }
   }, []);
 
@@ -2010,6 +2025,51 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setFormStepModalOpen(false);
     setSelectedFormStep(null);
   }, [selectedFormStep, handleNodeUpdate]);
+  
+  // Convert node data to ContainerData format (Phase 4.3)
+  const convertNodeDataToContainerData = useCallback((node: Node): ContainerData | undefined => {
+    if (!node.data) return undefined;
+    
+    return {
+      workflowId: node.data.tenantWorkFormId,
+      containerName: node.data.containerName || node.data.label || 'Unnamed Container',
+      containerDescription: node.data.containerDescription,
+      mode: node.data.tenantWorkFormId ? 'existing' : 'new',
+      showProgressIndicator: node.data.showProgressIndicator ?? true,
+      allowBackNavigation: node.data.allowBackNavigation ?? true,
+      allowSkipSteps: node.data.allowSkipSteps ?? false,
+      autoAdvance: node.data.autoAdvance ?? false,
+      confirmOnExit: node.data.confirmOnExit ?? true,
+    };
+  }, []);
+  
+  // Handle container modal save (Phase 4.3)
+  const handleContainerSave = useCallback((containerData: ContainerData) => {
+    if (!selectedContainer) return;
+    
+    console.log('[UnifiedFlowEditor] Saving Container:', containerData);
+    
+    // Update node data with container configuration
+    const updatedNodeData = {
+      ...selectedContainer.data,
+      tenantWorkFormId: containerData.workflowId,
+      containerName: containerData.containerName,
+      containerDescription: containerData.containerDescription,
+      label: containerData.containerName,
+      mode: containerData.mode,
+      showProgressIndicator: containerData.showProgressIndicator,
+      allowBackNavigation: containerData.allowBackNavigation,
+      allowSkipSteps: containerData.allowSkipSteps,
+      autoAdvance: containerData.autoAdvance,
+      confirmOnExit: containerData.confirmOnExit,
+      // Visual metadata for the node
+      configured: true,
+    };
+    
+    handleNodeUpdate(selectedContainer.id, updatedNodeData);
+    setContainerModalOpen(false);
+    setSelectedContainer(null);
+  }, [selectedContainer, handleNodeUpdate]);
   
   // Get previous step fields for conditional logic
   const getPreviousStepFields = useCallback((currentNodeId: string) => {
@@ -2815,6 +2875,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onSave={handleEntityFormStepSave}
         initialData={selectedFormStep ? convertNodeDataToFormStepData(selectedFormStep) : undefined}
         nodeId={selectedFormStep?.id}
+      />
+      
+      {/* FormMultiStepContainer Configuration Modal (Phase 4.3) */}
+      <FormMultiStepContainerModal
+        isOpen={containerModalOpen && !!selectedContainer}
+        onClose={() => {
+          setContainerModalOpen(false);
+          setSelectedContainer(null);
+        }}
+        onSave={handleContainerSave}
+        initialData={selectedContainer ? convertNodeDataToContainerData(selectedContainer) : undefined}
+        nodeId={selectedContainer?.id}
       />
       
       {/* FormField Configuration Modal - Direct Selection (Phase 1 of Navigation Fix Plan) */}
