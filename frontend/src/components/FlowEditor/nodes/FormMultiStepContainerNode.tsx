@@ -295,7 +295,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
       customContent={
         <ContainerWrapper 
           isExpanded={isExpanded}
-          className={selected ? 'selected' : ''}
+          className={`${selected ? 'selected' : ''} ${data.isDropTarget ? 'drag-over' : ''}`}
         >
           <ContainerHeader onClick={handleHeaderClick}>
             <ExpandIcon>

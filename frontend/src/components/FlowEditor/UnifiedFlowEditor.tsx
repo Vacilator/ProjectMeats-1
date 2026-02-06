@@ -1364,6 +1364,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragNodeType, setDragNodeType] = useState<string | null>(null);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredContainerId, setHoveredContainerId] = useState<string | null>(null); // Phase E: Drop zone feedback
+  
+  // Phase E: Update container nodes with hover state for visual feedback
+  useEffect(() => {
+    if (isDragging) {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.type === 'formMultiStepContainer') {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: n.id === hoveredContainerId,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    }
+  }, [hoveredContainerId, isDragging, setNodes]);
   
   // Alignment guides state
   const [alignmentGuides, setAlignmentGuides] = useState<{
@@ -1943,7 +1964,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Detect nearby node for auto-connect
     const nearby = findNearbyNode(snappedPosition);
     setNearbyNode(nearby);
-  }, [reactFlowInstance, detectAlignment, findNearbyNode]);
+    
+    // Phase E: Detect if hovering over a container for visual feedback
+    const hoveredContainer = findContainerAtPosition(snappedPosition);
+    setHoveredContainerId(hoveredContainer?.id || null);
+  }, [reactFlowInstance, detectAlignment, findNearbyNode, findContainerAtPosition]);
   
   const onDragEnd = useCallback(() => {
     // Clear drag state
@@ -1952,6 +1977,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setDragPosition(null);
     setAlignmentGuides({ horizontal: [], vertical: [] });
     setNearbyNode(null);
+    setHoveredContainerId(null); // Phase E: Clear container hover
   }, []);
 
   const onDrop = useCallback(
@@ -1978,6 +2004,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       position.x = Math.round(position.x / 15) * 15;
       position.y = Math.round(position.y / 15) * 15;
       
+      // Check if dropping into a container (Phase E)
+      const targetContainer = findContainerAtPosition(position);
+      
       // Check for nearby node to auto-connect
       const nearby = findNearbyNode(position);
 
@@ -1992,9 +2021,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         },
       };
       
+      // If dropping into a container, set up parent-child relationship (Phase E)
+      if (targetContainer) {
+        // Convert position to be relative to parent container
+        newNode.position = {
+          x: position.x - targetContainer.position.x,
+          y: position.y - targetContainer.position.y,
+        };
+        newNode.parentNode = targetContainer.id;
+        newNode.extent = 'parent'; // Constrain movement to parent bounds
+        
+        console.log(`[Container] New node ${newNode.id} added to container ${targetContainer.id}`);
+      }
+      
       const updatedNodes = nodes.concat(newNode);
       setNodes(updatedNodes);
       setNodeIdCounter((prev) => prev + 1);
+      
+      // Update container stats if node was added to a container
+      if (targetContainer) {
+        updateContainerStats(targetContainer.id);
+      }
       
       // Auto-connect to nearby node if found
       let updatedEdges = edges;
@@ -2012,7 +2059,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Clear nearby node state
       setNearbyNode(null);
     },
-    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, findNearbyNode, setEdges]
+    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, findNearbyNode, setEdges, findContainerAtPosition]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -2050,42 +2097,68 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes]);
   
   /**
-   * Handle node drag stop - check if node was dropped in/out of container
+   * Handle node drag stop - check if node was dropped in/out of container (Phase E)
    */
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
-    const container = findContainerAtPosition(node.position);
+    // Calculate absolute position (in case node is inside a parent)
+    const absolutePosition = node.parentNode
+      ? {
+          x: node.position.x + (nodes.find(n => n.id === node.parentNode)?.position.x || 0),
+          y: node.position.y + (nodes.find(n => n.id === node.parentNode)?.position.y || 0),
+        }
+      : node.position;
     
-    // Check if node's container status changed
-    const currentContainerId = node.data?.containerNodeId;
-    const newContainerId = container?.id || null;
+    const container = findContainerAtPosition(absolutePosition);
     
-    if (currentContainerId !== newContainerId) {
-      // Update node's containerNodeId
+    // Check if node's parent container changed
+    const currentParentId = node.parentNode;
+    const newParentId = container?.id || null;
+    
+    // Prevent containers from being nested in other containers
+    if (node.type === 'formMultiStepContainer' && newParentId) {
+      console.log('[Container] Cannot nest containers inside containers');
+      return;
+    }
+    
+    if (currentParentId !== newParentId) {
       setNodes((nds) =>
         nds.map((n) => {
           if (n.id === node.id) {
-            const updatedData = { ...n.data };
+            const updatedNode = { ...n };
             
-            if (newContainerId) {
-              updatedData.containerNodeId = newContainerId;
-              console.log(`[Container] Node ${node.id} added to container ${newContainerId}`);
-            } else {
-              delete updatedData.containerNodeId;
+            if (newParentId) {
+              // Node is being added to a container
+              const containerNode = nds.find(cn => cn.id === newParentId);
+              if (containerNode) {
+                // Convert position to be relative to parent
+                updatedNode.position = {
+                  x: absolutePosition.x - containerNode.position.x,
+                  y: absolutePosition.y - containerNode.position.y,
+                };
+                updatedNode.parentNode = newParentId;
+                updatedNode.extent = 'parent';
+                console.log(`[Container] Node ${node.id} added to container ${newParentId}`);
+              }
+            } else if (currentParentId) {
+              // Node is being removed from container
+              updatedNode.position = absolutePosition;
+              delete updatedNode.parentNode;
+              delete updatedNode.extent;
               console.log(`[Container] Node ${node.id} removed from container`);
             }
             
-            return { ...n, data: updatedData };
+            return updatedNode;
           }
           return n;
         })
       );
       
-      // Update container's node count
-      if (newContainerId) {
-        updateContainerStats(newContainerId);
+      // Update container stats
+      if (newParentId) {
+        updateContainerStats(newParentId);
       }
-      if (currentContainerId) {
-        updateContainerStats(currentContainerId);
+      if (currentParentId) {
+        updateContainerStats(currentParentId);
       }
       
       setHasUnsavedChanges(true);
@@ -2093,12 +2166,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, findContainerAtPosition, setNodes]);
   
   /**
-   * Update container node statistics
+   * Update container node statistics (Phase E - Updated for parentNode)
    */
   const updateContainerStats = useCallback((containerId: string) => {
     setNodes((nds) => {
-      // Count nodes in this container
-      const childNodes = nds.filter(n => n.data?.containerNodeId === containerId);
+      // Count nodes in this container using React Flow's parentNode property
+      const childNodes = nds.filter(n => n.parentNode === containerId);
       const nodeTypeBreakdown: Record<string, number> = {};
       const formReferences: string[] = [];
       
