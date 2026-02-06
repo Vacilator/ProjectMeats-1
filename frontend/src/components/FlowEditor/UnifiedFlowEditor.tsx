@@ -70,6 +70,7 @@ import {
   AlignEndVertical,
   AlignCenterHorizontal,
   AlignCenterVertical,
+  X,
 } from 'lucide-react';
 
 import {
@@ -137,6 +138,108 @@ const EditorContainer = styled.div`
   border-radius: var(--radius-lg);
   overflow: hidden;
   position: relative;
+`;
+
+// ============================================================================
+// Deprecation Banner Components (Phase 6.1)
+// ============================================================================
+
+const DeprecationBanner = styled.div`
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: calc(100% - 40px);
+  max-width: 800px;
+  background: rgb(255, 243, 205);
+  border: 1px solid rgb(234, 179, 8);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.3s ease-out;
+  
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+`;
+
+const BannerIcon = styled.div`
+  flex-shrink: 0;
+  color: rgb(234, 179, 8);
+  display: flex;
+  align-items: center;
+`;
+
+const BannerContent = styled.div`
+  flex: 1;
+`;
+
+const BannerTitle = styled.div`
+  font-weight: 600;
+  font-size: 14px;
+  color: rgb(120, 53, 15);
+  margin-bottom: 4px;
+`;
+
+const BannerMessage = styled.div`
+  font-size: 13px;
+  color: rgb(146, 64, 14);
+  line-height: 1.4;
+`;
+
+const BannerActions = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+const MigrateButton = styled.button`
+  padding: 6px 12px;
+  background: rgb(234, 179, 8);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  
+  &:hover {
+    background: rgb(202, 138, 4);
+  }
+`;
+
+const CloseButton = styled.button`
+  padding: 4px;
+  background: transparent;
+  color: rgb(146, 64, 14);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease;
+  
+  &:hover {
+    opacity: 0.7;
+  }
+  
+  svg {
+    width: 18px;
+    height: 18px;
+  }
 `;
 
 // ============================================================================
@@ -1049,6 +1152,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []); // Only run on mount
 
   // ============================================================================
+  // Deprecated Node Detection (Phase 6.1)
+  // ============================================================================
+  
+  /**
+   * Detect deprecated nodes in the workflow
+   * - formField: Old individual field node (replaced by formStep)
+   * - formSection: Old section node (replaced by formStep)
+   */
+  useEffect(() => {
+    const DEPRECATED_TYPES = ['formField', 'formSection'];
+    const foundDeprecated = nodes.filter(node => DEPRECATED_TYPES.includes(node.type || ''));
+    
+    if (foundDeprecated.length > 0) {
+      const uniqueTypes = [...new Set(foundDeprecated.map(n => n.type))];
+      setHasDeprecatedNodes(true);
+      setDeprecatedNodeTypes(uniqueTypes as string[]);
+      console.log('[Phase 6] Deprecated nodes detected:', uniqueTypes, foundDeprecated.length);
+    } else {
+      setHasDeprecatedNodes(false);
+      setDeprecatedNodeTypes([]);
+    }
+  }, [nodes]);
+
+  // ============================================================================
   // Editor Mode State & Filtering
   // ============================================================================
   
@@ -1204,6 +1331,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Preview panel (Phase 5.1)
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  
+  // Deprecated node detection (Phase 6.1)
+  const [hasDeprecatedNodes, setHasDeprecatedNodes] = useState(false);
+  const [deprecatedNodeTypes, setDeprecatedNodeTypes] = useState<string[]>([]);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
@@ -2470,6 +2602,79 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   ]);
 
   // ============================================================================
+  // Deprecated Node Migration (Phase 6.4)
+  // ============================================================================
+  
+  /**
+   * Migrate deprecated nodes to modern equivalents
+   * - formField → formStep with single field
+   * - formSection → formStep with section styling
+   */
+  const handleMigrateDeprecatedNodes = useCallback(() => {
+    console.log('[Phase 6] Starting migration of deprecated nodes...');
+    
+    const DEPRECATED_TYPES = ['formField', 'formSection'];
+    const nodesToMigrate = nodes.filter(node => DEPRECATED_TYPES.includes(node.type || ''));
+    
+    if (nodesToMigrate.length === 0) {
+      console.log('[Phase 6] No deprecated nodes to migrate');
+      return;
+    }
+    
+    const newNodes = nodes.map(node => {
+      if (!DEPRECATED_TYPES.includes(node.type || '')) {
+        return node; // Keep non-deprecated nodes as-is
+      }
+      
+      console.log(`[Phase 6] Migrating ${node.type} node:`, node.id);
+      
+      // Convert to formStep
+      if (node.type === 'formField') {
+        // Single field → formStep with one field
+        return {
+          ...node,
+          type: 'formStep',
+          data: {
+            ...node.data,
+            label: node.data?.label || 'Migrated Step',
+            description: node.data?.description || 'Migrated from old form field',
+            fields: node.data?.field ? [node.data.field] : [],
+            _migrated: true,
+            _originalType: 'formField',
+          },
+        };
+      }
+      
+      if (node.type === 'formSection') {
+        // Section → formStep with section header
+        return {
+          ...node,
+          type: 'formStep',
+          data: {
+            ...node.data,
+            label: node.data?.label || 'Migrated Section',
+            description: node.data?.description || 'Migrated from old form section',
+            fields: node.data?.fields || [],
+            showSectionHeader: true,
+            _migrated: true,
+            _originalType: 'formSection',
+          },
+        };
+      }
+      
+      return node;
+    });
+    
+    setNodes(newNodes);
+    setBannerDismissed(true);
+    
+    console.log(`[Phase 6] Migration complete: ${nodesToMigrate.length} nodes migrated`);
+    
+    // Show success message
+    alert(`Successfully migrated ${nodesToMigrate.length} deprecated node(s) to modern format!\n\nPlease review the migrated nodes and save your workflow.`);
+  }, [nodes, setNodes]);
+
+  // ============================================================================
   // Node Selection & Configuration
   // ============================================================================
 
@@ -2886,6 +3091,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   return (
     <EditorContainer>
+      {/* Deprecation Banner (Phase 6.1) */}
+      {hasDeprecatedNodes && !bannerDismissed && (
+        <DeprecationBanner>
+          <BannerIcon>
+            <AlertCircle size={20} />
+          </BannerIcon>
+          <BannerContent>
+            <BannerTitle>Deprecated Nodes Detected</BannerTitle>
+            <BannerMessage>
+              This workflow contains {nodes.filter(n => ['formField', 'formSection'].includes(n.type || '')).length} deprecated node(s) 
+              ({deprecatedNodeTypes.join(', ')}). Click "Migrate Now" to update to the modern format.
+            </BannerMessage>
+          </BannerContent>
+          <BannerActions>
+            <MigrateButton onClick={handleMigrateDeprecatedNodes}>
+              Migrate Now
+            </MigrateButton>
+            <CloseButton onClick={() => setBannerDismissed(true)} title="Dismiss">
+              <X />
+            </CloseButton>
+          </BannerActions>
+        </DeprecationBanner>
+      )}
+      
       {/* Node Palette - Visual & Expert Modes Only */}
       {!readOnly && isPaletteVisible && (activeEditorMode === 'visual' || activeEditorMode === 'expert') && (
         <NodePalette>
