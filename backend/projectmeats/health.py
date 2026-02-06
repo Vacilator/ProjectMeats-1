@@ -1,6 +1,8 @@
 """
 Health check views for ProjectMeats API.
 Provides endpoints for monitoring application health and status.
+
+Updated: 2026-02-06 - Force backend container restart for entity_views deployment
 """
 
 import psutil
