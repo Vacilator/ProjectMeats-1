@@ -873,6 +873,96 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // React Flow instance for viewport controls
   const reactFlowInstance = useReactFlow();
+  
+  // ============================================================================
+  // Container State Restoration (Phase 4 Batch 5)
+  // ============================================================================
+  
+  /**
+   * Rebuild container statistics when workflow is loaded
+   * This ensures container nodes show correct counts even if statistics
+   * weren't persisted or became stale. Also cleans up orphaned nodes.
+   */
+  useEffect(() => {
+    if (initialNodes && initialNodes.length > 0) {
+      // Find all container nodes
+      const containerNodes = initialNodes.filter(
+        n => n.type === 'formMultiStepContainer'
+      );
+      
+      const containerIds = new Set(containerNodes.map(c => c.id));
+      
+      // Check for orphaned nodes (containerNodeId pointing to non-existent container)
+      const orphanedNodes = initialNodes.filter(
+        n => n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)
+      );
+      
+      if (orphanedNodes.length > 0) {
+        console.warn(
+          `[Container Restore] Found ${orphanedNodes.length} orphaned nodes (referencing missing containers)`,
+          orphanedNodes.map(n => n.id)
+        );
+        
+        // Clean up orphaned nodes by removing their containerNodeId
+        setNodes((nds) => nds.map(n => {
+          if (n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)) {
+            const cleanedData = { ...n.data };
+            delete cleanedData.containerNodeId;
+            console.log(`[Container Restore] Cleaned orphaned node ${n.id}`);
+            return { ...n, data: cleanedData };
+          }
+          return n;
+        }));
+      }
+      
+      if (containerNodes.length > 0) {
+        console.log(`[Container Restore] Found ${containerNodes.length} containers, rebuilding statistics...`);
+        
+        // Rebuild statistics for each container
+        containerNodes.forEach(container => {
+          // Count child nodes
+          const childNodes = initialNodes.filter(
+            n => n.data?.containerNodeId === container.id
+          );
+          
+          const nodeTypeBreakdown: Record<string, number> = {};
+          const formReferences: string[] = [];
+          
+          childNodes.forEach(node => {
+            const nodeType = node.type || 'unknown';
+            nodeTypeBreakdown[nodeType] = (nodeTypeBreakdown[nodeType] || 0) + 1;
+            
+            // Collect form references
+            if (node.data?.formId) {
+              formReferences.push(node.data.formId);
+            }
+            if (node.data?.tenantFormId) {
+              formReferences.push(node.data.tenantFormId);
+            }
+          });
+          
+          // Update container data
+          setNodes((nds) => nds.map(n => {
+            if (n.id === container.id) {
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  nodeCount: childNodes.length,
+                  nodeTypeBreakdown,
+                  formReferences: [...new Set(formReferences)],
+                  childNodes: childNodes.map(c => c.id),
+                },
+              };
+            }
+            return n;
+          }));
+          
+          console.log(`[Container Restore] Container ${container.id}: ${childNodes.length} nodes`);
+        });
+      }
+    }
+  }, []); // Only run on mount
 
   // ============================================================================
   // Editor Mode State & Filtering
@@ -1827,6 +1917,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   const handleSave = useCallback(() => {
     if (onSave) {
+      // Log container information for debugging
+      const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
+      const nodesInContainers = nodes.filter(n => n.data?.containerNodeId);
+      
+      console.log('[Save] Workflow saved with container state:');
+      console.log(`  - ${containerNodes.length} container(s)`);
+      console.log(`  - ${nodesInContainers.length} node(s) in containers`);
+      
+      if (containerNodes.length > 0) {
+        containerNodes.forEach(container => {
+          const childNodes = nodes.filter(n => n.data?.containerNodeId === container.id);
+          console.log(`  - Container ${container.id}: ${childNodes.length} nodes`);
+        });
+      }
+      
       onSave(nodes, edges);
       console.log('Flow saved successfully!');
     }
