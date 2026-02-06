@@ -41,7 +41,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomIn, ZoomOut, Wand2, Eye, Code2, Download, Upload, CheckCircle, AlertCircle, Copy, ArrowRight, Sparkles, Plus } from 'lucide-react';
+import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, Minimize2, ZoomIn, ZoomOut, Wand2, Eye, Code2, Download, Upload, CheckCircle, AlertCircle, Copy, ArrowRight, Sparkles, Plus } from 'lucide-react';
 
 import {
   FormStepNode,
@@ -756,7 +756,7 @@ const ViewportToolbar = styled.div`
   right: 12px;
   display: flex;
   gap: 8px;
-  z-index: 5;
+  z-index: 15; /* Increased from 5 to ensure visibility above other elements */
 `;
 
 const ViewportButton = styled.button`
@@ -894,6 +894,45 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       localStorage.setItem('flow_editor_mode', internalEditorMode);
     }
   }, [internalEditorMode, editorMode]);
+  
+  // ============================================================================
+  // Fullscreen State & Handlers (Phase 0: WF-ENH-2026-Q1)
+  // ============================================================================
+  
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('workforms_fullscreen_enabled');
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  });
+  
+  const toggleFullscreen = useCallback(() => {
+    if (!isFullscreen) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+      localStorage.setItem('workforms_fullscreen_enabled', 'true');
+    } else {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+      setIsFullscreen(false);
+      localStorage.setItem('workforms_fullscreen_enabled', 'false');
+    }
+  }, [isFullscreen]);
+  
+  // Listen for fullscreen changes (e.g., ESC key)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isCurrentlyFullscreen);
+      localStorage.setItem('workforms_fullscreen_enabled', isCurrentlyFullscreen ? 'true' : 'false');
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
   
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
@@ -2322,6 +2361,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* Viewport Controls */}
       <ViewportToolbar>
+        <ViewportButton onClick={toggleFullscreen} title={isFullscreen ? "Exit Fullscreen (ESC)" : "Enter Fullscreen"}>
+          {isFullscreen ? <Minimize2 /> : <Maximize2 />}
+        </ViewportButton>
+        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton onClick={fitView} title="Fit to View (F)">
           <Maximize2 />
         </ViewportButton>
