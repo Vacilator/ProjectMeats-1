@@ -19,7 +19,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Wand2, Eye, Code2, Lock } from 'lucide-react';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
-import { adminClient } from '../../services/apiService';
+import { apiClient } from '../../services/apiService';
 import { useWorkFormPermissions, canUseEditorMode, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
 // ============================================================================
@@ -303,7 +303,7 @@ export const WorkFormsEditor: React.FC = () => {
   const { data: existingForm, isLoading: isLoadingForm } = useQuery<TenantForm>({
     queryKey: ['tenant-form', id],
     queryFn: async () => {
-      const response = await adminClient.get(`/workflows/forms/${id}/`);
+      const response = await apiClient.get(`/workflows/forms/${id}/`);
       return response.data;
     },
     enabled: !!id,
@@ -367,11 +367,11 @@ export const WorkFormsEditor: React.FC = () => {
 
       if (id) {
         // Update existing
-        const response = await adminClient.put(`/workflows/forms/${id}/`, payload);
+        const response = await apiClient.put(`/workflows/forms/${id}/`, payload);
         return response.data;
       } else {
         // Create new
-        const response = await adminClient.post('/workflows/forms/', payload);
+        const response = await apiClient.post('/workflows/forms/', payload);
         return response.data;
       }
     },
@@ -413,7 +413,7 @@ export const WorkFormsEditor: React.FC = () => {
       if (!id) {
         throw new Error('Cannot publish unsaved form');
       }
-      const response = await adminClient.patch(`/api/v1/workflows/forms/${id}/`, {
+      const response = await apiClient.patch(`/workflows/forms/${id}/`, {
         status: 'active',
       });
       return response.data;
