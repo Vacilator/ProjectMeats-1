@@ -1994,26 +1994,56 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
     const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
     
+    console.log('[Container DEBUG] =================================');
+    console.log('[Container DEBUG] Looking for containers at position:', position);
+    console.log('[Container DEBUG] Total container nodes found:', containerNodes.length);
+    
+    if (containerNodes.length === 0) {
+      console.log('[Container DEBUG] NO CONTAINERS on canvas!');
+      return null;
+    }
+    
     for (const container of containerNodes) {
       // Get actual container dimensions from the node's measured size or use defaults
       const containerWidth = container.width || container.style?.width || 400;
       const containerHeight = container.height || container.style?.height || 300;
       
+      console.log(`[Container DEBUG] Checking container ${container.id}:`);
+      console.log(`  - Position: (${container.position.x}, ${container.position.y})`);
+      console.log(`  - Dimensions: ${containerWidth}x${containerHeight}`);
+      console.log(`  - Width from: ${container.width ? 'measured' : container.style?.width ? 'style' : 'default'}`);
+      console.log(`  - Height from: ${container.height ? 'measured' : container.style?.height ? 'style' : 'default'}`);
+      
       // Add some padding to make it easier to drop into container
       const padding = 20;
       
+      const bounds = {
+        left: container.position.x - padding,
+        right: container.position.x + containerWidth + padding,
+        top: container.position.y - padding,
+        bottom: container.position.y + containerHeight + padding,
+      };
+      
+      console.log(`  - Bounds (with ${padding}px padding):`, bounds);
+      console.log(`  - Test position:`, position);
+      console.log(`  - X in bounds? ${position.x >= bounds.left && position.x <= bounds.right}`);
+      console.log(`  - Y in bounds? ${position.y >= bounds.top && position.y <= bounds.bottom}`);
+      
       const isInside = 
-        position.x >= container.position.x - padding &&
-        position.x <= container.position.x + containerWidth + padding &&
-        position.y >= container.position.y - padding &&
-        position.y <= container.position.y + containerHeight + padding;
+        position.x >= bounds.left &&
+        position.x <= bounds.right &&
+        position.y >= bounds.top &&
+        position.y <= bounds.bottom;
+      
+      console.log(`  - Result: ${isInside ? 'INSIDE ✅' : 'OUTSIDE ❌'}`);
       
       if (isInside) {
-        console.log(`[Container] Position (${position.x}, ${position.y}) is inside container ${container.id}`);
+        console.log(`[Container DEBUG] ✅ Position IS INSIDE container ${container.id}`);
         return container;
       }
     }
     
+    console.log('[Container DEBUG] ❌ Position not inside any container');
     return null;
   }, [nodes]);
   
