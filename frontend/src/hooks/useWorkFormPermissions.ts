@@ -14,7 +14,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { adminClient } from '../services/apiService';
+import { apiClient } from '../services/apiService';
 
 export interface WorkFormPermissions {
   can_create: boolean;
@@ -39,7 +39,7 @@ export function useWorkFormPermissions() {
     queryFn: async () => {
       console.log('[useWorkFormPermissions] Fetching permissions...');
       try {
-        const response = await adminClient.get('/workflows/permissions/');
+        const response = await apiClient.get('/workflows/permissions/');
         console.log('[useWorkFormPermissions] SUCCESS - Response:', response.data);
         return response.data;
       } catch (error: any) {
