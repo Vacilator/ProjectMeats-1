@@ -2,17 +2,19 @@
  * Form Multi-Step Container Node Component
  * 
  * Container node that groups multiple workflow nodes (forms, actions, conditions)
- * into a sequential flow. Displays child node statistics and provides expand/collapse.
+ * into a sequential flow. Displays child nodes in a nested React Flow canvas.
  * 
  * Phase 4.2 of WF-ENH-2026-Q1
  * Created: 2026-02-06
+ * Updated: 2026-02-07 - Implemented nested React Flow architecture
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
-import { NodeProps } from '@xyflow/react';
+import { NodeProps, Node, Edge } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
-import { ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Maximize2, Minimize2, LogIn, ZoomIn } from 'lucide-react';
+import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -21,13 +23,17 @@ import { ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 export interface ContainerNodeData extends BaseNodeData {
   containerName?: string;
   containerDescription?: string;
-  childNodes?: string[]; // Array of node IDs contained in this container
+  childNodes?: Node[]; // Array of child nodes stored IN this container
+  childEdges?: Edge[]; // Array of edges between child nodes
   isExpanded?: boolean;
   showProgressIndicator?: boolean;
   allowBackNavigation?: boolean;
   allowSkipSteps?: boolean;
   tenantFormId?: string; // If container represents a multi-step form
   tenantWorkFormId?: string; // If container is a saved workflow
+  
+  // Callbacks for parent communication
+  onEnterContainer?: (containerId: string) => void;
   
   // Statistics (auto-calculated)
   nodeCount?: number;
@@ -247,6 +253,45 @@ const ConfigButton = styled.button`
   }
 `;
 
+const EnterButton = styled.button`
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: rgba(59, 130, 246, 0.15);
+  color: rgb(59, 130, 246);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const MiniFlowWrapper = styled.div`
+  margin-top: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -262,17 +307,30 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   
   // Calculate statistics
   const stats = useMemo(() => {
-    const nodeCount = data.nodeCount || data.childNodes?.length || 0;
-    const nodeTypes = data.nodeTypeBreakdown || {};
-    const formRefs = data.formReferences?.length || 0;
+    const childNodes = data.childNodes || [];
+    const nodeCount = childNodes.length;
+    const nodeTypes: Record<string, number> = {};
+    const formRefs = new Set<string>();
+    
+    childNodes.forEach(node => {
+      const nodeType = node.type || 'unknown';
+      nodeTypes[nodeType] = (nodeTypes[nodeType] || 0) + 1;
+      
+      // Track form references
+      if (node.data?.tenantFormId) {
+        formRefs.add(node.data.tenantFormId);
+      }
+    });
     
     return {
       nodeCount,
       nodeTypes,
-      formRefs,
-      hasNodes: nodeCount > 0
+      formRefs: formRefs.size,
+      hasNodes: nodeCount > 0,
+      childNodes,
+      childEdges: data.childEdges || [],
     };
-  }, [data.nodeCount, data.childNodes, data.nodeTypeBreakdown, data.formReferences]);
+  }, [data.childNodes, data.childEdges]);
   
   const isConfigured = data.configured || stats.hasNodes;
   
@@ -285,6 +343,23 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
     e.stopPropagation();
     // This will be handled by UnifiedFlowEditor's onNodeClick handler
   };
+  
+  const handleEnterContainer = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data.onEnterContainer) {
+      data.onEnterContainer(id);
+    }
+  }, [id, data]);
+  
+  const handleNodesChange = useCallback((updatedNodes: Node[]) => {
+    // TODO: Propagate changes back to parent
+    console.log('[Container] Child nodes changed:', updatedNodes);
+  }, []);
+  
+  const handleEdgesChange = useCallback((updatedEdges: Edge[]) => {
+    // TODO: Propagate changes back to parent
+    console.log('[Container] Child edges changed:', updatedEdges);
+  }, []);
   
   // Get node type statistics for display
   const nodeTypeEntries = Object.entries(stats.nodeTypes).sort((a, b) => b[1] - a[1]);
@@ -351,6 +426,18 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                     </SummaryRow>
                   )}
                   
+                  {/* Mini React Flow Canvas */}
+                  <MiniFlowWrapper>
+                    <MiniReactFlow
+                      nodes={stats.childNodes}
+                      edges={stats.childEdges}
+                      onNodesChange={handleNodesChange}
+                      onEdgesChange={handleEdgesChange}
+                      readOnly={false}
+                      containerHeight={250}
+                    />
+                  </MiniFlowWrapper>
+                  
                   {nodeTypeEntries.length > 0 && (
                     <>
                       <div style={{ marginTop: '12px', marginBottom: '8px' }}>
@@ -359,7 +446,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                         </span>
                       </div>
                       <NodeTypeGrid>
-                        {nodeTypeEntries.map(([type, count]) => (
+                        {nodeTypeEntries.slice(0, 4).map(([type, count]) => (
                           <NodeTypeCard key={type}>
                             <div className="type-name">{type.replace(/([A-Z])/g, ' $1').trim()}</div>
                             <div className="type-count">{count}</div>
@@ -368,6 +455,11 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                       </NodeTypeGrid>
                     </>
                   )}
+                  
+                  <EnterButton onClick={handleEnterContainer}>
+                    <LogIn />
+                    Enter Container to Edit
+                  </EnterButton>
                   
                   <ConfigButton onClick={handleConfigClick}>
                     Configure Container

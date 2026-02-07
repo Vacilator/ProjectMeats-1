@@ -2142,34 +2142,65 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           width: 400,
           height: 300,
         };
-      }
-      
-      // If dropping into a container, set up parent-child relationship (Phase E)
-      if (targetContainer) {
-        // Convert position to be relative to parent container
-        newNode.position = {
-          x: position.x - targetContainer.position.x,
-          y: position.y - targetContainer.position.y,
+        newNode.data = {
+          ...newNode.data,
+          childNodes: [],
+          childEdges: [],
+          onEnterContainer: (containerId: string) => {
+            console.log(`[Container] onEnterContainer callback triggered for ${containerId}`);
+            // This will be handled by the parent editor
+          },
         };
-        newNode.parentNode = targetContainer.id;
-        newNode.extent = 'parent'; // Constrain movement to parent bounds
-        newNode.expandParent = true; // Allow container to expand to fit children
-        
-        console.log(`[Container] New node ${newNode.id} added to container ${targetContainer.id}`);
       }
       
+      // If dropping into a container, add to container's internal nodes (Phase E - Nested Flow)
+      if (targetContainer) {
+        console.log(`[Container] Adding node to container ${targetContainer.id}'s internal nodes`);
+        
+        // Don't prevent containers from being nested - just handle it differently
+        if (type === 'formMultiStepContainer') {
+          console.log('[Container] WARNING: Nesting containers (allowed but may be confusing)');
+        }
+        
+        // Update the container node to include this new node in its childNodes
+        const updatedNodes = nodes.map(n => {
+          if (n.id === targetContainer.id) {
+            const currentChildNodes = (n.data.childNodes as Node[]) || [];
+            const newChildNode = {
+              ...newNode,
+              // Position is relative to drop position
+              position: {
+                x: position.x - targetContainer.position.x,
+                y: position.y - targetContainer.position.y,
+              },
+            };
+            
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                childNodes: [...currentChildNodes, newChildNode],
+                nodeCount: currentChildNodes.length + 1,
+              },
+            };
+          }
+          return n;
+        });
+        
+        setNodes(updatedNodes);
+        setNodeIdCounter((prev) => prev + 1);
+        console.log(`[Container] Node ${newNode.id} added to container ${targetContainer.id} (now has ${(targetContainer.data.childNodes as Node[] || []).length + 1} children)`);
+        return; // Don't add to main canvas
+      }
+      
+      // Normal drop on main canvas
       const updatedNodes = nodes.concat(newNode);
       setNodes(updatedNodes);
       setNodeIdCounter((prev) => prev + 1);
       
-      // Update container stats if node was added to a container
-      if (targetContainer) {
-        updateContainerStats(targetContainer.id);
-      }
-      
-      // Auto-connect to nearby node if found
+      // Auto-connect to nearby node if found (only for main canvas drops)
       let updatedEdges = edges;
-      if (nearby) {
+      if (nearby && !targetContainer) {
         const newEdge = {
           id: `edge-${nearby.id}-${newNode.id}`,
           source: nearby.id,
