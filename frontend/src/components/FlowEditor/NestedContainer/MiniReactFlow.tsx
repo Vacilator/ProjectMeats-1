@@ -5,6 +5,7 @@
  * Shows child nodes in a mini canvas within the container body.
  * 
  * Created: 2026-02-07
+ * Updated: 2026-02-07 - Fixed circular dependency by using individual imports
  */
 import React, { useCallback } from 'react';
 import styled from 'styled-components';
@@ -22,18 +23,19 @@ import {
   addEdge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import {
-  FormStepNode,
-  FormReferenceNode,
-  TriggerNode,
-  ConditionIfNode,
-  ActionNode,
-  WaitStateNode,
-  DocumentNode,
-  UtilityNode,
-  TerminalNode,
-} from '../nodes';
-import { CustomEdge } from '../edges';
+
+// Import nodes individually to avoid circular dependency
+// (FormMultiStepContainerNode imports MiniReactFlow, so we can't import from index)
+import { FormStepNode } from '../nodes/FormStepNode';
+import { FormReferenceNode } from '../nodes/FormReferenceNode';
+import { TriggerNode } from '../nodes/TriggerNode';
+import { ConditionIfNode } from '../nodes/ConditionIfNode';
+import { ActionNode } from '../nodes/ActionNode';
+import { WaitStateNode } from '../nodes/WaitStateNode';
+import { DocumentNode } from '../nodes/DocumentNode';
+import { UtilityNode } from '../nodes/UtilityNode';
+import { TerminalNode } from '../nodes/TerminalNode';
+import { CustomEdge } from '../edges/CustomEdge';
 
 // ============================================================================
 // TypeScript Interfaces
