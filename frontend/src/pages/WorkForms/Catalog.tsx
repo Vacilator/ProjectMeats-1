@@ -194,14 +194,6 @@ const FormCard = styled(Card)`
   cursor: pointer;
   transition: all 0.2s;
   
-  /* Ensure all child elements allow click events to bubble up */
-  * {
-    pointer-events: none;
-  }
-  
-  /* But allow the card itself to receive clicks */
-  pointer-events: auto;
-  
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -561,8 +553,14 @@ const FormsFlowsCatalog: React.FC = () => {
       ) : viewMode === 'grid' ? (
         <GridContainer>
           {filteredForms.map((form) => (
-            <FormCard key={form.id} onClick={() => handleEditForm(form.id)}>
-              <CardContent>
+            <FormCard key={form.id}>
+              <CardContent
+                onClick={(e) => {
+                  console.log('[Catalog] CardContent CLICKED!', form.id, e);
+                  handleEditForm(form.id);
+                }}
+                style={{ cursor: 'pointer' }}
+              >
                 <FormCardHeader>
                   <FormIcon>{form.icon || '📋'}</FormIcon>
                   <FormInfo>
@@ -592,8 +590,14 @@ const FormsFlowsCatalog: React.FC = () => {
       ) : (
         <ListContainer>
           {filteredForms.map((form) => (
-            <FormCard key={form.id} onClick={() => handleEditForm(form.id)}>
-              <CardContent>
+            <FormCard key={form.id}>
+              <CardContent
+                onClick={(e) => {
+                  console.log('[Catalog] CardContent (List) CLICKED!', form.id, e);
+                  handleEditForm(form.id);
+                }}
+                style={{ cursor: 'pointer' }}
+              >
                 <FormCardHeader>
                   <FormIcon>{form.icon || '📋'}</FormIcon>
                   <FormInfo>
