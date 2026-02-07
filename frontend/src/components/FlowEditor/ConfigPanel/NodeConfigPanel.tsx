@@ -622,7 +622,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     if (triggerType === 'form' || triggerType === 'formSubmitted' || triggerType === 'recordCreated' || triggerType === 'recordUpdated') {
       setLoadingForms(true);
       // Fetch forms from API
-      axios.get('/api/v1/workforms/')
+      axios.get('/api/v1/workflows/forms/')
         .then(response => {
           setAvailableForms(response.data.results || response.data || []);
         })

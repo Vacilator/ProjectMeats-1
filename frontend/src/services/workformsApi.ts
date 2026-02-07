@@ -161,8 +161,8 @@ export const listTenantForms = async (params?: {
   type?: 'single_step' | 'multi_step';
   search?: string;
 }): Promise<TenantForm[]> => {
-  const response = await apiClient.get('/tenant-forms/', { params });
-  return response.data;
+  const response = await apiClient.get('/workflows/forms/', { params });
+  return response.data.results || response.data || [];
 };
 
 /**
@@ -182,7 +182,7 @@ export const createTenantForm = async (data: {
   type: 'single_step' | 'multi_step';
   form_definition: any;
 }): Promise<TenantForm> => {
-  const response = await apiClient.post('/tenant-forms/', data);
+  const response = await apiClient.post('/workflows/forms/', data);
   return response.data;
 };
 
@@ -223,7 +223,7 @@ export const mergeForms = async (data: {
   deleted_form_ids: string[];
   message: string;
 }> => {
-  const response = await apiClient.post('/tenant-forms/merge/', data);
+  const response = await apiClient.post('/workflows/forms/merge/', data);
   return response.data;
 };
 
@@ -243,7 +243,7 @@ export const splitForm = async (data: {
   created_form_name: string;
   message: string;
 }> => {
-  const response = await apiClient.post('/tenant-forms/split/', data);
+  const response = await apiClient.post('/workflows/forms/split/', data);
   return response.data;
 };
 
@@ -258,7 +258,7 @@ export const listTenantWorkForms = async (params?: {
   status?: 'draft' | 'active' | 'archived';
   search?: string;
 }): Promise<TenantWorkForm[]> => {
-  const response = await apiClient.get('/tenant-workforms/', { params });
+  const response = await apiClient.get('/workflows/workflows/', { params });
   return response.data;
 };
 
@@ -279,7 +279,7 @@ export const createTenantWorkForm = async (data: {
   status?: 'draft' | 'active' | 'archived';
   workflow_definition: any;
 }): Promise<TenantWorkForm> => {
-  const response = await apiClient.post('/tenant-workforms/', data);
+  const response = await apiClient.post('/workflows/workflows/', data);
   return response.data;
 };
 
