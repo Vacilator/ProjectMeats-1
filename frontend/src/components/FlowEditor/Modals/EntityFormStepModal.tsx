@@ -205,6 +205,7 @@ const ModalBody = styled.div`
   flex: 1;
   display: flex;
   overflow: hidden;
+  background: rgb(var(--color-bg-primary));
 `;
 
 const ContentArea = styled.div<{ $step: WizardStep }>`
@@ -214,6 +215,7 @@ const ContentArea = styled.div<{ $step: WizardStep }>`
   justify-content: center;
   padding: 40px;
   overflow-y: auto;
+  background: rgb(var(--color-bg-primary));
 `;
 
 const SplitLayout = styled.div<{ $visible: boolean }>`
