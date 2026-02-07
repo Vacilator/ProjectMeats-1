@@ -331,31 +331,50 @@ const FormsFlowsCatalog: React.FC = () => {
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
 
   // Fetch existing forms
-  const { data: forms, isLoading } = useQuery<TenantForm[]>({
+  const { data: forms = [], isLoading, error } = useQuery<TenantForm[]>({
     queryKey: ['tenant-forms'],
     queryFn: async () => {
-      const response = await apiClient.get('/workflows/forms/');
-      // Handle both paginated and non-paginated responses
-      const data = response.data;
-      // If paginated response with results array
-      if (data && typeof data === 'object' && 'results' in data) {
-        return data.results;
+      try {
+        const response = await apiClient.get('/workflows/forms/');
+        console.log('[Catalog] API Response:', response.data);
+        
+        // Handle both paginated and non-paginated responses
+        const data = response.data;
+        
+        // If paginated response with results array
+        if (data && typeof data === 'object' && 'results' in data) {
+          console.log('[Catalog] Returning paginated results:', data.results?.length || 0);
+          return Array.isArray(data.results) ? data.results : [];
+        }
+        
+        // If direct array response
+        if (Array.isArray(data)) {
+          console.log('[Catalog] Returning direct array:', data.length);
+          return data;
+        }
+        
+        // Fallback to empty array
+        console.warn('[Catalog] Unexpected API response format:', data);
+        return [];
+      } catch (error) {
+        console.error('[Catalog] Error fetching forms:', error);
+        return [];
       }
-      // If direct array response
-      if (Array.isArray(data)) {
-        return data;
-      }
-      // Fallback to empty array
-      console.warn('[Catalog] Unexpected API response format:', data);
-      return [];
     },
   });
+
+  // Log error if query failed
+  React.useEffect(() => {
+    if (error) {
+      console.error('[Catalog] Query error:', error);
+    }
+  }, [error]);
 
   // Filter forms based on search and filter
   const filteredForms = React.useMemo(() => {
     // Safety check: ensure forms is an array
     if (!forms || !Array.isArray(forms)) {
-      console.warn('[Catalog] Forms is not an array:', forms);
+      console.warn('[Catalog] Forms is not an array:', forms, 'isLoading:', isLoading);
       return [];
     }
     
