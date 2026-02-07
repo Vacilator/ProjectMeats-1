@@ -108,7 +108,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     category: 'form',
     icon: '📋',
     color: '#3b82f6', // blue
-    description: 'Container for multiple form fields',
+    description: 'Single step with form fields - drag INTO a multi-step container',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -152,11 +152,11 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   
   formMultiStepContainer: {
     id: 'formMultiStepContainer',
-    name: 'Form Multi-Step Container',
+    name: 'Multi-Step Container',
     category: 'form',
     icon: '📦',
     color: '#8b5cf6', // purple - distinct from regular form blue
-    description: 'Container for grouping multiple form steps and workflow nodes into a sequential flow',
+    description: 'DROP ZONE: Drag form steps and nodes here to create a multi-step flow',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,

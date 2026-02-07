@@ -141,6 +141,8 @@ const StatusBadge = styled.div<{ type: 'configured' | 'draft' }>`
 const ContainerBody = styled.div<{ isExpanded: boolean }>`
   padding: ${props => props.isExpanded ? '16px' : '12px 16px'};
   display: ${props => props.isExpanded ? 'block' : 'none'};
+  min-height: ${props => props.isExpanded ? '200px' : 'auto'};
+  min-width: 300px;
 `;
 
 const ContainerSummary = styled.div`

@@ -2105,6 +2105,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
         newNode.parentNode = targetContainer.id;
         newNode.extent = 'parent'; // Constrain movement to parent bounds
+        newNode.expandParent = true; // Allow container to expand to fit children
         
         console.log(`[Container] New node ${newNode.id} added to container ${targetContainer.id}`);
       }

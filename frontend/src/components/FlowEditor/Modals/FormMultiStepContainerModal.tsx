@@ -158,6 +158,7 @@ const ModalBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: 24px;
+  background: rgb(var(--color-bg-primary));
 `;
 
 const StepIndicator = styled.div`
