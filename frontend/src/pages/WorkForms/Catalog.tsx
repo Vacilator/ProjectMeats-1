@@ -551,48 +551,12 @@ const FormsFlowsCatalog: React.FC = () => {
           )}
         </EmptyState>
       ) : viewMode === 'grid' ? (
-        <>
-          {/* DEBUG: Test button to verify events work at all */}
-          <div style={{ 
-            background: 'red', 
-            color: 'white', 
-            padding: '20px', 
-            margin: '20px',
-            cursor: 'pointer',
-            zIndex: 9999,
-            position: 'relative'
-          }}
-          onClick={() => {
-            console.log('🔴 RED DEBUG BUTTON CLICKED!');
-            alert('Debug button works! This proves React events are working.');
-          }}
-          >
-            🔴 DEBUG BUTTON - CLICK ME TO TEST IF EVENTS WORK
-          </div>
-          
-          <GridContainer>
+        <GridContainer>
           {filteredForms.map((form) => (
             <FormCard key={form.id}>
               <CardContent
-                onClick={(e) => {
-                  console.log('[Catalog] CardContent CLICKED!', form.id, e);
-                  handleEditForm(form.id);
-                }}
-                onMouseDown={(e) => {
-                  console.log('[Catalog] CardContent MOUSE DOWN!', form.id);
-                }}
-                onMouseEnter={(e) => {
-                  console.log('[Catalog] CardContent MOUSE ENTER!', form.id);
-                }}
-                onMouseMove={(e) => {
-                  console.log('[Catalog] CardContent MOUSE MOVE!', form.id);
-                }}
-                style={{ 
-                  cursor: 'pointer',
-                  background: 'yellow',  // Make it super obvious
-                  border: '3px solid red',  // Can't miss this
-                  padding: '10px'
-                }}
+                onClick={() => handleEditForm(form.id)}
+                style={{ cursor: 'pointer' }}
               >
                 <FormCardHeader>
                   <FormIcon>{form.icon || '📋'}</FormIcon>
@@ -617,25 +581,9 @@ const FormsFlowsCatalog: React.FC = () => {
                   </StatusBadge>
                 </FormMeta>
               </CardContent>
-              
-              {/* DEBUG: Another test button inside the card */}
-              <div style={{
-                background: 'blue',
-                color: 'white',
-                padding: '10px',
-                margin: '10px',
-                cursor: 'pointer'
-              }}
-              onClick={() => {
-                console.log('🔵 BLUE BUTTON IN CARD CLICKED for form:', form.id);
-                alert('Blue button clicked for: ' + form.name);
-              }}>
-                🔵 CLICK ME (inside card)
-              </div>
             </FormCard>
           ))}
-          </GridContainer>
-        </>
+        </GridContainer>
       ) : (
         <ListContainer>
           {filteredForms.map((form) => (

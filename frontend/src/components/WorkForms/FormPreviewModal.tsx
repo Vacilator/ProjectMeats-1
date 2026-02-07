@@ -276,6 +276,20 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
   };
 
   const handleEdit = () => navigate(`/workforms/editor/${form.id}`);
+  const handleClone = () => {
+    // TODO: Implement clone functionality (duplicate form with new name)
+    console.log('[FormPreview] Clone functionality coming soon');
+    alert('Clone functionality will be available in a future update.');
+  };
+  const handleSettings = () => {
+    // Navigate to form settings page
+    navigate(`/workforms/settings/${form.id}`);
+  };
+  const handlePreview = () => {
+    // Navigate to form preview/test page
+    navigate(`/workforms/preview/${form.id}`);
+  };
+  
   const nodes = form.flow_data?.nodes || [];
   const nodeTypes = [...new Set(nodes.map(n => n.type))];
 
@@ -321,11 +335,11 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
         </Content>
         <Footer>
           <FooterLeft>
-            <Button variant="outline" onClick={() => console.log('[FormPreview] Preview not yet implemented')}><Eye /> Preview</Button>
-            <Button variant="outline" onClick={() => console.log('[FormPreview] Clone not yet implemented')}><Copy /> Clone</Button>
+            <Button variant="outline" onClick={handlePreview}><Eye /> Preview</Button>
+            <Button variant="outline" onClick={handleClone}><Copy /> Clone</Button>
           </FooterLeft>
           <FooterRight>
-            <Button variant="secondary" onClick={() => console.log('[FormPreview] Settings not yet implemented')}><Settings /> Settings</Button>
+            <Button variant="secondary" onClick={handleSettings}><Settings /> Settings</Button>
             <Button variant="primary" onClick={handleEdit}><Edit /> Edit</Button>
           </FooterRight>
         </Footer>
