@@ -194,6 +194,14 @@ const FormCard = styled(Card)`
   cursor: pointer;
   transition: all 0.2s;
   
+  /* Ensure all child elements allow click events to bubble up */
+  * {
+    pointer-events: none;
+  }
+  
+  /* But allow the card itself to receive clicks */
+  pointer-events: auto;
+  
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
