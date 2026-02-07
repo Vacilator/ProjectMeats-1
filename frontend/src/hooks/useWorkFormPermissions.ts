@@ -49,15 +49,30 @@ export function useWorkFormPermissions() {
           message: error.message,
           error
         });
-        // Return default permissions on error
+        
+        // If 401, let the axios interceptor handle it (token refresh or redirect to login)
+        // Don't catch 401 errors - they need to propagate for proper auth handling
+        if (error.response?.status === 401) {
+          console.warn('[useWorkFormPermissions] 401 Unauthorized - token expired or invalid');
+          throw error; // Let axios interceptor handle token refresh/redirect
+        }
+        
+        // For other errors (network, 500, etc), return default permissions
         const defaults = getDefaultPermissions();
         console.warn('[useWorkFormPermissions] Returning default permissions:', defaults);
         return defaults;
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - permissions don't change often
-    retry: 1,
-    // Ensure we always have valid permissions
+    retry: (failureCount, error: any) => {
+      // Don't retry 401 errors - they'll trigger auth flow
+      if (error?.response?.status === 401) {
+        return false;
+      }
+      // Retry other errors once
+      return failureCount < 1;
+    },
+    // Ensure we always have valid permissions during loading
     placeholderData: getDefaultPermissions(),
   });
 
