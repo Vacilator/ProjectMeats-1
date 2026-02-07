@@ -64,6 +64,7 @@ export function useActionItemCounts(
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const errorCountRef = useRef(0); // Track consecutive errors for backoff
 
   const fetchCounts = useCallback(async () => {
     if (!enabled || !mountedRef.current) return;
@@ -74,13 +75,24 @@ export function useActionItemCounts(
       if (mountedRef.current) {
         setCounts(response.data);
         setError(null);
+        errorCountRef.current = 0; // Reset backoff on success
       }
     } catch (err: any) {
       if (mountedRef.current) {
-        // Don't set error for 404 (no action items)
-        if (err.response?.status !== 404) {
+        const status = err.response?.status;
+        errorCountRef.current += 1;
+        
+        // Silent errors for 404 (no action items), 502 (backend issue), 503 (service unavailable)
+        // These are expected during initial setup or backend maintenance
+        if (status === 404 || status === 502 || status === 503) {
+          // Don't spam console or show user errors for these
+          setError(null);
+        } else {
+          // Only log unexpected errors
+          console.warn('[ActionItemCounts] Fetch error:', err.message, 'Status:', status);
           setError(err.message || 'Failed to fetch action item counts');
         }
+        
         // Reset to defaults on error
         setCounts(DEFAULT_COUNTS);
       }
@@ -101,11 +113,15 @@ export function useActionItemCounts(
     };
   }, [fetchCounts]);
 
-  // Polling
+  // Polling with exponential backoff on errors
   useEffect(() => {
     if (!enabled || pollingInterval <= 0) return;
     
-    pollingRef.current = setInterval(fetchCounts, pollingInterval);
+    // Calculate backoff: double interval for each consecutive error (max 5 minutes)
+    const backoffMultiplier = Math.min(Math.pow(2, errorCountRef.current), 10);
+    const actualInterval = pollingInterval * backoffMultiplier;
+    
+    pollingRef.current = setInterval(fetchCounts, actualInterval);
     
     return () => {
       if (pollingRef.current) {
