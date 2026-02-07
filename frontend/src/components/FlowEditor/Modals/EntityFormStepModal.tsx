@@ -440,13 +440,19 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
       setState(prev => ({ ...prev, loading: true, error: null }));
       try {
         const form = await workformsApi.getTenantForm(state.selectedFormId);
+        
+        // Safely extract fields from form_definition
+        const fields = form.form_definition?.fields 
+          ? form.form_definition.fields.map((field, index) => ({
+              ...field,
+              fieldId: `field-${index}`,
+            }))
+          : [];
+        
         setState(prev => ({
           ...prev,
-          entityType: form.entity_type,
-          fields: form.form_definition.fields.map((field, index) => ({
-            ...field,
-            fieldId: `field-${index}`,
-          })),
+          entityType: form.entity_type || '',
+          fields,
           currentStep: 3,
           loading: false,
         }));

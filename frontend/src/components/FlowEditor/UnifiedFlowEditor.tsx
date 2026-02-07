@@ -1062,6 +1062,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [nodes, setNodes, onNodesChangeBase] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeIdCounter, setNodeIdCounter] = useState(initialNodes.length + 1);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Phase E: Wrap onNodesChange to handle container deletion
   const onNodesChange = useCallback((changes: any[]) => {
