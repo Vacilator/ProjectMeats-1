@@ -330,6 +330,14 @@ const FormsFlowsCatalog: React.FC = () => {
   // Phase 4.2: Get user permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
 
+  // Debug: Log when previewForm changes
+  React.useEffect(() => {
+    console.log('[Catalog] previewForm state changed:', previewForm);
+    if (previewForm) {
+      console.log('[Catalog] Modal should now be visible for form:', previewForm.name);
+    }
+  }, [previewForm]);
+
   // Fetch existing forms
   const { data: forms = [], isLoading, error } = useQuery<TenantForm[]>({
     queryKey: ['tenant-forms'],
@@ -420,10 +428,18 @@ const FormsFlowsCatalog: React.FC = () => {
 
   // Handle edit form (now opens preview modal)
   const handleEditForm = (formId: string) => {
-    console.log('[Catalog] Opening form preview for formId:', formId);
+    console.log('[Catalog] handleEditForm called with formId:', formId);
+    console.log('[Catalog] Current forms array:', forms);
+    console.log('[Catalog] Looking for form with id:', formId);
+    
     const form = forms?.find(f => f.id === formId);
+    console.log('[Catalog] Found form:', form);
+    
     if (form) {
+      console.log('[Catalog] Setting previewForm state to:', form);
       setPreviewForm(form);
+    } else {
+      console.error('[Catalog] Form not found for id:', formId);
     }
   };
 
@@ -610,9 +626,15 @@ const FormsFlowsCatalog: React.FC = () => {
       {previewForm && (
         <FormPreviewModal
           form={previewForm}
-          onClose={() => setPreviewForm(null)}
+          onClose={() => {
+            console.log('[Catalog] Closing preview modal');
+            setPreviewForm(null);
+          }}
         />
       )}
+      
+      {/* Debug: Show preview state */}
+      {console.log('[Catalog] Current previewForm state:', previewForm)}
     </Container>
   );
 };
