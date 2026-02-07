@@ -24,7 +24,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/C
 import { Button } from '../../components/ui/Button';
 import { TemplateSelector } from '../../components/FlowEditor/templates/TemplateSelector';
 import { FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';
-import { adminClient } from '../../services/apiService';
+import { apiClient } from '../../services/apiService';
 import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
 // ============================================================================
@@ -333,7 +333,7 @@ const FormsFlowsCatalog: React.FC = () => {
   const { data: forms, isLoading } = useQuery<TenantForm[]>({
     queryKey: ['tenant-forms'],
     queryFn: async () => {
-      const response = await adminClient.get('/workflows/forms/');
+      const response = await apiClient.get('/workflows/forms/');
       // Handle both paginated and non-paginated responses
       const data = response.data;
       // If paginated response with results array
