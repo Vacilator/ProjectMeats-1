@@ -1995,17 +1995,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
     
     for (const container of containerNodes) {
-      // Approximate container bounds (typical node is ~300px wide, ~200px tall)
-      const containerWidth = 400; // Container nodes are wider
-      const containerHeight = 300;
+      // Get actual container dimensions from the node's measured size or use defaults
+      const containerWidth = container.width || container.style?.width || 400;
+      const containerHeight = container.height || container.style?.height || 300;
+      
+      // Add some padding to make it easier to drop into container
+      const padding = 20;
       
       const isInside = 
-        position.x >= container.position.x &&
-        position.x <= container.position.x + containerWidth &&
-        position.y >= container.position.y &&
-        position.y <= container.position.y + containerHeight;
+        position.x >= container.position.x - padding &&
+        position.x <= container.position.x + containerWidth + padding &&
+        position.y >= container.position.y - padding &&
+        position.y <= container.position.y + containerHeight + padding;
       
       if (isInside) {
+        console.log(`[Container] Position (${position.x}, ${position.y}) is inside container ${container.id}`);
         return container;
       }
     }
@@ -2082,6 +2086,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Check if dropping into a container (Phase E)
       const targetContainer = findContainerAtPosition(position);
       
+      if (targetContainer) {
+        console.log(`[Container] Detected drop into container ${targetContainer.id} at position`, position);
+      } else {
+        console.log(`[Container] No container detected at position`, position);
+      }
+      
       // Check for nearby node to auto-connect
       const nearby = findNearbyNode(position);
 
@@ -2095,6 +2105,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           ...getDefaultNodeData(type),
         },
       };
+      
+      // Add explicit dimensions for container nodes
+      if (type === 'formMultiStepContainer') {
+        newNode.style = {
+          width: 400,
+          height: 300,
+        };
+      }
       
       // If dropping into a container, set up parent-child relationship (Phase E)
       if (targetContainer) {
@@ -4099,6 +4117,18 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
   }
   
   if (nodeTypeId.startsWith('form')) {
+    // Special handling for multi-step container
+    if (nodeTypeId === 'formMultiStepContainer') {
+      return {
+        fields: [],
+        containerName: 'New Container',
+        isExpanded: true,
+        childNodes: [],
+        maxInputs: nodeDef?.maxInputs || 1,
+        maxOutputs: nodeDef?.maxOutputs || 1,
+      };
+    }
+    
     return { 
       fields: [],
       maxInputs: nodeDef?.maxInputs || 1,
