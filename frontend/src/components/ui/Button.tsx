@@ -21,7 +21,8 @@ const StyledButton = styled.button<ButtonProps>`
   /* Base styles */
   display: inline-flex;
   align-items: center;
-  justify-center: center;
+  justify-content: center;
+  gap: 0.5rem;  /* Add gap between icon and text */
   border-radius: var(--radius-md);
   font-weight: 500;
   transition: all 0.2s ease;

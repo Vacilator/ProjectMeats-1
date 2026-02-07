@@ -275,18 +275,23 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
     return typeMap[nodeType] || nodeType;
   };
 
-  const handleEdit = () => navigate(`/workforms/editor/${form.id}`);
+  const handleEdit = () => {
+    console.log('[FormPreview] Edit clicked, navigating to:', `/workforms/editor/${form.id}`);
+    navigate(`/workforms/editor/${form.id}`);
+  };
+  
   const handleClone = () => {
-    // TODO: Implement clone functionality (duplicate form with new name)
-    console.log('[FormPreview] Clone functionality coming soon');
+    console.log('[FormPreview] Clone clicked');
     alert('Clone functionality will be available in a future update.');
   };
+  
   const handleSettings = () => {
-    // Navigate to form settings page
+    console.log('[FormPreview] Settings clicked, navigating to:', `/workforms/settings/${form.id}`);
     navigate(`/workforms/settings/${form.id}`);
   };
+  
   const handlePreview = () => {
-    // Navigate to form preview/test page
+    console.log('[FormPreview] Preview clicked, navigating to:', `/workforms/preview/${form.id}`);
     navigate(`/workforms/preview/${form.id}`);
   };
   
@@ -335,12 +340,24 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
         </Content>
         <Footer>
           <FooterLeft>
-            <Button variant="outline" onClick={handlePreview}><Eye /> Preview</Button>
-            <Button variant="outline" onClick={handleClone}><Copy /> Clone</Button>
+            <Button variant="outline" onClick={handlePreview}>
+              <Eye size={16} />
+              Preview
+            </Button>
+            <Button variant="outline" onClick={handleClone}>
+              <Copy size={16} />
+              Clone
+            </Button>
           </FooterLeft>
           <FooterRight>
-            <Button variant="secondary" onClick={handleSettings}><Settings /> Settings</Button>
-            <Button variant="primary" onClick={handleEdit}><Edit /> Edit</Button>
+            <Button variant="secondary" onClick={handleSettings}>
+              <Settings size={16} />
+              Settings
+            </Button>
+            <Button variant="primary" onClick={handleEdit}>
+              <Edit size={16} />
+              Edit
+            </Button>
           </FooterRight>
         </Footer>
       </Modal>
