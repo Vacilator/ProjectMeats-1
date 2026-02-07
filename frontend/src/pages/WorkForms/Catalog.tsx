@@ -24,6 +24,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/C
 import { Button } from '../../components/ui/Button';
 import { TemplateSelector } from '../../components/FlowEditor/templates/TemplateSelector';
 import { FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';
+import { FormPreviewModal } from '../../components/WorkForms/FormPreviewModal';
 import { apiClient } from '../../services/apiService';
 import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
