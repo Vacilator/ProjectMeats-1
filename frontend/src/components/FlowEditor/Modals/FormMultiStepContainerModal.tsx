@@ -478,22 +478,31 @@ export const FormMultiStepContainerModal: React.FC<ContainerModalProps> = ({
   const handleContainerSelection = useCallback((selection: { 
     mode: 'new' | 'existing'; 
     formName?: string; 
-    formId?: string 
+    formId?: string;
+    form?: any;
   }) => {
+    console.log('[FormMultiStepContainerModal] Selection changed:', selection);
     setState(prev => ({
       ...prev,
       mode: selection.mode,
-      containerName: selection.formName || '',
+      containerName: selection.formName || prev.containerName,
       selectedWorkflowId: selection.formId || null,
       error: null,
     }));
   }, []);
 
   const handleProceedFromStep1 = useCallback(() => {
+    console.log('[FormMultiStepContainerModal] Proceeding from step 1:', {
+      mode: state.mode,
+      containerName: state.containerName,
+      selectedWorkflowId: state.selectedWorkflowId
+    });
     if (state.mode === 'new' && state.containerName) {
       setState(prev => ({ ...prev, currentStep: 2 }));
     } else if (state.mode === 'existing' && state.selectedWorkflowId) {
       setState(prev => ({ ...prev, currentStep: 2 }));
+    } else {
+      console.error('[FormMultiStepContainerModal] Cannot proceed - invalid state');
     }
   }, [state.mode, state.containerName, state.selectedWorkflowId]);
 
@@ -538,20 +547,11 @@ export const FormMultiStepContainerModal: React.FC<ContainerModalProps> = ({
       case 1:
         return (
           <FormSelectionPanel
-            mode={state.mode}
-            formName={state.containerName}
-            selectedFormId={state.selectedWorkflowId}
-            onModeChange={(mode) => handleContainerSelection({ mode })}
-            onFormNameChange={(formName) => setState(prev => ({ ...prev, containerName: formName }))}
-            onFormSelect={(formId) => setState(prev => ({ ...prev, selectedWorkflowId: formId }))}
-            labelOverrides={{
-              title: 'Container Selection',
-              newFormLabel: 'Create New Container',
-              newFormDescription: 'Start fresh with a new multi-step container workflow',
-              existingFormLabel: 'Use Existing Workflow',
-              existingFormDescription: 'Load a previously saved workflow as a container',
-              formNamePlaceholder: 'e.g., Customer Onboarding Flow',
-            }}
+            nodeType="formMultiStepContainer"
+            selectedFormId={state.selectedWorkflowId || undefined}
+            onSelectionChange={handleContainerSelection}
+            onProceed={handleProceedFromStep1}
+            filterType="multi_step"
           />
         );
       
