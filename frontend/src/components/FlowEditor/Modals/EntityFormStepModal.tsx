@@ -91,7 +91,7 @@ const ModalOverlay = styled.div<{ $isOpen: boolean }>`
 `;
 
 const ModalContainer = styled.div`
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-surface));
   border-radius: 12px;
   width: 95vw;
   height: 90vh;
@@ -108,7 +108,7 @@ const ModalHeader = styled.div`
   justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-bg-secondary));
+  background: rgb(var(--color-surface));
 `;
 
 const HeaderLeft = styled.div`
@@ -191,7 +191,7 @@ const CloseButton = styled.button`
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgb(var(--color-bg-tertiary));
+    background: rgb(var(--color-surface-hover));
     border-color: rgb(var(--color-border-hover));
     color: rgb(var(--color-text-primary));
   }
@@ -205,17 +205,17 @@ const ModalBody = styled.div`
   flex: 1;
   display: flex;
   overflow: hidden;
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-surface));
 `;
 
-const ContentArea = styled.div<{ $step: WizardStep }>`
+const ContentArea = styled.div<{ $step: WizardStep; $currentStep: WizardStep }>`
   flex: 1;
-  display: ${props => (props.$step === 1 ? 'flex' : 'none')};
+  display: ${props => (props.$step === props.$currentStep ? 'flex' : 'none')};
   align-items: center;
   justify-content: center;
   padding: 40px;
   overflow-y: auto;
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-surface));
 `;
 
 const SplitLayout = styled.div<{ $visible: boolean }>`
@@ -228,14 +228,14 @@ const SplitLayout = styled.div<{ $visible: boolean }>`
 
 const LeftPanel = styled.div`
   flex: 3;
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-surface));
   overflow-y: auto;
   padding: 24px;
 `;
 
 const RightPanel = styled.div`
   flex: 2;
-  background: rgb(var(--color-bg-secondary));
+  background: rgb(var(--color-background));
   overflow-y: auto;
   padding: 24px;
   border-left: 1px solid rgb(var(--color-border));
@@ -270,7 +270,7 @@ const ModalFooter = styled.div`
   justify-content: space-between;
   padding: 16px 24px;
   border-top: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-bg-secondary));
+  background: rgb(var(--color-background));
 `;
 
 const FooterLeft = styled.div`
@@ -315,7 +315,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
           border-color: rgb(var(--color-border));
           color: rgb(var(--color-text-primary));
           &:hover:not(:disabled) {
-            background: rgb(var(--color-bg-tertiary));
+            background: rgb(var(--color-surface-hover));
             border-color: rgb(var(--color-border-hover));
           }
         `;
@@ -326,7 +326,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
           border-color: transparent;
           color: rgb(var(--color-text-secondary));
           &:hover:not(:disabled) {
-            background: rgb(var(--color-bg-tertiary));
+            background: rgb(var(--color-surface-hover));
             color: rgb(var(--color-text-primary));
           }
         `;
@@ -567,7 +567,7 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
         {/* Body */}
         <ModalBody>
           {/* Step 1: Form Selection */}
-          <ContentArea $step={state.currentStep}>
+          <ContentArea $step={1} $currentStep={state.currentStep}>
             <FormSelectionPanel
               nodeType="formStep"
               onSelectionChange={handleFormSelection}
@@ -603,7 +603,7 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
           </SplitLayout>
 
           {/* Step 3: Review & Save */}
-          <ContentArea $step={state.currentStep}>
+          <ContentArea $step={3} $currentStep={state.currentStep}>
             <div>
               <h3>Review Form Configuration</h3>
               <p>Form Name: {state.formName}</p>
