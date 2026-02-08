@@ -71,6 +71,8 @@ import {
   AlignCenterHorizontal,
   AlignCenterVertical,
   X,
+  Save,
+  FolderOpen,
 } from 'lucide-react';
 
 import {
@@ -87,6 +89,8 @@ import {
 } from './nodes';
 import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
+import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
+import { saveWorkflow, loadWorkflow, listWorkflows, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7
 import { NodeConfigPanel } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
@@ -878,6 +882,7 @@ const ToolbarButton = styled.button`
   color: rgb(var(--color-text-primary));
   cursor: pointer;
   transition: all 0.15s ease;
+  position: relative;
   
   &:hover {
     background: rgb(var(--color-primary));
@@ -889,6 +894,63 @@ const ToolbarButton = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
   }
+`;
+
+const LoadMenuContainer = styled.div`
+  position: relative;
+  display: inline-block;
+`;
+
+const LoadMenuDropdown = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 300px;
+  max-width: 400px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+`;
+
+const LoadMenuItem = styled.div`
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  cursor: pointer;
+  transition: background 0.15s ease;
+  
+  &:hover {
+    background: rgb(var(--color-background));
+  }
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const LoadMenuItemTitle = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 4px;
+`;
+
+const LoadMenuItemMeta = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  display: flex;
+  gap: 12px;
+`;
+
+const LoadMenuEmpty = styled.div`
+  padding: 24px 16px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
 `;
 
 const ViewportToolbar = styled.div`
@@ -1455,6 +1517,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   
   // ============================================================================
+  // Workflow Persistence State (Phase 7)
+  // ============================================================================
+  
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | undefined>(undefined);
+  const [currentWorkflowName, setCurrentWorkflowName] = useState<string>('Untitled Workflow');
+  const [workflowList, setWorkflowList] = useState<WorkflowListItem[]>([]);
+  const [isLoadMenuOpen, setIsLoadMenuOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // ============================================================================
   // Wizard Mode State (Phase 2.2 Batch 3)
   // ============================================================================
 
@@ -1900,6 +1973,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       if (!sourceNode || !targetNode) return;
       
+      // Phase 6.1: Container isolation validation (HIGHEST PRIORITY)
+      // Block connections from child node to external node
+      if (sourceNode.parentNode && !targetNode.parentNode) {
+        console.warn('[Connection] ❌ Cannot connect child node to external node (container isolation)');
+        // TODO: Show user-friendly error toast
+        return;
+      }
+      
+      // Block connections from external node to child node
+      if (!sourceNode.parentNode && targetNode.parentNode) {
+        console.warn('[Connection] ❌ Cannot connect external node to child node (container isolation)');
+        // TODO: Show user-friendly error toast
+        return;
+      }
+      
+      // Block connections between nodes in different containers
+      if (sourceNode.parentNode && targetNode.parentNode && sourceNode.parentNode !== targetNode.parentNode) {
+        console.warn('[Connection] ❌ Cannot connect nodes from different containers');
+        // TODO: Show user-friendly error toast
+        return;
+      }
+      
+      console.log('[Connection] ✅ Container isolation check passed');
+      
       // Type-aware validation
       const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
       if (!typeCheck.valid) {
@@ -1989,63 +2086,42 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   /**
    * Detect if a position is inside a container node
-   * Used by onDrag, onDrop, and onNodeDragStop
+   * Uses React Flow's getIntersectingNodes API for accurate detection
+   * 
+   * Phase 1.1: Replaced manual bounding box with React Flow native API
    */
   const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
-    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
+    // Use React Flow's native intersection detection
+    // This is more reliable than manual bounding box calculations
+    const intersectingNodes = reactFlowInstance.getIntersectingNodes({
+      x: position.x,
+      y: position.y,
+      width: 50, // Small test area for drop point
+      height: 50
+    });
     
-    console.log('[Container DEBUG] =================================');
-    console.log('[Container DEBUG] Looking for containers at position:', position);
-    console.log('[Container DEBUG] Total container nodes found:', containerNodes.length);
+    // Filter to only container nodes
+    const containerNodes = intersectingNodes.filter(node => node.type === 'formMultiStepContainer');
+    
+    console.log('[Container] =================================');
+    console.log('[Container] Looking for containers at position:', position);
+    console.log('[Container] Intersecting nodes found:', intersectingNodes.length);
+    console.log('[Container] Container nodes found:', containerNodes.length);
     
     if (containerNodes.length === 0) {
-      console.log('[Container DEBUG] NO CONTAINERS on canvas!');
+      console.log('[Container] ❌ No containers at drop position');
       return null;
     }
     
-    for (const container of containerNodes) {
-      // Get actual container dimensions from the node's measured size or use defaults
-      const containerWidth = container.width || container.style?.width || 400;
-      const containerHeight = container.height || container.style?.height || 300;
-      
-      console.log(`[Container DEBUG] Checking container ${container.id}:`);
-      console.log(`  - Position: (${container.position.x}, ${container.position.y})`);
-      console.log(`  - Dimensions: ${containerWidth}x${containerHeight}`);
-      console.log(`  - Width from: ${container.width ? 'measured' : container.style?.width ? 'style' : 'default'}`);
-      console.log(`  - Height from: ${container.height ? 'measured' : container.style?.height ? 'style' : 'default'}`);
-      
-      // Add some padding to make it easier to drop into container
-      const padding = 20;
-      
-      const bounds = {
-        left: container.position.x - padding,
-        right: container.position.x + containerWidth + padding,
-        top: container.position.y - padding,
-        bottom: container.position.y + containerHeight + padding,
-      };
-      
-      console.log(`  - Bounds (with ${padding}px padding):`, bounds);
-      console.log(`  - Test position:`, position);
-      console.log(`  - X in bounds? ${position.x >= bounds.left && position.x <= bounds.right}`);
-      console.log(`  - Y in bounds? ${position.y >= bounds.top && position.y <= bounds.bottom}`);
-      
-      const isInside = 
-        position.x >= bounds.left &&
-        position.x <= bounds.right &&
-        position.y >= bounds.top &&
-        position.y <= bounds.bottom;
-      
-      console.log(`  - Result: ${isInside ? 'INSIDE ✅' : 'OUTSIDE ❌'}`);
-      
-      if (isInside) {
-        console.log(`[Container DEBUG] ✅ Position IS INSIDE container ${container.id}`);
-        return container;
-      }
-    }
+    // If multiple containers overlap, use the first one (topmost/most specific)
+    const targetContainer = containerNodes[0];
     
-    console.log('[Container DEBUG] ❌ Position not inside any container');
-    return null;
-  }, [nodes]);
+    console.log(`[Container] ✅ Found container: ${targetContainer.id}`);
+    console.log(`[Container]    Position: (${targetContainer.position.x}, ${targetContainer.position.y})`);
+    console.log(`[Container]    Dimensions: ${targetContainer.width || 'auto'}x${targetContainer.height || 'auto'}`);
+    
+    return targetContainer;
+  }, [reactFlowInstance]);
   
   const onDrag = useCallback((event: React.DragEvent) => {
     if (event.clientX === 0 && event.clientY === 0) return; // Ignore end event
@@ -2074,10 +2150,54 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const nearby = findNearbyNode(snappedPosition);
     setNearbyNode(nearby);
     
-    // Phase E: Detect if hovering over a container for visual feedback
+    // Phase 1.2: Detect if hovering over a container for visual feedback
     const hoveredContainer = findContainerAtPosition(snappedPosition);
     setHoveredContainerId(hoveredContainer?.id || null);
-  }, [reactFlowInstance, detectAlignment, findNearbyNode, findContainerAtPosition]);
+    
+    // Phase 1.2: Update container nodes with drop target indicator
+    if (hoveredContainer) {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id === hoveredContainer.id) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: true, // Visual feedback flag
+              },
+            };
+          }
+          // Clear drop target flag from other containers
+          if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: false,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    } else {
+      // Clear all drop target indicators when not hovering
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: false,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    }
+  }, [reactFlowInstance, detectAlignment, findNearbyNode, findContainerAtPosition, setNodes]);
   
   const onDragEnd = useCallback(() => {
     // Clear drag state
@@ -2086,8 +2206,24 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setDragPosition(null);
     setAlignmentGuides({ horizontal: [], vertical: [] });
     setNearbyNode(null);
-    setHoveredContainerId(null); // Phase E: Clear container hover
-  }, []);
+    setHoveredContainerId(null);
+    
+    // Phase 1.2: Clear all drop target indicators
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              isDropTarget: false,
+            },
+          };
+        }
+        return n;
+      })
+    );
+  }, [setNodes]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -2113,11 +2249,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       position.x = Math.round(position.x / 15) * 15;
       position.y = Math.round(position.y / 15) * 15;
       
-      // Check if dropping into a container (Phase E)
+      // Phase 1.4: Check if dropping into a container
       const targetContainer = findContainerAtPosition(position);
       
       if (targetContainer) {
-        console.log(`[Container] Detected drop into container ${targetContainer.id} at position`, position);
+        console.log(`[Container] ✅ Detected drop into container ${targetContainer.id} at position`, position);
+        
+        // Phase 1.3: Ensure container is expanded
+        if (!targetContainer.data.isExpanded) {
+          console.log(`[Container] Auto-expanding collapsed container ${targetContainer.id}`);
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id === targetContainer.id) {
+                return {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    isExpanded: true,
+                  },
+                };
+              }
+              return n;
+            })
+          );
+        }
       } else {
         console.log(`[Container] No container detected at position`, position);
       }
@@ -2136,7 +2291,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         },
       };
       
-      // Add explicit dimensions for container nodes
+      // Phase 2.3: Container nodes no longer need childNodes/childEdges arrays
       if (type === 'formMultiStepContainer') {
         newNode.style = {
           width: 400,
@@ -2144,8 +2299,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
         newNode.data = {
           ...newNode.data,
-          childNodes: [],
-          childEdges: [],
+          // Phase 2.3: REMOVED childNodes and childEdges initialization
+          // Children are now queried via parentNode property
           onEnterContainer: (containerId: string) => {
             console.log(`[Container] onEnterContainer callback triggered for ${containerId}`);
             // This will be handled by the parent editor
@@ -2153,44 +2308,110 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
       }
       
-      // If dropping into a container, add to container's internal nodes (Phase E - Nested Flow)
+      // Phase 1.4: If dropping into a container, set parent-child relationship
       if (targetContainer) {
-        console.log(`[Container] Adding node to container ${targetContainer.id}'s internal nodes`);
+        console.log(`[Container] Setting up parent-child relationship with container ${targetContainer.id}`);
         
-        // Don't prevent containers from being nested - just handle it differently
+        // Phase 1.4: Don't allow containers to be nested
         if (type === 'formMultiStepContainer') {
-          console.log('[Container] WARNING: Nesting containers (allowed but may be confusing)');
-        }
-        
-        // Update the container node to include this new node in its childNodes
-        const updatedNodes = nodes.map(n => {
-          if (n.id === targetContainer.id) {
-            const currentChildNodes = (n.data.childNodes as Node[]) || [];
-            const newChildNode = {
-              ...newNode,
-              // Position is relative to drop position
-              position: {
-                x: position.x - targetContainer.position.x,
-                y: position.y - targetContainer.position.y,
-              },
-            };
-            
-            return {
-              ...n,
-              data: {
-                ...n.data,
-                childNodes: [...currentChildNodes, newChildNode],
-                nodeCount: currentChildNodes.length + 1,
-              },
-            };
+          console.log('[Container] ⚠️  Cannot nest containers inside containers - dropping on main canvas instead');
+          // Fall through to main canvas drop
+        } else {
+          // Phase 1.4: Set up React Flow native parent-child relationship
+          console.log(`[Container] Adding node ${newNode.id} as child of container ${targetContainer.id}`);
+          
+          // Calculate position relative to container
+          newNode.position = {
+            x: position.x - targetContainer.position.x,
+            y: position.y - targetContainer.position.y,
+          };
+          
+          // Phase 1.4: Set parentNode property (React Flow native)
+          newNode.parentNode = targetContainer.id;
+          
+          // Phase 1.4: Constrain node movement to parent bounds
+          newNode.extent = 'parent';
+          
+          // Phase 1.4: Auto-expand parent if node dropped near edge
+          newNode.expandParent = true;
+          
+          console.log(`[Container] ✅ Node configured:`, {
+            id: newNode.id,
+            parentNode: newNode.parentNode,
+            position: newNode.position,
+            extent: newNode.extent,
+          });
+          
+          // Add node to main state
+          const updatedNodes = nodes.concat(newNode);
+          setNodes(updatedNodes);
+          setNodeIdCounter((prev) => prev + 1);
+          
+          // Phase 3.3: Trigger auto-layout for container
+          console.log(`[Container] Triggering auto-layout for container ${targetContainer.id}`);
+          const layoutResult = calculateContainerLayout(
+            targetContainer.id,
+            updatedNodes,
+            edges
+          );
+          
+          // Apply layout changes
+          setNodes(layoutResult.nodes);
+          
+          // Phase 3.3: Update container dimensions if needed
+          if (layoutResult.containerWidth > 400 || layoutResult.containerHeight > 300) {
+            setNodes((nds) =>
+              nds.map((n) => {
+                if (n.id === targetContainer.id) {
+                  return {
+                    ...n,
+                    style: {
+                      ...n.style,
+                      width: layoutResult.containerWidth,
+                      height: layoutResult.containerHeight,
+                    },
+                  };
+                }
+                return n;
+              })
+            );
           }
-          return n;
-        });
-        
-        setNodes(updatedNodes);
-        setNodeIdCounter((prev) => prev + 1);
-        console.log(`[Container] Node ${newNode.id} added to container ${targetContainer.id} (now has ${(targetContainer.data.childNodes as Node[] || []).length + 1} children)`);
-        return; // Don't add to main canvas
+          
+          // Phase 4: Trigger auto-connection for form steps
+          if (type === 'formStep' || type === 'formReference') {
+            console.log(`[Container] Triggering auto-connection for container ${targetContainer.id}`);
+            const connectionResult = autoConnectSequentialSteps(
+              targetContainer.id,
+              layoutResult.nodes,
+              edges
+            );
+            
+            // Apply connection changes
+            setEdges(connectionResult.edges);
+            console.log(`[Container] ✅ Auto-connection complete`);
+          }
+          
+          // Clear nearby node state and return early (no auto-connect for container drops)
+          setNearbyNode(null);
+          
+          // Phase 1.2: Clear drop target indicator
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id === targetContainer.id && n.data.isDropTarget) {
+                return {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    isDropTarget: false,
+                  },
+                };
+              }
+              return n;
+            })
+          );
+          
+          return; // Don't continue to main canvas drop
+        }
       }
       
       // Normal drop on main canvas
@@ -2227,9 +2448,51 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   /**
-   * Handle node drag stop - check if node was dropped in/out of container (Phase E)
+   * Phase 5: Handle node drag stop - detect reordering within container
+   * Phase 1-4: Handle dragging nodes in/out of containers
    */
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    // Phase 5: If node is inside a container and it's a form step, trigger re-layout
+    if (node.parentNode && (node.type === 'formStep' || node.type === 'formReference')) {
+      const container = nodes.find(n => n.id === node.parentNode);
+      
+      if (container) {
+        console.log(`[DragStop] Triggering re-layout for container ${container.id} after node ${node.id} dragged`);
+        
+        // Re-calculate layout (reorders nodes based on new x-position)
+        const layoutResult = calculateContainerLayout(container.id, nodes, edges);
+        setNodes(layoutResult.nodes);
+        
+        // Update container dimensions if needed
+        if (layoutResult.containerWidth > (container.style?.width || 400) || 
+            layoutResult.containerHeight > (container.style?.height || 300)) {
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id === container.id) {
+                return {
+                  ...n,
+                  style: {
+                    ...n.style,
+                    width: Math.max(layoutResult.containerWidth, n.style?.width || 400),
+                    height: Math.max(layoutResult.containerHeight, n.style?.height || 300),
+                  },
+                };
+              }
+              return n;
+            })
+          );
+        }
+        
+        // Re-connect sequential steps
+        const connectionResult = autoConnectSequentialSteps(container.id, layoutResult.nodes, edges);
+        setEdges(connectionResult.edges);
+        
+        console.log(`[DragStop] ✅ Re-layout and re-connection complete`);
+        return;
+      }
+    }
+    
+    // Phase 1-4: Original logic - Handle dragging node in/out of container
     // Calculate absolute position (in case node is inside a parent)
     const absolutePosition = node.parentNode
       ? {
@@ -2293,7 +2556,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       setHasUnsavedChanges(true);
     }
-  }, [nodes, findContainerAtPosition, setNodes]);
+  }, [nodes, edges, setNodes, setEdges, findContainerAtPosition]);
   
   /**
    * Update container node statistics (Phase E - Updated for parentNode)
@@ -2595,6 +2858,138 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, edges, onSave]);
 
   // ============================================================================
+  // Phase 7: Workflow Persistence Handlers
+  // ============================================================================
+  
+  /**
+   * Save workflow to backend
+   */
+  const handleSaveWorkflow = useCallback(async () => {
+    if (isSaving) return; // Prevent double-save
+    
+    setIsSaving(true);
+    
+    try {
+      // Get current viewport
+      const viewport = reactFlowInstance.getViewport();
+      
+      // Save workflow (create or update)
+      const savedWorkflow = await saveWorkflow(
+        currentWorkflowName,
+        nodes,
+        edges,
+        viewport,
+        currentWorkflowId, // Undefined = create new, string = update existing
+        '', // description (TODO: add description field to UI)
+        'draft' // status (TODO: add status selector to UI)
+      );
+      
+      // Update current workflow ID if this was a new workflow
+      if (!currentWorkflowId) {
+        setCurrentWorkflowId(savedWorkflow.id);
+      }
+      
+      setHasUnsavedChanges(false);
+      console.log('✅ Workflow saved:', savedWorkflow.name);
+      
+      // TODO: Show success toast notification
+      alert(`✅ Workflow "${savedWorkflow.name}" saved successfully!`);
+    } catch (error) {
+      console.error('❌ Failed to save workflow:', error);
+      // TODO: Show error toast notification
+      alert(`❌ Failed to save workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance]);
+  
+  /**
+   * Load workflow from backend
+   */
+  const handleLoadWorkflow = useCallback(async (workflowId: string) => {
+    if (isLoading) return; // Prevent double-load
+    
+    setIsLoading(true);
+    
+    try {
+      // Load workflow data
+      const loadedWorkflow = await loadWorkflow(workflowId);
+      
+      // Update editor state
+      setNodes(loadedWorkflow.workflow_definition.nodes || []);
+      setEdges(loadedWorkflow.workflow_definition.edges || []);
+      setCurrentWorkflowId(loadedWorkflow.id);
+      setCurrentWorkflowName(loadedWorkflow.name);
+      setHasUnsavedChanges(false);
+      
+      // Restore viewport if saved
+      if (loadedWorkflow.workflow_definition.viewport && reactFlowInstance) {
+        reactFlowInstance.setViewport(loadedWorkflow.workflow_definition.viewport);
+      }
+      
+      // Close load menu
+      setIsLoadMenuOpen(false);
+      
+      console.log('✅ Workflow loaded:', loadedWorkflow.name);
+      
+      // TODO: Show success toast notification
+      alert(`✅ Workflow "${loadedWorkflow.name}" loaded successfully!`);
+    } catch (error) {
+      console.error('❌ Failed to load workflow:', error);
+      // TODO: Show error toast notification
+      alert(`❌ Failed to load workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading, reactFlowInstance, setNodes, setEdges]);
+  
+  /**
+   * Fetch workflow list when load menu is opened
+   */
+  useEffect(() => {
+    if (isLoadMenuOpen) {
+      listWorkflows()
+        .then(workflows => {
+          setWorkflowList(workflows);
+        })
+        .catch(error => {
+          console.error('❌ Failed to fetch workflow list:', error);
+          setWorkflowList([]);
+        });
+    }
+  }, [isLoadMenuOpen]);
+  
+  /**
+   * Prompt for workflow name when creating new workflow
+   */
+  const handleNewWorkflow = useCallback(() => {
+    const name = prompt('Enter workflow name:', currentWorkflowName);
+    if (name && name.trim()) {
+      setCurrentWorkflowName(name.trim());
+      setCurrentWorkflowId(undefined); // Clear ID to create new workflow on next save
+      setHasUnsavedChanges(true);
+    }
+  }, [currentWorkflowName]);
+  
+  /**
+   * Close load menu when clicking outside
+   */
+  useEffect(() => {
+    if (!isLoadMenuOpen) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const isLoadMenuClick = target.closest('[data-load-menu]');
+      if (!isLoadMenuClick) {
+        setIsLoadMenuOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isLoadMenuOpen]);
+
+  // ============================================================================
   // Viewport Controls
   // ============================================================================
   
@@ -2673,10 +3068,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
-      // Ctrl+S / Cmd+S: Save
+      // Ctrl+S / Cmd+S: Save workflow (Phase 7)
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {
         event.preventDefault();
-        handleSave();
+        handleSaveWorkflow(); // Phase 7: Save to backend
         return;
       }
       
@@ -3515,9 +3910,64 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             <Redo2 size={14} style={{ marginRight: '4px' }} />
             Redo
           </ToolbarButton>
-          <ToolbarButton onClick={handleSave} title="Save Flow (Ctrl+S)">
-            Save Flow
+          
+          {/* Phase 7: Workflow Persistence Buttons */}
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          <ToolbarButton 
+            onClick={handleNewWorkflow} 
+            title="New Workflow"
+          >
+            <Plus size={14} style={{ marginRight: '4px' }} />
+            New
           </ToolbarButton>
+          <LoadMenuContainer data-load-menu>
+            <ToolbarButton 
+              onClick={() => setIsLoadMenuOpen(!isLoadMenuOpen)} 
+              title="Load Workflow"
+              disabled={isLoading}
+            >
+              <FolderOpen size={14} style={{ marginRight: '4px' }} />
+              Load
+              <ChevronDown size={12} style={{ marginLeft: '4px' }} />
+            </ToolbarButton>
+            {isLoadMenuOpen && (
+              <LoadMenuDropdown data-load-menu>
+                {workflowList.length === 0 ? (
+                  <LoadMenuEmpty>
+                    {isLoading ? 'Loading workflows...' : 'No workflows found'}
+                  </LoadMenuEmpty>
+                ) : (
+                  workflowList.map(workflow => (
+                    <LoadMenuItem 
+                      key={workflow.id} 
+                      onClick={() => handleLoadWorkflow(workflow.id)}
+                    >
+                      <LoadMenuItemTitle>{workflow.name}</LoadMenuItemTitle>
+                      <LoadMenuItemMeta>
+                        <span>{workflow.node_count} nodes</span>
+                        <span>{workflow.status}</span>
+                        <span>{new Date(workflow.updated_at).toLocaleDateString()}</span>
+                      </LoadMenuItemMeta>
+                    </LoadMenuItem>
+                  ))
+                )}
+              </LoadMenuDropdown>
+            )}
+          </LoadMenuContainer>
+          <ToolbarButton 
+            onClick={handleSaveWorkflow} 
+            title="Save Workflow (Ctrl+S)"
+            disabled={isSaving}
+            style={hasUnsavedChanges ? {
+              background: 'rgb(var(--color-primary))',
+              color: 'white',
+              borderColor: 'rgb(var(--color-primary))'
+            } : {}}
+          >
+            <Save size={14} style={{ marginRight: '4px' }} />
+            {isSaving ? 'Saving...' : 'Save'}
+          </ToolbarButton>
+          
           <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
           <ToolbarButton 
             onClick={() => setIsPreviewVisible(!isPreviewVisible)} 
