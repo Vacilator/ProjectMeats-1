@@ -277,22 +277,29 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
 
   const handleEdit = () => {
     console.log('[FormPreview] Edit clicked, navigating to:', `/workforms/editor/${form.id}`);
+    onClose(); // Close modal first
     navigate(`/workforms/editor/${form.id}`);
   };
   
   const handleClone = () => {
-    console.log('[FormPreview] Clone clicked');
-    alert('Clone functionality will be available in a future update.');
+    console.log('[FormPreview] Clone clicked - opening as new workflow');
+    onClose(); // Close modal first
+    // Navigate to editor with clone query parameter
+    navigate(`/workforms/editor?clone=${form.id}`);
   };
   
   const handleSettings = () => {
-    console.log('[FormPreview] Settings clicked, navigating to:', `/workforms/settings/${form.id}`);
-    navigate(`/workforms/settings/${form.id}`);
+    console.log('[FormPreview] Settings clicked - opening editor with form ID');
+    onClose(); // Close modal first
+    // For now, open in editor (can add settings tab/view later)
+    navigate(`/workforms/editor/${form.id}`);
   };
   
   const handlePreview = () => {
-    console.log('[FormPreview] Preview clicked, navigating to:', `/workforms/preview/${form.id}`);
-    navigate(`/workforms/preview/${form.id}`);
+    console.log('[FormPreview] Preview clicked - opening editor in read-only mode');
+    onClose(); // Close modal first
+    // Navigate to editor with preview mode query parameter
+    navigate(`/workforms/editor/${form.id}?mode=preview`);
   };
   
   const nodes = form.flow_data?.nodes || [];

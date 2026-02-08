@@ -273,6 +273,8 @@ export const WorkFormsEditor: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('template');
+  const cloneId = searchParams.get('clone'); // For cloning existing forms
+  const previewMode = searchParams.get('mode') === 'preview'; // For preview mode
   
   // Phase 4.2: Permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
@@ -286,6 +288,7 @@ export const WorkFormsEditor: React.FC = () => {
   const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('visual'); // Default to visual mode
+  const [isCloneMode, setIsCloneMode] = useState(false); // Track if cloning
   
   // DEBUG: Log permissions state (MUST be after state declarations)
   useEffect(() => {
@@ -309,6 +312,16 @@ export const WorkFormsEditor: React.FC = () => {
     enabled: !!id,
   });
 
+  // Load form for cloning
+  const { data: cloneForm, isLoading: isLoadingCloneForm } = useQuery<TenantForm>({
+    queryKey: ['tenant-form-clone', cloneId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/workflows/forms/${cloneId}/`);
+      return response.data;
+    },
+    enabled: !!cloneId,
+  });
+
   // Handle mode switching with validation
   const handleModeSwitch = useCallback((newMode: EditorMode) => {
     // In future: Add validation and warning dialogs if switching would lose features
@@ -319,6 +332,22 @@ export const WorkFormsEditor: React.FC = () => {
   // Initialize editor with template or existing form
   useEffect(() => {
     if (isInitialized) return;
+
+    // Load from cloned form
+    if (cloneForm && cloneId) {
+      setFlowName(`${cloneForm.name} (Copy)`);
+      setStatus('draft'); // Always start clones as draft
+      setIsCloneMode(true);
+      
+      if (cloneForm.flow_data) {
+        setInitialNodes(cloneForm.flow_data.nodes || []);
+        setInitialEdges(cloneForm.flow_data.edges || []);
+      }
+      
+      setIsInitialized(true);
+      console.log('[Editor] Initialized in CLONE mode from form:', cloneId);
+      return;
+    }
 
     // Load from existing form
     if (existingForm && id) {
@@ -331,6 +360,7 @@ export const WorkFormsEditor: React.FC = () => {
       }
       
       setIsInitialized(true);
+      console.log('[Editor] Initialized in EDIT mode for form:', id);
       return;
     }
 
@@ -347,10 +377,11 @@ export const WorkFormsEditor: React.FC = () => {
     }
 
     // Blank canvas
-    if (!id && !templateId) {
+    if (!id && !templateId && !cloneId) {
       setIsInitialized(true);
+      console.log('[Editor] Initialized with BLANK canvas');
     }
-  }, [existingForm, id, templateId, isInitialized]);
+  }, [existingForm, cloneForm, id, cloneId, templateId, isInitialized]);
 
   // Save mutation
   const saveMutation = useMutation({
@@ -365,13 +396,14 @@ export const WorkFormsEditor: React.FC = () => {
         },
       };
 
-      if (id) {
-        // Update existing
-        const response = await apiClient.put(`/workflows/forms/${id}/`, payload);
-        return response.data;
-      } else {
+      // Clone mode: Always create new (never update the original)
+      if (isCloneMode || !id) {
         // Create new
         const response = await apiClient.post('/workflows/forms/', payload);
+        return response.data;
+      } else {
+        // Update existing
+        const response = await apiClient.put(`/workflows/forms/${id}/`, payload);
         return response.data;
       }
     },
@@ -383,8 +415,9 @@ export const WorkFormsEditor: React.FC = () => {
       setShowSavedIndicator(true);
       setTimeout(() => setShowSavedIndicator(false), 2000);
 
-      // If this was a new form, navigate to edit mode
-      if (!id && data.id) {
+      // If this was a new form or clone, navigate to edit mode
+      if ((!id || isCloneMode) && data.id) {
+        setIsCloneMode(false); // Exit clone mode after first save
         navigate(`/workforms/editor/${data.id}`, { replace: true });
       }
     },
@@ -525,7 +558,7 @@ export const WorkFormsEditor: React.FC = () => {
             initialEdges={initialEdges}
             onSave={handleSave}
             editorMode={editorMode}
-            readOnly={!permissions.can_edit}
+            readOnly={previewMode || !permissions.can_edit}
             allowedNodeCategories={permissions.allowed_node_categories}
           />
         )}
