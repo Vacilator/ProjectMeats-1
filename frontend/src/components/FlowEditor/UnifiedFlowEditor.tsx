@@ -87,6 +87,7 @@ import {
 } from './nodes';
 import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
+import { calculateContainerLayout } from './utils/containerLayout'; // Phase 3
 import { NodeConfigPanel } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
@@ -2249,6 +2250,36 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           const updatedNodes = nodes.concat(newNode);
           setNodes(updatedNodes);
           setNodeIdCounter((prev) => prev + 1);
+          
+          // Phase 3.3: Trigger auto-layout for container
+          console.log(`[Container] Triggering auto-layout for container ${targetContainer.id}`);
+          const layoutResult = calculateContainerLayout(
+            targetContainer.id,
+            updatedNodes,
+            edges
+          );
+          
+          // Apply layout changes
+          setNodes(layoutResult.nodes);
+          
+          // Phase 3.3: Update container dimensions if needed
+          if (layoutResult.containerWidth > 400 || layoutResult.containerHeight > 300) {
+            setNodes((nds) =>
+              nds.map((n) => {
+                if (n.id === targetContainer.id) {
+                  return {
+                    ...n,
+                    style: {
+                      ...n.style,
+                      width: layoutResult.containerWidth,
+                      height: layoutResult.containerHeight,
+                    },
+                  };
+                }
+                return n;
+              })
+            );
+          }
           
           // Clear nearby node state and return early (no auto-connect for container drops)
           setNearbyNode(null);
