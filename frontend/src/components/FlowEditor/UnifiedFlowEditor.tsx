@@ -1989,63 +1989,42 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   /**
    * Detect if a position is inside a container node
-   * Used by onDrag, onDrop, and onNodeDragStop
+   * Uses React Flow's getIntersectingNodes API for accurate detection
+   * 
+   * Phase 1.1: Replaced manual bounding box with React Flow native API
    */
   const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
-    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
+    // Use React Flow's native intersection detection
+    // This is more reliable than manual bounding box calculations
+    const intersectingNodes = reactFlowInstance.getIntersectingNodes({
+      x: position.x,
+      y: position.y,
+      width: 50, // Small test area for drop point
+      height: 50
+    });
     
-    console.log('[Container DEBUG] =================================');
-    console.log('[Container DEBUG] Looking for containers at position:', position);
-    console.log('[Container DEBUG] Total container nodes found:', containerNodes.length);
+    // Filter to only container nodes
+    const containerNodes = intersectingNodes.filter(node => node.type === 'formMultiStepContainer');
+    
+    console.log('[Container] =================================');
+    console.log('[Container] Looking for containers at position:', position);
+    console.log('[Container] Intersecting nodes found:', intersectingNodes.length);
+    console.log('[Container] Container nodes found:', containerNodes.length);
     
     if (containerNodes.length === 0) {
-      console.log('[Container DEBUG] NO CONTAINERS on canvas!');
+      console.log('[Container] ❌ No containers at drop position');
       return null;
     }
     
-    for (const container of containerNodes) {
-      // Get actual container dimensions from the node's measured size or use defaults
-      const containerWidth = container.width || container.style?.width || 400;
-      const containerHeight = container.height || container.style?.height || 300;
-      
-      console.log(`[Container DEBUG] Checking container ${container.id}:`);
-      console.log(`  - Position: (${container.position.x}, ${container.position.y})`);
-      console.log(`  - Dimensions: ${containerWidth}x${containerHeight}`);
-      console.log(`  - Width from: ${container.width ? 'measured' : container.style?.width ? 'style' : 'default'}`);
-      console.log(`  - Height from: ${container.height ? 'measured' : container.style?.height ? 'style' : 'default'}`);
-      
-      // Add some padding to make it easier to drop into container
-      const padding = 20;
-      
-      const bounds = {
-        left: container.position.x - padding,
-        right: container.position.x + containerWidth + padding,
-        top: container.position.y - padding,
-        bottom: container.position.y + containerHeight + padding,
-      };
-      
-      console.log(`  - Bounds (with ${padding}px padding):`, bounds);
-      console.log(`  - Test position:`, position);
-      console.log(`  - X in bounds? ${position.x >= bounds.left && position.x <= bounds.right}`);
-      console.log(`  - Y in bounds? ${position.y >= bounds.top && position.y <= bounds.bottom}`);
-      
-      const isInside = 
-        position.x >= bounds.left &&
-        position.x <= bounds.right &&
-        position.y >= bounds.top &&
-        position.y <= bounds.bottom;
-      
-      console.log(`  - Result: ${isInside ? 'INSIDE ✅' : 'OUTSIDE ❌'}`);
-      
-      if (isInside) {
-        console.log(`[Container DEBUG] ✅ Position IS INSIDE container ${container.id}`);
-        return container;
-      }
-    }
+    // If multiple containers overlap, use the first one (topmost/most specific)
+    const targetContainer = containerNodes[0];
     
-    console.log('[Container DEBUG] ❌ Position not inside any container');
-    return null;
-  }, [nodes]);
+    console.log(`[Container] ✅ Found container: ${targetContainer.id}`);
+    console.log(`[Container]    Position: (${targetContainer.position.x}, ${targetContainer.position.y})`);
+    console.log(`[Container]    Dimensions: ${targetContainer.width || 'auto'}x${targetContainer.height || 'auto'}`);
+    
+    return targetContainer;
+  }, [reactFlowInstance]);
   
   const onDrag = useCallback((event: React.DragEvent) => {
     if (event.clientX === 0 && event.clientY === 0) return; // Ignore end event
@@ -2074,10 +2053,54 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const nearby = findNearbyNode(snappedPosition);
     setNearbyNode(nearby);
     
-    // Phase E: Detect if hovering over a container for visual feedback
+    // Phase 1.2: Detect if hovering over a container for visual feedback
     const hoveredContainer = findContainerAtPosition(snappedPosition);
     setHoveredContainerId(hoveredContainer?.id || null);
-  }, [reactFlowInstance, detectAlignment, findNearbyNode, findContainerAtPosition]);
+    
+    // Phase 1.2: Update container nodes with drop target indicator
+    if (hoveredContainer) {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id === hoveredContainer.id) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: true, // Visual feedback flag
+              },
+            };
+          }
+          // Clear drop target flag from other containers
+          if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: false,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    } else {
+      // Clear all drop target indicators when not hovering
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: false,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    }
+  }, [reactFlowInstance, detectAlignment, findNearbyNode, findContainerAtPosition, setNodes]);
   
   const onDragEnd = useCallback(() => {
     // Clear drag state
@@ -2086,8 +2109,24 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setDragPosition(null);
     setAlignmentGuides({ horizontal: [], vertical: [] });
     setNearbyNode(null);
-    setHoveredContainerId(null); // Phase E: Clear container hover
-  }, []);
+    setHoveredContainerId(null);
+    
+    // Phase 1.2: Clear all drop target indicators
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              isDropTarget: false,
+            },
+          };
+        }
+        return n;
+      })
+    );
+  }, [setNodes]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -2113,11 +2152,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       position.x = Math.round(position.x / 15) * 15;
       position.y = Math.round(position.y / 15) * 15;
       
-      // Check if dropping into a container (Phase E)
+      // Phase 1.4: Check if dropping into a container
       const targetContainer = findContainerAtPosition(position);
       
       if (targetContainer) {
-        console.log(`[Container] Detected drop into container ${targetContainer.id} at position`, position);
+        console.log(`[Container] ✅ Detected drop into container ${targetContainer.id} at position`, position);
+        
+        // Phase 1.3: Ensure container is expanded
+        if (!targetContainer.data.isExpanded) {
+          console.log(`[Container] Auto-expanding collapsed container ${targetContainer.id}`);
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id === targetContainer.id) {
+                return {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    isExpanded: true,
+                  },
+                };
+              }
+              return n;
+            })
+          );
+        }
       } else {
         console.log(`[Container] No container detected at position`, position);
       }
@@ -2153,44 +2211,66 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
       }
       
-      // If dropping into a container, add to container's internal nodes (Phase E - Nested Flow)
+      // Phase 1.4: If dropping into a container, set parent-child relationship
       if (targetContainer) {
-        console.log(`[Container] Adding node to container ${targetContainer.id}'s internal nodes`);
+        console.log(`[Container] Setting up parent-child relationship with container ${targetContainer.id}`);
         
-        // Don't prevent containers from being nested - just handle it differently
+        // Phase 1.4: Don't allow containers to be nested
         if (type === 'formMultiStepContainer') {
-          console.log('[Container] WARNING: Nesting containers (allowed but may be confusing)');
+          console.log('[Container] ⚠️  Cannot nest containers inside containers - dropping on main canvas instead');
+          // Fall through to main canvas drop
+        } else {
+          // Phase 1.4: Set up React Flow native parent-child relationship
+          console.log(`[Container] Adding node ${newNode.id} as child of container ${targetContainer.id}`);
+          
+          // Calculate position relative to container
+          newNode.position = {
+            x: position.x - targetContainer.position.x,
+            y: position.y - targetContainer.position.y,
+          };
+          
+          // Phase 1.4: Set parentNode property (React Flow native)
+          newNode.parentNode = targetContainer.id;
+          
+          // Phase 1.4: Constrain node movement to parent bounds
+          newNode.extent = 'parent';
+          
+          // Phase 1.4: Auto-expand parent if node dropped near edge
+          newNode.expandParent = true;
+          
+          console.log(`[Container] ✅ Node configured:`, {
+            id: newNode.id,
+            parentNode: newNode.parentNode,
+            position: newNode.position,
+            extent: newNode.extent,
+          });
+          
+          // Add node to main state
+          const updatedNodes = nodes.concat(newNode);
+          setNodes(updatedNodes);
+          setNodeIdCounter((prev) => prev + 1);
+          
+          // Clear nearby node state and return early (no auto-connect for container drops)
+          setNearbyNode(null);
+          
+          // Phase 1.2: Clear drop target indicator
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id === targetContainer.id && n.data.isDropTarget) {
+                return {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    isDropTarget: false,
+                  },
+                };
+              }
+              return n;
+            })
+          );
+          
+          return; // Don't continue to main canvas drop
         }
-        
-        // Update the container node to include this new node in its childNodes
-        const updatedNodes = nodes.map(n => {
-          if (n.id === targetContainer.id) {
-            const currentChildNodes = (n.data.childNodes as Node[]) || [];
-            const newChildNode = {
-              ...newNode,
-              // Position is relative to drop position
-              position: {
-                x: position.x - targetContainer.position.x,
-                y: position.y - targetContainer.position.y,
-              },
-            };
-            
-            return {
-              ...n,
-              data: {
-                ...n.data,
-                childNodes: [...currentChildNodes, newChildNode],
-                nodeCount: currentChildNodes.length + 1,
-              },
-            };
-          }
-          return n;
-        });
-        
-        setNodes(updatedNodes);
-        setNodeIdCounter((prev) => prev + 1);
-        console.log(`[Container] Node ${newNode.id} added to container ${targetContainer.id} (now has ${(targetContainer.data.childNodes as Node[] || []).length + 1} children)`);
-        return; // Don't add to main canvas
       }
       
       // Normal drop on main canvas
