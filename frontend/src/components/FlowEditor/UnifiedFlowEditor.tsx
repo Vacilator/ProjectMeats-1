@@ -87,7 +87,7 @@ import {
 } from './nodes';
 import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
-import { calculateContainerLayout } from './utils/containerLayout'; // Phase 3
+import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { NodeConfigPanel } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
@@ -2279,6 +2279,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                 return n;
               })
             );
+          }
+          
+          // Phase 4: Trigger auto-connection for form steps
+          if (type === 'formStep' || type === 'formReference') {
+            console.log(`[Container] Triggering auto-connection for container ${targetContainer.id}`);
+            const connectionResult = autoConnectSequentialSteps(
+              targetContainer.id,
+              layoutResult.nodes,
+              edges
+            );
+            
+            // Apply connection changes
+            setEdges(connectionResult.edges);
+            console.log(`[Container] ✅ Auto-connection complete`);
           }
           
           // Clear nearby node state and return early (no auto-connect for container drops)

@@ -229,3 +229,106 @@ function findConnectedFormStep(
 export function shouldTriggerLayout(nodeType: string): boolean {
   return nodeType !== 'formMultiStepContainer';
 }
+
+// ============================================================================
+// Phase 4: Auto-Connection Algorithm
+// ============================================================================
+
+export interface ConnectionResult {
+  edges: Edge[];  // Updated edges array with auto-created connections
+}
+
+/**
+ * Auto-connect sequential form steps horizontally
+ * 
+ * Creates edges: step1 → step2 → step3 (left-to-right)
+ * Marks auto-created edges with data.auto = true
+ * 
+ * @param containerId - ID of the container node
+ * @param allNodes - All nodes in the editor
+ * @param allEdges - All edges in the editor
+ * @returns Updated edges array with sequential connections
+ */
+export function autoConnectSequentialSteps(
+  containerId: string,
+  allNodes: Node[],
+  allEdges: Edge[]
+): ConnectionResult {
+  console.log(`[AutoConnect] Creating sequential connections for container ${containerId}`);
+  
+  // Filter child nodes
+  const childNodes = allNodes.filter(node => node.parentNode === containerId);
+  
+  // Get only form steps and sort by x-position (left-to-right)
+  const formSteps = childNodes
+    .filter(node => node.type === 'formStep' || node.type === 'formReference')
+    .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
+  
+  console.log(`[AutoConnect] Found ${formSteps.length} form steps to connect`);
+  
+  if (formSteps.length < 2) {
+    console.log(`[AutoConnect] Not enough form steps to create connections`);
+    return { edges: allEdges };
+  }
+  
+  // Remove old auto-created edges for this container
+  const nonAutoEdges = allEdges.filter(edge => {
+    // Keep edge if it's NOT auto-created OR if it's not in this container
+    if (!edge.data?.auto) return true;
+    
+    const sourceNode = allNodes.find(n => n.id === edge.source);
+    const targetNode = allNodes.find(n => n.id === edge.target);
+    
+    // Keep if either node is not in this container
+    return sourceNode?.parentNode !== containerId || targetNode?.parentNode !== containerId;
+  });
+  
+  console.log(`[AutoConnect] Removed ${allEdges.length - nonAutoEdges.length} old auto-edges`);
+  
+  // Create sequential edges between form steps
+  const newAutoEdges: Edge[] = [];
+  
+  for (let i = 0; i < formSteps.length - 1; i++) {
+    const sourceStep = formSteps[i];
+    const targetStep = formSteps[i + 1];
+    
+    const edgeId = `auto-${sourceStep.id}-${targetStep.id}`;
+    
+    // Check if manual edge already exists
+    const manualEdgeExists = nonAutoEdges.some(
+      edge => edge.source === sourceStep.id && edge.target === targetStep.id
+    );
+    
+    if (manualEdgeExists) {
+      console.log(`[AutoConnect] Skipping ${edgeId} - manual edge exists`);
+      continue;
+    }
+    
+    newAutoEdges.push({
+      id: edgeId,
+      source: sourceStep.id,
+      target: targetStep.id,
+      type: 'custom',
+      data: { 
+        auto: true,  // Mark as auto-created for future removal
+        label: `Step ${i + 1} → ${i + 2}`,
+      },
+    });
+    
+    console.log(`[AutoConnect] Created edge: ${sourceStep.id} → ${targetStep.id}`);
+  }
+  
+  console.log(`[AutoConnect] Created ${newAutoEdges.length} sequential edges`);
+  
+  return {
+    edges: [...nonAutoEdges, ...newAutoEdges],
+  };
+}
+
+/**
+ * Check if a node type should trigger auto-connection
+ * (Only form steps trigger auto-connection of sequential edges)
+ */
+export function shouldTriggerConnection(nodeType: string): boolean {
+  return nodeType === 'formStep' || nodeType === 'formReference';
+}
