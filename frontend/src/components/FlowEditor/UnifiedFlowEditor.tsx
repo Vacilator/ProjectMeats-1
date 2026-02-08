@@ -3176,6 +3176,52 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   /**
+   * Validate workflow containers (Phase 8.5)
+   * Must be declared before handleSaveWorkflow to avoid TDZ error
+   */
+  const validateContainers = useCallback((): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    // Find all container nodes
+    const containerNodes = nodes.filter(
+      n => n.type === 'formMultiStepContainer'
+    );
+    
+    for (const container of containerNodes) {
+      // Get child nodes
+      const childNodes = nodes.filter(n => n.parentNode === container.id);
+      
+      // Check for at least one form step
+      const formSteps = childNodes.filter(
+        n => n.type === 'formStep' || n.type === 'formReference'
+      );
+      
+      if (formSteps.length === 0) {
+        errors.push(
+          `Container "${container.data.label || container.id}" must have at least one form step`
+        );
+      }
+      
+      // Check for orphaned nodes (nodes without connections)
+      for (const child of childNodes) {
+        const hasIncoming = edges.some(e => e.target === child.id);
+        const hasOutgoing = edges.some(e => e.source === child.id);
+        
+        // Skip first node (can have no incoming)
+        const isFirstStep = formSteps[0]?.id === child.id;
+        
+        if (!hasIncoming && !hasOutgoing && !isFirstStep) {
+          errors.push(
+            `Node "${child.data.label || child.id}" in container "${container.data.label || container.id}" is not connected`
+          );
+        }
+      }
+    }
+    
+    return { valid: errors.length === 0, errors };
+  }, [nodes, edges]);
+  
+  /**
    * Save workflow to backend
    */
   const handleSaveWorkflow = useCallback(async () => {
@@ -3360,51 +3406,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setIsDeleting(false);
     }
   }, [workflowToDelete, isDeleting]);
-  
-  /**
-   * Validate workflow containers (Phase 8.5)
-   */
-  const validateContainers = useCallback((): { valid: boolean; errors: string[] } => {
-    const errors: string[] = [];
-    
-    // Find all container nodes
-    const containerNodes = nodes.filter(
-      n => n.type === 'formMultiStepContainer'
-    );
-    
-    for (const container of containerNodes) {
-      // Get child nodes
-      const childNodes = nodes.filter(n => n.parentNode === container.id);
-      
-      // Check for at least one form step
-      const formSteps = childNodes.filter(
-        n => n.type === 'formStep' || n.type === 'formReference'
-      );
-      
-      if (formSteps.length === 0) {
-        errors.push(
-          `Container "${container.data.label || container.id}" must have at least one form step`
-        );
-      }
-      
-      // Check for orphaned nodes (nodes without connections)
-      for (const child of childNodes) {
-        const hasIncoming = edges.some(e => e.target === child.id);
-        const hasOutgoing = edges.some(e => e.source === child.id);
-        
-        // Skip first node (can have no incoming)
-        const isFirstStep = formSteps[0]?.id === child.id;
-        
-        if (!hasIncoming && !hasOutgoing && !isFirstStep) {
-          errors.push(
-            `Node "${child.data.label || child.id}" in container "${container.data.label || container.id}" is not connected`
-          );
-        }
-      }
-    }
-    
-    return { valid: errors.length === 0, errors };
-  }, [nodes, edges]);
   
   /**
    * Prompt for workflow name when creating new workflow
