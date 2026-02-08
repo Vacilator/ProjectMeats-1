@@ -2352,9 +2352,51 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   /**
-   * Handle node drag stop - check if node was dropped in/out of container (Phase E)
+   * Phase 5: Handle node drag stop - detect reordering within container
+   * Phase 1-4: Handle dragging nodes in/out of containers
    */
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    // Phase 5: If node is inside a container and it's a form step, trigger re-layout
+    if (node.parentNode && (node.type === 'formStep' || node.type === 'formReference')) {
+      const container = nodes.find(n => n.id === node.parentNode);
+      
+      if (container) {
+        console.log(`[DragStop] Triggering re-layout for container ${container.id} after node ${node.id} dragged`);
+        
+        // Re-calculate layout (reorders nodes based on new x-position)
+        const layoutResult = calculateContainerLayout(container.id, nodes, edges);
+        setNodes(layoutResult.nodes);
+        
+        // Update container dimensions if needed
+        if (layoutResult.containerWidth > (container.style?.width || 400) || 
+            layoutResult.containerHeight > (container.style?.height || 300)) {
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id === container.id) {
+                return {
+                  ...n,
+                  style: {
+                    ...n.style,
+                    width: Math.max(layoutResult.containerWidth, n.style?.width || 400),
+                    height: Math.max(layoutResult.containerHeight, n.style?.height || 300),
+                  },
+                };
+              }
+              return n;
+            })
+          );
+        }
+        
+        // Re-connect sequential steps
+        const connectionResult = autoConnectSequentialSteps(container.id, layoutResult.nodes, edges);
+        setEdges(connectionResult.edges);
+        
+        console.log(`[DragStop] ✅ Re-layout and re-connection complete`);
+        return;
+      }
+    }
+    
+    // Phase 1-4: Original logic - Handle dragging node in/out of container
     // Calculate absolute position (in case node is inside a parent)
     const absolutePosition = node.parentNode
       ? {
@@ -2418,7 +2460,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       setHasUnsavedChanges(true);
     }
-  }, [nodes, findContainerAtPosition, setNodes]);
+  }, [nodes, edges, setNodes, setEdges, findContainerAtPosition]);
   
   /**
    * Update container node statistics (Phase E - Updated for parentNode)
