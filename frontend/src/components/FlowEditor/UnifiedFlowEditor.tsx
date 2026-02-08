@@ -1901,6 +1901,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       if (!sourceNode || !targetNode) return;
       
+      // Phase 6.1: Container isolation validation (HIGHEST PRIORITY)
+      // Block connections from child node to external node
+      if (sourceNode.parentNode && !targetNode.parentNode) {
+        console.warn('[Connection] ❌ Cannot connect child node to external node (container isolation)');
+        // TODO: Show user-friendly error toast
+        return;
+      }
+      
+      // Block connections from external node to child node
+      if (!sourceNode.parentNode && targetNode.parentNode) {
+        console.warn('[Connection] ❌ Cannot connect external node to child node (container isolation)');
+        // TODO: Show user-friendly error toast
+        return;
+      }
+      
+      // Block connections between nodes in different containers
+      if (sourceNode.parentNode && targetNode.parentNode && sourceNode.parentNode !== targetNode.parentNode) {
+        console.warn('[Connection] ❌ Cannot connect nodes from different containers');
+        // TODO: Show user-friendly error toast
+        return;
+      }
+      
+      console.log('[Connection] ✅ Container isolation check passed');
+      
       // Type-aware validation
       const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
       if (!typeCheck.valid) {
