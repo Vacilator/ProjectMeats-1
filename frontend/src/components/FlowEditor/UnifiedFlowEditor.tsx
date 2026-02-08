@@ -2194,7 +2194,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         },
       };
       
-      // Add explicit dimensions for container nodes
+      // Phase 2.3: Container nodes no longer need childNodes/childEdges arrays
       if (type === 'formMultiStepContainer') {
         newNode.style = {
           width: 400,
@@ -2202,8 +2202,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
         newNode.data = {
           ...newNode.data,
-          childNodes: [],
-          childEdges: [],
+          // Phase 2.3: REMOVED childNodes and childEdges initialization
+          // Children are now queried via parentNode property
           onEnterContainer: (containerId: string) => {
             console.log(`[Container] onEnterContainer callback triggered for ${containerId}`);
             // This will be handled by the parent editor

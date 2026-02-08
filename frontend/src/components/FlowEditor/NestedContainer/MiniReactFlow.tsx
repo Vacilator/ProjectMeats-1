@@ -1,11 +1,13 @@
 /**
  * Mini React Flow Component
  * 
- * Nested React Flow instance displayed inside container nodes.
- * Shows child nodes in a mini canvas within the container body.
+ * Phase 2.2: Migrated to React Flow Native System
+ * - Receives filtered nodes/edges from parent (no shadow graph)
+ * - Read-only preview of container contents
+ * - Eliminates sync issues between shadow and main state
  * 
  * Created: 2026-02-07
- * Updated: 2026-02-07 - Fixed circular dependency by using individual imports
+ * Updated: 2026-02-08 - Phase 2: Removed shadow graph, simplified to read-only
  */
 import React, { useCallback } from 'react';
 import styled from 'styled-components';
@@ -42,13 +44,11 @@ import { CustomEdge } from '../edges/CustomEdge';
 // ============================================================================
 
 interface MiniReactFlowProps {
-  nodes: Node[];
-  edges: Edge[];
-  onNodesChange?: (nodes: Node[]) => void;
-  onEdgesChange?: (edges: Edge[]) => void;
-  onConnect?: (connection: Connection | Edge) => void;
-  readOnly?: boolean;
-  containerHeight?: number;
+  nodes: Node[]; // Phase 2.2: Filtered by parentNode in UnifiedFlowEditor
+  edges: Edge[]; // Phase 2.2: Filtered to edges between child nodes
+  containerHeight?: number; // Height of mini canvas
+  // Phase 2.2: Removed onNodesChange, onEdgesChange, onConnect (read-only)
+  // Phase 2.2: Removed readOnly prop (always read-only now)
 }
 
 // ============================================================================
@@ -100,38 +100,15 @@ const edgeTypes: EdgeTypes = {
 export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
   nodes,
   edges,
-  onNodesChange,
-  onEdgesChange,
-  onConnect,
-  readOnly = false,
   containerHeight = 300,
 }) => {
-  const handleConnect = useCallback((params: Connection | Edge) => {
-    if (onConnect) {
-      onConnect(params);
-    }
-  }, [onConnect]);
+  // Phase 2.2: Simplified - no callbacks, read-only preview
   
   return (
     <MiniFlowContainer $height={containerHeight}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={readOnly ? undefined : (changes) => {
-          if (onNodesChange) {
-            // Calculate updated nodes from changes
-            const updatedNodes = nodes; // TODO: Apply changes properly
-            onNodesChange(updatedNodes);
-          }
-        }}
-        onEdgesChange={readOnly ? undefined : (changes) => {
-          if (onEdgesChange) {
-            // Calculate updated edges from changes
-            const updatedEdges = edges; // TODO: Apply changes properly
-            onEdgesChange(updatedEdges);
-          }
-        }}
-        onConnect={readOnly ? undefined : handleConnect}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
@@ -140,9 +117,11 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
           minZoom: 0.5,
           maxZoom: 1.5,
         }}
-        nodesDraggable={!readOnly}
-        nodesConnectable={!readOnly}
-        elementsSelectable={!readOnly}
+        nodesDraggable={false} // Phase 2.2: Read-only
+        nodesConnectable={false} // Phase 2.2: Read-only
+        elementsSelectable={false} // Phase 2.2: Read-only
+        zoomOnScroll={false} // Phase 2.2: Prevent zoom in mini canvas
+        panOnDrag={false} // Phase 2.2: Prevent panning
         proOptions={{ hideAttribution: true }}
         minZoom={0.3}
         maxZoom={2}
@@ -165,6 +144,7 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
             },
           }}
         />
+        {/* Phase 2.2: MiniMap for quick overview of container contents */}
         <MiniMap
           nodeColor={(node) => {
             // Color nodes by type in minimap

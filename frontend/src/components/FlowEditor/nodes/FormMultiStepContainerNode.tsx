@@ -1,16 +1,18 @@
 /**
  * Form Multi-Step Container Node Component
  * 
- * Container node that groups multiple workflow nodes (forms, actions, conditions)
- * into a sequential flow. Displays child nodes in a nested React Flow canvas.
+ * Phase 2: Migrated to React Flow Native System
+ * - Uses parentNode property instead of childNodes array
+ * - Queries children from main React Flow state via useReactFlow
+ * - No shadow graph - single source of truth
  * 
  * Phase 4.2 of WF-ENH-2026-Q1
  * Created: 2026-02-06
- * Updated: 2026-02-07 - Implemented nested React Flow architecture
+ * Updated: 2026-02-08 - Phase 2: Migrated to React Flow native parent-child
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
-import { NodeProps, Node, Edge } from '@xyflow/react';
+import { NodeProps, Node, Edge, useReactFlow } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 import { ChevronDown, ChevronRight, Maximize2, Minimize2, LogIn, ZoomIn } from 'lucide-react';
@@ -23,8 +25,9 @@ import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 export interface ContainerNodeData extends BaseNodeData {
   containerName?: string;
   containerDescription?: string;
-  childNodes?: Node[]; // Array of child nodes stored IN this container
-  childEdges?: Edge[]; // Array of edges between child nodes
+  // Phase 2.1: REMOVED childNodes and childEdges (migrated to React Flow native)
+  // childNodes?: Node[]; // ❌ Old shadow graph approach
+  // childEdges?: Edge[]; // ❌ Old shadow graph approach
   isExpanded?: boolean;
   showProgressIndicator?: boolean;
   allowBackNavigation?: boolean;
@@ -35,10 +38,13 @@ export interface ContainerNodeData extends BaseNodeData {
   // Callbacks for parent communication
   onEnterContainer?: (containerId: string) => void;
   
-  // Statistics (auto-calculated)
+  // Statistics (auto-calculated from React Flow state)
   nodeCount?: number;
   nodeTypeBreakdown?: Record<string, number>; // {"formStep": 3, "actionEmail": 1, ...}
   formReferences?: string[]; // Array of TenantForm IDs used within
+  
+  // Phase 1.2: Drop target indicator
+  isDropTarget?: boolean;
 }
 
 export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNodeData> {}
@@ -302,12 +308,24 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   selected,
 }) => {
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
+  const { getNodes, getEdges } = useReactFlow(); // Phase 2.2: Access React Flow state
   
   const nodeDef = getNodeTypeDefinition('formMultiStepContainer');
   
-  // Calculate statistics
+  // Phase 2.2: Calculate statistics from React Flow state (not shadow array)
   const stats = useMemo(() => {
-    const childNodes = data.childNodes || [];
+    const allNodes = getNodes();
+    const allEdges = getEdges();
+    
+    // Phase 2.2: Query child nodes via parentNode property
+    const childNodes = allNodes.filter(node => node.parentNode === id);
+    
+    // Phase 2.2: Query edges between child nodes
+    const childNodeIds = new Set(childNodes.map(n => n.id));
+    const childEdges = allEdges.filter(edge => 
+      childNodeIds.has(edge.source) && childNodeIds.has(edge.target)
+    );
+    
     const nodeCount = childNodes.length;
     const nodeTypes: Record<string, number> = {};
     const formRefs = new Set<string>();
@@ -327,10 +345,10 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
       nodeTypes,
       formRefs: formRefs.size,
       hasNodes: nodeCount > 0,
-      childNodes,
-      childEdges: data.childEdges || [],
+      childNodes, // Phase 2.2: From React Flow state, not shadow array
+      childEdges, // Phase 2.2: From React Flow state, not shadow array
     };
-  }, [data.childNodes, data.childEdges]);
+  }, [id, getNodes, getEdges]); // Phase 2.2: Dependency on React Flow state
   
   const isConfigured = data.configured || stats.hasNodes;
   
@@ -351,15 +369,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
     }
   }, [id, data]);
   
-  const handleNodesChange = useCallback((updatedNodes: Node[]) => {
-    // TODO: Propagate changes back to parent
-    console.log('[Container] Child nodes changed:', updatedNodes);
-  }, []);
-  
-  const handleEdgesChange = useCallback((updatedEdges: Edge[]) => {
-    // TODO: Propagate changes back to parent
-    console.log('[Container] Child edges changed:', updatedEdges);
-  }, []);
+  // Phase 2.2: REMOVED handleNodesChange and handleEdgesChange
+  // Changes now happen directly in React Flow state, no need to propagate
   
   // Get node type statistics for display
   const nodeTypeEntries = Object.entries(stats.nodeTypes).sort((a, b) => b[1] - a[1]);
@@ -426,14 +437,11 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                     </SummaryRow>
                   )}
                   
-                  {/* Mini React Flow Canvas */}
+                  {/* Phase 2.2: Mini React Flow Canvas (read-only preview) */}
                   <MiniFlowWrapper>
                     <MiniReactFlow
                       nodes={stats.childNodes}
                       edges={stats.childEdges}
-                      onNodesChange={handleNodesChange}
-                      onEdgesChange={handleEdgesChange}
-                      readOnly={false}
                       containerHeight={250}
                     />
                   </MiniFlowWrapper>
