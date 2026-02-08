@@ -23,6 +23,7 @@ import styled from 'styled-components';
 import Editor from '@monaco-editor/react';
 import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
+import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
 import {
   ReactFlow,
   MiniMap,
@@ -73,6 +74,7 @@ import {
   X,
   Save,
   FolderOpen,
+  Trash2, // Phase 8.3
 } from 'lucide-react';
 
 import {
@@ -90,7 +92,7 @@ import {
 import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
-import { saveWorkflow, loadWorkflow, listWorkflows, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7
+import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
 import { NodeConfigPanel } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
@@ -103,6 +105,7 @@ import { FlowTemplate } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
 import { EntityFormStepModal, type FormStepData } from './Modals/EntityFormStepModal';
 import { FormMultiStepContainerModal, type ContainerData } from './Modals/FormMultiStepContainerModal';
+import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
 import { PreviewPanel } from './panels/PreviewPanel';
 
 // ============================================================================
@@ -147,6 +150,28 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   right: ${props => props.$isFullscreen ? '0' : 'auto'};
   bottom: ${props => props.$isFullscreen ? '0' : 'auto'};
   z-index: ${props => props.$isFullscreen ? '9990' : 'auto'};
+  
+  /* Phase 8.4: Smooth animations for node layout changes */
+  .react-flow__node {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.2s ease;
+  }
+  
+  .react-flow__node.dragging {
+    transition: none !important;
+  }
+  
+  .react-flow__edge {
+    transition: opacity 0.2s ease;
+  }
+  
+  /* Animate container expand/collapse */
+  .react-flow__node[data-type="formMultiStepContainer"] {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                width 0.3s ease,
+                height 0.3s ease,
+                opacity 0.2s ease;
+  }
 `;
 
 // ============================================================================
@@ -906,21 +931,72 @@ const LoadMenuDropdown = styled.div`
   top: 100%;
   right: 0;
   margin-top: 4px;
-  min-width: 300px;
-  max-width: 400px;
-  max-height: 400px;
-  overflow-y: auto;
+  min-width: 350px;
+  max-width: 450px;
+  max-height: 500px;
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
+  display: flex;
+  flex-direction: column;
+  
+  /* Phase 8.4: Smooth slide-in animation */
+  animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top right;
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+`;
+
+const LoadMenuHeader = styled.div`
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+`;
+
+const WorkflowSearchInput = styled.input`
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+  }
+  
+  &::placeholder {
+    color: rgb(var(--color-text-secondary));
+  }
+`;
+
+const LoadMenuList = styled.div`
+  overflow-y: auto;
+  max-height: 400px;
 `;
 
 const LoadMenuItem = styled.div`
   padding: 12px 16px;
   border-bottom: 1px solid rgb(var(--color-border));
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   transition: background 0.15s ease;
   
   &:hover {
@@ -932,11 +1008,20 @@ const LoadMenuItem = styled.div`
   }
 `;
 
+const LoadMenuItemContent = styled.div`
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+`;
+
 const LoadMenuItemTitle = styled.div`
   font-size: 14px;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
   margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const LoadMenuItemMeta = styled.div`
@@ -944,6 +1029,31 @@ const LoadMenuItemMeta = styled.div`
   color: rgb(var(--color-text-secondary));
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const DeleteButton = styled.button`
+  padding: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgb(239, 68, 68);
+    color: rgb(239, 68, 68);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
 `;
 
 const LoadMenuEmpty = styled.div`
@@ -951,6 +1061,201 @@ const LoadMenuEmpty = styled.div`
   text-align: center;
   color: rgb(var(--color-text-secondary));
   font-size: 14px;
+`;
+
+const ConfirmModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  backdrop-filter: blur(4px);
+  
+  /* Phase 8.4: Smooth fade-in animation */
+  animation: fadeIn 0.2s ease;
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+`;
+
+const ConfirmContent = styled.div`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 400px;
+  padding: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  
+  /* Phase 8.4: Smooth scale-in animation */
+  animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9) translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+`;
+
+const ConfirmTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0 0 8px 0;
+`;
+
+const ConfirmMessage = styled.p`
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+`;
+
+const ConfirmActions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+`;
+
+const ConfirmButton = styled.button<{ $variant?: 'danger' | 'secondary' }>`
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${props => props.$variant === 'danger' ? 'white' : 'rgb(var(--color-text-primary))'};
+  background: ${props => props.$variant === 'danger' ? 'rgb(239, 68, 68)' : 'transparent'};
+  border: 1px solid ${props => props.$variant === 'danger' ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: ${props => props.$variant === 'danger' ? 'rgb(220, 38, 38)' : 'rgb(var(--color-background))'};
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+// ============================================================================
+// Keyboard Shortcuts Help Modal (Phase 8.6)
+// ============================================================================
+
+const KeyboardShortcutsModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10002;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+`;
+
+const KeyboardShortcutsContent = styled.div`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+`;
+
+const KeyboardShortcutsHeader = styled.div`
+  padding: 20px 24px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const KeyboardShortcutsTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0;
+`;
+
+const KeyboardShortcutsBody = styled.div`
+  padding: 24px;
+`;
+
+const ShortcutSection = styled.div`
+  margin-bottom: 24px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const ShortcutSectionTitle = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+`;
+
+const ShortcutList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ShortcutItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgb(var(--color-background));
+  border-radius: var(--radius-md);
+`;
+
+const ShortcutLabel = styled.span`
+  font-size: 14px;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ShortcutKeys = styled.div`
+  display: flex;
+  gap: 4px;
+`;
+
+const ShortcutKey = styled.kbd`
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: monospace;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 `;
 
 const ViewportToolbar = styled.div`
@@ -1522,10 +1827,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | undefined>(undefined);
   const [currentWorkflowName, setCurrentWorkflowName] = useState<string>('Untitled Workflow');
+  const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState<string>(''); // Phase 8.2
+  const [currentWorkflowStatus, setCurrentWorkflowStatus] = useState<'draft' | 'active' | 'archived'>('draft'); // Phase 8.2
   const [workflowList, setWorkflowList] = useState<WorkflowListItem[]>([]);
   const [isLoadMenuOpen, setIsLoadMenuOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false); // Phase 8.2
+  const [workflowModalMode, setWorkflowModalMode] = useState<'create' | 'edit'>('create'); // Phase 8.2
+  const [workflowSearchQuery, setWorkflowSearchQuery] = useState(''); // Phase 8.3
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false); // Phase 8.3
+  const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowListItem | null>(null); // Phase 8.3
+  const [isDeleting, setIsDeleting] = useState(false); // Phase 8.3
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false); // Phase 8.6
   
   // ============================================================================
   // Wizard Mode State (Phase 2.2 Batch 3)
@@ -2867,7 +3181,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const handleSaveWorkflow = useCallback(async () => {
     if (isSaving) return; // Prevent double-save
     
+    // Phase 8.5: Validate containers before saving
+    const validation = validateContainers();
+    if (!validation.valid) {
+      // Show validation errors
+      const errorMessage = 'Validation failed:\n' + validation.errors.join('\n');
+      toast.error(errorMessage, { duration: 5000 });
+      console.warn('⚠️ Validation errors:', validation.errors);
+      return;
+    }
+    
     setIsSaving(true);
+    
+    // Show loading toast
+    const loadingToast = toast.loading(
+      currentWorkflowId ? 'Updating workflow...' : 'Creating workflow...'
+    );
     
     try {
       // Get current viewport
@@ -2880,8 +3209,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         edges,
         viewport,
         currentWorkflowId, // Undefined = create new, string = update existing
-        '', // description (TODO: add description field to UI)
-        'draft' // status (TODO: add status selector to UI)
+        currentWorkflowDescription, // Phase 8.2: Use description from state
+        currentWorkflowStatus // Phase 8.2: Use status from state
       );
       
       // Update current workflow ID if this was a new workflow
@@ -2892,16 +3221,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setHasUnsavedChanges(false);
       console.log('✅ Workflow saved:', savedWorkflow.name);
       
-      // TODO: Show success toast notification
-      alert(`✅ Workflow "${savedWorkflow.name}" saved successfully!`);
+      // Show success toast
+      toast.success(
+        `Workflow "${savedWorkflow.name}" ${currentWorkflowId ? 'updated' : 'created'} successfully!`,
+        { id: loadingToast }
+      );
     } catch (error) {
       console.error('❌ Failed to save workflow:', error);
-      // TODO: Show error toast notification
-      alert(`❌ Failed to save workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Show error toast
+      toast.error(
+        `Failed to save workflow: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { id: loadingToast }
+      );
     } finally {
       setIsSaving(false);
     }
-  }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance]);
+  }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus]);
   
   /**
    * Load workflow from backend
@@ -2910,6 +3246,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     if (isLoading) return; // Prevent double-load
     
     setIsLoading(true);
+    
+    // Show loading toast
+    const loadingToast = toast.loading('Loading workflow...');
     
     try {
       // Load workflow data
@@ -2920,6 +3259,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setEdges(loadedWorkflow.workflow_definition.edges || []);
       setCurrentWorkflowId(loadedWorkflow.id);
       setCurrentWorkflowName(loadedWorkflow.name);
+      setCurrentWorkflowDescription(loadedWorkflow.description || ''); // Phase 8.2
+      setCurrentWorkflowStatus(loadedWorkflow.status as 'draft' | 'active' | 'archived'); // Phase 8.2
       setHasUnsavedChanges(false);
       
       // Restore viewport if saved
@@ -2932,12 +3273,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       console.log('✅ Workflow loaded:', loadedWorkflow.name);
       
-      // TODO: Show success toast notification
-      alert(`✅ Workflow "${loadedWorkflow.name}" loaded successfully!`);
+      // Show success toast
+      toast.success(
+        `Workflow "${loadedWorkflow.name}" loaded successfully!`,
+        { id: loadingToast }
+      );
     } catch (error) {
       console.error('❌ Failed to load workflow:', error);
-      // TODO: Show error toast notification
-      alert(`❌ Failed to load workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Show error toast
+      toast.error(
+        `Failed to load workflow: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { id: loadingToast }
+      );
     } finally {
       setIsLoading(false);
     }
@@ -2948,6 +3296,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    */
   useEffect(() => {
     if (isLoadMenuOpen) {
+      setWorkflowSearchQuery(''); // Reset search when opening
       listWorkflows()
         .then(workflows => {
           setWorkflowList(workflows);
@@ -2955,21 +3304,129 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         .catch(error => {
           console.error('❌ Failed to fetch workflow list:', error);
           setWorkflowList([]);
+          toast.error('Failed to load workflow list');
         });
     }
   }, [isLoadMenuOpen]);
   
   /**
+   * Filter workflows by search query (Phase 8.3)
+   */
+  const filteredWorkflows = useMemo(() => {
+    if (!workflowSearchQuery.trim()) {
+      return workflowList;
+    }
+    
+    const query = workflowSearchQuery.toLowerCase();
+    return workflowList.filter(workflow => 
+      workflow.name.toLowerCase().includes(query) ||
+      workflow.description?.toLowerCase().includes(query) ||
+      workflow.status.toLowerCase().includes(query)
+    );
+  }, [workflowList, workflowSearchQuery]);
+  
+  /**
+   * Handle delete workflow button click (Phase 8.3)
+   */
+  const handleDeleteClick = useCallback((workflow: WorkflowListItem, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering load
+    setWorkflowToDelete(workflow);
+    setDeleteConfirmOpen(true);
+  }, []);
+  
+  /**
+   * Confirm and delete workflow (Phase 8.3)
+   */
+  const handleConfirmDelete = useCallback(async () => {
+    if (!workflowToDelete || isDeleting) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      await deleteWorkflow(workflowToDelete.id);
+      
+      // Remove from list
+      setWorkflowList(prev => prev.filter(w => w.id !== workflowToDelete.id));
+      
+      // Close confirmation
+      setDeleteConfirmOpen(false);
+      setWorkflowToDelete(null);
+      
+      toast.success(`Workflow "${workflowToDelete.name}" deleted successfully`);
+    } catch (error) {
+      console.error('❌ Failed to delete workflow:', error);
+      toast.error(`Failed to delete workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [workflowToDelete, isDeleting]);
+  
+  /**
+   * Validate workflow containers (Phase 8.5)
+   */
+  const validateContainers = useCallback((): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    // Find all container nodes
+    const containerNodes = nodes.filter(
+      n => n.type === 'formMultiStepContainer'
+    );
+    
+    for (const container of containerNodes) {
+      // Get child nodes
+      const childNodes = nodes.filter(n => n.parentNode === container.id);
+      
+      // Check for at least one form step
+      const formSteps = childNodes.filter(
+        n => n.type === 'formStep' || n.type === 'formReference'
+      );
+      
+      if (formSteps.length === 0) {
+        errors.push(
+          `Container "${container.data.label || container.id}" must have at least one form step`
+        );
+      }
+      
+      // Check for orphaned nodes (nodes without connections)
+      for (const child of childNodes) {
+        const hasIncoming = edges.some(e => e.target === child.id);
+        const hasOutgoing = edges.some(e => e.source === child.id);
+        
+        // Skip first node (can have no incoming)
+        const isFirstStep = formSteps[0]?.id === child.id;
+        
+        if (!hasIncoming && !hasOutgoing && !isFirstStep) {
+          errors.push(
+            `Node "${child.data.label || child.id}" in container "${container.data.label || container.id}" is not connected`
+          );
+        }
+      }
+    }
+    
+    return { valid: errors.length === 0, errors };
+  }, [nodes, edges]);
+  
+  /**
    * Prompt for workflow name when creating new workflow
    */
   const handleNewWorkflow = useCallback(() => {
-    const name = prompt('Enter workflow name:', currentWorkflowName);
-    if (name && name.trim()) {
-      setCurrentWorkflowName(name.trim());
-      setCurrentWorkflowId(undefined); // Clear ID to create new workflow on next save
-      setHasUnsavedChanges(true);
-    }
-  }, [currentWorkflowName]);
+    // Phase 8.2: Open workflow management modal instead of prompt()
+    setWorkflowModalMode('create');
+    setIsWorkflowModalOpen(true);
+  }, []);
+  
+  /**
+   * Handle workflow modal save (Phase 8.2)
+   */
+  const handleWorkflowModalSave = useCallback((metadata: WorkflowMetadata) => {
+    setCurrentWorkflowName(metadata.name);
+    setCurrentWorkflowDescription(metadata.description || '');
+    setCurrentWorkflowStatus(metadata.status);
+    setCurrentWorkflowId(undefined); // Clear ID to create new workflow on next save
+    setHasUnsavedChanges(true);
+    
+    toast.success(`Workflow "${metadata.name}" ready to create. Click Save to persist it.`);
+  }, []);
   
   /**
    * Close load menu when clicking outside
@@ -2988,6 +3445,34 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isLoadMenuOpen]);
+  
+  /**
+   * Keyboard shortcuts listener (Phase 8.6)
+   */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // "?" key - Show keyboard shortcuts
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setShowKeyboardShortcuts(true);
+      }
+      
+      // ESC key - Close modals
+      if (e.key === 'Escape') {
+        setShowKeyboardShortcuts(false);
+        setDeleteConfirmOpen(false);
+      }
+      
+      // Ctrl+S / Cmd+S - Save workflow
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveWorkflow();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleSaveWorkflow]);
 
   // ============================================================================
   // Viewport Controls
@@ -3932,25 +4417,43 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             </ToolbarButton>
             {isLoadMenuOpen && (
               <LoadMenuDropdown data-load-menu>
-                {workflowList.length === 0 ? (
-                  <LoadMenuEmpty>
-                    {isLoading ? 'Loading workflows...' : 'No workflows found'}
-                  </LoadMenuEmpty>
-                ) : (
-                  workflowList.map(workflow => (
-                    <LoadMenuItem 
-                      key={workflow.id} 
-                      onClick={() => handleLoadWorkflow(workflow.id)}
-                    >
-                      <LoadMenuItemTitle>{workflow.name}</LoadMenuItemTitle>
-                      <LoadMenuItemMeta>
-                        <span>{workflow.node_count} nodes</span>
-                        <span>{workflow.status}</span>
-                        <span>{new Date(workflow.updated_at).toLocaleDateString()}</span>
-                      </LoadMenuItemMeta>
-                    </LoadMenuItem>
-                  ))
-                )}
+                {/* Phase 8.3: Search input */}
+                <LoadMenuHeader>
+                  <WorkflowSearchInput
+                    type="text"
+                    placeholder="Search workflows..."
+                    value={workflowSearchQuery}
+                    onChange={(e) => setWorkflowSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                </LoadMenuHeader>
+                
+                <LoadMenuList>
+                  {filteredWorkflows.length === 0 ? (
+                    <LoadMenuEmpty>
+                      {isLoading ? 'Loading workflows...' : workflowSearchQuery ? 'No workflows match your search' : 'No workflows found'}
+                    </LoadMenuEmpty>
+                  ) : (
+                    filteredWorkflows.map(workflow => (
+                      <LoadMenuItem key={workflow.id}>
+                        <LoadMenuItemContent onClick={() => handleLoadWorkflow(workflow.id)}>
+                          <LoadMenuItemTitle>{workflow.name}</LoadMenuItemTitle>
+                          <LoadMenuItemMeta>
+                            <span>{workflow.node_count} nodes</span>
+                            <span>{workflow.status}</span>
+                            <span>{new Date(workflow.updated_at).toLocaleDateString()}</span>
+                          </LoadMenuItemMeta>
+                        </LoadMenuItemContent>
+                        <DeleteButton
+                          onClick={(e) => handleDeleteClick(workflow, e)}
+                          title="Delete workflow"
+                        >
+                          <Trash2 />
+                        </DeleteButton>
+                      </LoadMenuItem>
+                    ))
+                  )}
+                </LoadMenuList>
               </LoadMenuDropdown>
             )}
           </LoadMenuContainer>
@@ -4449,6 +4952,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         nodeId={selectedContainer?.id}
       />
       
+      {/* Workflow Management Modal (Phase 8.2) */}
+      <WorkflowManagementModal
+        isOpen={isWorkflowModalOpen}
+        onClose={() => setIsWorkflowModalOpen(false)}
+        onSave={handleWorkflowModalSave}
+        initialData={{
+          name: currentWorkflowName,
+          description: currentWorkflowDescription,
+          status: currentWorkflowStatus,
+        }}
+        mode={workflowModalMode}
+      />
+      
       {/* FormField Configuration Modal - Direct Selection (Phase 1 of Navigation Fix Plan) */}
       <SidePanel
         isOpen={formFieldModalOpen && !!selectedFormField}
@@ -4587,6 +5103,172 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         isVisible={isPreviewVisible}
         onClose={() => setIsPreviewVisible(false)}
       />
+      
+      {/* Phase 8.1: Toast Notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: 'rgb(var(--color-surface))',
+            color: 'rgb(var(--color-text-primary))',
+            border: '1px solid rgb(var(--color-border))',
+          },
+          success: {
+            iconTheme: {
+              primary: 'rgb(34, 197, 94)', // green-500
+              secondary: 'white',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: 'rgb(239, 68, 68)', // red-500
+              secondary: 'white',
+            },
+          },
+          loading: {
+            iconTheme: {
+              primary: 'rgb(var(--color-primary))',
+              secondary: 'white',
+            },
+          },
+        }}
+      />
+      
+      {/* Phase 8.3: Delete Confirmation Modal */}
+      {deleteConfirmOpen && workflowToDelete && (
+        <ConfirmModal onClick={() => !isDeleting && setDeleteConfirmOpen(false)}>
+          <ConfirmContent onClick={(e) => e.stopPropagation()}>
+            <ConfirmTitle>Delete Workflow?</ConfirmTitle>
+            <ConfirmMessage>
+              Are you sure you want to delete "<strong>{workflowToDelete.name}</strong>"? 
+              This action cannot be undone.
+            </ConfirmMessage>
+            <ConfirmActions>
+              <ConfirmButton
+                $variant="secondary"
+                onClick={() => setDeleteConfirmOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </ConfirmButton>
+              <ConfirmButton
+                $variant="danger"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </ConfirmButton>
+            </ConfirmActions>
+          </ConfirmContent>
+        </ConfirmModal>
+      )}
+      
+      {/* Phase 8.6: Keyboard Shortcuts Help Modal */}
+      {showKeyboardShortcuts && (
+        <KeyboardShortcutsModal onClick={() => setShowKeyboardShortcuts(false)}>
+          <KeyboardShortcutsContent onClick={(e) => e.stopPropagation()}>
+            <KeyboardShortcutsHeader>
+              <KeyboardShortcutsTitle>Keyboard Shortcuts</KeyboardShortcutsTitle>
+              <button
+                onClick={() => setShowKeyboardShortcuts(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'rgb(var(--color-text-secondary))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                }}
+              >
+                <X />
+              </button>
+            </KeyboardShortcutsHeader>
+            <KeyboardShortcutsBody>
+              <ShortcutSection>
+                <ShortcutSectionTitle>General</ShortcutSectionTitle>
+                <ShortcutList>
+                  <ShortcutItem>
+                    <ShortcutLabel>Show keyboard shortcuts</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>?</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Close modal</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>ESC</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                </ShortcutList>
+              </ShortcutSection>
+              
+              <ShortcutSection>
+                <ShortcutSectionTitle>Workflow</ShortcutSectionTitle>
+                <ShortcutList>
+                  <ShortcutItem>
+                    <ShortcutLabel>Save workflow</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>S</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>New workflow</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>N</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                </ShortcutList>
+              </ShortcutSection>
+              
+              <ShortcutSection>
+                <ShortcutSectionTitle>Canvas</ShortcutSectionTitle>
+                <ShortcutList>
+                  <ShortcutItem>
+                    <ShortcutLabel>Select all nodes</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>A</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Delete selected nodes</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Delete</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Undo</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>Z</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Redo</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>Y</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Fit view</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>0</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                </ShortcutList>
+              </ShortcutSection>
+            </KeyboardShortcutsBody>
+          </KeyboardShortcutsContent>
+        </KeyboardShortcutsModal>
+      )}
     </EditorContainer>
   );
 };
