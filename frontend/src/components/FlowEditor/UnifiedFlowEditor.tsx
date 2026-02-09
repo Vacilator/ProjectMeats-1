@@ -104,7 +104,7 @@ import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
 import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
-import { FlowTemplate } from './templates/flowTemplates';
+import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
 import { EntityFormStepModal, type FormStepData } from './Modals/EntityFormStepModal';
 import { FormMultiStepContainerModal, type ContainerData } from './Modals/FormMultiStepContainerModal';
@@ -1981,6 +1981,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       });
     }
   }, [activeEditorMode]);
+  
+  // Auto-load template in wizard mode when canvas is empty (Task 3)
+  useEffect(() => {
+    if (activeEditorMode === 'wizard' && nodes.length === 0) {
+      // Find the Simple Contact Form template
+      const simpleContactTemplate = FLOW_TEMPLATES.find(t => t.id === 'simple-contact-form');
+      if (simpleContactTemplate) {
+        // Load the template nodes and edges
+        setNodes(simpleContactTemplate.nodes);
+        setEdges(simpleContactTemplate.edges);
+        
+        console.log('[Wizard Mode] Auto-loaded Simple Contact Form template');
+      }
+    }
+  }, [activeEditorMode, nodes.length, setNodes, setEdges]);
 
   // Sync nodes/edges to JSON when entering Expert Mode or when data changes
   useEffect(() => {
