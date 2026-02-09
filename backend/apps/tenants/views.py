@@ -7,12 +7,14 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.core.cache import cache
 from .models import Tenant, TenantUser
+from .activity_models import ActivityLog
 from .serializers import (
     TenantSerializer,
     TenantCreateSerializer,
     TenantUserSerializer,
     UserTenantSerializer,
 )
+from .activity_serializers import ActivityLogSerializer
 from .permissions import IsTenantAdminOrOwner
 
 logger = logging.getLogger(__name__)
@@ -191,6 +193,98 @@ class TenantViewSet(viewsets.ModelViewSet):
         theme_settings = tenant_user.tenant.get_theme_settings()
         return Response(theme_settings)
     
+    @action(detail=False, methods=["get"])
+    def admin_permissions(self, request):
+        """
+        Get admin permissions for the current user in their active tenant.
+        
+        Returns a dictionary of permission flags based on the user's role:
+        - owner: Full access to everything
+        - admin: Can manage users, configs, customizations, view audit logs
+        - manager: Limited admin access
+        - user/readonly: No admin access
+        
+        Used by frontend to show/hide admin workspace features.
+        """
+        # Get user's role in their current tenant
+        # TODO: Use request.tenant from TenantMiddleware when available
+        tenant_user = TenantUser.objects.filter(
+            user=request.user, is_active=True
+        ).select_related("tenant").first()
+        
+        if not tenant_user:
+            return Response(
+                {"error": "User not associated with any tenant"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        role = tenant_user.role
+        
+        # Define permissions based on role
+        permissions_map = {
+            'owner': {
+                'can_manage_users': True,
+                'can_invite_users': True,
+                'can_change_roles': True,
+                'can_manage_profile': True,
+                'can_manage_billing': True,
+                'can_manage_configurations': True,
+                'can_manage_customizations': True,
+                'can_view_audit_logs': True,
+                'can_manage_option_lists': True,
+            },
+            'admin': {
+                'can_manage_users': True,
+                'can_invite_users': True,
+                'can_change_roles': True,
+                'can_manage_profile': True,
+                'can_manage_billing': False,  # Only owners can manage billing
+                'can_manage_configurations': True,
+                'can_manage_customizations': True,
+                'can_view_audit_logs': True,
+                'can_manage_option_lists': True,
+            },
+            'manager': {
+                'can_manage_users': False,
+                'can_invite_users': True,
+                'can_change_roles': False,
+                'can_manage_profile': False,
+                'can_manage_billing': False,
+                'can_manage_configurations': False,
+                'can_manage_customizations': False,
+                'can_view_audit_logs': False,
+                'can_manage_option_lists': False,
+            },
+            'user': {
+                'can_manage_users': False,
+                'can_invite_users': False,
+                'can_change_roles': False,
+                'can_manage_profile': False,
+                'can_manage_billing': False,
+                'can_manage_configurations': False,
+                'can_manage_customizations': False,
+                'can_view_audit_logs': False,
+                'can_manage_option_lists': False,
+            },
+            'readonly': {
+                'can_manage_users': False,
+                'can_invite_users': False,
+                'can_change_roles': False,
+                'can_manage_profile': False,
+                'can_manage_billing': False,
+                'can_manage_configurations': False,
+                'can_manage_customizations': False,
+                'can_view_audit_logs': False,
+                'can_manage_option_lists': False,
+            },
+        }
+        
+        # Get permissions for user's role, default to empty permissions
+        permissions = permissions_map.get(role, permissions_map['readonly'])
+        permissions['role'] = role
+        
+        return Response(permissions)
+    
     @action(detail=True, methods=["post", "patch"])
     def update_theme(self, request, pk=None):
         """
@@ -239,13 +333,20 @@ class TenantViewSet(viewsets.ModelViewSet):
 class TenantUserViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing tenant-user associations.
+    
+    Enhanced with admin workspace features:
+    - Search by user name or email
+    - Bulk operations (bulk_update_roles, bulk_deactivate)
+    - Pagination support
     """
 
     queryset = TenantUser.objects.all()
     serializer_class = TenantUserSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["tenant", "user", "role", "is_active"]
+    search_fields = ["user__username", "user__email", "user__first_name", "user__last_name"]
+    ordering_fields = ["created_at", "updated_at", "user__username", "role"]
     ordering = ["-created_at"]
 
     def get_queryset(self):
@@ -307,3 +408,147 @@ class TenantUserViewSet(viewsets.ModelViewSet):
         """Soft delete by setting is_active to False."""
         instance.is_active = False
         instance.save()
+    
+    @action(detail=False, methods=["post"])
+    def bulk_update_roles(self, request):
+        """
+        Bulk update roles for multiple users.
+        
+        Expected payload:
+        {
+            "user_ids": [1, 2, 3],
+            "role": "admin"
+        }
+        """
+        user_ids = request.data.get('user_ids', [])
+        new_role = request.data.get('role')
+        
+        if not user_ids or not new_role:
+            return Response(
+                {"error": "user_ids and role are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if new_role not in dict(TenantUser.ROLE_CHOICES):
+            return Response(
+                {"error": f"Invalid role. Must be one of: {', '.join(dict(TenantUser.ROLE_CHOICES).keys())}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get tenant users to update
+        tenant_users = TenantUser.objects.filter(
+            id__in=user_ids,
+            is_active=True
+        ).select_related('tenant')
+        
+        # Check permissions for each tenant
+        updated_count = 0
+        for tenant_user in tenant_users:
+            # Check if requester has admin access to this tenant
+            has_permission = (
+                TenantUser.objects.filter(
+                    tenant=tenant_user.tenant,
+                    user=request.user,
+                    role__in=["owner", "admin"],
+                    is_active=True,
+                ).exists()
+                or request.user.is_superuser
+            )
+            
+            if has_permission:
+                tenant_user.role = new_role
+                tenant_user.save()
+                updated_count += 1
+        
+        return Response({
+            "message": f"Successfully updated {updated_count} user(s)",
+            "updated_count": updated_count
+        })
+    
+    @action(detail=False, methods=["post"])
+    def bulk_deactivate(self, request):
+        """
+        Bulk deactivate multiple users.
+        
+        Expected payload:
+        {
+            "user_ids": [1, 2, 3]
+        }
+        """
+        user_ids = request.data.get('user_ids', [])
+        
+        if not user_ids:
+            return Response(
+                {"error": "user_ids is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get tenant users to deactivate
+        tenant_users = TenantUser.objects.filter(
+            id__in=user_ids,
+            is_active=True
+        ).select_related('tenant')
+        
+        # Check permissions for each tenant
+        deactivated_count = 0
+        for tenant_user in tenant_users:
+            # Check if requester has admin access to this tenant
+            has_permission = (
+                TenantUser.objects.filter(
+                    tenant=tenant_user.tenant,
+                    user=request.user,
+                    role__in=["owner", "admin"],
+                    is_active=True,
+                ).exists()
+                or request.user.is_superuser
+            )
+            
+            # Prevent self-deactivation
+            if tenant_user.user == request.user:
+                continue
+            
+            if has_permission:
+                tenant_user.is_active = False
+                tenant_user.save()
+                deactivated_count += 1
+        
+        return Response({
+            "message": f"Successfully deactivated {deactivated_count} user(s)",
+            "deactivated_count": deactivated_count
+        })
+
+
+class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for viewing activity logs (audit trail).
+    
+    Read-only - logs are created automatically by the system.
+    Only admins and owners can view activity logs.
+    """
+    
+    queryset = ActivityLog.objects.all()
+    serializer_class = ActivityLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["tenant", "user", "action", "entity_type"]
+    search_fields = ["description", "entity_type", "entity_id"]
+    ordering_fields = ["created_at"]
+    ordering = ["-created_at"]
+    
+    def get_queryset(self):
+        """Filter activity logs based on user permissions."""
+        user = self.request.user
+        
+        if user.is_superuser:
+            return ActivityLog.objects.select_related("user", "tenant")
+        
+        # Get tenants where user is admin or owner
+        admin_tenant_ids = TenantUser.objects.filter(
+            user=user,
+            role__in=["owner", "admin"],
+            is_active=True
+        ).values_list("tenant_id", flat=True)
+        
+        return ActivityLog.objects.filter(
+            tenant_id__in=admin_tenant_ids
+        ).select_related("user", "tenant")

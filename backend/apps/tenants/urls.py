@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import TenantViewSet, TenantUserViewSet
+from .views import TenantViewSet, TenantUserViewSet, ActivityLogViewSet
 from .invitation_views import (
     TenantInvitationViewSet,
     signup_with_invitation,
@@ -11,6 +11,7 @@ router = DefaultRouter()
 router.register(r"tenants", TenantViewSet)
 router.register(r"tenant-users", TenantUserViewSet)
 router.register(r"invitations", TenantInvitationViewSet, basename='tenant-invitation')
+router.register(r"activity-logs", ActivityLogViewSet, basename='activity-log')
 
 app_name = "tenants"
 

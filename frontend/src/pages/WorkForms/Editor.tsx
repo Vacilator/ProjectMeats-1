@@ -306,7 +306,10 @@ export const WorkFormsEditor: React.FC = () => {
   const { data: existingForm, isLoading: isLoadingForm } = useQuery<TenantForm>({
     queryKey: ['tenant-form', id],
     queryFn: async () => {
+      console.log('[Editor] Loading form with ID:', id);
       const response = await apiClient.get(`/workflows/forms/${id}/`);
+      console.log('[Editor] API Response:', response.data);
+      console.log('[Editor] Flow Data:', response.data?.flow_data);
       return response.data;
     },
     enabled: !!id,
@@ -316,7 +319,10 @@ export const WorkFormsEditor: React.FC = () => {
   const { data: cloneForm, isLoading: isLoadingCloneForm } = useQuery<TenantForm>({
     queryKey: ['tenant-form-clone', cloneId],
     queryFn: async () => {
+      console.log('[Editor] Loading form for cloning with ID:', cloneId);
       const response = await apiClient.get(`/workflows/forms/${cloneId}/`);
+      console.log('[Editor] Clone API Response:', response.data);
+      console.log('[Editor] Clone Flow Data:', response.data?.flow_data);
       return response.data;
     },
     enabled: !!cloneId,
@@ -331,36 +337,64 @@ export const WorkFormsEditor: React.FC = () => {
 
   // Initialize editor with template or existing form
   useEffect(() => {
-    if (isInitialized) return;
+    console.log('[Editor] Initialization check:', {
+      isInitialized,
+      hasCloneForm: !!cloneForm,
+      cloneId,
+      hasExistingForm: !!existingForm,
+      id,
+      templateId,
+      isLoadingForm,
+      isLoadingCloneForm
+    });
+    
+    if (isInitialized) {
+      console.log('[Editor] Already initialized, skipping');
+      return;
+    }
 
     // Load from cloned form
     if (cloneForm && cloneId) {
+      console.log('[Editor] Setting up CLONE mode:', cloneForm);
       setFlowName(`${cloneForm.name} (Copy)`);
       setStatus('draft'); // Always start clones as draft
       setIsCloneMode(true);
       
       if (cloneForm.flow_data) {
+        console.log('[Editor] Setting clone nodes/edges:', {
+          nodes: cloneForm.flow_data.nodes?.length || 0,
+          edges: cloneForm.flow_data.edges?.length || 0
+        });
         setInitialNodes(cloneForm.flow_data.nodes || []);
         setInitialEdges(cloneForm.flow_data.edges || []);
+      } else {
+        console.warn('[Editor] Clone form has NO flow_data!');
       }
       
       setIsInitialized(true);
-      console.log('[Editor] Initialized in CLONE mode from form:', cloneId);
+      console.log('[Editor] ✅ Initialized in CLONE mode from form:', cloneId);
       return;
     }
 
     // Load from existing form
     if (existingForm && id) {
+      console.log('[Editor] Setting up EDIT mode:', existingForm);
       setFlowName(existingForm.name);
       setStatus(existingForm.status as 'draft' | 'active' | 'inactive');
       
       if (existingForm.flow_data) {
+        console.log('[Editor] Setting existing nodes/edges:', {
+          nodes: existingForm.flow_data.nodes?.length || 0,
+          edges: existingForm.flow_data.edges?.length || 0
+        });
         setInitialNodes(existingForm.flow_data.nodes || []);
         setInitialEdges(existingForm.flow_data.edges || []);
+      } else {
+        console.warn('[Editor] Existing form has NO flow_data!');
       }
       
       setIsInitialized(true);
-      console.log('[Editor] Initialized in EDIT mode for form:', id);
+      console.log('[Editor] ✅ Initialized in EDIT mode for form:', id);
       return;
     }
 

@@ -13,6 +13,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { QuickActionsProvider } from './contexts/QuickActionsContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import { ActionItemsProvider } from './contexts/ActionItemsContext';
+import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
 
 // Create QueryClient for data fetching (React Query)
@@ -152,11 +153,12 @@ const App: React.FC = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider>
-          <NotificationsProvider>
-            <ActionItemsProvider>
-              <QuickActionsProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <NotificationsProvider>
+              <ActionItemsProvider>
+                <QuickActionsProvider>
               <Router
                 future={{
                   v7_startTransition: true,
@@ -262,6 +264,7 @@ const App: React.FC = () => {
           </NotificationsProvider>
         </ThemeProvider>
       </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 };
