@@ -2480,18 +2480,35 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Update drag ghost position
     setDragPosition({ x: event.clientX, y: event.clientY });
     
-    // Detect alignment and proximity during drag
-    const reactFlowBounds = event.currentTarget.getBoundingClientRect();
+    // CRITICAL FIX: Use the ReactFlow wrapper element, not currentTarget
+    const reactFlowWrapper = document.querySelector('.react-flow') as HTMLElement;
+    if (!reactFlowWrapper) return;
+    
+    const reactFlowBounds = reactFlowWrapper.getBoundingClientRect();
+    
+    console.log('[DEBUG] Drag coordinates:', {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      boundsLeft: reactFlowBounds.left,
+      boundsTop: reactFlowBounds.top,
+      relativeX: event.clientX - reactFlowBounds.left,
+      relativeY: event.clientY - reactFlowBounds.top,
+    });
+    
     const flowPosition = reactFlowInstance.screenToFlowPosition({
       x: event.clientX - reactFlowBounds.left,
       y: event.clientY - reactFlowBounds.top,
     });
+    
+    console.log('[DEBUG] Flow position after transform:', flowPosition);
     
     // Snap to alignment
     const snappedPosition = {
       x: Math.round(flowPosition.x / 15) * 15,
       y: Math.round(flowPosition.y / 15) * 15,
     };
+    
+    console.log('[DEBUG] Snapped position:', snappedPosition);
     
     // Detect alignment guides
     const guides = detectAlignment(snappedPosition);
@@ -2589,16 +2606,37 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setDragPosition(null);
       setAlignmentGuides({ horizontal: [], vertical: [] });
 
-      // Get React Flow bounds and calculate position
-      const reactFlowBounds = event.currentTarget.getBoundingClientRect();
+      // CRITICAL FIX: Use the ReactFlow wrapper element, not currentTarget
+      // currentTarget can be the wrong element causing coordinate offset
+      const reactFlowWrapper = document.querySelector('.react-flow') as HTMLElement;
+      if (!reactFlowWrapper) {
+        console.error('[Container] ❌ Could not find React Flow wrapper');
+        return;
+      }
+      
+      const reactFlowBounds = reactFlowWrapper.getBoundingClientRect();
+      
+      console.log('[DEBUG] Drop event coordinates:', {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        boundsLeft: reactFlowBounds.left,
+        boundsTop: reactFlowBounds.top,
+        boundsWidth: reactFlowBounds.width,
+        boundsHeight: reactFlowBounds.height,
+      });
+      
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX - reactFlowBounds.left,
         y: event.clientY - reactFlowBounds.top,
       });
       
+      console.log('[DEBUG] Calculated flow position:', position);
+      
       // Snap to grid (15x15)
       position.x = Math.round(position.x / 15) * 15;
       position.y = Math.round(position.y / 15) * 15;
+      
+      console.log('[DEBUG] Snapped position:', position);
       
       // Phase 1.4: Check if dropping into a container
       const targetContainer = findContainerAtPosition(position);
