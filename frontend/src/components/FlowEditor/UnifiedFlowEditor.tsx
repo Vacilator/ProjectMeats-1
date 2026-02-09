@@ -1838,6 +1838,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false); // Phase 8.2
   const [workflowModalMode, setWorkflowModalMode] = useState<'create' | 'edit'>('create'); // Phase 8.2
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false); // Workform Batch 2
   const [workflowSearchQuery, setWorkflowSearchQuery] = useState(''); // Phase 8.3
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false); // Phase 8.3
   const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowListItem | null>(null); // Phase 8.3
@@ -4322,6 +4323,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     onDragStart={(e) => onDragStart(e, node.id)}
                     onDrag={onDrag}
                     onDragEnd={onDragEnd}
+                    title={node.description} // Full description on hover
                   >
                     <NodeIcon>{node.icon}</NodeIcon>
                     <NodeInfo>
@@ -4364,6 +4366,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     onDragStart={(e) => onDragStart(e, node.id)}
                     onDrag={onDrag}
                     onDragEnd={onDragEnd}
+                    title={node.description} // Full description on hover
                   >
                     <NodeIcon>{node.icon}</NodeIcon>
                     <NodeInfo>
@@ -4412,6 +4415,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                       onDragStart={(e) => onDragStart(e, node.id)}
                       onDrag={onDrag}
                       onDragEnd={onDragEnd}
+                      title={node.description} // Full description on hover
                     >
                       <NodeIcon>{node.icon}</NodeIcon>
                       <NodeInfo>
@@ -4577,6 +4581,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ViewportButton>
         <ViewportButton onClick={zoomOut} title="Zoom Out">
           <ZoomOut />
+        </ViewportButton>
+        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+        <ViewportButton onClick={() => setIsHelpModalOpen(true)} title="Help & Keyboard Shortcuts (?)">
+          <HelpCircle />
         </ViewportButton>
       </ViewportToolbar>
       
@@ -5352,6 +5360,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             </KeyboardShortcutsBody>
           </KeyboardShortcutsContent>
         </KeyboardShortcutsModal>
+      )}
+      
+      {/* Help Modal (Workform Batch 2) */}
+      {isHelpModalOpen && (
+        <HelpModal onClose={() => setIsHelpModalOpen(false)} />
       )}
     </EditorContainer>
   );
