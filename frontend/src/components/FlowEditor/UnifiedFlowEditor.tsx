@@ -3861,11 +3861,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const selectedNodes = params.nodes || [];
     if (selectedNodes.length === 1) {
       const node = selectedNodes[0];
-      console.log('[UnifiedFlowEditor] Node selected:', node.type, node);
+      console.log('[Selection] Node selected (no modal):', node.type, node.id);
       
-      // Only store selected node reference, don't open modal
+      // IMPORTANT: Only store selected node reference, NEVER open modal on selection
+      // Modals only open via explicit Edit button click in handleNodeEdit()
       setSelectedNode(node);
     } else {
+      console.log('[Selection] Cleared selection');
       // Clear all selections when nothing selected
       setSelectedNode(null);
       setSelectedFormStep(null);
@@ -3886,11 +3888,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
   
   // Batch 3: Handler to open modal from Edit button
+  // IMPORTANT: This is the ONLY place modals should be opened (except programmatic saves)
   const handleNodeEdit = useCallback((nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     
-    console.log('[UnifiedFlowEditor] Edit button clicked for node:', node.type, node);
+    console.log('✏️ [EDIT BUTTON] Opening modal for:', node.type, nodeId);
     
     // Close all modals first
     setFormStepModalOpen(false);
@@ -3904,27 +3907,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Route to appropriate config panel based on node type
     switch (node.type) {
       case 'formStep':
+        console.log('✏️ [EDIT BUTTON] Opening FormStep modal');
         setSelectedFormStep(node);
         setFormStepModalOpen(true);
         break;
       
       case 'formMultiStepContainer':
+        console.log('✏️ [EDIT BUTTON] Opening Container modal');
         setSelectedContainer(node);
         setContainerModalOpen(true);
         break;
         
       case 'formReference':
+        console.log('✏️ [EDIT BUTTON] Opening FormReference modal');
         setSelectedFormReference(node);
         setFormReferenceModalOpen(true);
         break;
         
       case 'formField':
+        console.log('✏️ [EDIT BUTTON] Opening FormField modal');
         setSelectedFormField(node);
         setFormFieldModalOpen(true);
         break;
         
       case 'formSection':
       case 'section':
+        console.log('✏️ [EDIT BUTTON] Opening Section modal');
         setSelectedSection(node);
         setSectionModalOpen(true);
         break;
@@ -3932,6 +3940,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       case 'formFileUpload':
       case 'document':
       case 'upload':
+        console.log('✏️ [EDIT BUTTON] Opening Document modal');
         setSelectedDocument(node);
         setDocumentModalOpen(true);
         break;
@@ -3939,6 +3948,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       case 'action':
         const actionType = node.data.actionType;
         if (actionType === 'createRecord') {
+          console.log('✏️ [EDIT BUTTON] Opening CreateRecord modal');
           setSelectedCreateRecord(node);
           setCreateRecordModalOpen(true);
         } else {

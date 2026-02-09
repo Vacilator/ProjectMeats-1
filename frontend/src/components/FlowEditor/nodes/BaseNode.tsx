@@ -277,6 +277,8 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault(); // Also prevent default to be extra safe
+    console.log('🔘 [BaseNode] Edit button clicked - calling onEdit');
     if (onEdit) onEdit();
   };
   
