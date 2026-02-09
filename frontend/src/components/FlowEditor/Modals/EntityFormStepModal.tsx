@@ -441,9 +441,9 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
       try {
         const form = await workformsApi.getTenantForm(state.selectedFormId);
         
-        // Safely extract fields from form_definition
-        const fields = form.form_definition?.fields 
-          ? form.form_definition.fields.map((field, index) => ({
+        // Safely extract fields from flow_data (backend uses flow_data, not form_definition)
+        const fields = form.flow_data?.fields 
+          ? form.flow_data.fields.map((field, index) => ({
               ...field,
               fieldId: `field-${index}`,
             }))
