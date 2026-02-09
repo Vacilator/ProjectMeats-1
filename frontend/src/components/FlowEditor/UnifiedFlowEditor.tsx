@@ -2496,9 +2496,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       relativeY: event.clientY - reactFlowBounds.top,
     });
     
+    // FIX: screenToFlowPosition expects ABSOLUTE screen coordinates
+    // It handles viewport transformation internally - do NOT subtract bounds
     const flowPosition = reactFlowInstance.screenToFlowPosition({
-      x: event.clientX - reactFlowBounds.left,
-      y: event.clientY - reactFlowBounds.top,
+      x: event.clientX,
+      y: event.clientY,
     });
     
     console.log('[DEBUG] Flow position after transform:', flowPosition);
@@ -2626,9 +2628,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         boundsHeight: reactFlowBounds.height,
       });
       
+      // FIX: screenToFlowPosition expects ABSOLUTE screen coordinates
+      // It handles viewport transformation internally - do NOT subtract bounds
       const position = reactFlowInstance.screenToFlowPosition({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
+        x: event.clientX,
+        y: event.clientY,
       });
       
       console.log('[DEBUG] Calculated flow position:', position);
@@ -2717,7 +2721,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           };
           
           // Phase 1.4: Set parentNode property (React Flow native)
-          newNode.parentNode = targetContainer.id;
+          newNode.parentId = targetContainer.id;
           
           // Phase 1.4: Constrain node movement to parent bounds
           newNode.extent = 'parent';
@@ -2918,7 +2922,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                   x: absolutePosition.x - containerNode.position.x,
                   y: absolutePosition.y - containerNode.position.y,
                 };
-                updatedNode.parentNode = newParentId;
+                updatedNode.parentId = newParentId;
                 updatedNode.extent = 'parent';
                 console.log(`[Container] Node ${node.id} added to container ${newParentId}`);
               }
@@ -2954,7 +2958,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const updateContainerStats = useCallback((containerId: string) => {
     setNodes((nds) => {
       // Count nodes in this container using React Flow's parentNode property
-      const childNodes = nds.filter(n => n.parentNode === containerId);
+      const childNodes = nds.filter(n => n.parentId === containerId);
       const nodeTypeBreakdown: Record<string, number> = {};
       const formReferences: string[] = [];
       
@@ -3236,7 +3240,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       if (containerNodes.length > 0) {
         containerNodes.forEach(container => {
-          const childNodes = nodes.filter(n => n.parentNode === container.id); // Phase E: Using parentNode
+          const childNodes = nodes.filter(n => n.parentId === container.id); // Phase E: Using parentNode
           console.log(`  - Container ${container.id}: ${childNodes.length} nodes`);
         });
       }
@@ -3265,7 +3269,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     for (const container of containerNodes) {
       // Get child nodes
-      const childNodes = nodes.filter(n => n.parentNode === container.id);
+      const childNodes = nodes.filter(n => n.parentId === container.id);
       
       // Check for at least one form step
       const formSteps = childNodes.filter(
