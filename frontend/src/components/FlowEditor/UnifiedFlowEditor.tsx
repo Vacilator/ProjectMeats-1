@@ -40,6 +40,7 @@ import {
   EdgeTypes,
   OnSelectionChangeParams,
   useReactFlow,
+  MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { 
@@ -75,6 +76,7 @@ import {
   Save,
   FolderOpen,
   Trash2, // Phase 8.3
+  HelpCircle, // Workform Editor Enhancements
 } from 'lucide-react';
 
 import {
@@ -100,6 +102,7 @@ import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
+import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
@@ -4584,7 +4587,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        defaultEdgeOptions={{ type: 'custom' }}
+        defaultEdgeOptions={{ 
+          type: 'custom',
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: '#94a3b8',
+          },
+        }}
         fitView
         snapToGrid
         snapGrid={[15, 15]}
