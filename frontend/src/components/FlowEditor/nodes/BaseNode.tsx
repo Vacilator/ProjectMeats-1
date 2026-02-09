@@ -25,6 +25,7 @@ export interface BaseNodeData {
   config?: Record<string, any>;
   onEdit?: () => void; // Batch 3: Edit handler
   onDelete?: () => void; // Batch 3: Delete handler
+  onTitleChange?: (newTitle: string) => void; // Batch 4: Title edit handler
 }
 
 export interface BaseNodeProps {
@@ -79,11 +80,36 @@ const NodeIcon = styled.span`
   line-height: 1;
 `;
 
-const NodeTitle = styled.span`
+const NodeTitle = styled.span<{ $editable?: boolean }>`
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: ${props => props.$editable ? 'text' : 'default'};
+  
+  &:hover {
+    ${props => props.$editable && `
+      text-decoration: underline;
+      text-decoration-style: dashed;
+    `}
+  }
+`;
+
+const NodeTitleInput = styled.input`
+  flex: 1;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  
+  &:focus {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: white;
+  }
 `;
 
 const StepNumber = styled.span`
@@ -236,10 +262,15 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     config,
     onEdit,
     onDelete,
+    onTitleChange,
   } = data;
   
   // Batch 3: Expand/collapse state
   const [isExpanded, setIsExpanded] = useState(true);
+  
+  // Batch 4: Title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(label);
 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
@@ -259,6 +290,34 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   const toggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsExpanded(!isExpanded);
+  };
+  
+  // Batch 4: Title editing handlers
+  const handleTitleDoubleClick = (e: React.MouseEvent) => {
+    if (!onTitleChange) return;
+    e.stopPropagation();
+    setIsEditingTitle(true);
+    setEditedTitle(label);
+  };
+  
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedTitle(e.target.value);
+  };
+  
+  const handleTitleBlur = () => {
+    if (onTitleChange && editedTitle !== label) {
+      onTitleChange(editedTitle);
+    }
+    setIsEditingTitle(false);
+  };
+  
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTitleBlur();
+    } else if (e.key === 'Escape') {
+      setEditedTitle(label);
+      setIsEditingTitle(false);
+    }
   };
 
   return (
@@ -305,7 +364,24 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       {/* Header */}
       <NodeHeader $color={nodeType.color}>
         <NodeIcon>{nodeType.icon}</NodeIcon>
-        <NodeTitle>{label}</NodeTitle>
+        {isEditingTitle ? (
+          <NodeTitleInput
+            value={editedTitle}
+            onChange={handleTitleChange}
+            onBlur={handleTitleBlur}
+            onKeyDown={handleTitleKeyDown}
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <NodeTitle 
+            $editable={!!onTitleChange}
+            onDoubleClick={handleTitleDoubleClick}
+            title={onTitleChange ? "Double-click to edit" : undefined}
+          >
+            {label}
+          </NodeTitle>
+        )}
         {stepNumber && <StepNumber>{stepNumber}</StepNumber>}
       </NodeHeader>
 
