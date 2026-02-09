@@ -2747,6 +2747,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             ...nodes.slice(parentIndex + 1),
           ];
           console.log(`[Container] Inserted child node at index ${parentIndex + 1} (after parent at ${parentIndex})`);
+          
+          // Debug: Verify parent-child ordering
+          const parentIdx = updatedNodes.findIndex((n) => n.id === targetContainer.id);
+          const childIdx = updatedNodes.findIndex((n) => n.id === newNode.id);
+          console.log(`[Container] 🔍 Array check - Parent at index ${parentIdx}, Child at index ${childIdx}`);
+          if (parentIdx >= childIdx) {
+            console.error(`[Container] ❌ ORDERING BUG: Parent (${parentIdx}) must be < Child (${childIdx})`);
+          } else {
+            console.log(`[Container] ✅ Order correct: Parent (${parentIdx}) < Child (${childIdx})`);
+          }
+          
           setNodes(updatedNodes);
           setNodeIdCounter((prev) => prev + 1);
           
@@ -2757,6 +2768,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             updatedNodes,
             edges
           );
+          
+          // Debug: Verify layout preserved parent-child ordering
+          const layoutParentIdx = layoutResult.nodes.findIndex((n) => n.id === targetContainer.id);
+          const layoutChildIdx = layoutResult.nodes.findIndex((n) => n.id === newNode.id);
+          console.log(`[Container] 🔍 After layout - Parent at ${layoutParentIdx}, Child at ${layoutChildIdx}`);
+          if (layoutParentIdx >= layoutChildIdx) {
+            console.error(`[Container] ❌ LAYOUT BROKE ORDERING: Parent (${layoutParentIdx}) must be < Child (${layoutChildIdx})`);
+          } else {
+            console.log(`[Container] ✅ Layout preserved order: Parent (${layoutParentIdx}) < Child (${layoutChildIdx})`);
+          }
           
           // Apply layout changes
           setNodes(layoutResult.nodes);
