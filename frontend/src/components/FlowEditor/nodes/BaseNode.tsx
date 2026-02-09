@@ -5,10 +5,12 @@
  * Provides consistent styling, status indicators, and connection handles.
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
+ * Updated: 2026-02-09 - Added edit/delete controls and expand/collapse (Batch 3)
  */
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Handle, Position } from '@xyflow/react';
+import { Edit2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
 
 // ============================================================================
@@ -21,6 +23,8 @@ export interface BaseNodeData {
   stepNumber?: number;
   errorMessage?: string;
   config?: Record<string, any>;
+  onEdit?: () => void; // Batch 3: Edit handler
+  onDelete?: () => void; // Batch 3: Delete handler
 }
 
 export interface BaseNodeProps {
@@ -152,6 +156,67 @@ const StyledHandle = styled(Handle)<{ $color: string }>`
   }
 `;
 
+// Batch 3: Node Controls
+const NodeControls = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  
+  ${NodeContainer}:hover & {
+    opacity: 1;
+  }
+`;
+
+const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' | 'expand' }>`
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.95);
+  color: ${props => {
+    if (props.$variant === 'delete') return 'rgb(239, 68, 68)';
+    if (props.$variant === 'edit') return 'rgb(var(--color-primary))';
+    return 'rgb(var(--color-text-secondary))';
+  }};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    transform: scale(1.1);
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+const ExpandButton = styled(ControlButton)`
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.8;
+  
+  &:hover {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.05);
+  }
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -169,10 +234,32 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     stepNumber,
     errorMessage,
     config,
+    onEdit,
+    onDelete,
   } = data;
+  
+  // Batch 3: Expand/collapse state
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
+  
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) onEdit();
+  };
+  
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete && window.confirm('Delete this node?')) {
+      onDelete();
+    }
+  };
+  
+  const toggleExpand = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsExpanded(!isExpanded);
+  };
 
   return (
     <NodeContainer 
@@ -192,6 +279,28 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Status Indicator */}
       <StatusIndicator $status={status} />
+      
+      {/* Node Controls (Batch 3) */}
+      <NodeControls>
+        {onEdit && (
+          <ControlButton 
+            $variant="edit" 
+            onClick={handleEdit}
+            title="Edit node configuration"
+          >
+            <Edit2 />
+          </ControlButton>
+        )}
+        {onDelete && (
+          <ControlButton 
+            $variant="delete" 
+            onClick={handleDelete}
+            title="Delete node"
+          >
+            <Trash2 />
+          </ControlButton>
+        )}
+      </NodeControls>
 
       {/* Header */}
       <NodeHeader $color={nodeType.color}>
@@ -200,31 +309,43 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
         {stepNumber && <StepNumber>{stepNumber}</StepNumber>}
       </NodeHeader>
 
-      {/* Body */}
-      <NodeBody>
-        <NodeContent>
-          {children || (
-            <>
-              <div>{nodeType.description}</div>
-              
-              {config && Object.keys(config).length > 0 && (
-                <ConfigPreview>
-                  {Object.entries(config).slice(0, 2).map(([key, value]) => (
-                    <div key={key}>
-                      <strong>{key}:</strong> {String(value).substring(0, 30)}
-                      {String(value).length > 30 ? '...' : ''}
-                    </div>
-                  ))}
-                </ConfigPreview>
-              )}
-              
-              {errorMessage && (
-                <ErrorMessage>{errorMessage}</ErrorMessage>
-              )}
-            </>
-          )}
-        </NodeContent>
-      </NodeBody>
+      {/* Body (collapsible) */}
+      {isExpanded && (
+        <NodeBody>
+          <NodeContent>
+            {children || (
+              <>
+                <div>{nodeType.description}</div>
+                
+                {config && Object.keys(config).length > 0 && (
+                  <ConfigPreview>
+                    {Object.entries(config).slice(0, 2).map(([key, value]) => (
+                      <div key={key}>
+                        <strong>{key}:</strong> {String(value).substring(0, 30)}
+                        {String(value).length > 30 ? '...' : ''}
+                      </div>
+                    ))}
+                  </ConfigPreview>
+                )}
+                
+                {errorMessage && (
+                  <ErrorMessage>{errorMessage}</ErrorMessage>
+                )}
+              </>
+            )}
+          </NodeContent>
+        </NodeBody>
+      )}
+      
+      {/* Expand/Collapse Button (Batch 3) */}
+      {(children || config || errorMessage) && (
+        <ExpandButton 
+          onClick={toggleExpand}
+          title={isExpanded ? "Collapse" : "Expand"}
+        >
+          {isExpanded ? <ChevronUp /> : <ChevronDown />}
+        </ExpandButton>
+      )}
 
       {/* Output Handle */}
       {showOutputHandle && (

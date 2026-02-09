@@ -3852,91 +3852,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
 
   const handleSelectionChange = useCallback((params: OnSelectionChangeParams) => {
-    // Open config panel when a single node is selected
+    // Batch 3: Simplified - just track selection, don't auto-open modals
+    // Modals will only open when user clicks Edit button on node
     const selectedNodes = params.nodes || [];
     if (selectedNodes.length === 1) {
       const node = selectedNodes[0];
-      
       console.log('[UnifiedFlowEditor] Node selected:', node.type, node);
       
-      // Close all modals first
-      setFormStepModalOpen(false);
-      setFormFieldModalOpen(false);
-      setSectionModalOpen(false);
-      setDocumentModalOpen(false);
-      setCreateRecordModalOpen(false);
-      setFormReferenceModalOpen(false);
-      setContainerModalOpen(false);
-      setSelectedNode(null);
-      setSelectedFormStep(null);
-      setSelectedFormField(null);
-      setSelectedSection(null);
-      setSelectedDocument(null);
-      setSelectedCreateRecord(null);
-      setSelectedFormReference(null);
-      setSelectedContainer(null);
-      
-      // Route to appropriate config panel based on node type
-      switch (node.type) {
-        case 'formStep':
-          console.log('[UnifiedFlowEditor] Opening FormStep modal');
-          setSelectedFormStep(node);
-          setFormStepModalOpen(true);
-          break;
-        
-        case 'formMultiStepContainer':
-          console.log('[UnifiedFlowEditor] Opening Container modal');
-          setSelectedContainer(node);
-          setContainerModalOpen(true);
-          break;
-          
-        case 'formReference':
-          console.log('[UnifiedFlowEditor] Opening FormReference modal');
-          setSelectedFormReference(node);
-          setFormReferenceModalOpen(true);
-          break;
-          
-        case 'formField':
-          console.log('[UnifiedFlowEditor] Opening FormField modal');
-          setSelectedFormField(node);
-          setFormFieldModalOpen(true);
-          break;
-          
-        case 'formSection':
-        case 'section':
-          console.log('[UnifiedFlowEditor] Opening Section modal');
-          setSelectedSection(node);
-          setSectionModalOpen(true);
-          break;
-          
-        case 'formFileUpload':
-        case 'document':
-        case 'upload':
-          console.log('[UnifiedFlowEditor] Opening Document modal');
-          setSelectedDocument(node);
-          setDocumentModalOpen(true);
-          break;
-          
-        case 'action':
-          // Route to specialized action config based on actionType
-          const actionType = node.data.actionType;
-          if (actionType === 'createRecord') {
-            console.log('[UnifiedFlowEditor] Opening CreateRecord action modal');
-            setSelectedCreateRecord(node);
-            setCreateRecordModalOpen(true);
-          } else {
-            // Fall through to generic config for other action types
-            console.log('[UnifiedFlowEditor] Opening generic config panel for action');
-            setSelectedNode(node);
-          }
-          break;
-          
-        default:
-          console.log('[UnifiedFlowEditor] Opening generic config panel');
-          setSelectedNode(node);
-      }
+      // Only store selected node reference, don't open modal
+      setSelectedNode(node);
     } else {
-      // Clear all selections
+      // Clear all selections when nothing selected
       setSelectedNode(null);
       setSelectedFormStep(null);
       setSelectedFormField(null);
@@ -3954,6 +3880,89 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setContainerModalOpen(false);
     }
   }, []);
+  
+  // Batch 3: Handler to open modal from Edit button
+  const handleNodeEdit = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    console.log('[UnifiedFlowEditor] Edit button clicked for node:', node.type, node);
+    
+    // Close all modals first
+    setFormStepModalOpen(false);
+    setFormFieldModalOpen(false);
+    setSectionModalOpen(false);
+    setDocumentModalOpen(false);
+    setCreateRecordModalOpen(false);
+    setFormReferenceModalOpen(false);
+    setContainerModalOpen(false);
+    
+    // Route to appropriate config panel based on node type
+    switch (node.type) {
+      case 'formStep':
+        setSelectedFormStep(node);
+        setFormStepModalOpen(true);
+        break;
+      
+      case 'formMultiStepContainer':
+        setSelectedContainer(node);
+        setContainerModalOpen(true);
+        break;
+        
+      case 'formReference':
+        setSelectedFormReference(node);
+        setFormReferenceModalOpen(true);
+        break;
+        
+      case 'formField':
+        setSelectedFormField(node);
+        setFormFieldModalOpen(true);
+        break;
+        
+      case 'formSection':
+      case 'section':
+        setSelectedSection(node);
+        setSectionModalOpen(true);
+        break;
+        
+      case 'formFileUpload':
+      case 'document':
+      case 'upload':
+        setSelectedDocument(node);
+        setDocumentModalOpen(true);
+        break;
+        
+      case 'action':
+        const actionType = node.data.actionType;
+        if (actionType === 'createRecord') {
+          setSelectedCreateRecord(node);
+          setCreateRecordModalOpen(true);
+        } else {
+          setSelectedNode(node);
+        }
+        break;
+        
+      default:
+        setSelectedNode(node);
+    }
+  }, [nodes]);
+  
+  // Batch 3: Handler to delete node from Delete button
+  const handleNodeDelete = useCallback((nodeId: string) => {
+    console.log('[UnifiedFlowEditor] Deleting node:', nodeId);
+    
+    // Remove node and its connected edges
+    setNodes(nds => nds.filter(n => n.id !== nodeId));
+    setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    
+    // Clear selections if deleted node was selected
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null);
+    }
+    
+    setHasUnsavedChanges(true);
+    toast.success('Node deleted');
+  }, [selectedNode, setNodes, setEdges]);
 
   const handleNodeUpdate = useCallback((nodeId: string, newData: Record<string, any>) => {
     setNodes((nds) => 
@@ -4261,6 +4270,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       .map(id => NODE_TYPE_REGISTRY[id])
       .filter(Boolean);
   }, [recentNodes]);
+  
+  // Batch 3: Inject edit/delete handlers into node data
+  const nodesWithHandlers = useMemo(() => {
+    return nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        onEdit: () => handleNodeEdit(node.id),
+        onDelete: () => handleNodeDelete(node.id),
+      },
+    }));
+  }, [nodes, handleNodeEdit, handleNodeDelete]);
 
   return (
     <EditorContainer $isFullscreen={isFullscreen}>
@@ -4621,7 +4642,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* React Flow Canvas - Visual Mode */}
       {activeEditorMode === 'visual' && (
         <ReactFlow
-        nodes={nodes}
+        nodes={nodesWithHandlers}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
