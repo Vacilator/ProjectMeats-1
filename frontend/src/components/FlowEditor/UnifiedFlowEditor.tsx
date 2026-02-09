@@ -2400,42 +2400,62 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   /**
    * Detect if a position is inside a container node
-   * Uses React Flow's getIntersectingNodes API for accurate detection
+   * HOTFIX 2026-02-09: Reverted to manual bounding box detection
    * 
-   * Phase 1.1: Replaced manual bounding box with React Flow native API
+   * Root Cause: getIntersectingNodes() was returning 0 nodes even when containers exist
+   * Console logs showed "Intersecting nodes found: 0" every time
+   * Manual bounding box is more reliable and predictable
    */
   const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
-    // Use React Flow's native intersection detection
-    // This is more reliable than manual bounding box calculations
-    const intersectingNodes = reactFlowInstance.getIntersectingNodes({
-      x: position.x,
-      y: position.y,
-      width: 50, // Small test area for drop point
-      height: 50
-    });
-    
-    // Filter to only container nodes
-    const containerNodes = intersectingNodes.filter(node => node.type === 'formMultiStepContainer');
+    // Get all container nodes
+    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
     
     console.log('[Container] =================================');
     console.log('[Container] Looking for containers at position:', position);
-    console.log('[Container] Intersecting nodes found:', intersectingNodes.length);
-    console.log('[Container] Container nodes found:', containerNodes.length);
+    console.log('[Container] Total containers on canvas:', containerNodes.length);
     
     if (containerNodes.length === 0) {
-      console.log('[Container] ❌ No containers at drop position');
+      console.log('[Container] ❌ No containers exist on canvas');
       return null;
     }
     
-    // If multiple containers overlap, use the first one (topmost/most specific)
-    const targetContainer = containerNodes[0];
+    // Manual bounding box detection
+    for (const container of containerNodes) {
+      // Get container dimensions from style or use defaults
+      const containerWidth = container.style?.width || container.width || 400;
+      const containerHeight = container.style?.height || container.height || 300;
+      
+      // Calculate bounding box
+      const bounds = {
+        left: container.position.x,
+        right: container.position.x + (typeof containerWidth === 'number' ? containerWidth : 400),
+        top: container.position.y,
+        bottom: container.position.y + (typeof containerHeight === 'number' ? containerHeight : 300),
+      };
+      
+      console.log(`[Container] Checking container ${container.id}:`);
+      console.log(`[Container]   Position: (${container.position.x}, ${container.position.y})`);
+      console.log(`[Container]   Dimensions: ${containerWidth}x${containerHeight}`);
+      console.log(`[Container]   Bounds: left=${bounds.left}, right=${bounds.right}, top=${bounds.top}, bottom=${bounds.bottom}`);
+      console.log(`[Container]   Drop point: x=${position.x}, y=${position.y}`);
+      
+      // Check if drop position is within bounds
+      if (
+        position.x >= bounds.left &&
+        position.x <= bounds.right &&
+        position.y >= bounds.top &&
+        position.y <= bounds.bottom
+      ) {
+        console.log(`[Container] ✅ Found container: ${container.id} (manual bounding box hit)`);
+        return container;
+      } else {
+        console.log(`[Container] ❌ Drop position outside container ${container.id}`);
+      }
+    }
     
-    console.log(`[Container] ✅ Found container: ${targetContainer.id}`);
-    console.log(`[Container]    Position: (${targetContainer.position.x}, ${targetContainer.position.y})`);
-    console.log(`[Container]    Dimensions: ${targetContainer.width || 'auto'}x${targetContainer.height || 'auto'}`);
-    
-    return targetContainer;
-  }, [reactFlowInstance]);
+    console.log('[Container] ❌ No containers at drop position');
+    return null;
+  }, [nodes]);
   
   const onDrag = useCallback((event: React.DragEvent) => {
     if (event.clientX === 0 && event.clientY === 0) return; // Ignore end event
