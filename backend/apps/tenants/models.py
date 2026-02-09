@@ -50,6 +50,11 @@ class Tenant(models.Model):
         help_text="Database schema name (for future django-tenants compatibility)",
         db_index=True,
     )
+    description = models.TextField(
+        blank=True,
+        default="",
+        help_text="Tenant organization description"
+    )
 
     # Contact information
     domain = models.CharField(
@@ -60,6 +65,8 @@ class Tenant(models.Model):
     )
     contact_email = models.EmailField(help_text="Primary contact email")
     contact_phone = models.CharField(max_length=20, blank=True, default="")
+    address = models.TextField(blank=True, default="", help_text="Physical address")
+    website = models.URLField(blank=True, default="", help_text="Company website")
 
     # Status and configuration
     is_active = models.BooleanField(default=True)

@@ -12,6 +12,7 @@ class TenantSerializer(serializers.ModelSerializer):
     user_count = serializers.SerializerMethodField()
     is_trial_expired = serializers.ReadOnlyField()
     domains = serializers.SerializerMethodField()
+    branding = serializers.SerializerMethodField()
 
     class Meta:
         model = Tenant
@@ -20,9 +21,12 @@ class TenantSerializer(serializers.ModelSerializer):
             "name",
             "slug",
             "schema_name",
+            "description",
             "domain",
             "contact_email",
             "contact_phone",
+            "address",
+            "website",
             "is_active",
             "is_trial",
             "trial_ends_at",
@@ -33,6 +37,7 @@ class TenantSerializer(serializers.ModelSerializer):
             "settings",
             "logo",
             "domains",
+            "branding",
         ]
         read_only_fields = ["id", "created_at", "updated_at", "schema_name"]
         # Enable partial updates (PATCH)
@@ -55,6 +60,15 @@ class TenantSerializer(serializers.ModelSerializer):
             }
             for domain in obj.tenant_domains.all()
         ]
+    
+    def get_branding(self, obj):
+        """Get branding information including theme settings."""
+        theme_settings = obj.get_theme_settings()
+        return {
+            "logo_url": theme_settings.get("logo_url"),
+            "primary_color_light": theme_settings.get("primary_color_light"),
+            "primary_color_dark": theme_settings.get("primary_color_dark"),
+        }
 
     def validate_slug(self, value):
         """Ensure slug is lowercase and unique."""
