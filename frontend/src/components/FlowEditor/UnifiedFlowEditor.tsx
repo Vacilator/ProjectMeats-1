@@ -3967,6 +3967,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setHasUnsavedChanges(true);
     toast.success('Node deleted');
   }, [selectedNode, setNodes, setEdges]);
+  
+  // Batch 4: Handler to update node title
+  const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
+    console.log('[UnifiedFlowEditor] Updating node title:', nodeId, newTitle);
+    
+    setNodes(nds => 
+      nds.map(node => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newTitle,
+            },
+          };
+        }
+        return node;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+  }, [setNodes]);
 
   const handleNodeUpdate = useCallback((nodeId: string, newData: Record<string, any>) => {
     setNodes((nds) => 
@@ -4276,6 +4298,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [recentNodes]);
   
   // Batch 3: Inject edit/delete handlers into node data
+  // Batch 4: Also inject title change handler
   const nodesWithHandlers = useMemo(() => {
     return nodes.map(node => ({
       ...node,
@@ -4283,9 +4306,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         ...node.data,
         onEdit: () => handleNodeEdit(node.id),
         onDelete: () => handleNodeDelete(node.id),
+        onTitleChange: (newTitle: string) => handleNodeTitleChange(node.id, newTitle),
       },
     }));
-  }, [nodes, handleNodeEdit, handleNodeDelete]);
+  }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange]);
 
   return (
     <EditorContainer $isFullscreen={isFullscreen}>
@@ -4574,20 +4598,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           >
             <Save size={14} style={{ marginRight: '4px' }} />
             {isSaving ? 'Saving...' : 'Save'}
-          </ToolbarButton>
-          
-          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
-          <ToolbarButton 
-            onClick={() => setIsPreviewVisible(!isPreviewVisible)} 
-            title={isPreviewVisible ? "Hide Preview" : "Show Preview"}
-            style={isPreviewVisible ? { 
-              background: 'rgb(var(--color-primary))', 
-              color: 'white',
-              borderColor: 'rgb(var(--color-primary))'
-            } : {}}
-          >
-            <Eye size={14} style={{ marginRight: '4px' }} />
-            {isPreviewVisible ? 'Hide Preview' : 'Show Preview'}
           </ToolbarButton>
         </Toolbar>
       )}
