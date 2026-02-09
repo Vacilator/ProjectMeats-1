@@ -1810,6 +1810,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Proximity detection state
   const [nearbyNode, setNearbyNode] = useState<Node | null>(null);
   
+  // Track drag start position to detect significant movement
+  const dragStartPositionRef = useRef<{ nodeId: string; x: number; y: number } | null>(null);
+  
   // Track if a drop succeeded to prevent onDragEnd from undoing changes
   const dropSucceededRef = useRef(false);
   
@@ -2885,13 +2888,46 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   /**
+   * Track drag start to detect significant movement
+   * Phase 5: Prevent unnecessary re-layouts during minor adjustments
+   */
+  const onNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
+    // Store initial position for comparison on drag stop
+    dragStartPositionRef.current = {
+      nodeId: node.id,
+      x: node.position.x,
+      y: node.position.y,
+    };
+    console.log(`[DragStart] Tracking node ${node.id} at position (${node.position.x}, ${node.position.y})`);
+  }, []);
+  
+  /**
    * Phase 5: Handle node drag stop - detect reordering within container
    * Phase 1-4: Handle dragging nodes in/out of containers
+   * 
+   * OPTIMIZATION: Only trigger auto-layout if position changed significantly
    */
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
-    // Phase 5: If node is inside a container and it's a form step, trigger re-layout
-    if (node.parentNode && (node.type === 'formStep' || node.type === 'formReference')) {
-      const container = nodes.find(n => n.id === node.parentNode);
+    // Phase 5: If node is inside a container and it's a form step, check for significant movement
+    if (node.parentId && (node.type === 'formStep' || node.type === 'formReference')) {
+      // Check if position changed significantly (more than 30px horizontally)
+      const dragStart = dragStartPositionRef.current;
+      const SIGNIFICANT_MOVEMENT_THRESHOLD = 30; // pixels
+      
+      if (dragStart && dragStart.nodeId === node.id) {
+        const deltaX = Math.abs(node.position.x - dragStart.x);
+        const deltaY = Math.abs(node.position.y - dragStart.y);
+        
+        if (deltaX < SIGNIFICANT_MOVEMENT_THRESHOLD && deltaY < SIGNIFICANT_MOVEMENT_THRESHOLD) {
+          console.log(`[DragStop] Skipping re-layout - movement too small (deltaX: ${deltaX}, deltaY: ${deltaY})`);
+          dragStartPositionRef.current = null;
+          return; // Don't trigger layout for minor adjustments
+        }
+        
+        console.log(`[DragStop] Significant movement detected (deltaX: ${deltaX}, deltaY: ${deltaY})`);
+      }
+      
+      const container = nodes.find(n => n.id === node.parentId);
       
       if (container) {
         console.log(`[DragStop] Triggering re-layout for container ${container.id} after node ${node.id} dragged`);
@@ -2925,23 +2961,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setEdges(connectionResult.edges);
         
         console.log(`[DragStop] ✅ Re-layout and re-connection complete`);
-        return;
       }
     }
     
+    // Clear drag start tracking
+    dragStartPositionRef.current = null;
+    
     // Phase 1-4: Original logic - Handle dragging node in/out of container
     // Calculate absolute position (in case node is inside a parent)
-    const absolutePosition = node.parentNode
+    const absolutePosition = node.parentId
       ? {
-          x: node.position.x + (nodes.find(n => n.id === node.parentNode)?.position.x || 0),
-          y: node.position.y + (nodes.find(n => n.id === node.parentNode)?.position.y || 0),
+          x: node.position.x + (nodes.find(n => n.id === node.parentId)?.position.x || 0),
+          y: node.position.y + (nodes.find(n => n.id === node.parentId)?.position.y || 0),
         }
       : node.position;
     
     const container = findContainerAtPosition(absolutePosition);
     
     // Check if node's parent container changed
-    const currentParentId = node.parentNode;
+    const currentParentId = node.parentId;
     const newParentId = container?.id || null;
     
     // Prevent containers from being nested in other containers
@@ -4717,6 +4755,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         isValidConnection={isValidConnection}
         onDrop={onDrop}
         onDragOver={onDragOver}
+        onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
