@@ -2737,7 +2737,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           });
           
           // Add node to main state
-          const updatedNodes = nodes.concat(newNode);
+          // CRITICAL: Parent nodes must come before their children in the array
+          // React Flow requirement: "Parent nodes must be in front of their child nodes"
+          // Find parent index and insert child right after it
+          const parentIndex = nodes.findIndex((n) => n.id === targetContainer.id);
+          const updatedNodes = [
+            ...nodes.slice(0, parentIndex + 1),
+            newNode,
+            ...nodes.slice(parentIndex + 1),
+          ];
+          console.log(`[Container] Inserted child node at index ${parentIndex + 1} (after parent at ${parentIndex})`);
           setNodes(updatedNodes);
           setNodeIdCounter((prev) => prev + 1);
           
