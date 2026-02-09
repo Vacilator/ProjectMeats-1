@@ -12,7 +12,7 @@
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
-import { NodeProps, Node, Edge, useReactFlow } from '@xyflow/react';
+import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 import { ChevronDown, ChevronRight, Maximize2, Minimize2, LogIn, ZoomIn } from 'lucide-react';
@@ -308,15 +308,16 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   selected,
 }) => {
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
-  const { getNodes, getEdges } = useReactFlow(); // Phase 2.2: Access React Flow state
+  
+  // Phase 2.2: Use reactive hooks that trigger re-renders on state changes
+  const allNodes = useNodes(); // ✅ Triggers re-render when nodes change
+  const allEdges = useEdges(); // ✅ Triggers re-render when edges change
   
   const nodeDef = getNodeTypeDefinition('formMultiStepContainer');
   
   // Phase 2.2: Calculate statistics from React Flow state (not shadow array)
+  // FIXED: Now depends on actual nodes/edges arrays, not getter functions
   const stats = useMemo(() => {
-    const allNodes = getNodes();
-    const allEdges = getEdges();
-    
     // Phase 2.2: Query child nodes via parentId property (updated from deprecated parentNode)
     const childNodes = allNodes.filter(node => node.parentId === id);
     
@@ -348,7 +349,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
       childNodes, // Phase 2.2: From React Flow state, not shadow array
       childEdges, // Phase 2.2: From React Flow state, not shadow array
     };
-  }, [id, getNodes, getEdges]); // Phase 2.2: Dependency on React Flow state
+  }, [id, allNodes, allEdges]); // Phase 2.2: Reactive dependencies on actual state
   
   const isConfigured = data.configured || stats.hasNodes;
   
