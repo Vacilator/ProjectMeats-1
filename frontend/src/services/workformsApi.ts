@@ -174,6 +174,33 @@ export const getTenantForm = async (formId: string): Promise<TenantForm> => {
 };
 
 /**
+ * Get fields from a tenant form's flow_data
+ */
+export const getFormFields = async (formId: string): Promise<EntityField[]> => {
+  const form = await getTenantForm(formId);
+  
+  // Extract fields from flow_data structure
+  // TenantForm.flow_data can have:
+  // - fields: EntityField[] (single-step forms)
+  // - steps: Array<{ fields: EntityField[] }> (multi-step forms)
+  const fields: EntityField[] = [];
+  
+  if (form.flow_data?.fields && Array.isArray(form.flow_data.fields)) {
+    // Single-step form
+    fields.push(...form.flow_data.fields);
+  } else if (form.flow_data?.steps && Array.isArray(form.flow_data.steps)) {
+    // Multi-step form - aggregate all fields from all steps
+    form.flow_data.steps.forEach((step: any) => {
+      if (step.fields && Array.isArray(step.fields)) {
+        fields.push(...step.fields);
+      }
+    });
+  }
+  
+  return fields;
+};
+
+/**
  * Create a new tenant form
  */
 export const createTenantForm = async (data: {
@@ -438,6 +465,7 @@ const workformsApi = {
   // TenantForm APIs
   listTenantForms,
   getTenantForm,
+  getFormFields,
   createTenantForm,
   updateTenantForm,
   deleteTenantForm,

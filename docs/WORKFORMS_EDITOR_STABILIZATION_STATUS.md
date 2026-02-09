@@ -200,53 +200,151 @@ class TenantWorkFormViewSet(TenantFilteredModelViewSet):
 
 ---
 
-## 🔄 PHASE 3: FRONTEND INTEGRATION (REMAINING)
+## ✅ PHASE 3: FRONTEND INTEGRATION (COMPLETE)
 
-### 1. Cascading Config Dropdowns Not Wired (HIGH)
+**Status**: Implemented and committed (c846fb8a)  
+**Date**: 2026-02-09  
+**Branch**: `fix/workforms-phase3-integration`
 
-**Problem**: Trigger type selection doesn't fetch forms, form selection doesn't fetch fields.
+### 1. ✅ Service Layer Updates
 
-**Current State**:
-- Dropdowns exist in UI but are hardcoded/static
-- No API calls to `/api/v1/tenant-forms/` on trigger type change
-- No API calls to `/api/v1/tenant-forms/{id}/fields/` on form selection
+**Changes**:
+- Added `getFormFields(formId)` method to `workformsApi.ts`
+- Properly handles both single-step and multi-step forms
+- Extracts fields from `flow_data.fields` or `flow_data.steps[].fields`
+- Exported method for use in components
 
-**Required Fix**:
-1. Add `useEffect` hooks in `NodeConfigPanel.tsx` to watch for trigger type changes
-2. Call `workformsApi.getTenantForms()` filtered by trigger type
-3. Add another `useEffect` to watch for form selection
-4. Call `workformsApi.getTenantFormFields(formId)` to populate field dropdown
-5. Add loading states and error handling
+**Implementation**:
+```typescript
+export const getFormFields = async (formId: string): Promise<EntityField[]> => {
+  const form = await getTenantForm(formId);
+  
+  const fields: EntityField[] = [];
+  
+  if (form.flow_data?.fields && Array.isArray(form.flow_data.fields)) {
+    // Single-step form
+    fields.push(...form.flow_data.fields);
+  } else if (form.flow_data?.steps && Array.isArray(form.flow_data.steps)) {
+    // Multi-step form - aggregate all fields from all steps
+    form.flow_data.steps.forEach((step: any) => {
+      if (step.fields && Array.isArray(step.fields)) {
+        fields.push(...step.fields);
+      }
+    });
+  }
+  
+  return fields;
+};
+```
 
-**Files to Modify**:
-- `frontend/src/components/FlowEditor/ConfigPanel/NodeConfigPanel.tsx`
-- `frontend/src/services/workformsApi.ts` (add field fetch method if missing)
+### 2. ✅ Cascading Configuration Dropdowns
+
+**Changes**:
+- Imported `listTenantForms` and `getFormFields` in `NodeConfigPanel.tsx`
+- Updated trigger type `useEffect` to use proper API method
+- Updated form selection `useEffect` to use `getFormFields()`
+- Removed obsolete manual `workflow_definition` parsing
+- Proper error handling and loading states
+
+**Implementation**:
+```typescript
+// Fetch available forms when trigger type is form-related
+useEffect(() => {
+  const triggerType = formData.triggerType;
+  if (triggerType === 'form' || triggerType === 'formSubmitted' || 
+      triggerType === 'recordCreated' || triggerType === 'recordUpdated') {
+    setLoadingForms(true);
+    listTenantForms()
+      .then(forms => {
+        setAvailableForms(forms);
+      })
+      .catch(error => {
+        console.error('Failed to fetch forms:', error);
+        setAvailableForms([]);
+      })
+      .finally(() => {
+        setLoadingForms(false);
+      });
+  } else {
+    setAvailableForms([]);
+    setAvailableFormFields([]);
+  }
+}, [formData.triggerType]);
+
+// Fetch form fields when a form is selected
+useEffect(() => {
+  const formId = formData.selectedFormId || formData.formId;
+  if (formId) {
+    setLoadingFields(true);
+    getFormFields(formId)
+      .then(fields => {
+        setAvailableFormFields(fields);
+      })
+      .catch(error => {
+        console.error('Failed to fetch form fields:', error);
+        setAvailableFormFields([]);
+      })
+      .finally(() => {
+        setLoadingFields(false);
+      });
+  } else {
+    setAvailableFormFields([]);
+  }
+}, [formData.selectedFormId, formData.formId]);
+```
+
+### 3. ✅ Wizard Mode Auto-Template Loading
+
+**Changes**:
+- Imported `FLOW_TEMPLATES` in `UnifiedFlowEditor.tsx`
+- Added `useEffect` to auto-load template when wizard mode starts with empty canvas
+- Uses "Simple Contact Form" template as default
+- Prevents blank, intimidating canvas for wizard users
+
+**Implementation**:
+```typescript
+// Auto-load template in wizard mode when canvas is empty
+useEffect(() => {
+  if (activeEditorMode === 'wizard' && nodes.length === 0) {
+    // Find the Simple Contact Form template
+    const simpleContactTemplate = FLOW_TEMPLATES.find(t => t.id === 'simple-contact-form');
+    if (simpleContactTemplate) {
+      // Load the template nodes and edges
+      setNodes(simpleContactTemplate.nodes);
+      setEdges(simpleContactTemplate.edges);
+      
+      console.log('[Wizard Mode] Auto-loaded Simple Contact Form template');
+    }
+  }
+}, [activeEditorMode, nodes.length, setNodes, setEdges]);
+```
+
+### 4. ✅ Persistence Payload Verification
+
+**Status**: Verified correct - no changes needed
+
+**Confirmed**:
+- Endpoint: `/api/v1/tenant-workforms/` ✅
+- Payload structure: `{ name, description, status, workflow_definition }` ✅
+- `workflow_definition` contains: `{ nodes, edges, viewport }` ✅
+- Uses `prepareWorkflowForSave()` to ensure proper serialization ✅
+- Handles both create (POST) and update (PUT) operations ✅
 
 ---
 
-### 2. Wizard Mode Auto-Template Missing (MEDIUM)
+## 🎯 PHASE 3 SUMMARY
 
-**Problem**: Wizard mode shows blank canvas instead of auto-loading template.
+**All 4 tasks completed**:
+- ✅ Task 1: Service layer updated with `getFormFields()` method
+- ✅ Task 2: Cascading configuration dropdowns properly wired
+- ✅ Task 3: Wizard mode auto-loads template on empty canvas
+- ✅ Task 4: Persistence payload structure verified
 
-**Required Fix**:
-```typescript
-// In UnifiedFlowEditorInner component
-useEffect(() => {
-  if (editorMode === 'wizard' && nodes.length === 0) {
-    // Auto-load "Simple Contact Form" template
-    const template = getWorkflowTemplate('simple-contact-form');
-    if (template) {
-      setNodes(template.nodes);
-      setEdges(template.edges);
-      console.log('[Wizard] Auto-loaded Simple Contact Form template');
-    }
-  }
-}, [editorMode, nodes.length]);
-```
-
-**Files to Modify**:
-- `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`
-- `frontend/src/components/FlowEditor/templates/workflowTemplates.ts` (create if missing)
+**Next Steps**:
+1. Manual testing of cascading dropdowns
+2. Manual testing of wizard mode auto-template
+3. End-to-end workflow save/load testing
+4. Create PR and merge to development
 
 ---
 

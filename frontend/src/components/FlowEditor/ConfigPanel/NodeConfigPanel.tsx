@@ -21,6 +21,7 @@ import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2, Edit2, Check, Gri
 import { Node } from '@xyflow/react';
 import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
 import axios from 'axios';
+import { listTenantForms, getFormFields } from '../../../services/workformsApi';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -621,10 +622,10 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     const triggerType = formData.triggerType;
     if (triggerType === 'form' || triggerType === 'formSubmitted' || triggerType === 'recordCreated' || triggerType === 'recordUpdated') {
       setLoadingForms(true);
-      // Fetch forms from API
-      axios.get('/api/v1/workflows/forms/')
-        .then(response => {
-          setAvailableForms(response.data.results || response.data || []);
+      // Use the proper API method
+      listTenantForms()
+        .then(forms => {
+          setAvailableForms(forms);
         })
         .catch(error => {
           console.error('Failed to fetch forms:', error);
@@ -642,42 +643,24 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   // Fetch form fields when a form is selected (Task 2.1)
   useEffect(() => {
     const formId = formData.selectedFormId || formData.formId;
-    if (formId && availableForms.length > 0) {
+    if (formId) {
       setLoadingFields(true);
-      // Find the selected form from available forms
-      const selectedForm = availableForms.find(f => f.id === parseInt(formId) || f.id === formId);
-      if (selectedForm) {
-        // Parse workflow definition to get form fields
-        try {
-          const workflowDef = typeof selectedForm.workflow_definition === 'string'
-            ? JSON.parse(selectedForm.workflow_definition)
-            : selectedForm.workflow_definition;
-          
-          // Extract fields from workflow nodes
-          const fields: any[] = [];
-          if (workflowDef && workflowDef.nodes) {
-            workflowDef.nodes.forEach((node: any) => {
-              if (node.type === 'formField' && node.data) {
-                fields.push({
-                  id: node.id,
-                  label: node.data.label,
-                  type: node.data.fieldType || node.data.type || 'text',
-                  required: node.data.required || false,
-                });
-              }
-            });
-          }
+      // Use the proper API method to get fields
+      getFormFields(formId)
+        .then(fields => {
           setAvailableFormFields(fields);
-        } catch (error) {
-          console.error('Failed to parse workflow definition:', error);
+        })
+        .catch(error => {
+          console.error('Failed to fetch form fields:', error);
           setAvailableFormFields([]);
-        }
-      }
-      setLoadingFields(false);
+        })
+        .finally(() => {
+          setLoadingFields(false);
+        });
     } else {
       setAvailableFormFields([]);
     }
-  }, [formData.selectedFormId, formData.formId, availableForms]);
+  }, [formData.selectedFormId, formData.formId]);
 
   // ============================================================================
   // Validation Logic
