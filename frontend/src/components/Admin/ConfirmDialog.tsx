@@ -20,7 +20,7 @@
 
 import React from 'react';
 import styled from 'styled-components';
-import Modal from '../../Modal/Modal';
+import Modal from '../Modal/Modal';
 
 interface ConfirmDialogProps {
   isOpen: boolean;

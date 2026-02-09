@@ -36,7 +36,7 @@ class ActivityLog(models.Model):
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
-        related_name='activity_logs',
+        related_name='tenant_activity_logs',  # Changed to avoid clash with cockpit.ActivityLog
         help_text='Tenant this activity belongs to'
     )
     user = models.ForeignKey(
