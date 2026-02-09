@@ -2413,6 +2413,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     console.log('[Container] =================================');
     console.log('[Container] Looking for containers at position:', position);
     console.log('[Container] Total containers on canvas:', containerNodes.length);
+    console.log('[Container] Container types found:', containerNodes.map(n => ({ id: n.id, type: n.type, measured: !!n.measured })));
     
     if (containerNodes.length === 0) {
       console.log('[Container] ❌ No containers exist on canvas');
@@ -2421,21 +2422,29 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     // Manual bounding box detection
     for (const container of containerNodes) {
-      // Get container dimensions from style or use defaults
-      const containerWidth = container.style?.width || container.width || 400;
-      const containerHeight = container.style?.height || container.height || 300;
+      // CRITICAL: Use measured dimensions if available (React Flow has calculated them)
+      // Otherwise fall back to style or defaults
+      const containerWidth = container.measured?.width || 
+                            (typeof container.style?.width === 'number' ? container.style.width : 
+                             typeof container.width === 'number' ? container.width : 400);
+      const containerHeight = container.measured?.height || 
+                             (typeof container.style?.height === 'number' ? container.style.height : 
+                              typeof container.height === 'number' ? container.height : 300);
       
       // Calculate bounding box
       const bounds = {
         left: container.position.x,
-        right: container.position.x + (typeof containerWidth === 'number' ? containerWidth : 400),
+        right: container.position.x + containerWidth,
         top: container.position.y,
-        bottom: container.position.y + (typeof containerHeight === 'number' ? containerHeight : 300),
+        bottom: container.position.y + containerHeight,
       };
       
       console.log(`[Container] Checking container ${container.id}:`);
+      console.log(`[Container]   Type: ${container.type}`);
       console.log(`[Container]   Position: (${container.position.x}, ${container.position.y})`);
-      console.log(`[Container]   Dimensions: ${containerWidth}x${containerHeight}`);
+      console.log(`[Container]   Measured: ${!!container.measured} (width: ${container.measured?.width}, height: ${container.measured?.height})`);
+      console.log(`[Container]   Style: ${container.style?.width}x${container.style?.height}`);
+      console.log(`[Container]   Using dimensions: ${containerWidth}x${containerHeight}`);
       console.log(`[Container]   Bounds: left=${bounds.left}, right=${bounds.right}, top=${bounds.top}, bottom=${bounds.bottom}`);
       console.log(`[Container]   Drop point: x=${position.x}, y=${position.y}`);
       
@@ -2447,9 +2456,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         position.y <= bounds.bottom
       ) {
         console.log(`[Container] ✅ Found container: ${container.id} (manual bounding box hit)`);
+        console.log(`[Container]   Drop is within bounds: x in [${bounds.left}, ${bounds.right}], y in [${bounds.top}, ${bounds.bottom}]`);
         return container;
       } else {
+        const xInBounds = position.x >= bounds.left && position.x <= bounds.right;
+        const yInBounds = position.y >= bounds.top && position.y <= bounds.bottom;
         console.log(`[Container] ❌ Drop position outside container ${container.id}`);
+        console.log(`[Container]   X ${xInBounds ? '✓' : '✗'} (${position.x} vs [${bounds.left}, ${bounds.right}])`);
+        console.log(`[Container]   Y ${yInBounds ? '✓' : '✗'} (${position.y} vs [${bounds.top}, ${bounds.bottom}])`);
       }
     }
     
@@ -5300,6 +5314,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
 function getReactFlowNodeType(nodeTypeId: string): string {
   // Map node type IDs to React Flow node component names
+  
+  // CRITICAL: Check for container BEFORE generic 'form' check
+  // Bug fix: formMultiStepContainer was being caught by startsWith('form')
+  if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
+  
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
   if (nodeTypeId.startsWith('form')) return 'formStep';
   if (nodeTypeId.startsWith('condition')) return 'condition';
