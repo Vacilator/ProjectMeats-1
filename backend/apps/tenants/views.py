@@ -1,5 +1,8 @@
 import logging
 import traceback
+import csv
+from io import StringIO
+from django.http import HttpResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -525,6 +528,9 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     
     Read-only - logs are created automatically by the system.
     Only admins and owners can view activity logs.
+    
+    Additional Actions:
+    - export: Export activity logs to CSV
     """
     
     queryset = ActivityLog.objects.all()
@@ -553,6 +559,51 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
         return ActivityLog.objects.filter(
             tenant_id__in=admin_tenant_ids
         ).select_related("user", "tenant")
+    
+    @action(detail=False, methods=["get"])
+    def export(self, request):
+        """
+        Export activity logs to CSV.
+        
+        Respects the same filters as the list endpoint.
+        Returns a CSV file with all visible activity logs.
+        """
+        # Get filtered queryset
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Create CSV
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            "Date/Time",
+            "User",
+            "Action",
+            "Description",
+            "Entity Type",
+            "Entity ID",
+            "IP Address",
+            "Tenant"
+        ])
+        
+        # Write data rows
+        for log in queryset:
+            writer.writerow([
+                log.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                log.user.username if log.user else "System",
+                log.get_action_display(),
+                log.description,
+                log.entity_type or "",
+                log.entity_id or "",
+                log.ip_address or "",
+                log.tenant.name
+            ])
+        
+        # Create HTTP response with CSV
+        response = HttpResponse(output.getvalue(), content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="activity_logs.csv"'
+        return response
 
 
 class TenantConfigurationViewSet(viewsets.ModelViewSet):

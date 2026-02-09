@@ -70,6 +70,7 @@ import CustomizationsPage from './pages/Admin/Customizations';
 import UsersPage from './pages/Admin/Users';
 import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
+import ActivityPage from './pages/Admin/Activity';
 import CockpitPage from './pages/Cockpit';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
@@ -249,6 +250,7 @@ const App: React.FC = () => {
                 <Route path="admin/users" element={<UsersPage />} />
                 <Route path="admin/profile" element={<AdminProfilePage />} />
                 <Route path="admin/billing" element={<BillingPage />} />
+                <Route path="admin/activity" element={<ActivityPage />} />
                 
                 {/* Cockpit (Command Center Dashboard) */}
                 <Route path="cockpit" element={<CockpitPage />} />
