@@ -77,14 +77,24 @@ const getApiBaseUrl = (): string => {
 
 /**
  * Get auth headers with tenant context
+ * Throws user-friendly errors if auth data is missing
  */
 const getAuthHeaders = () => {
   const token = localStorage.getItem('authToken');
   const tenantId = localStorage.getItem('currentTenantId');
   
+  // Validate auth data presence
+  if (!token) {
+    throw new Error('Authentication required. Please log in to continue.');
+  }
+  
+  if (!tenantId) {
+    throw new Error('Tenant context missing. Please select a tenant.');
+  }
+  
   return {
-    'Authorization': token ? `Bearer ${token}` : '',
-    'X-Tenant-ID': tenantId || '',
+    'Authorization': `Bearer ${token}`,
+    'X-Tenant-ID': tenantId,
     'Content-Type': 'application/json',
   };
 };
@@ -219,10 +229,33 @@ export const saveWorkflow = async (
   } catch (error: any) {
     console.error('❌ Error saving workflow:', error);
     
+    // Enhanced error handling with user-friendly messages
+    if (error.message?.includes('Authentication required')) {
+      throw new Error('Please log in to save workflows.');
+    }
+    
+    if (error.message?.includes('Tenant context missing')) {
+      throw new Error('Please select a tenant to save workflows.');
+    }
+    
     if (error.response) {
-      throw new Error(`Save failed: ${error.response.data?.error || error.response.statusText}`);
+      const status = error.response.status;
+      const data = error.response.data;
+      
+      switch (status) {
+        case 401:
+          throw new Error('Session expired. Please log in again.');
+        case 403:
+          throw new Error('Permission denied. You do not have access to save this workflow.');
+        case 404:
+          throw new Error('Workflow not found. It may have been deleted.');
+        case 500:
+          throw new Error('Server error. Please try again later.');
+        default:
+          throw new Error(`Save failed: ${data?.error || data?.detail || error.response.statusText}`);
+      }
     } else if (error.request) {
-      throw new Error('Save failed: No response from server');
+      throw new Error('Network error: Unable to reach server. Please check your connection.');
     } else {
       throw new Error(`Save failed: ${error.message}`);
     }
