@@ -95,6 +95,7 @@ import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
+import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { NodeConfigPanel } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
@@ -1418,97 +1419,6 @@ const edgeTypes: EdgeTypes = {
 };
 
 // ============================================================================
-// Hierarchy Sorting Utility
-// ============================================================================
-
-/**
- * Sort nodes array to ensure parent nodes come before their children.
- * 
- * React Flow requires parent nodes to appear in the array BEFORE their children,
- * otherwise it throws "Parent node not found" errors.
- * 
- * This function performs a topological sort based on parentId relationships.
- * 
- * @param nodes - Array of nodes (possibly unsorted)
- * @returns Sorted array with parents before children
- */
-function sortNodesByHierarchy(nodes: Node[]): Node[] {
-  if (!nodes || nodes.length === 0) {
-    return nodes;
-  }
-
-  // Build a map of node IDs for quick lookup
-  const nodeMap = new Map<string, Node>();
-  nodes.forEach(node => nodeMap.set(node.id, node));
-
-  // Track visited nodes to detect cycles
-  const visited = new Set<string>();
-  const sorted: Node[] = [];
-
-  // Recursive function to add node and its parents
-  function addNodeWithParents(nodeId: string) {
-    // Skip if already visited (prevents infinite loops)
-    if (visited.has(nodeId)) {
-      return;
-    }
-
-    const node = nodeMap.get(nodeId);
-    if (!node) {
-      console.warn(`[Hierarchy Sort] Node ${nodeId} not found in map`);
-      return;
-    }
-
-    // Mark as visited
-    visited.add(nodeId);
-
-    // If node has a parent, add parent first (recursively)
-    if (node.parentId) {
-      addNodeWithParents(node.parentId);
-    }
-
-    // Add this node to sorted array
-    sorted.push(node);
-  }
-
-  // Process all nodes
-  nodes.forEach(node => {
-    if (!visited.has(node.id)) {
-      addNodeWithParents(node.id);
-    }
-  });
-
-  // Verify ordering (debug mode)
-  const parentIndices = new Map<string, number>();
-  sorted.forEach((node, index) => {
-    parentIndices.set(node.id, index);
-  });
-
-  let hasOrderingError = false;
-  sorted.forEach((node, index) => {
-    if (node.parentId) {
-      const parentIndex = parentIndices.get(node.parentId);
-      if (parentIndex === undefined) {
-        console.error(`[Hierarchy Sort] ❌ Parent ${node.parentId} of node ${node.id} not found in sorted array`);
-        hasOrderingError = true;
-      } else if (parentIndex >= index) {
-        console.error(`[Hierarchy Sort] ❌ Parent ${node.parentId} at index ${parentIndex} must come before child ${node.id} at index ${index}`);
-        hasOrderingError = true;
-      }
-    }
-  });
-
-  if (hasOrderingError) {
-    console.error('[Hierarchy Sort] ❌ Sorting failed - parent-child ordering violated');
-  } else if (sorted.length !== nodes.length) {
-    console.warn(`[Hierarchy Sort] ⚠️  Expected ${nodes.length} nodes, got ${sorted.length}`);
-  } else {
-    console.log(`[Hierarchy Sort] ✅ Successfully sorted ${sorted.length} nodes`);
-  }
-
-  return sorted;
-}
-
-// ============================================================================
 // Component
 // ============================================================================
 
@@ -2050,7 +1960,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       // CRITICAL: Sort nodes to ensure parent-before-child ordering
-      const sortedNodes = sortNodesByHierarchy(parsed.nodes);
+      const sortedNodes = sortNodesTopologically(parsed.nodes);
       setNodes(sortedNodes);
       setEdges(parsed.edges);
       setLastSyncTime(new Date());
@@ -2105,7 +2015,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           }
           
           // CRITICAL: Sort nodes to ensure parent-before-child ordering
-          const sortedNodes = sortNodesByHierarchy(parsed.nodes);
+          const sortedNodes = sortNodesTopologically(parsed.nodes);
           setNodes(sortedNodes);
           setEdges(parsed.edges);
           setLastSyncTime(new Date());
@@ -2935,7 +2845,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           
           // CRITICAL: Sort nodes to ensure parent-before-child ordering
           // React Flow requires parents to appear before children in the array
-          const sortedNodes = sortNodesByHierarchy(finalNodes);
+          const sortedNodes = sortNodesTopologically(finalNodes);
           
           sortedNodes.forEach((n, idx) => {
             console.log(`  [${idx}] ${n.id} (parent: ${n.parentId || 'undefined'})`);
@@ -3051,7 +2961,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         const layoutResult = calculateContainerLayout(container.id, nodes, edges);
         
         // CRITICAL: Sort nodes to ensure parent-before-child ordering
-        const sortedNodes = sortNodesByHierarchy(layoutResult.nodes);
+        const sortedNodes = sortNodesTopologically(layoutResult.nodes);
         setNodes(sortedNodes);
         
         // Update container dimensions if needed
@@ -3139,7 +3049,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         });
         
         // CRITICAL: Sort nodes to ensure parent-before-child ordering
-        return sortNodesByHierarchy(updatedNodes);
+        return sortNodesTopologically(updatedNodes);
       });
       
       // Update container stats
@@ -3583,7 +3493,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const loadedWorkflow = await loadWorkflow(workflowId);
       
       // CRITICAL: Sort nodes to ensure parent-before-child ordering
-      const sortedNodes = sortNodesByHierarchy(loadedWorkflow.workflow_definition.nodes || []);
+      const sortedNodes = sortNodesTopologically(loadedWorkflow.workflow_definition.nodes || []);
       
       // Update editor state
       setNodes(sortedNodes);
