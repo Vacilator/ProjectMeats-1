@@ -2758,7 +2758,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             console.log(`[Container] ✅ Order correct: Parent (${parentIdx}) < Child (${childIdx})`);
           }
           
-          setNodes(updatedNodes);
+          // Don't call setNodes here - batch all updates into ONE call below to avoid race conditions
           setNodeIdCounter((prev) => prev + 1);
           
           // Phase 3.3: Trigger auto-layout for container
@@ -2779,27 +2779,24 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             console.log(`[Container] ✅ Layout preserved order: Parent (${layoutParentIdx}) < Child (${layoutChildIdx})`);
           }
           
-          // Apply layout changes
-          setNodes(layoutResult.nodes);
+          // Phase 3.3: Apply layout AND container dimension changes in SINGLE setNodes call
+          // CRITICAL: Multiple setNodes calls can cause race conditions with parent/child rendering
+          const finalNodes = layoutResult.nodes.map((n) => {
+            if (n.id === targetContainer.id && (layoutResult.containerWidth > 400 || layoutResult.containerHeight > 300)) {
+              return {
+                ...n,
+                style: {
+                  ...n.style,
+                  width: layoutResult.containerWidth,
+                  height: layoutResult.containerHeight,
+                },
+              };
+            }
+            return n;
+          });
           
-          // Phase 3.3: Update container dimensions if needed
-          if (layoutResult.containerWidth > 400 || layoutResult.containerHeight > 300) {
-            setNodes((nds) =>
-              nds.map((n) => {
-                if (n.id === targetContainer.id) {
-                  return {
-                    ...n,
-                    style: {
-                      ...n.style,
-                      width: layoutResult.containerWidth,
-                      height: layoutResult.containerHeight,
-                    },
-                  };
-                }
-                return n;
-              })
-            );
-          }
+          console.log(`[Container] Applying final nodes array with ${finalNodes.length} nodes`);
+          setNodes(finalNodes);
           
           // Phase 4: Trigger auto-connection for form steps
           if (type === 'formStep' || type === 'formReference') {
