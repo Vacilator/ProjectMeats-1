@@ -95,7 +95,7 @@ const ModalOverlay = styled.div<{ $isOpen: boolean }>`
 `;
 
 const ModalContainer = styled.div`
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-background));
   border-radius: 12px;
   width: 90vw;
   height: 85vh;
@@ -158,7 +158,7 @@ const ModalBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: 24px;
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-surface));
 `;
 
 const StepIndicator = styled.div`
@@ -197,7 +197,7 @@ const StepBadge = styled.div<{ $active: boolean; $completed: boolean }>`
 `;
 
 const ConfigSection = styled.div`
-  background: rgb(var(--color-bg-secondary));
+  background: rgb(var(--color-surface-hover));
   border-radius: 8px;
   padding: 20px;
   border: 1px solid rgb(var(--color-border));
@@ -243,7 +243,7 @@ const Input = styled.input`
   border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
   font-size: 14px;
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   transition: all 0.2s ease;
   
@@ -264,7 +264,7 @@ const TextArea = styled.textarea`
   border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
   font-size: 14px;
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   resize: vertical;
   min-height: 80px;
@@ -294,7 +294,7 @@ const CheckboxLabel = styled.label`
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
   cursor: pointer;
@@ -346,7 +346,7 @@ const ModalFooter = styled.div`
   justify-content: space-between;
   padding: 16px 24px;
   border-top: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-bg-secondary));
+  background: rgb(var(--color-surface-hover));
 `;
 
 const ButtonGroup = styled.div`
@@ -384,7 +384,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
         border: 1px solid rgb(var(--color-border));
         
         &:hover:not(:disabled) {
-          background: rgb(var(--color-bg-secondary));
+          background: rgb(var(--color-surface-hover));
         }
       `;
     } else {
