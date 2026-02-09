@@ -6,13 +6,14 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.core.cache import cache
-from .models import Tenant, TenantUser
+from .models import Tenant, TenantUser, TenantConfiguration
 from .activity_models import ActivityLog
 from .serializers import (
     TenantSerializer,
     TenantCreateSerializer,
     TenantUserSerializer,
     UserTenantSerializer,
+    TenantConfigurationSerializer,
 )
 from .activity_serializers import ActivityLogSerializer
 from .permissions import IsTenantAdminOrOwner
@@ -552,3 +553,183 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
         return ActivityLog.objects.filter(
             tenant_id__in=admin_tenant_ids
         ).select_related("user", "tenant")
+
+
+class TenantConfigurationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing tenant configurations.
+    
+    Provides CRUD operations + bulk update and reset actions.
+    Configurations are organized by category and support different data types.
+    
+    Permissions:
+    - Only owners and admins can view/manage configurations
+    - System configs can be modified but not deleted
+    """
+    
+    queryset = TenantConfiguration.objects.all()
+    serializer_class = TenantConfigurationSerializer
+    permission_classes = [permissions.IsAuthenticated, IsTenantAdminOrOwner]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["tenant", "category", "data_type", "is_system"]
+    search_fields = ["key", "display_name", "description"]
+    ordering_fields = ["category", "key", "created_at"]
+    ordering = ["category", "key"]
+    
+    def get_queryset(self):
+        """Filter configurations for user's tenant."""
+        user = self.request.user
+        
+        if user.is_superuser:
+            return TenantConfiguration.objects.select_related("tenant", "updated_by")
+        
+        # Get tenants where user is admin or owner
+        admin_tenant_ids = TenantUser.objects.filter(
+            user=user,
+            role__in=["owner", "admin"],
+            is_active=True
+        ).values_list("tenant_id", flat=True)
+        
+        return TenantConfiguration.objects.filter(
+            tenant_id__in=admin_tenant_ids
+        ).select_related("tenant", "updated_by")
+    
+    def perform_create(self, serializer):
+        """Set tenant and updated_by on creation."""
+        # Use tenant from request (set by TenantMiddleware)
+        tenant_id = self.request.headers.get('X-Tenant-ID')
+        if tenant_id:
+            tenant = Tenant.objects.get(id=tenant_id)
+            serializer.save(tenant=tenant, updated_by=self.request.user)
+        else:
+            # Fallback: Use first tenant where user is admin
+            tenant_user = TenantUser.objects.filter(
+                user=self.request.user,
+                role__in=["owner", "admin"],
+                is_active=True
+            ).first()
+            
+            if not tenant_user:
+                raise permissions.PermissionDenied("User is not an admin of any tenant")
+            
+            serializer.save(tenant=tenant_user.tenant, updated_by=self.request.user)
+    
+    def perform_destroy(self, instance):
+        """Prevent deletion of system configurations."""
+        if instance.is_system:
+            raise permissions.PermissionDenied("Cannot delete system configurations")
+        super().perform_destroy(instance)
+    
+    @action(detail=False, methods=["post"])
+    def bulk_update(self, request):
+        """
+        Bulk update multiple configurations.
+        
+        Expected payload:
+        {
+            "configurations": [
+                {"id": "uuid1", "value": "new_value1"},
+                {"id": "uuid2", "value": "new_value2"}
+            ]
+        }
+        """
+        configurations_data = request.data.get('configurations', [])
+        
+        if not configurations_data:
+            return Response(
+                {"error": "configurations array is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        updated_count = 0
+        errors = []
+        
+        for config_data in configurations_data:
+            config_id = config_data.get('id')
+            new_value = config_data.get('value')
+            
+            if not config_id:
+                errors.append({"error": "Missing id for configuration"})
+                continue
+            
+            try:
+                config = TenantConfiguration.objects.get(id=config_id)
+                
+                # Check permission
+                if not self.get_queryset().filter(id=config_id).exists():
+                    errors.append({
+                        "id": config_id,
+                        "error": "Permission denied or configuration not found"
+                    })
+                    continue
+                
+                config.value = new_value
+                config.updated_by = request.user
+                config.save()
+                updated_count += 1
+                
+            except TenantConfiguration.DoesNotExist:
+                errors.append({"id": config_id, "error": "Configuration not found"})
+            except Exception as e:
+                errors.append({"id": config_id, "error": str(e)})
+        
+        response_data = {
+            "message": f"Successfully updated {updated_count} configuration(s)",
+            "updated_count": updated_count
+        }
+        
+        if errors:
+            response_data["errors"] = errors
+        
+        return Response(response_data)
+    
+    @action(detail=True, methods=["post"])
+    def reset(self, request, pk=None):
+        """Reset a configuration to its default value."""
+        config = self.get_object()
+        
+        if not config.default_value:
+            return Response(
+                {"error": "No default value defined for this configuration"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        config.reset_to_default()
+        config.updated_by = request.user
+        config.save()
+        
+        serializer = self.get_serializer(config)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=["post"])
+    def reset_category(self, request):
+        """
+        Reset all configurations in a category to default values.
+        
+        Expected payload:
+        {
+            "category": "security"
+        }
+        """
+        category = request.data.get('category')
+        
+        if not category:
+            return Response(
+                {"error": "category is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        configs = self.get_queryset().filter(category=category)
+        
+        reset_count = 0
+        for config in configs:
+            if config.default_value:
+                config.reset_to_default()
+                config.updated_by = request.user
+                config.save()
+                reset_count += 1
+        
+        return Response({
+            "message": f"Reset {reset_count} configuration(s) in category '{category}'",
+            "reset_count": reset_count
+        })

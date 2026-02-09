@@ -500,3 +500,140 @@ class TenantDomain(models.Model):
         if self.domain:
             self.domain = self.domain.lower()
         super().save(*args, **kwargs)
+
+
+class TenantConfiguration(models.Model):
+    """
+    Configuration model for tenant-specific settings.
+    
+    Allows flexible configuration management with categories, data types,
+    and descriptions. Supports both system-defined and user-defined configs.
+    
+    Examples:
+    - Category: "security", Key: "session_timeout", Value: "3600", Type: "integer"
+    - Category: "notifications", Key: "email_enabled", Value: "true", Type: "boolean"
+    - Category: "general", Key: "timezone", Value: "America/New_York", Type: "string"
+    """
+    
+    CATEGORY_CHOICES = [
+        ("general", "General"),
+        ("security", "Security"),
+        ("notifications", "Notifications"),
+        ("integrations", "Integrations"),
+        ("appearance", "Appearance"),
+        ("advanced", "Advanced"),
+    ]
+    
+    DATA_TYPE_CHOICES = [
+        ("string", "String"),
+        ("integer", "Integer"),
+        ("float", "Float"),
+        ("boolean", "Boolean"),
+        ("json", "JSON"),
+    ]
+    
+    # Identification
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="tenant_configurations",
+        help_text="Tenant this configuration belongs to"
+    )
+    
+    # Configuration metadata
+    category = models.CharField(
+        max_length=50,
+        choices=CATEGORY_CHOICES,
+        default="general",
+        help_text="Configuration category for organization"
+    )
+    key = models.CharField(
+        max_length=100,
+        help_text="Configuration key (e.g., 'session_timeout')"
+    )
+    display_name = models.CharField(
+        max_length=200,
+        help_text="Human-readable name for display in UI"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Detailed description of what this configuration controls"
+    )
+    
+    # Configuration value
+    value = models.TextField(
+        help_text="Configuration value (stored as text, interpreted by data_type)"
+    )
+    data_type = models.CharField(
+        max_length=20,
+        choices=DATA_TYPE_CHOICES,
+        default="string",
+        help_text="Data type for value interpretation and validation"
+    )
+    default_value = models.TextField(
+        blank=True,
+        help_text="Default value for reset functionality"
+    )
+    
+    # Metadata
+    is_system = models.BooleanField(
+        default=False,
+        help_text="System-defined config (cannot be deleted, only modified)"
+    )
+    is_required = models.BooleanField(
+        default=False,
+        help_text="Required configuration (must have a value)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_configurations",
+        help_text="User who last updated this configuration"
+    )
+    
+    class Meta:
+        db_table = "tenants_configuration"
+        ordering = ["category", "key"]
+        unique_together = ["tenant", "key"]
+        indexes = [
+            models.Index(fields=["tenant", "category"]),
+            models.Index(fields=["tenant", "key"]),
+        ]
+    
+    def __str__(self):
+        return f"{self.tenant.slug} - {self.category}.{self.key}"
+    
+    def get_typed_value(self):
+        """Return the value converted to its proper data type."""
+        if self.data_type == "boolean":
+            return self.value.lower() in ("true", "1", "yes")
+        elif self.data_type == "integer":
+            return int(self.value)
+        elif self.data_type == "float":
+            return float(self.value)
+        elif self.data_type == "json":
+            import json
+            return json.loads(self.value)
+        else:
+            return self.value
+    
+    def set_typed_value(self, value):
+        """Set the value from a Python type, converting to string storage."""
+        if self.data_type == "boolean":
+            self.value = "true" if value else "false"
+        elif self.data_type == "json":
+            import json
+            self.value = json.dumps(value)
+        else:
+            self.value = str(value)
+    
+    def reset_to_default(self):
+        """Reset this configuration to its default value."""
+        if self.default_value:
+            self.value = self.default_value
+            self.save()
