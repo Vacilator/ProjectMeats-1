@@ -2,13 +2,13 @@
  * Form Multi-Step Container Node Component
  * 
  * Phase 2: Migrated to React Flow Native System
- * - Uses parentNode property instead of childNodes array
+ * - Uses parentId property instead of childNodes array
  * - Queries children from main React Flow state via useReactFlow
  * - No shadow graph - single source of truth
  * 
  * Phase 4.2 of WF-ENH-2026-Q1
  * Created: 2026-02-06
- * Updated: 2026-02-08 - Phase 2: Migrated to React Flow native parent-child
+ * Updated: 2026-02-09 - Fixed: parentNode → parentId (React Flow v11+)
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
@@ -317,8 +317,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
     const allNodes = getNodes();
     const allEdges = getEdges();
     
-    // Phase 2.2: Query child nodes via parentNode property
-    const childNodes = allNodes.filter(node => node.parentNode === id);
+    // Phase 2.2: Query child nodes via parentId property (updated from deprecated parentNode)
+    const childNodes = allNodes.filter(node => node.parentId === id);
     
     // Phase 2.2: Query edges between child nodes
     const childNodeIds = new Set(childNodes.map(n => n.id));

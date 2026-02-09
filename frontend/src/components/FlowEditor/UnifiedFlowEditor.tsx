@@ -2731,7 +2731,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           
           console.log(`[Container] ✅ Node configured:`, {
             id: newNode.id,
-            parentNode: newNode.parentNode,
+            parentId: newNode.parentId,
             position: newNode.position,
             extent: newNode.extent,
           });
