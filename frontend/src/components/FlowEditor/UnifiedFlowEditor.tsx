@@ -1418,6 +1418,97 @@ const edgeTypes: EdgeTypes = {
 };
 
 // ============================================================================
+// Hierarchy Sorting Utility
+// ============================================================================
+
+/**
+ * Sort nodes array to ensure parent nodes come before their children.
+ * 
+ * React Flow requires parent nodes to appear in the array BEFORE their children,
+ * otherwise it throws "Parent node not found" errors.
+ * 
+ * This function performs a topological sort based on parentId relationships.
+ * 
+ * @param nodes - Array of nodes (possibly unsorted)
+ * @returns Sorted array with parents before children
+ */
+function sortNodesByHierarchy(nodes: Node[]): Node[] {
+  if (!nodes || nodes.length === 0) {
+    return nodes;
+  }
+
+  // Build a map of node IDs for quick lookup
+  const nodeMap = new Map<string, Node>();
+  nodes.forEach(node => nodeMap.set(node.id, node));
+
+  // Track visited nodes to detect cycles
+  const visited = new Set<string>();
+  const sorted: Node[] = [];
+
+  // Recursive function to add node and its parents
+  function addNodeWithParents(nodeId: string) {
+    // Skip if already visited (prevents infinite loops)
+    if (visited.has(nodeId)) {
+      return;
+    }
+
+    const node = nodeMap.get(nodeId);
+    if (!node) {
+      console.warn(`[Hierarchy Sort] Node ${nodeId} not found in map`);
+      return;
+    }
+
+    // Mark as visited
+    visited.add(nodeId);
+
+    // If node has a parent, add parent first (recursively)
+    if (node.parentId) {
+      addNodeWithParents(node.parentId);
+    }
+
+    // Add this node to sorted array
+    sorted.push(node);
+  }
+
+  // Process all nodes
+  nodes.forEach(node => {
+    if (!visited.has(node.id)) {
+      addNodeWithParents(node.id);
+    }
+  });
+
+  // Verify ordering (debug mode)
+  const parentIndices = new Map<string, number>();
+  sorted.forEach((node, index) => {
+    parentIndices.set(node.id, index);
+  });
+
+  let hasOrderingError = false;
+  sorted.forEach((node, index) => {
+    if (node.parentId) {
+      const parentIndex = parentIndices.get(node.parentId);
+      if (parentIndex === undefined) {
+        console.error(`[Hierarchy Sort] ❌ Parent ${node.parentId} of node ${node.id} not found in sorted array`);
+        hasOrderingError = true;
+      } else if (parentIndex >= index) {
+        console.error(`[Hierarchy Sort] ❌ Parent ${node.parentId} at index ${parentIndex} must come before child ${node.id} at index ${index}`);
+        hasOrderingError = true;
+      }
+    }
+  });
+
+  if (hasOrderingError) {
+    console.error('[Hierarchy Sort] ❌ Sorting failed - parent-child ordering violated');
+  } else if (sorted.length !== nodes.length) {
+    console.warn(`[Hierarchy Sort] ⚠️  Expected ${nodes.length} nodes, got ${sorted.length}`);
+  } else {
+    console.log(`[Hierarchy Sort] ✅ Successfully sorted ${sorted.length} nodes`);
+  }
+
+  return sorted;
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -1943,7 +2034,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         throw new Error('Invalid format: "edges" array is required');
       }
       
-      setNodes(parsed.nodes);
+      // CRITICAL: Sort nodes to ensure parent-before-child ordering
+      const sortedNodes = sortNodesByHierarchy(parsed.nodes);
+      setNodes(sortedNodes);
       setEdges(parsed.edges);
       setLastSyncTime(new Date());
       setJsonError(null);
@@ -1996,7 +2089,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             throw new Error('Invalid workflow file format');
           }
           
-          setNodes(parsed.nodes);
+          // CRITICAL: Sort nodes to ensure parent-before-child ordering
+          const sortedNodes = sortNodesByHierarchy(parsed.nodes);
+          setNodes(sortedNodes);
           setEdges(parsed.edges);
           setLastSyncTime(new Date());
           setJsonError(null);
@@ -2822,10 +2917,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           });
           
           console.log(`🎯 SINGLE setNodes call with ${finalNodes.length} nodes (includes drop target cleanup)`);
-          finalNodes.forEach((n, idx) => {
+          
+          // CRITICAL: Sort nodes to ensure parent-before-child ordering
+          // React Flow requires parents to appear before children in the array
+          const sortedNodes = sortNodesByHierarchy(finalNodes);
+          
+          sortedNodes.forEach((n, idx) => {
             console.log(`  [${idx}] ${n.id} (parent: ${n.parentId || 'undefined'})`);
           });
-          setNodes(finalNodes);
+          setNodes(sortedNodes);
           
           // Phase 4: Trigger auto-connection for form steps
           if (type === 'formStep' || type === 'formReference') {
@@ -2934,7 +3034,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         
         // Re-calculate layout (reorders nodes based on new x-position)
         const layoutResult = calculateContainerLayout(container.id, nodes, edges);
-        setNodes(layoutResult.nodes);
+        
+        // CRITICAL: Sort nodes to ensure parent-before-child ordering
+        const sortedNodes = sortNodesByHierarchy(layoutResult.nodes);
+        setNodes(sortedNodes);
         
         // Update container dimensions if needed
         if (layoutResult.containerWidth > (container.style?.width || 400) || 
@@ -2989,8 +3092,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
     
     if (currentParentId !== newParentId) {
-      setNodes((nds) =>
-        nds.map((n) => {
+      setNodes((nds) => {
+        const updatedNodes = nds.map((n) => {
           if (n.id === node.id) {
             const updatedNode = { ...n };
             
@@ -3018,8 +3121,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             return updatedNode;
           }
           return n;
-        })
-      );
+        });
+        
+        // CRITICAL: Sort nodes to ensure parent-before-child ordering
+        return sortNodesByHierarchy(updatedNodes);
+      });
       
       // Update container stats
       if (newParentId) {
@@ -3461,8 +3567,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Load workflow data
       const loadedWorkflow = await loadWorkflow(workflowId);
       
+      // CRITICAL: Sort nodes to ensure parent-before-child ordering
+      const sortedNodes = sortNodesByHierarchy(loadedWorkflow.workflow_definition.nodes || []);
+      
       // Update editor state
-      setNodes(loadedWorkflow.workflow_definition.nodes || []);
+      setNodes(sortedNodes);
       setEdges(loadedWorkflow.workflow_definition.edges || []);
       setCurrentWorkflowId(loadedWorkflow.id);
       setCurrentWorkflowName(loadedWorkflow.name);
