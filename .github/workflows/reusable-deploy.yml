@@ -991,11 +991,8 @@ jobs:
       - name: Setup SSH
         run: |
           # Install sshpass for password-based SSH (same as backend)
-          # sshpass is usually pre-installed on GitHub runners, but install if missing
-          if ! command -v sshpass &> /dev/null; then
-            sudo apt-get update -qq || echo "Warning: apt update failed, continuing anyway"
-            sudo apt-get install -y sshpass || echo "Warning: sshpass install failed"
-          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
           
           # Add SSH host to known_hosts
           mkdir -p ~/.ssh
