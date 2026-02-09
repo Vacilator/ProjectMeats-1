@@ -380,8 +380,10 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
       id={id} 
       data={data} 
       selected={selected}
-      customContent={
-        <ContainerWrapper 
+      nodeType={nodeDef} // ✅ FIX: Pass required nodeType prop
+    >
+      {/* Container custom UI */}
+      <ContainerWrapper 
           isExpanded={isExpanded}
           className={`${selected ? 'selected' : ''} ${data.isDropTarget ? 'drag-over' : ''}`}
         >
@@ -491,8 +493,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
             </ContainerBody>
           )}
         </ContainerWrapper>
-      }
-    />
+      {/* End container custom UI */}
+    </BaseNode>
   );
 };
 

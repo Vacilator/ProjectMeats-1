@@ -200,7 +200,7 @@ export const saveWorkflow = async (
     if (existingWorkflowId) {
       // Update existing workflow (PUT)
       response = await axios.put(
-        `${apiUrl}/api/v1/tenant-workforms/${existingWorkflowId}/`,
+        `${apiUrl}/tenant-workforms/${existingWorkflowId}/`,
         payload,
         { headers: getAuthHeaders() }
       );
@@ -208,7 +208,7 @@ export const saveWorkflow = async (
     } else {
       // Create new workflow (POST)
       response = await axios.post(
-        `${apiUrl}/api/v1/tenant-workforms/`,
+        `${apiUrl}/tenant-workforms/`,
         payload,
         { headers: getAuthHeaders() }
       );
@@ -272,7 +272,7 @@ export const loadWorkflow = async (
   
   try {
     const response = await axios.get(
-      `${apiUrl}/api/v1/tenant-workforms/${workflowId}/`,
+      `${apiUrl}/tenant-workforms/${workflowId}/`,
       { headers: getAuthHeaders() }
     );
     
@@ -319,7 +319,7 @@ export const listWorkflows = async (
   if (filters?.search) params.append('search', filters.search);
   
   const queryString = params.toString();
-  const url = `${apiUrl}/api/v1/tenant-workforms/${queryString ? `?${queryString}` : ''}`;
+  const url = `${apiUrl}/tenant-workforms/${queryString ? `?${queryString}` : ''}`;
   
   try {
     const response = await axios.get(url, { headers: getAuthHeaders() });
@@ -348,7 +348,7 @@ export const deleteWorkflow = async (workflowId: string): Promise<void> => {
   
   try {
     await axios.delete(
-      `${apiUrl}/api/v1/tenant-workforms/${workflowId}/`,
+      `${apiUrl}/tenant-workforms/${workflowId}/`,
       { headers: getAuthHeaders() }
     );
     console.log('✅ Workflow deleted:', workflowId);
@@ -382,7 +382,7 @@ export const validateWorkflow = async (
   
   try {
     const response = await axios.post(
-      `${apiUrl}/api/v1/tenant-workforms/${workflowId}/validate/`,
+      `${apiUrl}/tenant-workforms/${workflowId}/validate/`,
       {},
       { headers: getAuthHeaders() }
     );
@@ -418,7 +418,7 @@ export const listContainers = async (
   
   try {
     const response = await axios.get(
-      `${apiUrl}/api/v1/tenant-workforms/${workflowId}/containers/`,
+      `${apiUrl}/tenant-workforms/${workflowId}/containers/`,
       { headers: getAuthHeaders() }
     );
     
@@ -451,7 +451,7 @@ export const getContainerDetails = async (
   
   try {
     const response = await axios.get(
-      `${apiUrl}/api/v1/tenant-workforms/${workflowId}/containers/${containerId}/`,
+      `${apiUrl}/tenant-workforms/${workflowId}/containers/${containerId}/`,
       { headers: getAuthHeaders() }
     );
     
