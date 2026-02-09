@@ -1810,6 +1810,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Proximity detection state
   const [nearbyNode, setNearbyNode] = useState<Node | null>(null);
   
+  // Track drag start position to detect significant movement
+  const dragStartPositionRef = useRef<{ nodeId: string; x: number; y: number } | null>(null);
+  
+  // Track if a drop succeeded to prevent onDragEnd from undoing changes
+  const dropSucceededRef = useRef(false);
+  
   // ============================================================================
   // Expert Mode State (Phase 2.2 Batch 2)
   // ============================================================================
@@ -2390,6 +2396,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     event.dataTransfer.setData('application/reactflow-nodetype', nodeTypeId);
     event.dataTransfer.effectAllowed = 'move';
     
+    // Reset drop succeeded flag when starting a new drag
+    dropSucceededRef.current = false;
+    
     // Track drag state for ghost preview
     setIsDragging(true);
     setDragNodeType(nodeTypeId);
@@ -2580,20 +2589,26 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setHoveredContainerId(null);
     
     // Phase 1.2: Clear all drop target indicators
-    setNodes((nds) =>
-      nds.map((n) => {
-        if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
-          return {
-            ...n,
-            data: {
-              ...n.data,
-              isDropTarget: false,
-            },
-          };
-        }
-        return n;
-      })
-    );
+    // CRITICAL FIX: Skip setNodes if drop succeeded to prevent race condition
+    // If drop succeeded, the onDrop handler already cleaned up drop targets
+    if (!dropSucceededRef.current) {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: false,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    } else {
+      console.log('[DragEnd] Skipping setNodes - drop already succeeded and cleaned up');
+    }
   }, [setNodes]);
 
   const onDrop = useCallback(
@@ -2779,23 +2794,37 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             console.log(`[Container] ✅ Layout preserved order: Parent (${layoutParentIdx}) < Child (${layoutChildIdx})`);
           }
           
-          // Phase 3.3: Apply layout AND container dimension changes in SINGLE setNodes call
+          // Phase 3.3: Apply layout, container dimensions, AND clear drop target in SINGLE setNodes call
           // CRITICAL: Multiple setNodes calls can cause race conditions with parent/child rendering
           const finalNodes = layoutResult.nodes.map((n) => {
-            if (n.id === targetContainer.id && (layoutResult.containerWidth > 400 || layoutResult.containerHeight > 300)) {
-              return {
+            if (n.id === targetContainer.id) {
+              // Apply both dimension changes AND clear drop target flag
+              const updates: any = {
                 ...n,
-                style: {
+                data: {
+                  ...n.data,
+                  isDropTarget: false, // Clear drop target indicator
+                },
+              };
+              
+              // Apply dimension changes if needed
+              if (layoutResult.containerWidth > 400 || layoutResult.containerHeight > 300) {
+                updates.style = {
                   ...n.style,
                   width: layoutResult.containerWidth,
                   height: layoutResult.containerHeight,
-                },
-              };
+                };
+              }
+              
+              return updates;
             }
             return n;
           });
           
-          console.log(`[Container] Applying final nodes array with ${finalNodes.length} nodes`);
+          console.log(`🎯 SINGLE setNodes call with ${finalNodes.length} nodes (includes drop target cleanup)`);
+          finalNodes.forEach((n, idx) => {
+            console.log(`  [${idx}] ${n.id} (parent: ${n.parentId || 'undefined'})`);
+          });
           setNodes(finalNodes);
           
           // Phase 4: Trigger auto-connection for form steps
@@ -2803,7 +2832,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             console.log(`[Container] Triggering auto-connection for container ${targetContainer.id}`);
             const connectionResult = autoConnectSequentialSteps(
               targetContainer.id,
-              layoutResult.nodes,
+              finalNodes, // Use finalNodes (already has drop target cleared)
               edges
             );
             
@@ -2815,21 +2844,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           // Clear nearby node state and return early (no auto-connect for container drops)
           setNearbyNode(null);
           
-          // Phase 1.2: Clear drop target indicator
-          setNodes((nds) =>
-            nds.map((n) => {
-              if (n.id === targetContainer.id && n.data.isDropTarget) {
-                return {
-                  ...n,
-                  data: {
-                    ...n.data,
-                    isDropTarget: false,
-                  },
-                };
-              }
-              return n;
-            })
-          );
+          // Mark drop as succeeded to prevent onDragEnd from undoing changes
+          dropSucceededRef.current = true;
           
           return; // Don't continue to main canvas drop
         }
@@ -2839,6 +2855,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const updatedNodes = nodes.concat(newNode);
       setNodes(updatedNodes);
       setNodeIdCounter((prev) => prev + 1);
+      
+      // Mark drop as succeeded
+      dropSucceededRef.current = true;
       
       // Auto-connect to nearby node if found (only for main canvas drops)
       let updatedEdges = edges;
@@ -2869,13 +2888,46 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   /**
+   * Track drag start to detect significant movement
+   * Phase 5: Prevent unnecessary re-layouts during minor adjustments
+   */
+  const onNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
+    // Store initial position for comparison on drag stop
+    dragStartPositionRef.current = {
+      nodeId: node.id,
+      x: node.position.x,
+      y: node.position.y,
+    };
+    console.log(`[DragStart] Tracking node ${node.id} at position (${node.position.x}, ${node.position.y})`);
+  }, []);
+  
+  /**
    * Phase 5: Handle node drag stop - detect reordering within container
    * Phase 1-4: Handle dragging nodes in/out of containers
+   * 
+   * OPTIMIZATION: Only trigger auto-layout if position changed significantly
    */
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
-    // Phase 5: If node is inside a container and it's a form step, trigger re-layout
-    if (node.parentNode && (node.type === 'formStep' || node.type === 'formReference')) {
-      const container = nodes.find(n => n.id === node.parentNode);
+    // Phase 5: If node is inside a container and it's a form step, check for significant movement
+    if (node.parentId && (node.type === 'formStep' || node.type === 'formReference')) {
+      // Check if position changed significantly (more than 30px horizontally)
+      const dragStart = dragStartPositionRef.current;
+      const SIGNIFICANT_MOVEMENT_THRESHOLD = 30; // pixels
+      
+      if (dragStart && dragStart.nodeId === node.id) {
+        const deltaX = Math.abs(node.position.x - dragStart.x);
+        const deltaY = Math.abs(node.position.y - dragStart.y);
+        
+        if (deltaX < SIGNIFICANT_MOVEMENT_THRESHOLD && deltaY < SIGNIFICANT_MOVEMENT_THRESHOLD) {
+          console.log(`[DragStop] Skipping re-layout - movement too small (deltaX: ${deltaX}, deltaY: ${deltaY})`);
+          dragStartPositionRef.current = null;
+          return; // Don't trigger layout for minor adjustments
+        }
+        
+        console.log(`[DragStop] Significant movement detected (deltaX: ${deltaX}, deltaY: ${deltaY})`);
+      }
+      
+      const container = nodes.find(n => n.id === node.parentId);
       
       if (container) {
         console.log(`[DragStop] Triggering re-layout for container ${container.id} after node ${node.id} dragged`);
@@ -2909,23 +2961,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setEdges(connectionResult.edges);
         
         console.log(`[DragStop] ✅ Re-layout and re-connection complete`);
-        return;
       }
     }
     
+    // Clear drag start tracking
+    dragStartPositionRef.current = null;
+    
     // Phase 1-4: Original logic - Handle dragging node in/out of container
     // Calculate absolute position (in case node is inside a parent)
-    const absolutePosition = node.parentNode
+    const absolutePosition = node.parentId
       ? {
-          x: node.position.x + (nodes.find(n => n.id === node.parentNode)?.position.x || 0),
-          y: node.position.y + (nodes.find(n => n.id === node.parentNode)?.position.y || 0),
+          x: node.position.x + (nodes.find(n => n.id === node.parentId)?.position.x || 0),
+          y: node.position.y + (nodes.find(n => n.id === node.parentId)?.position.y || 0),
         }
       : node.position;
     
     const container = findContainerAtPosition(absolutePosition);
     
     // Check if node's parent container changed
-    const currentParentId = node.parentNode;
+    const currentParentId = node.parentId;
     const newParentId = container?.id || null;
     
     // Prevent containers from being nested in other containers
@@ -4701,6 +4755,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         isValidConnection={isValidConnection}
         onDrop={onDrop}
         onDragOver={onDragOver}
+        onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}

@@ -71,7 +71,7 @@ export interface TenantForm {
   name: string;
   description: string;
   type: 'single_step' | 'multi_step';
-  form_definition: any;
+  flow_data: any; // Backend uses flow_data, not form_definition
   version: number;
   usage_count: number;
   entity_type: string;
