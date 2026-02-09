@@ -150,10 +150,10 @@ export const prepareWorkflowForSave = (
   const nodesCopy = JSON.parse(JSON.stringify(nodes));
   const edgesCopy = JSON.parse(JSON.stringify(edges));
   
-  // Ensure all nodes have proper parentNode metadata
+  // Ensure all nodes have proper parentId metadata (React Flow v11+)
   // (This is already set by React Flow, but we verify it's serialized)
   for (const node of nodesCopy) {
-    if (node.parentNode) {
+    if (node.parentId) {
       // Ensure extent is serialized
       if (!node.extent) {
         node.extent = 'parent';
@@ -269,14 +269,14 @@ export const saveWorkflow = async (
 /**
  * Reconstruct parent-child relationships after loading
  * 
- * React Flow requires nodes to have parentNode property set correctly.
+ * React Flow v11+ requires nodes to have parentId property set correctly.
  * This ensures all container children are properly linked.
  */
 export const reconstructParentChildRelationships = (nodes: Node[]): Node[] => {
   const reconstructed = JSON.parse(JSON.stringify(nodes));
   
   for (const node of reconstructed) {
-    if (node.parentNode) {
+    if (node.parentId) {
       // Ensure extent is set for constrained movement
       if (!node.extent) {
         node.extent = 'parent';

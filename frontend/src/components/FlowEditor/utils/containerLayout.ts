@@ -68,8 +68,8 @@ export function calculateContainerLayout(
 ): LayoutResult {
   console.log(`[Layout] Calculating layout for container ${containerId}`);
   
-  // Filter child nodes
-  const childNodes = allNodes.filter(node => node.parentNode === containerId);
+  // Filter child nodes (using parentId - React Flow v11+)
+  const childNodes = allNodes.filter(node => node.parentId === containerId);
   
   if (childNodes.length === 0) {
     console.log(`[Layout] No child nodes found for container ${containerId}`);
@@ -256,8 +256,8 @@ export function autoConnectSequentialSteps(
 ): ConnectionResult {
   console.log(`[AutoConnect] Creating sequential connections for container ${containerId}`);
   
-  // Filter child nodes
-  const childNodes = allNodes.filter(node => node.parentNode === containerId);
+  // Filter child nodes (using parentId - React Flow v11+)
+  const childNodes = allNodes.filter(node => node.parentId === containerId);
   
   // Get only form steps and sort by x-position (left-to-right)
   const formSteps = childNodes
@@ -279,8 +279,8 @@ export function autoConnectSequentialSteps(
     const sourceNode = allNodes.find(n => n.id === edge.source);
     const targetNode = allNodes.find(n => n.id === edge.target);
     
-    // Keep if either node is not in this container
-    return sourceNode?.parentNode !== containerId || targetNode?.parentNode !== containerId;
+    // Keep if either node is not in this container (using parentId - React Flow v11+)
+    return sourceNode?.parentId !== containerId || targetNode?.parentId !== containerId;
   });
   
   console.log(`[AutoConnect] Removed ${allEdges.length - nonAutoEdges.length} old auto-edges`);

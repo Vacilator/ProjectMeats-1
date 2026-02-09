@@ -44,7 +44,7 @@ import { CustomEdge } from '../edges/CustomEdge';
 // ============================================================================
 
 interface MiniReactFlowProps {
-  nodes: Node[]; // Phase 2.2: Filtered by parentNode in UnifiedFlowEditor
+  nodes: Node[]; // Phase 2.2: Filtered by parentId in UnifiedFlowEditor (React Flow v11+)
   edges: Edge[]; // Phase 2.2: Filtered to edges between child nodes
   containerHeight?: number; // Height of mini canvas
   // Phase 2.2: Removed onNodesChange, onEdgesChange, onConnect (read-only)
