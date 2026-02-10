@@ -17,7 +17,6 @@ import {
   ReactFlowProvider,
   Background,
   Controls,
-  MiniMap,
   Node,
   Edge,
   BackgroundVariant,
@@ -48,7 +47,8 @@ interface MiniReactFlowProps {
   edges: Edge[]; // Phase 2.2: Filtered to edges between child nodes
   containerHeight?: number; // Height of mini canvas
   interactive?: boolean; // Phase 4.5: Allow interactive mode when expanded
-  // Phase 2.2: Removed onNodesChange, onEdgesChange, onConnect (read-only)
+  onNodeClick?: (event: React.MouseEvent, node: Node) => void; // Optional click handler for nodes
+  onNodesChange?: (changes: any) => void; // Optional handler for node position changes
   // Phase 2.2: Removed readOnly prop (always read-only now)
 }
 
@@ -63,22 +63,31 @@ const MiniFlowContainer = styled.div<{ $height: number; $interactive?: boolean }
   border: 1px solid rgba(var(--color-border), 0.5);
   border-radius: 8px;
   overflow: hidden;
-  pointer-events: ${props => props.$interactive ? 'auto' : 'none'};
+  pointer-events: auto; /* Always allow pointer events */
   position: relative;
   z-index: 1; /* Below interactive buttons */
   
-  /* Conditional pointer events for children */
+  /* When NOT interactive, disable pointer events on the React Flow canvas itself */
   ${props => !props.$interactive && `
-    * {
-      pointer-events: none !important;
+    .react-flow {
+      pointer-events: none;
     }
   `}
   
   .react-flow__node {
-    cursor: ${props => props.$interactive ? 'pointer' : 'default'} !important;
+    cursor: ${props => props.$interactive ? 'grab' : 'default'} !important;
+    pointer-events: ${props => props.$interactive ? 'auto' : 'none'};
+  }
+  
+  .react-flow__node:active {
+    cursor: ${props => props.$interactive ? 'grabbing' : 'default'} !important;
   }
   
   .react-flow__edges {
+    pointer-events: ${props => props.$interactive ? 'auto' : 'none'};
+  }
+  
+  .react-flow__controls {
     pointer-events: ${props => props.$interactive ? 'auto' : 'none'};
   }
 `;
@@ -113,9 +122,12 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
   edges,
   containerHeight = 300,
   interactive = false,
+  onNodeClick,
+  onNodesChange,
 }) => {
   // Phase 2.2: Simplified - no callbacks, read-only preview
   // Phase 4.5: Added interactive mode for expanded containers
+  // Phase 4.6: Added click and change handlers for editing support
   
   // CRITICAL: Sanitize nodes to remove ALL parent references
   // This prevents "Parent node not found" errors when rendering child nodes
@@ -173,6 +185,8 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
           edges={edges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          onNodeClick={interactive ? onNodeClick : undefined} // Only handle clicks in interactive mode
+          onNodesChange={interactive ? onNodesChange : undefined} // Only handle changes in interactive mode
           fitView
           fitViewOptions={{
             padding: 0.2,
@@ -194,34 +208,22 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
           size={1} 
           color="rgba(var(--color-border), 0.3)"
         />
-        <Controls 
-          showZoom
-          showFitView
-          showInteractive={false}
-          style={{
-            button: {
-              background: 'rgba(var(--color-surface), 0.9)',
-              border: '1px solid rgba(var(--color-border), 0.5)',
-              color: 'rgb(var(--color-text-primary))',
-            },
-          }}
-        />
-        {/* Phase 2.2: MiniMap for quick overview of container contents */}
-        <MiniMap
-          nodeColor={(node) => {
-            // Color nodes by type in minimap
-            if (node.type === 'formStep') return '#3b82f6';
-            if (node.type === 'trigger') return '#8b5cf6';
-            if (node.type === 'action') return '#10b981';
-            if (node.type === 'conditionIf') return '#f59e0b';
-            return '#6b7280';
-          }}
-          maskColor="rgba(var(--color-background), 0.6)"
-          style={{
-            background: 'rgba(var(--color-surface), 0.9)',
-            border: '1px solid rgba(var(--color-border), 0.5)',
-          }}
-        />
+        {/* Only show controls when interactive */}
+        {interactive && (
+          <Controls 
+            showZoom
+            showFitView
+            showInteractive={false}
+            style={{
+              button: {
+                background: 'rgba(var(--color-surface), 0.9)',
+                border: '1px solid rgba(var(--color-border), 0.5)',
+                color: 'rgb(var(--color-text-primary))',
+              },
+            }}
+          />
+        )}
+        {/* Removed MiniMap - user requested removal */}
         </ReactFlow>
       </MiniFlowContainer>
     </ReactFlowProvider>
