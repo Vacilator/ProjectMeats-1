@@ -1,9 +1,11 @@
 /**
  * Form Multi-Step Container Node Component
- * * Phase 4.2 of WF-ENH-2026-Q1
- * - Fixed: Duplicate node rendering (MiniMap removed from expanded state)
- * - Fixed: "Enter Container" button blocked by overlay
- * - Added: Auto-hide children on collapse
+ * * Phase 4.3: FIX VISUAL DUPLICATION
+ * - Removed MiniReactFlow from 'Expanded' state (fixes ghost nodes & blocked buttons)
+ * - Added MiniReactFlow to 'Collapsed' state (restores preview)
+ * - Added pointer-events: none to MiniFlowWrapper (prevents click interception)
+ * * Created: 2026-02-06
+ * Updated: 2026-02-10
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
@@ -26,10 +28,16 @@ export interface ContainerNodeData extends BaseNodeData {
   allowSkipSteps?: boolean;
   tenantFormId?: string;
   tenantWorkFormId?: string;
+  
+  // Callbacks for parent communication
   onEnterContainer?: (containerId: string) => void;
+  
+  // Statistics
   nodeCount?: number;
   nodeTypeBreakdown?: Record<string, number>;
   formReferences?: string[];
+  
+  // Phase 1.2: Drop target indicator
   isDropTarget?: boolean;
 }
 
@@ -42,7 +50,7 @@ export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNode
 const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   min-width: ${props => props.isExpanded ? '400px' : '280px'};
   background: rgba(var(--color-background-secondary), 0.95);
-  border: 2px solid rgb(139, 92, 246);
+  border: 2px solid rgb(139, 92, 246); /* Purple - container color */
   border-radius: 12px;
   box-shadow: 
     0 4px 6px rgba(0, 0, 0, 0.1),
@@ -140,8 +148,8 @@ const ContainerBody = styled.div<{ isExpanded: boolean }>`
   display: ${props => props.isExpanded ? 'block' : 'none'};
   min-height: ${props => props.isExpanded ? '200px' : 'auto'};
   min-width: 300px;
-  /* Important: Ensure buttons inside body are clickable */
-  position: relative;
+  /* Ensure buttons are clickable */
+  position: relative; 
   z-index: 10;
 `;
 
@@ -288,8 +296,7 @@ const MiniFlowWrapper = styled.div`
   margin-top: 12px;
   border-radius: 8px;
   overflow: hidden;
-  /* Ensure clicks pass through to container when in preview mode if needed */
-  /* pointer-events: none; */ 
+  pointer-events: none; /* Crucial: Prevents clicking on mini-nodes */
 `;
 
 // ============================================================================
@@ -462,8 +469,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                     </SummaryRow>
                   )}
                   
-                  {/* CRITICAL FIX: Removed MiniReactFlow from here to prevent double rendering */}
-                  {/* The main React Flow instance renders child nodes on top of this container automatically */}
+                  {/* CRITICAL FIX: REMOVED MiniReactFlow from here */}
                   
                   {nodeTypeEntries.length > 0 && (
                     <>
@@ -483,8 +489,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                     </>
                   )}
                   
-                  {/* Buttons moved below flow area */}
-                  <div style={{ marginTop: '20px' }}>
+                  {/* Buttons moved below to ensure accessibility */}
+                  <div style={{ marginTop: '20px', position: 'relative', zIndex: 20 }}>
                       <EnterButton onClick={handleEnterContainer}>
                         <LogIn />
                         Enter Container to Edit
