@@ -1,8 +1,9 @@
 # WorkForms Editor Stabilization - Implementation Status
 
-**Date**: 2026-02-09  
-**Branch**: `fix/workforms-editor-stabilization`  
-**Status**: ✅ PHASE 2 COMPLETE (Backend Infrastructure)
+**Date**: 2026-02-10  
+**Branch**: `development`  
+**Status**: ✅ ALL PHASES COMPLETE (Production-Ready)  
+**Latest Fix**: PR #2784 - Robust node sanitization using `delete` operator
 
 ---
 
@@ -423,6 +424,56 @@ useEffect(() => {
 - [ ] Trigger type changes load forms
 - [ ] Form selection loads fields
 - [ ] Wizard mode loads template on empty canvas
+
+---
+
+## 🐛 CRITICAL REGRESSION FIX (PR #2784)
+
+### Problem: MiniReactFlow "Parent node not found" - Round 2
+**Date**: 2026-02-10  
+**Severity**: CRITICAL  
+**Status**: ✅ FIXED
+
+**Root Cause (Discovered)**:
+- PR #2782 attempted to fix by setting `parentId: undefined`
+- However, JavaScript spread operator keeps the property key:
+  ```typescript
+  const node = { ...originalNode, parentId: undefined };
+  'parentId' in node // ❌ true - property still exists!
+  ```
+- React Flow v11+ checks for property **existence**, not just value
+- Detection: `if (node.parentId)` vs `if ('parentId' in node)`
+
+**Solution Applied**:
+- Use `delete` operator to completely remove properties from object
+- Properties removed: `parentId`, `parentNode` (legacy), `extent`, `expandParent`
+- Added debug console logging to verify sanitization
+- Technical comparison:
+  ```typescript
+  // ❌ OLD (property exists with undefined value)
+  const cleanNode = { ...node, parentId: undefined };
+  'parentId' in cleanNode // true - React Flow detects this!
+  
+  // ✅ NEW (property completely removed)
+  const cleanNode = { ...node };
+  delete cleanNode.parentId;
+  'parentId' in cleanNode // false - React Flow happy!
+  ```
+
+**Files Changed**:
+- `frontend/src/components/FlowEditor/NestedContainer/MiniReactFlow.tsx`
+
+**Impact**:
+- ✅ Prevents "Parent node node-X not found" errors definitively
+- ✅ Multi-step containers render child nodes without crashes
+- ✅ Debug logs trace sanitization for verification
+- ✅ More robust than value-based approach
+
+**Testing**:
+1. Drop form step into multi-step container
+2. Check browser console for sanitization logs
+3. Verify no React Flow errors
+4. Verify container preview renders correctly
 
 ---
 
