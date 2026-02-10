@@ -463,6 +463,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                       edges={stats.childEdges}
                       containerHeight={400}
                       interactive={true}
+                      onNodeClick={handleNodeClick}
+                      onNodesChange={handleNodesChange}
                     />
                   </div>
                   
