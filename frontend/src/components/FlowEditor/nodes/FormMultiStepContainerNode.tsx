@@ -249,7 +249,7 @@ const ConfigButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  z-index: 10; /* Ensure button is above MiniReactFlow */
+  z-index: 50; /* High z-index to ensure button is above MiniReactFlow */
   
   &:hover {
     transform: translateY(-1px);
@@ -278,7 +278,7 @@ const EnterButton = styled.button`
   gap: 8px;
   transition: all 0.2s ease;
   position: relative;
-  z-index: 10; /* Ensure button is above MiniReactFlow */
+  z-index: 50; /* High z-index to ensure button is above MiniReactFlow */
   
   &:hover {
     background: rgba(59, 130, 246, 0.25);
@@ -465,8 +465,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                     </SummaryRow>
                   )}
                   
-                  {/* Phase 2.2: No MiniReactFlow when expanded - React Flow renders children naturally via extent: 'parent' */}
-                  <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(var(--color-surface), 0.5)', borderRadius: '6px' }}>
+                  {/* Phase 2.2: Simple background container when expanded - React Flow renders children naturally via parentId */}
+                  <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(var(--color-surface), 0.5)', borderRadius: '6px', minHeight: '200px' }}>
                     <div style={{ fontSize: '12px', color: 'rgba(var(--color-text-secondary), 1)', marginBottom: '8px' }}>
                       💡 Child nodes are rendered directly on the canvas when expanded
                     </div>
