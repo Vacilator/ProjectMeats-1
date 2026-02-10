@@ -14,6 +14,7 @@ import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import {
   ReactFlow,
+  ReactFlowProvider,
   Background,
   Controls,
   MiniMap,
@@ -103,7 +104,7 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
 }) => {
   // Phase 2.2: Simplified - no callbacks, read-only preview
   
-  // Sanitize nodes to remove parent references
+  // CRITICAL: Sanitize nodes to remove ALL parent references
   // This prevents "Parent node not found" errors when rendering child nodes
   // in isolation (container is not included in this mini canvas)
   const sanitizedNodes = useMemo(() => {
@@ -114,23 +115,31 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
     })));
     
     const sanitized = nodes.map(node => {
-      // Create a clean shallow copy
-      const cleanNode = { ...node };
+      // Create a COMPLETELY NEW object to break any references
+      const cleanNode: Node = {
+        id: node.id,
+        type: node.type,
+        position: { ...node.position }, // Deep copy position
+        data: { ...node.data }, // Shallow copy data
+        // Explicitly set parent properties to undefined (not just delete)
+        parentId: undefined,
+        extent: undefined,
+        expandParent: undefined,
+        // Copy other safe properties
+        style: node.style,
+        className: node.className,
+        draggable: false, // Force non-draggable
+        selectable: false, // Force non-selectable
+        connectable: false, // Force non-connectable
+        // Note: Explicitly NOT copying: parentNode, parentId, extent, expandParent
+      };
       
-      // Explicitly DELETE parent/extent constraints for the mini-preview
-      // Using delete ensures React Flow doesn't see these properties at all
-      delete (cleanNode as any).parentId;
-      delete (cleanNode as any).parentNode; // Legacy property (React Flow v10)
-      delete (cleanNode as any).extent;
-      delete (cleanNode as any).expandParent;
-      
-      // Preserve position (it's already relative to container origin)
       return cleanNode;
     });
     
     console.log('[MiniReactFlow] Sanitized nodes:', sanitized.map(n => ({ 
       id: n.id, 
-      parentId: (n as any).parentId,
+      parentId: n.parentId,
       hasParentId: 'parentId' in n,
       type: n.type 
     })));
@@ -139,27 +148,29 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
   }, [nodes]);
   
   return (
-    <MiniFlowContainer $height={containerHeight}>
-      <ReactFlow
-        nodes={sanitizedNodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        fitView
-        fitViewOptions={{
-          padding: 0.2,
-          minZoom: 0.5,
-          maxZoom: 1.5,
-        }}
-        nodesDraggable={false} // Phase 2.2: Read-only
-        nodesConnectable={false} // Phase 2.2: Read-only
-        elementsSelectable={false} // Phase 2.2: Read-only
-        zoomOnScroll={false} // Phase 2.2: Prevent zoom in mini canvas
-        panOnDrag={false} // Phase 2.2: Prevent panning
-        proOptions={{ hideAttribution: true }}
-        minZoom={0.3}
-        maxZoom={2}
-      >
+    <ReactFlowProvider>
+      <MiniFlowContainer $height={containerHeight}>
+        <ReactFlow
+          key={`mini-flow-${nodes.length}`} // Force remount on node count change
+          nodes={sanitizedNodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+          fitViewOptions={{
+            padding: 0.2,
+            minZoom: 0.5,
+            maxZoom: 1.5,
+          }}
+          nodesDraggable={false} // Phase 2.2: Read-only
+          nodesConnectable={false} // Phase 2.2: Read-only
+          elementsSelectable={false} // Phase 2.2: Read-only
+          zoomOnScroll={false} // Phase 2.2: Prevent zoom in mini canvas
+          panOnDrag={false} // Phase 2.2: Prevent panning
+          proOptions={{ hideAttribution: true }}
+          minZoom={0.3}
+          maxZoom={2}
+        >
         <Background 
           variant={BackgroundVariant.Dots} 
           gap={20} 
@@ -194,8 +205,9 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
             border: '1px solid rgba(var(--color-border), 0.5)',
           }}
         />
-      </ReactFlow>
-    </MiniFlowContainer>
+        </ReactFlow>
+      </MiniFlowContainer>
+    </ReactFlowProvider>
   );
 };
 
