@@ -8,10 +8,11 @@
  * - Reconstructs parent-child relationships on load
  * 
  * Created: 2026-02-08
+ * Updated: 2026-02-10 - Fixed auth by using apiClient
  */
 
 import { Node, Edge } from '@xyflow/react';
-import axios from 'axios';
+import { apiClient } from '../../../services/apiService';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -67,36 +68,11 @@ export interface WorkflowListItem {
 // ============================================================================
 
 /**
- * Get base URL for API requests
+ * Get tenant ID from localStorage
+ * Required for multi-tenant isolation
  */
-const getApiBaseUrl = (): string => {
-  return import.meta.env.VITE_API_BASE_URL || 
-         (window as any).ENV?.API_BASE_URL || 
-         'http://localhost:8000';
-};
-
-/**
- * Get auth headers with tenant context
- * Throws user-friendly errors if auth data is missing
- */
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
-  const tenantId = localStorage.getItem('currentTenantId');
-  
-  // Validate auth data presence
-  if (!token) {
-    throw new Error('Authentication required. Please log in to continue.');
-  }
-  
-  if (!tenantId) {
-    throw new Error('Tenant context missing. Please select a tenant.');
-  }
-  
-  return {
-    'Authorization': `Bearer ${token}`,
-    'X-Tenant-ID': tenantId,
-    'Content-Type': 'application/json',
-  };
+const getTenantId = (): string | null => {
+  return localStorage.getItem('tenantId') || localStorage.getItem('currentTenantId');
 };
 
 // ============================================================================
@@ -194,33 +170,38 @@ export const saveWorkflow = async (
   description?: string,
   status: 'draft' | 'active' | 'archived' = 'draft'
 ): Promise<LoadWorkflowResponse> => {
-  const apiUrl = getApiBaseUrl();
-  const workflow_definition = prepareWorkflowForSave(nodes, edges, viewport);
-  
-  const payload: SaveWorkflowPayload = {
-    name,
-    description: description || '',
-    status,
-    workflow_definition,
-  };
-  
   try {
+    console.log('💾 Saving workflow...', { name, nodes: nodes.length, edges: edges.length });
+    
+    // Validate tenant context
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      throw new Error('Tenant context missing. Please select a tenant.');
+    }
+    
+    const workflow_definition = prepareWorkflowForSave(nodes, edges, viewport);
+    
+    const payload: SaveWorkflowPayload = {
+      name,
+      description: description || '',
+      status,
+      workflow_definition,
+    };
+    
     let response;
     
     if (existingWorkflowId) {
       // Update existing workflow (PUT)
-      response = await axios.put(
-        `${apiUrl}/tenant-workforms/${existingWorkflowId}/`,
-        payload,
-        { headers: getAuthHeaders() }
+      response = await apiClient.put(
+        `/tenant-workforms/${existingWorkflowId}/`,
+        payload
       );
       console.log('✅ Workflow updated:', response.data);
     } else {
       // Create new workflow (POST)
-      response = await axios.post(
-        `${apiUrl}/tenant-workforms/`,
-        payload,
-        { headers: getAuthHeaders() }
+      response = await apiClient.post(
+        `/tenant-workforms/`,
+        payload
       );
       console.log('✅ Workflow created:', response.data);
     }
@@ -230,7 +211,7 @@ export const saveWorkflow = async (
     console.error('❌ Error saving workflow:', error);
     
     // Enhanced error handling with user-friendly messages
-    if (error.message?.includes('Authentication required')) {
+    if (error.response?.status === 401) {
       throw new Error('Please log in to save workflows.');
     }
     
@@ -243,8 +224,6 @@ export const saveWorkflow = async (
       const data = error.response.data;
       
       switch (status) {
-        case 401:
-          throw new Error('Session expired. Please log in again.');
         case 403:
           throw new Error('Permission denied. You do not have access to save this workflow.');
         case 404:
@@ -301,12 +280,12 @@ export const reconstructParentChildRelationships = (nodes: Node[]): Node[] => {
 export const loadWorkflow = async (
   workflowId: string
 ): Promise<LoadWorkflowResponse> => {
-  const apiUrl = getApiBaseUrl();
+  // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await axios.get(
-      `${apiUrl}/tenant-workforms/${workflowId}/`,
-      { headers: getAuthHeaders() }
+    const response = await apiClient.get(
+      `/tenant-workforms/${workflowId}/`,
+      
     );
     
     console.log('✅ Workflow loaded:', response.data);
@@ -344,7 +323,7 @@ export const listWorkflows = async (
     search?: string;
   }
 ): Promise<WorkflowListItem[]> => {
-  const apiUrl = getApiBaseUrl();
+  // Removed getApiBaseUrl - using apiClient
   
   // Build query params
   const params = new URLSearchParams();
@@ -352,10 +331,10 @@ export const listWorkflows = async (
   if (filters?.search) params.append('search', filters.search);
   
   const queryString = params.toString();
-  const url = `${apiUrl}/tenant-workforms/${queryString ? `?${queryString}` : ''}`;
+  const url = `/tenant-workforms/${queryString ? `?${queryString}` : ''}`;
   
   try {
-    const response = await axios.get(url, { headers: getAuthHeaders() });
+    const response = await apiClient.get(url);
     console.log(`✅ Loaded ${response.data.length} workflows`);
     return response.data;
   } catch (error: any) {
@@ -377,12 +356,12 @@ export const listWorkflows = async (
  * @param workflowId - UUID of the workflow to delete
  */
 export const deleteWorkflow = async (workflowId: string): Promise<void> => {
-  const apiUrl = getApiBaseUrl();
+  // Removed getApiBaseUrl - using apiClient
   
   try {
-    await axios.delete(
-      `${apiUrl}/tenant-workforms/${workflowId}/`,
-      { headers: getAuthHeaders() }
+    await apiClient.delete(
+      `/tenant-workforms/${workflowId}/`,
+      
     );
     console.log('✅ Workflow deleted:', workflowId);
   } catch (error: any) {
@@ -411,13 +390,13 @@ export const validateWorkflow = async (
   missing_forms: string[];
   total_references: number;
 }> => {
-  const apiUrl = getApiBaseUrl();
+  // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await axios.post(
-      `${apiUrl}/tenant-workforms/${workflowId}/validate/`,
+    const response = await apiClient.post(
+      `/tenant-workforms/${workflowId}/validate/`,
       {},
-      { headers: getAuthHeaders() }
+      
     );
     
     console.log('✅ Workflow validation:', response.data);
@@ -447,12 +426,12 @@ export const listContainers = async (
   node_types: Record<string, number>;
   form_references: string[];
 }>> => {
-  const apiUrl = getApiBaseUrl();
+  // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await axios.get(
-      `${apiUrl}/tenant-workforms/${workflowId}/containers/`,
-      { headers: getAuthHeaders() }
+    const response = await apiClient.get(
+      `/tenant-workforms/${workflowId}/containers/`,
+      
     );
     
     return response.data.containers || [];
@@ -480,12 +459,12 @@ export const getContainerDetails = async (
   form_references: string[];
   nodes: Node[];
 }> => {
-  const apiUrl = getApiBaseUrl();
+  // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await axios.get(
-      `${apiUrl}/tenant-workforms/${workflowId}/containers/${containerId}/`,
-      { headers: getAuthHeaders() }
+    const response = await apiClient.get(
+      `/tenant-workforms/${workflowId}/containers/${containerId}/`,
+      
     );
     
     return response.data;
