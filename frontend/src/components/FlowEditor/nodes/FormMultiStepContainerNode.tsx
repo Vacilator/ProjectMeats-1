@@ -1,21 +1,16 @@
 /**
  * Form Multi-Step Container Node Component
- * 
- * Phase 2: Migrated to React Flow Native System
- * - Uses parentId property instead of childNodes array
- * - Queries children from main React Flow state via useReactFlow
- * - No shadow graph - single source of truth
- * 
- * Phase 4.2 of WF-ENH-2026-Q1
- * Created: 2026-02-06
- * Updated: 2026-02-09 - Fixed: parentNode → parentId (React Flow v11+)
+ * * Phase 4.2 of WF-ENH-2026-Q1
+ * - Fixed: Duplicate node rendering (MiniMap removed from expanded state)
+ * - Fixed: "Enter Container" button blocked by overlay
+ * - Added: Auto-hide children on collapse
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
 import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
-import { ChevronDown, ChevronRight, Maximize2, Minimize2, LogIn, ZoomIn } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogIn } from 'lucide-react';
 import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 
 // ============================================================================
@@ -25,25 +20,16 @@ import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 export interface ContainerNodeData extends BaseNodeData {
   containerName?: string;
   containerDescription?: string;
-  // Phase 2.1: REMOVED childNodes and childEdges (migrated to React Flow native)
-  // childNodes?: Node[]; // ❌ Old shadow graph approach
-  // childEdges?: Edge[]; // ❌ Old shadow graph approach
   isExpanded?: boolean;
   showProgressIndicator?: boolean;
   allowBackNavigation?: boolean;
   allowSkipSteps?: boolean;
-  tenantFormId?: string; // If container represents a multi-step form
-  tenantWorkFormId?: string; // If container is a saved workflow
-  
-  // Callbacks for parent communication
+  tenantFormId?: string;
+  tenantWorkFormId?: string;
   onEnterContainer?: (containerId: string) => void;
-  
-  // Statistics (auto-calculated from React Flow state)
   nodeCount?: number;
-  nodeTypeBreakdown?: Record<string, number>; // {"formStep": 3, "actionEmail": 1, ...}
-  formReferences?: string[]; // Array of TenantForm IDs used within
-  
-  // Phase 1.2: Drop target indicator
+  nodeTypeBreakdown?: Record<string, number>;
+  formReferences?: string[];
   isDropTarget?: boolean;
 }
 
@@ -56,7 +42,7 @@ export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNode
 const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   min-width: ${props => props.isExpanded ? '400px' : '280px'};
   background: rgba(var(--color-background-secondary), 0.95);
-  border: 2px solid rgb(139, 92, 246); /* Purple - container color */
+  border: 2px solid rgb(139, 92, 246);
   border-radius: 12px;
   box-shadow: 
     0 4px 6px rgba(0, 0, 0, 0.1),
@@ -77,7 +63,6 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
       0 0 0 4px rgba(139, 92, 246, 0.3);
   }
   
-  /* Drop zone indicator when dragging nodes */
   &.drag-over {
     border-color: rgb(34, 197, 94);
     box-shadow: 
@@ -155,6 +140,9 @@ const ContainerBody = styled.div<{ isExpanded: boolean }>`
   display: ${props => props.isExpanded ? 'block' : 'none'};
   min-height: ${props => props.isExpanded ? '200px' : 'auto'};
   min-width: 300px;
+  /* Important: Ensure buttons inside body are clickable */
+  position: relative;
+  z-index: 10;
 `;
 
 const ContainerSummary = styled.div`
@@ -249,7 +237,7 @@ const ConfigButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  z-index: 50; /* High z-index to ensure button is above MiniReactFlow */
+  z-index: 20; 
   
   &:hover {
     transform: translateY(-1px);
@@ -278,7 +266,7 @@ const EnterButton = styled.button`
   gap: 8px;
   transition: all 0.2s ease;
   position: relative;
-  z-index: 50; /* High z-index to ensure button is above MiniReactFlow */
+  z-index: 20; 
   
   &:hover {
     background: rgba(59, 130, 246, 0.25);
@@ -300,9 +288,8 @@ const MiniFlowWrapper = styled.div`
   margin-top: 12px;
   border-radius: 8px;
   overflow: hidden;
-  pointer-events: none; /* Prevent click interception - MiniReactFlow is read-only */
-  position: relative;
-  z-index: 1; /* Below buttons */
+  /* Ensure clicks pass through to container when in preview mode if needed */
+  /* pointer-events: none; */ 
 `;
 
 // ============================================================================
@@ -316,19 +303,19 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
 }) => {
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
   
-  // Phase 2.2: Use reactive hooks that trigger re-renders on state changes
-  const allNodes = useNodes(); // ✅ Triggers re-render when nodes change
-  const allEdges = useEdges(); // ✅ Triggers re-render when edges change
+  // Use reactive hooks that trigger re-renders on state changes
+  const allNodes = useNodes(); 
+  const allEdges = useEdges(); 
+  const { setNodes } = useReactFlow();
   
   const nodeDef = getNodeTypeDefinition('formMultiStepContainer');
   
-  // Phase 2.2: Calculate statistics from React Flow state (not shadow array)
-  // FIXED: Now depends on actual nodes/edges arrays, not getter functions
+  // Calculate statistics from React Flow state
   const stats = useMemo(() => {
-    // Phase 2.2: Query child nodes via parentId property (updated from deprecated parentNode)
+    // Query child nodes via parentId property
     const childNodes = allNodes.filter(node => node.parentId === id);
     
-    // Phase 2.2: Query edges between child nodes
+    // Query edges between child nodes
     const childNodeIds = new Set(childNodes.map(n => n.id));
     const childEdges = allEdges.filter(edge => 
       childNodeIds.has(edge.source) && childNodeIds.has(edge.target)
@@ -353,16 +340,34 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
       nodeTypes,
       formRefs: formRefs.size,
       hasNodes: nodeCount > 0,
-      childNodes, // Phase 2.2: From React Flow state, not shadow array
-      childEdges, // Phase 2.2: From React Flow state, not shadow array
+      childNodes,
+      childEdges,
     };
-  }, [id, allNodes, allEdges]); // Phase 2.2: Reactive dependencies on actual state
+  }, [id, allNodes, allEdges]);
   
   const isConfigured = data.configured || stats.hasNodes;
   
+  // Handle collapsing/expanding logic
   const handleHeaderClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsExpanded(!isExpanded);
+    const newExpandedState = !isExpanded;
+    setIsExpanded(newExpandedState);
+    
+    // Auto-hide/show child nodes on the main canvas
+    // This prevents them from "floating" over the collapsed container
+    if (stats.hasNodes) {
+        setNodes((nds) => 
+            nds.map((node) => {
+                if (node.parentId === id) {
+                    return {
+                        ...node,
+                        hidden: !newExpandedState // Hide if collapsed, Show if expanded
+                    };
+                }
+                return node;
+            })
+        );
+    }
   };
   
   const handleConfigClick = (e: React.MouseEvent) => {
@@ -372,17 +377,11 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   
   const handleEnterContainer = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    e.preventDefault(); // Prevent any default behavior
-    console.log('[Container] Enter button clicked for', id);
+    e.preventDefault();
     if (data.onEnterContainer) {
       data.onEnterContainer(id);
-    } else {
-      console.warn('[Container] onEnterContainer callback not defined');
     }
   }, [id, data]);
-  
-  // Phase 2.2: REMOVED handleNodesChange and handleEdgesChange
-  // Changes now happen directly in React Flow state, no need to propagate
   
   // Get node type statistics for display
   const nodeTypeEntries = Object.entries(stats.nodeTypes).sort((a, b) => b[1] - a[1]);
@@ -392,7 +391,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
       id={id} 
       data={data} 
       selected={selected}
-      nodeType={nodeDef} // ✅ FIX: Pass required nodeType prop
+      nodeType={nodeDef}
     >
       {/* Container custom UI */}
       <ContainerWrapper 
@@ -420,35 +419,33 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
             </StatusBadge>
           </ContainerHeader>
           
+          {/* COLLAPSED STATE: Show Mini-Map Preview */}
           {!isExpanded && (
-            <>
-              <ContainerSummary>
+            <ContainerSummary>
+              <SummaryRow>
+                <span className="label">Nodes:</span>
+                <span className="value">{stats.nodeCount}</span>
+              </SummaryRow>
+              {stats.formRefs > 0 && (
                 <SummaryRow>
-                  <span className="label">Nodes:</span>
-                  <span className="value">{stats.nodeCount}</span>
+                  <span className="label">Forms:</span>
+                  <span className="value">{stats.formRefs}</span>
                 </SummaryRow>
-                {stats.formRefs > 0 && (
-                  <SummaryRow>
-                    <span className="label">Forms:</span>
-                    <span className="value">{stats.formRefs}</span>
-                  </SummaryRow>
-                )}
-              </ContainerSummary>
-              
-              {/* Phase 2.2: Mini React Flow Preview - ONLY shown when collapsed (read-only preview) */}
+              )}
+              {/* Only show MiniMap when collapsed as a preview */}
               {stats.hasNodes && (
                 <MiniFlowWrapper>
-                  <MiniReactFlow
-                    key={stats.nodeCount} // Force remount when child count changes
-                    nodes={stats.childNodes}
-                    edges={stats.childEdges}
-                    containerHeight={150}
-                  />
+                    <MiniReactFlow
+                      nodes={stats.childNodes}
+                      edges={stats.childEdges}
+                      containerHeight={150} // Smaller height for preview
+                    />
                 </MiniFlowWrapper>
               )}
-            </>
+            </ContainerSummary>
           )}
           
+          {/* EXPANDED STATE: Main Canvas handles rendering children */}
           {isExpanded && (
             <ContainerBody isExpanded={isExpanded}>
               {stats.hasNodes ? (
@@ -465,12 +462,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                     </SummaryRow>
                   )}
                   
-                  {/* Phase 2.2: Simple background container when expanded - React Flow renders children naturally via parentId */}
-                  <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(var(--color-surface), 0.5)', borderRadius: '6px', minHeight: '200px' }}>
-                    <div style={{ fontSize: '12px', color: 'rgba(var(--color-text-secondary), 1)', marginBottom: '8px' }}>
-                      💡 Child nodes are rendered directly on the canvas when expanded
-                    </div>
-                  </div>
+                  {/* CRITICAL FIX: Removed MiniReactFlow from here to prevent double rendering */}
+                  {/* The main React Flow instance renders child nodes on top of this container automatically */}
                   
                   {nodeTypeEntries.length > 0 && (
                     <>
@@ -490,14 +483,17 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                     </>
                   )}
                   
-                  <EnterButton onClick={handleEnterContainer}>
-                    <LogIn />
-                    Enter Container to Edit
-                  </EnterButton>
-                  
-                  <ConfigButton onClick={handleConfigClick}>
-                    Configure Container
-                  </ConfigButton>
+                  {/* Buttons moved below flow area */}
+                  <div style={{ marginTop: '20px' }}>
+                      <EnterButton onClick={handleEnterContainer}>
+                        <LogIn />
+                        Enter Container to Edit
+                      </EnterButton>
+                      
+                      <ConfigButton onClick={handleConfigClick}>
+                        Configure Container
+                      </ConfigButton>
+                  </div>
                 </>
               ) : (
                 <EmptyState>
@@ -517,7 +513,6 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
             </ContainerBody>
           )}
         </ContainerWrapper>
-      {/* End container custom UI */}
     </BaseNode>
   );
 };
