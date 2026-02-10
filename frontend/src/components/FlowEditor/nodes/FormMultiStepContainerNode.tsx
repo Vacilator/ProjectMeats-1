@@ -443,6 +443,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                   {/* Phase 2.2: Mini React Flow Canvas (read-only preview) */}
                   <MiniFlowWrapper>
                     <MiniReactFlow
+                      key={stats.nodeCount} // Force remount when child count changes
                       nodes={stats.childNodes}
                       edges={stats.childEdges}
                       containerHeight={250}

@@ -115,23 +115,24 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
     })));
     
     const sanitized = nodes.map(node => {
-      // Create a COMPLETELY NEW object to break any references
+      // Create a COMPLETELY NEW object with only safe properties
+      // DO NOT include parentId, extent, expandParent at all
       const cleanNode: Node = {
         id: node.id,
         type: node.type,
-        position: { ...node.position }, // Deep copy position
+        position: { x: node.position.x, y: node.position.y }, // Deep copy position
         data: { ...node.data }, // Shallow copy data
-        // Explicitly set parent properties to undefined (not just delete)
-        parentId: undefined,
-        extent: undefined,
-        expandParent: undefined,
         // Copy other safe properties
         style: node.style,
         className: node.className,
         draggable: false, // Force non-draggable
         selectable: false, // Force non-selectable
         connectable: false, // Force non-connectable
-        // Note: Explicitly NOT copying: parentNode, parentId, extent, expandParent
+        // CRITICAL: Explicitly NOT including:
+        // - parentId (would cause lookup)
+        // - parentNode (legacy, would cause lookup)
+        // - extent (parent-child constraint)
+        // - expandParent (parent-child behavior)
       };
       
       return cleanNode;
@@ -139,8 +140,9 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
     
     console.log('[MiniReactFlow] Sanitized nodes:', sanitized.map(n => ({ 
       id: n.id, 
-      parentId: n.parentId,
+      parentId: (n as any).parentId,
       hasParentId: 'parentId' in n,
+      hasParentNode: 'parentNode' in n,
       type: n.type 
     })));
     
