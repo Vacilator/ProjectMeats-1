@@ -4424,30 +4424,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Batch 3: Inject edit/delete handlers into node data
   // Batch 4: Also inject title change handler
-  // Batch 5: Hide child nodes when their parent container is expanded
   const nodesWithHandlers = useMemo(() => {
-    return nodes.map(node => {
-      // Check if this node has a parent and if that parent is expanded
-      let shouldHide = false;
-      if (node.parentId) {
-        const parentNode = nodes.find(n => n.id === node.parentId);
-        // Hide child nodes when parent is expanded (React Flow renders them on main canvas)
-        if (parentNode && parentNode.data?.isExpanded) {
-          shouldHide = true;
-        }
-      }
-      
-      return {
-        ...node,
-        hidden: shouldHide, // React Flow's built-in hidden property
-        data: {
-          ...node.data,
-          onEdit: () => handleNodeEdit(node.id),
-          onDelete: () => handleNodeDelete(node.id),
-          onTitleChange: (newTitle: string) => handleNodeTitleChange(node.id, newTitle),
-        },
-      };
-    });
+    return nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        onEdit: () => handleNodeEdit(node.id),
+        onDelete: () => handleNodeDelete(node.id),
+        onTitleChange: (newTitle: string) => handleNodeTitleChange(node.id, newTitle),
+      },
+    }));
   }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange]);
 
   return (
