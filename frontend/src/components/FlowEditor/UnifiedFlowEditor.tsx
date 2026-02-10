@@ -286,7 +286,7 @@ const CloseButton = styled.button`
 
 const ModeSelectorContainer = styled.div`
   position: absolute;
-  top: 12px;
+  bottom: 12px;
   right: 12px;
   display: flex;
   gap: 4px;
@@ -1264,8 +1264,8 @@ const ShortcutKey = styled.kbd`
 
 const ViewportToolbar = styled.div`
   position: absolute;
-  top: 12px;
-  right: 12px;
+  bottom: 12px;
+  left: 12px;
   display: flex;
   gap: 8px;
   z-index: 15; /* Increased from 5 to ensure visibility above other elements */
@@ -2107,11 +2107,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodeIdCounter, wizardState.addedNodeCount, nodes, setNodes, setEdges]);
   
   const getNodeSuggestionsForFlowType = (flowType: FlowType): string[] => {
+    // Use actual NODE_TYPE_REGISTRY IDs instead of generic names
     const suggestions = {
-      form: ['trigger', 'formStep', 'action', 'condition'],
-      workflow: ['trigger', 'condition', 'action', 'wait'],
-      approval: ['trigger', 'wait', 'condition', 'action'],
-      document: ['trigger', 'formStep', 'document', 'action'],
+      form: ['triggerManual', 'formStep', 'actionEmail', 'conditionBranch'],
+      workflow: ['triggerManual', 'conditionBranch', 'actionEmail', 'waitApproval'],
+      approval: ['triggerManual', 'waitApproval', 'conditionBranch', 'actionNotify'],
+      document: ['triggerManual', 'formStep', 'documentGenerate', 'actionEmail'],
     };
     return suggestions[flowType] || [];
   };
@@ -4313,16 +4314,29 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const handleTemplateSelect = useCallback((template: FlowTemplate) => {
     console.log('[Template] Selected:', template.name);
     
-    // Map template nodes to proper React Flow node types
+    // Map template nodes to proper React Flow node types with full metadata
     const mappedNodes = template.nodes.map(node => {
+      // Get node definition from registry for metadata (color, icon, etc.)
+      const nodeDef = getNodeTypeDefinition(node.type);
+      
       // Ensure node has proper type mapping
       const reactFlowType = getReactFlowNodeType(node.type);
+      
+      // Merge default data + template data + registry metadata
+      const defaultData = getDefaultNodeData(node.type);
+      
       return {
         ...node,
         type: reactFlowType, // Override with React Flow node type
         data: {
-          ...node.data,
-          label: node.data.label || node.type, // Ensure label exists
+          ...defaultData,      // Default node data (fields, actions, etc.)
+          ...node.data,        // Template-specific data
+          label: node.data.label || nodeDef?.name || node.type, // Ensure label exists
+          // Add registry metadata for proper styling
+          color: nodeDef?.color,
+          icon: nodeDef?.icon,
+          category: nodeDef?.category,
+          description: nodeDef?.description,
         }
       };
     });
