@@ -319,16 +319,30 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
   
   // Use reactive hooks that trigger re-renders on state changes
-  const allNodes = useNodes(); 
+  const allNodes = useNodes();
   const allEdges = useEdges(); 
   const { setNodes } = useReactFlow();
+  
+  // Debug: Log when allNodes changes
+  React.useEffect(() => {
+    console.log(`[Container ${id}] allNodes changed. Count:`, allNodes.length, 'My children:', allNodes.filter(n => n.parentId === id).length);
+  }, [allNodes, id]);
   
   const nodeDef = getNodeTypeDefinition('formMultiStepContainer');
   
   // Calculate statistics from React Flow state
   const stats = useMemo(() => {
+    console.log(`[Container ${id}] Recalculating stats. Total nodes in flow:`, allNodes.length);
+    
     // Query child nodes via parentId property
     const childNodes = allNodes.filter(node => node.parentId === id);
+    
+    console.log(`[Container ${id}] Found ${childNodes.length} child nodes:`, childNodes.map(n => ({
+      id: n.id,
+      type: n.type,
+      hidden: n.hidden,
+      parentId: n.parentId,
+    })));
     
     // Query edges between child nodes
     const childNodeIds = new Set(childNodes.map(n => n.id));
@@ -438,6 +452,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
               {stats.hasNodes && (
                 <MiniFlowWrapper>
                     <MiniReactFlow
+                      containerId={id}
                       nodes={stats.childNodes}
                       edges={stats.childEdges}
                       containerHeight={150} // Smaller height for preview
@@ -459,6 +474,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                     position: 'relative',
                   }}>
                     <MiniReactFlow
+                      containerId={id}
                       nodes={stats.childNodes}
                       edges={stats.childEdges}
                       containerHeight={400}
