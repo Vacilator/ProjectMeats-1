@@ -2457,6 +2457,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Manual bounding box detection
     for (const container of containerNodes) {
       // CRITICAL: Use measured dimensions if available (React Flow has calculated them)
+      // For expanded containers, measured dimensions are much larger than style dimensions
       // Otherwise fall back to style or defaults
       const containerWidth = container.measured?.width || 
                             (typeof container.style?.width === 'number' ? container.style.width : 
@@ -2465,20 +2466,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                              (typeof container.style?.height === 'number' ? container.style.height : 
                               typeof container.height === 'number' ? container.height : 300);
       
+      // CRITICAL FIX: If container is expanded, use a MUCH larger hit area
+      // Expanded containers can be 600px+ tall but measured dimensions may lag
+      const effectiveHeight = container.data?.isExpanded ? 
+                              Math.max(containerHeight, 500) : // Minimum 500px for expanded
+                              containerHeight;
+      
       // Calculate bounding box
       const bounds = {
         left: container.position.x,
         right: container.position.x + containerWidth,
         top: container.position.y,
-        bottom: container.position.y + containerHeight,
+        bottom: container.position.y + effectiveHeight, // Use effective height
       };
       
       console.log(`[Container] Checking container ${container.id}:`);
       console.log(`[Container]   Type: ${container.type}`);
       console.log(`[Container]   Position: (${container.position.x}, ${container.position.y})`);
+      console.log(`[Container]   Expanded: ${container.data?.isExpanded}`);
       console.log(`[Container]   Measured: ${!!container.measured} (width: ${container.measured?.width}, height: ${container.measured?.height})`);
       console.log(`[Container]   Style: ${container.style?.width}x${container.style?.height}`);
-      console.log(`[Container]   Using dimensions: ${containerWidth}x${containerHeight}`);
+      console.log(`[Container]   Using dimensions: ${containerWidth}x${effectiveHeight} (effective height)`);
       console.log(`[Container]   Bounds: left=${bounds.left}, right=${bounds.right}, top=${bounds.top}, bottom=${bounds.bottom}`);
       console.log(`[Container]   Drop point: x=${position.x}, y=${position.y}`);
       
