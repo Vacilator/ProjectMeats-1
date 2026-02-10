@@ -43,6 +43,7 @@ import { CustomEdge } from '../edges/CustomEdge';
 // ============================================================================
 
 interface MiniReactFlowProps {
+  containerId?: string; // ID of parent container for unique keys
   nodes: Node[]; // Phase 2.2: Filtered by parentId in UnifiedFlowEditor (React Flow v11+)
   edges: Edge[]; // Phase 2.2: Filtered to edges between child nodes
   containerHeight?: number; // Height of mini canvas
@@ -118,6 +119,7 @@ const edgeTypes: EdgeTypes = {
 // ============================================================================
 
 export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
+  containerId = 'unknown',
   nodes,
   edges,
   containerHeight = 300,
@@ -179,8 +181,8 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
     <ReactFlowProvider>
       <MiniFlowContainer $height={containerHeight} $interactive={interactive}>
         <ReactFlow
-          id="mini-flow-preview" // Unique ID to prevent conflicts with main editor
-          key={`mini-flow-${nodes.length}`} // Force remount on node count change
+          id={`mini-flow-${containerId}`} // Unique ID per container to prevent conflicts
+          key={`mini-flow-${containerId}-${nodes.length}`} // Force remount on node count change
           nodes={sanitizedNodes}
           edges={edges}
           nodeTypes={nodeTypes}
