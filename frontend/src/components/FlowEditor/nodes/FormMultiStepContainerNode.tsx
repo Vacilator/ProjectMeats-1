@@ -368,21 +368,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
     
-    // Auto-hide/show child nodes on the main canvas
-    // This prevents them from "floating" over the collapsed container
-    if (stats.hasNodes) {
-        setNodes((nds) => 
-            nds.map((node) => {
-                if (node.parentId === id) {
-                    return {
-                        ...node,
-                        hidden: !newExpandedState // Hide if collapsed, Show if expanded
-                    };
-                }
-                return node;
-            })
-        );
-    }
+    // Phase 4.5: No need to toggle hidden state - child nodes are ALWAYS hidden
+    // They are rendered in MiniReactFlow whether collapsed or expanded
   };
   
   const handleConfigClick = (e: React.MouseEvent) => {
@@ -460,11 +447,25 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
             </ContainerSummary>
           )}
           
-          {/* EXPANDED STATE: Main Canvas handles rendering children */}
+          {/* EXPANDED STATE: Show interactive MiniReactFlow */}
           {isExpanded && (
             <ContainerBody isExpanded={isExpanded}>
               {stats.hasNodes ? (
                 <>
+                  {/* Interactive mini canvas when expanded */}
+                  <div style={{ 
+                    width: '100%',
+                    height: '400px',
+                    position: 'relative',
+                  }}>
+                    <MiniReactFlow
+                      nodes={stats.childNodes}
+                      edges={stats.childEdges}
+                      containerHeight={400}
+                      interactive={true}
+                    />
+                  </div>
+                  
                   {/* Compact summary at the bottom */}
                   <div style={{ 
                     position: 'absolute', 
