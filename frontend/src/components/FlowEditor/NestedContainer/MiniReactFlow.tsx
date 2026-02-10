@@ -141,6 +141,7 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
         draggable: interactive, // Allow dragging if interactive
         selectable: interactive, // Allow selection if interactive
         connectable: interactive, // Allow connections if interactive
+        hidden: false, // CRITICAL: Always show nodes in MiniReactFlow (even if hidden on main canvas)
         // CRITICAL: Explicitly NOT including:
         // - parentId (would cause lookup)
         // - parentNode (legacy, would cause lookup)
