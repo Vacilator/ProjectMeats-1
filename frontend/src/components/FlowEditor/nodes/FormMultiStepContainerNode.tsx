@@ -248,6 +248,8 @@ const ConfigButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
+  z-index: 10; /* Ensure button is above MiniReactFlow */
   
   &:hover {
     transform: translateY(-1px);
@@ -275,6 +277,8 @@ const EnterButton = styled.button`
   justify-content: center;
   gap: 8px;
   transition: all 0.2s ease;
+  position: relative;
+  z-index: 10; /* Ensure button is above MiniReactFlow */
   
   &:hover {
     background: rgba(59, 130, 246, 0.25);
@@ -296,6 +300,9 @@ const MiniFlowWrapper = styled.div`
   margin-top: 12px;
   border-radius: 8px;
   overflow: hidden;
+  pointer-events: none; /* Prevent click interception - MiniReactFlow is read-only */
+  position: relative;
+  z-index: 1; /* Below buttons */
 `;
 
 // ============================================================================
@@ -365,8 +372,12 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   
   const handleEnterContainer = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault(); // Prevent any default behavior
+    console.log('[Container] Enter button clicked for', id);
     if (data.onEnterContainer) {
       data.onEnterContainer(id);
+    } else {
+      console.warn('[Container] onEnterContainer callback not defined');
     }
   }, [id, data]);
   
