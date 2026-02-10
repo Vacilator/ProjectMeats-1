@@ -47,6 +47,7 @@ interface MiniReactFlowProps {
   nodes: Node[]; // Phase 2.2: Filtered by parentId in UnifiedFlowEditor (React Flow v11+)
   edges: Edge[]; // Phase 2.2: Filtered to edges between child nodes
   containerHeight?: number; // Height of mini canvas
+  interactive?: boolean; // Phase 4.5: Allow interactive mode when expanded
   // Phase 2.2: Removed onNodesChange, onEdgesChange, onConnect (read-only)
   // Phase 2.2: Removed readOnly prop (always read-only now)
 }
@@ -55,28 +56,30 @@ interface MiniReactFlowProps {
 // Styled Components
 // ============================================================================
 
-const MiniFlowContainer = styled.div<{ $height: number }>`
+const MiniFlowContainer = styled.div<{ $height: number; $interactive?: boolean }>`
   width: 100%;
   height: ${props => props.$height}px;
   background: rgba(var(--color-background), 0.5);
   border: 1px solid rgba(var(--color-border), 0.5);
   border-radius: 8px;
   overflow: hidden;
-  pointer-events: none; /* CRITICAL: Prevent ALL click interception - MiniReactFlow is purely visual */
+  pointer-events: ${props => props.$interactive ? 'auto' : 'none'};
   position: relative;
   z-index: 1; /* Below interactive buttons */
   
-  /* Ensure ALL child elements don't block clicks */
-  * {
-    pointer-events: none !important;
-  }
+  /* Conditional pointer events for children */
+  ${props => !props.$interactive && `
+    * {
+      pointer-events: none !important;
+    }
+  `}
   
   .react-flow__node {
-    cursor: default !important;
+    cursor: ${props => props.$interactive ? 'pointer' : 'default'} !important;
   }
   
   .react-flow__edges {
-    pointer-events: none; /* Always read-only (Phase 2.2) */
+    pointer-events: ${props => props.$interactive ? 'auto' : 'none'};
   }
 `;
 
@@ -109,8 +112,10 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
   nodes,
   edges,
   containerHeight = 300,
+  interactive = false,
 }) => {
   // Phase 2.2: Simplified - no callbacks, read-only preview
+  // Phase 4.5: Added interactive mode for expanded containers
   
   // CRITICAL: Sanitize nodes to remove ALL parent references
   // This prevents "Parent node not found" errors when rendering child nodes
@@ -133,9 +138,9 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
         // Copy other safe properties
         style: node.style,
         className: node.className,
-        draggable: false, // Force non-draggable
-        selectable: false, // Force non-selectable
-        connectable: false, // Force non-connectable
+        draggable: interactive, // Allow dragging if interactive
+        selectable: interactive, // Allow selection if interactive
+        connectable: interactive, // Allow connections if interactive
         // CRITICAL: Explicitly NOT including:
         // - parentId (would cause lookup)
         // - parentNode (legacy, would cause lookup)
@@ -155,11 +160,11 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
     })));
     
     return sanitized;
-  }, [nodes]);
+  }, [nodes, interactive]);
   
   return (
     <ReactFlowProvider>
-      <MiniFlowContainer $height={containerHeight}>
+      <MiniFlowContainer $height={containerHeight} $interactive={interactive}>
         <ReactFlow
           id="mini-flow-preview" // Unique ID to prevent conflicts with main editor
           key={`mini-flow-${nodes.length}`} // Force remount on node count change
@@ -173,11 +178,11 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
             minZoom: 0.5,
             maxZoom: 1.5,
           }}
-          nodesDraggable={false} // Phase 2.2: Read-only
-          nodesConnectable={false} // Phase 2.2: Read-only
-          elementsSelectable={false} // Phase 2.2: Read-only
-          zoomOnScroll={false} // Phase 2.2: Prevent zoom in mini canvas
-          panOnDrag={false} // Phase 2.2: Prevent panning
+          nodesDraggable={interactive} // Allow dragging if interactive
+          nodesConnectable={interactive} // Allow connections if interactive
+          elementsSelectable={interactive} // Allow selection if interactive
+          zoomOnScroll={interactive} // Allow zoom if interactive
+          panOnDrag={interactive} // Allow panning if interactive
           proOptions={{ hideAttribution: true }}
           minZoom={0.3}
           maxZoom={2}

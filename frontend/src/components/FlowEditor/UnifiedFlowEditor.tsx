@@ -2765,10 +2765,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           // Phase 1.4: Auto-expand parent if node dropped near edge
           newNode.expandParent = true;
           
-          // Phase 4.4: Child nodes should only be visible inside parent container
-          // Check if parent container is currently expanded
-          const isParentExpanded = targetContainer.data?.isExpanded !== false;
-          newNode.hidden = !isParentExpanded;
+          // Phase 4.5: Child nodes should NEVER be visible on main canvas
+          // They are only rendered in the container's MiniReactFlow (collapsed or expanded)
+          newNode.hidden = true;
           
           console.log(`[Container] ✅ Node configured:`, {
             id: newNode.id,
