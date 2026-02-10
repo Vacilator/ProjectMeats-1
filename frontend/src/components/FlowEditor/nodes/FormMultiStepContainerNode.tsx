@@ -315,6 +315,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   selected,
 }) => {
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
+  const { setNodes } = useReactFlow(); // Access to update node data
   
   // Phase 2.2: Use reactive hooks that trigger re-renders on state changes
   const allNodes = useNodes(); // ✅ Triggers re-render when nodes change
@@ -362,7 +363,17 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   
   const handleHeaderClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsExpanded(!isExpanded);
+    const newExpandedState = !isExpanded;
+    setIsExpanded(newExpandedState);
+    
+    // Persist expanded state to node data for global access
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isExpanded: newExpandedState } }
+          : node
+      )
+    );
   };
   
   const handleConfigClick = (e: React.MouseEvent) => {
