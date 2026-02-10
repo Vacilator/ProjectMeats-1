@@ -8,8 +8,9 @@
  * 
  * Created: 2026-02-07
  * Updated: 2026-02-08 - Phase 2: Removed shadow graph, simplified to read-only
+ * Updated: 2026-02-10 - Fixed "Parent node not found" error by sanitizing nodes
  */
-import React, { useCallback } from 'react';
+import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import {
   ReactFlow,
@@ -21,8 +22,6 @@ import {
   BackgroundVariant,
   NodeTypes,
   EdgeTypes,
-  Connection,
-  addEdge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -68,7 +67,7 @@ const MiniFlowContainer = styled.div<{ $height: number }>`
   }
   
   .react-flow__edges {
-    pointer-events: ${props => props.readOnly ? 'none' : 'all'};
+    pointer-events: none; /* Always read-only (Phase 2.2) */
   }
 `;
 
@@ -104,10 +103,22 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
 }) => {
   // Phase 2.2: Simplified - no callbacks, read-only preview
   
+  // Sanitize nodes to remove parent references
+  // This prevents "Parent node not found" errors when rendering child nodes
+  // in isolation (container is not included in this mini canvas)
+  const sanitizedNodes = useMemo(() => {
+    return nodes.map(node => ({
+      ...node,
+      parentId: undefined, // Remove parent reference (container not in this canvas)
+      extent: undefined,   // Remove extent restriction
+      // position is preserved (already relative to container)
+    }));
+  }, [nodes]);
+  
   return (
     <MiniFlowContainer $height={containerHeight}>
       <ReactFlow
-        nodes={nodes}
+        nodes={sanitizedNodes}
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
