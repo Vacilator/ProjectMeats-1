@@ -3971,16 +3971,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
 
   const handleSelectionChange = useCallback((params: OnSelectionChangeParams) => {
-    // Batch 3: Simplified - just track selection, don't auto-open modals
-    // Modals will only open when user clicks Edit button on node
+    // FIX: Do NOT auto-open modals on selection
+    // Modals ONLY open when user clicks Edit (pencil) button
     const selectedNodes = params.nodes || [];
     if (selectedNodes.length === 1) {
       const node = selectedNodes[0];
-      console.log('[Selection] Node selected (no modal):', node.type, node.id);
+      console.log('[Selection] Node selected (border highlight only):', node.type, node.id);
       
-      // IMPORTANT: Only store selected node reference, NEVER open modal on selection
-      // Modals only open via explicit Edit button click in handleNodeEdit()
-      setSelectedNode(node);
+      // DO NOT call setSelectedNode(node) here!
+      // That triggers NodeConfigPanel to open automatically.
+      // Selection only provides visual feedback (border).
+      // User must explicitly click Edit button to open configuration.
+      
     } else {
       console.log('[Selection] Cleared selection');
       // Clear all selections when nothing selected
