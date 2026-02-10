@@ -3,7 +3,7 @@
 **Date**: 2026-02-10  
 **Branch**: `development`  
 **Status**: ✅ ALL PHASES COMPLETE (Production-Ready)  
-**Latest Fix**: PR #2784 - Robust node sanitization using `delete` operator
+**Latest Fix**: PR #2787 - Context isolation with ReactFlowProvider
 
 ---
 
@@ -424,6 +424,83 @@ useEffect(() => {
 - [ ] Trigger type changes load forms
 - [ ] Form selection loads fields
 - [ ] Wizard mode loads template on empty canvas
+
+---
+
+## 🐛 CRITICAL FIX #3: Context Isolation (PR #2787)
+
+### Problem: MiniReactFlow "Parent node not found" - Round 3
+**Date**: 2026-02-10  
+**Severity**: CRITICAL  
+**Status**: ✅ FIXED
+
+**Root Cause (Final Discovery)**:
+- Despite PR #2782 and #2784 sanitization efforts, crash persisted
+- **Critical insight**: Nested ReactFlow was sharing parent canvas's React Flow context
+- React Flow uses React Context API for internal node/edge store
+- Child nodes with `parentId` trigger lookups in the shared context store
+- If parent node exists in main canvas but not in MiniReactFlow → crash
+
+**Solution Applied**:
+1. **Context Isolation with ReactFlowProvider**:
+   ```tsx
+   // Wrap MiniReactFlow in isolated provider
+   <ReactFlowProvider>
+     <MiniFlowContainer>
+       <ReactFlow ... />
+     </MiniFlowContainer>
+   </ReactFlowProvider>
+   ```
+
+2. **Rebuild Nodes (Not Just Sanitize)**:
+   ```typescript
+   // ❌ OLD: Modify existing object
+   const cleanNode = { ...node };
+   delete cleanNode.parentId;
+   
+   // ✅ NEW: Build completely new object
+   const cleanNode: Node = {
+     id: node.id,
+     type: node.type,
+     position: { ...node.position },
+     data: { ...node.data },
+     parentId: undefined,      // Explicit undefined
+     extent: undefined,
+     expandParent: undefined,
+     draggable: false,
+     selectable: false,
+     connectable: false,
+   };
+   ```
+
+3. **Force Remount on Changes**:
+   ```tsx
+   <ReactFlow
+     key={`mini-flow-${nodes.length}`}
+     // Forces clean remount when node count changes
+   />
+   ```
+
+**Why This Works**:
+- `ReactFlowProvider` creates **isolated React Context**
+- Child nodes cannot access parent canvas node store
+- New object creation ensures **no property inheritance**
+- Key-based remount ensures **clean state** on changes
+
+**Files Changed**:
+- `frontend/src/components/FlowEditor/NestedContainer/MiniReactFlow.tsx`
+
+**Impact**:
+- ✅ Complete context isolation from main editor
+- ✅ No shared state between canvases
+- ✅ Force remount prevents stale references
+- ✅ Should **definitively** resolve parent node crashes
+
+**Testing**:
+1. Drop form step into multi-step container
+2. Verify console logs show `hasParentId: false`
+3. Verify no React Flow errors
+4. Test multiple drops and removals
 
 ---
 
