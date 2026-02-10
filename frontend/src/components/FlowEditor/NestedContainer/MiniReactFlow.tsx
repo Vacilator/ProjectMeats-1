@@ -153,6 +153,7 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
     <ReactFlowProvider>
       <MiniFlowContainer $height={containerHeight}>
         <ReactFlow
+          id="mini-flow-preview" // Unique ID to prevent conflicts with main editor
           key={`mini-flow-${nodes.length}`} // Force remount on node count change
           nodes={sanitizedNodes}
           edges={edges}
