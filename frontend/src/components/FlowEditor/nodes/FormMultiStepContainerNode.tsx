@@ -49,7 +49,9 @@ export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNode
 
 const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   min-width: ${props => props.isExpanded ? '400px' : '280px'};
-  background: rgba(var(--color-background-secondary), 0.95);
+  background: ${props => props.isExpanded 
+    ? 'transparent' 
+    : 'rgba(var(--color-background-secondary), 0.95)'};
   border: 2px solid rgb(139, 92, 246); /* Purple - container color */
   border-radius: 12px;
   box-shadow: 
@@ -148,9 +150,14 @@ const ContainerBody = styled.div<{ isExpanded: boolean }>`
   display: ${props => props.isExpanded ? 'block' : 'none'};
   min-height: ${props => props.isExpanded ? '200px' : 'auto'};
   min-width: 300px;
-  /* Ensure buttons are clickable */
-  position: relative; 
-  z-index: 10;
+  /* Allow clicks to pass through to child nodes */
+  pointer-events: none;
+  position: relative;
+  
+  /* Re-enable pointer events only for interactive elements */
+  button, a, input {
+    pointer-events: auto;
+  }
 `;
 
 const ContainerSummary = styled.div`
@@ -208,6 +215,7 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 24px 16px;
   color: rgb(var(--color-text-secondary));
+  pointer-events: auto;
   
   .icon {
     font-size: 32px;
@@ -457,48 +465,38 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
             <ContainerBody isExpanded={isExpanded}>
               {stats.hasNodes ? (
                 <>
-                  <SummaryRow>
-                    <span className="label">Total Nodes:</span>
-                    <span className="value">{stats.nodeCount}</span>
-                  </SummaryRow>
-                  
-                  {stats.formRefs > 0 && (
+                  {/* Compact summary at the bottom */}
+                  <div style={{ 
+                    position: 'absolute', 
+                    bottom: '16px', 
+                    left: '16px', 
+                    right: '16px',
+                    background: 'rgba(var(--color-background-secondary), 0.95)',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    pointerEvents: 'auto',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  }}>
                     <SummaryRow>
-                      <span className="label">Form References:</span>
-                      <span className="value">{stats.formRefs}</span>
+                      <span className="label">Total Nodes:</span>
+                      <span className="value">{stats.nodeCount}</span>
                     </SummaryRow>
-                  )}
-                  
-                  {/* CRITICAL FIX: REMOVED MiniReactFlow from here */}
-                  
-                  {nodeTypeEntries.length > 0 && (
-                    <>
-                      <div style={{ marginTop: '12px', marginBottom: '8px' }}>
-                        <span className="label" style={{ fontSize: '12px' }}>
-                          Node Breakdown:
-                        </span>
-                      </div>
-                      <NodeTypeGrid>
-                        {nodeTypeEntries.slice(0, 4).map(([type, count]) => (
-                          <NodeTypeCard key={type}>
-                            <div className="type-name">{type.replace(/([A-Z])/g, ' $1').trim()}</div>
-                            <div className="type-count">{count}</div>
-                          </NodeTypeCard>
-                        ))}
-                      </NodeTypeGrid>
-                    </>
-                  )}
-                  
-                  {/* Buttons moved below to ensure accessibility */}
-                  <div style={{ marginTop: '20px', position: 'relative', zIndex: 20 }}>
-                      <EnterButton onClick={handleEnterContainer}>
-                        <LogIn />
-                        Enter Container to Edit
-                      </EnterButton>
-                      
-                      <ConfigButton onClick={handleConfigClick}>
-                        Configure Container
-                      </ConfigButton>
+                    
+                    {stats.formRefs > 0 && (
+                      <SummaryRow>
+                        <span className="label">Form References:</span>
+                        <span className="value">{stats.formRefs}</span>
+                      </SummaryRow>
+                    )}
+                    
+                    <EnterButton onClick={handleEnterContainer} style={{ marginTop: '8px', marginBottom: '0' }}>
+                      <LogIn />
+                      Enter Container to Edit
+                    </EnterButton>
+                    
+                    <ConfigButton onClick={handleConfigClick} style={{ marginTop: '8px' }}>
+                      Configure Container
+                    </ConfigButton>
                   </div>
                 </>
               ) : (
