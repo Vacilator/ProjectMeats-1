@@ -435,14 +435,14 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                 )}
               </ContainerSummary>
               
-              {/* Phase 2.2: Mini React Flow Preview (ONLY when collapsed - prevents duplicate rendering) */}
-              {stats.hasNodes && !isExpanded && (
+              {/* Phase 2.2: Mini React Flow Preview - ONLY shown when collapsed (read-only preview) */}
+              {stats.hasNodes && (
                 <MiniFlowWrapper>
                   <MiniReactFlow
                     key={stats.nodeCount} // Force remount when child count changes
                     nodes={stats.childNodes}
                     edges={stats.childEdges}
-                    containerHeight={200}
+                    containerHeight={150}
                   />
                 </MiniFlowWrapper>
               )}
