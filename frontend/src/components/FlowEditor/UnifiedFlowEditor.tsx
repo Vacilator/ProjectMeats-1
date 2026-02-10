@@ -2765,11 +2765,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           // Phase 1.4: Auto-expand parent if node dropped near edge
           newNode.expandParent = true;
           
+          // Phase 4.4: Child nodes should only be visible inside parent container
+          // Check if parent container is currently expanded
+          const isParentExpanded = targetContainer.data?.isExpanded !== false;
+          newNode.hidden = !isParentExpanded;
+          
           console.log(`[Container] ✅ Node configured:`, {
             id: newNode.id,
             parentId: newNode.parentId,
             position: newNode.position,
             extent: newNode.extent,
+            hidden: newNode.hidden,
+            parentExpanded: isParentExpanded,
           });
           
           // Add node to main state
