@@ -421,18 +421,32 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
           </ContainerHeader>
           
           {!isExpanded && (
-            <ContainerSummary>
-              <SummaryRow>
-                <span className="label">Nodes:</span>
-                <span className="value">{stats.nodeCount}</span>
-              </SummaryRow>
-              {stats.formRefs > 0 && (
+            <>
+              <ContainerSummary>
                 <SummaryRow>
-                  <span className="label">Forms:</span>
-                  <span className="value">{stats.formRefs}</span>
+                  <span className="label">Nodes:</span>
+                  <span className="value">{stats.nodeCount}</span>
                 </SummaryRow>
+                {stats.formRefs > 0 && (
+                  <SummaryRow>
+                    <span className="label">Forms:</span>
+                    <span className="value">{stats.formRefs}</span>
+                  </SummaryRow>
+                )}
+              </ContainerSummary>
+              
+              {/* Phase 2.2: Mini React Flow Preview (only when collapsed) */}
+              {stats.hasNodes && (
+                <MiniFlowWrapper>
+                  <MiniReactFlow
+                    key={stats.nodeCount} // Force remount when child count changes
+                    nodes={stats.childNodes}
+                    edges={stats.childEdges}
+                    containerHeight={200}
+                  />
+                </MiniFlowWrapper>
               )}
-            </ContainerSummary>
+            </>
           )}
           
           {isExpanded && (
@@ -451,15 +465,12 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                     </SummaryRow>
                   )}
                   
-                  {/* Phase 2.2: Mini React Flow Canvas (read-only preview) */}
-                  <MiniFlowWrapper>
-                    <MiniReactFlow
-                      key={stats.nodeCount} // Force remount when child count changes
-                      nodes={stats.childNodes}
-                      edges={stats.childEdges}
-                      containerHeight={250}
-                    />
-                  </MiniFlowWrapper>
+                  {/* Phase 2.2: No MiniReactFlow when expanded - React Flow renders children naturally via extent: 'parent' */}
+                  <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(var(--color-surface), 0.5)', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '12px', color: 'rgba(var(--color-text-secondary), 1)', marginBottom: '8px' }}>
+                      💡 Child nodes are rendered directly on the canvas when expanded
+                    </div>
+                  </div>
                   
                   {nodeTypeEntries.length > 0 && (
                     <>

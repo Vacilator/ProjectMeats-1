@@ -62,6 +62,7 @@ const MiniFlowContainer = styled.div<{ $height: number }>`
   border: 1px solid rgba(var(--color-border), 0.5);
   border-radius: 8px;
   overflow: hidden;
+  pointer-events: none; /* Prevent click interception - MiniReactFlow is purely visual */
   
   .react-flow__node {
     cursor: pointer !important;
