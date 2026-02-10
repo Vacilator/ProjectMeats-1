@@ -107,12 +107,35 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
   // This prevents "Parent node not found" errors when rendering child nodes
   // in isolation (container is not included in this mini canvas)
   const sanitizedNodes = useMemo(() => {
-    return nodes.map(node => ({
-      ...node,
-      parentId: undefined, // Remove parent reference (container not in this canvas)
-      extent: undefined,   // Remove extent restriction
-      // position is preserved (already relative to container)
-    }));
+    console.log('[MiniReactFlow] Input nodes:', nodes.map(n => ({ 
+      id: n.id, 
+      parentId: n.parentId,
+      type: n.type 
+    })));
+    
+    const sanitized = nodes.map(node => {
+      // Create a clean shallow copy
+      const cleanNode = { ...node };
+      
+      // Explicitly DELETE parent/extent constraints for the mini-preview
+      // Using delete ensures React Flow doesn't see these properties at all
+      delete (cleanNode as any).parentId;
+      delete (cleanNode as any).parentNode; // Legacy property (React Flow v10)
+      delete (cleanNode as any).extent;
+      delete (cleanNode as any).expandParent;
+      
+      // Preserve position (it's already relative to container origin)
+      return cleanNode;
+    });
+    
+    console.log('[MiniReactFlow] Sanitized nodes:', sanitized.map(n => ({ 
+      id: n.id, 
+      parentId: (n as any).parentId,
+      hasParentId: 'parentId' in n,
+      type: n.type 
+    })));
+    
+    return sanitized;
   }, [nodes]);
   
   return (
