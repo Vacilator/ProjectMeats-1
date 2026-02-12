@@ -3,7 +3,7 @@
  * 
  * Export all modal components
  * 
- * Updated: 2026-02-06 - Phase 4.3 (Added FormMultiStepContainerModal)
+ * Updated: 2026-02-12 - Phase 6 (Added SharedTemplateDeleteModal)
  */
 
 export { EntityFormStepModal } from './EntityFormStepModal';
@@ -11,3 +11,6 @@ export type { EntityFormStepModalProps, FormStepData } from './EntityFormStepMod
 
 export { FormMultiStepContainerModal } from './FormMultiStepContainerModal';
 export type { ContainerModalProps, ContainerData } from './FormMultiStepContainerModal';
+
+export { SharedTemplateDeleteModal } from './SharedTemplateDeleteModal';
+export type { SharedTemplateDeleteModalProps, ContainerTemplate } from './SharedTemplateDeleteModal';

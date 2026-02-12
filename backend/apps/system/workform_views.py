@@ -90,6 +90,65 @@ class TenantFormViewSet(viewsets.ModelViewSet):
                 "error": f"Cannot delete form: referenced by {instance.usage_count} workflow(s)"
             })
         instance.delete()
+    
+    @action(detail=True, methods=['get'], url_path='usage')
+    def get_usage(self, request, pk=None):
+        """
+        Get usage information for a form.
+        
+        Phase 6: Ghost Node Cleanup
+        Returns usage count and list of workflows using this form.
+        
+        Response:
+        {
+            "form_id": "uuid",
+            "usage_count": 5,
+            "workflows": [
+                {"id": "uuid", "name": "Workflow 1", "status": "active"},
+                ...
+            ]
+        }
+        """
+        form = self.get_object()
+        
+        # Find workflows using this form
+        workflows = TenantWorkForm.objects.filter(
+            tenant=request.tenant,
+            workflow_definition__contains={"tenantFormId": str(form.id)}
+        ).values('id', 'name', 'status')
+        
+        return Response({
+            "form_id": str(form.id),
+            "usage_count": form.usage_count,
+            "workflows": list(workflows)
+        })
+    
+    @action(detail=True, methods=['post'], url_path='decrement-usage')
+    def decrement_usage(self, request, pk=None):
+        """
+        Decrement usage count for a form.
+        
+        Phase 6: Ghost Node Cleanup
+        Called when a container node is removed from a workflow.
+        
+        Request: {}
+        Response: {
+            "form_id": "uuid",
+            "usage_count": 4,
+            "can_delete": false
+        }
+        """
+        form = self.get_object()
+        
+        if form.usage_count > 0:
+            form.usage_count -= 1
+            form.save(update_fields=['usage_count'])
+        
+        return Response({
+            "form_id": str(form.id),
+            "usage_count": form.usage_count,
+            "can_delete": form.usage_count == 0
+        })
 
 
 class TenantWorkFormViewSet(viewsets.ModelViewSet):
