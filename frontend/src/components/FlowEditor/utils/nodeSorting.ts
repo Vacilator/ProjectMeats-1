@@ -46,9 +46,21 @@ export function sortNodesTopologically(nodes: Node[]): Node[] {
     return nodes;
   }
 
+  // Filter out null/undefined entries (defensive - handles corrupt data from DB/JSON)
+  const validNodes = nodes.filter(node => node != null && typeof node === 'object' && node.id);
+  
+  if (validNodes.length === 0) {
+    console.warn('[Node Sort] No valid nodes found after filtering null/undefined entries');
+    return [];
+  }
+  
+  if (validNodes.length !== nodes.length) {
+    console.warn(`[Node Sort] Filtered out ${nodes.length - validNodes.length} null/undefined nodes`);
+  }
+
   // Build a map of node IDs for quick lookup
   const nodeMap = new Map<string, Node>();
-  nodes.forEach(node => nodeMap.set(node.id, node));
+  validNodes.forEach(node => nodeMap.set(node.id, node));
 
   // Track visited nodes to detect cycles
   const visited = new Set<string>();
@@ -83,7 +95,7 @@ export function sortNodesTopologically(nodes: Node[]): Node[] {
   }
 
   // Process all nodes, starting with unvisited ones
-  nodes.forEach(node => {
+  validNodes.forEach(node => {
     if (!visited.has(node.id)) {
       addNodeWithParents(node.id);
     }
