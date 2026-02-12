@@ -2444,15 +2444,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Get all container nodes
     const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
     
-    console.log('[Container] =================================');
-    console.log('[Container] Looking for containers at position:', position);
-    console.log('[Container] nodes.length in findContainer:', nodes.length);
-    console.log('[Container] All nodes:', nodes.map(n => ({ id: n.id, type: n.type })));
-    console.log('[Container] Total containers on canvas:', containerNodes.length);
-    console.log('[Container] Container types found:', containerNodes.map(n => ({ id: n.id, type: n.type, measured: !!n.measured })));
-    
     if (containerNodes.length === 0) {
-      console.log('[Container] ❌ No containers exist on canvas');
       return null;
     }
     
@@ -2482,16 +2474,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         bottom: container.position.y + effectiveHeight, // Use effective height
       };
       
-      console.log(`[Container] Checking container ${container.id}:`);
-      console.log(`[Container]   Type: ${container.type}`);
-      console.log(`[Container]   Position: (${container.position.x}, ${container.position.y})`);
-      console.log(`[Container]   Expanded: ${container.data?.isExpanded}`);
-      console.log(`[Container]   Measured: ${!!container.measured} (width: ${container.measured?.width}, height: ${container.measured?.height})`);
-      console.log(`[Container]   Style: ${container.style?.width}x${container.style?.height}`);
-      console.log(`[Container]   Using dimensions: ${containerWidth}x${effectiveHeight} (effective height)`);
-      console.log(`[Container]   Bounds: left=${bounds.left}, right=${bounds.right}, top=${bounds.top}, bottom=${bounds.bottom}`);
-      console.log(`[Container]   Drop point: x=${position.x}, y=${position.y}`);
-      
       // Check if drop position is within bounds
       if (
         position.x >= bounds.left &&
@@ -2499,19 +2481,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         position.y >= bounds.top &&
         position.y <= bounds.bottom
       ) {
-        console.log(`[Container] ✅ Found container: ${container.id} (manual bounding box hit)`);
-        console.log(`[Container]   Drop is within bounds: x in [${bounds.left}, ${bounds.right}], y in [${bounds.top}, ${bounds.bottom}]`);
         return container;
-      } else {
-        const xInBounds = position.x >= bounds.left && position.x <= bounds.right;
-        const yInBounds = position.y >= bounds.top && position.y <= bounds.bottom;
-        console.log(`[Container] ❌ Drop position outside container ${container.id}`);
-        console.log(`[Container]   X ${xInBounds ? '✓' : '✗'} (${position.x} vs [${bounds.left}, ${bounds.right}])`);
-        console.log(`[Container]   Y ${yInBounds ? '✓' : '✗'} (${position.y} vs [${bounds.top}, ${bounds.bottom}])`);
       }
     }
     
-    console.log('[Container] ❌ No containers at drop position');
     return null;
   }, [nodes]);
   
@@ -2637,45 +2610,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           return n;
         })
       );
-    } else {
-      console.log('[DragEnd] Skipping setNodes - drop already succeeded and cleaned up');
     }
   }, [setNodes]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
-      console.log('🎯🎯🎯 [onDrop] ===== DROP EVENT FIRED =====');
-      console.log('🎯 [onDrop] Event target:', event.target);
-      console.log('🎯 [onDrop] Event currentTarget:', event.currentTarget);
-      
       event.preventDefault();
 
       const type = event.dataTransfer.getData('application/reactflow-nodetype');
-      console.log('🎯 [onDrop] Node type from dataTransfer:', type);
       
       if (!type) {
-        console.error('❌ [onDrop] No node type found in dataTransfer!');
-        console.log('📦 [onDrop] Available dataTransfer types:', event.dataTransfer.types);
+        console.error('[onDrop] No node type found in dataTransfer');
         return;
       }
-      
-      // ============================================================
-      // DEBUG: State at drop time
-      // ============================================================
-      console.log('[onDrop] =================================');
-      console.log('[onDrop] Drop initiated for node type:', type);
-      console.log('[onDrop] Current nodes array length:', nodes.length);
-      console.log('[onDrop] Nodes in array:', nodes.map(n => ({ id: n.id, type: n.type, parentId: n.parentId })));
-      const containersInArray = nodes.filter(n => n.type === 'formMultiStepContainer');
-      console.log('[onDrop] Containers in nodes array:', containersInArray.length);
-      console.log('[onDrop] Container details:', containersInArray.map(c => ({ 
-        id: c.id, 
-        position: c.position,
-        measured: c.measured,
-        width: c.width,
-        height: c.height 
-      })));
-      console.log('[onDrop] =================================');
       
       // Clear drag state
       setIsDragging(false);
@@ -2687,20 +2634,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // currentTarget can be the wrong element causing coordinate offset
       const reactFlowWrapper = document.querySelector('.react-flow') as HTMLElement;
       if (!reactFlowWrapper) {
-        console.error('[Container] ❌ Could not find React Flow wrapper');
+        console.error('[onDrop] Could not find React Flow wrapper');
         return;
       }
-      
-      const reactFlowBounds = reactFlowWrapper.getBoundingClientRect();
-      
-      console.log('[DEBUG] Drop event coordinates:', {
-        clientX: event.clientX,
-        clientY: event.clientY,
-        boundsLeft: reactFlowBounds.left,
-        boundsTop: reactFlowBounds.top,
-        boundsWidth: reactFlowBounds.width,
-        boundsHeight: reactFlowBounds.height,
-      });
       
       // FIX: screenToFlowPosition expects ABSOLUTE screen coordinates
       // It handles viewport transformation internally - do NOT subtract bounds
@@ -2709,23 +2645,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         y: event.clientY,
       });
       
-      console.log('[DEBUG] Calculated flow position:', position);
-      
       // Snap to grid (15x15)
       position.x = Math.round(position.x / 15) * 15;
       position.y = Math.round(position.y / 15) * 15;
-      
-      console.log('[DEBUG] Snapped position:', position);
       
       // Phase 1.4: Check if dropping into a container
       const targetContainer = findContainerAtPosition(position);
       
       if (targetContainer) {
-        console.log(`[Container] ✅ Detected drop into container ${targetContainer.id} at position`, position);
-        
         // Phase 1.3: Ensure container is expanded
         if (!targetContainer.data.isExpanded) {
-          console.log(`[Container] Auto-expanding collapsed container ${targetContainer.id}`);
           setNodes((nds) =>
             nds.map((n) => {
               if (n.id === targetContainer.id) {
@@ -2782,11 +2711,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         
         // Phase 1.4: Don't allow containers to be nested
         if (type === 'formMultiStepContainer') {
-          console.log('[Container] ⚠️  Cannot nest containers inside containers - dropping on main canvas instead');
-          // Fall through to main canvas drop
+          // Fall through to main canvas drop - don't allow nested containers
         } else {
           // Phase 1.4: Set up React Flow native parent-child relationship
-          console.log(`[Container] Adding node ${newNode.id} as child of container ${targetContainer.id}`);
           
           // Calculate position relative to container
           newNode.position = {
@@ -2808,15 +2735,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           const isParentExpanded = targetContainer.data?.isExpanded ?? true;
           newNode.hidden = !isParentExpanded; // Hidden when collapsed, visible when expanded
           
-          console.log(`[Container] ✅ Node configured:`, {
-            id: newNode.id,
-            parentId: newNode.parentId,
-            position: newNode.position,
-            extent: newNode.extent,
-            hidden: newNode.hidden,
-            parentExpanded: isParentExpanded,
-          });
-          
           // Add node to main state
           // CRITICAL: Parent nodes must come before their children in the array
           // React Flow requirement: "Parent nodes must be in front of their child nodes"
@@ -2827,38 +2745,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             newNode,
             ...nodes.slice(parentIndex + 1),
           ];
-          console.log(`[Container] Inserted child node at index ${parentIndex + 1} (after parent at ${parentIndex})`);
-          
-          // Debug: Verify parent-child ordering
-          const parentIdx = updatedNodes.findIndex((n) => n.id === targetContainer.id);
-          const childIdx = updatedNodes.findIndex((n) => n.id === newNode.id);
-          console.log(`[Container] 🔍 Array check - Parent at index ${parentIdx}, Child at index ${childIdx}`);
-          if (parentIdx >= childIdx) {
-            console.error(`[Container] ❌ ORDERING BUG: Parent (${parentIdx}) must be < Child (${childIdx})`);
-          } else {
-            console.log(`[Container] ✅ Order correct: Parent (${parentIdx}) < Child (${childIdx})`);
-          }
           
           // Don't call setNodes here - batch all updates into ONE call below to avoid race conditions
           setNodeIdCounter((prev) => prev + 1);
           
           // Phase 3.3: Trigger auto-layout for container
-          console.log(`[Container] Triggering auto-layout for container ${targetContainer.id}`);
           const layoutResult = calculateContainerLayout(
             targetContainer.id,
             updatedNodes,
             edges
           );
-          
-          // Debug: Verify layout preserved parent-child ordering
-          const layoutParentIdx = layoutResult.nodes.findIndex((n) => n.id === targetContainer.id);
-          const layoutChildIdx = layoutResult.nodes.findIndex((n) => n.id === newNode.id);
-          console.log(`[Container] 🔍 After layout - Parent at ${layoutParentIdx}, Child at ${layoutChildIdx}`);
-          if (layoutParentIdx >= layoutChildIdx) {
-            console.error(`[Container] ❌ LAYOUT BROKE ORDERING: Parent (${layoutParentIdx}) must be < Child (${layoutChildIdx})`);
-          } else {
-            console.log(`[Container] ✅ Layout preserved order: Parent (${layoutParentIdx}) < Child (${layoutChildIdx})`);
-          }
           
           // Phase 3.3: Apply layout, container dimensions, AND clear drop target in SINGLE setNodes call
           // CRITICAL: Multiple setNodes calls can cause race conditions with parent/child rendering
@@ -2887,20 +2783,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             return n;
           });
           
-          console.log(`🎯 SINGLE setNodes call with ${finalNodes.length} nodes (includes drop target cleanup)`);
-          
           // CRITICAL: Sort nodes to ensure parent-before-child ordering
           // React Flow requires parents to appear before children in the array
           const sortedNodes = sortNodesTopologically(finalNodes);
-          
-          sortedNodes.forEach((n, idx) => {
-            console.log(`  [${idx}] ${n.id} (parent: ${n.parentId || 'undefined'})`);
-          });
           setNodes(sortedNodes);
           
           // Phase 4: Trigger auto-connection for form steps
           if (type === 'formStep' || type === 'formReference') {
-            console.log(`[Container] Triggering auto-connection for container ${targetContainer.id}`);
             const connectionResult = autoConnectSequentialSteps(
               targetContainer.id,
               finalNodes, // Use finalNodes (already has drop target cleared)
@@ -2909,7 +2798,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             
             // Apply connection changes
             setEdges(connectionResult.edges);
-            console.log(`[Container] ✅ Auto-connection complete`);
           }
           
           // Clear nearby node state and return early (no auto-connect for container drops)
@@ -2959,12 +2847,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   /**
-   * Create nodeTypes with container node that receives:
-   * 1. Full nodes/edges arrays (fixes child discovery)
-   * 2. Drop handlers (fixes drops into nested MiniReactFlow)
+   * NodeTypes definition
    * 
-   * This solves the bug where drops onto expanded containers were being
-   * captured by the nested ReactFlow instance which had no onDrop handler.
+   * REFACTORED: Single ReactFlow architecture
+   * - Container nodes no longer need custom props
+   * - Children render on main canvas with parentId
+   * - Uses React Flow's official grouping pattern
    */
   const nodeTypes = useMemo<NodeTypes>(() => ({
     ...staticNodeTypes,
