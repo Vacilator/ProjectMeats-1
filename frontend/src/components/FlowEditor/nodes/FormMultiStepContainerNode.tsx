@@ -17,7 +17,7 @@ import styled from 'styled-components';
 import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
-import { ChevronDown, ChevronRight, LogIn } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogIn, Edit2, Trash2 } from 'lucide-react';
 // REMOVED: import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 
 // ============================================================================
@@ -280,6 +280,52 @@ const ConfigButton = styled.button`
   }
 `;
 
+// Control Buttons (copied from BaseNode)
+const NodeControls = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 1; /* Always visible */
+  transition: opacity 0.2s ease;
+  z-index: 10; /* Ensure buttons appear above other elements */
+`;
+
+const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' }>`
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  background: ${props => props.$variant === 'delete' 
+    ? 'rgba(239, 68, 68, 0.1)' 
+    : 'rgba(var(--color-primary), 0.1)'};
+  color: ${props => props.$variant === 'delete'
+    ? 'rgb(239, 68, 68)'
+    : 'rgb(var(--color-primary))'};
+
+  &:hover {
+    background: ${props => props.$variant === 'delete'
+      ? 'rgba(239, 68, 68, 0.2)'
+      : 'rgba(var(--color-primary), 0.2)'};
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
 const EnterButton = styled.button`
   width: 100%;
   padding: 10px;
@@ -412,12 +458,31 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   const nodeTypeEntries = Object.entries(stats.nodeTypes).sort((a, b) => b[1] - a[1]);
   
   return (
-    <BaseNode 
-      id={id} 
-      data={data} 
-      selected={selected}
-      nodeType={nodeDef}
-    >
+    <>
+      {/* Edit/Delete Controls */}
+      <NodeControls>
+        <ControlButton 
+          $variant="edit" 
+          onClick={(e) => {
+            e.stopPropagation();
+            if (data.onEdit) data.onEdit();
+          }}
+          title="Edit container configuration"
+        >
+          <Edit2 size={14} />
+        </ControlButton>
+        <ControlButton 
+          $variant="delete" 
+          onClick={(e) => {
+            e.stopPropagation();
+            if (data.onDelete) data.onDelete();
+          }}
+          title="Delete container"
+        >
+          <Trash2 size={14} />
+        </ControlButton>
+      </NodeControls>
+
       {/* Container custom UI */}
       <ContainerWrapper 
           isExpanded={isExpanded}
@@ -525,7 +590,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
             )}
           </ContainerBody>
         </ContainerWrapper>
-    </BaseNode>
+    </>
   );
 };
 

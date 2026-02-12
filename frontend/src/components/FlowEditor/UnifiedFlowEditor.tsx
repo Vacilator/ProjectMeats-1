@@ -2455,23 +2455,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Otherwise fall back to style or defaults
       const containerWidth = container.measured?.width || 
                             (typeof container.style?.width === 'number' ? container.style.width : 
-                             typeof container.width === 'number' ? container.width : 400);
+                             typeof container.width === 'number' ? container.width : 600);
       const containerHeight = container.measured?.height || 
                              (typeof container.style?.height === 'number' ? container.style.height : 
-                              typeof container.height === 'number' ? container.height : 300);
+                              typeof container.height === 'number' ? container.height : 400);
       
-      // CRITICAL FIX: If container is expanded, use a MUCH larger hit area
-      // Expanded containers can be 600px+ tall but measured dimensions may lag
-      const effectiveHeight = container.data?.isExpanded ? 
-                              Math.max(containerHeight, 500) : // Minimum 500px for expanded
-                              containerHeight;
+      // Use actual dimensions - don't inflate hit box
+      // Container should only capture drops that are VISUALLY inside it
       
       // Calculate bounding box
       const bounds = {
         left: container.position.x,
         right: container.position.x + containerWidth,
         top: container.position.y,
-        bottom: container.position.y + effectiveHeight, // Use effective height
+        bottom: container.position.y + containerHeight, // Use actual dimensions
       };
       
       // Check if drop position is within bounds
