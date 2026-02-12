@@ -23,6 +23,8 @@ export interface BaseNodeData {
   stepNumber?: number;
   errorMessage?: string;
   config?: Record<string, any>;
+  configStatus?: 'pristine' | 'editing' | 'dirty'; // Phase 2: Shadow state status
+  shadowConfig?: Record<string, any>; // Phase 2: Uncommitted changes
   onEdit?: () => void; // Batch 3: Edit handler
   onDelete?: () => void; // Batch 3: Delete handler
   onTitleChange?: (newTitle: string) => void; // Batch 4: Title edit handler
@@ -43,10 +45,12 @@ const NodeContainer = styled.div<{
   $color: string; 
   $selected: boolean; 
   $status: string;
+  $isDirty?: boolean;
 }>`
   min-width: 180px;
   background: rgb(var(--color-surface));
   border: 2px solid ${props => {
+    if (props.$isDirty) return 'rgb(234, 179, 8)'; // Yellow for dirty (Phase 2)
     if (props.$selected) return props.$color;
     if (props.$status === 'error') return 'rgb(239, 68, 68)';
     return 'rgb(var(--color-border))';
@@ -57,6 +61,20 @@ const NodeContainer = styled.div<{
     ? '0 4px 12px rgba(0, 0, 0, 0.15)' 
     : '0 2px 6px rgba(0, 0, 0, 0.1)'};
   transition: all 0.2s ease;
+  
+  /* Add pulsing animation for dirty state (Phase 2) */
+  ${props => props.$isDirty && `
+    animation: dirtyPulse 2s ease-in-out infinite;
+    
+    @keyframes dirtyPulse {
+      0%, 100% {
+        box-shadow: 0 2px 6px rgba(234, 179, 8, 0.3);
+      }
+      50% {
+        box-shadow: 0 4px 12px rgba(234, 179, 8, 0.5);
+      }
+    }
+  `}
   
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -257,10 +275,15 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     stepNumber,
     errorMessage,
     config,
+    configStatus, // Phase 2: Shadow state status
+    shadowConfig, // Phase 2: Uncommitted changes
     onEdit,
     onDelete,
     onTitleChange,
   } = data;
+  
+  // Phase 2: Determine if node has uncommitted changes
+  const isDirty = configStatus === 'dirty';
   
   // Batch 3: Expand/collapse state
   const [isExpanded, setIsExpanded] = useState(true);
@@ -324,6 +347,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       $color={nodeType.color} 
       $selected={selected}
       $status={status}
+      $isDirty={isDirty}
     >
       {/* Input Handle */}
       {showInputHandle && (
@@ -378,6 +402,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
             title={onTitleChange ? "Double-click to edit" : undefined}
           >
             {label}
+            {isDirty && <span style={{ marginLeft: '4px', fontSize: '16px' }} title="Unsaved changes">*</span>}
           </NodeTitle>
         )}
         {stepNumber && <StepNumber>{stepNumber}</StepNumber>}
