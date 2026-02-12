@@ -68,7 +68,7 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
     0 0 0 4px rgba(139, 92, 246, 0.15);
   transition: all 0.2s ease;
   position: relative;
-  overflow: hidden; /* Contain header styling */
+  overflow: visible; /* Allow edit/delete buttons to show */
   
   &:hover {
     box-shadow: 
@@ -104,6 +104,7 @@ const ContainerHeader = styled.div`
   cursor: pointer;
   user-select: none;
   color: white;
+  overflow: hidden; /* Contain header styling within rounded corners */
   
   &:hover {
     background: rgb(124, 77, 235); /* Slightly darker on hover */
