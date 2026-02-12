@@ -183,7 +183,12 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
   
   return (
     <ReactFlowProvider>
-      <MiniFlowContainer $height={containerHeight} $interactive={interactive}>
+      <MiniFlowContainer 
+        $height={containerHeight} 
+        $interactive={interactive}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+      >
         <ReactFlow
           id={`mini-flow-${containerId}`} // Unique ID per container to prevent conflicts
           key={`mini-flow-${containerId}-${nodes.length}`} // Force remount on node count change
@@ -193,8 +198,8 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
           edgeTypes={edgeTypes}
           onNodeClick={interactive ? onNodeClick : undefined} // Only handle clicks in interactive mode
           onNodesChange={interactive ? onNodesChange : undefined} // Only handle changes in interactive mode
-          onDrop={onDrop} // Forward drop events to main handler
-          onDragOver={onDragOver} // Forward dragover events for drop feedback
+          // NOTE: onDrop/onDragOver moved to MiniFlowContainer div (HTML5 drag-drop)
+          // ReactFlow's drag-drop doesn't work across different ReactFlow instances
           fitView
           fitViewOptions={{
             padding: 0.2,
