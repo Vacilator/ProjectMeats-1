@@ -335,8 +335,13 @@ export const listWorkflows = async (
   
   try {
     const response = await apiClient.get(url);
-    console.log(`✅ Loaded ${response.data.length} workflows`);
-    return response.data;
+    
+    // API returns paginated response: {count, next, previous, results: [...]}
+    // Extract results array from pagination wrapper
+    const workflows = response.data.results || response.data;
+    
+    console.log(`✅ Loaded ${workflows.length} workflows`);
+    return workflows;
   } catch (error: any) {
     console.error('❌ Error listing workflows:', error);
     
