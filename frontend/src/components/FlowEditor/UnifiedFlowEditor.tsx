@@ -2615,9 +2615,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
+      console.log('🎯 [onDrop] DROP EVENT FIRED - Single ReactFlow');
       event.preventDefault();
 
       const type = event.dataTransfer.getData('application/reactflow-nodetype');
+      console.log('🎯 [onDrop] Node type:', type);
       
       if (!type) {
         console.error('[onDrop] No node type found in dataTransfer');
@@ -2838,6 +2840,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
+    console.log('🔵 [onDragOver] Event received');
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   }, []);
