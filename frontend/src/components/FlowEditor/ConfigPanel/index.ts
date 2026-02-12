@@ -14,6 +14,7 @@ export { FormReferenceConfigPanel } from './FormReferenceConfigPanel';
 export { FieldMappingPanel } from './FieldMappingPanel';
 export { ConditionBuilder } from './ConditionBuilder';
 export { ValidationRuleBuilder } from './ValidationRuleBuilder';
+export { FieldWithContext } from './FieldWithContext'; // Phase 5
 
 // Phase 2: WorkForms Enhancement (WF-ENH-2026-Q1)
 export { FormSelectionPanel } from './FormSelectionPanel';
@@ -25,3 +26,4 @@ export type { NodeConfigPanelWithShadowProps } from './NodeConfigPanelWithShadow
 export type { FormSelectionPanelProps } from './FormSelectionPanel';
 export type { EntityFieldPickerProps, SelectedField } from './EntityFieldPicker';
 export type { FieldConfigurationPanelProps, FieldConfig } from './FieldConfigurationPanel';
+export type { FieldWithContextProps } from './FieldWithContext'; // Phase 5
