@@ -189,12 +189,9 @@ const NodeControls = styled.div`
   right: 8px;
   display: flex;
   gap: 4px;
-  opacity: 0;
+  opacity: 1; /* Always visible */
   transition: opacity 0.2s ease;
-  
-  ${NodeContainer}:hover & {
-    opacity: 1;
-  }
+  z-index: 10; /* Ensure buttons appear above other elements */
 `;
 
 const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' | 'expand' }>`
@@ -338,8 +335,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
         />
       )}
 
-      {/* Status Indicator */}
-      <StatusIndicator $status={status} />
+      {/* Status Indicator - REMOVED (confusing yellow dot) */}
       
       {/* Node Controls (Batch 3) */}
       <NodeControls>

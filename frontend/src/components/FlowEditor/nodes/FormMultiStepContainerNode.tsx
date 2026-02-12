@@ -59,35 +59,36 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   min-width: ${props => props.isExpanded ? '600px' : '280px'};
   min-height: ${props => props.isExpanded ? '400px' : 'auto'};
   background: ${props => props.isExpanded 
-    ? 'rgba(139, 92, 246, 0.03)' // Very subtle background when expanded
+    ? 'rgba(139, 92, 246, 0.08)' // Semi-transparent purple background when expanded
     : 'rgba(var(--color-background-secondary), 0.95)'};
-  border: 2px ${props => props.isExpanded ? 'dashed' : 'solid'} rgb(139, 92, 246);
+  border: 2px ${props => props.isExpanded ? 'solid' : 'solid'} rgba(139, 92, 246, 0.6);
   border-radius: 12px;
   box-shadow: 
-    0 4px 6px rgba(0, 0, 0, 0.1),
-    0 0 0 4px rgba(139, 92, 246, 0.1);
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    0 0 0 4px rgba(139, 92, 246, 0.15);
   transition: all 0.2s ease;
   position: relative;
+  overflow: hidden; /* Contain header styling */
   
   &:hover {
     box-shadow: 
-      0 6px 12px rgba(0, 0, 0, 0.15),
-      0 0 0 4px rgba(139, 92, 246, 0.2);
+      0 6px 16px rgba(0, 0, 0, 0.18),
+      0 0 0 4px rgba(139, 92, 246, 0.25);
   }
   
   &.selected {
     border-color: rgb(139, 92, 246);
     box-shadow: 
-      0 8px 16px rgba(0, 0, 0, 0.2),
-      0 0 0 4px rgba(139, 92, 246, 0.3);
+      0 8px 20px rgba(0, 0, 0, 0.25),
+      0 0 0 4px rgba(139, 92, 246, 0.4);
   }
   
   &.drag-over {
     border-color: rgb(34, 197, 94);
     box-shadow: 
-      0 8px 16px rgba(34, 197, 94, 0.2),
-      0 0 0 4px rgba(34, 197, 94, 0.3);
-    background: rgba(34, 197, 94, 0.05);
+      0 8px 20px rgba(34, 197, 94, 0.3),
+      0 0 0 4px rgba(34, 197, 94, 0.4);
+    background: rgba(34, 197, 94, 0.12);
   }
 `;
 
@@ -96,14 +97,16 @@ const ContainerHeader = styled.div`
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05));
-  border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+  /* Solid color header like regular nodes */
+  background: rgb(139, 92, 246);
+  border-bottom: none;
   border-radius: 10px 10px 0 0;
   cursor: pointer;
   user-select: none;
+  color: white;
   
   &:hover {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(139, 92, 246, 0.1));
+    background: rgb(124, 77, 235); /* Slightly darker on hover */
   }
 `;
 
@@ -111,7 +114,7 @@ const ExpandIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgb(139, 92, 246);
+  color: white; /* White icon for solid header */
   transition: transform 0.2s ease;
 `;
 
@@ -147,11 +150,9 @@ const StatusBadge = styled.div<{ type: 'configured' | 'draft' }>`
   text-transform: uppercase;
   letter-spacing: 0.5px;
   background: ${props => props.type === 'configured' 
-    ? 'rgba(34, 197, 94, 0.15)' 
-    : 'rgba(234, 179, 8, 0.15)'};
-  color: ${props => props.type === 'configured'
-    ? 'rgb(34, 197, 94)'
-    : 'rgb(234, 179, 8)'};
+    ? 'rgba(255, 255, 255, 0.3)' 
+    : 'rgba(255, 255, 255, 0.2)'};
+  color: white;
 `;
 
 const ContainerBody = styled.div<{ isExpanded: boolean }>`
@@ -159,14 +160,18 @@ const ContainerBody = styled.div<{ isExpanded: boolean }>`
   display: ${props => props.isExpanded ? 'block' : 'none'};
   min-height: ${props => props.isExpanded ? '200px' : 'auto'};
   min-width: 300px;
-  /* Allow clicks to pass through to child nodes */
-  pointer-events: none;
   position: relative;
   
-  /* Re-enable pointer events only for interactive elements */
-  button, a, input {
-    pointer-events: auto;
-  }
+  /* CRITICAL: When expanded, container body must NOT block drop events */
+  /* Drop events need to reach the ReactFlow component's drop zone */
+  ${props => props.isExpanded && `
+    pointer-events: none;
+    
+    /* Re-enable pointer events for buttons and interactive elements */
+    button, a, input, select, textarea {
+      pointer-events: auto;
+    }
+  `}
 `;
 
 const ContainerSummary = styled.div`
