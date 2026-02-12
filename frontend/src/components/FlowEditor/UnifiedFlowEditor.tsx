@@ -107,7 +107,6 @@ import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
-import { EntityFormStepModal, type FormStepData } from './Modals/EntityFormStepModal';
 import { FormMultiStepContainerModal, type ContainerData } from './Modals/FormMultiStepContainerModal';
 import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
 import { PreviewPanel } from './panels/PreviewPanel';
@@ -5147,17 +5146,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onStartBlank={handleStartBlank}
       />
       
-      {/* EntityFormStep Configuration Modal (Phase 3 - WF-ENH-2026-Q1) */}
-      <EntityFormStepModal
+      {/* FormStep Configuration Panel (using SidePanel instead of EntityFormStepModal) */}
+      <SidePanel
         isOpen={formStepModalOpen && !!selectedFormStep}
         onClose={() => {
           setFormStepModalOpen(false);
           setSelectedFormStep(null);
         }}
-        onSave={handleEntityFormStepSave}
-        initialData={selectedFormStep ? convertNodeDataToFormStepData(selectedFormStep) : undefined}
-        nodeId={selectedFormStep?.id}
-      />
+      >
+        {selectedFormStep && (
+          <FormStepConfigPanel
+            step={selectedFormStep.data}
+            onChange={(updatedStepData) => {
+              handleNodeUpdate(selectedFormStep.id, updatedStepData);
+              setFormStepModalOpen(false);
+              setSelectedFormStep(null);
+            }}
+            onClose={() => {
+              setFormStepModalOpen(false);
+              setSelectedFormStep(null);
+            }}
+            availableFields={getPreviousStepFields(selectedFormStep.id)}
+          />
+        )}
+      </SidePanel>
       
       {/* FormMultiStepContainer Configuration Modal (Phase 4.3) */}
       <FormMultiStepContainerModal
