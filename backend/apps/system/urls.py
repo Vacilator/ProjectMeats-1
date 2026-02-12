@@ -20,6 +20,7 @@ from apps.system.views import (
     TenantConfigViewSet,
     ConfigResolverView,
     ConfigAuditLogViewSet,
+    EntityIntrospectionViewSet,
 )
 
 app_name = 'system'
@@ -31,6 +32,7 @@ router.register(r'field-schemas', SystemFieldSchemaViewSet, basename='field-sche
 router.register(r'tenant-configs', TenantConfigViewSet, basename='tenant-config')
 router.register(r'config', ConfigResolverView, basename='config')
 router.register(r'audit-logs', ConfigAuditLogViewSet, basename='audit-log')
+router.register(r'entities', EntityIntrospectionViewSet, basename='entity')
 
 urlpatterns = [
     path('', include(router.urls)),
