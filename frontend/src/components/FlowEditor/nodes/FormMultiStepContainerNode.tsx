@@ -41,7 +41,12 @@ export interface ContainerNodeData extends BaseNodeData {
   isDropTarget?: boolean;
 }
 
-export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNodeData> {}
+export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNodeData> {
+  // Phase: Container Child Node Discovery Fix
+  // Explicit props to receive full node/edge arrays from parent
+  allNodes?: Node[];
+  allEdges?: Edge[];
+}
 
 // ============================================================================
 // Styled Components
@@ -311,22 +316,47 @@ const MiniFlowWrapper = styled.div`
 // Component
 // ============================================================================
 
+/**
+ * Form Multi-Step Container Node Component
+ * Renders a container that holds multiple form steps in a sequential workflow.
+ * 
+ * Phase: Container Child Node Discovery Fix
+ * - Now receives allNodes and allEdges as explicit props
+ * - Fallback to useNodes()/useEdges() hooks for backwards compatibility
+ * - This fixes bug where hidden child nodes weren't being found
+ */
 export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProps> = ({
   id,
   data,
   selected,
+  allNodes: propsAllNodes,  // New: Explicitly passed from parent
+  allEdges: propsAllEdges,  // New: Explicitly passed from parent
 }) => {
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
   
-  // Use reactive hooks that trigger re-renders on state changes
-  const allNodes = useNodes();
-  const allEdges = useEdges(); 
+  // Use reactive hooks as fallback (backwards compatibility)
+  const hookNodes = useNodes();
+  const hookEdges = useEdges();
   const { setNodes } = useReactFlow();
   
-  // Debug: Log when allNodes changes
+  // Prefer props over hooks (fixes child discovery bug)
+  const allNodes = propsAllNodes ?? hookNodes;
+  const allEdges = propsAllEdges ?? hookEdges;
+  
+  // Debug: Log node source and counts
   React.useEffect(() => {
-    console.log(`[Container ${id}] allNodes changed. Count:`, allNodes.length, 'My children:', allNodes.filter(n => n.parentId === id).length);
-  }, [allNodes, id]);
+    const source = propsAllNodes ? 'props' : 'hooks';
+    const total = allNodes.length;
+    const hidden = allNodes.filter(n => n.hidden).length;
+    const children = allNodes.filter(n => n.parentId === id).length;
+    
+    console.group(`[Container ${id}] Node Discovery (${source})`);
+    console.log('Total nodes:', total);
+    console.log('Hidden nodes:', hidden);
+    console.log('My children:', children);
+    console.log('Source:', source);
+    console.groupEnd();
+  }, [allNodes, propsAllNodes, id]);
   
   const nodeDef = getNodeTypeDefinition('formMultiStepContainer');
   
