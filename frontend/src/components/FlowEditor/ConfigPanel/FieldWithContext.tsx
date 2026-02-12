@@ -27,8 +27,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Database, Eye } from 'lucide-react';
-import { WorkflowContext, isTemplate, extractTemplates } from '../FormSubmission/hooks/useWorkflowContext';
-import { ContextBubble } from '../FormSubmission/ContextBubble';
+import { WorkflowContext, isTemplate, extractTemplates } from '../../FormSubmission/hooks/useWorkflowContext';
+import { ContextBubble } from '../../FormSubmission/ContextBubble';
 
 // ============================================================================
 // TypeScript Interfaces
