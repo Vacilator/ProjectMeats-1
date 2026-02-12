@@ -205,9 +205,54 @@ class TenantWorkFormSerializer(serializers.ModelSerializer):
         return workform
     
     def update(self, instance, validated_data):
-        """Update workflow and refresh form references."""
+        """
+        Update workflow with container versioning.
+        
+        Phase 1: Automatically snapshot formMultiStepContainer nodes into
+        reusable TenantForm records with version tracking.
+        """
+        from apps.system.services.container_versioning import (
+            extract_container_definitions,
+            snapshot_container
+        )
+        
+        # Get user from request context
+        request = self.context.get('request')
+        user = request.user if request else None
+        tenant = instance.tenant
+        
+        # Extract workflow definition
+        workflow_def = validated_data.get('workflow_definition', instance.workflow_definition)
+        nodes = workflow_def.get('nodes', [])
+        
+        # Extract and process containers
+        containers = extract_container_definitions(nodes)
+        
+        # Snapshot each container
+        for container_info in containers:
+            container_node = container_info['container']
+            child_steps = container_info['children']
+            
+            if child_steps:  # Only snapshot if container has children
+                tenant_form = snapshot_container(
+                    container_node=container_node,
+                    child_steps=child_steps,
+                    tenant=tenant,
+                    user=user
+                )
+                
+                # Update container node with tenantFormId reference
+                container_data = container_node.setdefault('data', {})
+                container_data['tenantFormId'] = str(tenant_form.id)
+                container_data['tenantFormVersion'] = tenant_form.version
+        
+        # Update workflow_definition with modified nodes
+        validated_data['workflow_definition'] = workflow_def
+        
+        # Perform standard update
         workform = super().update(instance, validated_data)
         workform.update_form_references()
+        
         return workform
 
 

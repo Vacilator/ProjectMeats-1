@@ -1,0 +1,217 @@
+"""
+Container versioning service for Unified WorkForm Overhaul.
+
+Phase 1: Recursive Persistence
+Automatically snapshots formMultiStepContainer nodes into reusable,
+versioned TenantForm records.
+
+Created: 2026-02-12
+"""
+import hashlib
+import json
+from django.db import transaction
+from apps.system.models import TenantForm, FormTypeChoices
+
+
+def hash_definition(definition: dict) -> str:
+    """
+    Create a stable hash of a form definition for deduplication.
+    
+    Args:
+        definition: Form definition dictionary
+        
+    Returns:
+        SHA256 hash of the normalized definition
+    """
+    # Normalize the definition (sort keys, remove volatile fields)
+    normalized = json.dumps(definition, sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(normalized.encode()).hexdigest()
+
+
+def serialize_step(step_node: dict) -> dict:
+    """
+    Serialize a formStep node into form definition format.
+    
+    Args:
+        step_node: Node data from React Flow
+        
+    Returns:
+        Serialized step definition
+    """
+    data = step_node.get('data', {})
+    
+    return {
+        'id': step_node['id'],
+        'name': data.get('stepTitle') or data.get('label', 'Untitled Step'),
+        'description': data.get('stepDescription', ''),
+        'entity_type': data.get('entityType'),
+        'fields': data.get('fields', []),
+        'visibility': data.get('visibility', {}),
+        'navigation': data.get('navigation', {}),
+        'validation': data.get('validation', {})
+    }
+
+
+def get_next_version(tenant, source_node_id: str) -> int:
+    """
+    Get the next version number for a container's TenantForm.
+    
+    Args:
+        tenant: Tenant instance
+        source_node_id: Container node ID
+        
+    Returns:
+        Next version number
+    """
+    latest = TenantForm.objects.filter(
+        tenant=tenant,
+        source_node_id=source_node_id
+    ).order_by('-version').first()
+    
+    return (latest.version + 1) if latest else 1
+
+
+def has_container_changed(container_node: dict, existing_form: TenantForm) -> tuple[bool, dict]:
+    """
+    Check if container definition has changed compared to existing form.
+    
+    Args:
+        container_node: Current container node from React Flow
+        existing_form: Existing TenantForm record
+        
+    Returns:
+        Tuple of (has_changed, diff_summary)
+    """
+    # Build current definition hash
+    current_def = existing_form.form_definition
+    container_data = container_node.get('data', {})
+    
+    diff = {
+        'label_changed': container_data.get('label') != current_def.get('container_label'),
+        'step_count_changed': False,
+        'fields_changed': False
+    }
+    
+    current_steps = current_def.get('steps', [])
+    
+    # Step count comparison will be done by caller (needs child nodes)
+    
+    has_changed = any(diff.values())
+    
+    return has_changed, diff
+
+
+@transaction.atomic
+def snapshot_container(
+    container_node: dict, 
+    child_steps: list[dict], 
+    tenant,
+    user=None
+) -> TenantForm:
+    """
+    Create or reuse a TenantForm snapshot for a container node.
+    
+    This is the main entry point for container persistence. It:
+    1. Builds a form_definition from the container and its child steps
+    2. Checks if an identical definition already exists (via hash)
+    3. Returns existing form (incrementing usage_count) or creates new version
+    
+    Args:
+        container_node: formMultiStepContainer node from React Flow
+        child_steps: List of child formStep nodes
+        tenant: Tenant instance
+        user: User creating the snapshot (optional)
+        
+    Returns:
+        TenantForm instance (existing or newly created)
+    """
+    container_data = container_node.get('data', {})
+    
+    # 1. Build form definition
+    definition = {
+        'container_id': container_node['id'],
+        'container_label': container_data.get('label', 'Multi-Step Container'),
+        'steps': [serialize_step(step) for step in child_steps],
+        'layout': container_data.get('layout', {}),
+        'description': container_data.get('description', '')
+    }
+    
+    definition_hash = hash_definition(definition)
+    
+    # 2. Check if identical snapshot exists
+    existing = TenantForm.objects.filter(
+        tenant=tenant,
+        definition_hash=definition_hash
+    ).first()
+    
+    if existing:
+        # Reuse existing form, increment usage
+        existing.usage_count += 1
+        existing.save(update_fields=['usage_count'])
+        return existing
+    
+    # 3. Create new version
+    version = get_next_version(tenant, container_node['id'])
+    
+    new_form = TenantForm.objects.create(
+        tenant=tenant,
+        name=f"Container: {container_data.get('label', 'Multi-Step Form')}",
+        description=definition.get('description', ''),
+        type=FormTypeChoices.MULTI_STEP,
+        form_definition=definition,
+        version=version,
+        source_node_id=container_node['id'],
+        definition_hash=definition_hash,
+        is_template=True,
+        usage_count=1,
+        created_by=user,
+        updated_by=user
+    )
+    
+    return new_form
+
+
+def extract_container_definitions(nodes: list[dict]) -> list[dict]:
+    """
+    Extract all formMultiStepContainer nodes and their children.
+    
+    Args:
+        nodes: List of all React Flow nodes
+        
+    Returns:
+        List of dicts with keys: 'container', 'children'
+    """
+    containers = []
+    
+    # Build parent-child map
+    children_by_parent = {}
+    container_nodes = {}
+    
+    for node in nodes:
+        if node.get('type') == 'formMultiStepContainer':
+            container_nodes[node['id']] = node
+            children_by_parent[node['id']] = []
+        
+        # Check if node has a parent
+        parent_id = node.get('parentId') or node.get('parentNode')
+        if parent_id:
+            if parent_id not in children_by_parent:
+                children_by_parent[parent_id] = []
+            children_by_parent[parent_id].append(node)
+    
+    # Build result
+    for container_id, container_node in container_nodes.items():
+        children = children_by_parent.get(container_id, [])
+        
+        # Filter to only formStep nodes
+        form_steps = [
+            child for child in children 
+            if child.get('type') in ('formStep', 'formReference')
+        ]
+        
+        containers.append({
+            'container': container_node,
+            'children': form_steps
+        })
+    
+    return containers
