@@ -1,11 +1,16 @@
 /**
  * Form Multi-Step Container Node Component
- * * Phase 4.3: FIX VISUAL DUPLICATION
- * - Removed MiniReactFlow from 'Expanded' state (fixes ghost nodes & blocked buttons)
- * - Added MiniReactFlow to 'Collapsed' state (restores preview)
- * - Added pointer-events: none to MiniFlowWrapper (prevents click interception)
- * * Created: 2026-02-06
- * Updated: 2026-02-10
+ * 
+ * REFACTORED: Single ReactFlow Architecture (Option A)
+ * - No nested MiniReactFlow (removed)
+ * - Acts as a React Flow 'group' node
+ * - Children render in main ReactFlow with parentId
+ * - Expand/collapse controls child visibility via hidden property
+ * 
+ * Based on: https://reactflow.dev/examples/grouping/sub-flows
+ * 
+ * Created: 2026-02-06
+ * Refactored: 2026-02-12 - Single ReactFlow architecture
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
@@ -13,7 +18,7 @@ import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 import { ChevronDown, ChevronRight, LogIn } from 'lucide-react';
-import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
+// REMOVED: import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -42,14 +47,8 @@ export interface ContainerNodeData extends BaseNodeData {
 }
 
 export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNodeData> {
-  // Phase: Container Child Node Discovery Fix
-  // Explicit props to receive full node/edge arrays from parent
-  allNodes?: Node[];
-  allEdges?: Edge[];
-  // Phase: Drop Handler Fix
-  // Forward drop handlers to nested MiniReactFlow
-  onDropFromPalette?: (event: React.DragEvent) => void;
-  onDragOverFromPalette?: (event: React.DragEvent) => void;
+  // REFACTORED: No longer need drop handlers (handled by main ReactFlow)
+  // No longer need allNodes/allEdges props (use hooks directly)
 }
 
 // ============================================================================
@@ -309,76 +308,37 @@ const EnterButton = styled.button`
   }
 `;
 
-const MiniFlowWrapper = styled.div`
-  margin-top: 12px;
-  border-radius: 8px;
-  overflow: hidden;
-  pointer-events: none; /* Crucial: Prevents clicking on mini-nodes */
-`;
-
 // ============================================================================
 // Component
 // ============================================================================
 
 /**
  * Form Multi-Step Container Node Component
- * Renders a container that holds multiple form steps in a sequential workflow.
  * 
- * Phase: Container Child Node Discovery Fix
- * - Now receives allNodes and allEdges as explicit props
- * - Fallback to useNodes()/useEdges() hooks for backwards compatibility
- * - This fixes bug where hidden child nodes weren't being found
+ * REFACTORED: Single ReactFlow Architecture (Option A)
+ * - Acts as a React Flow 'group' node (no nested ReactFlow)
+ * - Children render in main ReactFlow with parentId set to this node's id
+ * - Expand/collapse toggles child visibility via hidden property
+ * - Uses React Flow's official grouping pattern
  */
 export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProps> = ({
   id,
   data,
   selected,
-  allNodes: propsAllNodes,  // New: Explicitly passed from parent
-  allEdges: propsAllEdges,  // New: Explicitly passed from parent
-  onDropFromPalette,        // New: Drop handler for nested MiniReactFlow
-  onDragOverFromPalette,    // New: DragOver handler for nested MiniReactFlow
 }) => {
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
   
-  // Use reactive hooks as fallback (backwards compatibility)
-  const hookNodes = useNodes();
-  const hookEdges = useEdges();
+  // Use hooks to access all nodes/edges
+  const allNodes = useNodes();
+  const allEdges = useEdges();
   const { setNodes } = useReactFlow();
-  
-  // Prefer props over hooks (fixes child discovery bug)
-  const allNodes = propsAllNodes ?? hookNodes;
-  const allEdges = propsAllEdges ?? hookEdges;
-  
-  // Debug: Log node source and counts
-  React.useEffect(() => {
-    const source = propsAllNodes ? 'props' : 'hooks';
-    const total = allNodes.length;
-    const hidden = allNodes.filter(n => n.hidden).length;
-    const children = allNodes.filter(n => n.parentId === id).length;
-    
-    console.group(`[Container ${id}] Node Discovery (${source})`);
-    console.log('Total nodes:', total);
-    console.log('Hidden nodes:', hidden);
-    console.log('My children:', children);
-    console.log('Source:', source);
-    console.groupEnd();
-  }, [allNodes, propsAllNodes, id]);
   
   const nodeDef = getNodeTypeDefinition('formMultiStepContainer');
   
-  // Calculate statistics from React Flow state
+  // Calculate statistics from child nodes
   const stats = useMemo(() => {
-    console.log(`[Container ${id}] Recalculating stats. Total nodes in flow:`, allNodes.length);
-    
-    // Query child nodes via parentId property
+    // Query child nodes via parentId property (React Flow v12 pattern)
     const childNodes = allNodes.filter(node => node.parentId === id);
-    
-    console.log(`[Container ${id}] Found ${childNodes.length} child nodes:`, childNodes.map(n => ({
-      id: n.id,
-      type: n.type,
-      hidden: n.hidden,
-      parentId: n.parentId,
-    })));
     
     // Query edges between child nodes
     const childNodeIds = new Set(childNodes.map(n => n.id));
@@ -412,14 +372,20 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   
   const isConfigured = data.configured || stats.hasNodes;
   
-  // Handle collapsing/expanding logic
+  // Handle collapsing/expanding - toggle child node visibility
   const handleHeaderClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
     
-    // Phase 4.5: No need to toggle hidden state - child nodes are ALWAYS hidden
-    // They are rendered in MiniReactFlow whether collapsed or expanded
+    // Toggle visibility of child nodes using React Flow's hidden property
+    setNodes(currentNodes => 
+      currentNodes.map(node => 
+        node.parentId === id
+          ? { ...node, hidden: !newExpandedState } // Hide if collapsed, show if expanded
+          : node
+      )
+    );
   };
   
   const handleConfigClick = (e: React.MouseEvent) => {
@@ -471,110 +437,86 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
             </StatusBadge>
           </ContainerHeader>
           
-          {/* COLLAPSED STATE: Show Mini-Map Preview */}
-          {!isExpanded && (
-            <ContainerSummary>
-              <SummaryRow>
-                <span className="label">Nodes:</span>
-                <span className="value">{stats.nodeCount}</span>
-              </SummaryRow>
-              {stats.formRefs > 0 && (
-                <SummaryRow>
-                  <span className="label">Forms:</span>
-                  <span className="value">{stats.formRefs}</span>
-                </SummaryRow>
-              )}
-              {/* Only show MiniMap when collapsed as a preview */}
-              {stats.hasNodes && (
-                <MiniFlowWrapper>
-                    <MiniReactFlow
-                      containerId={id}
-                      nodes={stats.childNodes}
-                      edges={stats.childEdges}
-                      containerHeight={150} // Smaller height for preview
-                      onDrop={onDropFromPalette}
-                      onDragOver={onDragOverFromPalette}
-                    />
-                </MiniFlowWrapper>
-              )}
-            </ContainerSummary>
-          )}
-          
-          {/* EXPANDED STATE: Show interactive MiniReactFlow */}
-          {isExpanded && (
-            <ContainerBody isExpanded={isExpanded}>
-              {stats.hasNodes ? (
-                <>
-                  {/* Interactive mini canvas when expanded */}
-                  <div style={{ 
-                    width: '100%',
-                    height: '400px',
-                    position: 'relative',
-                  }}>
-                    <MiniReactFlow
-                      containerId={id}
-                      nodes={stats.childNodes}
-                      edges={stats.childEdges}
-                      containerHeight={400}
-                      interactive={true}
-                      onNodeClick={handleNodeClick}
-                      onNodesChange={handleNodesChange}
-                      onDrop={onDropFromPalette}
-                      onDragOver={onDragOverFromPalette}
-                    />
-                  </div>
+          {/* Container Body - Show statistics and controls */}
+          <ContainerBody isExpanded={isExpanded}>
+            {isExpanded ? (
+              // EXPANDED: Show stats and hint that children are visible on canvas
+              <>
+                <div style={{ padding: '16px' }}>
+                  <SummaryRow>
+                    <span className="label">Total Nodes:</span>
+                    <span className="value">{stats.nodeCount}</span>
+                  </SummaryRow>
                   
-                  {/* Compact summary at the bottom */}
-                  <div style={{ 
-                    position: 'absolute', 
-                    bottom: '16px', 
-                    left: '16px', 
-                    right: '16px',
-                    background: 'rgba(var(--color-background-secondary), 0.95)',
-                    borderRadius: '8px',
-                    padding: '12px',
-                    pointerEvents: 'auto',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                  }}>
+                  {stats.formRefs > 0 && (
                     <SummaryRow>
-                      <span className="label">Total Nodes:</span>
-                      <span className="value">{stats.nodeCount}</span>
+                      <span className="label">Form References:</span>
+                      <span className="value">{stats.formRefs}</span>
                     </SummaryRow>
-                    
-                    {stats.formRefs > 0 && (
-                      <SummaryRow>
-                        <span className="label">Form References:</span>
-                        <span className="value">{stats.formRefs}</span>
-                      </SummaryRow>
-                    )}
-                    
-                    <EnterButton onClick={handleEnterContainer} style={{ marginTop: '8px', marginBottom: '0' }}>
-                      <LogIn />
-                      Enter Container to Edit
-                    </EnterButton>
-                    
-                    <ConfigButton onClick={handleConfigClick} style={{ marginTop: '8px' }}>
-                      Configure Container
-                    </ConfigButton>
-                  </div>
-                </>
-              ) : (
-                <EmptyState>
-                  <div className="icon">📦</div>
-                  <div className="message">
-                    This container is empty.<br />
-                    Drag nodes here to group them into a sequential flow.
-                  </div>
-                  <div className="drop-hint">
-                    💡 Tip: Drag any node (except triggers) into this container to add it
-                  </div>
-                  <ConfigButton onClick={handleConfigClick}>
+                  )}
+                  
+                  {nodeTypeEntries.length > 0 && (
+                    <div style={{ marginTop: '12px' }}>
+                      <span style={{ fontSize: '11px', opacity: 0.7 }}>Node Types:</span>
+                      {nodeTypeEntries.slice(0, 3).map(([type, count]) => (
+                        <div key={type} style={{ 
+                          fontSize: '11px', 
+                          marginTop: '4px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                        }}>
+                          <span>{type}</span>
+                          <span>{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {stats.hasNodes ? (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '8px 12px',
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: 'rgb(59, 130, 246)',
+                    }}>
+                      ℹ️ Child nodes are visible on the main canvas
+                    </div>
+                  ) : (
+                    <EmptyState>
+                      <div className="icon">📦</div>
+                      <div className="message">
+                        This container is empty.<br />
+                        Drag nodes here to group them into a sequential flow.
+                      </div>
+                      <div className="drop-hint">
+                        💡 Tip: Drag any node from the palette and drop it inside this container
+                      </div>
+                    </EmptyState>
+                  )}
+                  
+                  <ConfigButton onClick={handleConfigClick} style={{ marginTop: '12px' }}>
                     Configure Container
                   </ConfigButton>
-                </EmptyState>
-              )}
-            </ContainerBody>
-          )}
+                </div>
+              </>
+            ) : (
+              // COLLAPSED: Show compact summary
+              <ContainerSummary>
+                <SummaryRow>
+                  <span className="label">Nodes:</span>
+                  <span className="value">{stats.nodeCount}</span>
+                </SummaryRow>
+                {stats.formRefs > 0 && (
+                  <SummaryRow>
+                    <span className="label">Forms:</span>
+                    <span className="value">{stats.formRefs}</span>
+                  </SummaryRow>
+                )}
+              </ContainerSummary>
+            )}
+          </ContainerBody>
         </ContainerWrapper>
     </BaseNode>
   );

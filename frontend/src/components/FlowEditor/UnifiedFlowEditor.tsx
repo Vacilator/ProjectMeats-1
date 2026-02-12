@@ -2794,7 +2794,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             y: position.y - targetContainer.position.y,
           };
           
-          // Phase 1.4: Set parentNode property (React Flow native)
+          // Phase 1.4: Set parentId property (React Flow v12+ native grouping)
           newNode.parentId = targetContainer.id;
           
           // Phase 1.4: Constrain node movement to parent bounds
@@ -2803,9 +2803,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           // Phase 1.4: Auto-expand parent if node dropped near edge
           newNode.expandParent = true;
           
-          // Phase 4.5: Child nodes should NEVER be visible on main canvas
-          // They are only rendered in the container's MiniReactFlow (collapsed or expanded)
-          newNode.hidden = true;
+          // REFACTORED: Child nodes are hidden ONLY if container is collapsed
+          // When expanded, children render on main canvas (single-ReactFlow pattern)
+          const isParentExpanded = targetContainer.data?.isExpanded ?? true;
+          newNode.hidden = !isParentExpanded; // Hidden when collapsed, visible when expanded
           
           console.log(`[Container] ✅ Node configured:`, {
             id: newNode.id,
@@ -2967,16 +2968,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    */
   const nodeTypes = useMemo<NodeTypes>(() => ({
     ...staticNodeTypes,
-    formMultiStepContainer: (props: NodeProps) => (
-      <FormMultiStepContainerNode
-        {...props}
-        allNodes={nodes}              // Pass full node array to container
-        allEdges={edges}              // Pass edges too for consistency
-        onDropFromPalette={onDrop}    // Forward drop handler to MiniReactFlow
-        onDragOverFromPalette={onDragOver} // Forward dragover handler
-      />
-    ),
-  }), [nodes, edges, onDrop, onDragOver]);
+    // Container node no longer needs custom props with single-ReactFlow architecture
+  }), []);
 
   // ============================================================================
   // Container Drag-Drop Logic (Phase 4.4)
