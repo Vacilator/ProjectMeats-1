@@ -134,6 +134,27 @@ class TenantForm(models.Model):
         help_text="Number of times this form is referenced by workflows"
     )
     
+    # Phase 1: Container versioning fields
+    source_node_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Original container node ID from React Flow (for versioning)"
+    )
+    definition_hash = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="SHA256 hash of form_definition for deduplication"
+    )
+    is_template = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether this form is a reusable template"
+    )
+    
     class Meta:
         db_table = 'tenant_forms'
         ordering = ['-updated_at']
@@ -141,6 +162,9 @@ class TenantForm(models.Model):
             models.Index(fields=['tenant', 'type']),
             models.Index(fields=['tenant', 'name']),
             models.Index(fields=['created_at']),
+            models.Index(fields=['tenant', 'source_node_id', 'version']),
+            models.Index(fields=['definition_hash']),
+            models.Index(fields=['is_template']),
         ]
         constraints = [
             models.UniqueConstraint(
