@@ -2468,6 +2468,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     console.log('[Container] =================================');
     console.log('[Container] Looking for containers at position:', position);
+    console.log('[Container] nodes.length in findContainer:', nodes.length);
+    console.log('[Container] All nodes:', nodes.map(n => ({ id: n.id, type: n.type })));
     console.log('[Container] Total containers on canvas:', containerNodes.length);
     console.log('[Container] Container types found:', containerNodes.map(n => ({ id: n.id, type: n.type, measured: !!n.measured })));
     
@@ -2668,6 +2670,24 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       const type = event.dataTransfer.getData('application/reactflow-nodetype');
       if (!type) return;
+      
+      // ============================================================
+      // DEBUG: State at drop time
+      // ============================================================
+      console.log('[onDrop] =================================');
+      console.log('[onDrop] Drop initiated for node type:', type);
+      console.log('[onDrop] Current nodes array length:', nodes.length);
+      console.log('[onDrop] Nodes in array:', nodes.map(n => ({ id: n.id, type: n.type, parentId: n.parentId })));
+      const containersInArray = nodes.filter(n => n.type === 'formMultiStepContainer');
+      console.log('[onDrop] Containers in nodes array:', containersInArray.length);
+      console.log('[onDrop] Container details:', containersInArray.map(c => ({ 
+        id: c.id, 
+        position: c.position,
+        measured: c.measured,
+        width: c.width,
+        height: c.height 
+      })));
+      console.log('[onDrop] =================================');
       
       // Clear drag state
       setIsDragging(false);
