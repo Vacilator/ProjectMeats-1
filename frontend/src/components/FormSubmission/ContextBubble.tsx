@@ -40,7 +40,7 @@ import {
   List,
   FileText,
 } from 'lucide-react';
-import { WorkflowContext, AvailableDataNode } from '../hooks/useWorkflowContext';
+import { WorkflowContext, AvailableDataNode } from './hooks/useWorkflowContext';
 
 // ============================================================================
 // TypeScript Interfaces
