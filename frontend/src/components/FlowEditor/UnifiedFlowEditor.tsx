@@ -2666,10 +2666,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
+      console.log('🎯🎯🎯 [onDrop] ===== DROP EVENT FIRED =====');
+      console.log('🎯 [onDrop] Event target:', event.target);
+      console.log('🎯 [onDrop] Event currentTarget:', event.currentTarget);
+      
       event.preventDefault();
 
       const type = event.dataTransfer.getData('application/reactflow-nodetype');
-      if (!type) return;
+      console.log('🎯 [onDrop] Node type from dataTransfer:', type);
+      
+      if (!type) {
+        console.error('❌ [onDrop] No node type found in dataTransfer!');
+        console.log('📦 [onDrop] Available dataTransfer types:', event.dataTransfer.types);
+        return;
+      }
       
       // ============================================================
       // DEBUG: State at drop time
