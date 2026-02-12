@@ -14,6 +14,7 @@ Design Philosophy:
 """
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 
 class MeatsCentralAdminSite(admin.AdminSite):
@@ -34,7 +35,7 @@ class MeatsCentralAdminSite(admin.AdminSite):
         # Add tier information based on user permissions
         if request.user.is_superuser:
             extra_context['user_tier'] = 'root'
-            extra_context['tier_description'] = format_html(
+            extra_context['tier_description'] = mark_safe(
                 '<div class="help" style="margin-bottom: 20px; padding: 15px; background: #e8f5e9; border-left: 4px solid #4caf50;">'
                 '<strong>🔑 Root Access</strong><br>'
                 'You have full system access. Changes at Root level affect all tenants.'
@@ -42,7 +43,7 @@ class MeatsCentralAdminSite(admin.AdminSite):
             )
         elif request.user.is_staff:
             extra_context['user_tier'] = 'tenant'
-            extra_context['tier_description'] = format_html(
+            extra_context['tier_description'] = mark_safe(
                 '<div class="help" style="margin-bottom: 20px; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3;">'
                 '<strong>🏢 Tenant Administrator</strong><br>'
                 'You manage your tenant\'s data. System-level templates and configurations are inherited.'
