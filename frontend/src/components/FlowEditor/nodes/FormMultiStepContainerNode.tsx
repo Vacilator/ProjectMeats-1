@@ -56,11 +56,12 @@ export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNode
 // ============================================================================
 
 const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
-  min-width: ${props => props.isExpanded ? '400px' : '280px'};
+  min-width: ${props => props.isExpanded ? '600px' : '280px'};
+  min-height: ${props => props.isExpanded ? '400px' : 'auto'};
   background: ${props => props.isExpanded 
-    ? 'transparent' 
+    ? 'rgba(139, 92, 246, 0.03)' // Very subtle background when expanded
     : 'rgba(var(--color-background-secondary), 0.95)'};
-  border: 2px solid rgb(139, 92, 246); /* Purple - container color */
+  border: 2px ${props => props.isExpanded ? 'dashed' : 'solid'} rgb(139, 92, 246);
   border-radius: 12px;
   box-shadow: 
     0 4px 6px rgba(0, 0, 0, 0.1),
