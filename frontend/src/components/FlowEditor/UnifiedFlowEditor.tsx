@@ -1483,28 +1483,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const reactFlowInstance = useReactFlow();
   
   // ============================================================================
-  // Dynamic Node Types (Phase: Container Child Node Discovery Fix)
-  // ============================================================================
-  
-  /**
-   * Create nodeTypes with container node that receives full nodes array.
-   * This fixes the bug where FormMultiStepContainerNode couldn't find child nodes
-   * because useNodes() hook may filter hidden nodes or not work in nested contexts.
-   * 
-   * Solution: Pass allNodes explicitly as a prop to container nodes.
-   */
-  const nodeTypes = useMemo<NodeTypes>(() => ({
-    ...staticNodeTypes,
-    formMultiStepContainer: (props: NodeProps) => (
-      <FormMultiStepContainerNode
-        {...props}
-        allNodes={nodes}  // Pass full node array to container
-        allEdges={edges}  // Pass edges too for consistency
-      />
-    ),
-  }), [nodes, edges]);
-  
-  // ============================================================================
   // Container State Restoration (Phase 4 Batch 5)
   // ============================================================================
   
@@ -2974,6 +2952,31 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   }, []);
+
+  // ============================================================================
+  // Dynamic Node Types (Phase: Container Drop Handler Fix)
+  // ============================================================================
+  
+  /**
+   * Create nodeTypes with container node that receives:
+   * 1. Full nodes/edges arrays (fixes child discovery)
+   * 2. Drop handlers (fixes drops into nested MiniReactFlow)
+   * 
+   * This solves the bug where drops onto expanded containers were being
+   * captured by the nested ReactFlow instance which had no onDrop handler.
+   */
+  const nodeTypes = useMemo<NodeTypes>(() => ({
+    ...staticNodeTypes,
+    formMultiStepContainer: (props: NodeProps) => (
+      <FormMultiStepContainerNode
+        {...props}
+        allNodes={nodes}              // Pass full node array to container
+        allEdges={edges}              // Pass edges too for consistency
+        onDropFromPalette={onDrop}    // Forward drop handler to MiniReactFlow
+        onDragOverFromPalette={onDragOver} // Forward dragover handler
+      />
+    ),
+  }), [nodes, edges, onDrop, onDragOver]);
 
   // ============================================================================
   // Container Drag-Drop Logic (Phase 4.4)

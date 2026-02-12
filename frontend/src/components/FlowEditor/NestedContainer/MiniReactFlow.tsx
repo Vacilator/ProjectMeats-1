@@ -50,6 +50,8 @@ interface MiniReactFlowProps {
   interactive?: boolean; // Phase 4.5: Allow interactive mode when expanded
   onNodeClick?: (event: React.MouseEvent, node: Node) => void; // Optional click handler for nodes
   onNodesChange?: (changes: any) => void; // Optional handler for node position changes
+  onDrop?: (event: React.DragEvent) => void; // Drop handler for palette nodes
+  onDragOver?: (event: React.DragEvent) => void; // Drag over handler for drop feedback
   // Phase 2.2: Removed readOnly prop (always read-only now)
 }
 
@@ -126,6 +128,8 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
   interactive = false,
   onNodeClick,
   onNodesChange,
+  onDrop,
+  onDragOver,
 }) => {
   // Phase 2.2: Simplified - no callbacks, read-only preview
   // Phase 4.5: Added interactive mode for expanded containers
@@ -189,6 +193,8 @@ export const MiniReactFlow: React.FC<MiniReactFlowProps> = ({
           edgeTypes={edgeTypes}
           onNodeClick={interactive ? onNodeClick : undefined} // Only handle clicks in interactive mode
           onNodesChange={interactive ? onNodesChange : undefined} // Only handle changes in interactive mode
+          onDrop={onDrop} // Forward drop events to main handler
+          onDragOver={onDragOver} // Forward dragover events for drop feedback
           fitView
           fitViewOptions={{
             padding: 0.2,
