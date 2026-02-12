@@ -96,7 +96,7 @@ import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } fro
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
-import { NodeConfigPanel } from './ConfigPanel';
+import { NodeConfigPanelWithShadow } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
@@ -5131,9 +5131,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </DragGhost>
       )}
 
-      {/* Configuration Panel */}
-      <NodeConfigPanel
+      {/* Configuration Panel with Shadow State (Phase 2) */}
+      <NodeConfigPanelWithShadow
         node={selectedNode}
+        nodes={nodes}
+        setNodes={setNodes}
         onClose={() => setSelectedNode(null)}
         onUpdate={handleNodeUpdate}
         onTest={handleNodeTest}

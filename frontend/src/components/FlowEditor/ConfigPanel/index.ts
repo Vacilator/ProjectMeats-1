@@ -4,6 +4,7 @@
  * Export all configuration panel components
  */
 export { NodeConfigPanel } from './NodeConfigPanel';
+export { NodeConfigPanelWithShadow } from './NodeConfigPanelWithShadow'; // Phase 2
 export { FormStepConfigPanel } from './FormStepConfigPanel';
 export { FormFieldConfigPanel } from './FormFieldConfigPanel';
 export { SectionConfigPanel } from './SectionConfigPanel';
@@ -20,6 +21,7 @@ export { EntityFieldPicker } from './EntityFieldPicker';
 export { FieldConfigurationPanel } from './FieldConfigurationPanel';
 
 export type { NodeConfigPanelProps } from './NodeConfigPanel';
+export type { NodeConfigPanelWithShadowProps } from './NodeConfigPanelWithShadow'; // Phase 2
 export type { FormSelectionPanelProps } from './FormSelectionPanel';
 export type { EntityFieldPickerProps, SelectedField } from './EntityFieldPicker';
 export type { FieldConfigurationPanelProps, FieldConfig } from './FieldConfigurationPanel';
