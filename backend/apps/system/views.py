@@ -34,6 +34,11 @@ from apps.system.serializers import (
     ConfigAuditLogSummarySerializer,
 )
 from apps.system.services.config_resolver import ConfigResolver
+from apps.system.services.entity_introspection import (
+    get_entity_models,
+    get_entity_fields,
+    get_entity_display_fields,
+)
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -436,3 +441,72 @@ class ConfigAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         
         serializer = ConfigAuditLogSerializer(qs[:50], many=True)
         return Response(serializer.data)
+
+
+class EntityIntrospectionViewSet(viewsets.ViewSet):
+    """
+    ViewSet for entity introspection and field metadata.
+    
+    Phase 3: Schema Bridge
+    Provides entity types and field definitions from Django models.
+    
+    GET /api/v1/system/entities/ - List all business entities
+    GET /api/v1/system/entities/{entity_id}/fields/ - Get fields for entity
+    GET /api/v1/system/entities/{entity_id}/display-fields/ - Get display fields
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def list(self, request):
+        """
+        List all business entities from tenant_apps.
+        
+        Returns entity metadata including field counts and descriptions.
+        """
+        entities = get_entity_models()
+        return Response({
+            'count': len(entities),
+            'results': entities
+        })
+    
+    @action(detail=True, methods=['get'], url_path='fields')
+    def fields(self, request, pk=None):
+        """
+        Get field definitions for a specific entity.
+        
+        Args:
+            pk: Entity ID (e.g., 'suppliers.supplier')
+            
+        Returns:
+            List of field definitions with types, validation rules, etc.
+        """
+        fields = get_entity_fields(pk)
+        
+        if not fields:
+            return Response(
+                {'error': f'Entity not found: {pk}'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        return Response({
+            'entity_id': pk,
+            'field_count': len(fields),
+            'fields': fields
+        })
+    
+    @action(detail=True, methods=['get'], url_path='display-fields')
+    def display_fields(self, request, pk=None):
+        """
+        Get recommended display fields for entity lookups.
+        
+        Args:
+            pk: Entity ID (e.g., 'suppliers.supplier')
+            
+        Returns:
+            List of field names suitable for display in lookups
+        """
+        display_fields = get_entity_display_fields(pk)
+        
+        return Response({
+            'entity_id': pk,
+            'display_fields': display_fields
+        })
