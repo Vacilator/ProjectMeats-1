@@ -1401,10 +1401,10 @@ const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $po
 // Node & Edge Type Mapping
 // ============================================================================
 
-const nodeTypes: NodeTypes = {
+// Static node types (not containers that need node access)
+const staticNodeTypes: NodeTypes = {
   formStep: FormStepNode,
   formReference: FormReferenceNode,
-  formMultiStepContainer: FormMultiStepContainerNode,
   trigger: TriggerNode,
   condition: ConditionIfNode,
   action: ActionNode,
@@ -1481,6 +1481,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // React Flow instance for viewport controls
   const reactFlowInstance = useReactFlow();
+  
+  // ============================================================================
+  // Dynamic Node Types (Phase: Container Child Node Discovery Fix)
+  // ============================================================================
+  
+  /**
+   * Create nodeTypes with container node that receives full nodes array.
+   * This fixes the bug where FormMultiStepContainerNode couldn't find child nodes
+   * because useNodes() hook may filter hidden nodes or not work in nested contexts.
+   * 
+   * Solution: Pass allNodes explicitly as a prop to container nodes.
+   */
+  const nodeTypes = useMemo<NodeTypes>(() => ({
+    ...staticNodeTypes,
+    formMultiStepContainer: (props: NodeProps) => (
+      <FormMultiStepContainerNode
+        {...props}
+        allNodes={nodes}  // Pass full node array to container
+        allEdges={edges}  // Pass edges too for consistency
+      />
+    ),
+  }), [nodes, edges]);
   
   // ============================================================================
   // Container State Restoration (Phase 4 Batch 5)
