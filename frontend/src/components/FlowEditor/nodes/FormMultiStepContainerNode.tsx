@@ -46,6 +46,10 @@ export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNode
   // Explicit props to receive full node/edge arrays from parent
   allNodes?: Node[];
   allEdges?: Edge[];
+  // Phase: Drop Handler Fix
+  // Forward drop handlers to nested MiniReactFlow
+  onDropFromPalette?: (event: React.DragEvent) => void;
+  onDragOverFromPalette?: (event: React.DragEvent) => void;
 }
 
 // ============================================================================
@@ -331,6 +335,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   selected,
   allNodes: propsAllNodes,  // New: Explicitly passed from parent
   allEdges: propsAllEdges,  // New: Explicitly passed from parent
+  onDropFromPalette,        // New: Drop handler for nested MiniReactFlow
+  onDragOverFromPalette,    // New: DragOver handler for nested MiniReactFlow
 }) => {
   const [isExpanded, setIsExpanded] = useState(data.isExpanded ?? true);
   
@@ -486,6 +492,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                       nodes={stats.childNodes}
                       edges={stats.childEdges}
                       containerHeight={150} // Smaller height for preview
+                      onDrop={onDropFromPalette}
+                      onDragOver={onDragOverFromPalette}
                     />
                 </MiniFlowWrapper>
               )}
@@ -511,6 +519,8 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
                       interactive={true}
                       onNodeClick={handleNodeClick}
                       onNodesChange={handleNodesChange}
+                      onDrop={onDropFromPalette}
+                      onDragOver={onDragOverFromPalette}
                     />
                   </div>
                   
