@@ -1404,6 +1404,7 @@ const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $po
 const staticNodeTypes: NodeTypes = {
   formStep: FormStepNode,
   formReference: FormReferenceNode,
+  formMultiStepContainer: FormMultiStepContainerNode,
   trigger: TriggerNode,
   condition: ConditionIfNode,
   action: ActionNode,
