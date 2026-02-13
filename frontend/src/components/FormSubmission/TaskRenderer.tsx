@@ -28,7 +28,7 @@ import styled from 'styled-components';
 import { AlertCircle } from 'lucide-react';
 import { WorkflowContext } from './hooks/useWorkflowContext';
 import { getCardDefinition, detectCardType, InteractionCardDefinition } from './InteractionCardRegistry';
-import { FormStep } from './FormStep';
+import FormStep from './FormStep';
 
 // ============================================================================
 // TypeScript Interfaces
