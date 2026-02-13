@@ -6,6 +6,7 @@
  * 
  * Created: 2026-02-12
  */
+import { useQuery } from '@tanstack/react-query';
 import { adminClient } from './apiService';
 
 export interface EntityType {
@@ -111,4 +112,57 @@ export const getFieldTypeIcon = (fieldType: string): string => {
   };
   
   return icons[fieldType] || '📝';
+};
+
+// ============================================================================
+// React Query Hooks
+// ============================================================================
+
+/**
+ * Hook to fetch entity list with React Query caching.
+ */
+export const useEntityList = () => {
+  return useQuery({
+    queryKey: ['entities'],
+    queryFn: getEntityTypes,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+  });
+};
+
+/**
+ * Hook to fetch fields for a specific entity.
+ */
+export const useEntityFields = (
+  entityId: string | null | undefined,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ['entity-fields', entityId],
+    queryFn: () => getEntityFields(entityId!),
+    enabled: !!entityId && (options?.enabled !== false),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    select: (fields) => ({
+      entity_id: entityId!,
+      field_count: fields.length,
+      fields,
+    }),
+  });
+};
+
+/**
+ * Hook to fetch display fields for entity lookups.
+ */
+export const useEntityDisplayFields = (
+  entityId: string | null | undefined,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ['entity-display-fields', entityId],
+    queryFn: () => getEntityDisplayFields(entityId!),
+    enabled: !!entityId && (options?.enabled !== false),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
 };
