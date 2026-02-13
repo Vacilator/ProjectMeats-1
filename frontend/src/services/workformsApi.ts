@@ -231,6 +231,17 @@ export const deleteTenantForm = async (formId: string): Promise<void> => {
   await apiClient.delete(`/workflows/forms/${formId}/`);
 };
 
+/**
+ * Decrement usage count for a form (Task 2: Ghost Node Deletion)
+ * Called when a container node is removed from a workflow
+ */
+export const decrementFormUsage = async (
+  formId: string
+): Promise<{ form_id: string; usage_count: number; can_delete: boolean }> => {
+  const response = await apiClient.post(`/workflows/forms/${formId}/decrement_usage/`);
+  return response.data;
+};
+
 // ============================================================================
 // Form Merge/Split APIs (Phase 1.5)
 // ============================================================================
@@ -469,6 +480,7 @@ const workformsApi = {
   createTenantForm,
   updateTenantForm,
   deleteTenantForm,
+  decrementFormUsage, // Task 2: Ghost Node Deletion
   
   // Form operations
   mergeForms,

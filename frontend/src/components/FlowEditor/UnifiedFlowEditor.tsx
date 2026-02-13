@@ -77,6 +77,7 @@ import {
   FolderOpen,
   Trash2, // Phase 8.3
   HelpCircle, // Workform Editor Enhancements
+  Play, // Task 1: Workflow Execution
 } from 'lucide-react';
 
 import {
@@ -95,6 +96,7 @@ import { CustomEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
+import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { NodeConfigPanelWithShadow } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
@@ -109,6 +111,7 @@ import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
 import { FormMultiStepContainerModal, type ContainerData } from './Modals/FormMultiStepContainerModal';
 import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
+import { WorkflowExecutionModal } from '../FormSubmission/WorkflowExecutionModal'; // Task 1: Integration
 import { PreviewPanel } from './panels/PreviewPanel';
 
 // ============================================================================
@@ -1851,6 +1854,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowListItem | null>(null); // Phase 8.3
   const [isDeleting, setIsDeleting] = useState(false); // Phase 8.3
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false); // Phase 8.6
+  const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false); // Task 1: Workflow Execution
   
   // ============================================================================
   // Wizard Mode State (Phase 2.2 Batch 3)
@@ -2370,6 +2374,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     },
     [nodes, edges, setEdges, isValidConnectionType]
   );
+
+  // ============================================================================
+  // Task 2: Ghost Node Deletion Handler
+  // ============================================================================
+  
+  const onNodesDelete = useCallback(async (deletedNodes: Node[]) => {
+    for (const node of deletedNodes) {
+      // Check if this is a container node with a tenantFormId
+      if (node.type === 'formMultiStepContainer' && node.data.tenantFormId) {
+        try {
+          const result = await workformsApi.decrementFormUsage(node.data.tenantFormId);
+          console.log(`[Ghost Cleanup] ✅ Decremented usage for container: ${result.usage_count} remaining`);
+          
+          if (result.can_delete) {
+            console.log('[Ghost Cleanup] 🗑️ Form is now orphaned (usage_count=0). Will be cleaned up by background task.');
+          }
+        } catch (error) {
+          console.error('[Ghost Cleanup] ❌ Failed to decrement usage:', error);
+        }
+      }
+    }
+  }, []);
 
   // ============================================================================
   // Drag & Drop Handlers
@@ -4690,6 +4716,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             <Save size={14} style={{ marginRight: '4px' }} />
             {isSaving ? 'Saving...' : 'Save'}
           </ToolbarButton>
+          
+          {/* Task 1: Workflow Execution Integration */}
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          <ToolbarButton 
+            onClick={() => setIsExecutionModalOpen(true)}
+            title="Test Workflow Execution"
+            style={{ 
+              fontWeight: 600, 
+              color: 'rgb(34, 197, 94)', // Success green
+              borderColor: 'rgb(34, 197, 94, 0.3)'
+            }}
+            disabled={nodes.length === 0}
+          >
+            <Play size={14} style={{ marginRight: '4px' }} />
+            Test Workflow
+          </ToolbarButton>
         </Toolbar>
       )}
 
@@ -4752,6 +4794,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodesDelete={onNodesDelete}
         isValidConnection={isValidConnection}
         onDrop={onDrop}
         onDragOver={onDragOver}
@@ -5504,6 +5547,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </KeyboardShortcutsModal>
       )}
       
+      {/* Task 1: Workflow Execution Integration */}
+      {isExecutionModalOpen && currentWorkflowId && (
+        <WorkflowExecutionModal
+          isOpen={isExecutionModalOpen}
+          onClose={() => setIsExecutionModalOpen(false)}
+          workflow={{
+            id: currentWorkflowId,
+            name: currentWorkflowName || 'Untitled Workflow',
+            nodes,
+            edges,
+          }}
+        />
+      )}
+
       {/* Help Modal (Workform Batch 2) */}
       {isHelpModalOpen && (
         <HelpModal onClose={() => setIsHelpModalOpen(false)} />
