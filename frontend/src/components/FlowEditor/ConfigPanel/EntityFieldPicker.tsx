@@ -15,7 +15,8 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import workformsApi, { Entity, EntityField, EntitySchema } from '../../../services/workformsApi';
+import { useEntityList, useEntityFields, EntityType, EntityField } from '../../../services/schemaService';
+import workformsApi from '../../../services/workformsApi';
 
 // ============================================================================
 // Types
@@ -281,61 +282,27 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   initialEntityType,
   onEntityTypeChange,
 }) => {
-  const [entities, setEntities] = useState<Entity[]>([]);
   const [selectedEntityType, setSelectedEntityType] = useState<string>(initialEntityType || '');
-  const [entitySchema, setEntitySchema] = useState<EntitySchema | null>(null);
-  const [availableFields, setAvailableFields] = useState<EntityField[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
 
-  // Load entities on mount
+  // Use React Query hooks from schemaService
+  const { data: entities = [], isLoading: entitiesLoading, error: entitiesError } = useEntityList();
+  const { data: fieldsData, isLoading: fieldsLoading, error: fieldsError } = useEntityFields(
+    selectedEntityType,
+    { enabled: !!selectedEntityType }
+  );
+  
+  const availableFields = fieldsData?.fields || [];
+  const loading = entitiesLoading || fieldsLoading;
+  const error = entitiesError || fieldsError;
+
+  // Auto-select first entity if no initial type
   useEffect(() => {
-    loadEntities();
-  }, []);
-
-  // Load entity schema when entity type changes
-  useEffect(() => {
-    if (selectedEntityType) {
-      loadEntitySchema(selectedEntityType);
+    if (!initialEntityType && entities.length > 0 && !selectedEntityType) {
+      setSelectedEntityType(entities[0].id);
     }
-  }, [selectedEntityType]);
-
-  const loadEntities = async () => {
-    try {
-      const entitiesList = await workformsApi.getEntityRegistry();
-      setEntities(entitiesList);
-      
-      // Auto-select first entity if no initial type
-      if (!initialEntityType && entitiesList.length > 0) {
-        setSelectedEntityType(entitiesList[0].type);
-      }
-    } catch (err: any) {
-      console.error('[EntityFieldPicker] Failed to load entities:', err);
-      setError('Failed to load entities');
-    }
-  };
-
-  const loadEntitySchema = async (entityType: string) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const schema = await workformsApi.getEntitySchema(entityType);
-      setEntitySchema(schema);
-      setAvailableFields(schema.fields);
-      
-      if (onEntityTypeChange) {
-        onEntityTypeChange(entityType);
-      }
-    } catch (err: any) {
-      console.error('[EntityFieldPicker] Failed to load schema:', err);
-      setError('Failed to load field schema');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [entities, initialEntityType, selectedEntityType]);
 
   const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const entityType = e.target.value;
@@ -343,6 +310,10 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     setSearchTerm('');
     // Clear selected fields when changing entity type
     onFieldsChange([]);
+    
+    if (onEntityTypeChange) {
+      onEntityTypeChange(entityType);
+    }
   };
 
   const handleAddField = (field: EntityField) => {
@@ -415,8 +386,8 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
           >
             <option value="">-- Select entity --</option>
             {entities.map(entity => (
-              <option key={entity.type} value={entity.type}>
-                {entity.label} ({entity.category})
+              <option key={entity.id} value={entity.id}>
+                {entity.label_plural}
               </option>
             ))}
           </Select>
@@ -437,7 +408,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
           {loading ? (
             <LoadingText>Loading fields...</LoadingText>
           ) : error ? (
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{error instanceof Error ? error.message : 'Failed to load fields'}</ErrorText>
           ) : (
             <FieldsList>
               {filteredAvailableFields.length === 0 ? (
