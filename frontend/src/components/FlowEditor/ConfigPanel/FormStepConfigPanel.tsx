@@ -519,7 +519,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   onChange,
   onClose,
   onEditField,
-  onAddrebField,
+  onAddField,
   availableFields = [],
 }) => {
   // Ensure fields array is always initialized
