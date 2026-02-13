@@ -20,6 +20,8 @@ import {
   Link, Unlink, ArrowRight, AlertCircle, CheckCircle, 
   ChevronDown, ChevronUp, Zap
 } from 'lucide-react';
+import { FieldWithContext } from './FieldWithContext'; // Task 3: Context Integration
+import { WorkflowContext } from '../../FormSubmission/hooks/useWorkflowContext'; // Task 3
 
 // ============================================================================
 // TypeScript Interfaces
@@ -51,6 +53,7 @@ export interface FieldMappingPanelProps {
   targetEntity: string;
   onChange: (mappings: FieldMapping[]) => void;
   availableSteps?: Array<{ id: string; name: string; fields: Array<{ id: string; label: string; type: string }> }>;
+  workflowContext?: WorkflowContext; // Task 3: Enable context inheritance
 }
 
 // ============================================================================
@@ -454,6 +457,7 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
   targetEntity,
   onChange,
   availableSteps = [],
+  workflowContext, // Task 3: Context inheritance
 }) => {
   const [localMappings, setLocalMappings] = useState<FieldMapping[]>(mappings);
   const [selectedFormField, setSelectedFormField] = useState<string | null>(null);
@@ -702,36 +706,44 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
                   {mapping.transformation.type === 'format' && (
                     <ConfigGroup>
                       <Label>Format String</Label>
-                      <Input
+                      <FieldWithContext
+                        label=""
                         type="text"
                         value={mapping.transformation.format || ''}
-                        onChange={(e) => handleUpdateMapping(mapping.id, {
+                        onChange={(value) => handleUpdateMapping(mapping.id, {
                           transformation: {
                             ...mapping.transformation,
-                            format: e.target.value,
+                            format: value,
                           }
                         })}
-                        placeholder="e.g., YYYY-MM-DD"
+                        context={workflowContext}
+                        placeholder="e.g., YYYY-MM-DD or {{step1.dateFormat}}"
+                        showPreview
                       />
-                      <HelpText>Format pattern for conversion</HelpText>
+                      <HelpText>Format pattern for conversion (can use context variables)</HelpText>
                     </ConfigGroup>
                   )}
 
                   {mapping.transformation.type === 'calculated' && (
                     <ConfigGroup style={{ gridColumn: '1 / -1' }}>
                       <Label>Formula</Label>
-                      <Input
+                      <FieldWithContext
+                        label=""
                         type="text"
                         value={mapping.transformation.formula || ''}
-                        onChange={(e) => handleUpdateMapping(mapping.id, {
+                        onChange={(value) => handleUpdateMapping(mapping.id, {
                           transformation: {
                             ...mapping.transformation,
-                            formula: e.target.value,
+                            formula: value,
                           }
                         })}
-                        placeholder="e.g., field1 * field2"
+                        context={workflowContext}
+                        placeholder="e.g., {{step1.quantity}} * {{step1.price}}"
+                        showPreview
                       />
-                      <HelpText>JavaScript expression to calculate value</HelpText>
+                      <HelpText>
+                        Use {{nodeId.fieldKey}} to reference data from previous steps
+                      </HelpText>
                     </ConfigGroup>
                   )}
 
