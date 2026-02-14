@@ -31,6 +31,7 @@ import {
   Search, 
   ChevronDown, 
   ChevronRight, 
+  ChevronUp,
   Copy, 
   CheckCircle,
   Type,
@@ -58,6 +59,12 @@ export interface ContextBubbleProps {
   
   /** Show compact view */
   compact?: boolean;
+  
+  /** Show inherited data panel (Phase 4 enhancement) */
+  showInheritedData?: boolean;
+  
+  /** Current step ID for showing inheritance chain */
+  currentStepId?: string;
 }
 
 // ============================================================================
@@ -290,6 +297,84 @@ const EmptyIcon = styled.div`
   }
 `;
 
+// Phase 4 Enhancement: Inherited Data Panel
+const InheritanceToggle = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px 8px;
+  background: rgb(var(--color-primary) / 0.1);
+  border: 1px solid rgb(var(--color-primary));
+  border-radius: var(--radius-sm);
+  color: rgb(var(--color-primary));
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: rgb(var(--color-primary) / 0.15);
+  }
+  
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+`;
+
+const InheritancePanel = styled.div`
+  max-height: 300px;
+  overflow-y: auto;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+`;
+
+const InheritancePanelHeader = styled.div`
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  border-bottom: 1px solid rgb(var(--color-border));
+`;
+
+const InheritanceStep = styled.div`
+  border-bottom: 1px solid rgb(var(--color-border));
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const InheritanceStepHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgb(var(--color-surface));
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  
+  small {
+    opacity: 0.6;
+    font-weight: normal;
+  }
+`;
+
+const InheritanceStepData = styled.div`
+  padding: 8px 16px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary));
+  background: rgb(var(--color-surface));
+  
+  pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+`;
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -330,10 +415,13 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
   onInsert,
   position = 'right',
   compact = false,
+  showInheritedData = false,
+  currentStepId,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [copiedTemplate, setCopiedTemplate] = useState<string | null>(null);
+  const [showInheritancePanel, setShowInheritancePanel] = useState(false);
 
   // Filter available data by search query
   const filteredData = useMemo(() => {
@@ -350,6 +438,25 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
       }))
       .filter(node => node.fields.length > 0);
   }, [context.availableData, searchQuery]);
+  
+  // Get inheritance chain for current step
+  const inheritanceChain = useMemo(() => {
+    if (!currentStepId || !showInheritedData) return [];
+    
+    const currentIndex = context.nodes.findIndex(n => n.id === currentStepId);
+    if (currentIndex <= 0) return [];
+    
+    // Get all previous nodes that have data
+    return context.nodes
+      .slice(0, currentIndex)
+      .filter(node => context.data[node.id])
+      .map(node => ({
+        id: node.id,
+        label: node.data?.label || node.id,
+        type: node.type || 'unknown',
+        data: context.data[node.id],
+      }));
+  }, [context, currentStepId, showInheritedData]);
 
   // Toggle node expansion
   const toggleNode = (nodeId: string) => {
@@ -383,7 +490,36 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
       <BubbleHeader>
         <Database />
         <span>Available Data</span>
+        {showInheritedData && inheritanceChain.length > 0 && (
+          <InheritanceToggle
+            onClick={() => setShowInheritancePanel(!showInheritancePanel)}
+            title="Toggle inherited data panel"
+          >
+            {showInheritancePanel ? <ChevronUp /> : <ChevronDown />}
+            <small>{inheritanceChain.length} inherited</small>
+          </InheritanceToggle>
+        )}
       </BubbleHeader>
+      
+      {/* Inherited Data Panel (Phase 4 enhancement) */}
+      {showInheritedData && showInheritancePanel && inheritanceChain.length > 0 && (
+        <InheritancePanel>
+          <InheritancePanelHeader>
+            Inherited from Previous Steps
+          </InheritancePanelHeader>
+          {inheritanceChain.map((step, index) => (
+            <InheritanceStep key={step.id}>
+              <InheritanceStepHeader>
+                <span>Step {index + 1}: {step.label}</span>
+                <small>({step.type})</small>
+              </InheritanceStepHeader>
+              <InheritanceStepData>
+                <pre>{JSON.stringify(step.data, null, 2)}</pre>
+              </InheritanceStepData>
+            </InheritanceStep>
+          ))}
+        </InheritancePanel>
+      )}
       
       <SearchBox>
         <SearchInput

@@ -24,6 +24,7 @@ import Editor from '@monaco-editor/react';
 import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
+import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import {
   ReactFlow,
   MiniMap,
@@ -80,9 +81,9 @@ import {
 } from 'lucide-react';
 
 import {
-  FormStepNode,
+  FormStepSingleNode,
   FormReferenceNode,
-  FormMultiStepContainerNode,
+  FormProcessNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -107,7 +108,7 @@ import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
-import { FormMultiStepContainerModal, type ContainerData } from './Modals/FormMultiStepContainerModal';
+import { FormProcessModal, type ContainerData } from './Modals/FormProcessModal';
 import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
 import { PreviewPanel } from './panels/PreviewPanel';
 
@@ -1402,9 +1403,14 @@ const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $po
 
 // Static node types (not containers that need node access)
 const staticNodeTypes: NodeTypes = {
-  formStep: FormStepNode,
+  // New names (Phase 2)
+  formStepSingle: FormStepSingleNode,
+  formProcess: FormProcessNode,
+  // Backward compatibility aliases
+  formStep: FormStepSingleNode,
+  formMultiStepContainer: FormProcessNode,
+  // Other nodes
   formReference: FormReferenceNode,
-  formMultiStepContainer: FormMultiStepContainerNode,
   trigger: TriggerNode,
   condition: ConditionIfNode,
   action: ActionNode,
@@ -3664,6 +3670,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // /: Focus search (if palette visible)
       if (event.key === '/' && !event.ctrlKey && !event.metaKey) {
+        if (isTypingInInput(event)) return; // Phase 4: Prevent when typing in input
         event.preventDefault();
         if (isPaletteVisible && searchInputRef.current) {
           searchInputRef.current.focus();
@@ -3672,8 +3679,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       // Delete/Backspace: Delete selected nodes
-      if ((event.key === 'Delete' || event.key === 'Backspace') && 
-          event.target === document.body) {
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (isTypingInInput(event)) return; // Phase 4: Prevent when typing in input
         event.preventDefault();
         const selectedNodes = nodes.filter(n => n.selected);
         if (selectedNodes.length > 0) {
@@ -4030,11 +4037,44 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes]);
   
   // Batch 3: Handler to delete node from Delete button
-  const handleNodeDelete = useCallback((nodeId: string) => {
+  const handleNodeDelete = useCallback(async (nodeId: string) => {
     console.log('[UnifiedFlowEditor] Deleting node:', nodeId);
     
-    // Remove node and its connected edges
-    setNodes(nds => nds.filter(n => n.id !== nodeId));
+    const nodeToDelete = nodes.find(n => n.id === nodeId);
+    
+    // Phase 2: Decrement usage_count when formProcess node is deleted
+    if (nodeToDelete?.type === 'formProcess' || nodeToDelete?.type === 'formMultiStepContainer') {
+      const tenantFormId = nodeToDelete.data?.tenantFormId;
+      
+      if (tenantFormId) {
+        try {
+          await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
+          console.log('[UnifiedFlowEditor] Decremented usage count for form:', tenantFormId);
+        } catch (error) {
+          console.error('[UnifiedFlowEditor] Failed to decrement usage count:', error);
+          // Continue with deletion even if API call fails
+        }
+      }
+      
+      // If deleting a container, also remove its children
+      const childNodeIds = new Set(
+        nodes.filter(n => n.parentId === nodeId).map(n => n.id)
+      );
+      
+      if (childNodeIds.size > 0) {
+        console.log('[UnifiedFlowEditor] Also removing', childNodeIds.size, 'child nodes');
+        setNodes(nds => nds.filter(n => 
+          n.id !== nodeId && !childNodeIds.has(n.id)
+        ));
+      } else {
+        setNodes(nds => nds.filter(n => n.id !== nodeId));
+      }
+    } else {
+      // Remove node normally
+      setNodes(nds => nds.filter(n => n.id !== nodeId));
+    }
+    
+    // Remove connected edges
     setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
     
     // Clear selections if deleted node was selected
@@ -4044,7 +4084,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     setHasUnsavedChanges(true);
     toast.success('Node deleted');
-  }, [selectedNode, setNodes, setEdges]);
+  }, [nodes, selectedNode, setNodes, setEdges]);
   
   // Batch 4: Handler to update node title
   const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
@@ -4440,6 +4480,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             placeholder="Search nodes... (press / to focus)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
           />
           
           {/* Favorites Section */}
@@ -5175,7 +5216,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       </SidePanel>
       
       {/* FormMultiStepContainer Configuration Modal (Phase 4.3) */}
-      <FormMultiStepContainerModal
+      <FormProcessModal
         isOpen={containerModalOpen && !!selectedContainer}
         onClose={() => {
           setContainerModalOpen(false);

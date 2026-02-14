@@ -9,8 +9,8 @@
 export { EntityFormStepModal } from './EntityFormStepModal';
 export type { EntityFormStepModalProps, FormStepData } from './EntityFormStepModal';
 
-export { FormMultiStepContainerModal } from './FormMultiStepContainerModal';
-export type { ContainerModalProps, ContainerData } from './FormMultiStepContainerModal';
+export { FormProcessModal } from './FormProcessModal';
+export type { ContainerModalProps, ContainerData } from './FormProcessModal';
 
 export { SharedTemplateDeleteModal } from './SharedTemplateDeleteModal';
 export type { SharedTemplateDeleteModalProps, ContainerTemplate } from './SharedTemplateDeleteModal';

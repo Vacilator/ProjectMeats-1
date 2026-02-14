@@ -12,14 +12,14 @@
 export { BaseNode } from './BaseNode';
 export type { BaseNodeData, BaseNodeProps } from './BaseNode';
 
-export { FormStepNode } from './FormStepNode';
-export type { FormStepNodeData, FormField } from './FormStepNode';
+export { FormStepSingleNode } from './FormStepSingleNode';
+export type { FormStepNodeData, FormField } from './FormStepSingleNode';
 
 export { FormReferenceNode } from './FormReferenceNode';
 export type { FormReferenceNodeData } from './FormReferenceNode';
 
-export { FormMultiStepContainerNode } from './FormMultiStepContainerNode';
-export type { ContainerNodeData } from './FormMultiStepContainerNode';
+export { FormProcessNode } from './FormProcessNode';
+export type { ContainerNodeData } from './FormProcessNode';
 
 export { TriggerNode } from './TriggerNode';
 export type { TriggerNodeData } from './TriggerNode';

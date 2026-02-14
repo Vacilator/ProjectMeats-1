@@ -1,11 +1,12 @@
 /**
- * FormMultiStepContainerModal Component
+ * FormProcessModal Component (formerly FormMultiStepContainerModal)
  * 
- * Configuration modal for Form Multi-Step Container nodes.
+ * Configuration modal for Form Process nodes.
  * Allows users to configure container properties, navigation settings, and link to workflows.
  * 
  * Phase 4.3 of WF-ENH-2026-Q1
  * Created: 2026-02-06
+ * Renamed: 2026-02-14 - Phase 2: FormMultiStepContainer → FormProcess
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -414,7 +415,7 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
 // Component
 // ============================================================================
 
-export const FormMultiStepContainerModal: React.FC<ContainerModalProps> = ({
+export const FormProcessModal: React.FC<ContainerModalProps> = ({
   isOpen,
   onClose,
   onSave,
@@ -482,7 +483,7 @@ export const FormMultiStepContainerModal: React.FC<ContainerModalProps> = ({
     formId?: string;
     form?: any;
   }) => {
-    console.log('[FormMultiStepContainerModal] Selection changed:', selection);
+    console.log('[FormProcessModal] Selection changed:', selection);
     setState(prev => ({
       ...prev,
       mode: selection.mode,
@@ -493,7 +494,7 @@ export const FormMultiStepContainerModal: React.FC<ContainerModalProps> = ({
   }, []);
 
   const handleProceedFromStep1 = useCallback(() => {
-    console.log('[FormMultiStepContainerModal] Proceeding from step 1:', {
+    console.log('[FormProcessModal] Proceeding from step 1:', {
       mode: state.mode,
       containerName: state.containerName,
       selectedWorkflowId: state.selectedWorkflowId
@@ -503,7 +504,7 @@ export const FormMultiStepContainerModal: React.FC<ContainerModalProps> = ({
     } else if (state.mode === 'existing' && state.selectedWorkflowId) {
       setState(prev => ({ ...prev, currentStep: 2 }));
     } else {
-      console.error('[FormMultiStepContainerModal] Cannot proceed - invalid state');
+      console.error('[FormProcessModal] Cannot proceed - invalid state');
     }
   }, [state.mode, state.containerName, state.selectedWorkflowId]);
 
@@ -742,4 +743,4 @@ export const FormMultiStepContainerModal: React.FC<ContainerModalProps> = ({
   );
 };
 
-export default FormMultiStepContainerModal;
+export default FormProcessModal;

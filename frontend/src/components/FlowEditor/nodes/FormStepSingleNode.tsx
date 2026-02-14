@@ -1,11 +1,12 @@
 /**
- * Form Step Node Component
+ * Form Step Single Node Component (formerly Form Step Node)
  * 
  * Container for multiple form fields in a multi-step form.
  * Displays field summary and validation status.
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
+ * Renamed: 2026-02-14 - Phase 2: FormStep → FormStepSingle
  */
 import React from 'react';
 import styled from 'styled-components';
@@ -196,14 +197,14 @@ const FIELD_TYPE_ICONS: Record<FormFieldType, string> = {
 // Component
 // ============================================================================
 
-export const FormStepNode: React.FC<NodeProps<FormStepNodeData>> = (props) => {
+export const FormStepSingleNode: React.FC<NodeProps<FormStepNodeData>> = (props) => {
   const { data, selected, id } = props;
-  const nodeTypeDef = getNodeTypeDefinition('formStep');
+  const nodeTypeDef = getNodeTypeDefinition('formStepSingle');
   
   // Safety check: provide fallback if nodeType is undefined
   const nodeType = nodeTypeDef || {
-    id: 'formStep',
-    name: 'Form Step',
+    id: 'formStepSingle',
+    name: 'Form Step Single',
     category: 'form' as const,
     color: 'rgb(168, 85, 247)',
     icon: 'ListChecks',
@@ -269,4 +270,4 @@ export const FormStepNode: React.FC<NodeProps<FormStepNodeData>> = (props) => {
   );
 };
 
-export default FormStepNode;
+export default FormStepSingleNode;
