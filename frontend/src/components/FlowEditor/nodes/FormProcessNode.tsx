@@ -1,5 +1,5 @@
 /**
- * Form Multi-Step Container Node Component
+ * Form Process Node Component (formerly Form Multi-Step Container)
  * 
  * REFACTORED: Single ReactFlow Architecture (Option A)
  * - No nested MiniReactFlow (removed)
@@ -11,6 +11,7 @@
  * 
  * Created: 2026-02-06
  * Refactored: 2026-02-12 - Single ReactFlow architecture
+ * Renamed: 2026-02-14 - Phase 2: FormMultiStepContainer → FormProcess
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
@@ -46,7 +47,7 @@ export interface ContainerNodeData extends BaseNodeData {
   isDropTarget?: boolean;
 }
 
-export interface FormMultiStepContainerNodeProps extends NodeProps<ContainerNodeData> {
+export interface FormProcessNodeProps extends NodeProps<ContainerNodeData> {
   // REFACTORED: No longer need drop handlers (handled by main ReactFlow)
   // No longer need allNodes/allEdges props (use hooks directly)
 }
@@ -366,7 +367,7 @@ const EnterButton = styled.button`
 // ============================================================================
 
 /**
- * Form Multi-Step Container Node Component
+ * Form Process Node Component
  * 
  * REFACTORED: Single ReactFlow Architecture (Option A)
  * - Acts as a React Flow 'group' node (no nested ReactFlow)
@@ -374,7 +375,7 @@ const EnterButton = styled.button`
  * - Expand/collapse toggles child visibility via hidden property
  * - Uses React Flow's official grouping pattern
  */
-export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProps> = ({
+export const FormProcessNode: React.FC<FormProcessNodeProps> = ({
   id,
   data,
   selected,
@@ -386,7 +387,7 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   const allEdges = useEdges();
   const { setNodes } = useReactFlow();
   
-  const nodeDef = getNodeTypeDefinition('formMultiStepContainer');
+  const nodeDef = getNodeTypeDefinition('formProcess');
   
   // Calculate statistics from child nodes
   const stats = useMemo(() => {
@@ -594,4 +595,4 @@ export const FormMultiStepContainerNode: React.FC<FormMultiStepContainerNodeProp
   );
 };
 
-export default FormMultiStepContainerNode;
+export default FormProcessNode;

@@ -33,6 +33,10 @@ import RatingField from './RatingField';
 import SliderField from './SliderField';
 import SignatureField from './SignatureField';
 import RichTextField from './RichTextField';
+// Phase 1: TaskRenderer Integration
+import { TaskRenderer } from './TaskRenderer';
+import { useWorkflowContext } from './hooks/useWorkflowContext';
+import { createLinearGraph, getNodeByStepId } from './utils/legacyShim';
 
 // ============== Types ==============
 interface FormSubmissionModalProps {
@@ -867,6 +871,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
   const hasUnsavedChanges = useRef(false);
   const stepContentRef = useRef<HTMLDivElement>(null);
+  
+  // Phase 1: Feature flag for TaskRenderer (set to false to maintain backward compatibility)
+  const [useTaskRenderer] = useState(false);
 
   // Load form-level configuration from ConfigResolver (Wave 4 - Task 4.11)
   useEffect(() => {
@@ -938,6 +945,26 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
   }, [submission?.form_snapshot]);
 
   const currentStep = steps[currentStepIndex];
+
+  // Phase 1: Initialize workflow context from legacy steps (AFTER steps are defined)
+  const { nodes: workflowNodes } = useMemo(() => {
+    return createLinearGraph(steps);
+  }, [steps]);
+
+  const currentNode = useMemo(() => {
+    return getNodeByStepId(workflowNodes, currentStep?.id || '');
+  }, [workflowNodes, currentStep?.id]);
+
+  const workflowContext = useWorkflowContext(workflowNodes, currentNode?.id || null);
+
+  // Sync formData with workflow context on step change
+  useEffect(() => {
+    if (currentStep && formData[currentStep.id]) {
+      workflowContext.setNodeData(currentStep.id, formData[currentStep.id]);
+    }
+  }, [currentStep?.id, formData, workflowContext]);
+
+  // Phase 1: Initialize workflow context from legacy steps (AFTER steps are defined)
 
   // Initialize form data with proper structure for all steps
   useEffect(() => {
@@ -1152,6 +1179,9 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     }));
     
     hasUnsavedChanges.current = true;
+
+    // Phase 1: Sync with workflow context
+    workflowContext.setNodeData(stepId, { [key]: value });
     
     // Real-time validation for fields that have been touched (blurred before)
     const fieldKey = `${stepId}.${key}`;
@@ -1190,7 +1220,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         autoSaveField(stepId, key, value);
       }, formConfig.autoSaveDelay);
     }
-  }, [autoSaveField, touchedFields, steps, formConfig.autoSaveEnabled, formConfig.autoSaveDelay]);
+  }, [autoSaveField, touchedFields, steps, formConfig.autoSaveEnabled, formConfig.autoSaveDelay, workflowContext]);
 
   // Save on blur with validation - mark field as touched
   const handleBlur = useCallback((stepId: string, key: string) => {
@@ -1998,8 +2028,23 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                 </EntityBadge>
               </StepHeader>
               
-              <FieldsGrid>
-                {currentStep.fields
+              {/* Phase 1: Conditional rendering - TaskRenderer or Legacy FieldsGrid */}
+              {useTaskRenderer && currentNode ? (
+                <TaskRenderer
+                  node={currentNode}
+                  context={workflowContext}
+                  onComplete={(data) => {
+                    // Handle step completion
+                    console.log('[TaskRenderer] Step completed with data:', data);
+                    if (currentStepIndex < steps.length - 1) {
+                      goToNextStep();
+                    }
+                  }}
+                  readOnly={false}
+                />
+              ) : (
+                <FieldsGrid>
+                  {currentStep.fields
                   .filter(field => !hiddenFields.has(field.key))
                   .map(field => {
                     const isCheckbox = field.type === 'checkbox' || field.type === 'boolean';
@@ -2081,6 +2126,8 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                     );
                   })}
               </FieldsGrid>
+              )}
+              {/* End Phase 1 conditional rendering */}
             </>
           ) : null}
         </StepContent>
