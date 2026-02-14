@@ -4,12 +4,16 @@
  * Displays action items assigned to the current user across all forms and workflows.
  * Connects to the action-items API endpoint.
  * Supports task delegation via DelegateTaskModal.
+ * 
+ * Phase 5 Enhancement: Added "In Progress Workflows" section
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
 import { DelegateTaskModal, DelegationData, User } from '../../components/Delegation';
 import { DelegationHistory } from '../../components/Delegation';
+import { workflowExecutionService } from '../../services/workflowExecutionService';
+import { WorkflowExecution } from '../../types/workflows';
 
 // Styled Components
 const Container = styled.div`
@@ -297,6 +301,120 @@ const HistoryContainer = styled.div<{ $isOpen: boolean }>`
   margin-bottom: ${props => props.$isOpen ? '24px' : '0'};
 `;
 
+const WorkflowsSection = styled.div`
+  margin-bottom: 32px;
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+`;
+
+const SectionTitle = styled.h2`
+  font-size: 20px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary, 44 62 80));
+  margin: 0;
+`;
+
+const WorkflowGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+`;
+
+const WorkflowCard = styled.div`
+  background: rgb(var(--color-surface, 255 255 255));
+  border: 1px solid rgb(var(--color-border, 224 224 224));
+  border-radius: 8px;
+  padding: 20px;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    border-color: rgb(var(--color-primary, 102 126 234));
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const WorkflowHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+`;
+
+const WorkflowTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary, 44 62 80));
+  margin: 0 0 4px 0;
+  flex: 1;
+`;
+
+const WorkflowMeta = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary, 127 140 141));
+  margin-bottom: 12px;
+`;
+
+const ProgressBar = styled.div`
+  height: 6px;
+  background: rgb(var(--color-border, 224 224 224));
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+`;
+
+const ProgressFill = styled.div<{ $percent: number }>`
+  height: 100%;
+  width: ${({ $percent }) => $percent}%;
+  background: rgb(var(--color-primary, 102 126 234));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+`;
+
+const ProgressText = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary, 127 140 141));
+  margin-bottom: 12px;
+`;
+
+const WorkflowActions = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const ResumeButton = styled.button`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: rgb(var(--color-primary, 102 126 234));
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 20px;
@@ -380,6 +498,12 @@ const formatDueDate = (dateStr: string | null): string => {
 export const MyTasks: React.FC = () => {
   const { actionItems, actionItemCounts, loading, error, fetchActionItems } = useNotifications();
   
+  // Workflow executions state
+  const [workflowExecutions, setWorkflowExecutions] = useState<WorkflowExecution[]>([]);
+  const [workflowsLoading, setWorkflowsLoading] = useState(true);
+  const [workflowsError, setWorkflowsError] = useState('');
+  const [resumingId, setResumingId] = useState<string | null>(null);
+  
   // Local filter state
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -411,6 +535,60 @@ export const MyTasks: React.FC = () => {
       status: 'active' as const,
     },
   ]);
+
+  // Fetch workflow executions
+  const fetchWorkflowExecutions = useCallback(async () => {
+    setWorkflowsLoading(true);
+    setWorkflowsError('');
+    try {
+      const response = await workflowExecutionService.getExecutions({
+        status: 'in_progress',
+        assigned_to: 'me',
+      });
+      setWorkflowExecutions(response.results);
+    } catch (err) {
+      console.error('Failed to fetch workflow executions:', err);
+      setWorkflowsError('Failed to load workflows. Please try again.');
+    } finally {
+      setWorkflowsLoading(false);
+    }
+  }, []);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchWorkflowExecutions();
+  }, [fetchWorkflowExecutions]);
+
+  // Handle resume workflow
+  const handleResumeWorkflow = async (execution: WorkflowExecution) => {
+    setResumingId(execution.id);
+    try {
+      await workflowExecutionService.resumeExecution(execution.id);
+      // Navigate to the workflow
+      window.location.href = `/workflows/submissions/${execution.id}`;
+    } catch (err) {
+      console.error('Failed to resume workflow:', err);
+      alert('Failed to resume workflow. Please try again.');
+    } finally {
+      setResumingId(null);
+    }
+  };
+
+  // Format time ago helper
+  const formatTimeAgo = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
 
   // Filter and sort action items
   const filteredItems = useMemo(() => {
@@ -533,6 +711,59 @@ export const MyTasks: React.FC = () => {
       </Header>
 
       {error && <ErrorMessage>{error}</ErrorMessage>}
+
+      {/* In Progress Workflows Section */}
+      <WorkflowsSection>
+        <SectionHeader>
+          <SectionTitle>In Progress Workflows</SectionTitle>
+          <ActionButton onClick={fetchWorkflowExecutions} disabled={workflowsLoading}>
+            Refresh
+          </ActionButton>
+        </SectionHeader>
+
+        {workflowsError && <ErrorMessage>{workflowsError}</ErrorMessage>}
+
+        {workflowsLoading ? (
+          <LoadingSpinner />
+        ) : workflowExecutions.length === 0 ? (
+          <EmptyState>
+            <EmptyIcon>🔄</EmptyIcon>
+            <EmptyTitle>No workflows in progress</EmptyTitle>
+            <EmptyText>Active workflows will appear here when you start them.</EmptyText>
+          </EmptyState>
+        ) : (
+          <WorkflowGrid>
+            {workflowExecutions.map((execution) => (
+              <WorkflowCard key={execution.id}>
+                <WorkflowHeader>
+                  <WorkflowTitle>{execution.workflow_name}</WorkflowTitle>
+                </WorkflowHeader>
+                
+                <WorkflowMeta>
+                  📍 {execution.current_step_name} • Started {formatTimeAgo(execution.created_at)}
+                </WorkflowMeta>
+                
+                <ProgressBar>
+                  <ProgressFill $percent={execution.progress_percent} />
+                </ProgressBar>
+                <ProgressText>
+                  <span>Step {execution.completed_nodes} of {execution.total_nodes}</span>
+                  <span>{execution.progress_percent}% complete</span>
+                </ProgressText>
+                
+                <WorkflowActions>
+                  <ResumeButton
+                    onClick={() => handleResumeWorkflow(execution)}
+                    disabled={resumingId === execution.id}
+                  >
+                    {resumingId === execution.id ? 'Resuming...' : '▶ Resume'}
+                  </ResumeButton>
+                </WorkflowActions>
+              </WorkflowCard>
+            ))}
+          </WorkflowGrid>
+        )}
+      </WorkflowsSection>
 
       {/* Stats Cards */}
       {actionItemCounts && (

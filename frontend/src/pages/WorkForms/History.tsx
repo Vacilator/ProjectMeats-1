@@ -5,9 +5,11 @@
  * Implements Phase 1 of the Forms & Flows Enhancement Plan.
  * 
  * Created: 2026-02-03
+ * Updated: Phase 5 - Added Workflow Executions tab
  * 
  * Features:
  * - List of completed/cancelled submissions
+ * - Workflow executions tab with audit trail
  * - Date range filtering
  * - Search by form name
  * - View submission details (read-only)
@@ -17,9 +19,12 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { 
   CheckCircle, XCircle, Calendar, Search, Download, 
-  Eye, Filter, RefreshCw, FileText, ChevronRight 
+  Eye, Filter, RefreshCw, FileText, ChevronRight, ChevronDown,
+  Clock, AlertCircle
 } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
+import { workflowExecutionService } from '../../services/workflowExecutionService';
+import { WorkflowExecution, WorkflowAuditEntry } from '../../types/workflows';
 
 // ============================================================================
 // Types
@@ -41,6 +46,34 @@ interface FormSubmission {
 // ============================================================================
 
 const Container = styled.div``;
+
+const TabsContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid rgb(var(--color-border));
+`;
+
+const Tab = styled.button<{ $active: boolean }>`
+  padding: 12px 20px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${({ $active }) => 
+    $active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'
+  };
+  border-bottom: 2px solid ${({ $active }) => 
+    $active ? 'rgb(var(--color-primary))' : 'transparent'
+  };
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: rgb(var(--color-primary));
+  }
+`;
 
 const Toolbar = styled.div`
   display: flex;
@@ -341,11 +374,110 @@ const PageButton = styled.button<{ $active?: boolean }>`
   }
 `;
 
+const ExpandableRow = styled.tr<{ $expanded: boolean }>`
+  background: ${({ $expanded }) => 
+    $expanded ? 'rgb(var(--color-background))' : 'transparent'
+  };
+`;
+
+const ExpandedContent = styled.td`
+  padding: 20px;
+  background: rgb(var(--color-background));
+`;
+
+const Timeline = styled.div`
+  position: relative;
+  padding-left: 30px;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgb(var(--color-border));
+  }
+`;
+
+const TimelineItem = styled.div`
+  position: relative;
+  padding-bottom: 20px;
+  
+  &:last-child {
+    padding-bottom: 0;
+  }
+`;
+
+const TimelineDot = styled.div<{ $status: string }>`
+  position: absolute;
+  left: -26px;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid ${({ $status }) => {
+    switch ($status) {
+      case 'completed': return 'rgb(34, 197, 94)';
+      case 'failed': return 'rgb(239, 68, 68)';
+      case 'skipped': return 'rgb(127, 140, 141)';
+      default: return 'rgb(59, 130, 246)';
+    }
+  }};
+  background: rgb(var(--color-surface));
+`;
+
+const TimelineContent = styled.div`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 16px;
+`;
+
+const TimelineHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+`;
+
+const TimelineTitle = styled.div`
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+`;
+
+const TimelineTime = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+`;
+
+const TimelineMeta = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const DurationBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 12px;
+  background: rgba(var(--color-primary), 0.1);
+  color: rgb(var(--color-primary));
+  margin-left: 8px;
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
 
 const FormsFlowsHistory: React.FC = () => {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'submissions' | 'workflows'>('submissions');
+  
+  // Submissions state
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -354,6 +486,12 @@ const FormsFlowsHistory: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 20;
+  
+  // Workflow executions state
+  const [workflowExecutions, setWorkflowExecutions] = useState<WorkflowExecution[]>([]);
+  const [workflowsLoading, setWorkflowsLoading] = useState(false);
+  const [expandedWorkflow, setExpandedWorkflow] = useState<string | null>(null);
+  const [auditTrails, setAuditTrails] = useState<Record<string, WorkflowAuditEntry[]>>({});
   
   // Fetch completed/cancelled submissions
   const fetchSubmissions = async () => {
@@ -395,6 +533,67 @@ const FormsFlowsHistory: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
   
+  // Fetch workflow executions
+  const fetchWorkflowExecutions = async () => {
+    setWorkflowsLoading(true);
+    try {
+      const params: Record<string, string> = {
+        status: 'completed,failed,cancelled',
+        page: String(page),
+        page_size: String(pageSize),
+      };
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+      if (searchQuery) params.search = searchQuery;
+      
+      const response = await workflowExecutionService.getExecutions(params as any);
+      setWorkflowExecutions(response.results);
+      setTotalCount(response.count);
+    } catch (error) {
+      console.error('Failed to fetch workflow executions:', error);
+      setWorkflowExecutions([]);
+    } finally {
+      setWorkflowsLoading(false);
+    }
+  };
+  
+  // Fetch workflow audit trail
+  const fetchAuditTrail = async (workflowId: string) => {
+    if (auditTrails[workflowId]) {
+      return; // Already loaded
+    }
+    
+    try {
+      const response = await workflowExecutionService.getAuditTrail(workflowId);
+      setAuditTrails(prev => ({
+        ...prev,
+        [workflowId]: response.audit_trail,
+      }));
+    } catch (error) {
+      console.error('Failed to fetch audit trail:', error);
+    }
+  };
+  
+  // Toggle workflow expansion
+  const toggleWorkflowExpansion = (workflowId: string) => {
+    if (expandedWorkflow === workflowId) {
+      setExpandedWorkflow(null);
+    } else {
+      setExpandedWorkflow(workflowId);
+      fetchAuditTrail(workflowId);
+    }
+  };
+  
+  // Fetch data when tab changes
+  useEffect(() => {
+    if (activeTab === 'submissions') {
+      fetchSubmissions();
+    } else {
+      fetchWorkflowExecutions();
+    }
+  }, [activeTab, page, startDate, endDate]);
+  
+  
   // Format date for display
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
@@ -405,6 +604,28 @@ const FormsFlowsHistory: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+  
+  // Calculate duration in readable format
+  const formatDuration = (start: string, end?: string) => {
+    if (!end) return '-';
+    const diffMs = new Date(end).getTime() - new Date(start).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h ${diffMins % 60}m`;
+    return `${diffDays}d ${diffHours % 24}h`;
+  };
+  
+  // Format seconds to readable duration
+  const formatSeconds = (seconds?: number) => {
+    if (!seconds) return '-';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins === 0) return `${secs}s`;
+    return `${mins}m ${secs}s`;
   };
   
   // Handle view details
@@ -420,9 +641,27 @@ const FormsFlowsHistory: React.FC = () => {
   };
   
   const totalPages = Math.ceil(totalCount / pageSize);
+  const currentLoading = activeTab === 'submissions' ? loading : workflowsLoading;
+  const currentData = activeTab === 'submissions' ? submissions : workflowExecutions;
   
   return (
     <Container role="region" aria-label="Form History">
+      {/* Tabs */}
+      <TabsContainer>
+        <Tab
+          $active={activeTab === 'submissions'}
+          onClick={() => setActiveTab('submissions')}
+        >
+          Form Submissions
+        </Tab>
+        <Tab
+          $active={activeTab === 'workflows'}
+          onClick={() => setActiveTab('workflows')}
+        >
+          Workflow Executions
+        </Tab>
+      </TabsContainer>
+      
       <Toolbar>
         <ToolbarLeft>
           <SearchWrapper>
@@ -471,9 +710,9 @@ const FormsFlowsHistory: React.FC = () => {
         </div>
       </Toolbar>
       
-      {loading ? (
+      {currentLoading ? (
         <LoadingState role="status" aria-live="polite">Loading history...</LoadingState>
-      ) : submissions.length === 0 ? (
+      ) : currentData.length === 0 ? (
         <EmptyState role="status" aria-live="polite">
           <EmptyIcon aria-hidden="true">
             <FileText size={48} />
@@ -487,7 +726,8 @@ const FormsFlowsHistory: React.FC = () => {
         </EmptyState>
       ) : (
         <>
-          <Table aria-label="Form submission history">
+          {activeTab === 'submissions' ? (
+            <Table aria-label="Form submission history">
             <TableHead>
               <tr>
                 <TableHeader scope="col">Form</TableHeader>
@@ -533,6 +773,104 @@ const FormsFlowsHistory: React.FC = () => {
               ))}
             </tbody>
           </Table>
+          ) : (
+            <Table aria-label="Workflow execution history">
+              <TableHead>
+                <tr>
+                  <TableHeader scope="col" style={{ width: '40px' }}></TableHeader>
+                  <TableHeader scope="col">Workflow Name</TableHeader>
+                  <TableHeader scope="col">Status</TableHeader>
+                  <TableHeader scope="col">Started By</TableHeader>
+                  <TableHeader scope="col">Started At</TableHeader>
+                  <TableHeader scope="col">Completed At</TableHeader>
+                  <TableHeader scope="col">Duration</TableHeader>
+                </tr>
+              </TableHead>
+              <tbody>
+                {workflowExecutions.map((execution) => {
+                  const isExpanded = expandedWorkflow === execution.id;
+                  const trail = auditTrails[execution.id] || [];
+                  
+                  return (
+                    <React.Fragment key={execution.id}>
+                      <ExpandableRow $expanded={isExpanded}>
+                        <TableCell>
+                          <ViewButton
+                            onClick={() => toggleWorkflowExpansion(execution.id)}
+                            aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                          >
+                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          </ViewButton>
+                        </TableCell>
+                        <TableCell>
+                          <FormName>{execution.workflow_name}</FormName>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge $status={execution.status}>
+                            {execution.status === 'completed' && <><CheckCircle size={12} /> Completed</>}
+                            {execution.status === 'failed' && <><AlertCircle size={12} /> Failed</>}
+                            {execution.status === 'cancelled' && <><XCircle size={12} /> Cancelled</>}
+                          </StatusBadge>
+                        </TableCell>
+                        <TableCell>{execution.started_by_name || '-'}</TableCell>
+                        <TableCell>{formatDate(execution.created_at)}</TableCell>
+                        <TableCell>{formatDate(execution.completed_at || '')}</TableCell>
+                        <TableCell>{formatDuration(execution.created_at, execution.completed_at)}</TableCell>
+                      </ExpandableRow>
+                      
+                      {isExpanded && (
+                        <tr>
+                          <ExpandedContent colSpan={7}>
+                            <h4 style={{ marginTop: 0, marginBottom: 16 }}>Execution Timeline</h4>
+                            {trail.length === 0 ? (
+                              <p style={{ color: 'rgb(var(--color-text-tertiary))' }}>
+                                Loading timeline...
+                              </p>
+                            ) : (
+                              <Timeline>
+                                {trail.map((entry) => (
+                                  <TimelineItem key={entry.id}>
+                                    <TimelineDot $status={entry.action} />
+                                    <TimelineContent>
+                                      <TimelineHeader>
+                                        <TimelineTitle>{entry.step_name}</TimelineTitle>
+                                        <TimelineTime>
+                                          {formatDate(entry.timestamp)}
+                                          {entry.duration_seconds && (
+                                            <DurationBadge>
+                                              <Clock size={10} />
+                                              {formatSeconds(entry.duration_seconds)}
+                                            </DurationBadge>
+                                          )}
+                                        </TimelineTime>
+                                      </TimelineHeader>
+                                      <TimelineMeta>
+                                        {entry.action === 'completed' && '✓ Completed'}
+                                        {entry.action === 'started' && '• Started'}
+                                        {entry.action === 'failed' && '✗ Failed'}
+                                        {entry.action === 'skipped' && '○ Skipped'}
+                                        {entry.user_name && ` by ${entry.user_name}`}
+                                      </TimelineMeta>
+                                      {entry.notes && (
+                                        <div style={{ marginTop: 8, fontSize: 13, color: 'rgb(var(--color-text-secondary))' }}>
+                                          {entry.notes}
+                                        </div>
+                                      )}
+                                    </TimelineContent>
+                                  </TimelineItem>
+                                ))}
+                              </Timeline>
+                            )}
+                          </ExpandedContent>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )}
+          
           
           {totalPages > 1 && (
             <Pagination role="navigation" aria-label="Pagination">

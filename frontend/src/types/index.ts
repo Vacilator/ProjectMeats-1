@@ -653,3 +653,9 @@ export interface CloneInquiryPayload {
   new_entity_id?: string;
   new_contact_id?: string;
 }
+
+// ============================================================================
+// Workflow Execution Types (Phase 5)
+// ============================================================================
+
+export * from './workflows';
