@@ -22,7 +22,7 @@ import {
   // Container & Organization
   Folder, Layers, Box, Grid3x3,
   // Utility
-  Settings, Tool, FileSearch, Terminal,
+  Settings, Wrench, FileSearch, Terminal,
   // Status
   CheckCircle, AlertCircle, AlertTriangle, Info,
 } from 'lucide-react';
@@ -95,7 +95,7 @@ const iconMap: Record<NodeIconType, React.ComponentType<any>> = {
   'document': FileText,
   
   // Utility
-  'utility': Tool,
+  'utility': Wrench,
   'script': Code,
   'terminal': Terminal,
   
@@ -171,7 +171,7 @@ export const NodeIcon: React.FC<NodeIconProps> = ({
   color,
   className = '',
 }) => {
-  const IconComponent = iconMap[type] || Tool; // Default to Tool icon
+  const IconComponent = iconMap[type] || Wrench; // Default to Wrench icon
   const defaultColor = color || getIconColor(type);
 
   return (
@@ -233,6 +233,6 @@ export {
   Mail, MessageSquare, Bell, Send,
   Zap, Cloud, Link, Package,
   Folder, Layers, Box, Grid3x3,
-  Settings, Tool, FileSearch, Terminal,
+  Settings, Wrench, FileSearch, Terminal,
   CheckCircle, AlertCircle, AlertTriangle, Info,
 };
