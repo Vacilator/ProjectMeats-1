@@ -27,3 +27,5 @@ export type { FormSelectionPanelProps } from './FormSelectionPanel';
 export type { EntityFieldPickerProps, SelectedField } from './EntityFieldPicker';
 export type { FieldConfigurationPanelProps, FieldConfig } from './FieldConfigurationPanel';
 export type { FieldWithContextProps } from './FieldWithContext'; // Phase 5
+export { StepManagerPanel } from './StepManagerPanel';
+export { FormProcessConfigPanel } from './FormProcessConfigPanel';
