@@ -47,6 +47,7 @@ jobs:
             type=sha,prefix=sha-
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -61,4 +62,4 @@ jobs:
             VCS_REF=${{ github.sha }}
 
       - name: Image digest
-        run: echo "Image pushed with digest ${{ steps.meta.outputs.digest }}"
+        run: echo "Image pushed with digest ${{ steps.build.outputs.digest }}"
