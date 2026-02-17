@@ -57,19 +57,43 @@ export interface FormProcessNodeProps extends NodeProps<ContainerNodeData> {
 // ============================================================================
 
 const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
-  min-width: ${props => props.isExpanded ? '600px' : '280px'};
-  min-height: ${props => props.isExpanded ? '400px' : 'auto'};
+  min-width: ${props => props.isExpanded ? '800px' : '320px'};
+  min-height: ${props => props.isExpanded ? '500px' : 'auto'};
+  max-width: ${props => props.isExpanded ? 'none' : '400px'};
+  
+  /* Phase B: Visual containment for sub-flows pattern */
   background: ${props => props.isExpanded 
-    ? 'rgba(139, 92, 246, 0.08)' // Semi-transparent purple background when expanded
+    ? 'rgba(139, 92, 246, 0.04)' // Subtle purple tint when expanded to show container area
     : 'rgba(var(--color-background-secondary), 0.95)'};
-  border: 2px ${props => props.isExpanded ? 'solid' : 'solid'} rgba(139, 92, 246, 0.6);
+  
+  border: ${props => props.isExpanded 
+    ? '2px dashed rgba(139, 92, 246, 0.4)' // Dashed border for visual grouping
+    : '2px solid rgba(139, 92, 246, 0.6)'};
+  
   border-radius: 12px;
   box-shadow: 
     0 4px 12px rgba(0, 0, 0, 0.12),
     0 0 0 4px rgba(139, 92, 246, 0.15);
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: visible; /* Allow edit/delete buttons to show */
+  overflow: visible; /* Allow child nodes to render inside visually */
+  padding: ${props => props.isExpanded ? '0' : '0'}; /* Padding handled by body */
+  
+  /* Phase B: Group indicator when expanded */
+  ${props => props.isExpanded && `
+    &::after {
+      content: 'Form Process Container';
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 10px;
+      font-weight: 500;
+      color: rgba(139, 92, 246, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      pointer-events: none;
+    }
+  `}
   
   &:hover {
     box-shadow: 
@@ -78,7 +102,9 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   }
   
   &.selected {
-    border-color: rgb(139, 92, 246);
+    border-color: ${props => props.isExpanded 
+      ? 'rgba(139, 92, 246, 0.6)' 
+      : 'rgb(139, 92, 246)'};
     box-shadow: 
       0 8px 20px rgba(0, 0, 0, 0.25),
       0 0 0 4px rgba(139, 92, 246, 0.4);
@@ -86,10 +112,11 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   
   &.drag-over {
     border-color: rgb(34, 197, 94);
+    border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
     box-shadow: 
       0 8px 20px rgba(34, 197, 94, 0.3),
       0 0 0 4px rgba(34, 197, 94, 0.4);
-    background: rgba(34, 197, 94, 0.12);
+    background: rgba(34, 197, 94, 0.08);
   }
 `;
 
@@ -160,7 +187,7 @@ const StatusBadge = styled.div<{ type: 'configured' | 'draft' }>`
 const ContainerBody = styled.div<{ isExpanded: boolean }>`
   padding: ${props => props.isExpanded ? '16px' : '12px 16px'};
   display: ${props => props.isExpanded ? 'block' : 'none'};
-  min-height: ${props => props.isExpanded ? '200px' : 'auto'};
+  min-height: ${props => props.isExpanded ? '350px' : 'auto'};
   min-width: 300px;
   position: relative;
   
@@ -174,6 +201,28 @@ const ContainerBody = styled.div<{ isExpanded: boolean }>`
       pointer-events: auto;
     }
   `}
+`;
+
+/* Phase B: Visual area for child nodes */
+const ChildNodesArea = styled.div`
+  position: relative;
+  min-height: 300px;
+  border-radius: 8px;
+  border: 1px dashed rgba(139, 92, 246, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 24px;
+  
+  &:empty::before {
+    content: 'Drag nodes here to add steps to this form process';
+    color: rgba(139, 92, 246, 0.4);
+    font-size: 13px;
+    text-align: center;
+    font-style: italic;
+  }
 `;
 
 const ContainerSummary = styled.div`
