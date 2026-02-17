@@ -71,8 +71,10 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## Workflow Validation Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ YAML syntax validation" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Common mistake checks" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ INSTALLED_APPS verification" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Workflow Validation Summary"
+            echo ""
+            echo "- ✅ YAML syntax validation"
+            echo "- ✅ Common mistake checks"
+            echo "- ✅ INSTALLED_APPS verification"
+          } >> $GITHUB_STEP_SUMMARY
