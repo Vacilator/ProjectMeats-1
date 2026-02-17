@@ -19,6 +19,7 @@ import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 import { ChevronDown, ChevronRight, LogIn, Edit2, Trash2 } from 'lucide-react';
+import { calculateStepOrder, getStepLabel } from '../utils/stepOrderingUtils'; // Phase B.1
 // REMOVED: import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 
 // ============================================================================
@@ -57,19 +58,43 @@ export interface FormProcessNodeProps extends NodeProps<ContainerNodeData> {
 // ============================================================================
 
 const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
-  min-width: ${props => props.isExpanded ? '600px' : '280px'};
-  min-height: ${props => props.isExpanded ? '400px' : 'auto'};
+  min-width: ${props => props.isExpanded ? '800px' : '320px'};
+  min-height: ${props => props.isExpanded ? '500px' : 'auto'};
+  max-width: ${props => props.isExpanded ? 'none' : '400px'};
+  
+  /* Phase B: Visual containment for sub-flows pattern */
   background: ${props => props.isExpanded 
-    ? 'rgba(139, 92, 246, 0.08)' // Semi-transparent purple background when expanded
+    ? 'rgba(139, 92, 246, 0.04)' // Subtle purple tint when expanded to show container area
     : 'rgba(var(--color-background-secondary), 0.95)'};
-  border: 2px ${props => props.isExpanded ? 'solid' : 'solid'} rgba(139, 92, 246, 0.6);
+  
+  border: ${props => props.isExpanded 
+    ? '2px dashed rgba(139, 92, 246, 0.4)' // Dashed border for visual grouping
+    : '2px solid rgba(139, 92, 246, 0.6)'};
+  
   border-radius: 12px;
   box-shadow: 
     0 4px 12px rgba(0, 0, 0, 0.12),
     0 0 0 4px rgba(139, 92, 246, 0.15);
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: visible; /* Allow edit/delete buttons to show */
+  overflow: visible; /* Allow child nodes to render inside visually */
+  padding: ${props => props.isExpanded ? '0' : '0'}; /* Padding handled by body */
+  
+  /* Phase B: Group indicator when expanded */
+  ${props => props.isExpanded && `
+    &::after {
+      content: 'Form Process Container';
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 10px;
+      font-weight: 500;
+      color: rgba(139, 92, 246, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      pointer-events: none;
+    }
+  `}
   
   &:hover {
     box-shadow: 
@@ -78,7 +103,9 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   }
   
   &.selected {
-    border-color: rgb(139, 92, 246);
+    border-color: ${props => props.isExpanded 
+      ? 'rgba(139, 92, 246, 0.6)' 
+      : 'rgb(139, 92, 246)'};
     box-shadow: 
       0 8px 20px rgba(0, 0, 0, 0.25),
       0 0 0 4px rgba(139, 92, 246, 0.4);
@@ -86,10 +113,11 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   
   &.drag-over {
     border-color: rgb(34, 197, 94);
+    border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
     box-shadow: 
       0 8px 20px rgba(34, 197, 94, 0.3),
       0 0 0 4px rgba(34, 197, 94, 0.4);
-    background: rgba(34, 197, 94, 0.12);
+    background: rgba(34, 197, 94, 0.08);
   }
 `;
 
@@ -160,7 +188,7 @@ const StatusBadge = styled.div<{ type: 'configured' | 'draft' }>`
 const ContainerBody = styled.div<{ isExpanded: boolean }>`
   padding: ${props => props.isExpanded ? '16px' : '12px 16px'};
   display: ${props => props.isExpanded ? 'block' : 'none'};
-  min-height: ${props => props.isExpanded ? '200px' : 'auto'};
+  min-height: ${props => props.isExpanded ? '350px' : 'auto'};
   min-width: 300px;
   position: relative;
   
@@ -174,6 +202,28 @@ const ContainerBody = styled.div<{ isExpanded: boolean }>`
       pointer-events: auto;
     }
   `}
+`;
+
+/* Phase B: Visual area for child nodes */
+const ChildNodesArea = styled.div`
+  position: relative;
+  min-height: 300px;
+  border-radius: 8px;
+  border: 1px dashed rgba(139, 92, 246, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 24px;
+  
+  &:empty::before {
+    content: 'Drag nodes here to add steps to this form process';
+    color: rgba(139, 92, 246, 0.4);
+    font-size: 13px;
+    text-align: center;
+    font-style: italic;
+  }
 `;
 
 const ContainerSummary = styled.div`
@@ -327,6 +377,62 @@ const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' }>`
   }
 `;
 
+/* Phase B.1: Step List Components */
+const StepList = styled.div`
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const StepItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  font-size: 12px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: rgba(139, 92, 246, 0.3);
+  }
+`;
+
+const StepNumber = styled.div`
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.2);
+  color: rgb(139, 92, 246);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 11px;
+`;
+
+const StepNodeInfo = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  
+  .node-label {
+    font-weight: 500;
+    color: rgb(var(--color-text-primary));
+  }
+  
+  .node-type {
+    font-size: 10px;
+    color: rgb(var(--color-text-secondary));
+    text-transform: capitalize;
+  }
+`;
+
 const EnterButton = styled.button`
   width: 100%;
   padding: 10px;
@@ -414,6 +520,9 @@ export const FormProcessNode: React.FC<FormProcessNodeProps> = ({
       }
     });
     
+    // Phase B.1: Calculate step ordering
+    const stepOrder = calculateStepOrder(id, allNodes, allEdges);
+    
     return {
       nodeCount,
       nodeTypes,
@@ -421,6 +530,7 @@ export const FormProcessNode: React.FC<FormProcessNodeProps> = ({
       hasNodes: nodeCount > 0,
       childNodes,
       childEdges,
+      stepOrder, // Phase B.1: Map of node ID to step number
     };
   }, [id, allNodes, allEdges]);
   
@@ -543,6 +653,51 @@ export const FormProcessNode: React.FC<FormProcessNodeProps> = ({
                         </div>
                       ))}
                     </div>
+                  )}
+                  
+                  {/* Phase B.1: Step Order List */}
+                  {stats.hasNodes && stats.stepOrder.size > 0 && (
+                    <StepList>
+                      <div style={{ 
+                        fontSize: '11px', 
+                        opacity: 0.7,
+                        marginBottom: '4px',
+                        fontWeight: 600,
+                      }}>
+                        Execution Order:
+                      </div>
+                      {Array.from(stats.stepOrder.entries())
+                        .sort((a, b) => a[1] - b[1]) // Sort by step number
+                        .slice(0, 5) // Show max 5 steps
+                        .map(([nodeId, stepNum]) => {
+                          const childNode = stats.childNodes.find(n => n.id === nodeId);
+                          if (!childNode) return null;
+                          
+                          return (
+                            <StepItem key={nodeId}>
+                              <StepNumber>{stepNum}</StepNumber>
+                              <StepNodeInfo>
+                                <div className="node-label">
+                                  {childNode.data?.label || 'Unnamed Node'}
+                                </div>
+                                <div className="node-type">
+                                  {childNode.type || 'unknown'}
+                                </div>
+                              </StepNodeInfo>
+                            </StepItem>
+                          );
+                        })}
+                      {stats.stepOrder.size > 5 && (
+                        <div style={{ 
+                          fontSize: '11px', 
+                          color: 'rgba(139, 92, 246, 0.6)',
+                          textAlign: 'center',
+                          marginTop: '4px',
+                        }}>
+                          +{stats.stepOrder.size - 5} more steps
+                        </div>
+                      )}
+                    </StepList>
                   )}
                   
                   {stats.hasNodes ? (
