@@ -529,6 +529,10 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     entityType: step.entityType || '',
   });
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  
+  // Phase A.3: Field search and filter
+  const [fieldSearchTerm, setFieldSearchTerm] = useState<string>('');
+  const [fieldTypeFilter, setFieldTypeFilter] = useState<string>('all');
 
   // Phase A: Enhanced entity and field loading with error handling
   const { 
@@ -548,6 +552,32 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     { enabled: !!localStep.entityType }
   );
   const availableEntityFields = fieldsData?.fields || [];
+  
+  // Phase A.3: Filter available fields by search term and type
+  const filteredEntityFields = availableEntityFields
+    .filter(field => {
+      // Filter out already added fields
+      if (localStep.fields.some(f => f.label === field.label)) {
+        return false;
+      }
+      
+      // Filter by search term (label or name)
+      if (fieldSearchTerm && 
+          !field.label.toLowerCase().includes(fieldSearchTerm.toLowerCase()) &&
+          !field.name.toLowerCase().includes(fieldSearchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      // Filter by field type
+      if (fieldTypeFilter !== 'all') {
+        const formFieldType = mapEntityFieldTypeToFormFieldType(field.field_type);
+        if (formFieldType !== fieldTypeFilter) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
 
   useEffect(() => {
     setLocalStep({
@@ -744,7 +774,57 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
             {/* Add Field from Entity */}
             {localStep.entityType && availableEntityFields.length > 0 && (
               <FormGroup>
-                <Label>Add Field from {entities.find(e => e.id === localStep.entityType)?.label_plural}</Label>
+                <Label>
+                  Add Fields from {entities.find(e => e.id === localStep.entityType)?.label_plural}
+                </Label>
+                
+                {/* Phase A.3: Field Search */}
+                <div style={{ marginBottom: '12px' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Search fields..."
+                    value={fieldSearchTerm}
+                    onChange={(e) => setFieldSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      fontSize: '14px',
+                      border: '1px solid rgb(var(--color-border))',
+                      borderRadius: '6px',
+                      background: 'rgb(var(--color-background))',
+                      color: 'rgb(var(--color-text-primary))',
+                    }}
+                  />
+                </div>
+                
+                {/* Phase A.3: Field Type Filter */}
+                <div style={{ marginBottom: '12px' }}>
+                  <select
+                    value={fieldTypeFilter}
+                    onChange={(e) => setFieldTypeFilter(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      fontSize: '14px',
+                      border: '1px solid rgb(var(--color-border))',
+                      borderRadius: '6px',
+                      background: 'rgb(var(--color-background))',
+                      color: 'rgb(var(--color-text-primary))',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="all">All Field Types</option>
+                    <option value="text">📝 Text</option>
+                    <option value="textarea">📄 Long Text</option>
+                    <option value="number">🔢 Number</option>
+                    <option value="email">📧 Email</option>
+                    <option value="phone">📱 Phone</option>
+                    <option value="date">📅 Date</option>
+                    <option value="select">📋 Dropdown</option>
+                    <option value="checkbox">✅ Checkbox</option>
+                  </select>
+                </div>
+                
                 <select
                   onChange={(e) => {
                     if (!e.target.value) return;
@@ -764,6 +844,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
 
                     handleUpdate({ fields: [...localStep.fields, newField] });
                     e.target.value = ''; // Reset dropdown
+                    setFieldSearchTerm(''); // Reset search
                   }}
                   style={{
                     width: '100%',
@@ -777,17 +858,29 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   }}
                   disabled={fieldsLoading}
                 >
-                  <option value="">-- Select field to add --</option>
-                  {availableEntityFields
-                    .filter(field => !localStep.fields.some(f => f.label === field.label))
-                    .map(field => (
+                  <option value="">
+                    {filteredEntityFields.length === 0 
+                      ? '-- No matching fields --' 
+                      : '-- Select field to add --'}
+                  </option>
+                  {filteredEntityFields.map(field => {
+                    const formFieldType = mapEntityFieldTypeToFormFieldType(field.field_type);
+                    const icon = FIELD_TYPE_ICONS[formFieldType] || '📋';
+                    return (
                       <option key={field.name} value={field.name}>
-                        {field.label} ({field.field_type}) {field.is_required ? '- Required' : ''}
+                        {icon} {field.label} ({field.field_type}) {field.is_required ? '- Required' : ''}
                       </option>
-                    ))}
+                    );
+                  })}
                 </select>
                 <HelpText>
-                  {fieldsLoading ? 'Loading fields...' : `${availableEntityFields.length - localStep.fields.length} fields available to add`}
+                  {fieldsLoading ? (
+                    '⏳ Loading fields...'
+                  ) : fieldSearchTerm || fieldTypeFilter !== 'all' ? (
+                    `Showing ${filteredEntityFields.length} of ${availableEntityFields.length - localStep.fields.length} available fields`
+                  ) : (
+                    `${availableEntityFields.length - localStep.fields.length} fields available to add`
+                  )}
                 </HelpText>
               </FormGroup>
             )}
