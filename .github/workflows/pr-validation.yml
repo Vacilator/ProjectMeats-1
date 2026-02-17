@@ -267,8 +267,8 @@ jobs:
       - name: Validate workflow files
         run: |
           echo "Validating all workflow files..."
-          # Exclude archived workflows from validation
-          actionlint -color -ignore '.github/workflows/archived/.*'
+          # Use find to only validate non-archived workflows
+          find .github/workflows -maxdepth 1 -name '*.yml' -type f -exec actionlint -color {} +
       
       - name: Check for common mistakes
         run: |
