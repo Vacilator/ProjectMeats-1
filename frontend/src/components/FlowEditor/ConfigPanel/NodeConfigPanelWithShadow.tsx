@@ -355,6 +355,8 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
           /* Standard Node Config Panel */
           <NodeConfigPanel
             node={virtualNode}
+            nodes={nodes}
+            edges={edges}
             onClose={handleClose}
             onUpdate={handleShadowUpdate}
             onTest={onTest}

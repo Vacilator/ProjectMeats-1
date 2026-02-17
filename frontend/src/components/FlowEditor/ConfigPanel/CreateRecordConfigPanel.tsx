@@ -15,8 +15,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Save, X, AlertCircle } from 'lucide-react';
-import { Node } from '@xyflow/react';
+import { Node, Edge } from '@xyflow/react';
 import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
+import { InsertVariableButton } from './InsertVariableButton';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -24,6 +25,8 @@ import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
 
 export interface CreateRecordConfigPanelProps {
   node: Node;
+  nodes?: Node[];  // Optional for future variable insertion
+  edges?: Edge[];  // Optional for future variable insertion
   onClose: () => void;
   onUpdate: (nodeId: string, data: Record<string, any>) => void;
 }
@@ -207,6 +210,13 @@ const FieldLabel = styled.label`
   margin-bottom: 8px;
 `;
 
+const LabelContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+`;
+
 const RequiredIndicator = styled.span`
   color: rgb(var(--color-error));
   margin-left: 4px;
@@ -314,6 +324,8 @@ const EmptyText = styled.div`
 
 export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = ({
   node,
+  nodes,
+  edges,
   onClose,
   onUpdate,
 }) => {
@@ -394,13 +406,29 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
             <SectionTitle>Basic Information</SectionTitle>
             
             <FormField>
-              <FieldLabel>
-                Action Label <RequiredIndicator>*</RequiredIndicator>
-              </FieldLabel>
+              <LabelContainer>
+                <FieldLabel>
+                  Action Label <RequiredIndicator>*</RequiredIndicator>
+                </FieldLabel>
+                {nodes && edges && (
+                  <InsertVariableButton
+                    currentNodeId={node.id}
+                    nodes={nodes}
+                    edges={edges}
+                    onInsert={(template) => {
+                      handleFieldChange('label', formData.label + template);
+                    }}
+                    fieldTypeFilter={['string']}
+                    size="sm"
+                    variant="ghost"
+                    tooltip="Insert variable from previous steps"
+                  />
+                )}
+              </LabelContainer>
               <TextInput
                 value={formData.label}
                 onChange={(e) => handleFieldChange('label', e.target.value)}
-                placeholder="e.g., Create New Supplier"
+                placeholder="e.g., Create New Supplier from {{formStep1.companyName}}"
               />
               <FieldHelp>
                 A descriptive name for this action
@@ -408,11 +436,26 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
             </FormField>
 
             <FormField>
-              <FieldLabel>Description</FieldLabel>
+              <LabelContainer>
+                <FieldLabel>Description</FieldLabel>
+                {nodes && edges && (
+                  <InsertVariableButton
+                    currentNodeId={node.id}
+                    nodes={nodes}
+                    edges={edges}
+                    onInsert={(template) => {
+                      handleFieldChange('description', (formData.description || '') + template);
+                    }}
+                    size="sm"
+                    variant="ghost"
+                    tooltip="Insert variable from previous steps"
+                  />
+                )}
+              </LabelContainer>
               <TextArea
                 value={formData.description}
                 onChange={(e) => handleFieldChange('description', e.target.value)}
-                placeholder="Optional description..."
+                placeholder="Optional description with {{variables}}..."
               />
             </FormField>
           </FormSection>

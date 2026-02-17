@@ -18,7 +18,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2, Edit2, Check, GripVertical, Download } from 'lucide-react';
-import { Node } from '@xyflow/react';
+import { Node, Edge } from '@xyflow/react';
 import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import axios from 'axios';
@@ -30,6 +30,8 @@ import { listTenantForms, getFormFields } from '../../../services/workformsApi';
 
 export interface NodeConfigPanelProps {
   node: Node | null;
+  nodes: Node[];
+  edges: Edge[];
   onClose: () => void;
   onUpdate: (nodeId: string, data: Record<string, any>) => void;
   onTest?: (nodeId: string) => void;
@@ -588,6 +590,8 @@ const TemplatesGrid = styled.div`
 
 export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   node,
+  nodes,
+  edges,
   onClose,
   onUpdate,
   onTest,
