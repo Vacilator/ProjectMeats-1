@@ -4,6 +4,8 @@
 import React, { useState } from 'react';
 import { Mail, Plus, X } from 'lucide-react';
 import styled from 'styled-components';
+import { Node, Edge } from '@xyflow/react';
+import { InsertVariableButton } from './InsertVariableButton';
 
 const PanelContainer = styled.div`
   padding: 16px;
@@ -19,6 +21,13 @@ const Label = styled.label`
   font-size: 13px;
   margin-bottom: 6px;
   color: rgb(var(--color-text-primary));
+`;
+
+const LabelContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
 `;
 
 const Input = styled.input`
@@ -114,6 +123,8 @@ const HelpText = styled.div`
 
 interface OutlookEmailConfigPanelProps {
   nodeId: string;
+  nodes?: Node[];  // Optional for backwards compatibility
+  edges?: Edge[];  // Optional for backwards compatibility
   data: {
     label?: string;
     to: string[];
@@ -127,6 +138,9 @@ interface OutlookEmailConfigPanelProps {
 }
 
 export const OutlookEmailConfigPanel: React.FC<OutlookEmailConfigPanelProps> = ({
+  nodeId,
+  nodes,
+  edges,
   data,
   onChange,
 }) => {
@@ -200,7 +214,26 @@ export const OutlookEmailConfigPanel: React.FC<OutlookEmailConfigPanelProps> = (
       </Section>
 
       <Section>
-        <Label>To Recipients *</Label>
+        <LabelContainer>
+          <Label>To Recipients *</Label>
+          {nodes && edges && (
+            <InsertVariableButton
+              currentNodeId={nodeId}
+              nodes={nodes}
+              edges={edges}
+              onInsert={(template) => {
+                const lastIndex = (data.to || ['']).length - 1;
+                const newTo = [...(data.to || [''])];
+                newTo[lastIndex] = (newTo[lastIndex] || '') + template;
+                onChange({ ...data, to: newTo });
+              }}
+              fieldTypeFilter={['string', 'email']}
+              size="sm"
+              variant="ghost"
+              tooltip="Insert variable for email address"
+            />
+          )}
+        </LabelContainer>
         <EmailList>
           {(data.to || ['']).map((email, index) => (
             <EmailItem key={index}>
@@ -290,22 +323,53 @@ export const OutlookEmailConfigPanel: React.FC<OutlookEmailConfigPanelProps> = (
       )}
 
       <Section>
-        <Label>Subject *</Label>
+        <LabelContainer>
+          <Label>Subject *</Label>
+          {nodes && edges && (
+            <InsertVariableButton
+              currentNodeId={nodeId}
+              nodes={nodes}
+              edges={edges}
+              onInsert={(template) => {
+                onChange({ ...data, subject: (data.subject || '') + template });
+              }}
+              fieldTypeFilter={['string', 'email']}
+              size="sm"
+              variant="ghost"
+              tooltip="Insert variable from previous steps"
+            />
+          )}
+        </LabelContainer>
         <Input
           type="text"
           value={data.subject || ''}
           onChange={(e) => onChange({ ...data, subject: e.target.value })}
-          placeholder="Email subject"
+          placeholder="e.g., New Order: {{formStep1.orderNumber}}"
         />
         <HelpText>Use {`{{variable}}`} to insert workflow context values</HelpText>
       </Section>
 
       <Section>
-        <Label>Message Body *</Label>
+        <LabelContainer>
+          <Label>Message Body *</Label>
+          {nodes && edges && (
+            <InsertVariableButton
+              currentNodeId={nodeId}
+              nodes={nodes}
+              edges={edges}
+              onInsert={(template) => {
+                onChange({ ...data, body: (data.body || '') + template });
+              }}
+              size="sm"
+              variant="ghost"
+              tooltip="Insert variable from previous steps"
+            />
+          )}
+        </LabelContainer>
         <TextArea
           value={data.body || ''}
           onChange={(e) => onChange({ ...data, body: e.target.value })}
-          placeholder="Email message body"
+          placeholder="Email message body with {{variables}}"
         />
         <HelpText>
           Use {`{{variable}}`} to insert workflow context values.
