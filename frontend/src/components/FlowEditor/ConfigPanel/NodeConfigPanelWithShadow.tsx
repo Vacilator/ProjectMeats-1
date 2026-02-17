@@ -16,9 +16,10 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
-import { Node } from '@xyflow/react';
+import { Node, Edge } from '@xyflow/react';
 import { AlertCircle, X } from 'lucide-react';
 import { NodeConfigPanel } from './NodeConfigPanel';
+import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
 
 // ============================================================================
@@ -28,10 +29,13 @@ import { useNodeShadowState } from '../hooks/useNodeShadowState';
 export interface NodeConfigPanelWithShadowProps {
   node: Node | null;
   nodes: Node[];
+  edges: Edge[];
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   onClose: () => void;
   onUpdate: (nodeId: string, data: Record<string, any>) => void;
   onTest?: (nodeId: string) => void;
+  onSelectNode?: (nodeId: string) => void;
 }
 
 // ============================================================================
@@ -210,10 +214,13 @@ const PanelContent = styled.div`
 export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps> = ({
   node,
   nodes,
+  edges,
   setNodes,
+  setEdges,
   onClose,
   onUpdate,
   onTest,
+  onSelectNode,
 }) => {
   const [showCloseConfirmation, setShowCloseConfirmation] = useState(false);
   
@@ -248,6 +255,48 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
     // Also call the original onUpdate to trigger history
     onUpdate(node.id, shadowConfig);
   }, [node, commitShadow, onUpdate, shadowConfig]);
+  
+  // Callbacks for FormProcessConfigPanel
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    // Remove node and its edges
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+  }, [setNodes, setEdges]);
+  
+  const handleAddStep = useCallback(() => {
+    if (!node) return;
+    
+    // Create a new formStep node inside the container
+    const newStep: Node = {
+      id: `step-${Date.now()}`,
+      type: 'formStep',
+      position: { x: 50, y: 50 + (nodes.filter(n => n.parentId === node.id).length * 100) },
+      data: {
+        name: `Step ${nodes.filter(n => n.parentId === node.id).length + 1}`,
+        entityType: '',
+        fields: [],
+      },
+      parentId: node.id,
+    };
+    
+    setNodes((nds) => [...nds, newStep]);
+  }, [node, nodes, setNodes]);
+  
+  const handleReorderSteps = useCallback((nodeIds: string[]) => {
+    // Reposition nodes based on new order
+    setNodes((nds) =>
+      nds.map((n) => {
+        const index = nodeIds.indexOf(n.id);
+        if (index !== -1) {
+          return {
+            ...n,
+            position: { x: 50, y: 50 + index * 100 },
+          };
+        }
+        return n;
+      })
+    );
+  }, [setNodes]);
 
   // Handle discard - revert to committed config
   const handleDiscard = useCallback(() => {
@@ -290,12 +339,27 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
 
       {/* Inner Panel Content */}
       <PanelContent>
-        <NodeConfigPanel
-          node={virtualNode}
-          onClose={handleClose}
-          onUpdate={handleShadowUpdate}
-          onTest={onTest}
-        />
+        {node?.type === 'formMultiStepContainer' ? (
+          /* Form Process Container - Special Panel */
+          <FormProcessConfigPanel
+            node={virtualNode!}
+            nodes={nodes}
+            edges={edges}
+            onUpdateNode={handleShadowUpdate}
+            onSelectNode={onSelectNode || (() => {})}
+            onDeleteNode={handleDeleteNode}
+            onAddStep={handleAddStep}
+            onReorderSteps={handleReorderSteps}
+          />
+        ) : (
+          /* Standard Node Config Panel */
+          <NodeConfigPanel
+            node={virtualNode}
+            onClose={handleClose}
+            onUpdate={handleShadowUpdate}
+            onTest={onTest}
+          />
+        )}
       </PanelContent>
 
       {/* Action Bar (Apply/Discard) */}

@@ -5418,10 +5418,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       <NodeConfigPanelWithShadow
         node={selectedNode}
         nodes={nodes}
+        edges={edges}
         setNodes={setNodes}
+        setEdges={setEdges}
         onClose={() => setSelectedNode(null)}
         onUpdate={handleNodeUpdate}
         onTest={handleNodeTest}
+        onSelectNode={(nodeId) => {
+          const node = nodes.find(n => n.id === nodeId);
+          if (node) setSelectedNode(node);
+        }}
       />
       
       {/* Template Selector Modal (Phase 2.5 Integration) */}
