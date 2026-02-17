@@ -6,12 +6,15 @@
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-09 - Added edit/delete controls and expand/collapse (Batch 3)
+ * Updated: 2026-02-17 - Added badges, icons, pinning (Sprint 1 Task 1.2)
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Handle, Position } from '@xyflow/react';
-import { Edit2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
+import { NodeBadge, NodeBadgeStatus } from '../components/NodeBadge';
+import { NodeIcon, NodeIconType } from '../components/NodeIcons';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -28,6 +31,15 @@ export interface BaseNodeData {
   onEdit?: () => void; // Batch 3: Edit handler
   onDelete?: () => void; // Batch 3: Delete handler
   onTitleChange?: (newTitle: string) => void; // Batch 4: Title edit handler
+  // Sprint 1 Task 1.2: Enhanced visuals
+  badge?: { status: NodeBadgeStatus; count?: number; message?: string };
+  iconType?: NodeIconType;
+  isPinned?: boolean;
+  onPin?: () => void;
+  errorCount?: number;
+  warningCount?: number;
+  successCount?: number;
+  isProcessing?: boolean;
 }
 
 export interface BaseNodeProps {
@@ -46,13 +58,17 @@ const NodeContainer = styled.div<{
   $selected: boolean; 
   $status: string;
   $isDirty?: boolean;
+  $isPinned?: boolean;
+  $isDragging?: boolean;
 }>`
+  position: relative;
   min-width: 180px;
   background: rgb(var(--color-surface));
   border: 2px solid ${props => {
     if (props.$isDirty) return 'rgb(234, 179, 8)'; // Yellow for dirty (Phase 2)
     if (props.$selected) return props.$color;
     if (props.$status === 'error') return 'rgb(239, 68, 68)';
+    if (props.$isPinned) return 'rgb(99, 102, 241)'; // Indigo for pinned
     return 'rgb(var(--color-border))';
   }};
   border-radius: var(--radius-lg);
@@ -61,6 +77,9 @@ const NodeContainer = styled.div<{
     ? '0 4px 12px rgba(0, 0, 0, 0.15)' 
     : '0 2px 6px rgba(0, 0, 0, 0.1)'};
   transition: all 0.2s ease;
+  
+  /* Drag preview - semi-transparent ghost */
+  opacity: ${props => props.$isDragging ? 0.5 : 1};
   
   /* Add pulsing animation for dirty state (Phase 2) */
   ${props => props.$isDirty && `
@@ -76,12 +95,29 @@ const NodeContainer = styled.div<{
     }
   `}
   
+  /* Pinned state indicator */
+  ${props => props.$isPinned && `
+    &::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      right: -4px;
+      bottom: -4px;
+      border: 2px dashed rgb(99, 102, 241);
+      border-radius: var(--radius-lg);
+      pointer-events: none;
+      opacity: 0.3;
+    }
+  `}
+  
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 `;
 
 const NodeHeader = styled.div<{ $color: string }>`
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -93,7 +129,12 @@ const NodeHeader = styled.div<{ $color: string }>`
   font-size: 13px;
 `;
 
-const NodeIcon = styled.span`
+const NodeIconWrapper = styled.span`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
   font-size: 16px;
   line-height: 1;
 `;
@@ -212,7 +253,7 @@ const NodeControls = styled.div`
   z-index: 10; /* Ensure buttons appear above other elements */
 `;
 
-const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' | 'expand' }>`
+const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' | 'expand' | 'pin' }>`
   width: 24px;
   height: 24px;
   border-radius: var(--radius-sm);
@@ -221,6 +262,7 @@ const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' | 'expand' }>
   color: ${props => {
     if (props.$variant === 'delete') return 'rgb(239, 68, 68)';
     if (props.$variant === 'edit') return 'rgb(var(--color-primary))';
+    if (props.$variant === 'pin') return 'rgb(99, 102, 241)'; // Indigo
     return 'rgb(var(--color-text-secondary))';
   }};
   cursor: pointer;
@@ -280,6 +322,15 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     onEdit,
     onDelete,
     onTitleChange,
+    // Sprint 1 Task 1.2: Enhanced visuals
+    badge,
+    iconType,
+    isPinned = false,
+    onPin,
+    errorCount,
+    warningCount,
+    successCount,
+    isProcessing = false,
   } = data;
   
   // Phase 2: Determine if node has uncommitted changes
@@ -291,6 +342,9 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   // Batch 4: Title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(label);
+  
+  // Sprint 1: Drag state
+  const [isDragging, setIsDragging] = useState(false);
 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
@@ -307,6 +361,11 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     if (onDelete && window.confirm('Delete this node?')) {
       onDelete();
     }
+  };
+  
+  const handlePin = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onPin) onPin();
   };
   
   const toggleExpand = (e: React.MouseEvent) => {
@@ -341,6 +400,18 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       setIsEditingTitle(false);
     }
   };
+  
+  // Sprint 1: Determine badge to show (priority: processing > error > warning > success)
+  const getBadgeToShow = () => {
+    if (badge) return badge; // Explicit badge takes precedence
+    if (isProcessing) return { status: 'processing' as NodeBadgeStatus };
+    if (errorCount && errorCount > 0) return { status: 'error' as NodeBadgeStatus, count: errorCount };
+    if (warningCount && warningCount > 0) return { status: 'warning' as NodeBadgeStatus, count: warningCount };
+    if (successCount && successCount > 0) return { status: 'success' as NodeBadgeStatus, count: successCount };
+    return null;
+  };
+  
+  const badgeToShow = getBadgeToShow();
 
   return (
     <NodeContainer 
@@ -348,6 +419,10 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       $selected={selected}
       $status={status}
       $isDirty={isDirty}
+      $isPinned={isPinned}
+      $isDragging={isDragging}
+      onDragStart={() => setIsDragging(true)}
+      onDragEnd={() => setIsDragging(false)}
     >
       {/* Input Handle */}
       {showInputHandle && (
@@ -358,11 +433,30 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           $color={nodeType.color}
         />
       )}
+      
+      {/* Sprint 1: Status Badge */}
+      {badgeToShow && (
+        <NodeBadge
+          status={badgeToShow.status}
+          count={badgeToShow.count}
+          message={badgeToShow.message}
+          position="top-right"
+        />
+      )}
 
       {/* Status Indicator - REMOVED (confusing yellow dot) */}
       
-      {/* Node Controls (Batch 3) */}
+      {/* Node Controls (Batch 3 + Sprint 1 Pin) */}
       <NodeControls>
+        {onPin && (
+          <ControlButton 
+            $variant="pin" 
+            onClick={handlePin}
+            title={isPinned ? "Unlock node (allow drag)" : "Lock node position (Cmd/Ctrl+L)"}
+          >
+            {isPinned ? <Lock /> : <Unlock />}
+          </ControlButton>
+        )}
         {onEdit && (
           <ControlButton 
             $variant="edit" 
@@ -385,7 +479,13 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Header */}
       <NodeHeader $color={nodeType.color}>
-        <NodeIcon>{nodeType.icon}</NodeIcon>
+        <NodeIconWrapper>
+          {iconType ? (
+            <NodeIcon type={iconType} size={16} color="white" />
+          ) : (
+            nodeType.icon
+          )}
+        </NodeIconWrapper>
         {isEditingTitle ? (
           <NodeTitleInput
             value={editedTitle}

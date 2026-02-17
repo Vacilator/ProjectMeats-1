@@ -93,7 +93,7 @@ import {
   UtilityNode,
   TerminalNode,
 } from './nodes';
-import { CustomEdge } from './edges';
+import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
@@ -1425,6 +1425,10 @@ const staticNodeTypes: NodeTypes = {
 
 const edgeTypes: EdgeTypes = {
   custom: CustomEdge,
+  conditional: ConditionalEdge,
+  error: ErrorEdge,
+  success: SuccessEdge,
+  default: CustomEdge, // Fallback to custom for untyped edges
 };
 
 // ============================================================================
