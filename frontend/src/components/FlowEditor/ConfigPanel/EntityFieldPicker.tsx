@@ -1,0 +1,483 @@
+/**
+ * EntityFieldPicker Component
+ * 
+ * Allows users to select fields from an entity schema and add them to a form.
+ * Features:
+ * - Entity selection dropdown
+ * - Available fields list (from entity schema)
+ * - Selected fields list (drag-and-drop ordering)
+ * - Search/filter fields
+ * - Field metadata display (type, required, etc.)
+ * 
+ * Phase 2.3 of WF-ENH-2026-Q1
+ * Created: 2026-02-06
+ */
+
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { useEntityList, useEntityFields, EntityType, EntityField } from '../../../services/schemaService';
+import workformsApi from '../../../services/workformsApi';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface SelectedField extends EntityField {
+  /** Unique ID for drag-and-drop tracking */
+  fieldId: string;
+  /** Custom label override (optional) */
+  customLabel?: string;
+}
+
+export interface EntityFieldPickerProps {
+  /** Currently selected fields */
+  selectedFields: SelectedField[];
+  
+  /** Callback when fields change */
+  onFieldsChange: (fields: SelectedField[]) => void;
+  
+  /** Initial entity type (optional) */
+  initialEntityType?: string;
+  
+  /** Callback when entity type changes */
+  onEntityTypeChange?: (entityType: string) => void;
+}
+
+// ============================================================================
+// Styled Components
+// ============================================================================
+
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+`;
+
+const Section = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0;
+`;
+
+const EntitySelector = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const Label = styled.label`
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+`;
+
+const Select = styled.select`
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+  }
+`;
+
+const SearchInput = styled.input`
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+  }
+
+  &::placeholder {
+    color: rgb(var(--color-text-tertiary));
+  }
+`;
+
+const FieldsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgb(var(--color-surface));
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-border));
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-text-tertiary));
+  }
+`;
+
+const FieldItem = styled.div<{ selected?: boolean; dragging?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: ${props => props.selected ? 'rgba(var(--color-primary), 0.1)' : 'rgb(var(--color-surface))'};
+  border: 1px solid ${props => props.selected ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border-radius: 6px;
+  cursor: ${props => props.dragging ? 'grabbing' : 'pointer'};
+  transition: all 0.2s ease;
+  opacity: ${props => props.dragging ? 0.5 : 1};
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    background: ${props => props.selected ? 'rgba(var(--color-primary), 0.15)' : 'rgba(var(--color-primary), 0.05)'};
+  }
+`;
+
+const FieldInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+`;
+
+const FieldName = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+`;
+
+const FieldMeta = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+const FieldBadge = styled.span<{ variant?: 'required' | 'type' }>`
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 3px;
+  background: ${props => {
+    if (props.variant === 'required') return 'rgba(239, 68, 68, 0.1)';
+    return 'rgba(var(--color-primary), 0.1)';
+  }};
+  color: ${props => {
+    if (props.variant === 'required') return 'rgb(239, 68, 68)';
+    return 'rgb(var(--color-primary))';
+  }};
+`;
+
+const ActionButton = styled.button`
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgb(var(--color-primary));
+  color: white;
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.9);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const RemoveButton = styled.button`
+  padding: 4px 8px;
+  font-size: 13px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  color: rgb(var(--color-text-secondary));
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: rgb(239, 68, 68);
+  }
+`;
+
+const DragHandle = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  cursor: grab;
+  color: rgb(var(--color-text-tertiary));
+
+  &:active {
+    cursor: grabbing;
+  }
+`;
+
+const EmptyState = styled.div`
+  padding: 40px 20px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+`;
+
+const LoadingText = styled.div`
+  padding: 20px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+`;
+
+const ErrorText = styled.div`
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: rgb(239, 68, 68);
+  font-size: 14px;
+`;
+
+// ============================================================================
+// Component
+// ============================================================================
+
+export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
+  selectedFields,
+  onFieldsChange,
+  initialEntityType,
+  onEntityTypeChange,
+}) => {
+  const [selectedEntityType, setSelectedEntityType] = useState<string>(initialEntityType || '');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
+
+  // Use React Query hooks from schemaService
+  const { data: entities = [], isLoading: entitiesLoading, error: entitiesError } = useEntityList();
+  const { data: fieldsData, isLoading: fieldsLoading, error: fieldsError } = useEntityFields(
+    selectedEntityType,
+    { enabled: !!selectedEntityType }
+  );
+  
+  const availableFields = fieldsData?.fields || [];
+  const loading = entitiesLoading || fieldsLoading;
+  const error = entitiesError || fieldsError;
+
+  // Auto-select first entity if no initial type
+  useEffect(() => {
+    if (!initialEntityType && entities.length > 0 && !selectedEntityType) {
+      setSelectedEntityType(entities[0].id);
+    }
+  }, [entities, initialEntityType, selectedEntityType]);
+
+  const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const entityType = e.target.value;
+    setSelectedEntityType(entityType);
+    setSearchTerm('');
+    // Clear selected fields when changing entity type
+    onFieldsChange([]);
+    
+    if (onEntityTypeChange) {
+      onEntityTypeChange(entityType);
+    }
+  };
+
+  const handleAddField = (field: EntityField) => {
+    // Check if field already added
+    const exists = selectedFields.some(f => f.name === field.name);
+    if (exists) return;
+
+    const newField: SelectedField = {
+      ...field,
+      fieldId: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+
+    onFieldsChange([...selectedFields, newField]);
+  };
+
+  const handleRemoveField = (fieldId: string) => {
+    onFieldsChange(selectedFields.filter(f => f.fieldId !== fieldId));
+  };
+
+  const handleDragStart = (fieldId: string) => {
+    setDraggedFieldId(fieldId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetFieldId: string) => {
+    e.preventDefault();
+    
+    if (!draggedFieldId || draggedFieldId === targetFieldId) return;
+
+    const draggedIndex = selectedFields.findIndex(f => f.fieldId === draggedFieldId);
+    const targetIndex = selectedFields.findIndex(f => f.fieldId === targetFieldId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newFields = [...selectedFields];
+    const [draggedField] = newFields.splice(draggedIndex, 1);
+    newFields.splice(targetIndex, 0, draggedField);
+
+    onFieldsChange(newFields);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedFieldId(null);
+  };
+
+  const filteredAvailableFields = availableFields.filter(field => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      field.name.toLowerCase().includes(search) ||
+      field.label.toLowerCase().includes(search) ||
+      field.type.toLowerCase().includes(search)
+    );
+  });
+
+  const isFieldSelected = (fieldName: string) => {
+    return selectedFields.some(f => f.name === fieldName);
+  };
+
+  return (
+    <Container>
+      {/* Entity Selection */}
+      <Section>
+        <SectionTitle>Select Entity</SectionTitle>
+        <EntitySelector>
+          <Label htmlFor="entity-select">Entity Type *</Label>
+          <Select
+            id="entity-select"
+            value={selectedEntityType}
+            onChange={handleEntityChange}
+          >
+            <option value="">-- Select entity --</option>
+            {entities.map(entity => (
+              <option key={entity.id} value={entity.id}>
+                {entity.label_plural}
+              </option>
+            ))}
+          </Select>
+        </EntitySelector>
+      </Section>
+
+      {/* Available Fields */}
+      {selectedEntityType && (
+        <Section>
+          <SectionTitle>Available Fields</SectionTitle>
+          <SearchInput
+            type="text"
+            placeholder="Search fields..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          
+          {loading ? (
+            <LoadingText>Loading fields...</LoadingText>
+          ) : error ? (
+            <ErrorText>{error instanceof Error ? error.message : 'Failed to load fields'}</ErrorText>
+          ) : (
+            <FieldsList>
+              {filteredAvailableFields.length === 0 ? (
+                <EmptyState>No fields found</EmptyState>
+              ) : (
+                filteredAvailableFields.map(field => (
+                  <FieldItem
+                    key={field.name}
+                    selected={isFieldSelected(field.name)}
+                    onClick={() => !isFieldSelected(field.name) && handleAddField(field)}
+                  >
+                    <FieldInfo>
+                      <FieldName>{field.label}</FieldName>
+                      <FieldMeta>
+                        <FieldBadge variant="type">{field.type}</FieldBadge>
+                        {field.required && <FieldBadge variant="required">required</FieldBadge>}
+                        {field.help_text && <span>• {field.help_text}</span>}
+                      </FieldMeta>
+                    </FieldInfo>
+                    {!isFieldSelected(field.name) && (
+                      <ActionButton onClick={() => handleAddField(field)}>
+                        Add
+                      </ActionButton>
+                    )}
+                    {isFieldSelected(field.name) && (
+                      <FieldBadge>Added</FieldBadge>
+                    )}
+                  </FieldItem>
+                ))
+              )}
+            </FieldsList>
+          )}
+        </Section>
+      )}
+
+      {/* Selected Fields */}
+      <Section>
+        <SectionTitle>Selected Fields ({selectedFields.length})</SectionTitle>
+        <FieldsList>
+          {selectedFields.length === 0 ? (
+            <EmptyState>No fields selected. Add fields from above.</EmptyState>
+          ) : (
+            selectedFields.map(field => (
+              <FieldItem
+                key={field.fieldId}
+                dragging={draggedFieldId === field.fieldId}
+                draggable
+                onDragStart={() => handleDragStart(field.fieldId)}
+                onDragOver={(e) => handleDragOver(e, field.fieldId)}
+                onDragEnd={handleDragEnd}
+              >
+                <DragHandle>⋮⋮</DragHandle>
+                <FieldInfo>
+                  <FieldName>{field.label}</FieldName>
+                  <FieldMeta>
+                    <FieldBadge variant="type">{field.type}</FieldBadge>
+                    {field.required && <FieldBadge variant="required">required</FieldBadge>}
+                  </FieldMeta>
+                </FieldInfo>
+                <RemoveButton onClick={() => handleRemoveField(field.fieldId)}>
+                  Remove
+                </RemoveButton>
+              </FieldItem>
+            ))
+          )}
+        </FieldsList>
+      </Section>
+    </Container>
+  );
+};
+
+export default EntityFieldPicker;

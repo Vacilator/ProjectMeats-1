@@ -814,6 +814,7 @@ jobs:
     needs: [migrate]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
+    timeout-minutes: 15
     steps:
       - name: Create Backend .env File Locally
         run: |
@@ -853,7 +854,7 @@ jobs:
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'SSH'
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=60 -o ServerAliveCountMax=10 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'SSH'
           set -euo pipefail
           
           REG="${{ env.REGISTRY }}"
@@ -885,15 +886,12 @@ jobs:
           echo "Current disk usage: ${USAGE}%"
           
           if [ "$USAGE" -gt 70 ]; then
-            echo "⚠️  Disk usage above 70%, running Docker cleanup..."
-            # Remove old/unused images (keep current deployment images)
-            docker image prune -af --filter "until=24h" || true
-            # Remove unused volumes
-            docker volume prune -f || true
-            # Remove build cache
-            docker builder prune -af || true
-            # Show disk after cleanup
-            echo "Disk after cleanup:"
+            echo "⚠️  Disk usage above 70%, running quick Docker cleanup..."
+            # Quick cleanup: only remove stopped containers and dangling images
+            docker container prune -f || true
+            # Remove dangling images only (not old tagged images which are slower)
+            docker image prune -f || true
+            echo "✓ Quick cleanup complete"
             df -h /
           fi
           

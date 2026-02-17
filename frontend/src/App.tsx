@@ -13,6 +13,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { QuickActionsProvider } from './contexts/QuickActionsContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import { ActionItemsProvider } from './contexts/ActionItemsContext';
+import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
 
 // Create QueryClient for data fetching (React Query)
@@ -69,6 +70,8 @@ import CustomizationsPage from './pages/Admin/Customizations';
 import UsersPage from './pages/Admin/Users';
 import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
+import ActivityPage from './pages/Admin/Activity';
+import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import CockpitPage from './pages/Cockpit';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
@@ -152,11 +155,12 @@ const App: React.FC = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider>
-          <NotificationsProvider>
-            <ActionItemsProvider>
-              <QuickActionsProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <NotificationsProvider>
+              <ActionItemsProvider>
+                <QuickActionsProvider>
               <Router
                 future={{
                   v7_startTransition: true,
@@ -240,13 +244,42 @@ const App: React.FC = () => {
                 <Route path="my-submissions" element={<MySubmissions />} />
                 <Route path="my-tasks" element={<Navigate to="/workforms/tasks" replace />} />
                 
-                {/* Admin Workspace */}
-                <Route path="admin/option-lists" element={<OptionListsPage />} />
-                <Route path="admin/configurations" element={<ConfigurationsPage />} />
-                <Route path="admin/customizations" element={<CustomizationsPage />} />
-                <Route path="admin/users" element={<UsersPage />} />
-                <Route path="admin/profile" element={<AdminProfilePage />} />
-                <Route path="admin/billing" element={<BillingPage />} />
+                {/* Admin Workspace - Wrapped with error boundary */}
+                <Route path="admin/option-lists" element={
+                  <AdminErrorBoundary fallbackTitle="Option Lists Error">
+                    <OptionListsPage />
+                  </AdminErrorBoundary>
+                } />
+                <Route path="admin/configurations" element={
+                  <AdminErrorBoundary fallbackTitle="Configurations Error">
+                    <ConfigurationsPage />
+                  </AdminErrorBoundary>
+                } />
+                <Route path="admin/customizations" element={
+                  <AdminErrorBoundary fallbackTitle="Customizations Error">
+                    <CustomizationsPage />
+                  </AdminErrorBoundary>
+                } />
+                <Route path="admin/users" element={
+                  <AdminErrorBoundary fallbackTitle="Users Management Error">
+                    <UsersPage />
+                  </AdminErrorBoundary>
+                } />
+                <Route path="admin/profile" element={
+                  <AdminErrorBoundary fallbackTitle="Profile Settings Error">
+                    <AdminProfilePage />
+                  </AdminErrorBoundary>
+                } />
+                <Route path="admin/billing" element={
+                  <AdminErrorBoundary fallbackTitle="Billing Error">
+                    <BillingPage />
+                  </AdminErrorBoundary>
+                } />
+                <Route path="admin/activity" element={
+                  <AdminErrorBoundary fallbackTitle="Activity Logs Error">
+                    <ActivityPage />
+                  </AdminErrorBoundary>
+                } />
                 
                 {/* Cockpit (Command Center Dashboard) */}
                 <Route path="cockpit" element={<CockpitPage />} />
@@ -262,6 +295,7 @@ const App: React.FC = () => {
           </NotificationsProvider>
         </ThemeProvider>
       </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 };

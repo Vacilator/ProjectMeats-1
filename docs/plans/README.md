@@ -21,6 +21,7 @@ This directory contains **active planning documents** for ProjectMeats v2.0.
 |------|-------|--------|
 | [Master Plan v3.1](PROJECTMEATS_V2_MASTER_PLAN.md) | Full v2.0 implementation | 🔄 28% Complete |
 | [Progress Tracker](PROGRESS_TRACKER.md) | Task tracking & metrics | 🔄 Updated daily |
+| **[Multi-Step Container](MULTI_STEP_CONTAINER_IMPLEMENTATION_PLAN.md)** | **Container workflows fix** | **⏳ Ready to Execute** |
 | [Forms Enhancement](FORMS_FLOWS_ENHANCEMENT_PLAN.md) | Forms & workflows | 🔄 Wave 3 |
 | [Doc Organization](DOCUMENTATION_ORGANIZATION_PLAN.md) | Documentation cleanup | 🔄 Wave 5 |
 

@@ -515,11 +515,18 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
   availableFields = [],
   tenantLists = [],
 }) => {
-  const [localField, setLocalField] = useState<FormField>(field);
+  // Ensure required arrays are always initialized
+  const [localField, setLocalField] = useState<FormField>({
+    ...field,
+    validationRules: field.validationRules || [],
+  });
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    setLocalField(field);
+    setLocalField({
+      ...field,
+      validationRules: field.validationRules || [],
+    });
   }, [field]);
 
   const fieldTypeDef = FIELD_TYPE_DEFINITIONS[localField.type];

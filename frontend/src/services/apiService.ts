@@ -90,9 +90,8 @@ apiClient.interceptors.request.use(
       const authHeader = getAuthHeader();
       if (authHeader) {
         config.headers.Authorization = authHeader;
-      } else {
-        console.warn('[API] No auth header available for request to:', config.url);
       }
+      // Note: Missing auth header is expected during login/public endpoints
       
       // Add tenant ID header if available
       const tenantId = localStorage.getItem('tenantId');

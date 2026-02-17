@@ -1,0 +1,177 @@
+name: Dependabot Auto-Merge
+
+# Auto-merge passing dependabot PRs for safe updates
+run-name: "🤖 Auto-Merge: ${{ github.event.pull_request.title }}"
+
+on:
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# Cancel old runs when new push to same PR
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Gate job: Check if this is a dependabot PR with automerge label
+  check-eligibility:
+    name: "Check Eligibility"
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      is_dependabot: ${{ steps.check.outputs.is_dependabot }}
+    
+    steps:
+      - name: Check if eligible for auto-merge
+        id: check
+        run: |
+          IS_DEPENDABOT="${{ github.event.pull_request.user.login == 'dependabot[bot]' }}"
+          HAS_AUTOMERGE="${{ contains(github.event.pull_request.labels.*.name, 'automerge') }}"
+          
+          echo "is_dependabot=$IS_DEPENDABOT" >> $GITHUB_OUTPUT
+          
+          if [ "$IS_DEPENDABOT" = "true" ] && [ "$HAS_AUTOMERGE" = "true" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "✅ Dependabot PR with automerge label - proceeding"
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            
+            if [ "$IS_DEPENDABOT" = "false" ]; then
+              echo "⏭️ Not a dependabot PR - skipping workflow"
+            elif [ "$HAS_AUTOMERGE" = "false" ]; then
+              echo "⏭️ No automerge label - skipping workflow"
+            fi
+          fi
+
+  auto-merge:
+    name: "Auto-Merge Safe Updates"
+    runs-on: ubuntu-latest
+    needs: [check-eligibility]
+    
+    # Only run if eligible (prevents "skipped" noise)
+    if: needs.check-eligibility.outputs.should_run == 'true'
+    
+    steps:
+      - name: Check PR status
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          
+          # Get PR check status
+          CHECKS=$(gh pr checks $PR_NUMBER --json name,state,conclusion --repo ${{ github.repository }})
+          
+          # Check if all required checks passed
+          FAILED=$(echo "$CHECKS" | jq '[.[] | select(.state == "COMPLETED" and .conclusion != "SUCCESS" and .conclusion != "SKIPPED")] | length')
+          PENDING=$(echo "$CHECKS" | jq '[.[] | select(.state != "COMPLETED")] | length')
+          
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "pending=$PENDING" >> $GITHUB_OUTPUT
+          
+          if [ "$FAILED" -gt 0 ]; then
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "❌ $FAILED checks failed - will not auto-merge"
+          elif [ "$PENDING" -gt 0 ]; then
+            echo "status=pending" >> $GITHUB_OUTPUT
+            echo "⏳ $PENDING checks pending - waiting..."
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "✅ All checks passed - ready to merge"
+          fi
+
+      - name: Classify update type
+        id: classify
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          
+          # Determine update category
+          if echo "$PR_TITLE" | grep -q "github-actions\|actions-unified"; then
+            echo "category=github-actions" >> $GITHUB_OUTPUT
+            echo "safe=true" >> $GITHUB_OUTPUT  # GitHub Actions updates are safe
+          elif echo "$PR_TITLE" | grep -q "docker"; then
+            echo "category=docker" >> $GITHUB_OUTPUT
+            # Docker updates require manual review (can break golden pipeline)
+            echo "safe=false" >> $GITHUB_OUTPUT
+          elif echo "$PR_TITLE" | grep -q "frontend-unified\|npm"; then
+            echo "category=frontend" >> $GITHUB_OUTPUT
+            echo "safe=true" >> $GITHUB_OUTPUT  # Frontend deps are safe if tests pass
+          elif echo "$PR_TITLE" | grep -q "backend-unified\|pip"; then
+            echo "category=backend" >> $GITHUB_OUTPUT
+            echo "safe=true" >> $GITHUB_OUTPUT  # Backend deps are safe if tests pass
+          else
+            echo "category=unknown" >> $GITHUB_OUTPUT
+            echo "safe=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Auto-merge if safe
+        if: |
+          steps.check.outputs.status == 'success' &&
+          steps.classify.outputs.safe == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          CATEGORY=${{ steps.classify.outputs.category }}
+          
+          echo "✅ Auto-merging safe $CATEGORY update..."
+          
+          gh pr merge $PR_NUMBER \
+            --squash \
+            --delete-branch \
+            --body "🤖 Auto-merged: All checks passed. Category: $CATEGORY" \
+            --repo ${{ github.repository }}
+          
+          echo "## ✅ Auto-Merge Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Category:** $CATEGORY" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #$PR_NUMBER" >> $GITHUB_STEP_SUMMARY
+          echo "**Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Skip Docker updates
+        if: |
+          steps.check.outputs.status == 'success' &&
+          steps.classify.outputs.category == 'docker'
+        run: |
+          echo "## ⚠️ Manual Review Required" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Category:** Docker base image update" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** Can break golden pipeline (build failures)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review Dockerfile changes" >> $GITHUB_STEP_SUMMARY
+          echo "2. Test build locally: \`docker build -t test .\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Verify no breaking changes in base image changelog" >> $GITHUB_STEP_SUMMARY
+          echo "4. Merge manually if safe" >> $GITHUB_STEP_SUMMARY
+
+      - name: Log skipped
+        if: |
+          steps.check.outputs.status == 'success' &&
+          steps.classify.outputs.safe == 'false' &&
+          steps.classify.outputs.category != 'docker'
+        run: |
+          echo "## ⏭️ Skipped Auto-Merge" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Category:** ${{ steps.classify.outputs.category }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** Not in auto-merge whitelist" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** Manual review required" >> $GITHUB_STEP_SUMMARY
+
+      - name: Log pending
+        if: steps.check.outputs.status == 'pending'
+        run: |
+          echo "## ⏳ Waiting for Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pending checks:** ${{ steps.check.outputs.pending }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Auto-merge will run when all checks complete" >> $GITHUB_STEP_SUMMARY
+
+      - name: Log failed
+        if: steps.check.outputs.status == 'failed'
+        run: |
+          echo "## ❌ Checks Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Failed checks:** ${{ steps.check.outputs.failed }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** Fix failures before merging" >> $GITHUB_STEP_SUMMARY

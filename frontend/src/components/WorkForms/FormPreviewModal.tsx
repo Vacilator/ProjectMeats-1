@@ -275,13 +275,56 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
     return typeMap[nodeType] || nodeType;
   };
 
-  const handleEdit = () => navigate(`/workforms/editor/${form.id}`);
+  const handleEdit = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    console.log('[FormPreview] Edit button clicked - form:', { id: form.id, name: form.name, flow_data: form.flow_data });
+    console.log('[FormPreview] Navigating to:', `/workforms/editor/${form.id}`);
+    onClose();
+    setTimeout(() => {
+      navigate(`/workforms/editor/${form.id}`);
+    }, 100);
+  };
+  
+  const handleClone = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    console.log('[FormPreview] Clone button clicked - form:', { id: form.id, name: form.name });
+    console.log('[FormPreview] Navigating to:', `/workforms/editor?clone=${form.id}`);
+    onClose();
+    setTimeout(() => {
+      navigate(`/workforms/editor?clone=${form.id}`);
+    }, 100);
+  };
+  
+  const handleSettings = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    console.log('[FormPreview] Settings button clicked - form:', { id: form.id, name: form.name });
+    console.log('[FormPreview] Navigating to editor with settings tab');
+    onClose();
+    setTimeout(() => {
+      navigate(`/workforms/editor/${form.id}?tab=settings`);
+    }, 100);
+  };
+  
+  const handlePreview = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    console.log('[FormPreview] Preview button clicked - form:', { id: form.id, name: form.name });
+    console.log('[FormPreview] Navigating to:', `/workforms/editor/${form.id}?mode=preview`);
+    onClose();
+    setTimeout(() => {
+      navigate(`/workforms/editor/${form.id}?mode=preview`);
+    }, 100);
+  };
+  
   const nodes = form.flow_data?.nodes || [];
   const nodeTypes = [...new Set(nodes.map(n => n.type))];
 
   return (
-    <Overlay onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <Modal>
+    <Overlay onClick={(e) => {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    }}>
+      <Modal onClick={(e) => e.stopPropagation()}>
         <Header>
           <FormIcon>{form.icon || '📋'}</FormIcon>
           <HeaderContent>
@@ -321,12 +364,24 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
         </Content>
         <Footer>
           <FooterLeft>
-            <Button variant="outline" onClick={() => console.log('[FormPreview] Preview not yet implemented')}><Eye /> Preview</Button>
-            <Button variant="outline" onClick={() => console.log('[FormPreview] Clone not yet implemented')}><Copy /> Clone</Button>
+            <Button variant="outline" onClick={(e) => handlePreview(e)}>
+              <Eye size={16} />
+              Preview
+            </Button>
+            <Button variant="outline" onClick={(e) => handleClone(e)}>
+              <Copy size={16} />
+              Clone
+            </Button>
           </FooterLeft>
           <FooterRight>
-            <Button variant="secondary" onClick={() => console.log('[FormPreview] Settings not yet implemented')}><Settings /> Settings</Button>
-            <Button variant="primary" onClick={handleEdit}><Edit /> Edit</Button>
+            <Button variant="secondary" onClick={(e) => handleSettings(e)}>
+              <Settings size={16} />
+              Settings
+            </Button>
+            <Button variant="primary" onClick={(e) => handleEdit(e)}>
+              <Edit size={16} />
+              Edit
+            </Button>
           </FooterRight>
         </Footer>
       </Modal>

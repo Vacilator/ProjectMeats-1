@@ -69,6 +69,8 @@ const CardDescription = styled.p`
 
 const CardContentContainer = styled.div`
   width: 100%;
+  display: block;
+  min-height: 1px; /* Prevent collapse */
 `;
 
 const CardFooterContainer = styled.div`
@@ -112,8 +114,25 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   </CardHeaderContainer>
 );
 
-export const CardContent: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <CardContentContainer>{children}</CardContentContainer>
+export const CardContent: React.FC<{ 
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  onClick?: (e: React.MouseEvent) => void;
+  onMouseDown?: (e: React.MouseEvent) => void;
+  onMouseEnter?: (e: React.MouseEvent) => void;
+  onMouseMove?: (e: React.MouseEvent) => void;
+}> = ({ children, className, style, onClick, onMouseDown, onMouseEnter, onMouseMove }) => (
+  <CardContentContainer 
+    className={className} 
+    style={style}
+    onClick={onClick}
+    onMouseDown={onMouseDown}
+    onMouseEnter={onMouseEnter}
+    onMouseMove={onMouseMove}
+  >
+    {children}
+  </CardContentContainer>
 );
 
 export const CardFooter: React.FC<{ children: React.ReactNode }> = ({ children }) => (

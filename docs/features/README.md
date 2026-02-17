@@ -2,7 +2,7 @@
 
 > Documentation for specific features and modules.
 >
-> **Last Updated**: 2026-02-01 (Phase D3 consolidation complete)
+> **Last Updated**: 2026-02-06 (WorkForms Enhancement Project added)
 
 ## Access & Authentication
 
@@ -29,6 +29,12 @@
 | Document | Purpose |
 |----------|---------|
 | [Studio User Guide](STUDIO_USER_GUIDE.md) | Admin Studio usage |
+
+## WorkForms System
+
+| Document | Purpose |
+|----------|---------|
+| [WorkForms Enhancement Project](WORKFORMS_ENHANCEMENT_PROJECT.md) | **🚀 Active Project** - Entity-driven form builder & workflow containers (6 weeks, 9 phases) |
 
 ---
 

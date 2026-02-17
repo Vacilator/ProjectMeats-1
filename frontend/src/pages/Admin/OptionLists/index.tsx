@@ -18,6 +18,7 @@ import {
   Search, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { adminClient } from '../../../services/apiService';
+import { OptionListModal } from './OptionListModal';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -414,6 +415,7 @@ const OptionListsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingItems, setLoadingItems] = useState<string | null>(null);
+  const [editingList, setEditingList] = useState<SystemChoiceList | null>(null);
 
   // Load all choice lists on mount
   useEffect(() => {
@@ -453,6 +455,23 @@ const OptionListsPage: React.FC = () => {
         loadListItems(slug);
       }
     }
+  };
+
+  const handleEditList = (list: SystemChoiceList, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingList(list);
+  };
+
+  const handleModalClose = () => {
+    setEditingList(null);
+  };
+
+  const handleModalSave = () => {
+    // Reload the list items
+    if (editingList) {
+      loadListItems(editingList.slug);
+    }
+    loadChoiceLists(); // Refresh counts
   };
 
   // Filter lists by search query
@@ -538,10 +557,10 @@ const OptionListsPage: React.FC = () => {
                         {list.model_field_path || 'Choice Items'}
                       </ItemsTitle>
                       <AddItemButton 
-                        disabled={!list.is_extensible}
-                        title={list.is_extensible ? 'Add custom item' : 'System list - cannot add items'}
+                        onClick={(e) => handleEditList(list, e)}
+                        title={list.is_extensible ? 'Edit items' : 'View items'}
                       >
-                        <Plus /> Add Item
+                        <Edit2 /> {list.is_extensible ? 'Edit Items' : 'View Items'}
                       </AddItemButton>
                     </ItemsHeader>
 
@@ -588,6 +607,17 @@ const OptionListsPage: React.FC = () => {
             );
           })}
         </ListsGrid>
+      )}
+
+      {editingList && (
+        <OptionListModal
+          listSlug={editingList.slug}
+          listName={editingList.name}
+          isExtensible={editingList.is_extensible}
+          isOpen={true}
+          onClose={handleModalClose}
+          onSave={handleModalSave}
+        />
       )}
     </PageContainer>
   );

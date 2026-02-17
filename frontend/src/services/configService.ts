@@ -792,7 +792,7 @@ async function getAuditLogs(
   if (filters.page) params.append('page', String(filters.page));
   if (filters.page_size) params.append('page_size', String(filters.page_size));
   
-  const response = await apiClient.get(`/api/v1/system/audit-logs/?${params.toString()}`);
+  const response = await apiClient.get(`/system/audit-logs/?${params.toString()}`);
   return response.data;
 }
 
@@ -800,7 +800,7 @@ async function getAuditLogs(
  * Get a single audit log entry with full details
  */
 async function getAuditLogDetail(id: string): Promise<ConfigAuditLog> {
-  const response = await apiClient.get(`/api/v1/system/audit-logs/${id}/`);
+  const response = await apiClient.get(`/system/audit-logs/${id}/`);
   return response.data;
 }
 
@@ -808,7 +808,7 @@ async function getAuditLogDetail(id: string): Promise<ConfigAuditLog> {
  * Get audit log summary statistics
  */
 async function getAuditLogSummary(): Promise<AuditLogSummaryStats> {
-  const response = await apiClient.get('/api/v1/system/audit-logs/summary/');
+  const response = await apiClient.get('/system/audit-logs/summary/');
   return response.data;
 }
 
@@ -825,7 +825,7 @@ async function getEntityHistory(params: {
   if (params.entity_name) searchParams.append('entity_name', params.entity_name);
   if (params.object_id) searchParams.append('object_id', params.object_id);
   
-  const response = await apiClient.get(`/api/v1/system/audit-logs/entity_history/?${searchParams.toString()}`);
+  const response = await apiClient.get(`/system/audit-logs/entity_history/?${searchParams.toString()}`);
   return response.data;
 }
 

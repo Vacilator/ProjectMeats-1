@@ -32,6 +32,8 @@ export interface NodeTypeDefinition {
   maxInputs?: number;
   maxOutputs?: number;
   requiresConfig?: boolean;
+  /** If true, this node type is hidden from the palette */
+  hidden?: boolean;
 }
 
 // ============================================================================
@@ -100,18 +102,61 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   },
   
   // === FORM ELEMENTS ===
-  formStep: {
-    id: 'formStep',
-    name: 'Form Step',
+  
+  // NEW: Phase 2 renamed nodes (2026-02-14)
+  formStepSingle: {
+    id: 'formStepSingle',
+    name: 'Form Step Single',
     category: 'form',
     icon: '📋',
     color: '#3b82f6', // blue
-    description: 'Container for multiple form fields',
+    description: 'Single step with form fields - drag INTO a form process container',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
   },
   
+  formProcess: {
+    id: 'formProcess',
+    name: 'Form Process',
+    category: 'form',
+    icon: '📦',
+    color: '#8b5cf6', // purple - distinct from regular form blue
+    description: 'DROP ZONE: Drag form steps and nodes here to create a multi-step flow',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+  },
+  
+  // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)
+  // These map to the new node types but are marked as deprecated
+  formStep: {
+    id: 'formStep',
+    name: 'Form Step (DEPRECATED - use formStepSingle)',
+    category: 'form',
+    icon: '📋',
+    color: '#9ca3af', // gray - deprecated
+    description: '[DEPRECATED] This node type has been renamed to formStepSingle. Existing workflows will continue to work.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hidden: true, // Hide from palette
+  },
+  
+  formMultiStepContainer: {
+    id: 'formMultiStepContainer',
+    name: 'Multi-Step Container (DEPRECATED - use formProcess)',
+    category: 'form',
+    icon: '📦',
+    color: '#9ca3af', // gray - deprecated
+    description: '[DEPRECATED] This node type has been renamed to formProcess. Existing workflows will continue to work.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hidden: true, // Hide from palette
+  },
+  
+  // OTHER FORM ELEMENTS
   formReference: {
     id: 'formReference',
     name: 'Form Reference',
@@ -122,29 +167,6 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
-  },
-  
-  formField: {
-    id: 'formField',
-    name: 'Form Field',
-    category: 'form',
-    icon: '📝',
-    color: '#3b82f6',
-    description: 'Individual input field (text, number, select, etc.)',
-    maxInputs: 1,
-    maxOutputs: 1,
-    requiresConfig: true,
-  },
-  
-  formSection: {
-    id: 'formSection',
-    name: 'Form Section',
-    category: 'form',
-    icon: '📑',
-    color: '#3b82f6',
-    description: 'Visual grouping for related fields',
-    maxInputs: 1,
-    maxOutputs: 1,
   },
   
   formSignature: {
@@ -170,6 +192,8 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxOutputs: 1,
     requiresConfig: true,
   },
+  
+  // REMOVED: formMultiStepContainer moved above as deprecated alias
   
   // === LOGIC & ROUTING ===
   conditionIf: {
@@ -240,6 +264,19 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     icon: '✉️',
     color: '#8b5cf6', // purple
     description: 'Send an email notification',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hasErrorRoute: true,
+  },
+  
+  outlookEmail: {
+    id: 'outlookEmail',
+    name: 'Send Email (Outlook)',
+    category: 'action',
+    icon: '📧',
+    color: '#0078d4', // Microsoft blue
+    description: 'Send email via Microsoft Outlook integration',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -556,6 +593,39 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     description: 'User-initiated cancellation',
     maxInputs: 1,
     maxOutputs: 0,
+  },
+  
+  // ============================================================================
+  // DEPRECATED NODES (Phase 6 - No longer available in palette)
+  // ============================================================================
+  // These nodes are kept in the registry for backwards compatibility with
+  // existing workflows. They are NOT registered in the nodeTypes object
+  // in UnifiedFlowEditor, so they cannot be added to new workflows.
+  // The migration tool (Phase 6.4) converts them to modern equivalents.
+  
+  formField: {
+    id: 'formField',
+    name: 'Form Field (DEPRECATED)',
+    category: 'form',
+    icon: '📝',
+    color: '#9ca3af', // gray - deprecated
+    description: '[DEPRECATED] Use Form Step instead. This node will be migrated automatically.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hidden: true, // Phase 6: Hide from palette (node still renders in existing flows)
+  },
+  
+  formSection: {
+    id: 'formSection',
+    name: 'Form Section (DEPRECATED)',
+    category: 'form',
+    icon: '📑',
+    color: '#9ca3af', // gray - deprecated
+    description: '[DEPRECATED] Use Form Step with section header. This node will be migrated automatically.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    hidden: true, // Phase 6: Hide from palette (node still renders in existing flows)
   },
 };
 

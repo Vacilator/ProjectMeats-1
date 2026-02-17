@@ -23,6 +23,8 @@ import styled from 'styled-components';
 import Editor from '@monaco-editor/react';
 import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
+import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
+import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import {
   ReactFlow,
   MiniMap,
@@ -39,13 +41,52 @@ import {
   EdgeTypes,
   OnSelectionChangeParams,
   useReactFlow,
+  MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Star, Search as SearchIcon, ChevronDown, Undo2, Redo2, Maximize2, ZoomIn, ZoomOut, Wand2, Eye, Code2, Download, Upload, CheckCircle, AlertCircle, Copy, ArrowRight, Sparkles, Plus } from 'lucide-react';
+import { 
+  Star, 
+  Search as SearchIcon, 
+  ChevronDown, 
+  Undo2, 
+  Redo2, 
+  Maximize2, 
+  Minimize2, 
+  ZoomIn, 
+  ZoomOut, 
+  Wand2, 
+  Eye, 
+  Code2, 
+  Download, 
+  Upload, 
+  CheckCircle, 
+  AlertCircle, 
+  Copy, 
+  ArrowRight, 
+  Sparkles, 
+  Plus,
+  AlignHorizontalDistributeCenter,
+  AlignVerticalDistributeCenter,
+  AlignLeft,
+  AlignRight,
+  AlignStartVertical,
+  AlignEndVertical,
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  X,
+  Save,
+  FolderOpen,
+  Trash2, // Phase 8.3
+  HelpCircle, // Workform Editor Enhancements
+  Play, // Task 1: Workflow Execution
+  Map, // Sprint 1 Task 1.3: Minimap toggle
+  Settings, // Sprint 1 Task 1.4: Background & Grid settings
+} from 'lucide-react';
 
 import {
-  FormStepNode,
+  FormStepSingleNode,
   FormReferenceNode,
+  FormProcessNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -54,18 +95,27 @@ import {
   UtilityNode,
   TerminalNode,
 } from './nodes';
-import { CustomEdge } from './edges';
+import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
-import { NodeConfigPanel } from './ConfigPanel';
+import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
+import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
+import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
+import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
+import { NodeConfigPanelWithShadow } from './ConfigPanel';
 import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
+import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
-import { FlowTemplate } from './templates/flowTemplates';
+import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
 import { SidePanel } from './SidePanel';
+import { FormProcessModal, type ContainerData } from './Modals/FormProcessModal';
+import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
+import { WorkflowExecutionModal } from '../FormSubmission/WorkflowExecutionModal'; // Task 1: Integration
+import { PreviewPanel } from './panels/PreviewPanel';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -96,14 +146,143 @@ interface FavoritesState {
 // Styled Components
 // ============================================================================
 
-const EditorContainer = styled.div`
+const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   width: 100%;
-  height: 600px;
+  height: ${props => props.$isFullscreen ? '100vh' : '600px'};
   background: rgb(var(--color-background));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
+  border: ${props => props.$isFullscreen ? 'none' : '1px solid rgb(var(--color-border))'};
+  border-radius: ${props => props.$isFullscreen ? '0' : 'var(--radius-lg)'};
   overflow: hidden;
-  position: relative;
+  position: ${props => props.$isFullscreen ? 'fixed' : 'relative'};
+  top: ${props => props.$isFullscreen ? '0' : 'auto'};
+  left: ${props => props.$isFullscreen ? '0' : 'auto'};
+  right: ${props => props.$isFullscreen ? '0' : 'auto'};
+  bottom: ${props => props.$isFullscreen ? '0' : 'auto'};
+  z-index: ${props => props.$isFullscreen ? '9990' : 'auto'};
+  
+  /* Phase 8.4: Smooth animations for node layout changes */
+  .react-flow__node {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.2s ease;
+  }
+  
+  .react-flow__node.dragging {
+    transition: none !important;
+  }
+  
+  .react-flow__edge {
+    transition: opacity 0.2s ease;
+  }
+  
+  /* Animate container expand/collapse */
+  .react-flow__node[data-type="formMultiStepContainer"] {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                width 0.3s ease,
+                height 0.3s ease,
+                opacity 0.2s ease;
+  }
+`;
+
+// ============================================================================
+// Deprecation Banner Components (Phase 6.1)
+// ============================================================================
+
+const DeprecationBanner = styled.div`
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: calc(100% - 40px);
+  max-width: 800px;
+  background: rgb(255, 243, 205);
+  border: 1px solid rgb(234, 179, 8);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.3s ease-out;
+  
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+`;
+
+const BannerIcon = styled.div`
+  flex-shrink: 0;
+  color: rgb(234, 179, 8);
+  display: flex;
+  align-items: center;
+`;
+
+const BannerContent = styled.div`
+  flex: 1;
+`;
+
+const BannerTitle = styled.div`
+  font-weight: 600;
+  font-size: 14px;
+  color: rgb(120, 53, 15);
+  margin-bottom: 4px;
+`;
+
+const BannerMessage = styled.div`
+  font-size: 13px;
+  color: rgb(146, 64, 14);
+  line-height: 1.4;
+`;
+
+const BannerActions = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+const MigrateButton = styled.button`
+  padding: 6px 12px;
+  background: rgb(234, 179, 8);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  
+  &:hover {
+    background: rgb(202, 138, 4);
+  }
+`;
+
+const CloseButton = styled.button`
+  padding: 4px;
+  background: transparent;
+  color: rgb(146, 64, 14);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease;
+  
+  &:hover {
+    opacity: 0.7;
+  }
+  
+  svg {
+    width: 18px;
+    height: 18px;
+  }
 `;
 
 // ============================================================================
@@ -112,7 +291,7 @@ const EditorContainer = styled.div`
 
 const ModeSelectorContainer = styled.div`
   position: absolute;
-  top: 12px;
+  bottom: 12px;
   right: 12px;
   display: flex;
   gap: 4px;
@@ -737,6 +916,7 @@ const ToolbarButton = styled.button`
   color: rgb(var(--color-text-primary));
   cursor: pointer;
   transition: all 0.15s ease;
+  position: relative;
   
   &:hover {
     background: rgb(var(--color-primary));
@@ -750,13 +930,350 @@ const ToolbarButton = styled.button`
   }
 `;
 
+const LoadMenuContainer = styled.div`
+  position: relative;
+  display: inline-block;
+`;
+
+const LoadMenuDropdown = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 350px;
+  max-width: 450px;
+  max-height: 500px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  
+  /* Phase 8.4: Smooth slide-in animation */
+  animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top right;
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+`;
+
+const LoadMenuHeader = styled.div`
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+`;
+
+const WorkflowSearchInput = styled.input`
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+  }
+  
+  &::placeholder {
+    color: rgb(var(--color-text-secondary));
+  }
+`;
+
+const LoadMenuList = styled.div`
+  overflow-y: auto;
+  max-height: 400px;
+`;
+
+const LoadMenuItem = styled.div`
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: background 0.15s ease;
+  
+  &:hover {
+    background: rgb(var(--color-background));
+  }
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const LoadMenuItemContent = styled.div`
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+`;
+
+const LoadMenuItemTitle = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const LoadMenuItemMeta = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const DeleteButton = styled.button`
+  padding: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgb(239, 68, 68);
+    color: rgb(239, 68, 68);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const LoadMenuEmpty = styled.div`
+  padding: 24px 16px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+`;
+
+const ConfirmModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  backdrop-filter: blur(4px);
+  
+  /* Phase 8.4: Smooth fade-in animation */
+  animation: fadeIn 0.2s ease;
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+`;
+
+const ConfirmContent = styled.div`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 400px;
+  padding: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  
+  /* Phase 8.4: Smooth scale-in animation */
+  animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9) translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+`;
+
+const ConfirmTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0 0 8px 0;
+`;
+
+const ConfirmMessage = styled.p`
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+`;
+
+const ConfirmActions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+`;
+
+const ConfirmButton = styled.button<{ $variant?: 'danger' | 'secondary' }>`
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${props => props.$variant === 'danger' ? 'white' : 'rgb(var(--color-text-primary))'};
+  background: ${props => props.$variant === 'danger' ? 'rgb(239, 68, 68)' : 'transparent'};
+  border: 1px solid ${props => props.$variant === 'danger' ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: ${props => props.$variant === 'danger' ? 'rgb(220, 38, 38)' : 'rgb(var(--color-background))'};
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+// ============================================================================
+// Keyboard Shortcuts Help Modal (Phase 8.6)
+// ============================================================================
+
+const KeyboardShortcutsModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10002;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+`;
+
+const KeyboardShortcutsContent = styled.div`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+`;
+
+const KeyboardShortcutsHeader = styled.div`
+  padding: 20px 24px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const KeyboardShortcutsTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0;
+`;
+
+const KeyboardShortcutsBody = styled.div`
+  padding: 24px;
+`;
+
+const ShortcutSection = styled.div`
+  margin-bottom: 24px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const ShortcutSectionTitle = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+`;
+
+const ShortcutList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ShortcutItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgb(var(--color-background));
+  border-radius: var(--radius-md);
+`;
+
+const ShortcutLabel = styled.span`
+  font-size: 14px;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ShortcutKeys = styled.div`
+  display: flex;
+  gap: 4px;
+`;
+
+const ShortcutKey = styled.kbd`
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: monospace;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+`;
+
 const ViewportToolbar = styled.div`
   position: absolute;
-  top: 12px;
-  right: 12px;
+  bottom: 12px;
+  left: 12px;
   display: flex;
   gap: 8px;
-  z-index: 5;
+  z-index: 15; /* Increased from 5 to ensure visibility above other elements */
 `;
 
 const ViewportButton = styled.button`
@@ -780,6 +1297,60 @@ const ViewportButton = styled.button`
   
   &:active {
     transform: scale(0.95);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const AlignmentToolbar = styled.div`
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 15;
+  
+  /* Hide when no nodes selected */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  
+  &.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+`;
+
+const AlignmentButton = styled.button`
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: rgb(var(--color-background));
+    color: rgb(var(--color-primary));
+  }
+  
+  &:active {
+    background: rgb(var(--color-primary));
+    color: white;
   }
   
   svg {
@@ -831,12 +1402,112 @@ const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $po
   pointer-events: none;
 `;
 
+// Sprint 1 Task 1.4: Background & Grid Settings Panel
+const SettingsPanel = styled.div`
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 200px;
+`;
+
+const SettingGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const SettingLabel = styled.label`
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const SettingRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const PatternButton = styled.button<{ $active: boolean }>`
+  flex: 1;
+  padding: 6px 10px;
+  background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
+  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-background))'};
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const GridSizeInput = styled.input`
+  flex: 1;
+  padding: 6px 8px;
+  background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  color: rgb(var(--color-text-primary));
+  font-size: 12px;
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const ToggleSwitch = styled.button<{ $active: boolean }>`
+  width: 40px;
+  height: 20px;
+  background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border: none;
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: ${props => props.$active ? '22px' : '2px'};
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: left 0.15s ease;
+  }
+`;
+
 // ============================================================================
 // Node & Edge Type Mapping
 // ============================================================================
 
-const nodeTypes: NodeTypes = {
-  formStep: FormStepNode,
+// Static node types (not containers that need node access)
+const staticNodeTypes: NodeTypes = {
+  // New names (Phase 2)
+  formStepSingle: FormStepSingleNode,
+  formProcess: FormProcessNode,
+  // Backward compatibility aliases
+  formStep: FormStepSingleNode,
+  formMultiStepContainer: FormProcessNode,
+  // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
   condition: ConditionIfNode,
@@ -849,6 +1520,10 @@ const nodeTypes: NodeTypes = {
 
 const edgeTypes: EdgeTypes = {
   custom: CustomEdge,
+  conditional: ConditionalEdge,
+  error: ErrorEdge,
+  success: SuccessEdge,
+  default: CustomEdge, // Fallback to custom for untyped edges
 };
 
 // ============================================================================
@@ -863,12 +1538,171 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   editorMode = 'visual',
   allowedNodeCategories, // Phase 4.2: Permission-based filtering
 }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeIdCounter, setNodeIdCounter] = useState(initialNodes.length + 1);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Phase E: Wrap onNodesChange to handle container deletion
+  const onNodesChange = useCallback((changes: any[]) => {
+    // Check if any containers are being removed
+    const removedNodeIds = changes
+      .filter(change => change.type === 'remove')
+      .map(change => change.id);
+    
+    if (removedNodeIds.length > 0) {
+      const removedContainerIds = removedNodeIds.filter(id => 
+        nodes.find(n => n.id === id && n.type === 'formMultiStepContainer')
+      );
+      
+      if (removedContainerIds.length > 0) {
+        // Unparent all children of deleted containers
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (removedContainerIds.includes(n.parentNode || '')) {
+              // Calculate absolute position before unparenting
+              const parent = nds.find(p => p.id === n.parentNode);
+              const absolutePosition = parent
+                ? {
+                    x: n.position.x + parent.position.x,
+                    y: n.position.y + parent.position.y,
+                  }
+                : n.position;
+              
+              console.log(`[Container] Unparenting node ${n.id} from deleted container`);
+              return {
+                ...n,
+                position: absolutePosition,
+                parentNode: undefined,
+                extent: undefined,
+              };
+            }
+            return n;
+          })
+        );
+      }
+    }
+    
+    // Apply the original changes
+    onNodesChangeBase(changes);
+  }, [nodes, setNodes, onNodesChangeBase]);
   
   // React Flow instance for viewport controls
   const reactFlowInstance = useReactFlow();
+  
+  // ============================================================================
+  // Container State Restoration (Phase 4 Batch 5)
+  // ============================================================================
+  
+  /**
+   * Rebuild container statistics when workflow is loaded
+   * This ensures container nodes show correct counts even if statistics
+   * weren't persisted or became stale. Also cleans up orphaned nodes.
+   */
+  useEffect(() => {
+    if (initialNodes && initialNodes.length > 0) {
+      // Find all container nodes
+      const containerNodes = initialNodes.filter(
+        n => n.type === 'formMultiStepContainer'
+      );
+      
+      const containerIds = new Set(containerNodes.map(c => c.id));
+      
+      // Check for orphaned nodes (containerNodeId pointing to non-existent container)
+      const orphanedNodes = initialNodes.filter(
+        n => n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)
+      );
+      
+      if (orphanedNodes.length > 0) {
+        console.warn(
+          `[Container Restore] Found ${orphanedNodes.length} orphaned nodes (referencing missing containers)`,
+          orphanedNodes.map(n => n.id)
+        );
+        
+        // Clean up orphaned nodes by removing their containerNodeId
+        setNodes((nds) => nds.map(n => {
+          if (n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)) {
+            const cleanedData = { ...n.data };
+            delete cleanedData.containerNodeId;
+            console.log(`[Container Restore] Cleaned orphaned node ${n.id}`);
+            return { ...n, data: cleanedData };
+          }
+          return n;
+        }));
+      }
+      
+      if (containerNodes.length > 0) {
+        console.log(`[Container Restore] Found ${containerNodes.length} containers, rebuilding statistics...`);
+        
+        // Rebuild statistics for each container
+        containerNodes.forEach(container => {
+          // Count child nodes
+          const childNodes = initialNodes.filter(
+            n => n.data?.containerNodeId === container.id
+          );
+          
+          const nodeTypeBreakdown: Record<string, number> = {};
+          const formReferences: string[] = [];
+          
+          childNodes.forEach(node => {
+            const nodeType = node.type || 'unknown';
+            nodeTypeBreakdown[nodeType] = (nodeTypeBreakdown[nodeType] || 0) + 1;
+            
+            // Collect form references
+            if (node.data?.formId) {
+              formReferences.push(node.data.formId);
+            }
+            if (node.data?.tenantFormId) {
+              formReferences.push(node.data.tenantFormId);
+            }
+          });
+          
+          // Update container data
+          setNodes((nds) => nds.map(n => {
+            if (n.id === container.id) {
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  nodeCount: childNodes.length,
+                  nodeTypeBreakdown,
+                  formReferences: [...new Set(formReferences)],
+                  childNodes: childNodes.map(c => c.id),
+                },
+              };
+            }
+            return n;
+          }));
+          
+          console.log(`[Container Restore] Container ${container.id}: ${childNodes.length} nodes`);
+        });
+      }
+    }
+  }, []); // Only run on mount
+
+  // ============================================================================
+  // Deprecated Node Detection (Phase 6.1)
+  // ============================================================================
+  
+  /**
+   * Detect deprecated nodes in the workflow
+   * - formField: Old individual field node (replaced by formStep)
+   * - formSection: Old section node (replaced by formStep)
+   */
+  useEffect(() => {
+    const DEPRECATED_TYPES = ['formField', 'formSection'];
+    const foundDeprecated = nodes.filter(node => DEPRECATED_TYPES.includes(node.type || ''));
+    
+    if (foundDeprecated.length > 0) {
+      const uniqueTypes = [...new Set(foundDeprecated.map(n => n.type))];
+      setHasDeprecatedNodes(true);
+      setDeprecatedNodeTypes(uniqueTypes as string[]);
+      console.log('[Phase 6] Deprecated nodes detected:', uniqueTypes, foundDeprecated.length);
+    } else {
+      setHasDeprecatedNodes(false);
+      setDeprecatedNodeTypes([]);
+    }
+  }, [nodes]);
 
   // ============================================================================
   // Editor Mode State & Filtering
@@ -895,6 +1729,48 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
   }, [internalEditorMode, editorMode]);
   
+  // ============================================================================
+  // Fullscreen State & Handlers (Phase 0: WF-ENH-2026-Q1)
+  // ============================================================================
+  
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('workforms_fullscreen_enabled');
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  });
+  
+  const toggleFullscreen = useCallback(() => {
+    const newFullscreenState = !isFullscreen;
+    setIsFullscreen(newFullscreenState);
+    localStorage.setItem('workforms_fullscreen_enabled', newFullscreenState ? 'true' : 'false');
+  }, [isFullscreen]);
+  
+  // ESC key handler for CSS-based fullscreen exit
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+        localStorage.setItem('workforms_fullscreen_enabled', 'false');
+      }
+    };
+    
+    if (isFullscreen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Prevent body scroll when in fullscreen
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isFullscreen]);
+  
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
     let filteredNodes = Object.values(NODE_TYPE_REGISTRY);
@@ -902,6 +1778,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     console.log('[NodePalette] Total nodes in registry:', filteredNodes.length);
     console.log('[NodePalette] Editor mode:', activeEditorMode);
     console.log('[NodePalette] Allowed categories:', allowedNodeCategories);
+    
+    // Step 0: Filter out hidden/deprecated nodes (Phase 6)
+    filteredNodes = filteredNodes.filter(nodeType => !nodeType.hidden);
+    console.log('[NodePalette] After hidden filtering:', filteredNodes.length);
     
     // Step 1: Filter by editor mode
     if (activeEditorMode === 'wizard') {
@@ -981,11 +1861,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [formReferenceModalOpen, setFormReferenceModalOpen] = useState(false);
   const [selectedFormReference, setSelectedFormReference] = useState<Node | null>(null);
   
+  // Container configuration (Phase 4.3)
+  const [containerModalOpen, setContainerModalOpen] = useState(false);
+  const [selectedContainer, setSelectedContainer] = useState<Node | null>(null);
+  
+  // Preview panel (Phase 5.1)
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  
+  // Sprint 1 Task 1.3: Minimap toggle
+  const [isMinimapVisible, setIsMinimapVisible] = useState(true);
+  
+  // Sprint 1 Task 1.4: Background & Grid controls
+  const [backgroundVariant, setBackgroundVariant] = useState<BackgroundVariant>(BackgroundVariant.Dots);
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [gridSize, setGridSize] = useState(15);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
+  
+  // Deprecated node detection (Phase 6.1)
+  const [hasDeprecatedNodes, setHasDeprecatedNodes] = useState(false);
+  const [deprecatedNodeTypes, setDeprecatedNodeTypes] = useState<string[]>([]);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  
   // Fetch tenant lists for dropdown options (Phase 4.2.B Integration)
   const { data: tenantLists = [] } = useQuery({
     queryKey: ['workflows', 'tenant-lists'],
     queryFn: async () => {
-      const response = await adminClient.get('/api/v1/workflows/lists/');
+      const response = await adminClient.get('/workflows/lists/');
       return response.data.results || response.data || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -996,6 +1897,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragNodeType, setDragNodeType] = useState<string | null>(null);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredContainerId, setHoveredContainerId] = useState<string | null>(null); // Phase E: Drop zone feedback
+  
+  // Phase E: Update container nodes with hover state for visual feedback
+  useEffect(() => {
+    if (isDragging) {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.type === 'formMultiStepContainer') {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: n.id === hoveredContainerId,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    }
+  }, [hoveredContainerId, isDragging, setNodes]);
   
   // Alignment guides state
   const [alignmentGuides, setAlignmentGuides] = useState<{
@@ -1005,6 +1927,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Proximity detection state
   const [nearbyNode, setNearbyNode] = useState<Node | null>(null);
+  
+  // Track drag start position to detect significant movement
+  const dragStartPositionRef = useRef<{ nodeId: string; x: number; y: number } | null>(null);
+  
+  // Track if a drop succeeded to prevent onDragEnd from undoing changes
+  const dropSucceededRef = useRef(false);
   
   // ============================================================================
   // Expert Mode State (Phase 2.2 Batch 2)
@@ -1019,6 +1947,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  
+  // ============================================================================
+  // Workflow Persistence State (Phase 7)
+  // ============================================================================
+  
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | undefined>(undefined);
+  const [currentWorkflowName, setCurrentWorkflowName] = useState<string>('Untitled Workflow');
+  const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState<string>(''); // Phase 8.2
+  const [currentWorkflowStatus, setCurrentWorkflowStatus] = useState<'draft' | 'active' | 'archived'>('draft'); // Phase 8.2
+  const [workflowList, setWorkflowList] = useState<WorkflowListItem[]>([]);
+  const [isLoadMenuOpen, setIsLoadMenuOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false); // Phase 8.2
+  const [workflowModalMode, setWorkflowModalMode] = useState<'create' | 'edit'>('create'); // Phase 8.2
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false); // Workform Batch 2
+  const [workflowSearchQuery, setWorkflowSearchQuery] = useState(''); // Phase 8.3
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false); // Phase 8.3
+  const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowListItem | null>(null); // Phase 8.3
+  const [isDeleting, setIsDeleting] = useState(false); // Phase 8.3
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false); // Phase 8.6
+  const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false); // Task 1: Workflow Execution
   
   // ============================================================================
   // Wizard Mode State (Phase 2.2 Batch 3)
@@ -1059,6 +2009,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       });
     }
   }, [activeEditorMode]);
+  
+  // Auto-load template in wizard mode when canvas is empty (Task 3)
+  useEffect(() => {
+    if (activeEditorMode === 'wizard' && nodes.length === 0) {
+      // Find the Simple Contact Form template
+      const simpleContactTemplate = FLOW_TEMPLATES.find(t => t.id === 'simple-contact-form');
+      if (simpleContactTemplate) {
+        // Load the template nodes and edges
+        setNodes(simpleContactTemplate.nodes);
+        setEdges(simpleContactTemplate.edges);
+        
+        console.log('[Wizard Mode] Auto-loaded Simple Contact Form template');
+      }
+    }
+  }, [activeEditorMode, nodes.length, setNodes, setEdges]);
 
   // Sync nodes/edges to JSON when entering Expert Mode or when data changes
   useEffect(() => {
@@ -1112,7 +2077,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         throw new Error('Invalid format: "edges" array is required');
       }
       
-      setNodes(parsed.nodes);
+      // CRITICAL: Sort nodes to ensure parent-before-child ordering
+      const sortedNodes = sortNodesTopologically(parsed.nodes);
+      setNodes(sortedNodes);
       setEdges(parsed.edges);
       setLastSyncTime(new Date());
       setJsonError(null);
@@ -1165,7 +2132,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             throw new Error('Invalid workflow file format');
           }
           
-          setNodes(parsed.nodes);
+          // CRITICAL: Sort nodes to ensure parent-before-child ordering
+          const sortedNodes = sortNodesTopologically(parsed.nodes);
+          setNodes(sortedNodes);
           setEdges(parsed.edges);
           setLastSyncTime(new Date());
           setJsonError(null);
@@ -1256,11 +2225,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodeIdCounter, wizardState.addedNodeCount, nodes, setNodes, setEdges]);
   
   const getNodeSuggestionsForFlowType = (flowType: FlowType): string[] => {
+    // Use actual NODE_TYPE_REGISTRY IDs instead of generic names
     const suggestions = {
-      form: ['trigger', 'formStep', 'action', 'condition'],
-      workflow: ['trigger', 'condition', 'action', 'wait'],
-      approval: ['trigger', 'wait', 'condition', 'action'],
-      document: ['trigger', 'formStep', 'document', 'action'],
+      form: ['triggerManual', 'formStep', 'actionEmail', 'conditionBranch'],
+      workflow: ['triggerManual', 'conditionBranch', 'actionEmail', 'waitApproval'],
+      approval: ['triggerManual', 'waitApproval', 'conditionBranch', 'actionNotify'],
+      document: ['triggerManual', 'formStep', 'documentGenerate', 'actionEmail'],
     };
     return suggestions[flowType] || [];
   };
@@ -1466,6 +2436,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       if (!sourceNode || !targetNode) return;
       
+      // Phase 6.1: Container isolation validation (HIGHEST PRIORITY)
+      // Block connections from child node to external node
+      if (sourceNode.parentNode && !targetNode.parentNode) {
+        console.warn('[Connection] ❌ Cannot connect child node to external node (container isolation)');
+        // TODO: Show user-friendly error toast
+        return;
+      }
+      
+      // Block connections from external node to child node
+      if (!sourceNode.parentNode && targetNode.parentNode) {
+        console.warn('[Connection] ❌ Cannot connect external node to child node (container isolation)');
+        // TODO: Show user-friendly error toast
+        return;
+      }
+      
+      // Block connections between nodes in different containers
+      if (sourceNode.parentNode && targetNode.parentNode && sourceNode.parentNode !== targetNode.parentNode) {
+        console.warn('[Connection] ❌ Cannot connect nodes from different containers');
+        // TODO: Show user-friendly error toast
+        return;
+      }
+      
+      console.log('[Connection] ✅ Container isolation check passed');
+      
       // Type-aware validation
       const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
       if (!typeCheck.valid) {
@@ -1494,6 +2488,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     },
     [nodes, edges, setEdges, isValidConnectionType]
   );
+
+  // ============================================================================
+  // Task 2: Ghost Node Deletion Handler
+  // ============================================================================
+  
+  const onNodesDelete = useCallback(async (deletedNodes: Node[]) => {
+    for (const node of deletedNodes) {
+      // Check if this is a container node with a tenantFormId
+      if (node.type === 'formMultiStepContainer' && node.data.tenantFormId) {
+        try {
+          const result = await workformsApi.decrementFormUsage(node.data.tenantFormId);
+          console.log(`[Ghost Cleanup] ✅ Decremented usage for container: ${result.usage_count} remaining`);
+          
+          if (result.can_delete) {
+            console.log('[Ghost Cleanup] 🗑️ Form is now orphaned (usage_count=0). Will be cleaned up by background task.');
+          }
+        } catch (error) {
+          console.error('[Ghost Cleanup] ❌ Failed to decrement usage:', error);
+        }
+      }
+    }
+  }, []);
 
   // ============================================================================
   // Drag & Drop Handlers
@@ -1541,6 +2557,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     event.dataTransfer.setData('application/reactflow-nodetype', nodeTypeId);
     event.dataTransfer.effectAllowed = 'move';
     
+    // Reset drop succeeded flag when starting a new drag
+    dropSucceededRef.current = false;
+    
     // Track drag state for ghost preview
     setIsDragging(true);
     setDragNodeType(nodeTypeId);
@@ -1549,24 +2568,100 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     addToRecent(nodeTypeId);
   }, [addToRecent]);
   
+  // ============================================================================
+  // Container Detection Helper (Phase E)
+  // ============================================================================
+  
+  /**
+   * Detect if a position is inside a container node
+   * HOTFIX 2026-02-09: Reverted to manual bounding box detection
+   * 
+   * Root Cause: getIntersectingNodes() was returning 0 nodes even when containers exist
+   * Console logs showed "Intersecting nodes found: 0" every time
+   * Manual bounding box is more reliable and predictable
+   */
+  const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
+    // Get all container nodes
+    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
+    
+    if (containerNodes.length === 0) {
+      return null;
+    }
+    
+    // Manual bounding box detection
+    for (const container of containerNodes) {
+      // CRITICAL: Use measured dimensions if available (React Flow has calculated them)
+      // For expanded containers, measured dimensions are much larger than style dimensions
+      // Otherwise fall back to style or defaults
+      const containerWidth = container.measured?.width || 
+                            (typeof container.style?.width === 'number' ? container.style.width : 
+                             typeof container.width === 'number' ? container.width : 600);
+      const containerHeight = container.measured?.height || 
+                             (typeof container.style?.height === 'number' ? container.style.height : 
+                              typeof container.height === 'number' ? container.height : 400);
+      
+      // Use actual dimensions - don't inflate hit box
+      // Container should only capture drops that are VISUALLY inside it
+      
+      // Calculate bounding box
+      const bounds = {
+        left: container.position.x,
+        right: container.position.x + containerWidth,
+        top: container.position.y,
+        bottom: container.position.y + containerHeight, // Use actual dimensions
+      };
+      
+      // Check if drop position is within bounds
+      if (
+        position.x >= bounds.left &&
+        position.x <= bounds.right &&
+        position.y >= bounds.top &&
+        position.y <= bounds.bottom
+      ) {
+        return container;
+      }
+    }
+    
+    return null;
+  }, [nodes]);
+  
   const onDrag = useCallback((event: React.DragEvent) => {
     if (event.clientX === 0 && event.clientY === 0) return; // Ignore end event
     
     // Update drag ghost position
     setDragPosition({ x: event.clientX, y: event.clientY });
     
-    // Detect alignment and proximity during drag
-    const reactFlowBounds = event.currentTarget.getBoundingClientRect();
-    const flowPosition = reactFlowInstance.screenToFlowPosition({
-      x: event.clientX - reactFlowBounds.left,
-      y: event.clientY - reactFlowBounds.top,
+    // CRITICAL FIX: Use the ReactFlow wrapper element, not currentTarget
+    const reactFlowWrapper = document.querySelector('.react-flow') as HTMLElement;
+    if (!reactFlowWrapper) return;
+    
+    const reactFlowBounds = reactFlowWrapper.getBoundingClientRect();
+    
+    console.log('[DEBUG] Drag coordinates:', {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      boundsLeft: reactFlowBounds.left,
+      boundsTop: reactFlowBounds.top,
+      relativeX: event.clientX - reactFlowBounds.left,
+      relativeY: event.clientY - reactFlowBounds.top,
     });
+    
+    // FIX: screenToFlowPosition expects ABSOLUTE screen coordinates
+    // It handles viewport transformation internally - do NOT subtract bounds
+    const flowPosition = reactFlowInstance.screenToFlowPosition({
+      x: event.clientX,
+      y: event.clientY,
+    });
+    
+    console.log('[DEBUG] Flow position after transform:', flowPosition);
     
     // Snap to alignment
     const snappedPosition = {
       x: Math.round(flowPosition.x / 15) * 15,
       y: Math.round(flowPosition.y / 15) * 15,
     };
+    
+    console.log('[DEBUG] Snapped position:', snappedPosition);
     
     // Detect alignment guides
     const guides = detectAlignment(snappedPosition);
@@ -1575,7 +2670,55 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Detect nearby node for auto-connect
     const nearby = findNearbyNode(snappedPosition);
     setNearbyNode(nearby);
-  }, [reactFlowInstance, detectAlignment, findNearbyNode]);
+    
+    // Phase 1.2: Detect if hovering over a container for visual feedback
+    const hoveredContainer = findContainerAtPosition(snappedPosition);
+    setHoveredContainerId(hoveredContainer?.id || null);
+    
+    // Phase 1.2: Update container nodes with drop target indicator
+    if (hoveredContainer) {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id === hoveredContainer.id) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: true, // Visual feedback flag
+              },
+            };
+          }
+          // Clear drop target flag from other containers
+          if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: false,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    } else {
+      // Clear all drop target indicators when not hovering
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: false,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    }
+  }, [reactFlowInstance, detectAlignment, findNearbyNode, findContainerAtPosition, setNodes]);
   
   const onDragEnd = useCallback(() => {
     // Clear drag state
@@ -1584,14 +2727,41 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setDragPosition(null);
     setAlignmentGuides({ horizontal: [], vertical: [] });
     setNearbyNode(null);
-  }, []);
+    setHoveredContainerId(null);
+    
+    // Phase 1.2: Clear all drop target indicators
+    // CRITICAL FIX: Skip setNodes if drop succeeded to prevent race condition
+    // If drop succeeded, the onDrop handler already cleaned up drop targets
+    if (!dropSucceededRef.current) {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.type === 'formMultiStepContainer' && n.data.isDropTarget) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isDropTarget: false,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    }
+  }, [setNodes]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
+      console.log('🎯 [onDrop] DROP EVENT FIRED - Single ReactFlow');
       event.preventDefault();
 
       const type = event.dataTransfer.getData('application/reactflow-nodetype');
-      if (!type) return;
+      console.log('🎯 [onDrop] Node type:', type);
+      
+      if (!type) {
+        console.error('[onDrop] No node type found in dataTransfer');
+        return;
+      }
       
       // Clear drag state
       setIsDragging(false);
@@ -1599,16 +2769,49 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setDragPosition(null);
       setAlignmentGuides({ horizontal: [], vertical: [] });
 
-      // Get React Flow bounds and calculate position
-      const reactFlowBounds = event.currentTarget.getBoundingClientRect();
+      // CRITICAL FIX: Use the ReactFlow wrapper element, not currentTarget
+      // currentTarget can be the wrong element causing coordinate offset
+      const reactFlowWrapper = document.querySelector('.react-flow') as HTMLElement;
+      if (!reactFlowWrapper) {
+        console.error('[onDrop] Could not find React Flow wrapper');
+        return;
+      }
+      
+      // FIX: screenToFlowPosition expects ABSOLUTE screen coordinates
+      // It handles viewport transformation internally - do NOT subtract bounds
       const position = reactFlowInstance.screenToFlowPosition({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
+        x: event.clientX,
+        y: event.clientY,
       });
       
       // Snap to grid (15x15)
       position.x = Math.round(position.x / 15) * 15;
       position.y = Math.round(position.y / 15) * 15;
+      
+      // Phase 1.4: Check if dropping into a container
+      const targetContainer = findContainerAtPosition(position);
+      
+      if (targetContainer) {
+        // Phase 1.3: Ensure container is expanded
+        if (!targetContainer.data.isExpanded) {
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id === targetContainer.id) {
+                return {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    isExpanded: true,
+                  },
+                };
+              }
+              return n;
+            })
+          );
+        }
+      } else {
+        console.log(`[Container] No container detected at position`, position);
+      }
       
       // Check for nearby node to auto-connect
       const nearby = findNearbyNode(position);
@@ -1624,13 +2827,139 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         },
       };
       
+      // Phase 2.3: Container nodes no longer need childNodes/childEdges arrays
+      if (type === 'formMultiStepContainer') {
+        newNode.style = {
+          width: 600,  // Larger default width for expanded state
+          height: 400, // Larger default height for child nodes
+        };
+        newNode.data = {
+          ...newNode.data,
+          isExpanded: true, // Default to expanded so children are visible
+          // Removed childNodes/childEdges - children queried via parentId
+          onEnterContainer: (containerId: string) => {
+            console.log(`[Container] onEnterContainer callback triggered for ${containerId}`);
+            // This will be handled by the parent editor
+          },
+        };
+      }
+      
+      // Phase 1.4: If dropping into a container, set parent-child relationship
+      if (targetContainer) {
+        console.log(`[Container] Setting up parent-child relationship with container ${targetContainer.id}`);
+        
+        // Phase 1.4: Don't allow containers to be nested
+        if (type === 'formMultiStepContainer') {
+          // Fall through to main canvas drop - don't allow nested containers
+        } else {
+          // Phase 1.4: Set up React Flow native parent-child relationship
+          
+          // Calculate position relative to container
+          newNode.position = {
+            x: position.x - targetContainer.position.x,
+            y: position.y - targetContainer.position.y,
+          };
+          
+          // Phase 1.4: Set parentId property (React Flow v12+ native grouping)
+          newNode.parentId = targetContainer.id;
+          
+          // Phase 1.4: Constrain node movement to parent bounds
+          newNode.extent = 'parent';
+          
+          // Phase 1.4: Auto-expand parent if node dropped near edge
+          newNode.expandParent = true;
+          
+          // REFACTORED: Child nodes are hidden ONLY if container is collapsed
+          // When expanded, children render on main canvas (single-ReactFlow pattern)
+          const isParentExpanded = targetContainer.data?.isExpanded ?? true;
+          newNode.hidden = !isParentExpanded; // Hidden when collapsed, visible when expanded
+          
+          // Add node to main state
+          // CRITICAL: Parent nodes must come before their children in the array
+          // React Flow requirement: "Parent nodes must be in front of their child nodes"
+          // Find parent index and insert child right after it
+          const parentIndex = nodes.findIndex((n) => n.id === targetContainer.id);
+          const updatedNodes = [
+            ...nodes.slice(0, parentIndex + 1),
+            newNode,
+            ...nodes.slice(parentIndex + 1),
+          ];
+          
+          // Don't call setNodes here - batch all updates into ONE call below to avoid race conditions
+          setNodeIdCounter((prev) => prev + 1);
+          
+          // Phase 3.3: Trigger auto-layout for container
+          const layoutResult = calculateContainerLayout(
+            targetContainer.id,
+            updatedNodes,
+            edges
+          );
+          
+          // Phase 3.3: Apply layout, container dimensions, AND clear drop target in SINGLE setNodes call
+          // CRITICAL: Multiple setNodes calls can cause race conditions with parent/child rendering
+          const finalNodes = layoutResult.nodes.map((n) => {
+            if (n.id === targetContainer.id) {
+              // Apply both dimension changes AND clear drop target flag
+              const updates: any = {
+                ...n,
+                data: {
+                  ...n.data,
+                  isDropTarget: false, // Clear drop target indicator
+                },
+              };
+              
+              // Apply dimension changes if needed
+              if (layoutResult.containerWidth > 400 || layoutResult.containerHeight > 300) {
+                updates.style = {
+                  ...n.style,
+                  width: layoutResult.containerWidth,
+                  height: layoutResult.containerHeight,
+                };
+              }
+              
+              return updates;
+            }
+            return n;
+          });
+          
+          // CRITICAL: Sort nodes to ensure parent-before-child ordering
+          // React Flow requires parents to appear before children in the array
+          const sortedNodes = sortNodesTopologically(finalNodes);
+          setNodes(sortedNodes);
+          
+          // Phase 4: Trigger auto-connection for form steps
+          if (type === 'formStep' || type === 'formReference') {
+            const connectionResult = autoConnectSequentialSteps(
+              targetContainer.id,
+              finalNodes, // Use finalNodes (already has drop target cleared)
+              edges
+            );
+            
+            // Apply connection changes
+            setEdges(connectionResult.edges);
+          }
+          
+          // Clear nearby node state and return early (no auto-connect for container drops)
+          setNearbyNode(null);
+          
+          // Mark drop as succeeded to prevent onDragEnd from undoing changes
+          dropSucceededRef.current = true;
+          
+          return; // Don't continue to main canvas drop
+        }
+      }
+      
+      // Normal drop on main canvas
       const updatedNodes = nodes.concat(newNode);
       setNodes(updatedNodes);
       setNodeIdCounter((prev) => prev + 1);
       
-      // Auto-connect to nearby node if found
+      // Mark drop as succeeded
+      dropSucceededRef.current = true;
+      
+      // Auto-connect to nearby node if found (only for main canvas drops)
       let updatedEdges = edges;
-      if (nearby) {
+      if (nearby && !targetContainer) {
         const newEdge = {
           id: `edge-${nearby.id}-${newNode.id}`,
           source: nearby.id,
@@ -1644,13 +2973,459 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Clear nearby node state
       setNearbyNode(null);
     },
-    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, findNearbyNode, setEdges]
+    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, findNearbyNode, setEdges, findContainerAtPosition]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
+    console.log('🔵 [onDragOver] Event received');
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   }, []);
+
+  // ============================================================================
+  // Dynamic Node Types (Phase: Container Drop Handler Fix)
+  // ============================================================================
+  
+  /**
+   * NodeTypes definition
+   * 
+   * REFACTORED: Single ReactFlow architecture
+   * - Container nodes no longer need custom props
+   * - Children render on main canvas with parentId
+   * - Uses React Flow's official grouping pattern
+   */
+  const nodeTypes = useMemo<NodeTypes>(() => ({
+    ...staticNodeTypes,
+    // Container node no longer needs custom props with single-ReactFlow architecture
+  }), []);
+
+  // ============================================================================
+  // Container Drag-Drop Logic (Phase 4.4)
+  // ============================================================================
+  
+  /**
+   * Track drag start to detect significant movement
+   * Phase 5: Prevent unnecessary re-layouts during minor adjustments
+   */
+  const onNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
+    // Store initial position for comparison on drag stop
+    dragStartPositionRef.current = {
+      nodeId: node.id,
+      x: node.position.x,
+      y: node.position.y,
+    };
+    console.log(`[DragStart] Tracking node ${node.id} at position (${node.position.x}, ${node.position.y})`);
+  }, []);
+  
+  /**
+   * Phase 5: Handle node drag stop - detect reordering within container
+   * Phase 1-4: Handle dragging nodes in/out of containers
+   * 
+   * OPTIMIZATION: Only trigger auto-layout if position changed significantly
+   */
+  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    // Phase 5: If node is inside a container and it's a form step, check for significant movement
+    if (node.parentId && (node.type === 'formStep' || node.type === 'formReference')) {
+      // Check if position changed significantly (more than 30px horizontally)
+      const dragStart = dragStartPositionRef.current;
+      const SIGNIFICANT_MOVEMENT_THRESHOLD = 30; // pixels
+      
+      if (dragStart && dragStart.nodeId === node.id) {
+        const deltaX = Math.abs(node.position.x - dragStart.x);
+        const deltaY = Math.abs(node.position.y - dragStart.y);
+        
+        if (deltaX < SIGNIFICANT_MOVEMENT_THRESHOLD && deltaY < SIGNIFICANT_MOVEMENT_THRESHOLD) {
+          console.log(`[DragStop] Skipping re-layout - movement too small (deltaX: ${deltaX}, deltaY: ${deltaY})`);
+          dragStartPositionRef.current = null;
+          return; // Don't trigger layout for minor adjustments
+        }
+        
+        console.log(`[DragStop] Significant movement detected (deltaX: ${deltaX}, deltaY: ${deltaY})`);
+      }
+      
+      const container = nodes.find(n => n.id === node.parentId);
+      
+      if (container) {
+        console.log(`[DragStop] Triggering re-layout for container ${container.id} after node ${node.id} dragged`);
+        
+        // Re-calculate layout (reorders nodes based on new x-position)
+        const layoutResult = calculateContainerLayout(container.id, nodes, edges);
+        
+        // CRITICAL: Sort nodes to ensure parent-before-child ordering
+        const sortedNodes = sortNodesTopologically(layoutResult.nodes);
+        setNodes(sortedNodes);
+        
+        // Update container dimensions if needed
+        if (layoutResult.containerWidth > (container.style?.width || 400) || 
+            layoutResult.containerHeight > (container.style?.height || 300)) {
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id === container.id) {
+                return {
+                  ...n,
+                  style: {
+                    ...n.style,
+                    width: Math.max(layoutResult.containerWidth, n.style?.width || 400),
+                    height: Math.max(layoutResult.containerHeight, n.style?.height || 300),
+                  },
+                };
+              }
+              return n;
+            })
+          );
+        }
+        
+        // Re-connect sequential steps
+        const connectionResult = autoConnectSequentialSteps(container.id, layoutResult.nodes, edges);
+        setEdges(connectionResult.edges);
+        
+        console.log(`[DragStop] ✅ Re-layout and re-connection complete`);
+      }
+    }
+    
+    // Clear drag start tracking
+    dragStartPositionRef.current = null;
+    
+    // Phase 1-4: Original logic - Handle dragging node in/out of container
+    // Calculate absolute position (in case node is inside a parent)
+    const absolutePosition = node.parentId
+      ? {
+          x: node.position.x + (nodes.find(n => n.id === node.parentId)?.position.x || 0),
+          y: node.position.y + (nodes.find(n => n.id === node.parentId)?.position.y || 0),
+        }
+      : node.position;
+    
+    const container = findContainerAtPosition(absolutePosition);
+    
+    // Check if node's parent container changed
+    const currentParentId = node.parentId;
+    const newParentId = container?.id || null;
+    
+    // Prevent containers from being nested in other containers
+    if (node.type === 'formMultiStepContainer' && newParentId) {
+      console.log('[Container] Cannot nest containers inside containers');
+      return;
+    }
+    
+    if (currentParentId !== newParentId) {
+      setNodes((nds) => {
+        const updatedNodes = nds.map((n) => {
+          if (n.id === node.id) {
+            const updatedNode = { ...n };
+            
+            if (newParentId) {
+              // Node is being added to a container
+              const containerNode = nds.find(cn => cn.id === newParentId);
+              if (containerNode) {
+                // Convert position to be relative to parent
+                updatedNode.position = {
+                  x: absolutePosition.x - containerNode.position.x,
+                  y: absolutePosition.y - containerNode.position.y,
+                };
+                updatedNode.parentId = newParentId;
+                updatedNode.extent = 'parent';
+                console.log(`[Container] Node ${node.id} added to container ${newParentId}`);
+              }
+            } else if (currentParentId) {
+              // Node is being removed from container
+              updatedNode.position = absolutePosition;
+              delete updatedNode.parentNode;
+              delete updatedNode.extent;
+              console.log(`[Container] Node ${node.id} removed from container`);
+            }
+            
+            return updatedNode;
+          }
+          return n;
+        });
+        
+        // CRITICAL: Sort nodes to ensure parent-before-child ordering
+        return sortNodesTopologically(updatedNodes);
+      });
+      
+      // Update container stats
+      if (newParentId) {
+        updateContainerStats(newParentId);
+      }
+      if (currentParentId) {
+        updateContainerStats(currentParentId);
+      }
+      
+      setHasUnsavedChanges(true);
+    }
+  }, [nodes, edges, setNodes, setEdges, findContainerAtPosition]);
+  
+  /**
+   * Update container node statistics (Phase E - Updated for parentNode)
+   */
+  const updateContainerStats = useCallback((containerId: string) => {
+    setNodes((nds) => {
+      // Count nodes in this container using React Flow's parentNode property
+      const childNodes = nds.filter(n => n.parentId === containerId);
+      const nodeTypeBreakdown: Record<string, number> = {};
+      const formReferences: string[] = [];
+      
+      childNodes.forEach(node => {
+        const nodeType = node.type || 'unknown';
+        nodeTypeBreakdown[nodeType] = (nodeTypeBreakdown[nodeType] || 0) + 1;
+        
+        // Collect form references
+        if (node.data?.formId) {
+          formReferences.push(node.data.formId);
+        }
+        if (node.data?.tenantFormId) {
+          formReferences.push(node.data.tenantFormId);
+        }
+      });
+      
+      return nds.map((n) => {
+        if (n.id === containerId) {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              nodeCount: childNodes.length,
+              nodeTypeBreakdown,
+              formReferences: [...new Set(formReferences)],
+              childNodes: childNodes.map(c => c.id),
+            },
+          };
+        }
+        return n;
+      });
+    });
+  }, [setNodes]);
+  
+  /**
+   * Validate if node can be added to container
+   */
+  const canAddToContainer = useCallback((nodeType: string): boolean => {
+    // Triggers cannot be inside containers
+    const invalidTypes = ['triggerManual', 'triggerSchedule', 'triggerWebhook', 'triggerEvent', 'triggerForm'];
+    return !invalidTypes.includes(nodeType);
+  }, []);
+
+  // ============================================================================
+  // Node Alignment Tools (Phase 4 Batch 6)
+  // ============================================================================
+  
+  /**
+   * Align selected nodes horizontally (distribute along x-axis)
+   */
+  const alignHorizontal = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    // Sort by x position
+    const sorted = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const totalWidth = last.position.x - first.position.x;
+    const spacing = totalWidth / (sorted.length - 1);
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        const index = sorted.findIndex(s => s.id === n.id);
+        if (index !== -1 && index !== 0 && index !== sorted.length - 1) {
+          return {
+            ...n,
+            position: {
+              ...n.position,
+              x: first.position.x + (spacing * index),
+            },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Distributed ${selectedNodes.length} nodes horizontally`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes vertically (distribute along y-axis)
+   */
+  const alignVertical = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    // Sort by y position
+    const sorted = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const totalHeight = last.position.y - first.position.y;
+    const spacing = totalHeight / (sorted.length - 1);
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        const index = sorted.findIndex(s => s.id === n.id);
+        if (index !== -1 && index !== 0 && index !== sorted.length - 1) {
+          return {
+            ...n,
+            position: {
+              ...n.position,
+              y: first.position.y + (spacing * index),
+            },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Distributed ${selectedNodes.length} nodes vertically`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to the left (align x to leftmost node)
+   */
+  const alignLeft = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const minX = Math.min(...selectedNodes.map(n => n.position.x));
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, x: minX },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to left (x=${minX})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to the right (align x to rightmost node)
+   */
+  const alignRight = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const maxX = Math.max(...selectedNodes.map(n => n.position.x));
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, x: maxX },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to right (x=${maxX})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to the top (align y to topmost node)
+   */
+  const alignTop = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const minY = Math.min(...selectedNodes.map(n => n.position.y));
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, y: minY },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to top (y=${minY})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to the bottom (align y to bottommost node)
+   */
+  const alignBottom = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const maxY = Math.max(...selectedNodes.map(n => n.position.y));
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, y: maxY },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to bottom (y=${maxY})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to center horizontally
+   */
+  const alignCenterX = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const avgX = selectedNodes.reduce((sum, n) => sum + n.position.x, 0) / selectedNodes.length;
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, x: avgX },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to center X (x=${avgX.toFixed(0)})`);
+  }, [nodes, setNodes]);
+  
+  /**
+   * Align selected nodes to center vertically
+   */
+  const alignCenterY = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) return;
+    
+    const avgY = selectedNodes.reduce((sum, n) => sum + n.position.y, 0) / selectedNodes.length;
+    
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.selected) {
+          return {
+            ...n,
+            position: { ...n.position, y: avgY },
+          };
+        }
+        return n;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+    console.log(`[Align] Aligned ${selectedNodes.length} nodes to center Y (y=${avgY.toFixed(0)})`);
+  }, [nodes, setNodes]);
 
   // ============================================================================
   // Save Handler
@@ -1658,10 +3433,333 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   const handleSave = useCallback(() => {
     if (onSave) {
+      // Log container information for debugging (Phase E)
+      const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
+      const nodesInContainers = nodes.filter(n => n.parentNode); // Phase E: Using React Flow parentNode
+      
+      console.log('[Save] Workflow saved with container state:');
+      console.log(`  - ${containerNodes.length} container(s)`);
+      console.log(`  - ${nodesInContainers.length} node(s) in containers`);
+      
+      if (containerNodes.length > 0) {
+        containerNodes.forEach(container => {
+          const childNodes = nodes.filter(n => n.parentId === container.id); // Phase E: Using parentNode
+          console.log(`  - Container ${container.id}: ${childNodes.length} nodes`);
+        });
+      }
+      
       onSave(nodes, edges);
       console.log('Flow saved successfully!');
+      setHasUnsavedChanges(false);
     }
   }, [nodes, edges, onSave]);
+
+  // ============================================================================
+  // Phase 7: Workflow Persistence Handlers
+  // ============================================================================
+  
+  /**
+   * Validate workflow containers (Phase 8.5)
+   * Must be declared before handleSaveWorkflow to avoid TDZ error
+   */
+  const validateContainers = useCallback((): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    // Find all container nodes
+    const containerNodes = nodes.filter(
+      n => n.type === 'formMultiStepContainer'
+    );
+    
+    for (const container of containerNodes) {
+      // Get child nodes
+      const childNodes = nodes.filter(n => n.parentId === container.id);
+      
+      // Check for at least one form step
+      const formSteps = childNodes.filter(
+        n => n.type === 'formStep' || n.type === 'formReference'
+      );
+      
+      if (formSteps.length === 0) {
+        errors.push(
+          `Container "${container.data.label || container.id}" must have at least one form step`
+        );
+      }
+      
+      // Check for orphaned nodes (nodes without connections)
+      for (const child of childNodes) {
+        const hasIncoming = edges.some(e => e.target === child.id);
+        const hasOutgoing = edges.some(e => e.source === child.id);
+        
+        // Skip first node (can have no incoming)
+        const isFirstStep = formSteps[0]?.id === child.id;
+        
+        if (!hasIncoming && !hasOutgoing && !isFirstStep) {
+          errors.push(
+            `Node "${child.data.label || child.id}" in container "${container.data.label || container.id}" is not connected`
+          );
+        }
+      }
+    }
+    
+    return { valid: errors.length === 0, errors };
+  }, [nodes, edges]);
+  
+  /**
+   * Save workflow to backend
+   */
+  const handleSaveWorkflow = useCallback(async () => {
+    if (isSaving) return; // Prevent double-save
+    
+    // Phase 8.5: Validate containers before saving
+    const validation = validateContainers();
+    if (!validation.valid) {
+      // Show validation errors
+      const errorMessage = 'Validation failed:\n' + validation.errors.join('\n');
+      toast.error(errorMessage, { duration: 5000 });
+      console.warn('⚠️ Validation errors:', validation.errors);
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    // Show loading toast
+    const loadingToast = toast.loading(
+      currentWorkflowId ? 'Updating workflow...' : 'Creating workflow...'
+    );
+    
+    try {
+      // Get current viewport
+      const viewport = reactFlowInstance.getViewport();
+      
+      // Save workflow (create or update)
+      const savedWorkflow = await saveWorkflow(
+        currentWorkflowName,
+        nodes,
+        edges,
+        viewport,
+        currentWorkflowId, // Undefined = create new, string = update existing
+        currentWorkflowDescription, // Phase 8.2: Use description from state
+        currentWorkflowStatus // Phase 8.2: Use status from state
+      );
+      
+      // Update current workflow ID if this was a new workflow
+      if (!currentWorkflowId) {
+        setCurrentWorkflowId(savedWorkflow.id);
+      }
+      
+      setHasUnsavedChanges(false);
+      console.log('✅ Workflow saved:', savedWorkflow.name);
+      
+      // Show success toast
+      toast.success(
+        `Workflow "${savedWorkflow.name}" ${currentWorkflowId ? 'updated' : 'created'} successfully!`,
+        { id: loadingToast }
+      );
+    } catch (error) {
+      console.error('❌ Failed to save workflow:', error);
+      
+      // Show error toast
+      toast.error(
+        `Failed to save workflow: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { id: loadingToast }
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus]);
+  
+  /**
+   * Load workflow from backend
+   */
+  const handleLoadWorkflow = useCallback(async (workflowId: string) => {
+    if (isLoading) return; // Prevent double-load
+    
+    setIsLoading(true);
+    
+    // Show loading toast
+    const loadingToast = toast.loading('Loading workflow...');
+    
+    try {
+      // Load workflow data
+      const loadedWorkflow = await loadWorkflow(workflowId);
+      
+      // CRITICAL: Sort nodes to ensure parent-before-child ordering
+      const sortedNodes = sortNodesTopologically(loadedWorkflow.workflow_definition.nodes || []);
+      
+      // Update editor state
+      setNodes(sortedNodes);
+      setEdges(loadedWorkflow.workflow_definition.edges || []);
+      setCurrentWorkflowId(loadedWorkflow.id);
+      setCurrentWorkflowName(loadedWorkflow.name);
+      setCurrentWorkflowDescription(loadedWorkflow.description || ''); // Phase 8.2
+      setCurrentWorkflowStatus(loadedWorkflow.status as 'draft' | 'active' | 'archived'); // Phase 8.2
+      setHasUnsavedChanges(false);
+      
+      // Restore viewport if saved
+      if (loadedWorkflow.workflow_definition.viewport && reactFlowInstance) {
+        reactFlowInstance.setViewport(loadedWorkflow.workflow_definition.viewport);
+      }
+      
+      // Close load menu
+      setIsLoadMenuOpen(false);
+      
+      console.log('✅ Workflow loaded:', loadedWorkflow.name);
+      
+      // Show success toast
+      toast.success(
+        `Workflow "${loadedWorkflow.name}" loaded successfully!`,
+        { id: loadingToast }
+      );
+    } catch (error) {
+      console.error('❌ Failed to load workflow:', error);
+      
+      // Show error toast
+      toast.error(
+        `Failed to load workflow: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { id: loadingToast }
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading, reactFlowInstance, setNodes, setEdges]);
+  
+  /**
+   * Fetch workflow list when load menu is opened
+   */
+  useEffect(() => {
+    if (isLoadMenuOpen) {
+      setWorkflowSearchQuery(''); // Reset search when opening
+      listWorkflows()
+        .then(workflows => {
+          setWorkflowList(workflows);
+        })
+        .catch(error => {
+          console.error('❌ Failed to fetch workflow list:', error);
+          setWorkflowList([]);
+          toast.error('Failed to load workflow list');
+        });
+    }
+  }, [isLoadMenuOpen]);
+  
+  /**
+   * Filter workflows by search query (Phase 8.3)
+   */
+  const filteredWorkflows = useMemo(() => {
+    if (!workflowSearchQuery.trim()) {
+      return workflowList;
+    }
+    
+    const query = workflowSearchQuery.toLowerCase();
+    return workflowList.filter(workflow => 
+      workflow.name.toLowerCase().includes(query) ||
+      workflow.description?.toLowerCase().includes(query) ||
+      workflow.status.toLowerCase().includes(query)
+    );
+  }, [workflowList, workflowSearchQuery]);
+  
+  /**
+   * Handle delete workflow button click (Phase 8.3)
+   */
+  const handleDeleteClick = useCallback((workflow: WorkflowListItem, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering load
+    setWorkflowToDelete(workflow);
+    setDeleteConfirmOpen(true);
+  }, []);
+  
+  /**
+   * Confirm and delete workflow (Phase 8.3)
+   */
+  const handleConfirmDelete = useCallback(async () => {
+    if (!workflowToDelete || isDeleting) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      await deleteWorkflow(workflowToDelete.id);
+      
+      // Remove from list
+      setWorkflowList(prev => prev.filter(w => w.id !== workflowToDelete.id));
+      
+      // Close confirmation
+      setDeleteConfirmOpen(false);
+      setWorkflowToDelete(null);
+      
+      toast.success(`Workflow "${workflowToDelete.name}" deleted successfully`);
+    } catch (error) {
+      console.error('❌ Failed to delete workflow:', error);
+      toast.error(`Failed to delete workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [workflowToDelete, isDeleting]);
+  
+  /**
+   * Prompt for workflow name when creating new workflow
+   */
+  const handleNewWorkflow = useCallback(() => {
+    // Phase 8.2: Open workflow management modal instead of prompt()
+    setWorkflowModalMode('create');
+    setIsWorkflowModalOpen(true);
+  }, []);
+  
+  /**
+   * Handle workflow modal save (Phase 8.2)
+   */
+  const handleWorkflowModalSave = useCallback((metadata: WorkflowMetadata) => {
+    setCurrentWorkflowName(metadata.name);
+    setCurrentWorkflowDescription(metadata.description || '');
+    setCurrentWorkflowStatus(metadata.status);
+    setCurrentWorkflowId(undefined); // Clear ID to create new workflow on next save
+    setHasUnsavedChanges(true);
+    
+    toast.success(`Workflow "${metadata.name}" ready to create. Click Save to persist it.`);
+  }, []);
+  
+  /**
+   * Close load menu when clicking outside
+   */
+  useEffect(() => {
+    if (!isLoadMenuOpen) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const isLoadMenuClick = target.closest('[data-load-menu]');
+      if (!isLoadMenuClick) {
+        setIsLoadMenuOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isLoadMenuOpen]);
+  
+  /**
+   * Keyboard shortcuts listener (Phase 8.6)
+   */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // "?" key - Show keyboard shortcuts
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setShowKeyboardShortcuts(true);
+      }
+      
+      // ESC key - Close modals
+      if (e.key === 'Escape') {
+        setShowKeyboardShortcuts(false);
+        setDeleteConfirmOpen(false);
+      }
+      
+      // Ctrl+S / Cmd+S - Save workflow
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveWorkflow();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleSaveWorkflow]);
 
   // ============================================================================
   // Viewport Controls
@@ -1706,6 +3804,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // /: Focus search (if palette visible)
       if (event.key === '/' && !event.ctrlKey && !event.metaKey) {
+        if (isTypingInInput(event)) return; // Phase 4: Prevent when typing in input
         event.preventDefault();
         if (isPaletteVisible && searchInputRef.current) {
           searchInputRef.current.focus();
@@ -1714,8 +3813,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       // Delete/Backspace: Delete selected nodes
-      if ((event.key === 'Delete' || event.key === 'Backspace') && 
-          event.target === document.body) {
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (isTypingInInput(event)) return; // Phase 4: Prevent when typing in input
         event.preventDefault();
         const selectedNodes = nodes.filter(n => n.selected);
         if (selectedNodes.length > 0) {
@@ -1742,10 +3841,67 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
-      // Ctrl+S / Cmd+S: Save
+      // Ctrl+S / Cmd+S: Save workflow (Phase 7)
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {
         event.preventDefault();
-        handleSave();
+        handleSaveWorkflow(); // Phase 7: Save to backend
+        return;
+      }
+      
+      // Alignment shortcuts (Phase 4 Batch 6)
+      // Ctrl+Shift+H: Align horizontal (distribute X)
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'H') {
+        event.preventDefault();
+        alignHorizontal();
+        return;
+      }
+      
+      // Ctrl+Shift+V: Align vertical (distribute Y)
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'V') {
+        event.preventDefault();
+        alignVertical();
+        return;
+      }
+      
+      // Ctrl+Shift+L: Align left
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'L') {
+        event.preventDefault();
+        alignLeft();
+        return;
+      }
+      
+      // Ctrl+Shift+R: Align right
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'R') {
+        event.preventDefault();
+        alignRight();
+        return;
+      }
+      
+      // Ctrl+Shift+T: Align top
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'T') {
+        event.preventDefault();
+        alignTop();
+        return;
+      }
+      
+      // Ctrl+Shift+B: Align bottom
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'B') {
+        event.preventDefault();
+        alignBottom();
+        return;
+      }
+      
+      // Ctrl+Shift+X: Center horizontally
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'X') {
+        event.preventDefault();
+        alignCenterX();
+        return;
+      }
+      
+      // Ctrl+Shift+Y: Center vertically
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'Y') {
+        event.preventDefault();
+        alignCenterY();
         return;
       }
       
@@ -1753,6 +3909,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if (event.key === 'f' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
         event.preventDefault();
         fitView();
+        return;
+      }
+      
+      // M: Toggle minimap (Sprint 1 Task 1.3)
+      if (event.key === 'm' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return; // Don't toggle while typing
+        event.preventDefault();
+        setIsMinimapVisible(prev => !prev);
         return;
       }
       
@@ -1805,90 +3969,124 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaletteVisible, nodes, undo, redo, handleSave, setNodes, setEdges, fitView, zoomTo, selectAll, deselectAll, setSelectedNode, isDragging]);
+  }, [
+    isPaletteVisible, 
+    nodes, 
+    undo, 
+    redo, 
+    handleSave, 
+    setNodes, 
+    setEdges, 
+    fitView, 
+    zoomTo, 
+    selectAll, 
+    deselectAll, 
+    setSelectedNode, 
+    isDragging,
+    isMinimapVisible, // Sprint 1 Task 1.3
+    alignHorizontal,
+    alignVertical,
+    alignLeft,
+    alignRight,
+    alignTop,
+    alignBottom,
+    alignCenterX,
+    alignCenterY,
+  ]);
+
+  // ============================================================================
+  // Deprecated Node Migration (Phase 6.4)
+  // ============================================================================
+  
+  /**
+   * Migrate deprecated nodes to modern equivalents
+   * - formField → formStep with single field
+   * - formSection → formStep with section styling
+   */
+  const handleMigrateDeprecatedNodes = useCallback(() => {
+    console.log('[Phase 6] Starting migration of deprecated nodes...');
+    
+    const DEPRECATED_TYPES = ['formField', 'formSection'];
+    const nodesToMigrate = nodes.filter(node => DEPRECATED_TYPES.includes(node.type || ''));
+    
+    if (nodesToMigrate.length === 0) {
+      console.log('[Phase 6] No deprecated nodes to migrate');
+      return;
+    }
+    
+    const newNodes = nodes.map(node => {
+      if (!DEPRECATED_TYPES.includes(node.type || '')) {
+        return node; // Keep non-deprecated nodes as-is
+      }
+      
+      console.log(`[Phase 6] Migrating ${node.type} node:`, node.id);
+      
+      // Convert to formStep
+      if (node.type === 'formField') {
+        // Single field → formStep with one field
+        return {
+          ...node,
+          type: 'formStep',
+          data: {
+            ...node.data,
+            label: node.data?.label || 'Migrated Step',
+            description: node.data?.description || 'Migrated from old form field',
+            fields: node.data?.field ? [node.data.field] : [],
+            _migrated: true,
+            _originalType: 'formField',
+          },
+        };
+      }
+      
+      if (node.type === 'formSection') {
+        // Section → formStep with section header
+        return {
+          ...node,
+          type: 'formStep',
+          data: {
+            ...node.data,
+            label: node.data?.label || 'Migrated Section',
+            description: node.data?.description || 'Migrated from old form section',
+            fields: node.data?.fields || [],
+            showSectionHeader: true,
+            _migrated: true,
+            _originalType: 'formSection',
+          },
+        };
+      }
+      
+      return node;
+    });
+    
+    setNodes(newNodes);
+    setBannerDismissed(true);
+    
+    console.log(`[Phase 6] Migration complete: ${nodesToMigrate.length} nodes migrated`);
+    
+    // Show success message
+    alert(`Successfully migrated ${nodesToMigrate.length} deprecated node(s) to modern format!\n\nPlease review the migrated nodes and save your workflow.`);
+  }, [nodes, setNodes]);
 
   // ============================================================================
   // Node Selection & Configuration
   // ============================================================================
 
   const handleSelectionChange = useCallback((params: OnSelectionChangeParams) => {
-    // Open config panel when a single node is selected
+    // FIX: Do NOT auto-open modals on selection
+    // Modals ONLY open when user clicks Edit (pencil) button
     const selectedNodes = params.nodes || [];
     if (selectedNodes.length === 1) {
       const node = selectedNodes[0];
+      console.log('[Selection] Node selected (border highlight only):', node.type, node.id);
       
-      console.log('[UnifiedFlowEditor] Node selected:', node.type, node);
+      // DO NOT call setSelectedNode(node) here!
+      // That triggers NodeConfigPanel to open automatically.
+      // Selection only provides visual feedback (border).
+      // User must explicitly click Edit button to open configuration.
       
-      // Close all modals first
-      setFormStepModalOpen(false);
-      setFormFieldModalOpen(false);
-      setSectionModalOpen(false);
-      setDocumentModalOpen(false);
-      setCreateRecordModalOpen(false);
-      setFormReferenceModalOpen(false);
-      setSelectedNode(null);
-      setSelectedFormStep(null);
-      setSelectedFormField(null);
-      setSelectedSection(null);
-      setSelectedDocument(null);
-      setSelectedCreateRecord(null);
-      setSelectedFormReference(null);
-      
-      // Route to appropriate config panel based on node type
-      switch (node.type) {
-        case 'formStep':
-          console.log('[UnifiedFlowEditor] Opening FormStep modal');
-          setSelectedFormStep(node);
-          setFormStepModalOpen(true);
-          break;
-          
-        case 'formReference':
-          console.log('[UnifiedFlowEditor] Opening FormReference modal');
-          setSelectedFormReference(node);
-          setFormReferenceModalOpen(true);
-          break;
-          
-        case 'formField':
-          console.log('[UnifiedFlowEditor] Opening FormField modal');
-          setSelectedFormField(node);
-          setFormFieldModalOpen(true);
-          break;
-          
-        case 'formSection':
-        case 'section':
-          console.log('[UnifiedFlowEditor] Opening Section modal');
-          setSelectedSection(node);
-          setSectionModalOpen(true);
-          break;
-          
-        case 'formFileUpload':
-        case 'document':
-        case 'upload':
-          console.log('[UnifiedFlowEditor] Opening Document modal');
-          setSelectedDocument(node);
-          setDocumentModalOpen(true);
-          break;
-          
-        case 'action':
-          // Route to specialized action config based on actionType
-          const actionType = node.data.actionType;
-          if (actionType === 'createRecord') {
-            console.log('[UnifiedFlowEditor] Opening CreateRecord action modal');
-            setSelectedCreateRecord(node);
-            setCreateRecordModalOpen(true);
-          } else {
-            // Fall through to generic config for other action types
-            console.log('[UnifiedFlowEditor] Opening generic config panel for action');
-            setSelectedNode(node);
-          }
-          break;
-          
-        default:
-          console.log('[UnifiedFlowEditor] Opening generic config panel');
-          setSelectedNode(node);
-      }
     } else {
-      // Clear all selections
+      console.log('[Selection] Cleared selection');
+      // Clear all selections when nothing selected
       setSelectedNode(null);
       setSelectedFormStep(null);
       setSelectedFormField(null);
@@ -1896,14 +4094,162 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSelectedDocument(null);
       setSelectedCreateRecord(null);
       setSelectedFormReference(null);
+      setSelectedContainer(null);
       setFormStepModalOpen(false);
       setFormFieldModalOpen(false);
       setSectionModalOpen(false);
       setDocumentModalOpen(false);
       setCreateRecordModalOpen(false);
       setFormReferenceModalOpen(false);
+      setContainerModalOpen(false);
     }
   }, []);
+  
+  // Batch 3: Handler to open modal from Edit button
+  // IMPORTANT: This is the ONLY place modals should be opened (except programmatic saves)
+  const handleNodeEdit = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    console.log('✏️ [EDIT BUTTON] Opening modal for:', node.type, nodeId);
+    
+    // Close all modals first
+    setFormStepModalOpen(false);
+    setFormFieldModalOpen(false);
+    setSectionModalOpen(false);
+    setDocumentModalOpen(false);
+    setCreateRecordModalOpen(false);
+    setFormReferenceModalOpen(false);
+    setContainerModalOpen(false);
+    
+    // Route to appropriate config panel based on node type
+    switch (node.type) {
+      case 'formStep':
+        console.log('✏️ [EDIT BUTTON] Opening FormStep modal');
+        setSelectedFormStep(node);
+        setFormStepModalOpen(true);
+        break;
+      
+      case 'formMultiStepContainer':
+        console.log('✏️ [EDIT BUTTON] Opening Container modal');
+        setSelectedContainer(node);
+        setContainerModalOpen(true);
+        break;
+        
+      case 'formReference':
+        console.log('✏️ [EDIT BUTTON] Opening FormReference modal');
+        setSelectedFormReference(node);
+        setFormReferenceModalOpen(true);
+        break;
+        
+      case 'formField':
+        console.log('✏️ [EDIT BUTTON] Opening FormField modal');
+        setSelectedFormField(node);
+        setFormFieldModalOpen(true);
+        break;
+        
+      case 'formSection':
+      case 'section':
+        console.log('✏️ [EDIT BUTTON] Opening Section modal');
+        setSelectedSection(node);
+        setSectionModalOpen(true);
+        break;
+        
+      case 'formFileUpload':
+      case 'document':
+      case 'upload':
+        console.log('✏️ [EDIT BUTTON] Opening Document modal');
+        setSelectedDocument(node);
+        setDocumentModalOpen(true);
+        break;
+        
+      case 'action':
+        const actionType = node.data.actionType;
+        if (actionType === 'createRecord') {
+          console.log('✏️ [EDIT BUTTON] Opening CreateRecord modal');
+          setSelectedCreateRecord(node);
+          setCreateRecordModalOpen(true);
+        } else {
+          setSelectedNode(node);
+        }
+        break;
+        
+      default:
+        setSelectedNode(node);
+    }
+  }, [nodes]);
+  
+  // Batch 3: Handler to delete node from Delete button
+  const handleNodeDelete = useCallback(async (nodeId: string) => {
+    console.log('[UnifiedFlowEditor] Deleting node:', nodeId);
+    
+    const nodeToDelete = nodes.find(n => n.id === nodeId);
+    
+    // Phase 2: Decrement usage_count when formProcess node is deleted
+    if (nodeToDelete?.type === 'formProcess' || nodeToDelete?.type === 'formMultiStepContainer') {
+      const tenantFormId = nodeToDelete.data?.tenantFormId;
+      
+      if (tenantFormId) {
+        try {
+          await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
+          console.log('[UnifiedFlowEditor] Decremented usage count for form:', tenantFormId);
+        } catch (error) {
+          console.error('[UnifiedFlowEditor] Failed to decrement usage count:', error);
+          // Continue with deletion even if API call fails
+        }
+      }
+      
+      // If deleting a container, also remove its children
+      const childNodeIds = new Set(
+        nodes.filter(n => n.parentId === nodeId).map(n => n.id)
+      );
+      
+      if (childNodeIds.size > 0) {
+        console.log('[UnifiedFlowEditor] Also removing', childNodeIds.size, 'child nodes');
+        setNodes(nds => nds.filter(n => 
+          n.id !== nodeId && !childNodeIds.has(n.id)
+        ));
+      } else {
+        setNodes(nds => nds.filter(n => n.id !== nodeId));
+      }
+    } else {
+      // Remove node normally
+      setNodes(nds => nds.filter(n => n.id !== nodeId));
+    }
+    
+    // Remove connected edges
+    setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    
+    // Clear selections if deleted node was selected
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null);
+    }
+    
+    setHasUnsavedChanges(true);
+    toast.success('Node deleted');
+  }, [nodes, selectedNode, setNodes, setEdges]);
+  
+  // Batch 4: Handler to update node title
+  const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
+    console.log('[UnifiedFlowEditor] Updating node title:', nodeId, newTitle);
+    
+    setNodes(nds => 
+      nds.map(node => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newTitle,
+            },
+          };
+        }
+        return node;
+      })
+    );
+    
+    setHasUnsavedChanges(true);
+  }, [setNodes]);
 
   const handleNodeUpdate = useCallback((nodeId: string, newData: Record<string, any>) => {
     setNodes((nds) => 
@@ -1929,6 +4275,90 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setFormStepModalOpen(false);
     setSelectedFormStep(null);
   }, [selectedFormStep, handleNodeUpdate]);
+  
+  // Convert node data to EntityFormStepModal format (Phase 3 - WF-ENH-2026-Q1)
+  const convertNodeDataToFormStepData = useCallback((node: Node): FormStepData | undefined => {
+    if (!node.data) return undefined;
+    
+    return {
+      formId: node.data.formId,
+      formName: node.data.formName || node.data.stepTitle || node.data.label || 'Untitled Form',
+      entityType: node.data.entityType || 'supplier',
+      fields: node.data.fields || [],
+      mode: node.data.formId ? 'existing' : 'new',
+    };
+  }, []);
+  
+  // Handle EntityFormStepModal save (Phase 3 - WF-ENH-2026-Q1)
+  const handleEntityFormStepSave = useCallback((formData: FormStepData) => {
+    if (!selectedFormStep) return;
+    
+    console.log('[UnifiedFlowEditor] Saving EntityFormStep:', formData);
+    
+    // Update node data with form configuration
+    const updatedNodeData = {
+      ...selectedFormStep.data,
+      formId: formData.formId,
+      formName: formData.formName,
+      stepTitle: formData.formName,
+      label: formData.formName,
+      entityType: formData.entityType,
+      fields: formData.fields,
+      mode: formData.mode,
+      // Visual metadata for the node
+      configured: true,
+      fieldCount: formData.fields.length,
+    };
+    
+    handleNodeUpdate(selectedFormStep.id, updatedNodeData);
+    setFormStepModalOpen(false);
+    setSelectedFormStep(null);
+  }, [selectedFormStep, handleNodeUpdate]);
+  
+  // Convert node data to ContainerData format (Phase 4.3)
+  const convertNodeDataToContainerData = useCallback((node: Node): ContainerData | undefined => {
+    if (!node.data) return undefined;
+    
+    return {
+      workflowId: node.data.tenantWorkFormId,
+      containerName: node.data.containerName || node.data.label || 'Unnamed Container',
+      containerDescription: node.data.containerDescription,
+      mode: node.data.tenantWorkFormId ? 'existing' : 'new',
+      showProgressIndicator: node.data.showProgressIndicator ?? true,
+      allowBackNavigation: node.data.allowBackNavigation ?? true,
+      allowSkipSteps: node.data.allowSkipSteps ?? false,
+      autoAdvance: node.data.autoAdvance ?? false,
+      confirmOnExit: node.data.confirmOnExit ?? true,
+    };
+  }, []);
+  
+  // Handle container modal save (Phase 4.3)
+  const handleContainerSave = useCallback((containerData: ContainerData) => {
+    if (!selectedContainer) return;
+    
+    console.log('[UnifiedFlowEditor] Saving Container:', containerData);
+    
+    // Update node data with container configuration
+    const updatedNodeData = {
+      ...selectedContainer.data,
+      tenantWorkFormId: containerData.workflowId,
+      containerName: containerData.containerName,
+      containerDescription: containerData.containerDescription,
+      label: containerData.containerName,
+      mode: containerData.mode,
+      showProgressIndicator: containerData.showProgressIndicator,
+      allowBackNavigation: containerData.allowBackNavigation,
+      allowSkipSteps: containerData.allowSkipSteps,
+      autoAdvance: containerData.autoAdvance,
+      confirmOnExit: containerData.confirmOnExit,
+      // Visual metadata for the node
+      configured: true,
+    };
+    
+    handleNodeUpdate(selectedContainer.id, updatedNodeData);
+    setContainerModalOpen(false);
+    setSelectedContainer(null);
+  }, [selectedContainer, handleNodeUpdate]);
   
   // Get previous step fields for conditional logic
   const getPreviousStepFields = useCallback((currentNodeId: string) => {
@@ -2017,16 +4447,29 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const handleTemplateSelect = useCallback((template: FlowTemplate) => {
     console.log('[Template] Selected:', template.name);
     
-    // Map template nodes to proper React Flow node types
+    // Map template nodes to proper React Flow node types with full metadata
     const mappedNodes = template.nodes.map(node => {
+      // Get node definition from registry for metadata (color, icon, etc.)
+      const nodeDef = getNodeTypeDefinition(node.type);
+      
       // Ensure node has proper type mapping
       const reactFlowType = getReactFlowNodeType(node.type);
+      
+      // Merge default data + template data + registry metadata
+      const defaultData = getDefaultNodeData(node.type);
+      
       return {
         ...node,
         type: reactFlowType, // Override with React Flow node type
         data: {
-          ...node.data,
-          label: node.data.label || node.type, // Ensure label exists
+          ...defaultData,      // Default node data (fields, actions, etc.)
+          ...node.data,        // Template-specific data
+          label: node.data.label || nodeDef?.name || node.type, // Ensure label exists
+          // Add registry metadata for proper styling
+          color: nodeDef?.color,
+          icon: nodeDef?.icon,
+          category: nodeDef?.category,
+          description: nodeDef?.description,
         }
       };
     });
@@ -2127,9 +4570,47 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       .map(id => NODE_TYPE_REGISTRY[id])
       .filter(Boolean);
   }, [recentNodes]);
+  
+  // Batch 3: Inject edit/delete handlers into node data
+  // Batch 4: Also inject title change handler
+  const nodesWithHandlers = useMemo(() => {
+    return nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        onEdit: () => handleNodeEdit(node.id),
+        onDelete: () => handleNodeDelete(node.id),
+        onTitleChange: (newTitle: string) => handleNodeTitleChange(node.id, newTitle),
+      },
+    }));
+  }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange]);
 
   return (
-    <EditorContainer>
+    <EditorContainer $isFullscreen={isFullscreen}>
+      {/* Deprecation Banner (Phase 6.1) */}
+      {hasDeprecatedNodes && !bannerDismissed && (
+        <DeprecationBanner>
+          <BannerIcon>
+            <AlertCircle size={20} />
+          </BannerIcon>
+          <BannerContent>
+            <BannerTitle>Deprecated Nodes Detected</BannerTitle>
+            <BannerMessage>
+              This workflow contains {nodes.filter(n => ['formField', 'formSection'].includes(n.type || '')).length} deprecated node(s) 
+              ({deprecatedNodeTypes.join(', ')}). Click "Migrate Now" to update to the modern format.
+            </BannerMessage>
+          </BannerContent>
+          <BannerActions>
+            <MigrateButton onClick={handleMigrateDeprecatedNodes}>
+              Migrate Now
+            </MigrateButton>
+            <CloseButton onClick={() => setBannerDismissed(true)} title="Dismiss">
+              <X />
+            </CloseButton>
+          </BannerActions>
+        </DeprecationBanner>
+      )}
+      
       {/* Node Palette - Visual & Expert Modes Only */}
       {!readOnly && isPaletteVisible && (activeEditorMode === 'visual' || activeEditorMode === 'expert') && (
         <NodePalette>
@@ -2142,6 +4623,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             placeholder="Search nodes... (press / to focus)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
           />
           
           {/* Favorites Section */}
@@ -2165,6 +4647,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     onDragStart={(e) => onDragStart(e, node.id)}
                     onDrag={onDrag}
                     onDragEnd={onDragEnd}
+                    title={node.description} // Full description on hover
                   >
                     <NodeIcon>{node.icon}</NodeIcon>
                     <NodeInfo>
@@ -2207,6 +4690,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     onDragStart={(e) => onDragStart(e, node.id)}
                     onDrag={onDrag}
                     onDragEnd={onDragEnd}
+                    title={node.description} // Full description on hover
                   >
                     <NodeIcon>{node.icon}</NodeIcon>
                     <NodeInfo>
@@ -2255,6 +4739,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                       onDragStart={(e) => onDragStart(e, node.id)}
                       onDrag={onDrag}
                       onDragEnd={onDragEnd}
+                      title={node.description} // Full description on hover
                     >
                       <NodeIcon>{node.icon}</NodeIcon>
                       <NodeInfo>
@@ -2314,14 +4799,118 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             <Redo2 size={14} style={{ marginRight: '4px' }} />
             Redo
           </ToolbarButton>
-          <ToolbarButton onClick={handleSave} title="Save Flow (Ctrl+S)">
-            Save Flow
+          
+          {/* Phase 7: Workflow Persistence Buttons */}
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          <ToolbarButton 
+            onClick={handleNewWorkflow} 
+            title="New Workflow"
+          >
+            <Plus size={14} style={{ marginRight: '4px' }} />
+            New
+          </ToolbarButton>
+          <LoadMenuContainer data-load-menu>
+            <ToolbarButton 
+              onClick={() => setIsLoadMenuOpen(!isLoadMenuOpen)} 
+              title="Load Workflow"
+              disabled={isLoading}
+            >
+              <FolderOpen size={14} style={{ marginRight: '4px' }} />
+              Load
+              <ChevronDown size={12} style={{ marginLeft: '4px' }} />
+            </ToolbarButton>
+            {isLoadMenuOpen && (
+              <LoadMenuDropdown data-load-menu>
+                {/* Phase 8.3: Search input */}
+                <LoadMenuHeader>
+                  <WorkflowSearchInput
+                    type="text"
+                    placeholder="Search workflows..."
+                    value={workflowSearchQuery}
+                    onChange={(e) => setWorkflowSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                </LoadMenuHeader>
+                
+                <LoadMenuList>
+                  {filteredWorkflows.length === 0 ? (
+                    <LoadMenuEmpty>
+                      {isLoading ? 'Loading workflows...' : workflowSearchQuery ? 'No workflows match your search' : 'No workflows found'}
+                    </LoadMenuEmpty>
+                  ) : (
+                    filteredWorkflows.map(workflow => (
+                      <LoadMenuItem key={workflow.id}>
+                        <LoadMenuItemContent onClick={() => handleLoadWorkflow(workflow.id)}>
+                          <LoadMenuItemTitle>{workflow.name}</LoadMenuItemTitle>
+                          <LoadMenuItemMeta>
+                            <span>{workflow.node_count} nodes</span>
+                            <span>{workflow.status}</span>
+                            <span>{new Date(workflow.updated_at).toLocaleDateString()}</span>
+                          </LoadMenuItemMeta>
+                        </LoadMenuItemContent>
+                        <DeleteButton
+                          onClick={(e) => handleDeleteClick(workflow, e)}
+                          title="Delete workflow"
+                        >
+                          <Trash2 />
+                        </DeleteButton>
+                      </LoadMenuItem>
+                    ))
+                  )}
+                </LoadMenuList>
+              </LoadMenuDropdown>
+            )}
+          </LoadMenuContainer>
+          <ToolbarButton 
+            onClick={handleSaveWorkflow} 
+            title="Save Workflow (Ctrl+S)"
+            disabled={isSaving}
+            style={hasUnsavedChanges ? {
+              background: 'rgb(var(--color-primary))',
+              color: 'white',
+              borderColor: 'rgb(var(--color-primary))'
+            } : {}}
+          >
+            <Save size={14} style={{ marginRight: '4px' }} />
+            {isSaving ? 'Saving...' : 'Save'}
+          </ToolbarButton>
+          
+          {/* Task 1: Workflow Execution Integration */}
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          <ToolbarButton 
+            onClick={() => setIsExecutionModalOpen(true)}
+            title="Test Workflow Execution"
+            style={{ 
+              fontWeight: 600, 
+              color: 'rgb(34, 197, 94)', // Success green
+              borderColor: 'rgb(34, 197, 94, 0.3)'
+            }}
+            disabled={nodes.length === 0}
+          >
+            <Play size={14} style={{ marginRight: '4px' }} />
+            Test Workflow
           </ToolbarButton>
         </Toolbar>
       )}
 
       {/* Viewport Controls */}
       <ViewportToolbar>
+        <ViewportButton 
+          onClick={() => setIsSettingsPanelOpen(!isSettingsPanelOpen)} 
+          title="Canvas Settings (Grid, Background)"
+          style={isSettingsPanelOpen ? {
+            background: 'rgb(var(--color-primary))',
+            color: 'white',
+            borderColor: 'rgb(var(--color-primary))'
+          } : {}}
+        >
+          <Settings />
+        </ViewportButton>
+        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+        <ViewportButton onClick={toggleFullscreen} title={isFullscreen ? "Exit Fullscreen (ESC)" : "Enter Fullscreen"}>
+          {isFullscreen ? <Minimize2 /> : <Maximize2 />}
+        </ViewportButton>
+        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton onClick={fitView} title="Fit to View (F)">
           <Maximize2 />
         </ViewportButton>
@@ -2330,6 +4919,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ViewportButton>
         <ViewportButton onClick={zoomOut} title="Zoom Out">
           <ZoomOut />
+        </ViewportButton>
+        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+        <ViewportButton 
+          onClick={() => setIsMinimapVisible(!isMinimapVisible)} 
+          title={isMinimapVisible ? "Hide Minimap (M)" : "Show Minimap (M)"}
+          style={isMinimapVisible ? {
+            background: 'rgb(var(--color-primary))',
+            color: 'white',
+            borderColor: 'rgb(var(--color-primary))'
+          } : {}}
+        >
+          <Map />
+        </ViewportButton>
+        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+        <ViewportButton onClick={() => setIsHelpModalOpen(true)} title="Help & Keyboard Shortcuts (?)">
+          <HelpCircle />
         </ViewportButton>
       </ViewportToolbar>
       
@@ -2366,38 +4971,107 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* React Flow Canvas - Visual Mode */}
       {activeEditorMode === 'visual' && (
         <ReactFlow
-        nodes={nodes}
+        nodes={nodesWithHandlers}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodesDelete={onNodesDelete}
         isValidConnection={isValidConnection}
         onDrop={onDrop}
         onDragOver={onDragOver}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDragStop={onNodeDragStop}
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        defaultEdgeOptions={{ type: 'custom' }}
+        defaultEdgeOptions={{ 
+          type: 'custom',
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: '#94a3b8',
+          },
+        }}
         fitView
-        snapToGrid
-        snapGrid={[15, 15]}
+        snapToGrid={snapToGrid}
+        snapGrid={[gridSize, gridSize]}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-        <MiniMap 
-          nodeColor={(node) => {
-            const registry = NODE_TYPE_REGISTRY[node.type];
-            return registry?.color || '#94a3b8';
-          }}
-          maskColor="rgba(0, 0, 0, 0.1)"
-          style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            border: '1px solid rgb(var(--color-border))',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-          pannable
-          zoomable
-        />
+        <Background variant={backgroundVariant} gap={20} size={1} />
+        {isMinimapVisible && (
+          <MiniMap 
+            nodeColor={(node) => {
+              const registry = NODE_TYPE_REGISTRY[node.type];
+              return registry?.color || '#94a3b8';
+            }}
+            maskColor="rgba(0, 0, 0, 0.1)"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              border: '1px solid rgb(var(--color-border))',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            }}
+            pannable
+            zoomable
+          />
+        )}
+        
+        {/* Sprint 1 Task 1.4: Canvas Settings Panel */}
+        {isSettingsPanelOpen && (
+          <SettingsPanel>
+            <SettingGroup>
+              <SettingLabel>Background Pattern</SettingLabel>
+              <SettingRow>
+                <PatternButton 
+                  $active={backgroundVariant === BackgroundVariant.Dots}
+                  onClick={() => setBackgroundVariant(BackgroundVariant.Dots)}
+                >
+                  Dots
+                </PatternButton>
+                <PatternButton 
+                  $active={backgroundVariant === BackgroundVariant.Lines}
+                  onClick={() => setBackgroundVariant(BackgroundVariant.Lines)}
+                >
+                  Lines
+                </PatternButton>
+                <PatternButton 
+                  $active={backgroundVariant === BackgroundVariant.Cross}
+                  onClick={() => setBackgroundVariant(BackgroundVariant.Cross)}
+                >
+                  Cross
+                </PatternButton>
+              </SettingRow>
+            </SettingGroup>
+            
+            <SettingGroup>
+              <SettingLabel>Snap to Grid</SettingLabel>
+              <SettingRow>
+                <span style={{ flex: 1, fontSize: '12px', color: 'rgb(var(--color-text-primary))' }}>
+                  {snapToGrid ? 'Enabled' : 'Disabled'}
+                </span>
+                <ToggleSwitch 
+                  $active={snapToGrid}
+                  onClick={() => setSnapToGrid(!snapToGrid)}
+                />
+              </SettingRow>
+            </SettingGroup>
+            
+            <SettingGroup>
+              <SettingLabel>Grid Size (px)</SettingLabel>
+              <SettingRow>
+                <GridSizeInput 
+                  type="number"
+                  min="5"
+                  max="50"
+                  step="5"
+                  value={gridSize}
+                  onChange={(e) => setGridSize(Math.max(5, Math.min(50, parseInt(e.target.value) || 15)))}
+                />
+              </SettingRow>
+            </SettingGroup>
+          </SettingsPanel>
+        )}
         
         {/* Empty State */}
         {nodes.length === 0 && (
@@ -2416,9 +5090,45 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               Ctrl+Z: Undo | Ctrl+Y: Redo | Ctrl+S: Save
               <br />
               F: Fit view | 1: 100% | 2: 50% | Ctrl+A: Select all | Esc: Deselect
+              <br />
+              Ctrl+Shift+H/V: Distribute | Ctrl+Shift+L/R/T/B: Align edges | Ctrl+Shift+X/Y: Center
             </EmptyText>
           </EmptyState>
         )}
+        
+        {/* Alignment Toolbar (Phase 4 Batch 6) - Shows when 2+ nodes selected */}
+        <AlignmentToolbar className={nodes.filter(n => n.selected).length >= 2 ? 'visible' : ''}>
+          <AlignmentButton onClick={alignLeft} title="Align Left (Ctrl+Shift+L)">
+            <AlignLeft />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignCenterX} title="Align Center X (Ctrl+Shift+X)">
+            <AlignCenterHorizontal />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignRight} title="Align Right (Ctrl+Shift+R)">
+            <AlignRight />
+          </AlignmentButton>
+          
+          <div style={{ width: '1px', height: '24px', background: 'rgb(var(--color-border))', margin: '0 4px' }} />
+          
+          <AlignmentButton onClick={alignTop} title="Align Top (Ctrl+Shift+T)">
+            <AlignStartVertical />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignCenterY} title="Align Center Y (Ctrl+Shift+Y)">
+            <AlignCenterVertical />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignBottom} title="Align Bottom (Ctrl+Shift+B)">
+            <AlignEndVertical />
+          </AlignmentButton>
+          
+          <div style={{ width: '1px', height: '24px', background: 'rgb(var(--color-border))', margin: '0 4px' }} />
+          
+          <AlignmentButton onClick={alignHorizontal} title="Distribute Horizontal (Ctrl+Shift+H)">
+            <AlignHorizontalDistributeCenter />
+          </AlignmentButton>
+          <AlignmentButton onClick={alignVertical} title="Distribute Vertical (Ctrl+Shift+V)">
+            <AlignVerticalDistributeCenter />
+          </AlignmentButton>
+        </AlignmentToolbar>
       </ReactFlow>
       )}
       
@@ -2704,9 +5414,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </DragGhost>
       )}
 
-      {/* Configuration Panel */}
-      <NodeConfigPanel
+      {/* Configuration Panel with Shadow State (Phase 2) */}
+      <NodeConfigPanelWithShadow
         node={selectedNode}
+        nodes={nodes}
+        setNodes={setNodes}
         onClose={() => setSelectedNode(null)}
         onUpdate={handleNodeUpdate}
         onTest={handleNodeTest}
@@ -2720,7 +5432,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onStartBlank={handleStartBlank}
       />
       
-      {/* FormStep Configuration Modal (Phase 4.2.B Integration) */}
+      {/* FormStep Configuration Panel (using SidePanel instead of EntityFormStepModal) */}
       <SidePanel
         isOpen={formStepModalOpen && !!selectedFormStep}
         onClose={() => {
@@ -2731,17 +5443,44 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         {selectedFormStep && (
           <FormStepConfigPanel
             step={selectedFormStep.data}
-            onChange={handleFormStepUpdate}
+            onChange={(updatedStepData) => {
+              handleNodeUpdate(selectedFormStep.id, updatedStepData);
+              setFormStepModalOpen(false);
+              setSelectedFormStep(null);
+            }}
             onClose={() => {
               setFormStepModalOpen(false);
               setSelectedFormStep(null);
             }}
-            onEditField={handleEditField}
-            onAddField={handleAddField}
             availableFields={getPreviousStepFields(selectedFormStep.id)}
           />
         )}
       </SidePanel>
+      
+      {/* FormMultiStepContainer Configuration Modal (Phase 4.3) */}
+      <FormProcessModal
+        isOpen={containerModalOpen && !!selectedContainer}
+        onClose={() => {
+          setContainerModalOpen(false);
+          setSelectedContainer(null);
+        }}
+        onSave={handleContainerSave}
+        initialData={selectedContainer ? convertNodeDataToContainerData(selectedContainer) : undefined}
+        nodeId={selectedContainer?.id}
+      />
+      
+      {/* Workflow Management Modal (Phase 8.2) */}
+      <WorkflowManagementModal
+        isOpen={isWorkflowModalOpen}
+        onClose={() => setIsWorkflowModalOpen(false)}
+        onSave={handleWorkflowModalSave}
+        initialData={{
+          name: currentWorkflowName,
+          description: currentWorkflowDescription,
+          status: currentWorkflowStatus,
+        }}
+        mode={workflowModalMode}
+      />
       
       {/* FormField Configuration Modal - Direct Selection (Phase 1 of Navigation Fix Plan) */}
       <SidePanel
@@ -2874,6 +5613,198 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           />
         )}
       </SidePanel>
+      
+      {/* Preview Panel (Phase 5.1) */}
+      <PreviewPanel
+        nodes={nodes}
+        isVisible={isPreviewVisible}
+        onClose={() => setIsPreviewVisible(false)}
+      />
+      
+      {/* Phase 8.1: Toast Notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: 'rgb(var(--color-surface))',
+            color: 'rgb(var(--color-text-primary))',
+            border: '1px solid rgb(var(--color-border))',
+          },
+          success: {
+            iconTheme: {
+              primary: 'rgb(34, 197, 94)', // green-500
+              secondary: 'white',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: 'rgb(239, 68, 68)', // red-500
+              secondary: 'white',
+            },
+          },
+          loading: {
+            iconTheme: {
+              primary: 'rgb(var(--color-primary))',
+              secondary: 'white',
+            },
+          },
+        }}
+      />
+      
+      {/* Phase 8.3: Delete Confirmation Modal */}
+      {deleteConfirmOpen && workflowToDelete && (
+        <ConfirmModal onClick={() => !isDeleting && setDeleteConfirmOpen(false)}>
+          <ConfirmContent onClick={(e) => e.stopPropagation()}>
+            <ConfirmTitle>Delete Workflow?</ConfirmTitle>
+            <ConfirmMessage>
+              Are you sure you want to delete "<strong>{workflowToDelete.name}</strong>"? 
+              This action cannot be undone.
+            </ConfirmMessage>
+            <ConfirmActions>
+              <ConfirmButton
+                $variant="secondary"
+                onClick={() => setDeleteConfirmOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </ConfirmButton>
+              <ConfirmButton
+                $variant="danger"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </ConfirmButton>
+            </ConfirmActions>
+          </ConfirmContent>
+        </ConfirmModal>
+      )}
+      
+      {/* Phase 8.6: Keyboard Shortcuts Help Modal */}
+      {showKeyboardShortcuts && (
+        <KeyboardShortcutsModal onClick={() => setShowKeyboardShortcuts(false)}>
+          <KeyboardShortcutsContent onClick={(e) => e.stopPropagation()}>
+            <KeyboardShortcutsHeader>
+              <KeyboardShortcutsTitle>Keyboard Shortcuts</KeyboardShortcutsTitle>
+              <button
+                onClick={() => setShowKeyboardShortcuts(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'rgb(var(--color-text-secondary))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                }}
+              >
+                <X />
+              </button>
+            </KeyboardShortcutsHeader>
+            <KeyboardShortcutsBody>
+              <ShortcutSection>
+                <ShortcutSectionTitle>General</ShortcutSectionTitle>
+                <ShortcutList>
+                  <ShortcutItem>
+                    <ShortcutLabel>Show keyboard shortcuts</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>?</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Close modal</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>ESC</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                </ShortcutList>
+              </ShortcutSection>
+              
+              <ShortcutSection>
+                <ShortcutSectionTitle>Workflow</ShortcutSectionTitle>
+                <ShortcutList>
+                  <ShortcutItem>
+                    <ShortcutLabel>Save workflow</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>S</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>New workflow</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>N</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                </ShortcutList>
+              </ShortcutSection>
+              
+              <ShortcutSection>
+                <ShortcutSectionTitle>Canvas</ShortcutSectionTitle>
+                <ShortcutList>
+                  <ShortcutItem>
+                    <ShortcutLabel>Select all nodes</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>A</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Delete selected nodes</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Delete</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Undo</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>Z</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Redo</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>Y</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                  <ShortcutItem>
+                    <ShortcutLabel>Fit view</ShortcutLabel>
+                    <ShortcutKeys>
+                      <ShortcutKey>Ctrl</ShortcutKey>
+                      <ShortcutKey>0</ShortcutKey>
+                    </ShortcutKeys>
+                  </ShortcutItem>
+                </ShortcutList>
+              </ShortcutSection>
+            </KeyboardShortcutsBody>
+          </KeyboardShortcutsContent>
+        </KeyboardShortcutsModal>
+      )}
+      
+      {/* Task 1: Workflow Execution Integration */}
+      {isExecutionModalOpen && currentWorkflowId && (
+        <WorkflowExecutionModal
+          isOpen={isExecutionModalOpen}
+          onClose={() => setIsExecutionModalOpen(false)}
+          workflow={{
+            id: currentWorkflowId,
+            name: currentWorkflowName || 'Untitled Workflow',
+            nodes,
+            edges,
+          }}
+        />
+      )}
+
+      {/* Help Modal (Workform Batch 2) */}
+      {isHelpModalOpen && (
+        <HelpModal onClose={() => setIsHelpModalOpen(false)} />
+      )}
     </EditorContainer>
   );
 };
@@ -2884,6 +5815,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
 function getReactFlowNodeType(nodeTypeId: string): string {
   // Map node type IDs to React Flow node component names
+  
+  // CRITICAL: Check for container BEFORE generic 'form' check
+  // Bug fix: formMultiStepContainer was being caught by startsWith('form')
+  if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
+  
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
   if (nodeTypeId.startsWith('form')) return 'formStep';
   if (nodeTypeId.startsWith('condition')) return 'condition';
@@ -2915,6 +5851,18 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
   }
   
   if (nodeTypeId.startsWith('form')) {
+    // Special handling for multi-step container
+    if (nodeTypeId === 'formMultiStepContainer') {
+      return {
+        fields: [],
+        containerName: 'New Container',
+        isExpanded: true,
+        childNodes: [],
+        maxInputs: nodeDef?.maxInputs || 1,
+        maxOutputs: nodeDef?.maxOutputs || 1,
+      };
+    }
+    
     return { 
       fields: [],
       maxInputs: nodeDef?.maxInputs || 1,

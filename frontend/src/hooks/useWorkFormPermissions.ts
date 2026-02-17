@@ -14,7 +14,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { adminClient } from '../services/apiService';
+import { apiClient } from '../services/apiService';
 
 export interface WorkFormPermissions {
   can_create: boolean;
@@ -37,11 +37,50 @@ export function useWorkFormPermissions() {
   const query = useQuery<WorkFormPermissions>({
     queryKey: ['workforms', 'permissions'],
     queryFn: async () => {
-      const response = await adminClient.get('/api/v1/workflows/permissions/');
-      return response.data;
+      console.log('[useWorkFormPermissions] Fetching permissions...');
+      try {
+        const response = await apiClient.get('/workflows/permissions/');
+        console.log('[useWorkFormPermissions] SUCCESS - Response:', response.data);
+        return response.data;
+      } catch (error: any) {
+        console.error('[useWorkFormPermissions] FAILED - Error:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message,
+          error
+        });
+        
+        // If 401, let the axios interceptor handle it (token refresh or redirect to login)
+        // Don't catch 401 errors - they need to propagate for proper auth handling
+        if (error.response?.status === 401) {
+          console.warn('[useWorkFormPermissions] 401 Unauthorized - token expired or invalid');
+          throw error; // Let axios interceptor handle token refresh/redirect
+        }
+        
+        // For other errors (network, 500, etc), return default permissions
+        const defaults = getDefaultPermissions();
+        console.warn('[useWorkFormPermissions] Returning default permissions:', defaults);
+        return defaults;
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - permissions don't change often
-    retry: 1,
+    retry: (failureCount, error: any) => {
+      // Don't retry 401 errors - they'll trigger auth flow
+      if (error?.response?.status === 401) {
+        return false;
+      }
+      // Retry other errors once
+      return failureCount < 1;
+    },
+    // Ensure we always have valid permissions during loading
+    placeholderData: getDefaultPermissions(),
+  });
+
+  console.log('[useWorkFormPermissions] Query state:', {
+    isLoading: query.isLoading,
+    isError: query.isError,
+    data: query.data,
+    error: query.error
   });
 
   return {
@@ -75,9 +114,12 @@ function getDefaultPermissions(): WorkFormPermissions {
  * Helper function to check if a specific editor mode is allowed.
  */
 export function canUseEditorMode(
-  permissions: WorkFormPermissions,
+  permissions: WorkFormPermissions | undefined,
   mode: 'wizard' | 'visual' | 'expert'
 ): boolean {
+  if (!permissions || !permissions.allowed_modes) {
+    return false; // Defensive: if permissions not loaded, deny access
+  }
   return permissions.allowed_modes.includes(mode);
 }
 
@@ -85,9 +127,16 @@ export function canUseEditorMode(
  * Helper function to check if a specific node category is allowed.
  */
 export function canUseNodeCategory(
-  permissions: WorkFormPermissions,
+  permissions: WorkFormPermissions | undefined,
   category: string
 ): boolean {
+  if (!permissions || !permissions.allowed_node_categories) {
+    return false; // Defensive: if permissions not loaded, deny access
+  }
+  // If allowed_node_categories is empty, allow all categories
+  if (permissions.allowed_node_categories.length === 0) {
+    return true;
+  }
   return permissions.allowed_node_categories.includes(category);
 }
 

@@ -21,19 +21,59 @@ on:
           - production
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true  # Cancel old deployments when new commit arrives
 
 jobs:
+  # ==========================================
+  # Detect Latest Commit (Prevents Stale Deploys)
+  # ==========================================
+  check-latest:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+      latest_sha: ${{ steps.check.outputs.latest_sha }}
+      trigger_sha: ${{ github.sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 10  # Get recent commits to check for newer ones
+      
+      - name: Check if this is the latest commit
+        id: check
+        run: |
+          TRIGGER_SHA="${{ github.sha }}"
+          BRANCH="${{ github.ref_name }}"
+          
+          # Get latest commit on branch
+          LATEST_SHA=$(git rev-parse origin/$BRANCH)
+          
+          echo "Trigger SHA: $TRIGGER_SHA"
+          echo "Latest SHA:  $LATEST_SHA"
+          
+          if [ "$TRIGGER_SHA" = "$LATEST_SHA" ]; then
+            echo "✅ This is the latest commit - proceeding with deployment"
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️  Newer commit exists ($LATEST_SHA) - skipping this deployment"
+            echo "This commit will be included in the next deployment"
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "latest_sha=$LATEST_SHA" >> $GITHUB_OUTPUT
+
   # ==========================================
   # Route to Development
   # ==========================================
   deploy-dev:
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/development') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'development')
-    needs: []  # Runs independently for push events
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/development') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'development'))
+    needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
+    secrets: inherit  # Environment context set in reusable workflow jobs
     with:
       environment: 'development'
       ref: ${{ github.ref }}
@@ -41,37 +81,18 @@ jobs:
       backend_environment: 'dev-backend'
       frontend_environment: 'dev-frontend'
       api_base_url: 'https://dev.meatscentral.com'
-    secrets:
-      DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
-      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-      DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
-      ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
-      DEBUG: ${{ secrets.DEBUG }}
-      BACKEND_HOST: ${{ secrets.BACKEND_HOST }}
-      DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
-      REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL }}
-      EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
-      DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
-      DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
-      DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
 
   # ==========================================
   # Route to UAT
   # ==========================================
   deploy-uat:
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'uat')
-    needs: []  # Runs independently for push events
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'uat'))
+    needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
+    secrets: inherit  # Environment context set in reusable workflow jobs
     with:
       environment: 'uat'
       ref: ${{ github.ref }}
@@ -79,37 +100,18 @@ jobs:
       backend_environment: 'uat-backend'
       frontend_environment: 'uat-frontend'
       api_base_url: 'https://uat.meatscentral.com'
-    secrets:
-      DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
-      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-      DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
-      ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
-      DEBUG: ${{ secrets.DEBUG }}
-      BACKEND_HOST: ${{ secrets.BACKEND_HOST }}
-      DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
-      REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL }}
-      EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
-      DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
-      DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
-      DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
 
   # ==========================================
   # Route to Production
   # ==========================================
   deploy-prod:
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
-    needs: []  # Runs independently for push events
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+    needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
+    secrets: inherit  # Environment context set in reusable workflow jobs
     with:
       environment: 'production'
       ref: ${{ github.ref }}
@@ -117,24 +119,3 @@ jobs:
       backend_environment: 'production-backend'
       frontend_environment: 'production-frontend'
       api_base_url: 'https://meatscentral.com'
-    secrets:
-      DO_ACCESS_TOKEN: ${{ secrets.DO_ACCESS_TOKEN }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
-      SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-      DJANGO_SETTINGS_MODULE: ${{ secrets.DJANGO_SETTINGS_MODULE }}
-      ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
-      DEBUG: ${{ secrets.DEBUG }}
-      BACKEND_HOST: ${{ secrets.BACKEND_HOST }}
-      DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
-      REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL }}
-      EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
-      DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
-      DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
-      DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}

@@ -5,11 +5,16 @@
  * Provides consistent styling, status indicators, and connection handles.
  * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
+ * Updated: 2026-02-09 - Added edit/delete controls and expand/collapse (Batch 3)
+ * Updated: 2026-02-17 - Added badges, icons, pinning (Sprint 1 Task 1.2)
  */
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Handle, Position } from '@xyflow/react';
+import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
+import { NodeBadge, NodeBadgeStatus } from '../components/NodeBadge';
+import { NodeIcon, NodeIconType } from '../components/NodeIcons';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -21,6 +26,20 @@ export interface BaseNodeData {
   stepNumber?: number;
   errorMessage?: string;
   config?: Record<string, any>;
+  configStatus?: 'pristine' | 'editing' | 'dirty'; // Phase 2: Shadow state status
+  shadowConfig?: Record<string, any>; // Phase 2: Uncommitted changes
+  onEdit?: () => void; // Batch 3: Edit handler
+  onDelete?: () => void; // Batch 3: Delete handler
+  onTitleChange?: (newTitle: string) => void; // Batch 4: Title edit handler
+  // Sprint 1 Task 1.2: Enhanced visuals
+  badge?: { status: NodeBadgeStatus; count?: number; message?: string };
+  iconType?: NodeIconType;
+  isPinned?: boolean;
+  onPin?: () => void;
+  errorCount?: number;
+  warningCount?: number;
+  successCount?: number;
+  isProcessing?: boolean;
 }
 
 export interface BaseNodeProps {
@@ -38,12 +57,18 @@ const NodeContainer = styled.div<{
   $color: string; 
   $selected: boolean; 
   $status: string;
+  $isDirty?: boolean;
+  $isPinned?: boolean;
+  $isDragging?: boolean;
 }>`
+  position: relative;
   min-width: 180px;
   background: rgb(var(--color-surface));
   border: 2px solid ${props => {
+    if (props.$isDirty) return 'rgb(234, 179, 8)'; // Yellow for dirty (Phase 2)
     if (props.$selected) return props.$color;
     if (props.$status === 'error') return 'rgb(239, 68, 68)';
+    if (props.$isPinned) return 'rgb(99, 102, 241)'; // Indigo for pinned
     return 'rgb(var(--color-border))';
   }};
   border-radius: var(--radius-lg);
@@ -53,12 +78,46 @@ const NodeContainer = styled.div<{
     : '0 2px 6px rgba(0, 0, 0, 0.1)'};
   transition: all 0.2s ease;
   
+  /* Drag preview - semi-transparent ghost */
+  opacity: ${props => props.$isDragging ? 0.5 : 1};
+  
+  /* Add pulsing animation for dirty state (Phase 2) */
+  ${props => props.$isDirty && `
+    animation: dirtyPulse 2s ease-in-out infinite;
+    
+    @keyframes dirtyPulse {
+      0%, 100% {
+        box-shadow: 0 2px 6px rgba(234, 179, 8, 0.3);
+      }
+      50% {
+        box-shadow: 0 4px 12px rgba(234, 179, 8, 0.5);
+      }
+    }
+  `}
+  
+  /* Pinned state indicator */
+  ${props => props.$isPinned && `
+    &::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      right: -4px;
+      bottom: -4px;
+      border: 2px dashed rgb(99, 102, 241);
+      border-radius: var(--radius-lg);
+      pointer-events: none;
+      opacity: 0.3;
+    }
+  `}
+  
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 `;
 
 const NodeHeader = styled.div<{ $color: string }>`
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -70,16 +129,46 @@ const NodeHeader = styled.div<{ $color: string }>`
   font-size: 13px;
 `;
 
-const NodeIcon = styled.span`
+const NodeIconWrapper = styled.span`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
   font-size: 16px;
   line-height: 1;
 `;
 
-const NodeTitle = styled.span`
+const NodeTitle = styled.span<{ $editable?: boolean }>`
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: ${props => props.$editable ? 'text' : 'default'};
+  
+  &:hover {
+    ${props => props.$editable && `
+      text-decoration: underline;
+      text-decoration-style: dashed;
+    `}
+  }
+`;
+
+const NodeTitleInput = styled.input`
+  flex: 1;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  
+  &:focus {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: white;
+  }
 `;
 
 const StepNumber = styled.span`
@@ -152,6 +241,65 @@ const StyledHandle = styled(Handle)<{ $color: string }>`
   }
 `;
 
+// Batch 3: Node Controls
+const NodeControls = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 1; /* Always visible */
+  transition: opacity 0.2s ease;
+  z-index: 10; /* Ensure buttons appear above other elements */
+`;
+
+const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' | 'expand' | 'pin' }>`
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.95);
+  color: ${props => {
+    if (props.$variant === 'delete') return 'rgb(239, 68, 68)';
+    if (props.$variant === 'edit') return 'rgb(var(--color-primary))';
+    if (props.$variant === 'pin') return 'rgb(99, 102, 241)'; // Indigo
+    return 'rgb(var(--color-text-secondary))';
+  }};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    transform: scale(1.1);
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+const ExpandButton = styled(ControlButton)`
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.8;
+  
+  &:hover {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.05);
+  }
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -169,16 +317,112 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     stepNumber,
     errorMessage,
     config,
+    configStatus, // Phase 2: Shadow state status
+    shadowConfig, // Phase 2: Uncommitted changes
+    onEdit,
+    onDelete,
+    onTitleChange,
+    // Sprint 1 Task 1.2: Enhanced visuals
+    badge,
+    iconType,
+    isPinned = false,
+    onPin,
+    errorCount,
+    warningCount,
+    successCount,
+    isProcessing = false,
   } = data;
+  
+  // Phase 2: Determine if node has uncommitted changes
+  const isDirty = configStatus === 'dirty';
+  
+  // Batch 3: Expand/collapse state
+  const [isExpanded, setIsExpanded] = useState(true);
+  
+  // Batch 4: Title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(label);
+  
+  // Sprint 1: Drag state
+  const [isDragging, setIsDragging] = useState(false);
 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
+  
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault(); // Also prevent default to be extra safe
+    console.log('🔘 [BaseNode] Edit button clicked - calling onEdit');
+    if (onEdit) onEdit();
+  };
+  
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete && window.confirm('Delete this node?')) {
+      onDelete();
+    }
+  };
+  
+  const handlePin = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onPin) onPin();
+  };
+  
+  const toggleExpand = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsExpanded(!isExpanded);
+  };
+  
+  // Batch 4: Title editing handlers
+  const handleTitleDoubleClick = (e: React.MouseEvent) => {
+    if (!onTitleChange) return;
+    e.stopPropagation();
+    setIsEditingTitle(true);
+    setEditedTitle(label);
+  };
+  
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedTitle(e.target.value);
+  };
+  
+  const handleTitleBlur = () => {
+    if (onTitleChange && editedTitle !== label) {
+      onTitleChange(editedTitle);
+    }
+    setIsEditingTitle(false);
+  };
+  
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTitleBlur();
+    } else if (e.key === 'Escape') {
+      setEditedTitle(label);
+      setIsEditingTitle(false);
+    }
+  };
+  
+  // Sprint 1: Determine badge to show (priority: processing > error > warning > success)
+  const getBadgeToShow = () => {
+    if (badge) return badge; // Explicit badge takes precedence
+    if (isProcessing) return { status: 'processing' as NodeBadgeStatus };
+    if (errorCount && errorCount > 0) return { status: 'error' as NodeBadgeStatus, count: errorCount };
+    if (warningCount && warningCount > 0) return { status: 'warning' as NodeBadgeStatus, count: warningCount };
+    if (successCount && successCount > 0) return { status: 'success' as NodeBadgeStatus, count: successCount };
+    return null;
+  };
+  
+  const badgeToShow = getBadgeToShow();
 
   return (
     <NodeContainer 
       $color={nodeType.color} 
       $selected={selected}
       $status={status}
+      $isDirty={isDirty}
+      $isPinned={isPinned}
+      $isDragging={isDragging}
+      onDragStart={() => setIsDragging(true)}
+      onDragEnd={() => setIsDragging(false)}
     >
       {/* Input Handle */}
       {showInputHandle && (
@@ -189,42 +433,118 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           $color={nodeType.color}
         />
       )}
+      
+      {/* Sprint 1: Status Badge */}
+      {badgeToShow && (
+        <NodeBadge
+          status={badgeToShow.status}
+          count={badgeToShow.count}
+          message={badgeToShow.message}
+          position="top-right"
+        />
+      )}
 
-      {/* Status Indicator */}
-      <StatusIndicator $status={status} />
+      {/* Status Indicator - REMOVED (confusing yellow dot) */}
+      
+      {/* Node Controls (Batch 3 + Sprint 1 Pin) */}
+      <NodeControls>
+        {onPin && (
+          <ControlButton 
+            $variant="pin" 
+            onClick={handlePin}
+            title={isPinned ? "Unlock node (allow drag)" : "Lock node position (Cmd/Ctrl+L)"}
+          >
+            {isPinned ? <Lock /> : <Unlock />}
+          </ControlButton>
+        )}
+        {onEdit && (
+          <ControlButton 
+            $variant="edit" 
+            onClick={handleEdit}
+            title="Edit node configuration"
+          >
+            <Edit2 />
+          </ControlButton>
+        )}
+        {onDelete && (
+          <ControlButton 
+            $variant="delete" 
+            onClick={handleDelete}
+            title="Delete node"
+          >
+            <Trash2 />
+          </ControlButton>
+        )}
+      </NodeControls>
 
       {/* Header */}
       <NodeHeader $color={nodeType.color}>
-        <NodeIcon>{nodeType.icon}</NodeIcon>
-        <NodeTitle>{label}</NodeTitle>
+        <NodeIconWrapper>
+          {iconType ? (
+            <NodeIcon type={iconType} size={16} color="white" />
+          ) : (
+            nodeType.icon
+          )}
+        </NodeIconWrapper>
+        {isEditingTitle ? (
+          <NodeTitleInput
+            value={editedTitle}
+            onChange={handleTitleChange}
+            onBlur={handleTitleBlur}
+            onKeyDown={handleTitleKeyDown}
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <NodeTitle 
+            $editable={!!onTitleChange}
+            onDoubleClick={handleTitleDoubleClick}
+            title={onTitleChange ? "Double-click to edit" : undefined}
+          >
+            {label}
+            {isDirty && <span style={{ marginLeft: '4px', fontSize: '16px' }} title="Unsaved changes">*</span>}
+          </NodeTitle>
+        )}
         {stepNumber && <StepNumber>{stepNumber}</StepNumber>}
       </NodeHeader>
 
-      {/* Body */}
-      <NodeBody>
-        <NodeContent>
-          {children || (
-            <>
-              <div>{nodeType.description}</div>
-              
-              {config && Object.keys(config).length > 0 && (
-                <ConfigPreview>
-                  {Object.entries(config).slice(0, 2).map(([key, value]) => (
-                    <div key={key}>
-                      <strong>{key}:</strong> {String(value).substring(0, 30)}
-                      {String(value).length > 30 ? '...' : ''}
-                    </div>
-                  ))}
-                </ConfigPreview>
-              )}
-              
-              {errorMessage && (
-                <ErrorMessage>{errorMessage}</ErrorMessage>
-              )}
-            </>
-          )}
-        </NodeContent>
-      </NodeBody>
+      {/* Body (collapsible) */}
+      {isExpanded && (
+        <NodeBody>
+          <NodeContent>
+            {children || (
+              <>
+                <div>{nodeType.description}</div>
+                
+                {config && Object.keys(config).length > 0 && (
+                  <ConfigPreview>
+                    {Object.entries(config).slice(0, 2).map(([key, value]) => (
+                      <div key={key}>
+                        <strong>{key}:</strong> {String(value).substring(0, 30)}
+                        {String(value).length > 30 ? '...' : ''}
+                      </div>
+                    ))}
+                  </ConfigPreview>
+                )}
+                
+                {errorMessage && (
+                  <ErrorMessage>{errorMessage}</ErrorMessage>
+                )}
+              </>
+            )}
+          </NodeContent>
+        </NodeBody>
+      )}
+      
+      {/* Expand/Collapse Button (Batch 3) */}
+      {(children || config || errorMessage) && (
+        <ExpandButton 
+          onClick={toggleExpand}
+          title={isExpanded ? "Collapse" : "Expand"}
+        >
+          {isExpanded ? <ChevronUp /> : <ChevronDown />}
+        </ExpandButton>
+      )}
 
       {/* Output Handle */}
       {showOutputHandle && (

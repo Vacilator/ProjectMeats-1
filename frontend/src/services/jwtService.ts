@@ -240,7 +240,7 @@ export function getAuthHeader(): string | null {
     return `Token ${legacyToken}`;
   }
   
-  console.warn('[JWT] No auth token available');
+  // No token available (expected during login)
   return null;
 }
 

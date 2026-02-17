@@ -14,6 +14,19 @@ Welcome to the ProjectMeats documentation. This index helps you find what you ne
 
 ## 🎉 What's New
 
+### February 2026: WorkForms Enhancement Project Launched! 🚀
+
+**NEW ACTIVE PROJECT**: Entity-Driven Form Builder & Workflow Containers
+
+Major enhancement to WorkForms editor with 6-week, 9-phase implementation:
+- 🏗️ **Entity Integration**: Forms auto-populate from entity schemas (Supplier, Customer, etc.)
+- 📦 **Workflow Containers**: Group ANY node types for advanced automation
+- 💾 **TenantWorkForms**: Save complete workflows with form references
+- 📐 **Node Alignment**: Auto-align tools with keyboard shortcuts (Ctrl+Shift+H/V/D)
+- 🖥️ **Fullscreen Mode**: Accessible editor with full capabilities
+
+[View Full Project Plan →](features/WORKFORMS_ENHANCEMENT_PROJECT.md)
+
 ### February 2026: Wave 2 Complete! 
 
 ✅ **Cockpit Command Center** is now 100% complete (48/48 tasks)
@@ -35,6 +48,7 @@ Welcome to the ProjectMeats documentation. This index helps you find what you ne
 | I want to... | Go to |
 |--------------|-------|
 | **See what's new** | [What's New](WHATS_NEW.md) 🆕 |
+| **View active projects** | [WorkForms Enhancement](features/WORKFORMS_ENHANCEMENT_PROJECT.md) 🚀 **NEW** |
 | **Understand Wave 2 completion** | [Wave 2 Explained](implementation-history/WAVE_2_COMPLETION_EXPLAINED.md) 🆕 |
 | **Set up my local environment** | [Quick Start](getting-started/QUICK_START.md) → [Local Development](getting-started/LOCAL_DEVELOPMENT.md) |
 | **Understand the architecture** | [Architecture Overview](architecture/ARCHITECTURE.md) |

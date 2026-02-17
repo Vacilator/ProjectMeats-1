@@ -5,18 +5,23 @@
  * Implements Phase 1 of the Forms & Flows Enhancement Plan.
  * 
  * Created: 2026-02-03
+ * Updated: Phase 5 - Added real-time polling and cancel functionality
  * 
  * Features:
  * - Card grid of active submissions
  * - Progress indicators
  * - Quick resume action
  * - Filter by form type
+ * - Real-time updates (10-second polling)
+ * - Cancel workflow with confirmation
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Play, Clock, Filter, RefreshCw, FileText } from 'lucide-react';
+import { Play, Clock, Filter, RefreshCw, FileText, X } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
+import { workflowExecutionService } from '../../services/workflowExecutionService';
+import { WorkflowExecution } from '../../types/workflows';
 
 // ============================================================================
 // Types
@@ -312,6 +317,115 @@ const LoadingState = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
+const LastUpdated = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+  margin-left: 8px;
+`;
+
+const FilterSelect = styled.select`
+  padding: 8px 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md, 8px);
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  font-size: 14px;
+  cursor: pointer;
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
+  }
+`;
+
+const CancelButton = styled.button`
+  padding: 10px 16px;
+  background: transparent;
+  color: rgb(239, 68, 68);
+  border: 1px solid rgb(239, 68, 68);
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const Modal = styled.div<{ $isOpen: boolean }>`
+  display: ${({ $isOpen }) => $isOpen ? 'flex' : 'none'};
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: rgb(var(--color-surface));
+  border-radius: var(--radius-lg, 12px);
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+`;
+
+const ModalTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0 0 12px;
+`;
+
+const ModalText = styled.p`
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+  margin: 0 0 20px;
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+`;
+
+const ModalButton = styled.button<{ $variant?: 'danger' }>`
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  
+  background: ${({ $variant }) => 
+    $variant === 'danger' ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'
+  };
+  color: ${({ $variant }) => 
+    $variant === 'danger' ? 'white' : 'rgb(var(--color-text-primary))'
+  };
+  
+  &:hover {
+    opacity: 0.9;
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -320,16 +434,27 @@ const FormsFlowsInProgress: React.FC = () => {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<'all' | 'my' | 'team'>('all');
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
   const { resumeSubmission } = useQuickActions();
   
   // Fetch in-progress submissions
   const fetchSubmissions = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get('/workflows/form-submissions/', {
-        params: { status: 'in_progress,draft' }
-      });
+      const params: any = { status: 'in_progress,draft' };
+      
+      // Apply filter mode
+      if (filterMode === 'my') {
+        params.assigned_to = 'me';
+      }
+      
+      const response = await apiClient.get('/workflows/form-submissions/', { params });
       setSubmissions(response.data.results || response.data || []);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Failed to fetch submissions:', error);
       setSubmissions([]);
@@ -338,9 +463,47 @@ const FormsFlowsInProgress: React.FC = () => {
     }
   };
   
+  // Initial fetch
   useEffect(() => {
     fetchSubmissions();
-  }, []);
+  }, [filterMode]);
+  
+  // Real-time polling (10 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchSubmissions();
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [filterMode]);
+  
+  // Handle cancel confirmation
+  const handleCancelClick = (submission: FormSubmission) => {
+    setSelectedSubmission(submission);
+    setShowCancelModal(true);
+  };
+  
+  // Handle cancel workflow
+  const handleCancelConfirm = async () => {
+    if (!selectedSubmission) return;
+    
+    setCancelingId(selectedSubmission.id);
+    try {
+      await workflowExecutionService.cancelExecution(selectedSubmission.id, {
+        reason: 'Cancelled by user',
+      });
+      
+      // Update UI immediately
+      setSubmissions(prev => prev.filter(s => s.id !== selectedSubmission.id));
+      setShowCancelModal(false);
+      setSelectedSubmission(null);
+    } catch (error) {
+      console.error('Failed to cancel workflow:', error);
+      alert('Failed to cancel workflow. Please try again.');
+    } finally {
+      setCancelingId(null);
+    }
+  };
   
   // Filter submissions by search query
   const filteredSubmissions = submissions.filter(sub =>
@@ -379,18 +542,28 @@ const FormsFlowsInProgress: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Search in-progress forms"
           />
-          <FilterButton aria-label="Filter forms">
-            <Filter size={16} aria-hidden="true" />
-            Filter
-          </FilterButton>
+          <FilterSelect
+            value={filterMode}
+            onChange={(e) => setFilterMode(e.target.value as any)}
+            aria-label="Filter workflows"
+          >
+            <option value="all">All Workflows</option>
+            <option value="my">My Workflows</option>
+            <option value="team">Team Workflows</option>
+          </FilterSelect>
         </ToolbarLeft>
-        <RefreshButton 
-          onClick={fetchSubmissions} 
-          disabled={loading}
-          aria-label={loading ? 'Loading...' : 'Refresh list'}
-        >
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-        </RefreshButton>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <LastUpdated>
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </LastUpdated>
+          <RefreshButton 
+            onClick={fetchSubmissions} 
+            disabled={loading}
+            aria-label={loading ? 'Loading...' : 'Refresh list'}
+          >
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
+          </RefreshButton>
+        </div>
       </Toolbar>
       
       {loading ? (
@@ -448,12 +621,41 @@ const FormsFlowsInProgress: React.FC = () => {
                     <Play size={16} aria-hidden="true" />
                     Resume
                   </ResumeButton>
+                  <CancelButton
+                    onClick={() => handleCancelClick(submission)}
+                    aria-label={`Cancel ${submission.form_name}`}
+                  >
+                    <X size={16} />
+                  </CancelButton>
                 </CardActions>
               </Card>
             );
           })}
         </CardGrid>
       )}
+      
+      {/* Cancel Confirmation Modal */}
+      <Modal $isOpen={showCancelModal} onClick={() => setShowCancelModal(false)}>
+        <ModalContent onClick={(e) => e.stopPropagation()}>
+          <ModalTitle>Cancel Workflow?</ModalTitle>
+          <ModalText>
+            Are you sure you want to cancel "{selectedSubmission?.form_name}"? 
+            This action cannot be undone.
+          </ModalText>
+          <ModalActions>
+            <ModalButton onClick={() => setShowCancelModal(false)}>
+              Keep Working
+            </ModalButton>
+            <ModalButton
+              $variant="danger"
+              onClick={handleCancelConfirm}
+              disabled={!!cancelingId}
+            >
+              {cancelingId ? 'Cancelling...' : 'Yes, Cancel'}
+            </ModalButton>
+          </ModalActions>
+        </ModalContent>
+      </Modal>
     </Container>
   );
 };
