@@ -120,6 +120,8 @@ export const getFieldTypeIcon = (fieldType: string): string => {
 
 /**
  * Hook to fetch entity list with React Query caching.
+ * 
+ * Phase A Enhancement: Added error handling and fallback to hardcoded entities.
  */
 export const useEntityList = () => {
   return useQuery({
@@ -127,11 +129,21 @@ export const useEntityList = () => {
     queryFn: getEntityTypes,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    // Phase A: If API fails, fallback to hardcoded entities
+    onError: (error) => {
+      console.warn('Failed to fetch entities from API, using fallback:', error);
+    },
+    // Use fallback data if query fails
+    placeholderData: COMMON_ENTITY_TYPES,
+    retry: 2, // Retry failed requests twice
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 };
 
 /**
  * Hook to fetch fields for a specific entity.
+ * 
+ * Phase A Enhancement: Added error handling and retry logic.
  */
 export const useEntityFields = (
   entityId: string | null | undefined,
@@ -143,6 +155,11 @@ export const useEntityFields = (
     enabled: !!entityId && (options?.enabled !== false),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: 2, // Retry failed requests
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    onError: (error) => {
+      console.error(`Failed to fetch fields for entity "${entityId}":`, error);
+    },
     select: (fields) => ({
       entity_id: entityId!,
       field_count: fields.length,

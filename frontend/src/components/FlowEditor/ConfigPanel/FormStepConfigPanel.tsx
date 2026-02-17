@@ -530,9 +530,20 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   });
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
-  // Phase 3: Load entities and fields
-  const { data: entities = [], isLoading: entitiesLoading } = useEntityList();
-  const { data: fieldsData, isLoading: fieldsLoading } = useEntityFields(
+  // Phase A: Enhanced entity and field loading with error handling
+  const { 
+    data: entities = [], 
+    isLoading: entitiesLoading,
+    isError: entitiesError,
+    error: entitiesErrorMessage 
+  } = useEntityList();
+  
+  const { 
+    data: fieldsData, 
+    isLoading: fieldsLoading,
+    isError: fieldsError,
+    error: fieldsErrorMessage 
+  } = useEntityFields(
     localStep.entityType,
     { enabled: !!localStep.entityType }
   );
@@ -638,26 +649,43 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   width: '100%',
                   padding: '10px 12px',
                   fontSize: '14px',
-                  border: '1px solid rgb(var(--color-border))',
+                  border: entitiesError ? '1px solid rgb(239, 68, 68)' : '1px solid rgb(var(--color-border))',
                   borderRadius: '6px',
                   background: 'rgb(var(--color-background))',
                   color: 'rgb(var(--color-text-primary))',
-                  cursor: 'pointer',
+                  cursor: entitiesLoading ? 'wait' : 'pointer',
                 }}
                 disabled={entitiesLoading}
               >
-                <option value="">-- Select entity type --</option>
-                {entities.map(entity => (
-                  <option key={entity.id} value={entity.id}>
-                    {entity.label_plural} ({entity.field_count} fields)
-                  </option>
-                ))}
+                <option value="">
+                  {entitiesLoading ? 'Loading entities...' : '-- Select entity type --'}
+                </option>
+                {entities.length > 0 ? (
+                  entities.map(entity => (
+                    <option key={entity.id} value={entity.id}>
+                      {entity.label_plural} ({entity.field_count} fields)
+                    </option>
+                  ))
+                ) : !entitiesLoading && (
+                  <option disabled>No entities available</option>
+                )}
               </select>
-              <HelpText>
-                {entitiesLoading ? 'Loading entities...' : 
-                  localStep.entityType ? `${availableEntityFields.length} fields available from ${entities.find(e => e.id === localStep.entityType)?.label_plural || 'selected entity'}` :
+              <HelpText style={{ color: entitiesError ? 'rgb(239, 68, 68)' : undefined }}>
+                {entitiesLoading ? (
+                  '⏳ Loading entities...'
+                ) : entitiesError ? (
+                  '⚠️ Failed to load entities. Using fallback list. Check your connection and try again.'
+                ) : localStep.entityType ? (
+                  fieldsLoading ? (
+                    `⏳ Loading fields for ${entities.find(e => e.id === localStep.entityType)?.label_plural || 'selected entity'}...`
+                  ) : fieldsError ? (
+                    `⚠️ Failed to load fields. Please try selecting the entity again.`
+                  ) : (
+                    `✓ ${availableEntityFields.length} fields available from ${entities.find(e => e.id === localStep.entityType)?.label_plural || 'selected entity'}`
+                  )
+                ) : (
                   'Select the business entity this form step will create or update'
-                }
+                )}
               </HelpText>
             </FormGroup>
           </SectionContent>
