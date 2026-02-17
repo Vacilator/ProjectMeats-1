@@ -79,6 +79,8 @@ import {
   Trash2, // Phase 8.3
   HelpCircle, // Workform Editor Enhancements
   Play, // Task 1: Workflow Execution
+  Map, // Sprint 1 Task 1.3: Minimap toggle
+  Settings, // Sprint 1 Task 1.4: Background & Grid settings
 } from 'lucide-react';
 
 import {
@@ -93,7 +95,7 @@ import {
   UtilityNode,
   TerminalNode,
 } from './nodes';
-import { CustomEdge } from './edges';
+import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
@@ -1400,6 +1402,99 @@ const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $po
   pointer-events: none;
 `;
 
+// Sprint 1 Task 1.4: Background & Grid Settings Panel
+const SettingsPanel = styled.div`
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 200px;
+`;
+
+const SettingGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const SettingLabel = styled.label`
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const SettingRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const PatternButton = styled.button<{ $active: boolean }>`
+  flex: 1;
+  padding: 6px 10px;
+  background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
+  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-primary))'};
+  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-background))'};
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const GridSizeInput = styled.input`
+  flex: 1;
+  padding: 6px 8px;
+  background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  color: rgb(var(--color-text-primary));
+  font-size: 12px;
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const ToggleSwitch = styled.button<{ $active: boolean }>`
+  width: 40px;
+  height: 20px;
+  background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border: none;
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: ${props => props.$active ? '22px' : '2px'};
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: left 0.15s ease;
+  }
+`;
+
 // ============================================================================
 // Node & Edge Type Mapping
 // ============================================================================
@@ -1425,6 +1520,10 @@ const staticNodeTypes: NodeTypes = {
 
 const edgeTypes: EdgeTypes = {
   custom: CustomEdge,
+  conditional: ConditionalEdge,
+  error: ErrorEdge,
+  success: SuccessEdge,
+  default: CustomEdge, // Fallback to custom for untyped edges
 };
 
 // ============================================================================
@@ -1768,6 +1867,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Preview panel (Phase 5.1)
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  
+  // Sprint 1 Task 1.3: Minimap toggle
+  const [isMinimapVisible, setIsMinimapVisible] = useState(true);
+  
+  // Sprint 1 Task 1.4: Background & Grid controls
+  const [backgroundVariant, setBackgroundVariant] = useState<BackgroundVariant>(BackgroundVariant.Dots);
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [gridSize, setGridSize] = useState(15);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   
   // Deprecated node detection (Phase 6.1)
   const [hasDeprecatedNodes, setHasDeprecatedNodes] = useState(false);
@@ -3804,6 +3912,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
+      // M: Toggle minimap (Sprint 1 Task 1.3)
+      if (event.key === 'm' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return; // Don't toggle while typing
+        event.preventDefault();
+        setIsMinimapVisible(prev => !prev);
+        return;
+      }
+      
       // 1: Zoom to 100%
       if (event.key === '1' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
         event.preventDefault();
@@ -3867,6 +3983,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     deselectAll, 
     setSelectedNode, 
     isDragging,
+    isMinimapVisible, // Sprint 1 Task 1.3
     alignHorizontal,
     alignVertical,
     alignLeft,
@@ -4778,6 +4895,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* Viewport Controls */}
       <ViewportToolbar>
+        <ViewportButton 
+          onClick={() => setIsSettingsPanelOpen(!isSettingsPanelOpen)} 
+          title="Canvas Settings (Grid, Background)"
+          style={isSettingsPanelOpen ? {
+            background: 'rgb(var(--color-primary))',
+            color: 'white',
+            borderColor: 'rgb(var(--color-primary))'
+          } : {}}
+        >
+          <Settings />
+        </ViewportButton>
+        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton onClick={toggleFullscreen} title={isFullscreen ? "Exit Fullscreen (ESC)" : "Enter Fullscreen"}>
           {isFullscreen ? <Minimize2 /> : <Maximize2 />}
         </ViewportButton>
@@ -4790,6 +4919,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ViewportButton>
         <ViewportButton onClick={zoomOut} title="Zoom Out">
           <ZoomOut />
+        </ViewportButton>
+        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+        <ViewportButton 
+          onClick={() => setIsMinimapVisible(!isMinimapVisible)} 
+          title={isMinimapVisible ? "Hide Minimap (M)" : "Show Minimap (M)"}
+          style={isMinimapVisible ? {
+            background: 'rgb(var(--color-primary))',
+            color: 'white',
+            borderColor: 'rgb(var(--color-primary))'
+          } : {}}
+        >
+          <Map />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton onClick={() => setIsHelpModalOpen(true)} title="Help & Keyboard Shortcuts (?)">
@@ -4854,25 +4995,83 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           },
         }}
         fitView
-        snapToGrid
-        snapGrid={[15, 15]}
+        snapToGrid={snapToGrid}
+        snapGrid={[gridSize, gridSize]}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-        <MiniMap 
-          nodeColor={(node) => {
-            const registry = NODE_TYPE_REGISTRY[node.type];
-            return registry?.color || '#94a3b8';
-          }}
-          maskColor="rgba(0, 0, 0, 0.1)"
-          style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            border: '1px solid rgb(var(--color-border))',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-          pannable
-          zoomable
-        />
+        <Background variant={backgroundVariant} gap={20} size={1} />
+        {isMinimapVisible && (
+          <MiniMap 
+            nodeColor={(node) => {
+              const registry = NODE_TYPE_REGISTRY[node.type];
+              return registry?.color || '#94a3b8';
+            }}
+            maskColor="rgba(0, 0, 0, 0.1)"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              border: '1px solid rgb(var(--color-border))',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            }}
+            pannable
+            zoomable
+          />
+        )}
+        
+        {/* Sprint 1 Task 1.4: Canvas Settings Panel */}
+        {isSettingsPanelOpen && (
+          <SettingsPanel>
+            <SettingGroup>
+              <SettingLabel>Background Pattern</SettingLabel>
+              <SettingRow>
+                <PatternButton 
+                  $active={backgroundVariant === BackgroundVariant.Dots}
+                  onClick={() => setBackgroundVariant(BackgroundVariant.Dots)}
+                >
+                  Dots
+                </PatternButton>
+                <PatternButton 
+                  $active={backgroundVariant === BackgroundVariant.Lines}
+                  onClick={() => setBackgroundVariant(BackgroundVariant.Lines)}
+                >
+                  Lines
+                </PatternButton>
+                <PatternButton 
+                  $active={backgroundVariant === BackgroundVariant.Cross}
+                  onClick={() => setBackgroundVariant(BackgroundVariant.Cross)}
+                >
+                  Cross
+                </PatternButton>
+              </SettingRow>
+            </SettingGroup>
+            
+            <SettingGroup>
+              <SettingLabel>Snap to Grid</SettingLabel>
+              <SettingRow>
+                <span style={{ flex: 1, fontSize: '12px', color: 'rgb(var(--color-text-primary))' }}>
+                  {snapToGrid ? 'Enabled' : 'Disabled'}
+                </span>
+                <ToggleSwitch 
+                  $active={snapToGrid}
+                  onClick={() => setSnapToGrid(!snapToGrid)}
+                />
+              </SettingRow>
+            </SettingGroup>
+            
+            <SettingGroup>
+              <SettingLabel>Grid Size (px)</SettingLabel>
+              <SettingRow>
+                <GridSizeInput 
+                  type="number"
+                  min="5"
+                  max="50"
+                  step="5"
+                  value={gridSize}
+                  onChange={(e) => setGridSize(Math.max(5, Math.min(50, parseInt(e.target.value) || 15)))}
+                />
+              </SettingRow>
+            </SettingGroup>
+          </SettingsPanel>
+        )}
         
         {/* Empty State */}
         {nodes.length === 0 && (
