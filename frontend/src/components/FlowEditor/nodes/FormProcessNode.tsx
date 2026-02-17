@@ -19,6 +19,7 @@ import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 import { ChevronDown, ChevronRight, LogIn, Edit2, Trash2 } from 'lucide-react';
+import { calculateStepOrder, getStepLabel } from '../utils/stepOrderingUtils'; // Phase B.1
 // REMOVED: import { MiniReactFlow } from '../NestedContainer/MiniReactFlow';
 
 // ============================================================================
@@ -376,6 +377,62 @@ const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' }>`
   }
 `;
 
+/* Phase B.1: Step List Components */
+const StepList = styled.div`
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const StepItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  font-size: 12px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: rgba(139, 92, 246, 0.3);
+  }
+`;
+
+const StepNumber = styled.div`
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.2);
+  color: rgb(139, 92, 246);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 11px;
+`;
+
+const StepNodeInfo = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  
+  .node-label {
+    font-weight: 500;
+    color: rgb(var(--color-text-primary));
+  }
+  
+  .node-type {
+    font-size: 10px;
+    color: rgb(var(--color-text-secondary));
+    text-transform: capitalize;
+  }
+`;
+
 const EnterButton = styled.button`
   width: 100%;
   padding: 10px;
@@ -463,6 +520,9 @@ export const FormProcessNode: React.FC<FormProcessNodeProps> = ({
       }
     });
     
+    // Phase B.1: Calculate step ordering
+    const stepOrder = calculateStepOrder(id, allNodes, allEdges);
+    
     return {
       nodeCount,
       nodeTypes,
@@ -470,6 +530,7 @@ export const FormProcessNode: React.FC<FormProcessNodeProps> = ({
       hasNodes: nodeCount > 0,
       childNodes,
       childEdges,
+      stepOrder, // Phase B.1: Map of node ID to step number
     };
   }, [id, allNodes, allEdges]);
   
@@ -592,6 +653,51 @@ export const FormProcessNode: React.FC<FormProcessNodeProps> = ({
                         </div>
                       ))}
                     </div>
+                  )}
+                  
+                  {/* Phase B.1: Step Order List */}
+                  {stats.hasNodes && stats.stepOrder.size > 0 && (
+                    <StepList>
+                      <div style={{ 
+                        fontSize: '11px', 
+                        opacity: 0.7,
+                        marginBottom: '4px',
+                        fontWeight: 600,
+                      }}>
+                        Execution Order:
+                      </div>
+                      {Array.from(stats.stepOrder.entries())
+                        .sort((a, b) => a[1] - b[1]) // Sort by step number
+                        .slice(0, 5) // Show max 5 steps
+                        .map(([nodeId, stepNum]) => {
+                          const childNode = stats.childNodes.find(n => n.id === nodeId);
+                          if (!childNode) return null;
+                          
+                          return (
+                            <StepItem key={nodeId}>
+                              <StepNumber>{stepNum}</StepNumber>
+                              <StepNodeInfo>
+                                <div className="node-label">
+                                  {childNode.data?.label || 'Unnamed Node'}
+                                </div>
+                                <div className="node-type">
+                                  {childNode.type || 'unknown'}
+                                </div>
+                              </StepNodeInfo>
+                            </StepItem>
+                          );
+                        })}
+                      {stats.stepOrder.size > 5 && (
+                        <div style={{ 
+                          fontSize: '11px', 
+                          color: 'rgba(139, 92, 246, 0.6)',
+                          textAlign: 'center',
+                          marginTop: '4px',
+                        }}>
+                          +{stats.stepOrder.size - 5} more steps
+                        </div>
+                      )}
+                    </StepList>
                   )}
                   
                   {stats.hasNodes ? (
