@@ -102,12 +102,14 @@ jobs:
         run: |
           echo "Checking for prohibited django-tenants usage..."
           
-          # Only check actual code files, not documentation
+          # Only check actual code files, not documentation or comments
+          # Grep output format: "filename:line_content"
+          # Filter out lines where the content after ":" starts with # or - (comment markers)
           FOUND=$(grep -r "from django_tenants\|import django_tenants\|schema_context\|migrate_schemas" \
             --include="*.py" \
             --exclude-dir=archived \
             --exclude-dir=docs \
-            backend/ || true)
+            backend/ | grep -v -E ":\s*#|:\s*-" || true)
           
           if [ -n "$FOUND" ]; then
             echo "❌ ERROR: Found django-tenants usage in code!"
