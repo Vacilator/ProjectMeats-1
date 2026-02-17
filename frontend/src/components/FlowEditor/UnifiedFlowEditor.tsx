@@ -79,6 +79,7 @@ import {
   Trash2, // Phase 8.3
   HelpCircle, // Workform Editor Enhancements
   Play, // Task 1: Workflow Execution
+  Map, // Sprint 1 Task 1.3: Minimap toggle
 } from 'lucide-react';
 
 import {
@@ -1772,6 +1773,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Preview panel (Phase 5.1)
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  
+  // Sprint 1 Task 1.3: Minimap toggle
+  const [isMinimapVisible, setIsMinimapVisible] = useState(true);
   
   // Deprecated node detection (Phase 6.1)
   const [hasDeprecatedNodes, setHasDeprecatedNodes] = useState(false);
@@ -3808,6 +3812,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
+      // M: Toggle minimap (Sprint 1 Task 1.3)
+      if (event.key === 'm' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return; // Don't toggle while typing
+        event.preventDefault();
+        setIsMinimapVisible(prev => !prev);
+        return;
+      }
+      
       // 1: Zoom to 100%
       if (event.key === '1' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
         event.preventDefault();
@@ -3871,6 +3883,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     deselectAll, 
     setSelectedNode, 
     isDragging,
+    isMinimapVisible, // Sprint 1 Task 1.3
     alignHorizontal,
     alignVertical,
     alignLeft,
@@ -4796,6 +4809,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <ZoomOut />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+        <ViewportButton 
+          onClick={() => setIsMinimapVisible(!isMinimapVisible)} 
+          title={isMinimapVisible ? "Hide Minimap (M)" : "Show Minimap (M)"}
+          style={isMinimapVisible ? {
+            background: 'rgb(var(--color-primary))',
+            color: 'white',
+            borderColor: 'rgb(var(--color-primary))'
+          } : {}}
+        >
+          <Map />
+        </ViewportButton>
+        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton onClick={() => setIsHelpModalOpen(true)} title="Help & Keyboard Shortcuts (?)">
           <HelpCircle />
         </ViewportButton>
@@ -4862,21 +4887,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         snapGrid={[15, 15]}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-        <MiniMap 
-          nodeColor={(node) => {
-            const registry = NODE_TYPE_REGISTRY[node.type];
-            return registry?.color || '#94a3b8';
-          }}
-          maskColor="rgba(0, 0, 0, 0.1)"
-          style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            border: '1px solid rgb(var(--color-border))',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}
-          pannable
-          zoomable
-        />
+        {isMinimapVisible && (
+          <MiniMap 
+            nodeColor={(node) => {
+              const registry = NODE_TYPE_REGISTRY[node.type];
+              return registry?.color || '#94a3b8';
+            }}
+            maskColor="rgba(0, 0, 0, 0.1)"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              border: '1px solid rgb(var(--color-border))',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            }}
+            pannable
+            zoomable
+          />
+        )}
         
         {/* Empty State */}
         {nodes.length === 0 && (
