@@ -21,18 +21,57 @@ on:
           - production
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true  # Cancel old deployments when new commit arrives
 
 jobs:
+  # ==========================================
+  # Detect Latest Commit (Prevents Stale Deploys)
+  # ==========================================
+  check-latest:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+      latest_sha: ${{ steps.check.outputs.latest_sha }}
+      trigger_sha: ${{ github.sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 10  # Get recent commits to check for newer ones
+      
+      - name: Check if this is the latest commit
+        id: check
+        run: |
+          TRIGGER_SHA="${{ github.sha }}"
+          BRANCH="${{ github.ref_name }}"
+          
+          # Get latest commit on branch
+          LATEST_SHA=$(git rev-parse origin/$BRANCH)
+          
+          echo "Trigger SHA: $TRIGGER_SHA"
+          echo "Latest SHA:  $LATEST_SHA"
+          
+          if [ "$TRIGGER_SHA" = "$LATEST_SHA" ]; then
+            echo "✅ This is the latest commit - proceeding with deployment"
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️  Newer commit exists ($LATEST_SHA) - skipping this deployment"
+            echo "This commit will be included in the next deployment"
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "latest_sha=$LATEST_SHA" >> $GITHUB_OUTPUT
+
   # ==========================================
   # Route to Development
   # ==========================================
   deploy-dev:
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/development') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'development')
-    needs: []  # Runs independently for push events
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/development') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'development'))
+    needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
     with:
@@ -48,9 +87,10 @@ jobs:
   # ==========================================
   deploy-uat:
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'uat')
-    needs: []  # Runs independently for push events
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'uat'))
+    needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
     with:
@@ -66,9 +106,10 @@ jobs:
   # ==========================================
   deploy-prod:
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
-    needs: []  # Runs independently for push events
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+    needs: [check-latest]
     uses: ./.github/workflows/reusable-deploy.yml
     secrets: inherit  # Environment context set in reusable workflow jobs
     with:
