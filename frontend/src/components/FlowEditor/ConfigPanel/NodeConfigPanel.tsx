@@ -20,6 +20,7 @@ import styled from 'styled-components';
 import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2, Edit2, Check, GripVertical, Download } from 'lucide-react';
 import { Node } from '@xyflow/react';
 import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
+import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import axios from 'axios';
 import { listTenantForms, getFormFields } from '../../../services/workformsApi';
 
