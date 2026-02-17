@@ -7,7 +7,7 @@
  * Created: 2026-02-12
  */
 import { useQuery } from '@tanstack/react-query';
-import { adminClient } from './apiService';
+import { apiClient } from './apiService';
 
 export interface EntityType {
   id: string;
@@ -44,8 +44,8 @@ export interface EntityFieldsResponse {
  * Cached with React Query for 5 minutes.
  */
 export const getEntityTypes = async (): Promise<EntityType[]> => {
-  const response = await adminClient.get<{ count: number; results: EntityType[] }>(
-    '/system/entities/'
+  const response = await apiClient.get<{ count: number; results: EntityType[] }>(
+    'system/entities/'
   );
   return response.data.results;
 };
@@ -56,8 +56,8 @@ export const getEntityTypes = async (): Promise<EntityType[]> => {
  * @param entityId - Entity identifier (e.g., 'suppliers.supplier')
  */
 export const getEntityFields = async (entityId: string): Promise<EntityField[]> => {
-  const response = await adminClient.get<EntityFieldsResponse>(
-    `/system/entities/${entityId}/fields/`
+  const response = await apiClient.get<EntityFieldsResponse>(
+    `system/entities/${entityId}/fields/`
   );
   return response.data.fields;
 };
@@ -68,8 +68,8 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
  * @param entityId - Entity identifier
  */
 export const getEntityDisplayFields = async (entityId: string): Promise<string[]> => {
-  const response = await adminClient.get<{ entity_id: string; display_fields: string[] }>(
-    `/system/entities/${entityId}/display-fields/`
+  const response = await apiClient.get<{ entity_id: string; display_fields: string[] }>(
+    `system/entities/${entityId}/display-fields/`
   );
   return response.data.display_fields;
 };
