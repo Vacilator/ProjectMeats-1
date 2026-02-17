@@ -27,8 +27,7 @@ urlpatterns = [
     path("api/v1/health/detailed/", health_detailed, name="health-detailed"),
     path("api/v1/health/workforms/", health_workforms, name="health-workforms"),
     path("api/v1/ready/", ready_check, name="ready-check"),
-    # System Configuration Studio (Blueprint Editor) - MUST come before admin/
-    path("admin/system-config/", include("shared_apps.system_config.urls")),
+    # NOTE: System Configuration Studio ARCHIVED 2026-02-14 (superseded by apps.system)
     # Admin interface (using custom three-tier admin site)
     path("admin/", admin_site.urls),
     # Legacy admin (redirect to custom admin)

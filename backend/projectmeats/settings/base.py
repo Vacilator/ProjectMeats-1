@@ -55,7 +55,7 @@ _PROJECT_APPS = [
     "apps.tenants",  # Tenant management (shared-schema approach)
     "apps.system",   # NEW: Centralized configuration system (v2.0 Wave 1)
     # NOTE: apps.schema_builder DELETED in v2.0 Wave 1 (0 records, superseded by workflows)
-    "shared_apps.system_config",  # System Blueprint Engine (global configuration)
+    # NOTE: shared_apps.system_config ARCHIVED 2026-02-14 (Phase 2 cleanup, superseded by apps.system)
     # Business apps (all use tenant_id for data isolation)
     # NOTE: tenant_apps.accounts_receivables DELETED in v2.0 Wave 1 (0 records, merged into invoices)
     "tenant_apps.ai_assistant",
