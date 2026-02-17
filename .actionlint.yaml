@@ -1,0 +1,6 @@
+self-hosted-runner:
+  labels: []
+
+ignore:
+  # Ignore archived workflows (old/superseded)
+  - '^\.github/workflows/archived/.*\.yml$'
