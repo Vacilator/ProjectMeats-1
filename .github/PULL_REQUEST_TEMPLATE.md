@@ -154,6 +154,25 @@ Closes #
 
 ## 📋 Pre-Merge Checklist
 
+### ⚠️ CRITICAL: Workflow Changes (if `.github/workflows/**` modified)
+**MANDATORY checks - failure caused 40-day pipeline outage (Jan 8 - Feb 17, 2026)**
+- [ ] ✅ Validated with `actionlint` locally
+- [ ] ✅ NO `environment:` on jobs with `uses:` (INVALID SYNTAX)
+- [ ] ✅ Reusable workflows use `secrets: inherit`
+- [ ] ✅ Environment context set on JOBS inside reusable workflow, not caller
+- [ ] ✅ All secret names match `config/env.manifest.json`
+- [ ] ✅ Tested workflow in feature branch
+- [ ] ✅ Reviewed `docs/reference/GOLDEN_PIPELINE.md`
+- [ ] ✅ Team lead approval obtained
+
+### ⚠️ CRITICAL: Django Settings Changes (if `settings/**` modified)
+**MANDATORY checks - ModuleNotFoundError causes deployment failures**
+- [ ] ✅ All INSTALLED_APPS exist in `backend/` directory
+- [ ] ✅ No archived apps in INSTALLED_APPS
+- [ ] ✅ URLs match installed apps
+- [ ] ✅ `python manage.py migrate --check` passes
+- [ ] ✅ No ModuleNotFoundError on Django startup
+
 ### Code Quality
 - [ ] Self-review completed
 - [ ] Code follows project style guidelines
