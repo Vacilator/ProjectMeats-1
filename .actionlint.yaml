@@ -1,0 +1,15 @@
+# Actionlint configuration
+# https://github.com/rhysd/actionlint/blob/main/docs/config.md
+
+self-hosted-runner:
+  labels:
+    - ubuntu-latest
+
+shellcheck:
+  # Disable non-critical shellcheck warnings that create noise
+  # These are style suggestions or false positives, not actual bugs
+  exclude-ids:
+    - SC2009  # "Consider using pgrep" - cosmetic suggestion
+    - SC2069  # "2>&1 must be last" - false positive in heredocs
+    - SC2086  # "Double quote to prevent splitting" - sometimes intentional
+    - SC2001  # "Use ${var//search/replace}" - not always applicable
