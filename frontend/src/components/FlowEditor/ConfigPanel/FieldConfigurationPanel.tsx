@@ -18,6 +18,13 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { SelectedField } from './EntityFieldPicker';
+import {
+  Label,
+  Input,
+  TextArea,
+  Checkbox as SharedCheckbox,
+  HelpText,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // Types
@@ -46,7 +53,7 @@ export interface FieldConfig extends SelectedField {
   lookupFilter?: string;
 }
 
-export interface FieldConfigurationPanelProps {
+interface FieldConfigurationPanelProps {
   /** Field being configured */
   field: FieldConfig;
   
@@ -85,62 +92,11 @@ const FieldGroup = styled.div`
   gap: 8px;
 `;
 
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
 
-const Input = styled.input`
-  padding: 10px 12px;
-  font-size: 14px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-text-primary));
-  transition: all 0.2s ease;
 
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
 
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
 
-const Textarea = styled.textarea`
-  padding: 10px 12px;
-  font-size: 14px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-text-primary));
-  resize: vertical;
-  min-height: 80px;
-  font-family: inherit;
-  transition: all 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-`;
 
 const CheckboxWrapper = styled.div`
   display: flex;
@@ -164,17 +120,9 @@ const Checkbox = styled.input`
   cursor: pointer;
 `;
 
-const CheckboxLabel = styled.label`
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  cursor: pointer;
-`;
 
-const HintText = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary));
-  line-height: 1.4;
-`;
+
+
 
 const Badge = styled.span<{ variant?: 'info' | 'warning' }>`
   padding: 2px 8px;
@@ -332,7 +280,7 @@ export const FieldConfigurationPanel: React.FC<FieldConfigurationPanelProps> = (
       <FieldGroup>
         <Label htmlFor="custom-label">
           Display Label
-          <HintText>(Override the default field label)</HintText>
+          <HelpText>(Override the default field label)</HelpText>
         </Label>
         <Input
           id="custom-label"
@@ -347,9 +295,9 @@ export const FieldConfigurationPanel: React.FC<FieldConfigurationPanelProps> = (
       <FieldGroup>
         <Label htmlFor="help-text">
           Help Text
-          <HintText>(Additional context for users)</HintText>
+          <HelpText>(Additional context for users)</HelpText>
         </Label>
-        <Textarea
+        <TextArea
           id="help-text"
           value={localField.customHelpText || ''}
           onChange={(e) => handleChange({ customHelpText: e.target.value })}
@@ -382,9 +330,9 @@ export const FieldConfigurationPanel: React.FC<FieldConfigurationPanelProps> = (
               checked={!!localField.defaultValue}
               onChange={(e) => handleChange({ defaultValue: e.target.checked })}
             />
-            <CheckboxLabel htmlFor="default-value">
+            <Label as="span" htmlFor="default-value">
               Checked by default
-            </CheckboxLabel>
+            </Label>
           </CheckboxWrapper>
         ) : (
           <Input
@@ -453,7 +401,7 @@ export const FieldConfigurationPanel: React.FC<FieldConfigurationPanelProps> = (
             {field.required && <span style={{ color: 'rgb(239, 68, 68)' }}> *</span>}
           </PreviewLabel>
           {displayHelpText && (
-            <HintText style={{ marginBottom: '8px' }}>{displayHelpText}</HintText>
+            <HelpText style={{ marginBottom: '8px' }}>{displayHelpText}</HelpText>
           )}
           <PreviewField>
             {localField.placeholder || localField.defaultValue || `Enter ${displayLabel.toLowerCase()}...`}
