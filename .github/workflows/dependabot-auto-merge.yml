@@ -21,6 +21,8 @@ jobs:
   check-eligibility:
     name: "Check Eligibility"
     runs-on: ubuntu-latest
+    # Only run this workflow for Dependabot PRs
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
       is_dependabot: ${{ steps.check.outputs.is_dependabot }}
