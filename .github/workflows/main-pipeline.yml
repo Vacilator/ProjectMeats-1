@@ -59,7 +59,7 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           
           # Get latest commit on branch
-          LATEST_SHA=$(git rev-parse origin/$BRANCH)
+          LATEST_SHA=$(git rev-parse "origin/$BRANCH")
           
           echo "Trigger SHA: $TRIGGER_SHA"
           echo "Latest SHA:  $LATEST_SHA"
