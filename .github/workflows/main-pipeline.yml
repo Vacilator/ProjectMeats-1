@@ -66,14 +66,14 @@ jobs:
           
           if [ "$TRIGGER_SHA" = "$LATEST_SHA" ]; then
             echo "✅ This is the latest commit - proceeding with deployment"
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "⏭️  Newer commit exists ($LATEST_SHA) - skipping this deployment"
             echo "This commit will be included in the next deployment"
-            echo "should_deploy=false" >> $GITHUB_OUTPUT
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
           fi
           
-          echo "latest_sha=$LATEST_SHA" >> $GITHUB_OUTPUT
+          echo "latest_sha=$LATEST_SHA" >> "$GITHUB_OUTPUT"
 
   # ==========================================
   # Route to Development
