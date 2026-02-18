@@ -20,6 +20,16 @@ import {
   Link, Unlink, ArrowRight, AlertCircle, CheckCircle, 
   ChevronDown, ChevronUp, Zap
 } from 'lucide-react';
+import {
+  Label,
+  Select,
+  Input,
+  EmptyState,
+  EmptyIcon,
+  EmptyText,
+  HelpText,
+  PrimaryButton,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -45,7 +55,7 @@ export interface FieldMapping {
   };
 }
 
-export interface FieldMappingPanelProps {
+interface FieldMappingPanelProps {
   mappings: FieldMapping[];
   formFields: Array<{ id: string; label: string; type: string }>;
   targetEntity: string;
@@ -331,50 +341,11 @@ const MappingConfig = styled.div<{ $collapsed?: boolean }>`
 
 const ConfigGroup = styled.div``;
 
-const Label = styled.label`
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgb(var(--color-text-tertiary));
-  margin-bottom: 6px;
-`;
 
-const Select = styled.select`
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
 
-const Input = styled.input`
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
+
+
+
 
 const ValidationAlert = styled.div<{ $type: 'error' | 'warning' | 'success' }>`
   display: flex;
@@ -405,44 +376,11 @@ const ValidationAlert = styled.div<{ $type: 'error' | 'warning' | 'success' }>`
   }}
 `;
 
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 48px 24px;
-  color: rgb(var(--color-text-tertiary));
-  font-size: 13px;
-  line-height: 1.6;
-`;
 
-const AddMappingButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px;
-  background: rgb(var(--color-background));
-  border: 2px dashed rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  color: rgb(var(--color-text-secondary));
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  margin-top: 12px;
-  
-  &:hover {
-    border-color: rgb(var(--color-primary));
-    color: rgb(var(--color-primary));
-    background: rgba(var(--color-primary), 0.05);
-  }
-`;
 
-const HelpText = styled.div`
-  font-size: 11px;
-  color: rgb(var(--color-text-tertiary));
-  margin-top: 4px;
-  line-height: 1.4;
-`;
+
+
+
 
 // ============================================================================
 // Component
