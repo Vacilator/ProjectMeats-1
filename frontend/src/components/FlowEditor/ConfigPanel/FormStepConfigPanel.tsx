@@ -530,7 +530,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
             {collapsedSections.has('basic') ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </SectionHeader>
           <SectionContent $collapsed={collapsedSections.has('basic')}>
-            <FormField>
+            <StyledFormField>
               <Label>
                 Step Title <Required>*</Required>
               </Label>
@@ -541,9 +541,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 placeholder="e.g., Customer Information"
               />
               <HelpText>The title shown at the top of this step</HelpText>
-            </FormField>
+            </StyledFormField>
 
-            <FormField>
+            <StyledFormField>
               <Label>Step Description</Label>
               <TextArea
                 value={localStep.stepDescription || ''}
@@ -551,9 +551,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 placeholder="Optional description or instructions for this step..."
               />
               <HelpText>Additional context or instructions for users</HelpText>
-            </FormField>
+            </StyledFormField>
 
-            <FormField>
+            <StyledFormField>
               <Label>
                 <Database size={14} style={{ marginRight: '4px', display: 'inline', verticalAlign: 'middle' }} />
                 Entity Type <Required>*</Required>
@@ -605,7 +605,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   'Select the business entity this form step will create or update'
                 )}
               </HelpText>
-            </FormField>
+            </StyledFormField>
           </SectionContent>
         </Section>
 
@@ -702,7 +702,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
             {collapsedSections.has('visibility') ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </SectionHeader>
           <SectionContent $collapsed={collapsedSections.has('visibility')}>
-            <FormField>
+            <StyledFormField>
               <ToggleButton
                 $active={localStep.visibility?.mode === 'conditional'}
                 onClick={() => handleUpdate({
@@ -721,10 +721,10 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   ? 'This step will only be shown when conditions are met'
                   : 'This step is always shown in the form'}
               </HelpText>
-            </FormField>
+            </StyledFormField>
 
             {localStep.visibility?.mode === 'conditional' && (
-              <FormField>
+              <StyledFormField>
                 <ConditionBuilder
                   conditions={localStep.visibility?.conditions || []}
                   logic={localStep.visibility?.logic || 'and'}
@@ -738,7 +738,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   availableFields={availableFields}
                   fieldPrefix="Previous steps: "
                 />
-              </FormField>
+              </StyledFormField>
             )}
           </SectionContent>
         </Section>
@@ -752,7 +752,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
             {collapsedSections.has('navigation') ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </SectionHeader>
           <SectionContent $collapsed={collapsedSections.has('navigation')}>
-            <FormField>
+            <StyledFormField>
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
@@ -767,9 +767,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 Allow Back Button
               </CheckboxLabel>
               <HelpText>Users can navigate to the previous step</HelpText>
-            </FormField>
+            </StyledFormField>
 
-            <FormField>
+            <StyledFormField>
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
@@ -784,9 +784,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 Allow Skip Button
               </CheckboxLabel>
               <HelpText>Users can skip this step without filling it out</HelpText>
-            </FormField>
+            </StyledFormField>
 
-            <FormField>
+            <StyledFormField>
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
@@ -801,9 +801,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 Auto-advance on Completion
               </CheckboxLabel>
               <HelpText>Automatically move to next step when all required fields are filled</HelpText>
-            </FormField>
+            </StyledFormField>
 
-            <FormField>
+            <StyledFormField>
               <Label>Custom Button Labels (Optional)</Label>
               <Input
                 type="text"
@@ -842,7 +842,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   style={{ marginTop: '8px' }}
                 />
               )}
-            </FormField>
+            </StyledFormField>
           </SectionContent>
         </Section>
 
@@ -884,7 +884,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
             </ValidationModeSelector>
 
             {localStep.validation?.mode === 'minimum' && (
-              <FormField>
+              <StyledFormField>
                 <Label>Minimum Required Fields</Label>
                 <Input
                   type="number"
@@ -902,10 +902,10 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 <HelpText>
                   At least this many fields must be filled out to proceed
                 </HelpText>
-              </FormField>
+              </StyledFormField>
             )}
 
-            <FormField>
+            <StyledFormField>
               <Label>Custom Validation Message (Optional)</Label>
               <TextArea
                 value={localStep.validation?.customMessage || ''}
@@ -920,7 +920,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <HelpText>
                 Shown when validation fails (leave blank for default message)
               </HelpText>
-            </FormField>
+            </StyledFormField>
           </SectionContent>
         </Section>
       </PanelContent>
