@@ -6,15 +6,13 @@ name: PR Validation
 # 
 # Consolidated from pr-checks.yml + validate-workflows.yml for efficiency
 
-run-name: "🔍 PR Validation: ${{ github.event.pull_request.title }}"
+run-name: "${{ github.event_name == 'pull_request' && format('🔍 PR Validation: {0}', github.event.pull_request.title) || format('🔍 Workflow Validation: {0}', github.ref_name) }}"
 
 on:
   pull_request:
     branches: [development, uat, main]
-  push:
-    branches: [development, uat, main]
-    paths:
-      - '.github/workflows/**'  # Only run on workflow changes for push events
+  # Removed push trigger - validation only needed for PRs
+  # Workflows are already validated in PRs before merge
 
 concurrency:
   group: pr-validation-${{ github.ref }}
