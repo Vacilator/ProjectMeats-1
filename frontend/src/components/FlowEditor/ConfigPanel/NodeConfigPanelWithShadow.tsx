@@ -21,6 +21,11 @@ import { AlertCircle, X } from 'lucide-react';
 import { NodeConfigPanel } from './NodeConfigPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
+import {
+  PrimaryButton,
+  SecondaryButton,
+  DangerButton,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -76,62 +81,6 @@ const ActionBar = styled.div<{ $show: boolean }>`
   border-top: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
-`;
-
-const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'danger' }>`
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-  
-  ${props => {
-    if (props.$variant === 'primary') {
-      return `
-        background: rgb(var(--color-primary));
-        color: white;
-        
-        &:hover:not(:disabled) {
-          background: rgb(var(--color-primary-dark));
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
-        }
-      `;
-    } else if (props.$variant === 'danger') {
-      return `
-        background: rgb(var(--color-error));
-        color: white;
-        
-        &:hover:not(:disabled) {
-          background: rgb(var(--color-error-dark));
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(var(--color-error), 0.3);
-        }
-      `;
-    } else {
-      return `
-        background: rgb(var(--color-surface-hover));
-        color: rgb(var(--color-text-primary));
-        border: 1px solid rgb(var(--color-border));
-        
-        &:hover:not(:disabled) {
-          background: rgb(var(--color-surface-active));
-          border-color: rgb(var(--color-primary));
-        }
-      `;
-    }
-  }}
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  &:active:not(:disabled) {
-    transform: scale(0.98);
-  }
 `;
 
 const ConfirmationModal = styled.div<{ $show: boolean }>`
@@ -366,12 +315,12 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
 
       {/* Action Bar (Apply/Discard) */}
       <ActionBar $show={isDirty}>
-        <ActionButton $variant="secondary" onClick={handleDiscard}>
+        <SecondaryButton onClick={handleDiscard}>
           Discard Changes
-        </ActionButton>
-        <ActionButton $variant="primary" onClick={handleApply}>
+        </SecondaryButton>
+        <PrimaryButton onClick={handleApply}>
           Apply Changes
-        </ActionButton>
+        </PrimaryButton>
       </ActionBar>
 
       {/* Close Confirmation Modal */}
@@ -385,12 +334,12 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
             You have unsaved changes. Are you sure you want to close without applying them?
           </DialogMessage>
           <DialogActions>
-            <ActionButton $variant="secondary" onClick={cancelClose}>
+            <SecondaryButton onClick={cancelClose}>
               Cancel
-            </ActionButton>
-            <ActionButton $variant="danger" onClick={confirmCloseWithoutSaving}>
+            </SecondaryButton>
+            <DangerButton onClick={confirmCloseWithoutSaving}>
               Close Without Saving
-            </ActionButton>
+            </DangerButton>
           </DialogActions>
         </ConfirmationDialog>
       </ConfirmationModal>
