@@ -90,9 +90,9 @@ jobs:
 
       - name: Classify update type
         id: classify
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          
           # Determine update category
           if echo "$PR_TITLE" | grep -q "github-actions\|actions-unified"; then
             echo "category=github-actions" >> $GITHUB_OUTPUT
@@ -118,6 +118,7 @@ jobs:
           steps.classify.outputs.safe == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           CATEGORY=${{ steps.classify.outputs.category }}
@@ -135,7 +136,7 @@ jobs:
             echo ""
             echo "**Category:** $CATEGORY"
             echo "**PR:** #$PR_NUMBER"
-            echo "**Title:** ${{ github.event.pull_request.title }}"
+            echo "**Title:** $PR_TITLE"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Skip Docker updates

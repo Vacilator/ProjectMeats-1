@@ -157,7 +157,7 @@ jobs:
             -U "${{ secrets.UAT_DB_USER }}" \
             -d "${{ secrets.UAT_DB_NAME }}" \
             --format=custom \
-            > /tmp/uat_backup_$(date +%Y%m%d_%H%M%S).dump
+            > "/tmp/uat_backup_$(date +%Y%m%d_%H%M%S).dump"
           
           echo "✅ Backup created"
       

@@ -139,9 +139,9 @@ jobs:
           
           # Check if any .md files reference non-existent files
           BROKEN=0
-          for file in $(find docs -name "*.md" 2>/dev/null); do
+          find docs -name "*.md" -type f 2>/dev/null | while IFS= read -r file; do
             # Extract file references (simple check)
-            grep -oE '\[.*\]\([^)]+\)' "$file" | grep -oE '\([^)]+\)' | sed 's/[()]//g' | while read -r link; do
+            grep -oE '\[.*\]\([^)]+\)' "$file" | grep -oE '\([^)]+\)' | sed 's/[()]//g' | while IFS= read -r link; do
               if [[ "$link" == /* ]] || [[ "$link" == ../* ]]; then
                 if [ ! -f "$link" ] && [ ! -d "$link" ]; then
                   echo "❌ Broken link in $file: $link"
@@ -153,6 +153,7 @@ jobs:
           
           if [ $BROKEN -eq 1 ]; then
             exit 1
+          fi
           fi
           
           echo "✅ No broken links found"
@@ -230,6 +231,7 @@ jobs:
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
           
           HAS_REQUIREMENTS=$(echo "$CHANGED_FILES" | grep -c "backend/requirements.txt" || true)
+          # shellcheck disable=SC2034
           HAS_LOCK=$(echo "$CHANGED_FILES" | grep -c "backend/requirements.lock" || true)
           
           # Note: We don't enforce requirements.lock (not using it yet)
