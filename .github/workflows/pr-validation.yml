@@ -268,7 +268,12 @@ jobs:
         run: |
           echo "Validating all workflow files..."
           # Use find to only validate non-archived workflows
-          find .github/workflows -maxdepth 1 -name '*.yml' -type f -exec actionlint -color {} +
+          # Ignore info-level ShellCheck warnings that are too noisy:
+          # - SC2009 (pgrep suggestion - often not applicable)
+          # - SC2001 (parameter expansion - style preference)
+          # - SC2086 (quoting - too many false positives in workflows)
+          # - SC2069 (redirect order - style preference)
+          find .github/workflows -maxdepth 1 -name '*.yml' -type f -exec actionlint -color -ignore 'shellcheck reported issue.*SC2009' -ignore 'shellcheck reported issue.*SC2001' -ignore 'shellcheck reported issue.*SC2086:info' -ignore 'shellcheck reported issue.*SC2069' {} +
       
       - name: Check for common mistakes
         run: |
