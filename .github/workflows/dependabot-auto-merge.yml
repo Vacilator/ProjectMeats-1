@@ -1,28 +1,30 @@
 name: Dependabot Auto-Merge
 
 # Auto-merge passing dependabot PRs for safe updates
-run-name: "🤖 Auto-Merge: ${{ github.event.pull_request.title }}"
+run-name: "🤖 Dependabot: ${{ github.event.pull_request.title }}"
 
 on:
   pull_request:
-    types: [labeled, synchronize, opened, reopened]
+    types: [labeled]  # Only trigger on label changes to reduce noise
 
 permissions:
   contents: write
   pull-requests: write
 
-# Cancel old runs when new push to same PR
+# Cancel old runs when new label added to same PR
 concurrency:
-  group: auto-merge-${{ github.event.pull_request.number }}
+  group: dependabot-automerge-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   # Gate job: Check if this is a dependabot PR with automerge label
   check-eligibility:
-    name: "Check Eligibility"
+    name: "Check & Merge"
     runs-on: ubuntu-latest
-    # Only run this workflow for Dependabot PRs
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    # Only run for Dependabot PRs with automerge label
+    if: |
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      contains(github.event.pull_request.labels.*.name, 'automerge')
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
       is_dependabot: ${{ steps.check.outputs.is_dependabot }}
