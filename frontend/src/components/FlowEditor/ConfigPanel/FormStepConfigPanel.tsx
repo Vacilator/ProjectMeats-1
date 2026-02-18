@@ -532,7 +532,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
           <SectionContent $collapsed={collapsedSections.has('basic')}>
             <StyledFormField>
               <Label>
-                Step Title <Required>*</Required>
+                Step Title <RequiredIndicator>*</RequiredIndicator>
               </Label>
               <Input
                 type="text"
@@ -556,7 +556,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
             <StyledFormField>
               <Label>
                 <Database size={14} style={{ marginRight: '4px', display: 'inline', verticalAlign: 'middle' }} />
-                Entity Type <Required>*</Required>
+                Entity Type <RequiredIndicator>*</RequiredIndicator>
               </Label>
               <select
                 value={localStep.entityType || ''}
