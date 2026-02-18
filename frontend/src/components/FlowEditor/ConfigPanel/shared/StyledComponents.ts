@@ -406,7 +406,7 @@ export const Select = styled.select<{ $hasError?: boolean }>`
  * Variants: primary (blue), secondary (gray), ghost (transparent)
  */
 export const Button = styled.button<{ 
-  $variant?: 'primary' | 'secondary' | 'ghost'; 
+  $variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; 
   $size?: 'sm' | 'md' | 'lg';
   $fullWidth?: boolean;
 }>`
@@ -445,6 +445,13 @@ export const Button = styled.button<{
           &:hover { background: rgb(var(--color-primary-dark)); }
           &:active { transform: translateY(1px); }
         `;
+      case 'danger':
+        return `
+          background: rgb(var(--color-error));
+          color: white;
+          &:hover { background: rgb(239, 40, 40); }
+          &:active { transform: translateY(1px); }
+        `;
       case 'ghost':
         return `
           background: transparent;
@@ -477,6 +484,11 @@ export const PrimaryButton = styled(Button).attrs({ $variant: 'primary' as const
  * Secondary Button - Convenience wrapper for Button with $variant="secondary"
  */
 export const SecondaryButton = styled(Button).attrs({ $variant: 'secondary' as const })``;
+
+/**
+ * Danger Button - Convenience wrapper for Button with $variant="danger"
+ */
+export const DangerButton = styled(Button).attrs({ $variant: 'danger' as const })``;
 
 /**
  * Add Button - Button for adding items
