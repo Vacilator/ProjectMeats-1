@@ -19,6 +19,21 @@ import { Package, Settings, Navigation } from 'lucide-react';
 import { Node, Edge } from '@xyflow/react';
 import { StepManagerPanel } from './StepManagerPanel';
 
+// Import shared styled components
+import {
+  Section,
+  SectionHeader,
+  SectionTitle,
+  FormField,
+  Label,
+  Input,
+  TextArea,
+  SettingRow,
+  SettingInfo,
+  SettingLabel,
+  SettingDescription,
+} from './shared/StyledComponents';
+
 // ============================================================================
 // TypeScript Types
 // ============================================================================
@@ -43,9 +58,10 @@ export interface FormProcessConfigPanelProps {
 }
 
 // ============================================================================
-// Styled Components
+// Local Styled Components
 // ============================================================================
 
+// Simple container (no complex styling needed)
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -53,159 +69,54 @@ const Container = styled.div`
   padding: 0;
 `;
 
-const Section = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const SectionHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgb(var(--color-border));
-
-  svg {
-    width: 18px;
-    height: 18px;
-    color: rgb(var(--color-primary));
-  }
-`;
-
-const SectionTitle = styled.h4`
-  font-size: 14px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-`;
-
-const Field = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
-const Label = styled.label`
-  font-size: 13px;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-`;
-
-const Input = styled.input`
-  padding: 8px 12px;
-  font-size: 13px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-text-primary));
-  transition: all 0.2s;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-
-  &::placeholder {
-    color: rgb(var(--color-text-secondary));
-  }
-`;
-
-const TextArea = styled.textarea`
-  padding: 8px 12px;
-  font-size: 13px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-text-primary));
-  resize: vertical;
-  min-height: 60px;
-  font-family: inherit;
-  transition: all 0.2s;
-
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-
-  &::placeholder {
-    color: rgb(var(--color-text-secondary));
-  }
-`;
-
-const SettingRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px;
-  background: rgb(var(--color-background));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-`;
-
-const SettingInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const SettingLabel = styled.div`
-  font-size: 13px;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-`;
-
-const SettingDescription = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary));
-`;
-
+// Toggle switch label
 const Toggle = styled.label`
   position: relative;
   display: inline-block;
-  width: 44px;
+  width: 48px;
   height: 24px;
-  cursor: pointer;
-
+  
   input {
     opacity: 0;
     width: 0;
     height: 0;
   }
-
-  .slider {
+  
+  input:checked + span {
+    background: rgb(var(--color-primary));
+  }
+  
+  input:checked + span:before {
+    transform: translateX(24px);
+  }
+  
+  span {
     position: absolute;
+    cursor: pointer;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgb(var(--color-border));
-    transition: 0.3s;
+    background: rgb(var(--color-border));
+    transition: 0.2s;
     border-radius: 24px;
-
+    
     &:before {
-      content: '';
       position: absolute;
+      content: "";
       height: 18px;
       width: 18px;
       left: 3px;
       bottom: 3px;
-      background-color: white;
-      transition: 0.3s;
+      background: white;
+      transition: 0.2s;
       border-radius: 50%;
     }
   }
-
-  input:checked + .slider {
-    background-color: rgb(var(--color-primary));
-  }
-
-  input:checked + .slider:before {
-    transform: translateX(20px);
-  }
 `;
+
+// Field is actually FormField from shared
+const Field = FormField;
 
 // ============================================================================
 // Component
