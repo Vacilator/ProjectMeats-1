@@ -1,5 +1,17 @@
 /**
+ * OutlookEmailConfigPanel
+ * 
  * Configuration panel for OutlookEmailNode
+ * 
+ * Phase E.1: Panel Migration - Step 4/4
+ * Migrated to use shared styled components from ConfigPanel/shared
+ * 
+ * Changes:
+ * - Replaced 8 local styled components with shared components
+ * - Reduced duplication
+ * - Maintained exact same functionality
+ * 
+ * Last Updated: 2026-02-17
  */
 import React, { useState } from 'react';
 import { Mail, Plus, X } from 'lucide-react';
@@ -7,70 +19,19 @@ import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { InsertVariableButton } from './InsertVariableButton';
 
-const PanelContainer = styled.div`
-  padding: 16px;
-`;
+// Import shared styled components
+import {
+  PanelContainer,
+  Section,
+  Label,
+  LabelContainer,
+  Input,
+  TextArea,
+  Select,
+  IconButton,
+} from './shared/StyledComponents';
 
-const Section = styled.div`
-  margin-bottom: 20px;
-`;
-
-const Label = styled.label`
-  display: block;
-  font-weight: 600;
-  font-size: 13px;
-  margin-bottom: 6px;
-  color: rgb(var(--color-text-primary));
-`;
-
-const LabelContainer = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 13px;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 13px;
-  min-height: 100px;
-  resize: vertical;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
-const Select = styled.select`
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 13px;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
-`;
-
+// Local styled components (email-specific)
 const EmailList = styled.div`
   display: flex;
   flex-direction: column;
@@ -81,19 +42,6 @@ const EmailItem = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-`;
-
-const RemoveButton = styled.button`
-  padding: 4px;
-  border: none;
-  background: transparent;
-  color: rgb(var(--color-error));
-  cursor: pointer;
-  border-radius: 4px;
-  
-  &:hover {
-    background: rgba(var(--color-error), 0.1);
-  }
 `;
 
 const AddButton = styled.button`
@@ -112,13 +60,6 @@ const AddButton = styled.button`
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));
   }
-`;
-
-const HelpText = styled.div`
-  font-size: 11px;
-  color: rgb(var(--color-text-secondary));
-  margin-top: 4px;
-  font-style: italic;
 `;
 
 interface OutlookEmailConfigPanelProps {
@@ -244,9 +185,9 @@ export const OutlookEmailConfigPanel: React.FC<OutlookEmailConfigPanelProps> = (
                 placeholder="recipient@example.com or {{variable}}"
               />
               {data.to.length > 1 && (
-                <RemoveButton onClick={() => handleRemoveTo(index)}>
+                <IconButton onClick={() => handleRemoveTo(index)}>
                   <X size={16} />
-                </RemoveButton>
+                </IconButton>
               )}
             </EmailItem>
           ))}
@@ -270,9 +211,9 @@ export const OutlookEmailConfigPanel: React.FC<OutlookEmailConfigPanelProps> = (
                   onChange={(e) => handleCCChange(index, e.target.value)}
                   placeholder="cc@example.com or {{variable}}"
                 />
-                <RemoveButton onClick={() => handleRemoveCC(index)}>
+                <IconButton onClick={() => handleRemoveCC(index)}>
                   <X size={16} />
-                </RemoveButton>
+                </IconButton>
               </EmailItem>
             ))}
           </EmailList>
@@ -302,9 +243,9 @@ export const OutlookEmailConfigPanel: React.FC<OutlookEmailConfigPanelProps> = (
                   onChange={(e) => handleBCCChange(index, e.target.value)}
                   placeholder="bcc@example.com or {{variable}}"
                 />
-                <RemoveButton onClick={() => handleRemoveBCC(index)}>
+                <IconButton onClick={() => handleRemoveBCC(index)}>
                   <X size={16} />
-                </RemoveButton>
+                </IconButton>
               </EmailItem>
             ))}
           </EmailList>
