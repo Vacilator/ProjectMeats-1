@@ -281,7 +281,8 @@ jobs:
           echo "Checking for common workflow mistakes..."
           
           # Check: environment: with uses: (INVALID)
-          if grep -r "environment:" .github/workflows/*.yml | grep -A5 "uses:"; then
+          # Exclude pr-validation.yml itself (contains this check in comments)
+          if grep -r "environment:" .github/workflows/*.yml | grep -v "pr-validation.yml" | grep -A5 "uses:"; then
             echo "❌ ERROR: Found 'environment:' used with 'uses:' (invalid syntax)"
             echo "RULE: Jobs calling reusable workflows CANNOT have environment: set"
             echo "FIX: Remove environment: from caller, set it in reusable workflow jobs"
