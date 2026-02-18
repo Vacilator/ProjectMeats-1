@@ -11,7 +11,16 @@
  * - Step-level validation rules
  * - Field list management (add/edit/delete/reorder)
  * 
+ * Phase E.2: Panel Migration - Batch 1 (1 of 3)
+ * Migrated to use shared styled components from ConfigPanel/shared
+ * 
+ * Changes:
+ * - Replaced 30+ local styled components with shared components
+ * - Massive code reduction expected (40%+)
+ * - Maintained exact same functionality
+ * 
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
+ * Last Updated: 2026-02-18 - Phase E.2 Panel Migration
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
@@ -22,6 +31,31 @@ import {
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
 import { FormField, FormFieldType } from './FormFieldConfigPanel';
 import { useEntityList, useEntityFields } from '../../../services/schemaService';
+
+// Import shared styled components
+import {
+  Panel,
+  PanelHeader,
+  PanelTitle,
+  PanelContent,
+  Section,
+  SectionHeader,
+  SectionTitle,
+  SectionContent,
+  FormField as FormFieldStyled,
+  Label,
+  RequiredIndicator,
+  Input,
+  TextArea,
+  Select,
+  Checkbox,
+  HelpText,
+  PrimaryButton,
+  SecondaryButton,
+  IconButton,
+  ErrorMessage,
+  WarningMessage,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces

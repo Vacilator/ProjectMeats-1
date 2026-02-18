@@ -278,7 +278,7 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
         <PanelFooter>
           <Button $variant="ghost" onClick={handleClose}>
             Cancel
-          </PrimaryButton>
+          </Button>
           <Button 
             $variant="primary" 
             onClick={handleSave}
@@ -287,7 +287,7 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
             <Save size={14} />
             Save Configuration
             {hasUnsavedChanges && ' *'}
-          </PrimaryButton>
+          </Button>
         </PanelFooter>
       </Panel>
     </>
