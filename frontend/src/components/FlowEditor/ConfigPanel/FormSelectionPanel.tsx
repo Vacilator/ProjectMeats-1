@@ -13,12 +13,19 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import workformsApi, { TenantForm } from '../../../services/workformsApi';
+import {
+  Label,
+  Input,
+  Select,
+  PrimaryButton,
+  SecondaryButton,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export interface FormSelectionPanelProps {
+interface FormSelectionPanelProps {
   /** Node type: 'formStep' or 'formMultiStepContainer' */
   nodeType: 'formStep' | 'formMultiStepContainer';
   
@@ -116,53 +123,11 @@ const InputGroup = styled.div`
   margin-top: 12px;
 `;
 
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-`;
 
-const Input = styled.input`
-  padding: 10px 12px;
-  font-size: 14px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-text-primary));
-  transition: all 0.2s ease;
 
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
 
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-`;
 
-const Select = styled.select`
-  padding: 10px 12px;
-  font-size: 14px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-text-primary));
-  cursor: pointer;
-  transition: all 0.2s ease;
 
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
 
 const LoadingText = styled.div`
   font-size: 14px;
