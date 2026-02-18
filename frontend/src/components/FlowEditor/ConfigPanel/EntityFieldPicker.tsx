@@ -35,6 +35,8 @@ export interface SelectedField extends EntityField {
   fieldId: string;
   /** Custom label override (optional) */
   customLabel?: string;
+  /** Whether field is checked in multi-select mode */
+  checked?: boolean;
 }
 
 interface EntityFieldPickerProps {
@@ -49,6 +51,9 @@ interface EntityFieldPickerProps {
   
   /** Callback when entity type changes */
   onEntityTypeChange?: (entityType: string) => void;
+  
+  /** Enable multi-select mode with checkboxes (default: false) */
+  multiSelectMode?: boolean;
 }
 
 // ============================================================================
@@ -211,8 +216,6 @@ const DragHandle = styled.div`
   }
 `;
 
-
-
 const LoadingText = styled.div`
   padding: 20px;
   text-align: center;
@@ -229,6 +232,45 @@ const ErrorText = styled.div`
   font-size: 14px;
 `;
 
+// New: Field type filter UI
+const FilterRow = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+`;
+
+const FilterButton = styled.button<{ $active?: boolean }>`
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    background: rgba(var(--color-primary), 0.05);
+    color: rgb(var(--color-primary));
+  }
+`;
+
+const BulkActions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+`;
+
+const Checkbox = styled.input.attrs({ type: 'checkbox' })`
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+`;
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -238,10 +280,13 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   onFieldsChange,
   initialEntityType,
   onEntityTypeChange,
+  multiSelectMode = false,
 }) => {
   const [selectedEntityType, setSelectedEntityType] = useState<string>(initialEntityType || '');
   const [searchTerm, setSearchTerm] = useState('');
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
+  const [fieldTypeFilter, setFieldTypeFilter] = useState<string>('all');
+  const [checkedFields, setCheckedFields] = useState<Set<string>>(new Set());
 
   // Use React Query hooks from schemaService
   const { data: entities = [], isLoading: entitiesLoading, error: entitiesError } = useEntityList();
@@ -254,6 +299,20 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   const loading = entitiesLoading || fieldsLoading;
   const error = entitiesError || fieldsError;
 
+  // Field type categorization
+  const fieldTypeCategories = {
+    text: ['text', 'email', 'url', 'char', 'string'],
+    number: ['number', 'integer', 'decimal', 'float', 'positive_integer'],
+    date: ['date', 'datetime', 'time'],
+    boolean: ['boolean', 'checkbox'],
+    relation: ['foreign_key', 'many_to_many', 'one_to_one'],
+  };
+
+  // Get unique field types from available fields
+  const availableFieldTypes = Array.from(
+    new Set(availableFields.map(f => f.type.toLowerCase()))
+  ).sort();
+
   // Auto-select first entity if no initial type
   useEffect(() => {
     if (!initialEntityType && entities.length > 0 && !selectedEntityType) {
@@ -265,6 +324,8 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     const entityType = e.target.value;
     setSelectedEntityType(entityType);
     setSearchTerm('');
+    setFieldTypeFilter('all');
+    setCheckedFields(new Set());
     // Clear selected fields when changing entity type
     onFieldsChange([]);
     
@@ -284,6 +345,40 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     };
 
     onFieldsChange([...selectedFields, newField]);
+  };
+
+  const handleAddSelected = () => {
+    const fieldsToAdd = availableFields
+      .filter(f => checkedFields.has(f.name))
+      .filter(f => !selectedFields.some(sf => sf.name === f.name))
+      .map(f => ({
+        ...f,
+        fieldId: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      }));
+
+    if (fieldsToAdd.length > 0) {
+      onFieldsChange([...selectedFields, ...fieldsToAdd]);
+      setCheckedFields(new Set());
+    }
+  };
+
+  const handleSelectAll = () => {
+    const allFieldNames = filteredAvailableFields.map(f => f.name);
+    setCheckedFields(new Set(allFieldNames));
+  };
+
+  const handleClearAll = () => {
+    setCheckedFields(new Set());
+  };
+
+  const handleFieldCheckToggle = (fieldName: string) => {
+    const newChecked = new Set(checkedFields);
+    if (newChecked.has(fieldName)) {
+      newChecked.delete(fieldName);
+    } else {
+      newChecked.add(fieldName);
+    }
+    setCheckedFields(newChecked);
   };
 
   const handleRemoveField = (fieldId: string) => {
@@ -316,13 +411,36 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   };
 
   const filteredAvailableFields = availableFields.filter(field => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      field.name.toLowerCase().includes(search) ||
-      field.label.toLowerCase().includes(search) ||
-      field.type.toLowerCase().includes(search)
-    );
+    // Search term filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      const matchesSearch = (
+        field.name.toLowerCase().includes(search) ||
+        field.label.toLowerCase().includes(search) ||
+        field.type.toLowerCase().includes(search)
+      );
+      if (!matchesSearch) return false;
+    }
+
+    // Field type filter
+    if (fieldTypeFilter !== 'all') {
+      const fieldTypeLower = field.type.toLowerCase();
+      
+      // Check if filter is a category (text, number, date, etc.)
+      if (fieldTypeFilter in fieldTypeCategories) {
+        const category = fieldTypeFilter as keyof typeof fieldTypeCategories;
+        if (!fieldTypeCategories[category].some(t => fieldTypeLower.includes(t))) {
+          return false;
+        }
+      } else {
+        // Direct type match
+        if (!fieldTypeLower.includes(fieldTypeFilter.toLowerCase())) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   });
 
   const isFieldSelected = (fieldName: string) => {
@@ -361,6 +479,65 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+
+          {/* Field Type Filter */}
+          <FilterRow>
+            <FilterButton 
+              $active={fieldTypeFilter === 'all'}
+              onClick={() => setFieldTypeFilter('all')}
+            >
+              All Types
+            </FilterButton>
+            <FilterButton 
+              $active={fieldTypeFilter === 'text'}
+              onClick={() => setFieldTypeFilter('text')}
+            >
+              Text
+            </FilterButton>
+            <FilterButton 
+              $active={fieldTypeFilter === 'number'}
+              onClick={() => setFieldTypeFilter('number')}
+            >
+              Number
+            </FilterButton>
+            <FilterButton 
+              $active={fieldTypeFilter === 'date'}
+              onClick={() => setFieldTypeFilter('date')}
+            >
+              Date
+            </FilterButton>
+            <FilterButton 
+              $active={fieldTypeFilter === 'boolean'}
+              onClick={() => setFieldTypeFilter('boolean')}
+            >
+              Boolean
+            </FilterButton>
+            <FilterButton 
+              $active={fieldTypeFilter === 'relation'}
+              onClick={() => setFieldTypeFilter('relation')}
+            >
+              Relations
+            </FilterButton>
+          </FilterRow>
+
+          {/* Bulk Actions (multi-select mode only) */}
+          {multiSelectMode && (
+            <BulkActions>
+              <ActionButton onClick={handleSelectAll} disabled={filteredAvailableFields.length === 0}>
+                Select All ({filteredAvailableFields.length})
+              </ActionButton>
+              <ActionButton onClick={handleClearAll} disabled={checkedFields.size === 0}>
+                Clear All
+              </ActionButton>
+              <ActionButton 
+                onClick={handleAddSelected} 
+                disabled={checkedFields.size === 0}
+                style={{ marginLeft: 'auto' }}
+              >
+                Add Selected ({checkedFields.size})
+              </ActionButton>
+            </BulkActions>
+          )}
           
           {loading ? (
             <LoadingText>Loading fields...</LoadingText>
@@ -369,14 +546,31 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
           ) : (
             <FieldsList>
               {filteredAvailableFields.length === 0 ? (
-                <EmptyState>No fields found</EmptyState>
+                <EmptyState>
+                  {availableFields.length === 0 
+                    ? 'No fields found' 
+                    : 'No fields match your filters'}
+                </EmptyState>
               ) : (
                 filteredAvailableFields.map(field => (
                   <FieldItem
                     key={field.name}
                     selected={isFieldSelected(field.name)}
-                    onClick={() => !isFieldSelected(field.name) && handleAddField(field)}
+                    onClick={() => {
+                      if (multiSelectMode) {
+                        handleFieldCheckToggle(field.name);
+                      } else if (!isFieldSelected(field.name)) {
+                        handleAddField(field);
+                      }
+                    }}
                   >
+                    {multiSelectMode && (
+                      <Checkbox
+                        checked={checkedFields.has(field.name)}
+                        onChange={() => handleFieldCheckToggle(field.name)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
                     <FieldInfo>
                       <FieldName>{field.label}</FieldName>
                       <FieldMeta>
@@ -385,12 +579,12 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
                         {field.help_text && <span>• {field.help_text}</span>}
                       </FieldMeta>
                     </FieldInfo>
-                    {!isFieldSelected(field.name) && (
+                    {!multiSelectMode && !isFieldSelected(field.name) && (
                       <ActionButton onClick={() => handleAddField(field)}>
                         Add
                       </ActionButton>
                     )}
-                    {isFieldSelected(field.name) && (
+                    {!multiSelectMode && isFieldSelected(field.name) && (
                       <FieldBadge>Added</FieldBadge>
                     )}
                   </FieldItem>
