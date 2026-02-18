@@ -31,3 +31,7 @@ export type { FieldPropertiesEditorProps, FieldProperties } from './FieldPropert
 export type { FieldWithContextProps } from './FieldWithContext'; // Phase 5
 export { StepManagerPanel } from './StepManagerPanel';
 export { FormProcessConfigPanel } from './FormProcessConfigPanel';
+
+// Phase D.2: Dynamic Configuration Engine
+export { DynamicConfigPanel } from './DynamicConfigPanel';
+export type { DynamicConfigPanelProps } from './DynamicConfigPanel';
