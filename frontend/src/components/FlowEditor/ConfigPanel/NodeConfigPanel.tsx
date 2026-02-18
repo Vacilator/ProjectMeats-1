@@ -23,12 +23,33 @@ import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import axios from 'axios';
 import { listTenantForms, getFormFields } from '../../../services/workformsApi';
+import {
+  Panel,
+  PanelHeader,
+  PanelTitle,
+  PanelContent,
+  PanelFooter,
+  CloseButton,
+  FormField,
+  Label,
+  RequiredIndicator,
+  Input,
+  TextArea,
+  Select,
+  HelpText,
+  EmptyState,
+  EmptyIcon,
+  EmptyText,
+  Button,
+  PrimaryButton,
+  SecondaryButton,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
-export interface NodeConfigPanelProps {
+interface NodeConfigPanelProps {
   node: Node | null;
   nodes: Node[];
   edges: Edge[];
@@ -82,33 +103,9 @@ const PanelOverlay = styled.div<{ $isOpen: boolean }>`
   }
 `;
 
-const Panel = styled.div<{ $isOpen: boolean }>`
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 480px;
-  background: rgb(var(--color-surface));
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
-  z-index: 1001;
-  display: flex;
-  flex-direction: column;
-  transform: ${props => props.$isOpen ? 'translateX(0)' : 'translateX(100%)'};
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
-  @media (max-width: 768px) {
-    width: 100%;
-  }
-`;
 
-const PanelHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-background));
-`;
+
+
 
 const HeaderLeft = styled.div`
   display: flex;
@@ -128,15 +125,6 @@ const HeaderInfo = styled.div`
   min-width: 0;
 `;
 
-const NodeTitle = styled.h2`
-  font-size: 16px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0 0 4px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
 
 const NodeType = styled.div`
   font-size: 12px;
@@ -145,20 +133,7 @@ const NodeType = styled.div`
   letter-spacing: 0.5px;
 `;
 
-const CloseButton = styled.button`
-  padding: 8px;
-  background: none;
-  border: none;
-  color: rgb(var(--color-text-secondary));
-  cursor: pointer;
-  border-radius: var(--radius-md);
-  transition: all 0.15s ease;
-  
-  &:hover {
-    background: rgb(var(--color-border));
-    color: rgb(var(--color-text-primary));
-  }
-`;
+
 
 const TabBar = styled.div`
   display: flex;
@@ -186,11 +161,7 @@ const Tab = styled.button<{ $active: boolean }>`
   }
 `;
 
-const PanelContent = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-`;
+
 
 const FormSection = styled.div`
   margin-bottom: 32px;
@@ -210,23 +181,11 @@ const SectionTitle = styled.h3`
   gap: 8px;
 `;
 
-const FormField = styled.div`
-  margin-bottom: 20px;
-`;
 
-const FieldLabel = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin-bottom: 8px;
-`;
 
-const RequiredIndicator = styled.span`
-  color: rgb(239, 68, 68);
-`;
+
+
+
 
 const HelpIcon = styled(HelpCircle)`
   color: rgb(var(--color-text-tertiary));
@@ -237,94 +196,17 @@ const HelpIcon = styled(HelpCircle)`
   }
 `;
 
-const TextInput = styled.input<{ $hasError?: boolean }>`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-background));
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
-  }
-  
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-`;
 
-const TextArea = styled.textarea<{ $hasError?: boolean }>`
-  width: 100%;
-  min-height: 80px;
-  padding: 10px 12px;
-  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-background));
-  font-family: inherit;
-  resize: vertical;
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
-  }
-  
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-`;
 
-const Select = styled.select<{ $hasError?: boolean }>`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-border))'};
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-background));
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: ${props => props.$hasError ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
-    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
-  }
-`;
 
-const Checkbox = styled.input`
-  width: 18px;
-  height: 18px;
-  margin-right: 8px;
-  cursor: pointer;
-`;
 
-const CheckboxLabel = styled.label`
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  cursor: pointer;
-  
-  &:hover {
-    color: rgb(var(--color-primary));
-  }
-`;
 
-const FieldHelp = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-tertiary));
-  margin-top: 6px;
-  line-height: 1.5;
-`;
+
+
+
+
+
+
 
 const ValidationMessage = styled.div<{ $severity: 'error' | 'warning' }>`
   display: flex;
@@ -343,14 +225,7 @@ const ValidationMessage = styled.div<{ $severity: 'error' | 'warning' }>`
     : 'rgb(234, 179, 8)'};
 `;
 
-const PanelFooter = styled.div`
-  padding: 16px 24px;
-  border-top: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-background));
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-`;
+
 
 const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
   padding: 10px 20px;
@@ -404,27 +279,11 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
   }}
 `;
 
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 40px;
-  text-align: center;
-  color: rgb(var(--color-text-tertiary));
-`;
 
-const EmptyIcon = styled.div`
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
-`;
 
-const EmptyText = styled.div`
-  font-size: 14px;
-  line-height: 1.6;
-`;
+
+
+
 
 const FieldItem = styled.div`
   display: flex;
@@ -536,6 +395,12 @@ const InlineSelect = styled.select`
     outline: none;
     border-color: rgb(var(--color-primary));
   }
+`;
+
+const Checkbox = styled.input`
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 `;
 
 const InlineCheckbox = styled.input`
@@ -851,11 +716,11 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <SectionTitle>Basic Settings</SectionTitle>
           
           <FormField>
-            <FieldLabel>
+            <Label>
               Node Label <RequiredIndicator>*</RequiredIndicator>
               <HelpIcon size={14} title="Display name for this node" />
-            </FieldLabel>
-            <TextInput
+            </Label>
+            <Input
               value={formData.label || ''}
               onChange={(e) => handleFieldChange('label', e.target.value)}
               placeholder="e.g., Customer Information Form"
@@ -867,23 +732,23 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                 <span>{error.message}</span>
               </ValidationMessage>
             ))}
-            <FieldHelp>
+            <HelpText>
               This name appears on the node in the canvas
-            </FieldHelp>
+            </HelpText>
           </FormField>
 
           <FormField>
-            <FieldLabel>
+            <Label>
               Description
-            </FieldLabel>
+            </Label>
             <TextArea
               value={formData.description || ''}
               onChange={(e) => handleFieldChange('description', e.target.value)}
               placeholder="Add a description for this node..."
             />
-            <FieldHelp>
+            <HelpText>
               Optional description for documentation purposes
-            </FieldHelp>
+            </HelpText>
           </FormField>
         </FormSection>
 
@@ -912,10 +777,10 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <SectionTitle>Entity Configuration</SectionTitle>
           
           <FormField>
-            <FieldLabel>
+            <Label>
               Entity Type
               <HelpIcon size={14} title="Select which business object this form creates or updates" />
-            </FieldLabel>
+            </Label>
             <Select
               value={entityType}
               onChange={(e) => {
@@ -938,17 +803,17 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
               <option value="inquiry">Inquiry</option>
               <option value="fulfillment">Fulfillment</option>
             </Select>
-            <FieldHelp>
+            <HelpText>
               Choose the type of record this form will create or modify
-            </FieldHelp>
+            </HelpText>
           </FormField>
 
           {entityType && (
             <FormField>
-              <FieldLabel>
+              <Label>
                 Load Entity Fields
                 <HelpIcon size={14} title="Automatically add fields based on the selected entity schema" />
-              </FieldLabel>
+              </Label>
               <Button 
                 $variant="secondary" 
                 onClick={() => {
@@ -959,9 +824,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                 <Download size={16} />
                 Load Schema Fields
               </Button>
-              <FieldHelp>
+              <HelpText>
                 Import standard fields from the {entityTypeDisplay} entity
-              </FieldHelp>
+              </HelpText>
             </FormField>
           )}
         </FormSection>
@@ -970,31 +835,31 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <SectionTitle>Form Fields</SectionTitle>
           
           <FormField>
-            <CheckboxLabel>
+            <Label as="label">
               <Checkbox
                 type="checkbox"
                 checked={formData.allowBack || false}
                 onChange={(e) => handleFieldChange('allowBack', e.target.checked)}
               />
               Allow "Back" button
-            </CheckboxLabel>
+            </Label>
           </FormField>
 
           <FormField>
-            <CheckboxLabel>
+            <Label as="label">
               <Checkbox
                 type="checkbox"
                 checked={formData.required || false}
                 onChange={(e) => handleFieldChange('required', e.target.checked)}
               />
               All fields required
-            </CheckboxLabel>
+            </Label>
           </FormField>
           
           {/* Field Templates */}
         {showTemplates && (
           <FormField>
-            <FieldLabel>Quick Add from Templates</FieldLabel>
+            <Label>Quick Add from Templates</Label>
             <TemplatesGrid>
               {fieldTemplates.map((template, index) => (
                 <FieldTemplate
@@ -1014,7 +879,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         {/* Field list with inline editing */}
         {fields.length > 0 && (
           <FormField>
-            <FieldLabel>Fields ({fields.length})</FieldLabel>
+            <Label>Fields ({fields.length})</Label>
             {fields.map((field, index) => {
               const isEditing = editingFieldId === field.id;
               
@@ -1138,9 +1003,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <SectionTitle>Action Configuration</SectionTitle>
         
         <FormField>
-          <FieldLabel>
+          <Label>
             Action Type <RequiredIndicator>*</RequiredIndicator>
-          </FieldLabel>
+          </Label>
           <Select
             value={formData.actionType || ''}
             onChange={(e) => handleFieldChange('actionType', e.target.value)}
@@ -1168,9 +1033,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <SectionTitle>Condition Rules</SectionTitle>
         
         <FormField>
-          <FieldLabel>
+          <Label>
             Logical Operator
-          </FieldLabel>
+          </Label>
           <Select
             value={formData.logicalOperator || 'AND'}
             onChange={(e) => handleFieldChange('logicalOperator', e.target.value)}
@@ -1183,7 +1048,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         {/* Rule list with inline editing */}
         {rules.length > 0 && (
           <FormField>
-            <FieldLabel>Rules ({rules.length})</FieldLabel>
+            <Label>Rules ({rules.length})</Label>
             {rules.map((rule) => {
               const isEditing = editingRuleId === rule.id;
               
@@ -1277,9 +1142,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <SectionTitle>Trigger Configuration</SectionTitle>
         
         <FormField>
-          <FieldLabel>
+          <Label>
             Trigger Type <RequiredIndicator>*</RequiredIndicator>
-          </FieldLabel>
+          </Label>
           <Select
             value={formData.triggerType || 'manual'}
             onChange={(e) => handleFieldChange('triggerType', e.target.value)}
@@ -1292,36 +1157,36 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             <option value="recordUpdated">Record Updated</option>
             <option value="formSubmitted">Form Submitted</option>
           </Select>
-          <FieldHelp>
+          <HelpText>
             How this workflow should be triggered
-          </FieldHelp>
+          </HelpText>
         </FormField>
 
         {formData.triggerType === 'schedule' && (
           <FormField>
-            <FieldLabel>Cron Expression</FieldLabel>
-            <TextInput
+            <Label>Cron Expression</Label>
+            <Input
               value={formData.cronExpression || ''}
               onChange={(e) => handleFieldChange('cronExpression', e.target.value)}
               placeholder="0 9 * * * (every day at 9 AM)"
             />
-            <FieldHelp>
+            <HelpText>
               Enter a valid cron expression for scheduling
-            </FieldHelp>
+            </HelpText>
           </FormField>
         )}
 
         {formData.triggerType === 'webhook' && (
           <FormField>
-            <FieldLabel>Webhook Path</FieldLabel>
-            <TextInput
+            <Label>Webhook Path</Label>
+            <Input
               value={formData.webhookPath || ''}
               onChange={(e) => handleFieldChange('webhookPath', e.target.value)}
               placeholder="/api/webhooks/custom-flow"
             />
-            <FieldHelp>
+            <HelpText>
               Custom URL path for this webhook
-            </FieldHelp>
+            </HelpText>
           </FormField>
         )}
         
@@ -1329,9 +1194,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         {(formData.triggerType === 'formSubmitted' || formData.triggerType === 'recordCreated' || formData.triggerType === 'recordUpdated') && (
           <>
             <FormField>
-              <FieldLabel>
+              <Label>
                 Select Form <RequiredIndicator>*</RequiredIndicator>
-              </FieldLabel>
+              </Label>
               <Select
                 value={formData.selectedFormId || formData.formId || ''}
                 onChange={(e) => {
@@ -1349,17 +1214,17 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                   </option>
                 ))}
               </Select>
-              <FieldHelp>
+              <HelpText>
                 Choose which form submission will trigger this workflow
-              </FieldHelp>
+              </HelpText>
             </FormField>
             
             {/* Field Selection (appears after form is selected) */}
             {(formData.selectedFormId || formData.formId) && (
               <FormField>
-                <FieldLabel>
+                <Label>
                   Trigger Field (Optional)
-                </FieldLabel>
+                </Label>
                 <Select
                   value={formData.triggerFieldId || ''}
                   onChange={(e) => handleFieldChange('triggerFieldId', e.target.value)}
@@ -1375,9 +1240,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                     </option>
                   ))}
                 </Select>
-                <FieldHelp>
+                <HelpText>
                   Optionally trigger only when a specific field is filled. Leave empty to trigger on any form submission.
-                </FieldHelp>
+                </HelpText>
               </FormField>
             )}
           </>
@@ -1392,9 +1257,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <SectionTitle>Wait Configuration</SectionTitle>
         
         <FormField>
-          <FieldLabel>
+          <Label>
             Wait Type <RequiredIndicator>*</RequiredIndicator>
-          </FieldLabel>
+          </Label>
           <Select
             value={formData.waitType || 'duration'}
             onChange={(e) => handleFieldChange('waitType', e.target.value)}
@@ -1408,8 +1273,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         {formData.waitType === 'duration' && (
           <>
             <FormField>
-              <FieldLabel>Duration Value</FieldLabel>
-              <TextInput
+              <Label>Duration Value</Label>
+              <Input
                 type="number"
                 value={formData.durationValue || ''}
                 onChange={(e) => handleFieldChange('durationValue', e.target.value)}
@@ -1417,7 +1282,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
               />
             </FormField>
             <FormField>
-              <FieldLabel>Duration Unit</FieldLabel>
+              <Label>Duration Unit</Label>
               <Select
                 value={formData.durationUnit || 'minutes'}
                 onChange={(e) => handleFieldChange('durationUnit', e.target.value)}
@@ -1434,8 +1299,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
         {formData.waitType === 'until' && (
           <FormField>
-            <FieldLabel>Date/Time</FieldLabel>
-            <TextInput
+            <Label>Date/Time</Label>
+            <Input
               type="datetime-local"
               value={formData.waitUntil || ''}
               onChange={(e) => handleFieldChange('waitUntil', e.target.value)}
@@ -1452,9 +1317,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <SectionTitle>Document Configuration</SectionTitle>
         
         <FormField>
-          <FieldLabel>
+          <Label>
             Document Type <RequiredIndicator>*</RequiredIndicator>
-          </FieldLabel>
+          </Label>
           <Select
             value={formData.documentType || ''}
             onChange={(e) => handleFieldChange('documentType', e.target.value)}
@@ -1468,15 +1333,15 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         </FormField>
 
         <FormField>
-          <FieldLabel>Template</FieldLabel>
-          <TextInput
+          <Label>Template</Label>
+          <Input
             value={formData.templatePath || ''}
             onChange={(e) => handleFieldChange('templatePath', e.target.value)}
             placeholder="/templates/invoice.pdf"
           />
-          <FieldHelp>
+          <HelpText>
             Path to the document template
-          </FieldHelp>
+          </HelpText>
         </FormField>
       </FormSection>
     );
@@ -1488,9 +1353,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <SectionTitle>Utility Configuration</SectionTitle>
         
         <FormField>
-          <FieldLabel>
+          <Label>
             Utility Type <RequiredIndicator>*</RequiredIndicator>
-          </FieldLabel>
+          </Label>
           <Select
             value={formData.utilityType || ''}
             onChange={(e) => handleFieldChange('utilityType', e.target.value)}
@@ -1505,15 +1370,15 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         </FormField>
 
         <FormField>
-          <FieldLabel>Expression</FieldLabel>
+          <Label>Expression</Label>
           <TextArea
             value={formData.expression || ''}
             onChange={(e) => handleFieldChange('expression', e.target.value)}
             placeholder="result = input1 + input2"
           />
-          <FieldHelp>
+          <HelpText>
             JavaScript expression or operation
-          </FieldHelp>
+          </HelpText>
         </FormField>
       </FormSection>
     );
@@ -1525,9 +1390,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <SectionTitle>Termination Configuration</SectionTitle>
         
         <FormField>
-          <FieldLabel>
+          <Label>
             End Type <RequiredIndicator>*</RequiredIndicator>
-          </FieldLabel>
+          </Label>
           <Select
             value={formData.endType || 'success'}
             onChange={(e) => handleFieldChange('endType', e.target.value)}
@@ -1539,15 +1404,15 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         </FormField>
 
         <FormField>
-          <FieldLabel>Message</FieldLabel>
-          <TextInput
+          <Label>Message</Label>
+          <Input
             value={formData.endMessage || ''}
             onChange={(e) => handleFieldChange('endMessage', e.target.value)}
             placeholder="Workflow completed successfully"
           />
-          <FieldHelp>
+          <HelpText>
             Optional message to display when this endpoint is reached
-          </FieldHelp>
+          </HelpText>
         </FormField>
       </FormSection>
     );
@@ -1582,9 +1447,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <EmptyState>
             <EmptyIcon>📋</EmptyIcon>
             <EmptyText>Add form fields first to enable data mapping</EmptyText>
-            <FieldHelp>
+            <HelpText>
               Field mappings allow you to connect form data to database entities (Suppliers, Customers, Products, etc.)
-            </FieldHelp>
+            </HelpText>
           </EmptyState>
         </FormSection>
       );
@@ -1608,44 +1473,44 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <SectionTitle>Advanced Settings</SectionTitle>
         
         <FormField>
-          <FieldLabel>
+          <Label>
             Max Inputs
-          </FieldLabel>
-          <TextInput
+          </Label>
+          <Input
             type="number"
             min="0"
             value={formData.maxInputs || 1}
             onChange={(e) => handleFieldChange('maxInputs', parseInt(e.target.value) || 1)}
           />
-          <FieldHelp>
+          <HelpText>
             Maximum number of incoming connections (0 = unlimited)
-          </FieldHelp>
+          </HelpText>
         </FormField>
 
         <FormField>
-          <FieldLabel>
+          <Label>
             Max Outputs
-          </FieldLabel>
-          <TextInput
+          </Label>
+          <Input
             type="number"
             min="0"
             value={formData.maxOutputs || 1}
             onChange={(e) => handleFieldChange('maxOutputs', parseInt(e.target.value) || 1)}
           />
-          <FieldHelp>
+          <HelpText>
             Maximum number of outgoing connections (0 = unlimited)
-          </FieldHelp>
+          </HelpText>
         </FormField>
 
         <FormField>
-          <CheckboxLabel>
+          <Label as="label">
             <Checkbox
               type="checkbox"
               checked={formData.disabled || false}
               onChange={(e) => handleFieldChange('disabled', e.target.checked)}
             />
             Disable this node
-          </CheckboxLabel>
+          </Label>
         </FormField>
       </FormSection>
     );
@@ -1682,7 +1547,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <HeaderLeft>
             <NodeIcon>⚙️</NodeIcon>
             <HeaderInfo>
-              <NodeTitle>{formData.label || 'Untitled Node'}</NodeTitle>
+              <PanelTitle>{formData.label || 'Untitled Node'}</PanelTitle>
               <NodeType>{node.type}</NodeType>
             </HeaderInfo>
           </HeaderLeft>
