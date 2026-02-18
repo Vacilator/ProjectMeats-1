@@ -5,6 +5,7 @@
  * 
  * Created: 2026-02-18
  * Phase: D.1 - Foundation
+ * Updated: 2026-02-18 - Phase D.2 - Dynamic Panel
  */
 
 // Type definitions
@@ -31,6 +32,19 @@ export { schemaRegistry } from './schemaRegistry';
 
 // Node schemas
 export { formStepSingleSchema, allSchemas } from './nodeConfigSchemas';
+
+// Conditional logic (Phase D.2)
+export { evaluateCondition, getConditionalDependencies } from './conditionalLogic';
+
+// Validation engine (Phase D.2)
+export { validateField, validateAllFields, isFormValid } from './validationEngine';
+
+// Field renderers (Phase D.2)
+export { 
+  renderTextField,
+  renderSelectField,
+  renderToggleField
+} from './fieldRenderers/basicRenderers';
 
 // Re-export for convenience
 export { type NodeConfigSchema as Schema } from './types';
