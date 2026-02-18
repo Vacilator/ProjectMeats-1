@@ -29,12 +29,18 @@ import styled from 'styled-components';
 import { Database, Eye } from 'lucide-react';
 import { WorkflowContext, isTemplate, extractTemplates } from '../../FormSubmission/hooks/useWorkflowContext';
 import { ContextBubble } from '../../FormSubmission/ContextBubble';
+import {
+  Label,
+  Input,
+  TextArea,
+  RequiredIndicator,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
-export interface FieldWithContextProps {
+interface FieldWithContextProps {
   /** Field label */
   label: string;
   
@@ -71,18 +77,9 @@ const FieldContainer = styled.div`
   margin-bottom: 16px;
 `;
 
-const FieldLabel = styled.label`
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin-bottom: 6px;
-`;
 
-const RequiredIndicator = styled.span`
-  color: rgb(var(--color-error));
-  margin-left: 4px;
-`;
+
+
 
 const InputWrapper = styled.div<{ $hasTemplate: boolean }>`
   position: relative;
@@ -103,53 +100,9 @@ const InputWrapper = styled.div<{ $hasTemplate: boolean }>`
   }
 `;
 
-const StyledInput = styled.input`
-  flex: 1;
-  padding: 8px 12px;
-  background: transparent;
-  border: none;
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  font-family: ${props => props.value?.includes('{{') ? 'monospace' : 'inherit'};
-  
-  &:focus {
-    outline: none;
-  }
-  
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-  
-  &:disabled {
-    color: rgb(var(--color-text-secondary));
-    cursor: not-allowed;
-  }
-`;
 
-const StyledTextarea = styled.textarea`
-  flex: 1;
-  padding: 8px 12px;
-  background: transparent;
-  border: none;
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  font-family: ${props => props.value?.includes('{{') ? 'monospace' : 'inherit'};
-  min-height: 80px;
-  resize: vertical;
-  
-  &:focus {
-    outline: none;
-  }
-  
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-  
-  &:disabled {
-    color: rgb(var(--color-text-secondary));
-    cursor: not-allowed;
-  }
-`;
+
+
 
 const ContextButton = styled.button<{ $active: boolean }>`
   display: flex;
@@ -314,7 +267,7 @@ export const FieldWithContext: React.FC<FieldWithContextProps> = ({
   };
 
   const inputElement = type === 'textarea' ? (
-    <StyledTextarea
+    <TextArea
       ref={inputRef as React.RefObject<HTMLTextAreaElement>}
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
@@ -322,7 +275,7 @@ export const FieldWithContext: React.FC<FieldWithContextProps> = ({
       disabled={disabled}
     />
   ) : (
-    <StyledInput
+    <Input
       ref={inputRef as React.RefObject<HTMLInputElement>}
       type={type}
       value={value || ''}
@@ -334,11 +287,11 @@ export const FieldWithContext: React.FC<FieldWithContextProps> = ({
 
   return (
     <FieldContainer>
-      <FieldLabel>
+      <Label>
         {label}
         {required && <RequiredIndicator>*</RequiredIndicator>}
         {hasTemplate && <TemplateTag>{templates.length} template{templates.length > 1 ? 's' : ''}</TemplateTag>}
-      </FieldLabel>
+      </Label>
       
       <div style={{ position: 'relative' }}>
         <InputWrapper $hasTemplate={hasTemplate}>

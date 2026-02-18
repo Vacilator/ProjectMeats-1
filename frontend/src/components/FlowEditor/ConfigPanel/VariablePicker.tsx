@@ -43,12 +43,17 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { WorkflowContext, AvailableDataNode } from '../../FormSubmission/hooks/useWorkflowContext';
+import {
+  EmptyState,
+  EmptyIcon,
+  EmptyText,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
-export interface VariablePickerProps {
+interface VariablePickerProps {
   /** Workflow context */
   context: WorkflowContext;
   
@@ -252,9 +257,13 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
       <VariablesList>
         {filteredVariables.length === 0 ? (
           <EmptyState>
-            <Database size={32} style={{ opacity: 0.3 }} />
-            <p>No variables available</p>
-            <small>Execute previous nodes to see data</small>
+            <EmptyIcon>
+              <Database size={32} />
+            </EmptyIcon>
+            <EmptyText>No variables available</EmptyText>
+            <EmptyText style={{ fontSize: '12px', opacity: 0.7 }}>
+              Execute previous nodes to see data
+            </EmptyText>
           </EmptyState>
         ) : (
           Object.entries(groupedVariables).map(([nodeId, variables]) => {
@@ -374,25 +383,7 @@ const VariablesList = styled.div`
   }
 `;
 
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  text-align: center;
-  color: rgb(var(--color-text-secondary));
-  
-  p {
-    margin: 12px 0 4px;
-    font-size: 14px;
-  }
-  
-  small {
-    font-size: 12px;
-    opacity: 0.7;
-  }
-`;
+
 
 const NodeGroup = styled.div`
   margin-bottom: 12px;

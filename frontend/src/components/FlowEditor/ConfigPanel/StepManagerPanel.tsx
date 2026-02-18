@@ -30,12 +30,19 @@ import {
 } from 'lucide-react';
 import { Node, Edge } from '@xyflow/react';
 import { calculateStepOrder } from '../utils/stepOrderingUtils';
+import {
+  EmptyState,
+  EmptyIcon,
+  EmptyText,
+  PrimaryButton,
+  SecondaryButton,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Types
 // ============================================================================
 
-export interface StepManagerPanelProps {
+interface StepManagerPanelProps {
   /** Container node ID */
   containerId: string;
   /** All nodes in the flow */
@@ -98,34 +105,7 @@ const StepCount = styled.span`
   font-weight: normal;
 `;
 
-const AddButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
 
-  &:hover {
-    background: rgb(var(--color-primary-dark));
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
 
 const StepList = styled.div`
   display: flex;
@@ -282,27 +262,7 @@ const ActionButton = styled.button`
   }
 `;
 
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  text-align: center;
-  color: rgb(var(--color-text-secondary));
-  gap: 12px;
 
-  svg {
-    width: 48px;
-    height: 48px;
-    opacity: 0.5;
-  }
-
-  p {
-    margin: 0;
-    font-size: 14px;
-  }
-`;
 
 // ============================================================================
 // Component
@@ -400,10 +360,10 @@ export const StepManagerPanel: React.FC<StepManagerPanelProps> = ({
         <Title>
           Steps <StepCount>({steps.length})</StepCount>
         </Title>
-        <AddButton onClick={onAddStep}>
+        <PrimaryButton onClick={onAddStep}>
           <Plus />
           Add Step
-        </AddButton>
+        </PrimaryButton>
       </Header>
 
       {steps.length === 0 ? (
