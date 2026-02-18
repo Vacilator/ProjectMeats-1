@@ -469,6 +469,16 @@ export const Button = styled.button<{
 `;
 
 /**
+ * Primary Button - Convenience wrapper for Button with $variant="primary"
+ */
+export const PrimaryButton = styled(Button).attrs({ $variant: 'primary' as const })``;
+
+/**
+ * Secondary Button - Convenience wrapper for Button with $variant="secondary"
+ */
+export const SecondaryButton = styled(Button).attrs({ $variant: 'secondary' as const })``;
+
+/**
  * Add Button - Button for adding items
  */
 export const AddButton = styled.button`
