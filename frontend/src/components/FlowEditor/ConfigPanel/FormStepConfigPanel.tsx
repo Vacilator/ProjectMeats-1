@@ -29,8 +29,10 @@ import {
   Eye, EyeOff, CheckCircle, Database
 } from 'lucide-react';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
-import { FormField, FormFieldType } from './FormFieldConfigPanel';
-import { useEntityList, useEntityFields } from '../../../services/schemaService';
+import type { FormField, FormFieldType } from './FormFieldConfigPanel';
+import { useEntityList, useEntityFields, EntityField } from '../../../services/schemaService';
+import { EntityFieldPicker, SelectedField } from './EntityFieldPicker';
+import { FieldPropertiesEditor, FieldProperties } from './FieldPropertiesEditor';
 
 // Import shared styled components
 import {
@@ -42,7 +44,7 @@ import {
   Section,
   SectionHeader,
   SectionTitle,
-  FormField,
+  FormField as StyledFormField,
   Label,
   RequiredIndicator,
   Input,
@@ -366,6 +368,12 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   const [fieldSearchTerm, setFieldSearchTerm] = useState<string>('');
   const [fieldTypeFilter, setFieldTypeFilter] = useState<string>('all');
 
+  // Phase C.1.3: Entity field picker and properties editor modals
+  const [showFieldPicker, setShowFieldPicker] = useState<boolean>(false);
+  const [showPropertiesEditor, setShowPropertiesEditor] = useState<boolean>(false);
+  const [selectedFieldForEditing, setSelectedFieldForEditing] = useState<EntityField | null>(null);
+  const [pickedFields, setPickedFields] = useState<SelectedField[]>([]);
+
   // Phase A: Enhanced entity and field loading with error handling
   const { 
     data: entities = [], 
@@ -455,6 +463,54 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     const newFields = [...localStep.fields];
     [newFields[index], newFields[newIndex]] = [newFields[newIndex], newFields[index]];
     handleUpdate({ fields: newFields });
+  };
+
+  // Phase C.1.3: Handle field picker modal
+  const handleOpenFieldPicker = () => {
+    setPickedFields([]);
+    setShowFieldPicker(true);
+  };
+
+  const handleFieldPickerSave = (fields: SelectedField[]) => {
+    // Convert selected entity fields to form fields
+    const newFormFields: FormField[] = fields.map(field => ({
+      id: field.fieldId,
+      type: mapEntityFieldTypeToFormFieldType(field.type),
+      label: field.customLabel || field.label,
+      required: field.checked !== undefined ? field.checked : field.required,
+      placeholder: '',
+      helpText: field.help_text,
+      validationRules: [],
+    }));
+
+    // Add to step fields
+    handleUpdate({ 
+      fields: [...localStep.fields, ...newFormFields] 
+    });
+
+    setShowFieldPicker(false);
+    setPickedFields([]);
+  };
+
+  const handleFieldPropertiesSave = (properties: FieldProperties) => {
+    // Apply customizations and add field
+    const newField: FormField = {
+      id: `field-${Date.now()}`,
+      type: mapEntityFieldTypeToFormFieldType(properties.entityField.type),
+      label: properties.customLabel || properties.entityField.label,
+      required: properties.customRequired !== undefined ? properties.customRequired : properties.entityField.required,
+      placeholder: '',
+      helpText: properties.customHelpText || properties.entityField.help_text,
+      validationRules: properties.validationRules || [],
+      defaultValue: properties.defaultValue,
+    };
+
+    handleUpdate({
+      fields: [...localStep.fields, newField]
+    });
+
+    setShowPropertiesEditor(false);
+    setSelectedFieldForEditing(null);
   };
 
   return (
@@ -605,116 +661,27 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
 
             {/* Add Field from Entity */}
             {localStep.entityType && availableEntityFields.length > 0 && (
-              <FormField>
+              <StyledFormField>
                 <Label>
                   Add Fields from {entities.find(e => e.id === localStep.entityType)?.label_plural}
                 </Label>
                 
-                {/* Phase A.3: Field Search */}
-                <div style={{ marginBottom: '12px' }}>
-                  <input
-                    type="text"
-                    placeholder="🔍 Search fields..."
-                    value={fieldSearchTerm}
-                    onChange={(e) => setFieldSearchTerm(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      fontSize: '14px',
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: '6px',
-                      background: 'rgb(var(--color-background))',
-                      color: 'rgb(var(--color-text-primary))',
-                    }}
-                  />
-                </div>
-                
-                {/* Phase A.3: Field Type Filter */}
-                <div style={{ marginBottom: '12px' }}>
-                  <select
-                    value={fieldTypeFilter}
-                    onChange={(e) => setFieldTypeFilter(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      fontSize: '14px',
-                      border: '1px solid rgb(var(--color-border))',
-                      borderRadius: '6px',
-                      background: 'rgb(var(--color-background))',
-                      color: 'rgb(var(--color-text-primary))',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="all">All Field Types</option>
-                    <option value="text">📝 Text</option>
-                    <option value="textarea">📄 Long Text</option>
-                    <option value="number">🔢 Number</option>
-                    <option value="email">📧 Email</option>
-                    <option value="phone">📱 Phone</option>
-                    <option value="date">📅 Date</option>
-                    <option value="select">📋 Dropdown</option>
-                    <option value="checkbox">✅ Checkbox</option>
-                  </select>
-                </div>
-                
-                <select
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    const selectedField = availableEntityFields.find(f => f.name === e.target.value);
-                    if (!selectedField) return;
-
-                    // Convert entity field to form field
-                    const newField: FormField = {
-                      id: `field-${Date.now()}`,
-                      type: mapEntityFieldTypeToFormFieldType(selectedField.field_type),
-                      label: selectedField.label,
-                      required: selectedField.is_required,
-                      placeholder: '',
-                      helpText: selectedField.help_text,
-                      validationRules: [],
-                    };
-
-                    handleUpdate({ fields: [...localStep.fields, newField] });
-                    e.target.value = ''; // Reset dropdown
-                    setFieldSearchTerm(''); // Reset search
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    fontSize: '14px',
-                    border: '1px solid rgb(var(--color-border))',
-                    borderRadius: '6px',
-                    background: 'rgb(var(--color-background))',
-                    color: 'rgb(var(--color-text-primary))',
-                    cursor: 'pointer',
-                  }}
-                  disabled={fieldsLoading}
+                <PrimaryButton 
+                  onClick={handleOpenFieldPicker}
+                  style={{ width: '100%', marginTop: '8px' }}
                 >
-                  <option value="">
-                    {filteredEntityFields.length === 0 
-                      ? '-- No matching fields --' 
-                      : '-- Select field to add --'}
-                  </option>
-                  {filteredEntityFields.map(field => {
-                    const formFieldType = mapEntityFieldTypeToFormFieldType(field.field_type);
-                    const icon = FIELD_TYPE_ICONS[formFieldType] || '📋';
-                    return (
-                      <option key={field.name} value={field.name}>
-                        {icon} {field.label} ({field.field_type}) {field.is_required ? '- Required' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
+                  <Plus size={16} style={{ marginRight: '6px' }} />
+                  Open Field Picker ({availableEntityFields.length - localStep.fields.length} available)
+                </PrimaryButton>
+                
                 <HelpText>
                   {fieldsLoading ? (
                     '⏳ Loading fields...'
-                  ) : fieldSearchTerm || fieldTypeFilter !== 'all' ? (
-                    `Showing ${filteredEntityFields.length} of ${availableEntityFields.length - localStep.fields.length} available fields`
                   ) : (
-                    `${availableEntityFields.length - localStep.fields.length} fields available to add`
+                    `Select multiple fields at once with advanced filters and bulk operations`
                   )}
                 </HelpText>
-              </FormField>
+              </StyledFormField>
             )}
 
             {onAddField && !localStep.entityType && (
@@ -964,6 +931,97 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
           Save Step
         </PrimaryButton>
       </PanelFooter>
+
+      {/* Phase C.1.3: Entity Field Picker Modal */}
+      {showFieldPicker && localStep.entityType && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px',
+          }}
+          onClick={(e) => e.target === e.currentTarget && setShowFieldPicker(false)}
+        >
+          <div
+            style={{
+              background: 'rgb(var(--color-surface))',
+              borderRadius: '8px',
+              maxWidth: '900px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            <div
+              style={{
+                padding: '20px',
+                borderBottom: '1px solid rgb(var(--color-border))',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
+                Select Fields from {entities.find(e => e.id === localStep.entityType)?.label_plural}
+              </h3>
+              <SecondaryButton onClick={() => setShowFieldPicker(false)}>
+                Close
+              </SecondaryButton>
+            </div>
+            <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
+              <EntityFieldPicker
+                selectedFields={pickedFields}
+                onFieldsChange={setPickedFields}
+                initialEntityType={localStep.entityType}
+                multiSelectMode={true}
+              />
+            </div>
+            <div
+              style={{
+                padding: '16px 20px',
+                borderTop: '1px solid rgb(var(--color-border))',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px',
+              }}
+            >
+              <SecondaryButton onClick={() => setShowFieldPicker(false)}>
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton
+                onClick={() => handleFieldPickerSave(pickedFields)}
+                disabled={pickedFields.length === 0}
+              >
+                Add {pickedFields.length} Field{pickedFields.length !== 1 ? 's' : ''}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase C.1.3: Field Properties Editor Modal */}
+      {showPropertiesEditor && selectedFieldForEditing && (
+        <FieldPropertiesEditor
+          field={selectedFieldForEditing}
+          onSave={handleFieldPropertiesSave}
+          onCancel={() => {
+            setShowPropertiesEditor(false);
+            setSelectedFieldForEditing(null);
+          }}
+          modal={true}
+        />
+      )}
     </Panel>
   );
 };
