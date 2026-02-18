@@ -49,12 +49,17 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useUpstreamVariables, UpstreamVariable } from '../hooks/useUpstreamVariables';
-
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
-export interface VariablePickerWithUpstreamProps {
+import {
+  EmptyState,
+  EmptyIcon,
+  EmptyText,
+} from './shared/StyledComponents';
+
+interface VariablePickerWithUpstreamProps {
   /** Current node ID (to find upstream variables for) */
   currentNodeId: string;
   
@@ -177,7 +182,7 @@ const SearchContainer = styled.div`
   }
 `;
 
-const SearchInput = styled.input`
+const Input = styled.input`
   flex: 1;
   border: none;
   outline: none;
@@ -285,31 +290,13 @@ const Template = styled.div`
   flex-shrink: 0;
 `;
 
-const EmptyState = styled.div`
-  padding: 40px 20px;
-  text-align: center;
-  color: rgb(var(--color-text-secondary));
-`;
 
-const EmptyIcon = styled.div`
-  margin-bottom: 12px;
-  color: rgb(var(--color-text-tertiary));
-  
-  svg {
-    width: 48px;
-    height: 48px;
-  }
-`;
 
-const EmptyTitle = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 4px;
-`;
 
-const EmptyMessage = styled.div`
-  font-size: 13px;
-`;
+
+
+
+
 
 const Footer = styled.div`
   padding: 8px 16px;
@@ -453,7 +440,7 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
       {/* Search Input */}
       <SearchContainer>
         <Search size={16} />
-        <SearchInput
+        <Input
           ref={searchInputRef}
           type="text"
           placeholder="Search variables..."
@@ -468,18 +455,18 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
         {error && (
           <EmptyState>
             <EmptyIcon><AlertCircle /></EmptyIcon>
-            <EmptyTitle>Error Loading Variables</EmptyTitle>
-            <EmptyMessage>{error}</EmptyMessage>
+            <EmptyText>Error Loading Variables</EmptyText>
+            <EmptyText>{error}</EmptyText>
           </EmptyState>
         )}
         
         {!error && filteredVariables.length === 0 && (
           <EmptyState>
             <EmptyIcon><Search /></EmptyIcon>
-            <EmptyTitle>No Variables Found</EmptyTitle>
-            <EmptyMessage>
+            <EmptyText>No Variables Found</EmptyText>
+            <EmptyText>
               {search ? `No variables match "${search}"` : 'No upstream Form Step nodes found'}
-            </EmptyMessage>
+            </EmptyText>
           </EmptyState>
         )}
         
