@@ -99,28 +99,30 @@ jobs:
       - name: Set Release Context
         id: context
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if [[ "${{ inputs.task }}" == "force-draft-uat" ]]; then
-              echo "SOURCE=development" >> $GITHUB_OUTPUT
-              echo "TARGET=uat" >> $GITHUB_OUTPUT
-              echo "LABEL=release,automated" >> $GITHUB_OUTPUT
+          {
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              if [[ "${{ inputs.task }}" == "force-draft-uat" ]]; then
+                echo "SOURCE=development"
+                echo "TARGET=uat"
+                echo "LABEL=release,automated"
+              else
+                echo "SOURCE=uat"
+                echo "TARGET=main"
+                echo "LABEL=release,automated,production"
+              fi
             else
-              echo "SOURCE=uat" >> $GITHUB_OUTPUT
-              echo "TARGET=main" >> $GITHUB_OUTPUT
-              echo "LABEL=release,automated,production" >> $GITHUB_OUTPUT
+              HEAD="${{ github.event.workflow_run.head_branch }}"
+              if [[ "$HEAD" == "development" ]]; then
+                echo "SOURCE=development"
+                echo "TARGET=uat"
+                echo "LABEL=release,automated"
+              elif [[ "$HEAD" == "uat" ]]; then
+                echo "SOURCE=uat"
+                echo "TARGET=main"
+                echo "LABEL=release,automated,production"
+              fi
             fi
-          else
-            HEAD="${{ github.event.workflow_run.head_branch }}"
-            if [[ "$HEAD" == "development" ]]; then
-              echo "SOURCE=development" >> $GITHUB_OUTPUT
-              echo "TARGET=uat" >> $GITHUB_OUTPUT
-              echo "LABEL=release,automated" >> $GITHUB_OUTPUT
-            elif [[ "$HEAD" == "uat" ]]; then
-              echo "SOURCE=uat" >> $GITHUB_OUTPUT
-              echo "TARGET=main" >> $GITHUB_OUTPUT
-              echo "LABEL=release,automated,production" >> $GITHUB_OUTPUT
-            fi
-          fi
+          } >> "$GITHUB_OUTPUT"
       
       - name: Clean Previous PRs
         env:
