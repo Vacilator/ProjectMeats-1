@@ -17,6 +17,14 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useEntityList, useEntityFields, EntityType, EntityField } from '../../../services/schemaService';
 import workformsApi from '../../../services/workformsApi';
+import {
+  Section,
+  SectionTitle,
+  Label,
+  Select,
+  Input,
+  EmptyState,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // Types
@@ -29,7 +37,7 @@ export interface SelectedField extends EntityField {
   customLabel?: string;
 }
 
-export interface EntityFieldPickerProps {
+interface EntityFieldPickerProps {
   /** Currently selected fields */
   selectedFields: SelectedField[];
   
@@ -54,18 +62,9 @@ const Container = styled.div`
   height: 100%;
 `;
 
-const Section = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
 
-const SectionTitle = styled.h3`
-  font-size: 16px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-`;
+
+
 
 const EntitySelector = styled.div`
   display: flex;
@@ -73,48 +72,11 @@ const EntitySelector = styled.div`
   gap: 8px;
 `;
 
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-`;
 
-const Select = styled.select`
-  padding: 10px 12px;
-  font-size: 14px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-text-primary));
-  cursor: pointer;
-  transition: all 0.2s ease;
 
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
 
-const SearchInput = styled.input`
-  padding: 8px 12px;
-  font-size: 14px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-text-primary));
-  transition: all 0.2s ease;
 
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
 
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-`;
 
 const FieldsList = styled.div`
   display: flex;
@@ -249,12 +211,7 @@ const DragHandle = styled.div`
   }
 `;
 
-const EmptyState = styled.div`
-  padding: 40px 20px;
-  text-align: center;
-  color: rgb(var(--color-text-secondary));
-  font-size: 14px;
-`;
+
 
 const LoadingText = styled.div`
   padding: 20px;
@@ -398,7 +355,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
       {selectedEntityType && (
         <Section>
           <SectionTitle>Available Fields</SectionTitle>
-          <SearchInput
+          <Input
             type="text"
             placeholder="Search fields..."
             value={searchTerm}

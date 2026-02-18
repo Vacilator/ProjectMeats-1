@@ -37,6 +37,13 @@ export type ConditionOperator =
 
 export type ConditionLogic = 'and' | 'or';
 
+import {
+  Select,
+  Input,
+  EmptyState,
+  HelpText,
+} from './shared/StyledComponents';
+
 export interface ConditionRule {
   id: string;
   field: string;
@@ -245,23 +252,7 @@ const ConditionLabel = styled.div`
   margin-bottom: 6px;
 `;
 
-const Select = styled.select`
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
+
 
 const Input = styled.input`
   width: 100%;
@@ -354,20 +345,9 @@ const AddButton = styled.button`
   }
 `;
 
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 32px 16px;
-  color: rgb(var(--color-text-tertiary));
-  font-size: 13px;
-  line-height: 1.6;
-`;
 
-const HelpText = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-tertiary));
-  margin-top: 4px;
-  line-height: 1.5;
-`;
+
+
 
 // ============================================================================
 // Component
