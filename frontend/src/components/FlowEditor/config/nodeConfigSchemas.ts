@@ -387,3 +387,12 @@ export const allSchemas: NodeConfigSchema[] = [
   // outlookEmailSchema,
   // etc.
 ];
+
+// ============================================================================
+// Auto-initialize registry
+// ============================================================================
+
+import { schemaRegistry } from './schemaRegistry';
+
+// Initialize registry with all schemas on module load
+schemaRegistry.initialize(allSchemas);
