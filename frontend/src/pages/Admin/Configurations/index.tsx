@@ -56,10 +56,14 @@ const ConfigurationsPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/v1/configurations/');
-      setConfigurations(response.data);
+      // Ensure response.data is always an array
+      const data = Array.isArray(response.data) ? response.data : [];
+      setConfigurations(data);
     } catch (error) {
       console.error('Failed to load configurations:', error);
       showMessage('error', 'Failed to load configurations');
+      // Set empty array on error to prevent undefined errors
+      setConfigurations([]);
     } finally {
       setLoading(false);
     }
