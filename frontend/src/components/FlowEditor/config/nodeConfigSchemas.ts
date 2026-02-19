@@ -177,7 +177,7 @@ export const formSchema: NodeConfigSchema = {
     },
 
     // ========================================================================
-    // Form Fields
+    // Form Fields (Phase E.3: Cascade based on entity type)
     // ========================================================================
     {
       id: 'fields',
@@ -192,9 +192,9 @@ export const formSchema: NodeConfigSchema = {
       fields: [
         {
           id: 'fields',
-          type: 'field-mapping',
+          type: 'entity-field-picker',  // Phase E.3: Changed from 'field-mapping' to 'entity-field-picker'
           label: 'Fields',
-          helpText: 'Click "Open Field Picker" to select and configure fields',
+          helpText: 'Select fields from the entity to include in your form. Fields will cascade based on the selected entity type.',
           defaultValue: []
         },
         {

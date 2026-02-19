@@ -6,6 +6,7 @@
  * 
  * Phase D.3 of WorkForm Editor Overhaul
  * Created: 2026-02-18
+ * Updated: 2026-02-19 - Phase E.3: Added renderEntityFieldPicker for cascading fields
  */
 
 import React from 'react';
@@ -16,7 +17,64 @@ import FieldMappingPanel from '../../ConfigPanel/FieldMappingPanel';
 import VariablePickerWithUpstream from '../../ConfigPanel/VariablePickerWithUpstream';
 
 // ============================================================================
-// Entity Selector Renderer
+// Entity Field Picker Renderer (Phase E.3)
+// ============================================================================
+
+/**
+ * Renders the EntityFieldPicker component for selecting fields from an entity
+ * 
+ * This is the CORRECT component for Form nodes - it shows a list of entity fields
+ * and allows users to select which ones to include in the form.
+ * 
+ * Features:
+ * - Dynamically fetches fields based on selected entityType
+ * - Cascades field options when entity changes
+ * - Multi-select with checkboxes
+ * - Drag-and-drop field ordering
+ * - Search and filter
+ * 
+ * Phase E.3: Cascade field options based on entityType
+ */
+export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactElement {
+  const { field, value, onChange, error, data } = props;
+  
+  // EntityFieldPicker expects selectedFields and onFieldsChange
+  const selectedFields = (value as SelectedField[]) || [];
+  
+  // Extract entity type from data (set by entityType field)
+  const entityType = data?.entityType as string | undefined;
+  
+  if (!entityType) {
+    return (
+      <FieldContainer>
+        <EmptyState>
+          ℹ️ Select an entity type first to see available fields
+        </EmptyState>
+      </FieldContainer>
+    );
+  }
+  
+  const handleFieldsChange = (fields: SelectedField[]) => {
+    onChange(field.id, fields);
+  };
+  
+  // Note: EntityFieldPicker handles entityType changes internally,
+  // but we also provide it as initialEntityType for proper cascade behavior
+  return (
+    <FieldContainer>
+      <EntityFieldPicker
+        selectedFields={selectedFields}
+        onFieldsChange={handleFieldsChange}
+        initialEntityType={entityType}
+        multiSelectMode={field.options?.multiSelect ?? true}
+      />
+      {error && <ErrorMessage>{error}</ErrorMessage>}
+    </FieldContainer>
+  );
+}
+
+// ============================================================================
+// Entity Selector Renderer (DEPRECATED - Use renderEntityTypeSelect)
 // ============================================================================
 
 /**

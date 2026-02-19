@@ -15,6 +15,9 @@ import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
+// Phase E.3: Data inheritance hook
+import { useUpstreamVariables } from '../hooks/useUpstreamVariables';
+
 // Configuration engine imports
 import { schemaRegistry } from '../config/schemaRegistry';
 import { NodeConfigSchema, ConfigSection, ConfigField } from '../config/types';
@@ -30,6 +33,7 @@ import {
 } from '../config/fieldRenderers/basicRenderers';
 import {
   renderEntitySelector,
+  renderEntityFieldPicker,  // Phase E.3: Cascade field picker
   renderFieldMapping,
   renderVariablePicker,
   renderValidationBuilder,
@@ -86,6 +90,13 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   const [formData, setFormData] = useState<Record<string, any>>(node.data || {});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  // Phase E.3: Compute upstream variables for data inheritance
+  const { variables: upstreamVariables } = useUpstreamVariables({
+    currentNodeId: node.id,
+    nodes,
+    edges,
+  });
 
   // Get schema for this node type
   const schema = useMemo(() => {
@@ -228,22 +239,31 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       
       // Complex renderers (Phase D.3) - kept for field-level operations
       case 'entity-field-picker':
-        // This is for selecting FIELDS from an entity, not the entity type itself
-        return renderEntitySelector({
+        // Phase E.3: Cascade field picker - dynamically loads fields based on entityType
+        return renderEntityFieldPicker({
           ...commonProps,
-          data: { ...formData, _upstreamVariables: [] } // Add upstream variables
+          data: { 
+            ...formData, 
+            _upstreamVariables: upstreamVariables  // Pass upstream variables for inheritance
+          }
         });
       
       case 'field-mapping':
         return renderFieldMapping({
           ...commonProps,
-          data: { ...formData, _upstreamVariables: [] } // Add upstream variables
+          data: { 
+            ...formData, 
+            _upstreamVariables: upstreamVariables  // Pass upstream variables for mapping
+          }
         });
       
       case 'variable-picker':
         return renderVariablePicker({
           ...commonProps,
-          data: { ...formData, _upstreamVariables: [] } // Add upstream variables
+          data: { 
+            ...formData, 
+            _upstreamVariables: upstreamVariables  // Pass upstream variables for suggestions
+          }
         });
       
       case 'validation-builder':
