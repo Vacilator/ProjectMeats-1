@@ -131,9 +131,10 @@ export const getFieldTypeIcon = (fieldType: string): string => {
  * 
  * Phase A Enhancement: Added error handling and fallback to hardcoded entities.
  * Phase E Fix (2026-02-19): Improved fallback handling for empty dropdowns
+ * Phase E Fix 2 (2026-02-19): Always use fallback if API returns empty (401 auth issues)
  */
 export const useEntityList = () => {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['entities'],
     queryFn: getEntityTypes,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -144,6 +145,23 @@ export const useEntityList = () => {
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+
+  // CRITICAL FIX: If API returns empty (e.g., 401 auth failure), use fallback
+  // React Query's placeholderData only shows during loading, not when query "succeeds" with []
+  const data = query.data && query.data.length > 0 ? query.data : COMMON_ENTITY_TYPES;
+
+  console.log('[useEntityList] Hook result:', {
+    apiReturned: query.data?.length ?? 0,
+    usingFallback: data === COMMON_ENTITY_TYPES,
+    finalEntityCount: data.length,
+    isLoading: query.isLoading,
+    isError: query.isError,
+  });
+
+  return {
+    ...query,
+    data,
+  };
 };
 
 /**
