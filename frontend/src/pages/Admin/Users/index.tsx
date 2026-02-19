@@ -63,7 +63,9 @@ const UsersPage: React.FC = () => {
     queryKey: ['tenant-users'],
     queryFn: async () => {
       const response = await apiClient.get('/tenant-users/');
-      return response.data.results || response.data;
+      const data = response.data.results || response.data;
+      // Ensure we always return an array
+      return Array.isArray(data) ? data : [];
     },
   });
 
@@ -71,7 +73,9 @@ const UsersPage: React.FC = () => {
     queryKey: ['tenant-invitations'],
     queryFn: async () => {
       const response = await apiClient.get('/invitations/?status=pending');
-      return response.data.results || response.data;
+      const data = response.data.results || response.data;
+      // Ensure we always return an array
+      return Array.isArray(data) ? data : [];
     },
   });
 
