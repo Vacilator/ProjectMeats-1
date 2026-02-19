@@ -60,19 +60,20 @@ def get_entity_models():
     entities = []
     
     # List of tenant_apps to scan
+    # NOTE: These are namespaced under tenant_apps.* in INSTALLED_APPS
     tenant_apps = [
-        'suppliers',
-        'customers', 
-        'products',
-        'sales_orders',
-        'purchase_orders',
-        'invoices',
-        'carriers',
-        'contacts',
-        'inquiries',
-        'fulfillments',
-        'locations',
-        'plants',
+        'tenant_apps.suppliers',
+        'tenant_apps.customers', 
+        'tenant_apps.products',
+        'tenant_apps.sales_orders',
+        'tenant_apps.purchase_orders',
+        'tenant_apps.invoices',
+        'tenant_apps.carriers',
+        'tenant_apps.contacts',
+        'tenant_apps.inquiries',
+        'tenant_apps.fulfillments',
+        'tenant_apps.locations',
+        'tenant_apps.plants',
     ]
     
     for app_label in tenant_apps:
