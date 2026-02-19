@@ -31,6 +31,7 @@ export type FieldType =
   | 'field-mapping'     // Visual field mapper (drag-and-drop)
   | 'variable-picker'   // Variable picker from upstream nodes
   | 'validation-builder' // Validation rule builder
+  | 'nested-children'   // Array of child configurations (Phase E.3)
   | 'code-editor'       // Code editor (JSON, JavaScript)
   | 'file-upload'       // File upload
   | 'custom';           // Custom component
@@ -217,6 +218,9 @@ export interface ConfigField {
   
   /** Custom component (for type='custom') */
   component?: ComponentType<any>;
+  
+  /** Child schema (for type='nested-children') - Phase E.3 */
+  childSchema?: Omit<NodeConfigSchema, 'nodeType' | 'displayName'>;
   
   /** Additional props passed to field renderer */
   props?: Record<string, any>;

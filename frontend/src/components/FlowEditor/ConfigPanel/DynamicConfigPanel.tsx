@@ -33,6 +33,7 @@ import {
   renderVariablePicker,
   renderValidationBuilder,
 } from '../config/fieldRenderers/complexRenderers';
+import { NestedChildrenRenderer } from './NestedChildrenRenderer';
 
 // Import shared styled components
 import {
@@ -240,6 +241,18 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       
       case 'validation-builder':
         return renderValidationBuilder(commonProps);
+      
+      // Phase E.3: Nested children
+      case 'nested-children':
+        return (
+          <NestedChildrenRenderer
+            key={field.id}
+            field={field}
+            value={value || []}
+            onChange={commonProps.onChange}
+            error={error}
+          />
+        );
       
       default:
         return (
