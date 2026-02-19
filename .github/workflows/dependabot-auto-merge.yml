@@ -139,54 +139,46 @@ jobs:
             echo "**Title:** $PR_TITLE"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Skip Docker updates
-        if: |
-          steps.check.outputs.status == 'success' &&
-          steps.classify.outputs.category == 'docker'
+      - name: Log result
+        if: always()  # Always run to provide feedback
         run: |
+          STATUS="${{ steps.check.outputs.status }}"
+          CATEGORY="${{ steps.classify.outputs.category }}"
+          SAFE="${{ steps.classify.outputs.safe }}"
+          FAILED="${{ steps.check.outputs.failed }}"
+          PENDING="${{ steps.check.outputs.pending }}"
+          
+          # Single consolidated summary based on outcome
           {
-            echo "## ⚠️ Manual Review Required"
-            echo ""
-            echo "**Category:** Docker base image update"
-            echo "**Reason:** Can break golden pipeline (build failures)"
-            echo ""
-            echo "**Action Required:**"
-            echo "1. Review Dockerfile changes"
-            echo "2. Test build locally: \`docker build -t test .\`"
-            echo "3. Verify no breaking changes in base image changelog"
-            echo "4. Merge manually if safe"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Log skipped
-        if: |
-          steps.check.outputs.status == 'success' &&
-          steps.classify.outputs.safe == 'false' &&
-          steps.classify.outputs.category != 'docker'
-        run: |
-          {
-            echo "## ⏭️ Skipped Auto-Merge"
-            echo ""
-            echo "**Category:** ${{ steps.classify.outputs.category }}"
-            echo "**Reason:** Not in auto-merge whitelist"
-            echo "**Action:** Manual review required"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Log pending
-        if: steps.check.outputs.status == 'pending'
-        run: |
-          {
-            echo "## ⏳ Waiting for Checks"
-            echo ""
-            echo "**Pending checks:** ${{ steps.check.outputs.pending }}"
-            echo "**Note:** Auto-merge will run when all checks complete"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Log failed
-        if: steps.check.outputs.status == 'failed'
-        run: |
-          {
-            echo "## ❌ Checks Failed"
-            echo ""
-            echo "**Failed checks:** ${{ steps.check.outputs.failed }}"
-            echo "**Action:** Fix failures before merging"
+            if [ "$STATUS" = "success" ] && [ "$SAFE" = "true" ]; then
+              # Already merged - logged in auto-merge step
+              :  # No-op (success already logged)
+            elif [ "$STATUS" = "success" ] && [ "$CATEGORY" = "docker" ]; then
+              echo "## ⚠️ Manual Review Required"
+              echo ""
+              echo "**Category:** Docker base image update"
+              echo "**Reason:** Can break golden pipeline (build failures)"
+              echo ""
+              echo "**Action Required:**"
+              echo "1. Review Dockerfile changes"
+              echo "2. Test build locally: \`docker build -t test .\`"
+              echo "3. Verify no breaking changes in base image changelog"
+              echo "4. Merge manually if safe"
+            elif [ "$STATUS" = "success" ] && [ "$SAFE" = "false" ]; then
+              echo "## ⏭️ Skipped Auto-Merge"
+              echo ""
+              echo "**Category:** $CATEGORY"
+              echo "**Reason:** Not in auto-merge whitelist"
+              echo "**Action:** Manual review required"
+            elif [ "$STATUS" = "pending" ]; then
+              echo "## ⏳ Waiting for Checks"
+              echo ""
+              echo "**Pending checks:** $PENDING"
+              echo "**Note:** Auto-merge will run when all checks complete"
+            elif [ "$STATUS" = "failed" ]; then
+              echo "## ❌ Checks Failed"
+              echo ""
+              echo "**Failed checks:** $FAILED"
+              echo "**Action:** Fix failures before merging"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
