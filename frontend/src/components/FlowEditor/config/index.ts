@@ -31,7 +31,7 @@ export type {
 export { schemaRegistry } from './schemaRegistry';
 
 // Node schemas
-export { formStepSingleSchema, allSchemas } from './nodeConfigSchemas';
+export { formSchema, formStepSingleSchema, allSchemas } from './nodeConfigSchemas';  // Phase E: Added formSchema
 
 // Conditional logic (Phase D.2)
 export { evaluateCondition, getConditionalDependencies } from './conditionalLogic';

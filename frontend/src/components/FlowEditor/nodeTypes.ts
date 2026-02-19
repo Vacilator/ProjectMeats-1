@@ -103,6 +103,19 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   
   // === FORM ELEMENTS ===
   
+  // Form node (renamed from formStepSingle in Phase E - 2026-02-19)
+  form: {
+    id: 'form',
+    name: 'Form',
+    category: 'form',
+    icon: '📋',
+    color: '#3b82f6', // blue
+    description: 'Single-page form for data collection - works standalone or in Form Process containers',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+  },
+  
   // NEW: Phase 2 renamed nodes (2026-02-14)
   formStepSingle: {
     id: 'formStepSingle',
@@ -114,6 +127,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true, // Deprecated - use 'form' instead
   },
   
   formProcess: {

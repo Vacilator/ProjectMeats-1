@@ -84,6 +84,7 @@ import {
 } from 'lucide-react';
 
 import {
+  FormNode,
   FormStepSingleNode,
   FormReferenceNode,
   FormProcessNode,
@@ -1503,13 +1504,14 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 
 // Static node types (not containers that need node access)
 const staticNodeTypes: NodeTypes = {
-  // New names (Phase 2)
-  formStepSingle: FormStepSingleNode,
+  // Form nodes (Phase E - 2026-02-19)
+  form: FormNode,  // NEW: Primary form node name
+  formStepSingle: FormStepSingleNode,  // Backward compatibility
   formProcess: FormProcessNode,
   formProcessGroup: FormProcessGroupNode,
   // Backward compatibility aliases
-  formStep: FormStepSingleNode,
-  formMultiStepContainer: FormProcessNode,
+  formStep: FormStepSingleNode,  // Deprecated
+  formMultiStepContainer: FormProcessNode,  // Deprecated
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
