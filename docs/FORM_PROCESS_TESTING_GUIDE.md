@@ -396,6 +396,273 @@ If any test fails, report with:
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-02-18  
-**Related PRs:** #2910, #2921, #2928
+## Phase E.3 Additional Tests
+
+### Test 15: Unlimited Steps via Auto-Layout
+
+**Objective:** Verify FormProcessGroupNode supports unlimited child steps with automatic vertical layout
+
+**Steps:**
+1. Create FormProcessGroupNode container
+2. Add 15-20 steps using "Add Step" button repeatedly
+3. Observe auto-layout behavior
+4. Scroll through container to view all steps
+
+**Expected Results:**
+- ✅ All steps added without error (no hard limit)
+- ✅ Vertical auto-layout: baseY=60px, spacing=120px between steps
+- ✅ Smooth re-layout animation (0.3s cubic-bezier)
+- ✅ Container automatically resizes to fit all children
+- ✅ Performance remains smooth with 20+ steps
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 16: Drag-Drop Steps into Container
+
+**Objective:** Verify drag-and-drop from palette into FormProcessGroupNode
+
+**Steps:**
+1. Create FormProcessGroupNode (expanded)
+2. Drag "Form Step: Single" from palette
+3. Drop into container area (anywhere inside dashed border)
+4. Verify step becomes child with correct parentId
+5. Repeat with multiple steps from different positions
+
+**Expected Results:**
+- ✅ Visual feedback on hover (container highlights)
+- ✅ Dropped step has `parentId` set to container ID
+- ✅ Step position relative to container (not absolute canvas position)
+- ✅ Auto-layout recalculates immediately on drop
+- ✅ Step count in header updates ("5 Steps" → "6 Steps")
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 17: Drag Steps Between Containers
+
+**Objective:** Verify re-parenting when dragging step from one container to another
+
+**Steps:**
+1. Create two FormProcessGroupNode containers (A and B)
+2. Add 3 steps to container A
+3. Drag step from container A over container B
+4. Drop into container B
+5. Verify parentId updated and auto-layout in both containers
+
+**Expected Results:**
+- ✅ Step removed from container A's child list
+- ✅ Step added to container B's child list
+- ✅ Step's `parentId` changed from A's ID to B's ID
+- ✅ Step position recalculated relative to container B
+- ✅ Both containers re-layout children automatically
+- ✅ Step counts update correctly (A: 2 steps, B: 1 step)
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 18: Expand/Collapse Animation Smoothness
+
+**Objective:** Verify smooth CSS transition for expand/collapse
+
+**Steps:**
+1. Create FormProcessGroupNode with 5 steps
+2. Toggle expand/collapse rapidly (double-click 5 times)
+3. Observe animation smoothness
+4. Check browser DevTools Performance tab (optional)
+
+**Expected Results:**
+- ✅ GroupBody CSS: `transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1)`
+- ✅ Animates height, opacity, padding together
+- ✅ No jank or frame drops during animation
+- ✅ Children visibility toggles at correct moment (opacity 0→1)
+- ✅ No layout shift after animation completes
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 19: Selection Grouping (React Flow Native)
+
+**Objective:** Verify multi-select and group movement works
+
+**Steps:**
+1. Create FormProcessGroupNode with 4 steps
+2. Hold Shift and click steps 2 and 3 (multi-select)
+3. Drag selected steps together
+4. Verify both move as a group
+5. Try box selection (click-drag empty area around multiple steps)
+
+**Expected Results:**
+- ✅ Shift+click adds step to selection (blue outline on both)
+- ✅ Dragging one selected step moves all selected steps
+- ✅ Relative positions maintained during group drag
+- ✅ Box selection (drag rectangle) selects multiple steps
+- ✅ Auto-layout recalculates after group move
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 20: Logic Between Steps (Conditional Navigation)
+
+**Objective:** Verify conditional edges between steps based on logic
+
+**Steps:**
+1. Create FormProcessGroupNode with 3 steps (A, B, C)
+2. Add edge from A to B (default path)
+3. Add edge from A to C (conditional path)
+4. Configure conditional logic on A→C edge:
+   - Condition: "If field 'quantity' > 100"
+5. Test both paths in execution
+
+**Expected Results:**
+- ✅ Multiple outgoing edges allowed from one step
+- ✅ Conditional edge shows logic icon/label
+- ✅ Edge label displays condition text
+- ✅ During execution: If quantity > 100, navigate A→C; else A→B
+- ✅ Step ordering accounts for branching (parallel branches same number)
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 21: Nested Children Schema (Infrastructure)
+
+**Objective:** Verify nested-children field type works in schemas
+
+**Steps:**
+1. Open formProcessGroupSchema configuration
+2. Locate any field with `type: 'nested-children'`
+3. Add a child item using "+ Add Child" button
+4. Fill child fields (text, textarea)
+5. Expand/collapse child item
+6. Delete child item
+
+**Expected Results:**
+- ✅ NestedChildrenRenderer renders correctly
+- ✅ "+ Add Child" creates new expandable item
+- ✅ Child fields render inline (text input, textarea)
+- ✅ Auto-expand single child or newly added child
+- ✅ Delete button removes child with confirmation (if implemented)
+- ✅ Step numbering displays (Step 1, Step 2, etc.)
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 22: Context Menu on Container
+
+**Objective:** Verify right-click context menu on FormProcessGroupNode
+
+**Steps:**
+1. Create FormProcessGroupNode
+2. Right-click on container (not on child step)
+3. Verify context menu appears with options:
+   - "Add Step"
+   - "Duplicate Container"
+   - "Convert to Sub-Flow" (if implemented)
+   - "Delete"
+
+**Expected Results:**
+- ✅ Context menu appears on right-click
+- ✅ "Add Step" creates new child step
+- ✅ "Duplicate Container" clones container + all children
+- ✅ "Delete" removes container and cascades to children
+- ✅ Menu positioned near cursor
+- ✅ Clicking outside closes menu
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 23: Dynamic Re-Layouting on Child Add/Remove
+
+**Objective:** Verify useEffect triggers re-layout when child count changes
+
+**Steps:**
+1. Create FormProcessGroupNode with 3 steps
+2. Add new step via "Add Step" button
+3. Observe immediate re-layout (no manual trigger needed)
+4. Delete a step
+5. Observe re-layout again
+
+**Expected Results:**
+- ✅ useEffect monitors `childNodes.length`
+- ✅ Adding step triggers auto-layout immediately
+- ✅ Removing step triggers auto-layout immediately
+- ✅ Re-layout only when `isExpanded=true` (performance optimization)
+- ✅ Smooth animation during re-layout (0.3s transition)
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 24: Edge Case - Empty Container
+
+**Objective:** Verify empty container handles gracefully
+
+**Steps:**
+1. Create FormProcessGroupNode (no children)
+2. Expand container
+3. Verify "Drop steps here" or similar empty state message
+4. Collapse container
+5. Verify "0 Steps" displayed in header
+
+**Expected Results:**
+- ✅ Empty state message displays when expanded and empty
+- ✅ No JavaScript errors in console
+- ✅ Collapse still works smoothly
+- ✅ Header shows "0 Steps"
+- ✅ Configuration panel shows empty state for step list
+
+**Pass/Fail:** ⬜
+
+---
+
+### Test 25: Bundle Size Impact
+
+**Objective:** Verify Phase E.3 changes have minimal bundle impact
+
+**Steps:**
+1. Run `npm run build` in frontend directory
+2. Check build output for main bundle size
+3. Compare to baseline (2,415.12 kB from PR #3046)
+
+**Expected Results:**
+- ✅ Build completes without errors
+- ✅ Bundle size: ~2,417.97 kB (+2.66 kB = +0.11%)
+- ✅ Build time: 18-25 seconds (acceptable)
+- ✅ No tree-shaking warnings for schema registry
+- ✅ Gzip size increase proportional
+
+**Pass/Fail:** ⬜
+
+---
+
+## Phase E.3 Test Summary
+
+| Test # | Test Name | Pass/Fail | Notes |
+|--------|-----------|-----------|-------|
+| 15 | Unlimited Steps | ⬜ | Auto-layout performance |
+| 16 | Drag-Drop into Container | ⬜ | Parent-child support |
+| 17 | Drag Between Containers | ⬜ | Re-parenting |
+| 18 | Expand/Collapse Animation | ⬜ | CSS transitions |
+| 19 | Selection Grouping | ⬜ | React Flow native |
+| 20 | Logic Between Steps | ⬜ | Conditional navigation |
+| 21 | Nested Children Schema | ⬜ | Infrastructure test |
+| 22 | Context Menu | ⬜ | Container actions |
+| 23 | Dynamic Re-Layout | ⬜ | useEffect monitoring |
+| 24 | Empty Container | ⬜ | Edge case handling |
+| 25 | Bundle Size Impact | ⬜ | Build verification |
+
+**Phase E.3 Status:** ⬜ NOT TESTED / ⚠️ IN PROGRESS / ✅ PASSED / ❌ FAILED
+
+---
+
+**Document Version:** 2.0  
+**Last Updated:** 2026-02-19  
+**Related PRs:** #2910, #2921, #2928, #3046, #3049, #3053

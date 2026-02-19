@@ -1,8 +1,8 @@
 # Workflow Editor Enhancement Roadmap
 **Date**: 2026-02-09  
-**Last Updated**: 2026-02-18  
+**Last Updated**: 2026-02-19  
 **Status**: 📋 Planning Document  
-**Current Version**: 1.1 (Phase E.1 Complete)
+**Current Version**: 1.2 (Phase E.3 Complete)
 
 ---
 
@@ -135,15 +135,46 @@ This document outlines future enhancements for the ProjectMeats Workflow Editor 
 3. Track cumulative metrics
 4. Validate each batch before proceeding
 
-**Phase E.3: Context Integration** 📋 PLANNED
+**Phase E.3: FormProcess Multi-Step Containers** ✅ COMPLETE (Feb 19, 2026)
 
-**Goal**: Eliminate prop drilling completely
+**Goal**: Implement full-featured multi-step form containers with parent-child support
 
-- [ ] Wrap UnifiedFlowEditor with FlowEditorProvider
-- [ ] Replace modal state props with useFlowEditor hook
-- [ ] Replace mode props with context
-- [ ] Replace UI toggle props with context
-- [ ] Additional 10-15% LOC reduction expected
+**Achievements**:
+- ✅ Created FormProcessGroupNode with labeled group pattern (PR #3046)
+- ✅ Implemented vertical auto-layout (baseY=60px, spacing=120px)
+- ✅ Added smooth expand/collapse animations (0.3s cubic-bezier)
+- ✅ Dynamic re-layouting via useEffect monitoring child count
+- ✅ Selection grouping (React Flow native multi-select)
+- ✅ Fixed entity dropdown bug - tenant_apps namespace (PR #3049)
+- ✅ Extended schema system with 'nested-children' field type (PR #3053)
+- ✅ Created NestedChildrenRenderer (11KB, 350 lines)
+- ✅ Integrated nested children into DynamicConfigPanel
+
+**Technical Details**:
+- FormProcessGroupNode uses `isGroup: true`, `parentId`, `extent: 'parent'`
+- Single-tree pattern (no nested React Flow instances)
+- Auto-layout algorithm: `y = baseY + (index × spacing)`
+- CSS transitions for smooth animations
+- Bundle size: 2,417.97 kB (+2.66 kB = +0.11%)
+- Build time: 18.51s (acceptable)
+
+**Impact**:
+- Unlimited steps per container (tested 20+)
+- Drag-drop from palette into containers
+- Drag steps between containers (re-parenting)
+- Context menu support (Add Step, Duplicate, Delete)
+- Nested children infrastructure ready for future use
+
+**Phase E.4: Sub-Flow Export & Reusability** 📋 PLANNED
+
+**Goal**: Enable saving and reusing FormProcess containers as templates
+
+- [ ] Implement sub-flow export function (JSON serialization)
+- [ ] Create sub-flow import dialog/modal
+- [ ] Add "Export as Template" to context menu
+- [ ] Build template library/picker component
+- [ ] Support versioning and metadata
+- [ ] Enable cross-workflow template sharing
 
 ---
 
