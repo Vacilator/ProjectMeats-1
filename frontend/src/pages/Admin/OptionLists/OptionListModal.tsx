@@ -338,10 +338,13 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
     setLoading(true);
     try {
       const response = await adminClient.get(`/system/choice-lists/${listSlug}/items/`);
-      setItems(response.data);
+      // Ensure response.data is always an array
+      const itemsData = Array.isArray(response.data) ? response.data : [];
+      setItems(itemsData);
       setHasChanges(false);
     } catch (error) {
       console.error('Failed to load items:', error);
+      setItems([]); // Reset to empty array on error
     } finally {
       setLoading(false);
     }
@@ -399,8 +402,11 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Ensure items is an array before processing
+      const itemsArray = Array.isArray(items) ? items : [];
+      
       // Process items one by one
-      const promises = items
+      const promises = itemsArray
         .filter(item => !item.is_system_defined)
         .map(async (item, index) => {
           const itemData = {
