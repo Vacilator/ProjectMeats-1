@@ -428,3 +428,7 @@ export type {
   // Re-export for convenience
   ComponentType
 };
+export interface FieldRenderProps extends FieldRendererProps {
+  data?: Record<string, any>;
+  onFieldChange?: (fieldId: string, value: any) => void;
+}
