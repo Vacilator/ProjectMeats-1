@@ -299,6 +299,17 @@ const ValidationModeButton = styled.button<{ $active: boolean }>`
   }
 `;
 
+const EmptyState = styled.div`
+  padding: 40px 20px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+  line-height: 1.6;
+  background: rgba(var(--color-border), 0.1);
+  border-radius: var(--radius-md);
+  margin: 12px 0;
+`;
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
