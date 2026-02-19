@@ -228,23 +228,27 @@ class ConfigSchemaRegistry {
 
         // Validate validation rules
         if (field.validation) {
-          field.validation.forEach((rule, ruleIndex) => {
-            if (!rule.type) {
-              errors.push(
-                `${fieldPrefix}: validation rule ${ruleIndex + 1} missing type`
-              );
-            }
-            if (!rule.message) {
-              errors.push(
-                `${fieldPrefix}: validation rule ${ruleIndex + 1} missing message`
-              );
-            }
-            if (rule.type === 'custom' && !rule.validator) {
-              errors.push(
-                `${fieldPrefix}: validation rule ${ruleIndex + 1} type 'custom' requires validator function`
-              );
-            }
-          });
+          if (!Array.isArray(field.validation)) {
+            errors.push(`${fieldPrefix}: validation must be an array`);
+          } else {
+            field.validation.forEach((rule, ruleIndex) => {
+              if (!rule.type) {
+                errors.push(
+                  `${fieldPrefix}: validation rule ${ruleIndex + 1} missing type`
+                );
+              }
+              if (!rule.message) {
+                errors.push(
+                  `${fieldPrefix}: validation rule ${ruleIndex + 1} missing message`
+                );
+              }
+              if (rule.type === 'custom' && !rule.validator) {
+                errors.push(
+                  `${fieldPrefix}: validation rule ${ruleIndex + 1} type 'custom' requires validator function`
+                );
+              }
+            });
+          }
         }
 
         // Warnings for best practices
