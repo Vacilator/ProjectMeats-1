@@ -100,8 +100,18 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   // Get schema for this node type
   const schema = useMemo(() => {
-    return schemaRegistry.getSchema(node.type!);
-  }, [node.type]);
+    const resolvedSchema = schemaRegistry.getSchema(node.type!);
+    
+    // Debug logging for schema resolution
+    console.log('[DynamicConfigPanel] Schema resolution:', {
+      nodeType: node.type,
+      nodeId: node.id,
+      schemaFound: !!resolvedSchema,
+      schemaDisplayName: resolvedSchema?.displayName,
+    });
+    
+    return resolvedSchema;
+  }, [node.type, node.id]);
 
   // Reset form data when node changes
   useEffect(() => {

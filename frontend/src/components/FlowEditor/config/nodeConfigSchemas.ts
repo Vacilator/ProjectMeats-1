@@ -839,4 +839,16 @@ import { schemaRegistry } from './schemaRegistry';
 
 // Initialize registry with all schemas on module load
 schemaRegistry.initialize(allSchemas);
-// Cache bust: 1771486119
+
+// Phase E Fix (2026-02-19): Register backward compatibility aliases
+// formStepSingle nodes should use the same schema as 'form' nodes
+schemaRegistry.register({
+  ...formSchema,
+  nodeType: 'formStepSingle',
+  displayName: 'Form (Legacy)',
+  description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
+}, true); // Allow overwrite
+
+console.log('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
+
+// Cache bust: 1771488534

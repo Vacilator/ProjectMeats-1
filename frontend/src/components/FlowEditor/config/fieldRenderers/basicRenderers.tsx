@@ -151,6 +151,17 @@ export function renderEntityTypeSelect(
   // Fetch entity types from backend API (with fallback to hardcoded entities)
   const { data: entities = [], isLoading, error: fetchError } = useEntityList();
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[EntityTypeSelect] Rendered with:', {
+      isLoading,
+      entityCount: entities.length,
+      entities: entities.map(e => e.label),
+      fetchError: fetchError ? String(fetchError) : null,
+      currentValue: value,
+    });
+  }, [isLoading, entities, fetchError, value]);
+
   return (
     <FormField key={field.id}>
       <Label>
