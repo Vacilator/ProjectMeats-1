@@ -4,6 +4,31 @@
 
 ### 🔴 Critical Issues
 
+#### Issue: Container detection always returning 0 nodes (FIXED - February 2026)
+
+**Symptoms:**
+- Nodes won't drop into containers even when visually inside
+- Console shows "Intersecting nodes found: 0" every time
+- Green border appears but drop fails
+
+**Root Cause:**
+- React Flow's `getIntersectingNodes()` API was consistently returning empty array
+- Known issue with React Flow v12.x in certain configurations
+
+**Solution Applied:**
+- **HOTFIX**: Replaced `getIntersectingNodes()` with manual bounding box detection
+- New implementation uses container's measured dimensions for accurate detection
+- Enhanced console logging added to help debug future issues
+
+**Status:** ✅ FIXED (Feb 9, 2026)
+
+**If you still experience this issue:**
+1. Check browser console for enhanced logging (see "Enhanced Console Logging" section)
+2. Verify container position and dimensions are being logged correctly
+3. Report issue with console logs if detection still fails
+
+---
+
 #### Issue: Nodes not appearing after drop into container
 
 **Symptoms:**
@@ -257,6 +282,39 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 
 ## Diagnostic Tools
 
+### Enhanced Console Logging (February 2026)
+
+**NEW**: The container detection system now includes comprehensive debugging logs. When you drag and drop nodes, look for these console messages:
+
+**Container Detection Logs:**
+```
+[Container] =================================
+[Container] Looking for containers at position: {x: 450, y: 200}
+[Container] Total nodes on canvas: 5
+[Container] Container nodes found: 1
+[Container] Checking container-1: {type: "formMultiStepContainer", position: {x: 100, y: 100}, dimensions: {width: 600, height: 400}, bounds: {...}, isExpanded: true}
+[Container] ✅ Found matching container: container-1
+```
+
+**Drop Event Logs:**
+```
+[Container] ✅ Detected drop into container container-1
+[Container] Container container-1 already expanded
+[Container] Setting up parent-child relationship with container container-1
+[Container] Adding node node-5 as child of container container-1
+[Container] Position - Absolute: (450, 250), Relative: (350, 150)
+[Container] ✅ Node configured: {nodeId: "node-5", parentId: "container-1", relativePosition: {x: 350, y: 150}, ...}
+[Container] Inserting node at index 2 (after parent)
+[Container] Triggering auto-layout for container container-1
+[Layout] Result: {containerWidth: 600, containerHeight: 400, childrenCount: 3}
+```
+
+**What to Look For:**
+- ✅ **"Found matching container"** - Drop detection working correctly
+- ❌ **"No container matched at position"** - Drop position outside container bounds
+- ❌ **"Container nodes found: 0"** - No containers on canvas
+- ⚠️ **"Cannot nest containers"** - Attempted to drop container inside container
+
 ### Browser Console Commands
 
 ```javascript
@@ -359,6 +417,6 @@ When reporting bugs, include:
 
 ---
 
-**Last Updated**: February 8, 2026  
-**Version**: 1.0  
+**Last Updated**: February 19, 2026  
+**Version**: 1.1  
 **Maintained By**: ProjectMeats Development Team
