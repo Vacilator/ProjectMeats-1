@@ -479,6 +479,108 @@ export const formProcessSchema: NodeConfigSchema = {
 };
 
 // ============================================================================
+// Form Process Group Schema (Phase E.3)
+// ============================================================================
+
+/**
+ * Configuration schema for Form Process Group node
+ * 
+ * Labeled container with vertical auto-layout for child steps.
+ * Uses React Flow's native parent-child grouping pattern.
+ * 
+ * Phase E.3: Auto-layout, expand/collapse, selection grouping
+ */
+export const formProcessGroupSchema: NodeConfigSchema = {
+  nodeType: 'formProcessGroup',
+  displayName: 'Form Process Group',
+  description: 'Labeled container with auto-layout for multi-step forms',
+  icon: Package,
+  version: '1.0.0',
+  tags: ['form', 'container', 'group', 'multi-step', 'layout'],
+  contextAware: false,
+
+  sections: [
+    // ========================================================================
+    // Container Properties
+    // ========================================================================
+    {
+      id: 'properties',
+      title: 'Container Properties',
+      icon: Package,
+      defaultExpanded: true,
+      description: 'Basic information about this form group',
+      fields: [
+        {
+          id: 'containerName',
+          type: 'text',
+          label: 'Group Name',
+          placeholder: 'e.g., Customer Information Section',
+          helpText: 'Display name for this form group',
+          defaultValue: 'New Form Group',
+          validation: {
+            required: true,
+            minLength: 3,
+            maxLength: 100
+          }
+        },
+        {
+          id: 'containerDescription',
+          type: 'textarea',
+          label: 'Description',
+          placeholder: 'Brief description of this form group...',
+          helpText: 'Optional description to explain the purpose',
+          rows: 3,
+          validation: {
+            maxLength: 500
+          }
+        },
+        {
+          id: 'isExpanded',
+          type: 'toggle',
+          label: 'Expanded by Default',
+          helpText: 'Show child steps by default (vs. collapsed)',
+          defaultValue: true
+        }
+      ]
+    },
+
+    // ========================================================================
+    // Navigation & Behavior (shared with formProcess)
+    // ========================================================================
+    {
+      id: 'navigation',
+      title: 'Navigation & Behavior',
+      icon: Navigation,
+      defaultExpanded: true,
+      description: 'Control how users navigate through this form',
+      fields: [
+        {
+          id: 'showProgressIndicator',
+          type: 'toggle',
+          label: 'Show Progress Indicator',
+          helpText: 'Display step progress during execution',
+          defaultValue: true
+        },
+        {
+          id: 'allowBackNavigation',
+          type: 'toggle',
+          label: 'Allow Back Navigation',
+          helpText: 'Users can return to previous steps',
+          defaultValue: true
+        },
+        {
+          id: 'skipOptionalSteps',
+          type: 'toggle',
+          label: 'Allow Skip Optional Steps',
+          helpText: 'Users can skip steps marked as optional',
+          defaultValue: false
+        }
+      ]
+    }
+  ]
+};
+
+// ============================================================================
 // Create Record Action Schema
 // ============================================================================
 
@@ -713,6 +815,7 @@ export const outlookEmailSchema: NodeConfigSchema = {
 export const allSchemas: NodeConfigSchema[] = [
   formStepSingleSchema,
   formProcessSchema,
+  formProcessGroupSchema,
   createRecordSchema,
   outlookEmailSchema
 ];

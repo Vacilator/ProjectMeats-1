@@ -34,3 +34,9 @@ export { WaitStateNode } from './WaitStateNode';
 export { DocumentNode } from './DocumentNode';
 export { UtilityNode } from './UtilityNode';
 export { TerminalNode } from './TerminalNode';
+
+export { FormProcessGroupNode } from './FormProcessGroupNode';
+export type { FormProcessGroupData } from './FormProcessGroupNode';
+
+export { FormProcessChildWrapper } from './FormProcessChildWrapper';
+export type { ChildWrapperProps } from './FormProcessChildWrapper';

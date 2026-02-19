@@ -128,6 +128,18 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
   },
   
+  formProcessGroup: {
+    id: 'formProcessGroup',
+    name: 'Form Process Group',
+    category: 'form',
+    icon: '📂',
+    color: '#a78bfa', // lighter purple - group variant
+    description: 'LABELED CONTAINER: Resizable group with labeled header and vertical auto-layout for child steps',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+  },
+  
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)
   // These map to the new node types but are marked as deprecated
   formStep: {
