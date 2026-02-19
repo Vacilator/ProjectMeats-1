@@ -255,7 +255,7 @@ export function AdminTable<T extends Record<string, any>>({
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <ActionsGroup>
                       {actions
-                        .filter((action) => !action.hidden || !action.hidden(row))
+                        ?.filter((action) => !action.hidden || !action.hidden(row))
                         .map((action, actionIndex) => (
                           <ActionButton
                             key={actionIndex}
