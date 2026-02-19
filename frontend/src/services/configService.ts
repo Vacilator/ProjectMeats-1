@@ -227,7 +227,9 @@ export async function getTenantConfigs(): Promise<TenantConfig[]> {
   }
 
   const response = await apiClient.get('/system/tenant-configs/');
-  const configs = response.data.results || response.data;
+  const data = response.data.results || response.data;
+  // Ensure we always have an array
+  const configs = Array.isArray(data) ? data : [];
 
   memoryCache.tenantConfigs = {
     data: configs,
@@ -387,7 +389,9 @@ export async function getChoiceLists(): Promise<SystemChoiceList[]> {
   pendingRequests[cacheKey] = (async () => {
     try {
       const response = await apiClient.get('/system/choice-lists/');
-      const lists = response.data.results || response.data;
+      const data = response.data.results || response.data;
+      // Ensure we always have an array
+      const lists = Array.isArray(data) ? data : [];
       
       // Cache the full list
       memoryCache.allChoiceLists = {
