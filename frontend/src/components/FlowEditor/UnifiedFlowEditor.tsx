@@ -99,6 +99,7 @@ import {
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
+import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
@@ -1774,6 +1775,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     };
   }, [isFullscreen]);
   
+  // ============================================================================
+  // Context Menu (Phase E.3)
+  // ============================================================================
+  
+  const { menu, handleNodeContextMenu, handleCloseMenu } = useContextMenu();
+  
+  // Close context menu when clicking anywhere
+  useEffect(() => {
+    if (menu) {
+      const handleClick = () => handleCloseMenu();
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [menu, handleCloseMenu]);
+  
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
     let filteredNodes = Object.values(NODE_TYPE_REGISTRY);
@@ -2584,8 +2600,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Manual bounding box is more reliable and predictable
    */
   const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
-    // Get all container nodes
-    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
+    // Get all container nodes (support both formMultiStepContainer and formProcessGroup)
+    const containerNodes = nodes.filter(node => 
+      node.type === 'formMultiStepContainer' || 
+      node.type === 'formProcessGroup' ||
+      node.type === 'formProcess'
+    );
     
     if (containerNodes.length === 0) {
       return null;
@@ -2852,7 +2872,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         console.log(`[Container] Setting up parent-child relationship with container ${targetContainer.id}`);
         
         // Phase 1.4: Don't allow containers to be nested
-        if (type === 'formMultiStepContainer') {
+        const isContainerType = type === 'formMultiStepContainer' || 
+                               type === 'formProcessGroup' || 
+                               type === 'formProcess';
+        
+        if (isContainerType) {
           // Fall through to main canvas drop - don't allow nested containers
         } else {
           // Phase 1.4: Set up React Flow native parent-child relationship
@@ -3105,7 +3129,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const newParentId = container?.id || null;
     
     // Prevent containers from being nested in other containers
-    if (node.type === 'formMultiStepContainer' && newParentId) {
+    const isContainerNode = node.type === 'formMultiStepContainer' || 
+                           node.type === 'formProcessGroup' || 
+                           node.type === 'formProcess';
+    
+    if (isContainerNode && newParentId) {
       console.log('[Container] Cannot nest containers inside containers');
       return;
     }
@@ -4985,6 +5013,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onDragOver={onDragOver}
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
+        onNodeContextMenu={handleNodeContextMenu}
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -5134,6 +5163,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </AlignmentToolbar>
       </ReactFlow>
       )}
+      
+      {/* Phase E.3: Context Menu */}
+      {menu && (
+        <NodeContextMenu
+          node={menu.node}
+          x={menu.x}
+          y={menu.y}
+          onClose={handleCloseMenu}
+        />
+      )}
+      
       
       {/* Wizard Mode - Typeform-inspired (Phase 2.2 Batch 3) */}
       {activeEditorMode === 'wizard' && (
