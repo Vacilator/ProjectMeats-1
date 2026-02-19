@@ -1,6 +1,12 @@
 """
 Management command to seed all ERP modules with realistic data.
 
+**Idempotency Note:**
+- This command seeds TENANT-SPECIFIC data (Tier-2+)
+- For Tier-1 system choices, use: python manage.py seed_system_choices
+- All Tier-1 data (tenant=None) should be checked for existence first
+- See docs/GOLDEN_PIPELINE.md and POSTGRESQL_MIGRATION_GUIDE.md
+
 Usage:
     python manage.py seed_all_modules
     python manage.py seed_all_modules --tenant-id=1
