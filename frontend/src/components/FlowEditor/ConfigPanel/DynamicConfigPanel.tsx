@@ -25,7 +25,8 @@ import { validateField } from '../config/validationEngine';
 import { 
   renderTextField, 
   renderSelectField, 
-  renderToggleField 
+  renderToggleField,
+  renderEntityTypeSelect  // Phase E: Dynamic entity type dropdown
 } from '../config/fieldRenderers/basicRenderers';
 import {
   renderEntitySelector,
@@ -220,8 +221,14 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'toggle':
         return renderToggleField(commonProps);
       
-      // Complex renderers (Phase D.3)
+      // Phase E: Dynamic entity type select (replaces old entity-selector usage)
       case 'entity-selector':
+        // Use simple select dropdown for entity TYPE selection
+        return renderEntityTypeSelect(commonProps);
+      
+      // Complex renderers (Phase D.3) - kept for field-level operations
+      case 'entity-field-picker':
+        // This is for selecting FIELDS from an entity, not the entity type itself
         return renderEntitySelector({
           ...commonProps,
           data: { ...formData, _upstreamVariables: [] } // Add upstream variables

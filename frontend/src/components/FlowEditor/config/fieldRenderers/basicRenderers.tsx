@@ -6,11 +6,13 @@
  * 
  * Created: 2026-02-18
  * Phase: D.2 - Dynamic Panel
+ * Updated: 2026-02-19 - Phase E: Added dynamic entity type select renderer
  */
 
 import React from 'react';
 import styled from 'styled-components';
 import { ConfigField, FieldRendererProps } from '../types';
+import { useEntityList } from '../../../../services/schemaService';  // Fixed path
 
 // Import shared styled components
 import {
@@ -126,6 +128,55 @@ export function renderToggleField(
         />
       </ToggleRow>
       {field.helpText && !error && <HelpText>{field.helpText}</HelpText>}
+      {error && <ErrorMessage>{error}</ErrorMessage>}
+    </FormField>
+  );
+}
+
+/**
+ * Render an entity type select dropdown (Phase E.2)
+ * 
+ * Dynamically loads entity types from the backend API and populates the dropdown.
+ * This is the CORRECT way to render entity type selection - NOT EntityFieldPicker.
+ * 
+ * EntityFieldPicker is for selecting FIELDS from an entity, not the entity itself.
+ */
+export function renderEntityTypeSelect(
+  props: FieldRendererProps<string>
+): React.ReactNode {
+  const { field, value, onChange, error } = props;
+  
+  // Fetch entity types from backend API
+  const { data: entities = [], isLoading, error: fetchError } = useEntityList();
+
+  return (
+    <FormField key={field.id}>
+      <Label>
+        {field.label}
+        {field.required && <span style={{ color: 'rgb(var(--color-error))' }}> *</span>}
+      </Label>
+      <Select
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={field.disabled || props.disabled || isLoading}
+      >
+        {isLoading ? (
+          <option value="">Loading entities...</option>
+        ) : fetchError ? (
+          <option value="">Error loading entities</option>
+        ) : (
+          <>
+            <option value="">-- Select Entity Type --</option>
+            {entities.map(entity => (
+              <option key={entity.id} value={entity.id}>
+                {entity.label}
+              </option>
+            ))}
+          </>
+        )}
+      </Select>
+      {field.helpText && !error && !fetchError && <HelpText>{field.helpText}</HelpText>}
+      {fetchError && <ErrorMessage>Failed to load entity types: {String(fetchError)}</ErrorMessage>}
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </FormField>
   );
