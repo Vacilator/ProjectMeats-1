@@ -13,21 +13,26 @@ import { NodeConfigSchema } from './types';
 import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database } from 'lucide-react';
 
 // ============================================================================
-// Form Step: Single Node Schema
+// Form Node Schema (Phase E - 2026-02-19)
 // ============================================================================
 
 /**
- * Configuration schema for Form Step: Single node
+ * Configuration schema for Form node (renamed from Form Step: Single)
  * 
- * Defines a single-page form step that can be used standalone or inside
- * a Form Process container.
+ * Defines a single-page form for data collection that can be used standalone
+ * or inside a Form Process container.
+ * 
+ * **Phase E Update (2026-02-19):**
+ * - Renamed from 'formStepSingle' to 'form' for simplified naming
+ * - Updated displayName from 'Form Step: Single' to 'Form'
+ * - Backward compatibility maintained via schema registry aliases
  */
-export const formStepSingleSchema: NodeConfigSchema = {
-  nodeType: 'formStepSingle',
-  displayName: 'Form Step: Single',
-  description: 'A single-page form for data collection',
+export const formSchema: NodeConfigSchema = {
+  nodeType: 'form',
+  displayName: 'Form',
+  description: 'Single-page form for data collection',
   icon: FileText,
-  version: '1.0.0',
+  version: '2.0.0',  // Updated for Phase E rename
   tags: ['form', 'data-collection', 'user-input'],
   contextAware: true,
 
@@ -810,15 +815,21 @@ export const outlookEmailSchema: NodeConfigSchema = {
 
 /**
  * All registered node configuration schemas
- * Add new schemas to this array to register them
+ * 
+ * Phase E Update (2026-02-19):
+ * - Updated to use 'formSchema' as primary schema
+ * - formStepSingleSchema exported as alias for backward compatibility
  */
 export const allSchemas: NodeConfigSchema[] = [
-  formStepSingleSchema,
+  formSchema,  // NEW: Primary form schema (Phase E - 2026-02-19)
   formProcessSchema,
   formProcessGroupSchema,
   createRecordSchema,
   outlookEmailSchema
 ];
+
+// Export formStepSingleSchema as alias for backward compatibility
+export const formStepSingleSchema = formSchema;
 
 // ============================================================================
 // Auto-initialize registry
