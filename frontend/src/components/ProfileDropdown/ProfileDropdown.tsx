@@ -56,8 +56,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
 
   const handleAdminClick = () => {
     // Open Django admin in new tab
-    // In deployed environments, admin is proxied through the same domain as the frontend
-    // In local dev (localhost), use the API base URL
+    // Opens in separate window to avoid JWT token conflicts with Django's session auth
     
     const hostname = window.location.hostname;
     let adminUrl: string;
@@ -72,8 +71,8 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = () => {
       adminUrl = `${protocol}//${hostname}/admin/`;
     }
     
-    // Use window.location.href for more reliable navigation
-    window.location.href = adminUrl;
+    // Open in new tab to allow separate Django admin session
+    window.open(adminUrl, '_blank', 'noopener,noreferrer');
     setIsOpen(false);
   };
 
