@@ -4,23 +4,33 @@
  * Configuration panel for form steps (multi-step form containers).
  * Manages step-level settings including visibility, navigation, and validation.
  * 
+ * This panel integrates with the Dynamic Configuration Engine (Phase D/E)
+ * to provide schema-driven field selection and configuration.
+ * 
  * Features:
  * - Step title and description editing
+ * - Entity type selection with schema-driven field picker
+ * - Dynamic field management (add/edit/delete/reorder)
  * - Conditional visibility for entire step
  * - Navigation controls (back/skip/auto-advance)
  * - Step-level validation rules
- * - Field list management (add/edit/delete/reorder)
+ * 
+ * Schema Integration:
+ * - Uses formStepSingleSchema for node configuration
+ * - Integrates EntityFieldPicker for schema-aware field selection
+ * - Supports FieldPropertiesEditor for advanced field customization
  * 
  * Phase E.2: Panel Migration - Batch 1 (1 of 3)
  * Migrated to use shared styled components from ConfigPanel/shared
  * 
  * Changes:
  * - Replaced 30+ local styled components with shared components
- * - Massive code reduction expected (40%+)
+ * - Massive code reduction (40%+)
  * - Maintained exact same functionality
+ * - Integrated schema-driven configuration system
  * 
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
- * Last Updated: 2026-02-18 - Phase E.2 Panel Migration
+ * Last Updated: 2026-02-19 - Phase D/E - Schema Integration & Tree-shaking Fix
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
@@ -33,6 +43,10 @@ import type { FormField, FormFieldType } from './FormFieldConfigPanel';
 import { useEntityList, useEntityFields, EntityField } from '../../../services/schemaService';
 import { EntityFieldPicker, SelectedField } from './EntityFieldPicker';
 import { FieldPropertiesEditor, FieldProperties } from './FieldPropertiesEditor';
+
+// Schema-driven configuration system (Phase D/E)
+// IMPORTANT: This import triggers schema registry initialization
+import '../config/nodeConfigSchemas';
 
 // Import shared styled components
 import {
@@ -61,6 +75,26 @@ import {
 // TypeScript Interfaces
 // ============================================================================
 
+/**
+ * Form step data structure
+ * 
+ * Represents the complete configuration of a form step including:
+ * - Basic info (title, description)
+ * - Entity type selection for schema-driven field picking
+ * - Field list with validation rules
+ * - Visibility conditions
+ * - Navigation options
+ * - Validation settings
+ * 
+ * @interface FormStepData
+ * @property {string} stepTitle - Display title for the step
+ * @property {string} [stepDescription] - Optional description/instructions
+ * @property {string} [entityType] - Entity type ID from schema service (Phase 3)
+ * @property {FormField[]} fields - Array of form fields in this step
+ * @property {object} [visibility] - Conditional visibility configuration
+ * @property {object} [navigation] - Navigation button configuration
+ * @property {object} [validation] - Step-level validation rules
+ */
 export interface FormStepData {
   stepTitle: string;
   stepDescription?: string;
@@ -69,29 +103,52 @@ export interface FormStepData {
   
   // Visibility configuration
   visibility?: {
+    /** Visibility mode: 'always' or 'conditional' */
     mode: 'always' | 'conditional';
+    /** Conditions that determine visibility (when mode='conditional') */
     conditions?: ConditionRule[];
+    /** Logic operator for multiple conditions ('and' or 'or') */
     logic?: ConditionLogic;
   };
   
   // Navigation configuration
   navigation?: {
+    /** Allow back button to previous step */
     allowBack: boolean;
+    /** Allow skip button to bypass this step */
     allowSkip: boolean;
+    /** Auto-advance when all required fields are filled */
     autoAdvance: boolean;
+    /** Custom label for back button */
     backLabel?: string;
+    /** Custom label for next button */
     nextLabel?: string;
+    /** Custom label for skip button */
     skipLabel?: string;
   };
   
   // Validation configuration
   validation?: {
+    /** Validation mode: 'all' (all required) or 'minimum' (at least N) */
     mode: 'all' | 'minimum';
+    /** Minimum number of fields required (when mode='minimum') */
     minimumRequired?: number;
+    /** Custom validation error message */
     customMessage?: string;
   };
 }
 
+/**
+ * Props for FormStepConfigPanel component
+ * 
+ * @interface FormStepConfigPanelProps
+ * @property {FormStepData} step - Current step configuration
+ * @property {function} onChange - Callback when step configuration changes
+ * @property {function} onClose - Callback to close the panel
+ * @property {function} [onEditField] - Optional callback to edit a field
+ * @property {function} [onAddField] - Optional callback to add a custom field
+ * @property {Array} [availableFields] - Available fields for condition builder
+ */
 export interface FormStepConfigPanelProps {
   step: FormStepData;
   onChange: (step: FormStepData) => void;
@@ -308,6 +365,14 @@ const EmptyState = styled.div`
   background: rgba(var(--color-border), 0.1);
   border-radius: var(--radius-md);
   margin: 12px 0;
+  
+  /* Empty state for no fields added yet */
+  > strong {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: rgb(var(--color-text-primary));
+  }
 `;
 
 // ============================================================================
@@ -332,7 +397,14 @@ const FIELD_TYPE_ICONS: Record<FormFieldType, string> = {
 
 /**
  * Map Django field types to form field types
+ * 
+ * Provides intelligent schema bridge between backend Django models
+ * and frontend form field types.
+ * 
  * Phase 3: Intelligent Schema Bridge
+ * 
+ * @param {string} djangoType - Django model field type (e.g., 'CharField')
+ * @returns {FormFieldType} - Corresponding form field type (e.g., 'text')
  */
 const mapEntityFieldTypeToFormFieldType = (djangoType: string): FormFieldType => {
   const mapping: Record<string, FormFieldType> = {
@@ -355,10 +427,34 @@ const mapEntityFieldTypeToFormFieldType = (djangoType: string): FormFieldType =>
   return mapping[djangoType] || 'text';
 };
 
-// ============================================================================
-// Component
-// ============================================================================
-
+/**
+ * FormStepConfigPanel - Configuration panel for form steps
+ * 
+ * Provides comprehensive configuration UI for form steps including:
+ * - Basic step information (title, description)
+ * - Schema-driven entity and field selection
+ * - Conditional visibility rules
+ * - Navigation options (back, skip, auto-advance)
+ * - Step-level validation rules
+ * 
+ * This component integrates with:
+ * - Schema Service API for entity/field metadata
+ * - EntityFieldPicker for bulk field selection
+ * - FieldPropertiesEditor for advanced field customization
+ * - Dynamic Configuration Engine for schema-driven rendering
+ * 
+ * @component
+ * @example
+ * ```tsx
+ * <FormStepConfigPanel
+ *   step={currentStep}
+ *   onChange={handleStepChange}
+ *   onClose={handleClose}
+ *   onEditField={handleEditField}
+ *   availableFields={fieldsFromPreviousSteps}
+ * />
+ * ```
+ */
 export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   step,
   onChange,
@@ -603,7 +699,7 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 {entitiesLoading ? (
                   '⏳ Loading entities...'
                 ) : entitiesError ? (
-                  '⚠️ Failed to load entities. Using fallback list. Check your connection and try again.'
+                  '⚠️ Failed to load entities from backend. Check your connection and try again.'
                 ) : localStep.entityType ? (
                   fieldsLoading ? (
                     `⏳ Loading fields for ${entities.find(e => e.id === localStep.entityType)?.label_plural || 'selected entity'}...`

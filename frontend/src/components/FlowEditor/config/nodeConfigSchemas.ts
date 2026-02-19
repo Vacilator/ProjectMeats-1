@@ -718,11 +718,24 @@ export const allSchemas: NodeConfigSchema[] = [
 ];
 
 // ============================================================================
-// Auto-initialize registry
+// Auto-initialize registry (Phase D/E: Schema-Driven Configuration)
 // ============================================================================
 
 import { schemaRegistry } from './schemaRegistry';
 
-// Initialize registry with all schemas on module load
-schemaRegistry.initialize(allSchemas);
-// Cache bust: 1771486119
+/**
+ * Initialize schema registry with all node configuration schemas
+ * 
+ * This MUST be called to register schemas before rendering any config panels.
+ * Auto-initialization happens on module import to ensure schemas are available.
+ * 
+ * IMPORTANT: Do not remove this initialization even if it appears unused.
+ * Vite tree-shaking must preserve this side effect.
+ */
+export function initializeSchemas(): void {
+  schemaRegistry.initialize(allSchemas);
+  console.log('[Schema Registry] Initialized with', allSchemas.length, 'schemas');
+}
+
+// Auto-initialize on module load (side effect - DO NOT TREE-SHAKE)
+initializeSchemas();

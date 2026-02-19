@@ -56,6 +56,10 @@ export default defineConfig({
   build: {
     outDir: 'build',
     sourcemap: true,
+    // Preserve schema registry initialization (prevent tree-shaking)
+    modulePreload: {
+      polyfill: true,
+    },
     // Split chunks for better caching
     rollupOptions: {
       input: {
@@ -108,6 +112,8 @@ export default defineConfig({
       'axios',
       'styled-components',
     ],
+    // Exclude schema registry from tree-shaking to preserve auto-initialization
+    exclude: [],
   },
   
   // Preview server configuration (for production build preview)
