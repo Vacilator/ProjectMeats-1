@@ -77,16 +77,18 @@ export const getEntityDisplayFields = async (entityId: string): Promise<string[]
 /**
  * Hardcoded entity types for quick reference (until API loads).
  * This list should match the backend tenant_apps.
+ * 
+ * NOTE: Entity IDs use tenant_apps.* namespace (hotfix #3033)
  */
 export const COMMON_ENTITY_TYPES: EntityType[] = [
-  { id: 'suppliers.supplier', app: 'suppliers', model: 'supplier', label: 'Supplier', label_plural: 'Suppliers', description: 'Supplier entity', field_count: 0 },
-  { id: 'customers.customer', app: 'customers', model: 'customer', label: 'Customer', label_plural: 'Customers', description: 'Customer entity', field_count: 0 },
-  { id: 'products.product', app: 'products', model: 'product', label: 'Product', label_plural: 'Products', description: 'Product entity', field_count: 0 },
-  { id: 'sales_orders.salesorder', app: 'sales_orders', model: 'salesorder', label: 'Sales Order', label_plural: 'Sales Orders', description: 'Sales order entity', field_count: 0 },
-  { id: 'purchase_orders.purchaseorder', app: 'purchase_orders', model: 'purchaseorder', label: 'Purchase Order', label_plural: 'Purchase Orders', description: 'Purchase order entity', field_count: 0 },
-  { id: 'invoices.invoice', app: 'invoices', model: 'invoice', label: 'Invoice', label_plural: 'Invoices', description: 'Invoice entity', field_count: 0 },
-  { id: 'carriers.carrier', app: 'carriers', model: 'carrier', label: 'Carrier', label_plural: 'Carriers', description: 'Carrier entity', field_count: 0 },
-  { id: 'contacts.contact', app: 'contacts', model: 'contact', label: 'Contact', label_plural: 'Contacts', description: 'Contact entity', field_count: 0 },
+  { id: 'tenant_apps.suppliers.supplier', app: 'tenant_apps.suppliers', model: 'supplier', label: 'Supplier', label_plural: 'Suppliers', description: 'Supplier entity', field_count: 0 },
+  { id: 'tenant_apps.customers.customer', app: 'tenant_apps.customers', model: 'customer', label: 'Customer', label_plural: 'Customers', description: 'Customer entity', field_count: 0 },
+  { id: 'tenant_apps.products.product', app: 'tenant_apps.products', model: 'product', label: 'Product', label_plural: 'Products', description: 'Product entity', field_count: 0 },
+  { id: 'tenant_apps.sales_orders.salesorder', app: 'tenant_apps.sales_orders', model: 'salesorder', label: 'Sales Order', label_plural: 'Sales Orders', description: 'Sales order entity', field_count: 0 },
+  { id: 'tenant_apps.purchase_orders.purchaseorder', app: 'tenant_apps.purchase_orders', model: 'purchaseorder', label: 'Purchase Order', label_plural: 'Purchase Orders', description: 'Purchase order entity', field_count: 0 },
+  { id: 'tenant_apps.invoices.invoice', app: 'tenant_apps.invoices', model: 'invoice', label: 'Invoice', label_plural: 'Invoices', description: 'Invoice entity', field_count: 0 },
+  { id: 'tenant_apps.carriers.carrier', app: 'tenant_apps.carriers', model: 'carrier', label: 'Carrier', label_plural: 'Carriers', description: 'Carrier entity', field_count: 0 },
+  { id: 'tenant_apps.contacts.contact', app: 'tenant_apps.contacts', model: 'contact', label: 'Contact', label_plural: 'Contacts', description: 'Contact entity', field_count: 0 },
 ];
 
 /**
