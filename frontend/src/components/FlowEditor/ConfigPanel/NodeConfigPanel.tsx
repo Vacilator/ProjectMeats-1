@@ -23,6 +23,7 @@ import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import axios from 'axios';
 import { listTenantForms, getFormFields } from '../../../services/workformsApi';
+import { useEntityList, getEntityFields as fetchEntityFields } from '../../../services/schemaService';
 import {
   Panel,
   PanelHeader,
@@ -648,6 +649,33 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     );
   };
 
+  const handleLoadEntityFields = async () => {
+    const entityId = formData.entityType;
+    if (!entityId) return;
+    try {
+      setLoadingFields(true);
+      const fields = await fetchEntityFields(entityId);
+      const mapped = fields.map((f: any) => ({
+        id: f.name,
+        label: f.label || f.name,
+        type: (f.field_type === 'char' || f.field_type === 'text' || f.field_type === 'string') ? 'text' :
+              (f.field_type === 'email') ? 'email' :
+              (f.field_type === 'integer' || f.field_type === 'decimal' || f.field_type === 'float' || f.field_type === 'numeric') ? 'number' :
+              (f.field_type === 'boolean') ? 'checkbox' :
+              (f.field_type === 'date') ? 'date' : 'text',
+        required: !!f.is_required,
+        placeholder: f.help_text || '',
+      }));
+
+      handleFieldChange('fields', mapped);
+      setHasUnsavedChanges(true);
+    } catch (error) {
+      console.error('[NodeConfigPanel] Failed to load entity fields:', error);
+    } finally {
+      setLoadingFields(false);
+    }
+  };
+
   const handleClose = () => {
     if (hasUnsavedChanges) {
       if (window.confirm('You have unsaved changes. Close anyway?')) {
@@ -769,7 +797,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     
     // Safe entity type access with fallback
     const entityType = formData.entityType || '';
-    const entityTypeDisplay = entityType.replace('_', ' ');
+    const { data: entityTypes = [], isLoading: loadingEntities } = useEntityList();
+    const entityTypeObj = entityTypes.find((e: any) => e.id === entityType);
+    const entityTypeDisplay = entityTypeObj ? entityTypeObj.label : (entityType || '').replace('_', ' ');
     
     return (
       <>
@@ -784,24 +814,16 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             <Select
               value={entityType}
               onChange={(e) => {
-                try {
-                  handleFieldChange('entityType', e.target.value);
-                } catch (error) {
-                  console.error('[NodeConfigPanel] Error changing entity type:', error);
-                }
+                handleFieldChange('entityType', e.target.value);
               }}
+              disabled={loadingEntities}
             >
-              <option value="">Select entity type...</option>
-              <option value="supplier">Supplier</option>
-              <option value="customer">Customer</option>
-              <option value="contact">Contact</option>
-              <option value="carrier">Carrier</option>
-              <option value="product">Product</option>
-              <option value="purchase_order">Purchase Order</option>
-              <option value="sales_order">Sales Order</option>
-              <option value="invoice">Invoice</option>
-              <option value="inquiry">Inquiry</option>
-              <option value="fulfillment">Fulfillment</option>
+              <option value="">{loadingEntities ? 'Loading entity types...' : 'Select entity type...'}</option>
+              {entityTypes.map((et: any) => (
+                <option key={et.id} value={et.id}>
+                  {et.label || et.id}
+                </option>
+              ))}
             </Select>
             <HelpText>
               Choose the type of record this form will create or modify
@@ -814,12 +836,10 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                 Load Entity Fields
                 <HelpIcon size={14} title="Automatically add fields based on the selected entity schema" />
               </Label>
-              <Button 
-                $variant="secondary" 
-                onClick={() => {
-                  // Placeholder: In production, fetch from API
-                  alert(`Would fetch fields for entity type: ${entityTypeDisplay}\n\nAPI endpoint: /api/admin/entities/${entityType}/fields/`);
-                }}
+              <Button
+                $variant="secondary"
+                onClick={handleLoadEntityFields}
+                disabled={!entityType || loadingFields}
               >
                 <Download size={16} />
                 Load Schema Fields
