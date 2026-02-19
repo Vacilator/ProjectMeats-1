@@ -117,13 +117,15 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   },
   
   // NEW: Phase 2 renamed nodes (2026-02-14)
+  // NOTE: This is now just an alias for backward compatibility
+  // The actual "Form" node is the primary type above
   formStepSingle: {
     id: 'formStepSingle',
-    name: 'Form Step Single',
+    name: 'Form (Legacy)',
     category: 'form',
     icon: '📋',
     color: '#3b82f6', // blue
-    description: 'Single step with form fields - drag INTO a form process container',
+    description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
