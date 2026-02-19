@@ -30,6 +30,7 @@ import {
 } from '../config/fieldRenderers/basicRenderers';
 import {
   renderEntitySelector,
+  renderEntityFieldPicker,  // Phase E.3: Cascade field picker
   renderFieldMapping,
   renderVariablePicker,
   renderValidationBuilder,
@@ -228,10 +229,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       
       // Complex renderers (Phase D.3) - kept for field-level operations
       case 'entity-field-picker':
-        // This is for selecting FIELDS from an entity, not the entity type itself
-        return renderEntitySelector({
+        // Phase E.3: Cascade field picker - dynamically loads fields based on entityType
+        return renderEntityFieldPicker({
           ...commonProps,
-          data: { ...formData, _upstreamVariables: [] } // Add upstream variables
+          data: formData  // Pass full form data for entityType access
         });
       
       case 'field-mapping':
