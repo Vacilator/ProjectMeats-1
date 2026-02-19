@@ -87,6 +87,7 @@ import {
   FormStepSingleNode,
   FormReferenceNode,
   FormProcessNode,
+  FormProcessGroupNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -1504,6 +1505,8 @@ const staticNodeTypes: NodeTypes = {
   // New names (Phase 2)
   formStepSingle: FormStepSingleNode,
   formProcess: FormProcessNode,
+  // Phase E.3: Labeled group node with parent-child support
+  formProcessGroup: FormProcessGroupNode,
   // Backward compatibility aliases
   formStep: FormStepSingleNode,
   formMultiStepContainer: FormProcessNode,

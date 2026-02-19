@@ -128,6 +128,19 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
   },
   
+  // Phase E.3: Labeled group node with parent-child pattern
+  formProcessGroup: {
+    id: 'formProcessGroup',
+    name: 'Form Process Group',
+    category: 'form',
+    icon: '📦',
+    color: '#8b5cf6', // purple - same as formProcess
+    description: 'LABELED GROUP: React Flow native parent-child container with auto-layout',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+  },
+  
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)
   // These map to the new node types but are marked as deprecated
   formStep: {

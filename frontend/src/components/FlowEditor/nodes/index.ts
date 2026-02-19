@@ -21,6 +21,13 @@ export type { FormReferenceNodeData } from './FormReferenceNode';
 export { FormProcessNode } from './FormProcessNode';
 export type { ContainerNodeData } from './FormProcessNode';
 
+// Phase E.3: Labeled group node with parent-child support
+export { FormProcessGroupNode } from './FormProcessGroupNode';
+export type { FormProcessGroupData, FormProcessGroupNodeProps } from './FormProcessGroupNode';
+
+export { FormProcessChildWrapper, withChildWrapper, autoLayoutChildren, calculateChildYPosition } from './FormProcessChildWrapper';
+export type { FormProcessChildData, FormProcessChildWrapperProps } from './FormProcessChildWrapper';
+
 export { TriggerNode } from './TriggerNode';
 export type { TriggerNodeData } from './TriggerNode';
 
