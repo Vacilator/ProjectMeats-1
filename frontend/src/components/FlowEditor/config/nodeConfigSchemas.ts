@@ -725,3 +725,4 @@ import { schemaRegistry } from './schemaRegistry';
 
 // Initialize registry with all schemas on module load
 schemaRegistry.initialize(allSchemas);
+// Cache bust: 1771486119
