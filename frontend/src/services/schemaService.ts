@@ -44,10 +44,16 @@ export interface EntityFieldsResponse {
  * Cached with React Query for 5 minutes.
  */
 export const getEntityTypes = async (): Promise<EntityType[]> => {
-  const response = await apiClient.get<{ count: number; results: EntityType[] }>(
-    'system/entities/'
-  );
-  return response.data.results;
+  try {
+    const response = await apiClient.get<{ count: number; results: EntityType[] }>(
+      'system/entities/'
+    );
+    return response.data.results;
+  } catch (error) {
+    console.warn('[SchemaService] API call failed, using hardcoded entities:', error);
+    // Return hardcoded entities as fallback
+    return COMMON_ENTITY_TYPES;
+  }
 };
 
 /**
@@ -124,6 +130,7 @@ export const getFieldTypeIcon = (fieldType: string): string => {
  * Hook to fetch entity list with React Query caching.
  * 
  * Phase A Enhancement: Added error handling and fallback to hardcoded entities.
+ * Phase E Fix (2026-02-19): Improved fallback handling for empty dropdowns
  */
 export const useEntityList = () => {
   return useQuery({
@@ -131,13 +138,10 @@ export const useEntityList = () => {
     queryFn: getEntityTypes,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-    // Phase A: If API fails, fallback to hardcoded entities
-    onError: (error) => {
-      console.warn('Failed to fetch entities from API, using fallback:', error);
-    },
-    // Use fallback data if query fails
+    // Always show hardcoded entities immediately while loading
     placeholderData: COMMON_ENTITY_TYPES,
-    retry: 2, // Retry failed requests twice
+    // Retry failed requests
+    retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 };

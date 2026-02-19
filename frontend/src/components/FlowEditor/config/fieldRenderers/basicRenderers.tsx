@@ -140,13 +140,15 @@ export function renderToggleField(
  * This is the CORRECT way to render entity type selection - NOT EntityFieldPicker.
  * 
  * EntityFieldPicker is for selecting FIELDS from an entity, not the entity itself.
+ * 
+ * Phase E Fix (2026-02-19): Improved loading/error handling for empty dropdown issue
  */
 export function renderEntityTypeSelect(
   props: FieldRendererProps<string>
 ): React.ReactNode {
   const { field, value, onChange, error } = props;
   
-  // Fetch entity types from backend API
+  // Fetch entity types from backend API (with fallback to hardcoded entities)
   const { data: entities = [], isLoading, error: fetchError } = useEntityList();
 
   return (
@@ -160,10 +162,10 @@ export function renderEntityTypeSelect(
         onChange={(e) => onChange(e.target.value)}
         disabled={field.disabled || props.disabled || isLoading}
       >
-        {isLoading ? (
+        {isLoading && entities.length === 0 ? (
           <option value="">Loading entities...</option>
         ) : fetchError ? (
-          <option value="">Error loading entities</option>
+          <option value="">Error loading entities (using fallback)</option>
         ) : (
           <>
             <option value="">-- Select Entity Type --</option>
@@ -176,7 +178,7 @@ export function renderEntityTypeSelect(
         )}
       </Select>
       {field.helpText && !error && !fetchError && <HelpText>{field.helpText}</HelpText>}
-      {fetchError && <ErrorMessage>Failed to load entity types: {String(fetchError)}</ErrorMessage>}
+      {fetchError && <ErrorMessage>Using fallback entities (API unavailable)</ErrorMessage>}
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </FormField>
   );
