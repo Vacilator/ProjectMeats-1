@@ -156,8 +156,8 @@ function extractFieldsFromFormStep(node: Node): Array<{
     required?: boolean;
   }> = [];
   
-  // Check if this is a Form Step Single node
-  if (node.type !== 'formStepSingle' && node.type !== 'formStep') {
+  // Check if this is a Form node (renamed from Form Step Single in Phase E)
+  if (node.type !== 'formStepSingle' && node.type !== 'formStep' && node.type !== 'form') {
     return fields;
   }
   
