@@ -60,20 +60,20 @@ def get_entity_models():
     entities = []
     
     # List of tenant_apps to scan
-    # NOTE: These are namespaced under tenant_apps.* in INSTALLED_APPS
+    # NOTE: These are registered as just the app name (e.g., 'suppliers', not 'tenant_apps.suppliers')
     tenant_apps = [
-        'tenant_apps.suppliers',
-        'tenant_apps.customers', 
-        'tenant_apps.products',
-        'tenant_apps.sales_orders',
-        'tenant_apps.purchase_orders',
-        'tenant_apps.invoices',
-        'tenant_apps.carriers',
-        'tenant_apps.contacts',
-        'tenant_apps.inquiries',
-        'tenant_apps.fulfillments',
-        'tenant_apps.locations',
-        'tenant_apps.plants',
+        'suppliers',
+        'customers', 
+        'products',
+        'sales_orders',
+        'purchase_orders',
+        'invoices',
+        'carriers',
+        'contacts',
+        'inquiries',
+        'fulfillments',
+        'locations',
+        'plants',
     ]
     
     for app_label in tenant_apps:
@@ -91,12 +91,9 @@ def get_entity_models():
                     if not f.auto_created or f.concrete
                 ])
                 
-                # Strip tenant_apps prefix for entity ID (use just app.model format)
-                # e.g., tenant_apps.suppliers -> suppliers
-                short_app_label = app_label.replace('tenant_apps.', '')
-                
+                # Use app label as-is for entity ID
                 entities.append({
-                    'id': f"{short_app_label}.{model._meta.model_name}",
+                    'id': f"{app_label}.{model._meta.model_name}",
                     'app': app_label,
                     'model': model._meta.model_name,
                     'label': model._meta.verbose_name.title(),
@@ -124,10 +121,7 @@ def get_entity_fields(entity_id: str):
     try:
         app_label, model_name = entity_id.split('.')
         
-        # Add tenant_apps prefix if not already present
-        if not app_label.startswith('tenant_apps.'):
-            app_label = f'tenant_apps.{app_label}'
-        
+        # Models are registered as just 'suppliers', 'customers', etc. (no tenant_apps prefix)
         model = apps.get_model(app_label, model_name)
     except (ValueError, LookupError):
         return []
@@ -189,10 +183,7 @@ def get_entity_display_fields(entity_id: str):
     try:
         app_label, model_name = entity_id.split('.')
         
-        # Add tenant_apps prefix if not already present
-        if not app_label.startswith('tenant_apps.'):
-            app_label = f'tenant_apps.{app_label}'
-        
+        # Models are registered as just 'suppliers', 'customers', etc. (no tenant_apps prefix)
         model = apps.get_model(app_label, model_name)
     except (ValueError, LookupError):
         return []
