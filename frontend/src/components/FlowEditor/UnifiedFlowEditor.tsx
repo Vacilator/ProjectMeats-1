@@ -2597,8 +2597,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Root Cause: getIntersectingNodes() was returning 0 nodes even when containers exist
    * Console logs showed "Intersecting nodes found: 0" every time
    * Manual bounding box is more reliable and predictable
+   * 
+   * Enhanced logging added for debugging container detection issues
    */
   const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
+    console.log('[Container] =================================');
+    console.log('[Container] Looking for containers at position:', position);
+    
     // Get all container nodes (support both formMultiStepContainer and formProcessGroup)
     const containerNodes = nodes.filter(node => 
       node.type === 'formMultiStepContainer' || 
@@ -2606,7 +2611,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       node.type === 'formProcess'
     );
     
+    console.log('[Container] Total nodes on canvas:', nodes.length);
+    console.log('[Container] Container nodes found:', containerNodes.length);
+    
     if (containerNodes.length === 0) {
+      console.log('[Container] ❌ No containers on canvas');
       return null;
     }
     
@@ -2633,6 +2642,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         bottom: container.position.y + containerHeight, // Use actual dimensions
       };
       
+      console.log(`[Container] Checking ${container.id}:`, {
+        type: container.type,
+        position: container.position,
+        dimensions: { width: containerWidth, height: containerHeight },
+        bounds: bounds,
+        isExpanded: container.data?.isExpanded,
+      });
+      
       // Check if drop position is within bounds
       if (
         position.x >= bounds.left &&
@@ -2640,10 +2657,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         position.y >= bounds.top &&
         position.y <= bounds.bottom
       ) {
+        console.log(`[Container] ✅ Found matching container: ${container.id}`);
         return container;
+      } else {
+        console.log(`[Container] ❌ Position outside ${container.id} bounds`);
       }
     }
     
+    console.log('[Container] ❌ No container matched at position');
     return null;
   }, [nodes]);
   
@@ -2814,8 +2835,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const targetContainer = findContainerAtPosition(position);
       
       if (targetContainer) {
+        console.log(`[Container] ✅ Detected drop into container ${targetContainer.id}`);
+        
         // Phase 1.3: Ensure container is expanded
         if (!targetContainer.data.isExpanded) {
+          console.log(`[Container] Expanding collapsed container ${targetContainer.id}`);
           setNodes((nds) =>
             nds.map((n) => {
               if (n.id === targetContainer.id) {
@@ -2830,9 +2854,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               return n;
             })
           );
+        } else {
+          console.log(`[Container] Container ${targetContainer.id} already expanded`);
         }
       } else {
         console.log(`[Container] No container detected at position`, position);
+        console.log(`[Container] Node will be added to main canvas`);
       }
       
       // Check for nearby node to auto-connect
@@ -2876,15 +2903,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                                type === 'formProcess';
         
         if (isContainerType) {
+          console.log(`[Container] ❌ Cannot nest containers - node type ${type} will be added to main canvas`);
           // Fall through to main canvas drop - don't allow nested containers
         } else {
+          console.log(`[Container] Adding node ${newNode.id} as child of container ${targetContainer.id}`);
+          
           // Phase 1.4: Set up React Flow native parent-child relationship
           
           // Calculate position relative to container
-          newNode.position = {
+          const relativePosition = {
             x: position.x - targetContainer.position.x,
             y: position.y - targetContainer.position.y,
           };
+          
+          console.log(`[Container] Position - Absolute: (${position.x}, ${position.y}), Relative: (${relativePosition.x}, ${relativePosition.y})`);
+          
+          newNode.position = relativePosition;
           
           // Phase 1.4: Set parentId property (React Flow v12+ native grouping)
           newNode.parentId = targetContainer.id;
@@ -2900,11 +2934,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           const isParentExpanded = targetContainer.data?.isExpanded ?? true;
           newNode.hidden = !isParentExpanded; // Hidden when collapsed, visible when expanded
           
+          console.log(`[Container] ✅ Node configured:`, {
+            nodeId: newNode.id,
+            parentId: newNode.parentId,
+            relativePosition: newNode.position,
+            extent: newNode.extent,
+            expandParent: newNode.expandParent,
+            hidden: newNode.hidden,
+          });
+          
           // Add node to main state
           // CRITICAL: Parent nodes must come before their children in the array
           // React Flow requirement: "Parent nodes must be in front of their child nodes"
           // Find parent index and insert child right after it
           const parentIndex = nodes.findIndex((n) => n.id === targetContainer.id);
+          console.log(`[Container] Inserting node at index ${parentIndex + 1} (after parent)`);
+          
           const updatedNodes = [
             ...nodes.slice(0, parentIndex + 1),
             newNode,
@@ -2915,11 +2960,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setNodeIdCounter((prev) => prev + 1);
           
           // Phase 3.3: Trigger auto-layout for container
+          console.log(`[Container] Triggering auto-layout for container ${targetContainer.id}`);
           const layoutResult = calculateContainerLayout(
             targetContainer.id,
             updatedNodes,
             edges
           );
+          
+          console.log(`[Layout] Result:`, {
+            containerWidth: layoutResult.containerWidth,
+            containerHeight: layoutResult.containerHeight,
+            childrenCount: layoutResult.nodes.filter(n => n.parentId === targetContainer.id).length,
+          });
           
           // Phase 3.3: Apply layout, container dimensions, AND clear drop target in SINGLE setNodes call
           // CRITICAL: Multiple setNodes calls can cause race conditions with parent/child rendering
