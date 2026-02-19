@@ -27,10 +27,9 @@ import {
  * Render a text input field
  */
 export function renderTextField(
-  field: ConfigField,
   props: FieldRendererProps<string>
 ): React.ReactNode {
-  const { value, onChange, error } = props;
+  const { field, value, onChange, error } = props;
 
   return (
     <FormField key={field.id}>
@@ -65,10 +64,9 @@ export function renderTextField(
  * Render a select dropdown field
  */
 export function renderSelectField(
-  field: ConfigField,
   props: FieldRendererProps<string | string[]>
 ): React.ReactNode {
-  const { value, onChange, error } = props;
+  const { field, value, onChange, error } = props;
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (field.type === 'multiselect') {
@@ -110,10 +108,9 @@ export function renderSelectField(
  * Render a toggle switch field
  */
 export function renderToggleField(
-  field: ConfigField,
   props: FieldRendererProps<boolean>
 ): React.ReactNode {
-  const { value, onChange, error } = props;
+  const { field, value, onChange, error } = props;
 
   return (
     <FormField key={field.id}>

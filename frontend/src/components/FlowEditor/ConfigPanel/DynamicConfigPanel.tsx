@@ -27,6 +27,12 @@ import {
   renderSelectField, 
   renderToggleField 
 } from '../config/fieldRenderers/basicRenderers';
+import {
+  renderEntitySelector,
+  renderFieldMapping,
+  renderVariablePicker,
+  renderValidationBuilder,
+} from '../config/fieldRenderers/complexRenderers';
 
 // Import shared styled components
 import {
@@ -204,28 +210,36 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'text':
       case 'textarea':
       case 'number':
-        return renderTextField(field, commonProps);
+        return renderTextField(commonProps);
       
       case 'select':
       case 'multiselect':
-        return renderSelectField(field, commonProps);
+        return renderSelectField(commonProps);
       
       case 'toggle':
-        return renderToggleField(field, commonProps);
+        return renderToggleField(commonProps);
       
-      // For complex types, we'll add renderers later or reference existing components
+      // Complex renderers (Phase D.3)
       case 'entity-selector':
+        return renderEntitySelector({
+          ...commonProps,
+          data: { ...formData, _upstreamVariables: [] } // Add upstream variables
+        });
+      
       case 'field-mapping':
+        return renderFieldMapping({
+          ...commonProps,
+          data: { ...formData, _upstreamVariables: [] } // Add upstream variables
+        });
+      
       case 'variable-picker':
+        return renderVariablePicker({
+          ...commonProps,
+          data: { ...formData, _upstreamVariables: [] } // Add upstream variables
+        });
+      
       case 'validation-builder':
-        return (
-          <PlaceholderField key={field.id}>
-            <PlaceholderLabel>{field.label}</PlaceholderLabel>
-            <PlaceholderHint>
-              {field.type} renderer coming soon (Phase D.3)
-            </PlaceholderHint>
-          </PlaceholderField>
-        );
+        return renderValidationBuilder(commonProps);
       
       default:
         return (
