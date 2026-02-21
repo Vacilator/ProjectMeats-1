@@ -118,11 +118,14 @@ import { validateWorkflow, type ValidationResult } from './utils/validationEngin
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
+import { EnhancedContextMenu, useEnhancedContextMenu } from './components/EnhancedContextMenu'; // Phase 2: UI/UX
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization'; // Fix test imports
 import { NodeConfigPanelWithShadow } from './ConfigPanel';
+import { getLayoutedElements, alignNodesHorizontally, alignNodesVertically, distributeNodesHorizontally, distributeNodesVertically } from './utils/autoLayout'; // Phase 2: UI/UX
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2: UI/UX
 
 // FormBuilder Context Provider (2026-02-21 Comprehensive Enhancements)
 import { FormBuilderProvider } from '../../contexts/FormBuilderContext';
@@ -3990,6 +3993,152 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus]);
   
   /**
+   * Auto-layout: Apply dagre layout to all nodes
+   * Phase 2: UI/UX Enhancements
+   */
+  const handleAutoLayout = useCallback(() => {
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      nodes,
+      edges,
+      { direction: 'TB', nodeSpacing: 60, rankSpacing: 120 }
+    );
+    setNodes(layoutedNodes);
+    setHasUnsavedChanges(true);
+    toast.success('Layout applied successfully');
+  }, [nodes, edges, setNodes]);
+
+  /**
+   * Auto-layout selected nodes only
+   */
+  const handleAutoLayoutSelected = useCallback(() => {
+    const selectedNodeIds = nodes.filter(n => n.selected).map(n => n.id);
+    if (selectedNodeIds.length < 2) {
+      toast.error('Select at least 2 nodes to layout');
+      return;
+    }
+
+    const selectedNodes = nodes.filter(n => selectedNodeIds.includes(n.id));
+    const relevantEdges = edges.filter(
+      e => selectedNodeIds.includes(e.source) && selectedNodeIds.includes(e.target)
+    );
+
+    const { nodes: layoutedSelected } = getLayoutedElements(
+      selectedNodes,
+      relevantEdges,
+      { direction: 'TB' }
+    );
+
+    // Merge layouted nodes back
+    const updatedNodes = nodes.map(node => {
+      const layouted = layoutedSelected.find(n => n.id === node.id);
+      return layouted || node;
+    });
+
+    setNodes(updatedNodes);
+    setHasUnsavedChanges(true);
+    toast.success(`Layouted ${selectedNodeIds.length} nodes`);
+  }, [nodes, edges, setNodes]);
+
+  /**
+   * Align selected nodes
+   */
+  const handleAlignHorizontal = useCallback((alignment: 'left' | 'center' | 'right') => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) {
+      toast.error('Select at least 2 nodes to align');
+      return;
+    }
+
+    const aligned = alignNodesHorizontally(selectedNodes, alignment);
+    const updatedNodes = nodes.map(node => {
+      const alignedNode = aligned.find(n => n.id === node.id);
+      return alignedNode || node;
+    });
+
+    setNodes(updatedNodes);
+    setHasUnsavedChanges(true);
+  }, [nodes, setNodes]);
+
+  const handleAlignVertical = useCallback((alignment: 'top' | 'middle' | 'bottom') => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 2) {
+      toast.error('Select at least 2 nodes to align');
+      return;
+    }
+
+    const aligned = alignNodesVertically(selectedNodes, alignment);
+    const updatedNodes = nodes.map(node => {
+      const alignedNode = aligned.find(n => n.id === node.id);
+      return alignedNode || node;
+    });
+
+    setNodes(updatedNodes);
+    setHasUnsavedChanges(true);
+  }, [nodes, setNodes]);
+
+  /**
+   * Distribute selected nodes
+   */
+  const handleDistributeHorizontal = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 3) {
+      toast.error('Select at least 3 nodes to distribute');
+      return;
+    }
+
+    const distributed = distributeNodesHorizontally(selectedNodes);
+    const updatedNodes = nodes.map(node => {
+      const distributedNode = distributed.find(n => n.id === node.id);
+      return distributedNode || node;
+    });
+
+    setNodes(updatedNodes);
+    setHasUnsavedChanges(true);
+  }, [nodes, setNodes]);
+
+  const handleDistributeVertical = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length < 3) {
+      toast.error('Select at least 3 nodes to distribute');
+      return;
+    }
+
+    const distributed = distributeNodesVertically(selectedNodes);
+    const updatedNodes = nodes.map(node => {
+      const distributedNode = distributed.find(n => n.id === node.id);
+      return distributedNode || node;
+    });
+
+    setNodes(updatedNodes);
+    setHasUnsavedChanges(true);
+  }, [nodes, setNodes]);
+
+  /**
+   * Setup keyboard shortcuts
+   * Phase 2: UI/UX Enhancements
+   */
+  useKeyboardShortcuts({
+    onSave: handleSaveWorkflow,
+    onLayout: handleAutoLayout,
+    onUndo: () => {
+      if (historyIndex > 0) {
+        const prevState = history[historyIndex - 1];
+        setNodes(prevState.nodes);
+        setEdges(prevState.edges);
+        setHistoryIndex(historyIndex - 1);
+      }
+    },
+    onRedo: () => {
+      if (historyIndex < history.length - 1) {
+        const nextState = history[historyIndex + 1];
+        setNodes(nextState.nodes);
+        setEdges(nextState.edges);
+        setHistoryIndex(historyIndex + 1);
+      }
+    },
+  });
+  
+  /**
    * Load workflow from backend
    */
   const handleLoadWorkflow = useCallback(async (workflowId: string) => {
@@ -5409,6 +5558,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           >
             <Eye size={14} style={{ marginRight: '4px' }} />
             Preview Flow
+          </ToolbarButton>
+          
+          {/* Phase 2: Auto-Layout */}
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          <ToolbarButton 
+            onClick={handleAutoLayout}
+            title="Auto-Layout All Nodes (Ctrl+L)"
+            disabled={nodes.length === 0}
+          >
+            <AlignVerticalDistributeCenter size={14} style={{ marginRight: '4px' }} />
+            Layout
           </ToolbarButton>
         </Toolbar>
       )}
