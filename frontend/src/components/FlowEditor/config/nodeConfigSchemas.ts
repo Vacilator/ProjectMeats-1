@@ -10,7 +10,7 @@
  */
 
 import { NodeConfigSchema } from './types';
-import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database } from 'lucide-react';
+import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Zap, Calendar, Webhook, Clock, FileSignature, Upload, Archive } from 'lucide-react';
 
 // ============================================================================
 // Form Node Schema (Phase E - 2026-02-19)
@@ -850,5 +850,685 @@ schemaRegistry.register({
 }, true); // Allow overwrite
 
 console.log('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
+
+// ============================================================================
+// Phase 2: Trigger Node Schema (Unified Entry Point)
+// ============================================================================
+
+/**
+ * Unified Trigger Node Schema
+ * 
+ * Single trigger node with cascading configuration based on selected type.
+ * Supports: webhook, schedule, manual/quick-action, event, form-submit.
+ * 
+ * Created: 2026-02-21 - Phase 2: Trigger + Documents + Palette
+ */
+export const triggerSchema: NodeConfigSchema = {
+  nodeType: 'trigger',
+  displayName: 'Trigger',
+  description: 'Start a workflow automatically or manually',
+  icon: Zap,
+  version: '1.0.0',
+  tags: ['trigger', 'entry-point', 'automation'],
+  contextAware: false, // Triggers are entry points, no upstream context
+
+  sections: [
+    {
+      id: 'triggerType',
+      title: 'Trigger Type',
+      icon: Zap,
+      defaultExpanded: true,
+      description: 'Choose how this workflow should start',
+      fields: [
+        {
+          id: 'type',
+          type: 'select',
+          label: 'Trigger Type',
+          placeholder: 'Select trigger type...',
+          helpText: 'How should this workflow be triggered?',
+          required: true,
+          options: [
+            { value: 'manual', label: 'Manual / Quick Action', description: 'User clicks a button to start' },
+            { value: 'webhook', label: 'Webhook', description: 'Receive data from external API' },
+            { value: 'schedule', label: 'Schedule / Cron', description: 'Run on a time-based schedule' },
+            { value: 'event', label: 'Database Event', description: 'Trigger on record create/update/delete' },
+            { value: 'formSubmit', label: 'Form Submission', description: 'Start when a form is submitted' },
+          ],
+          defaultValue: 'manual',
+          validation: [
+            {
+              type: 'required',
+              message: 'Please select a trigger type'
+            }
+          ]
+        },
+      ]
+    },
+    
+    // Webhook Configuration (conditional)
+    {
+      id: 'webhookConfig',
+      title: 'Webhook Configuration',
+      icon: Webhook,
+      defaultExpanded: true,
+      description: 'Configure webhook endpoint and authentication',
+      visibilityCondition: {
+        field: 'type',
+        operator: 'equals',
+        value: 'webhook'
+      },
+      fields: [
+        {
+          id: 'webhookUrl',
+          type: 'text',
+          label: 'Webhook URL',
+          placeholder: 'Auto-generated on save',
+          helpText: 'Unique URL for receiving webhook calls (generated automatically)',
+          readOnly: true,
+        },
+        {
+          id: 'webhookAuth',
+          type: 'select',
+          label: 'Authentication',
+          options: [
+            { value: 'none', label: 'None (Public)' },
+            { value: 'token', label: 'Bearer Token' },
+            { value: 'hmac', label: 'HMAC Signature' },
+            { value: 'basic', label: 'Basic Auth' },
+          ],
+          defaultValue: 'token',
+          helpText: 'Security method for incoming webhook requests',
+          validation: [{ type: 'required', message: 'Select authentication method' }]
+        },
+        {
+          id: 'webhookSecret',
+          type: 'text',
+          label: 'Secret / Token',
+          placeholder: 'Auto-generated',
+          helpText: 'Secret key for validating incoming requests (auto-generated)',
+          readOnly: true,
+          visibilityCondition: {
+            field: 'webhookAuth',
+            operator: 'notEquals',
+            value: 'none'
+          }
+        },
+        {
+          id: 'webhookMethod',
+          type: 'multiSelect',
+          label: 'Allowed HTTP Methods',
+          options: [
+            { value: 'POST', label: 'POST' },
+            { value: 'PUT', label: 'PUT' },
+            { value: 'PATCH', label: 'PATCH' },
+          ],
+          defaultValue: ['POST'],
+          helpText: 'Which HTTP methods should trigger the workflow',
+        },
+      ]
+    },
+    
+    // Schedule Configuration (conditional)
+    {
+      id: 'scheduleConfig',
+      title: 'Schedule Configuration',
+      icon: Calendar,
+      defaultExpanded: true,
+      description: 'Configure when the workflow should run',
+      visibilityCondition: {
+        field: 'type',
+        operator: 'equals',
+        value: 'schedule'
+      },
+      fields: [
+        {
+          id: 'scheduleType',
+          type: 'select',
+          label: 'Schedule Type',
+          options: [
+            { value: 'simple', label: 'Simple (Every X minutes/hours/days)' },
+            { value: 'cron', label: 'Cron Expression (Advanced)' },
+          ],
+          defaultValue: 'simple',
+          validation: [{ type: 'required', message: 'Select schedule type' }]
+        },
+        {
+          id: 'scheduleInterval',
+          type: 'number',
+          label: 'Interval',
+          placeholder: 'e.g., 15',
+          helpText: 'How often to run',
+          defaultValue: 15,
+          visibilityCondition: {
+            field: 'scheduleType',
+            operator: 'equals',
+            value: 'simple'
+          },
+          validation: [
+            { type: 'required', message: 'Interval is required' },
+            { type: 'min', value: 1, message: 'Minimum interval is 1' }
+          ]
+        },
+        {
+          id: 'scheduleUnit',
+          type: 'select',
+          label: 'Unit',
+          options: [
+            { value: 'minutes', label: 'Minutes' },
+            { value: 'hours', label: 'Hours' },
+            { value: 'days', label: 'Days' },
+            { value: 'weeks', label: 'Weeks' },
+          ],
+          defaultValue: 'minutes',
+          visibilityCondition: {
+            field: 'scheduleType',
+            operator: 'equals',
+            value: 'simple'
+          },
+        },
+        {
+          id: 'cronExpression',
+          type: 'text',
+          label: 'Cron Expression',
+          placeholder: '0 0 * * *',
+          helpText: 'Unix cron syntax (minute hour day month weekday)',
+          visibilityCondition: {
+            field: 'scheduleType',
+            operator: 'equals',
+            value: 'cron'
+          },
+          validation: [
+            { type: 'required', message: 'Cron expression is required' },
+            { type: 'pattern', value: '^[\\d\\*\\,\\-\\/\\s]+$', message: 'Invalid cron syntax' }
+          ]
+        },
+        {
+          id: 'timezone',
+          type: 'select',
+          label: 'Timezone',
+          options: [
+            { value: 'UTC', label: 'UTC' },
+            { value: 'America/New_York', label: 'Eastern Time (US)' },
+            { value: 'America/Chicago', label: 'Central Time (US)' },
+            { value: 'America/Denver', label: 'Mountain Time (US)' },
+            { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
+            { value: 'Europe/London', label: 'London (GMT/BST)' },
+            { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
+          ],
+          defaultValue: 'UTC',
+          helpText: 'Timezone for schedule execution',
+        },
+      ]
+    },
+    
+    // Event Configuration (conditional)
+    {
+      id: 'eventConfig',
+      title: 'Event Configuration',
+      icon: Database,
+      defaultExpanded: true,
+      description: 'Configure database event triggers',
+      visibilityCondition: {
+        field: 'type',
+        operator: 'equals',
+        value: 'event'
+      },
+      fields: [
+        {
+          id: 'eventEntity',
+          type: 'entityType',
+          label: 'Entity',
+          placeholder: 'Select entity...',
+          helpText: 'Which entity should trigger this workflow',
+          required: true,
+          validation: [{ type: 'required', message: 'Entity is required' }]
+        },
+        {
+          id: 'eventTrigger',
+          type: 'multiSelect',
+          label: 'Trigger On',
+          options: [
+            { value: 'create', label: 'Record Created' },
+            { value: 'update', label: 'Record Updated' },
+            { value: 'delete', label: 'Record Deleted' },
+          ],
+          defaultValue: ['create'],
+          helpText: 'Which actions should trigger the workflow',
+          validation: [{ type: 'required', message: 'Select at least one trigger' }]
+        },
+        {
+          id: 'eventCondition',
+          type: 'conditionBuilder',
+          label: 'Conditions (Optional)',
+          helpText: 'Only trigger if record matches these conditions',
+        },
+      ]
+    },
+    
+    // Form Submit Configuration (conditional)
+    {
+      id: 'formSubmitConfig',
+      title: 'Form Submit Configuration',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Configure form submission trigger',
+      visibilityCondition: {
+        field: 'type',
+        operator: 'equals',
+        value: 'formSubmit'
+      },
+      fields: [
+        {
+          id: 'formId',
+          type: 'formReference',
+          label: 'Form',
+          placeholder: 'Select form...',
+          helpText: 'Which form submission should trigger this workflow',
+          required: true,
+          validation: [{ type: 'required', message: 'Form is required' }]
+        },
+      ]
+    },
+    
+    // Manual/Quick Action Configuration (conditional)
+    {
+      id: 'manualConfig',
+      title: 'Quick Action Configuration',
+      icon: Zap,
+      defaultExpanded: true,
+      description: 'Configure manual trigger button',
+      visibilityCondition: {
+        field: 'type',
+        operator: 'equals',
+        value: 'manual'
+      },
+      fields: [
+        {
+          id: 'buttonLabel',
+          type: 'text',
+          label: 'Button Label',
+          placeholder: 'e.g., Start Workflow',
+          helpText: 'Label for the quick action button',
+          defaultValue: 'Start Workflow',
+          validation: [{ type: 'required', message: 'Button label is required' }]
+        },
+        {
+          id: 'showInQuickActions',
+          type: 'boolean',
+          label: 'Show in Quick Actions Menu',
+          helpText: 'Display this workflow in the top navigation quick actions dropdown',
+          defaultValue: true,
+        },
+        {
+          id: 'requireConfirmation',
+          type: 'boolean',
+          label: 'Require Confirmation',
+          helpText: 'Ask user to confirm before starting the workflow',
+          defaultValue: false,
+        },
+      ]
+    },
+  ]
+};
+
+// Register trigger schema
+schemaRegistry.register(triggerSchema);
+console.log('[Schema Registry] Registered triggerSchema');
+
+// ============================================================================
+// Phase 2: Document Node Schemas
+// ============================================================================
+
+/**
+ * Generate Document Schema (PDF/Word from template)
+ */
+export const documentGenerateSchema: NodeConfigSchema = {
+  nodeType: 'documentGenerate',
+  displayName: 'Generate Document',
+  description: 'Generate PDF or Word document from template',
+  icon: FileText,
+  version: '1.0.0',
+  tags: ['document', 'pdf', 'template', 'generation'],
+  contextAware: true,
+
+  sections: [
+    {
+      id: 'template',
+      title: 'Template Settings',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Configure document template and output format',
+      fields: [
+        {
+          id: 'templateSource',
+          type: 'select',
+          label: 'Template Source',
+          options: [
+            { value: 'library', label: 'Template Library' },
+            { value: 'upload', label: 'Upload Template' },
+            { value: 'url', label: 'Template URL' },
+          ],
+          defaultValue: 'library',
+          helpText: 'Where to load the document template from',
+          validation: [{ type: 'required', message: 'Select template source' }]
+        },
+        {
+          id: 'templateId',
+          type: 'select',
+          label: 'Template',
+          placeholder: 'Select template...',
+          helpText: 'Pre-configured document template',
+          required: true,
+          visibilityCondition: {
+            field: 'templateSource',
+            operator: 'equals',
+            value: 'library'
+          },
+          // Options loaded dynamically from API
+          validation: [{ type: 'required', message: 'Template is required' }]
+        },
+        {
+          id: 'outputFormat',
+          type: 'select',
+          label: 'Output Format',
+          options: [
+            { value: 'pdf', label: 'PDF' },
+            { value: 'docx', label: 'Word (DOCX)' },
+            { value: 'html', label: 'HTML' },
+          ],
+          defaultValue: 'pdf',
+          helpText: 'Format for generated document',
+          validation: [{ type: 'required', message: 'Select output format' }]
+        },
+        {
+          id: 'fileName',
+          type: 'text',
+          label: 'File Name',
+          placeholder: 'e.g., invoice-{{orderId}}.pdf',
+          helpText: 'Name for the generated file (supports variables)',
+          validation: [
+            { type: 'required', message: 'File name is required' },
+            { type: 'pattern', value: '^[\\w\\-\\.\\{\\}]+$', message: 'Invalid file name format' }
+          ]
+        },
+      ]
+    },
+    {
+      id: 'dataBinding',
+      title: 'Data Binding',
+      icon: Database,
+      defaultExpanded: false,
+      description: 'Map workflow data to template fields',
+      fields: [
+        {
+          id: 'fieldMappings',
+          type: 'fieldMapping',
+          label: 'Field Mappings',
+          helpText: 'Map template variables to workflow data',
+        },
+      ]
+    },
+  ]
+};
+
+/**
+ * Document Sign/Request Signature Schema
+ */
+export const documentSignSchema: NodeConfigSchema = {
+  nodeType: 'documentSign',
+  displayName: 'Request Signature',
+  description: 'Request electronic signature on a document',
+  icon: FileSignature,
+  version: '1.0.0',
+  tags: ['document', 'signature', 'e-sign', 'approval'],
+  contextAware: true,
+
+  sections: [
+    {
+      id: 'document',
+      title: 'Document Settings',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Configure document to be signed',
+      fields: [
+        {
+          id: 'documentSource',
+          type: 'select',
+          label: 'Document Source',
+          options: [
+            { value: 'upstream', label: 'From Previous Step' },
+            { value: 'library', label: 'Document Library' },
+            { value: 'url', label: 'Document URL' },
+          ],
+          defaultValue: 'upstream',
+          helpText: 'Where to get the document for signing',
+          validation: [{ type: 'required', message: 'Select document source' }]
+        },
+        {
+          id: 'documentId',
+          type: 'variablePicker',
+          label: 'Document',
+          placeholder: 'Select document from previous step...',
+          helpText: 'Document to be signed',
+          required: true,
+          visibilityCondition: {
+            field: 'documentSource',
+            operator: 'equals',
+            value: 'upstream'
+          },
+          validation: [{ type: 'required', message: 'Document is required' }]
+        },
+      ]
+    },
+    {
+      id: 'signers',
+      title: 'Signers',
+      icon: FileSignature,
+      defaultExpanded: true,
+      description: 'Configure who needs to sign',
+      fields: [
+        {
+          id: 'signerEmail',
+          type: 'text',
+          label: 'Signer Email',
+          placeholder: 'e.g., {{customerEmail}}',
+          helpText: 'Email address of person who needs to sign (supports variables)',
+          required: true,
+          validation: [
+            { type: 'required', message: 'Signer email is required' },
+            { type: 'email', message: 'Must be a valid email or variable' }
+          ]
+        },
+        {
+          id: 'signerName',
+          type: 'text',
+          label: 'Signer Name',
+          placeholder: 'e.g., {{customerName}}',
+          helpText: 'Full name of signer (supports variables)',
+        },
+        {
+          id: 'deadline',
+          type: 'number',
+          label: 'Deadline (Days)',
+          placeholder: '7',
+          helpText: 'Number of days until signature request expires',
+          defaultValue: 7,
+          validation: [
+            { type: 'min', value: 1, message: 'Minimum 1 day' },
+            { type: 'max', value: 365, message: 'Maximum 365 days' }
+          ]
+        },
+        {
+          id: 'reminderFrequency',
+          type: 'select',
+          label: 'Reminder Frequency',
+          options: [
+            { value: 'none', label: 'No Reminders' },
+            { value: 'daily', label: 'Daily' },
+            { value: 'every3days', label: 'Every 3 Days' },
+            { value: 'weekly', label: 'Weekly' },
+          ],
+          defaultValue: 'every3days',
+          helpText: 'How often to send reminder emails',
+        },
+      ]
+    },
+  ]
+};
+
+/**
+ * Document Upload Schema
+ */
+export const documentUploadSchema: NodeConfigSchema = {
+  nodeType: 'documentUpload',
+  displayName: 'Upload Document',
+  description: 'Upload document to external service or storage',
+  icon: Upload,
+  version: '1.0.0',
+  tags: ['document', 'upload', 'storage', 'integration'],
+  contextAware: true,
+
+  sections: [
+    {
+      id: 'source',
+      title: 'Document Source',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Select document to upload',
+      fields: [
+        {
+          id: 'documentSource',
+          type: 'variablePicker',
+          label: 'Document',
+          placeholder: 'Select document from previous step...',
+          helpText: 'Document to upload',
+          required: true,
+          validation: [{ type: 'required', message: 'Document is required' }]
+        },
+      ]
+    },
+    {
+      id: 'destination',
+      title: 'Upload Destination',
+      icon: Upload,
+      defaultExpanded: true,
+      description: 'Configure where to upload the document',
+      fields: [
+        {
+          id: 'service',
+          type: 'select',
+          label: 'Service',
+          options: [
+            { value: 's3', label: 'Amazon S3' },
+            { value: 'gcs', label: 'Google Cloud Storage' },
+            { value: 'azure', label: 'Azure Blob Storage' },
+            { value: 'dropbox', label: 'Dropbox' },
+            { value: 'onedrive', label: 'OneDrive' },
+            { value: 'internal', label: 'Internal Storage' },
+          ],
+          defaultValue: 'internal',
+          helpText: 'Storage service to upload to',
+          validation: [{ type: 'required', message: 'Select service' }]
+        },
+        {
+          id: 'folderPath',
+          type: 'text',
+          label: 'Folder Path',
+          placeholder: 'e.g., /documents/{{year}}/',
+          helpText: 'Destination folder (supports variables)',
+        },
+        {
+          id: 'makePublic',
+          type: 'boolean',
+          label: 'Make Public',
+          helpText: 'Generate public URL for the uploaded document',
+          defaultValue: false,
+        },
+      ]
+    },
+  ]
+};
+
+/**
+ * Document Store/Archive Schema
+ */
+export const documentStoreSchema: NodeConfigSchema = {
+  nodeType: 'documentStore',
+  displayName: 'Store Document',
+  description: 'Save document to internal archive with metadata',
+  icon: Archive,
+  version: '1.0.0',
+  tags: ['document', 'storage', 'archive', 'records'],
+  contextAware: true,
+
+  sections: [
+    {
+      id: 'document',
+      title: 'Document Settings',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Configure document storage',
+      fields: [
+        {
+          id: 'documentSource',
+          type: 'variablePicker',
+          label: 'Document',
+          placeholder: 'Select document from previous step...',
+          helpText: 'Document to store',
+          required: true,
+          validation: [{ type: 'required', message: 'Document is required' }]
+        },
+        {
+          id: 'category',
+          type: 'select',
+          label: 'Category',
+          options: [
+            { value: 'invoice', label: 'Invoices' },
+            { value: 'contract', label: 'Contracts' },
+            { value: 'quote', label: 'Quotes' },
+            { value: 'report', label: 'Reports' },
+            { value: 'other', label: 'Other' },
+          ],
+          defaultValue: 'other',
+          helpText: 'Document category for organization',
+          validation: [{ type: 'required', message: 'Select category' }]
+        },
+        {
+          id: 'tags',
+          type: 'multiSelect',
+          label: 'Tags',
+          placeholder: 'Add tags...',
+          helpText: 'Tags for searchability and filtering',
+        },
+        {
+          id: 'relatedEntity',
+          type: 'entityType',
+          label: 'Related Entity (Optional)',
+          placeholder: 'Link to entity...',
+          helpText: 'Associate document with a specific entity record',
+        },
+        {
+          id: 'relatedRecordId',
+          type: 'variablePicker',
+          label: 'Record ID',
+          placeholder: 'Select record ID...',
+          helpText: 'ID of the related entity record',
+          visibilityCondition: {
+            field: 'relatedEntity',
+            operator: 'notEmpty',
+          }
+        },
+      ]
+    },
+  ]
+};
+
+// Register document schemas
+schemaRegistry.register(documentGenerateSchema);
+schemaRegistry.register(documentSignSchema);
+schemaRegistry.register(documentUploadSchema);
+schemaRegistry.register(documentStoreSchema);
+
+console.log('[Schema Registry] Registered document schemas (generate, sign, upload, store)');
 
 // Cache bust: 1771488534
