@@ -2046,6 +2046,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   // Configuration Panel
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   
   // FormStep specialized configuration (Phase 4.2.B Integration)
   const [formStepModalOpen, setFormStepModalOpen] = useState(false);
@@ -4406,6 +4407,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const node = selectedNodes[0];
       console.log('[Selection] Node selected (border highlight only):', node.type, node.id);
       
+      // Track selected node ID for keyboard shortcuts and debugging
+      setSelectedNodeId(node.id);
+      
       // DO NOT call setSelectedNode(node) here!
       // That triggers NodeConfigPanel to open automatically.
       // Selection only provides visual feedback (border).
@@ -4414,6 +4418,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     } else {
       console.log('[Selection] Cleared selection');
       // Clear all selections when nothing selected
+      setSelectedNodeId(null);
       setSelectedNode(null);
       setSelectedFormStep(null);
       setSelectedFormField(null);
