@@ -9,41 +9,8 @@
 import { describe, it, expect } from 'vitest';
 import { Node } from '@xyflow/react';
 
-// Since normalizeNodes is not exported, we'll test the behavior through
-// the component integration. For now, we create a local copy for unit testing.
-import { NODE_TYPE_REGISTRY } from '../nodeTypes';
-
-/**
- * Local copy of normalizeNodeData for testing purposes
- */
-function normalizeNodeData(node: Node): Node {
-  // If data is undefined, initialize it
-  if (!node.data) {
-    node.data = {};
-  }
-  
-  // Get node type definition
-  const nodeType = node.type || '';
-  const nodeDef = NODE_TYPE_REGISTRY[nodeType];
-  
-  // Ensure maxInputs and maxOutputs are set
-  if (typeof node.data.maxInputs === 'undefined' && nodeDef) {
-    node.data.maxInputs = nodeDef.maxInputs ?? 1;
-  }
-  
-  if (typeof node.data.maxOutputs === 'undefined' && nodeDef) {
-    node.data.maxOutputs = nodeDef.maxOutputs ?? 1;
-  }
-  
-  return node;
-}
-
-/**
- * Local copy of normalizeNodes for testing purposes
- */
-function normalizeNodes(nodes: Node[]): Node[] {
-  return nodes.map(normalizeNodeData);
-}
+// Import the actual functions from the component
+import { normalizeNodeData, normalizeNodes } from '../UnifiedFlowEditor';
 
 describe('Node Normalization', () => {
   describe('normalizeNodeData', () => {
@@ -120,6 +87,20 @@ describe('Node Normalization', () => {
       expect(normalized.data.maxOutputs).toBe(0);
     });
     
+    it('should handle unlimited connections (-1)', () => {
+      const node: Node = {
+        id: '1',
+        type: 'conditionSwitch',
+        position: { x: 0, y: 0 },
+        data: {},
+      };
+      
+      const normalized = normalizeNodeData(node);
+      
+      expect(normalized.data.maxInputs).toBe(1);
+      expect(normalized.data.maxOutputs).toBe(-1); // Unlimited
+    });
+    
     it('should handle unknown node types with defaults', () => {
       const node: Node = {
         id: '1',
@@ -130,9 +111,31 @@ describe('Node Normalization', () => {
       
       const normalized = normalizeNodeData(node);
       
-      // Should not crash, but won't add properties for unknown types
+      // Should not add properties for unknown types
       expect(normalized.data.maxInputs).toBeUndefined();
       expect(normalized.data.maxOutputs).toBeUndefined();
+    });
+    
+    it('should not mutate the original node', () => {
+      const node: Node = {
+        id: '1',
+        type: 'actionEmail',
+        position: { x: 0, y: 0 },
+        data: { label: 'Original' },
+      };
+      
+      const normalized = normalizeNodeData(node);
+      
+      // Original node should not be modified
+      expect(node.data.maxInputs).toBeUndefined();
+      expect(node.data.maxOutputs).toBeUndefined();
+      
+      // Normalized node should have the properties
+      expect(normalized.data.maxInputs).toBe(1);
+      expect(normalized.data.maxOutputs).toBe(1);
+      
+      // Other properties should be preserved
+      expect(normalized.data.label).toBe('Original');
     });
   });
   
@@ -190,6 +193,25 @@ describe('Node Normalization', () => {
       
       // Should not crash
       expect(normalized).toHaveLength(1);
+    });
+    
+    it('should not mutate the original array or nodes', () => {
+      const nodes: Node[] = [
+        {
+          id: '1',
+          type: 'actionEmail',
+          position: { x: 0, y: 0 },
+          data: {},
+        },
+      ];
+      
+      const normalized = normalizeNodes(nodes);
+      
+      // Original nodes should not be modified
+      expect(nodes[0].data.maxInputs).toBeUndefined();
+      
+      // Normalized nodes should have the properties
+      expect(normalized[0].data.maxInputs).toBe(1);
     });
   });
   
