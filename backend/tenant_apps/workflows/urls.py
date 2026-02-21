@@ -37,6 +37,13 @@ from .views import (
     WorkFormPermissionsAPIView
 )
 
+# Phase 5: Workflow Trigger API Views
+from .views_triggers import (
+    WorkflowWebhookAPIView,
+    WebhookReceiverAPIView,
+    ManualTriggerAPIView,
+)
+
 app_name = 'workflows'
 
 router = DefaultRouter()
@@ -122,4 +129,15 @@ urlpatterns = [
     
     # Phase 4.2: WorkForms Permissions endpoint
     path('permissions/', WorkFormPermissionsAPIView.as_view(), name='workforms-permissions'),
+    
+    # Phase 5: Workflow Trigger API endpoints
+    path('workflows/<uuid:workflow_id>/webhooks/', WorkflowWebhookAPIView.as_view(), name='workflow-webhooks'),
+    path('workflows/<uuid:workflow_id>/trigger/', ManualTriggerAPIView.as_view(), name='workflow-manual-trigger'),
 ]
+
+# Public webhook receiver endpoint (no auth required)
+webhook_urlpatterns = [
+    path('webhooks/<uuid:workflow_id>/<str:webhook_token>/', WebhookReceiverAPIView.as_view(), name='webhook-receiver'),
+]
+
+urlpatterns += webhook_urlpatterns

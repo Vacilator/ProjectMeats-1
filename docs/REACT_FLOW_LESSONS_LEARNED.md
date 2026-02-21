@@ -180,6 +180,52 @@ const childNode: Node = {
 
 ---
 
+### 5. useReactFlow Hook Destructuring (v12)
+
+**Problem**: Attempting to call `reactFlowInstance.setCenter()` results in `ReferenceError: setCenter is not defined`.
+
+**Root Cause**: In React Flow v12, `useReactFlow()` returns an object where some methods like `setCenter` need to be explicitly destructured, while others like `fitView`, `zoomIn`, etc. can be called on the instance object.
+
+**❌ WRONG - Calling setCenter on Instance**:
+```typescript
+const reactFlowInstance = useReactFlow();
+// Later...
+reactFlowInstance.setCenter(x, y, { duration: 800, zoom: 1.2 }); // ❌ Error: setCenter is not defined
+```
+
+**✅ CORRECT - Destructure setCenter**:
+```typescript
+const { setCenter, ...reactFlowInstance } = useReactFlow();
+// Later...
+setCenter(x, y, { duration: 800, zoom: 1.2 }); // ✅ Works correctly
+```
+
+**Alternative Pattern - Destructure All Methods**:
+```typescript
+const { setCenter, fitView, zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+```
+
+**Methods that work on instance**:
+- `fitView()`
+- `zoomIn()`
+- `zoomOut()`
+- `zoomTo()`
+- `setViewport()`
+- `getViewport()`
+- `screenToFlowPosition()`
+
+**Methods that require destructuring**:
+- `setCenter()`
+
+**Key Takeaway**: When using viewport control methods from `useReactFlow()`, check the official documentation to see if the method should be destructured or called on the instance. If you get "is not defined" errors, try destructuring the method.
+
+**Files Affected**: 
+- `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx` (Line 1645)
+
+**Related Issues**: Bug report from 2026-02-21 - "setCenter is not defined" error in validation navigation
+
+---
+
 ## 📋 Best Practices
 
 ### Node Management

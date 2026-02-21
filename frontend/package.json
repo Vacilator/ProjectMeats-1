@@ -32,6 +32,7 @@
     "colorthief": "^2.6.0",
     "dagre": "^0.8.5",
     "date-fns": "^4.1.0",
+    "fuse.js": "^7.1.0",
     "lucide-react": "^0.564.0",
     "react": "^19.2.4",
     "react-autosuggest": "^10.1.0",
@@ -47,7 +48,8 @@
     "recharts": "^3.7.0",
     "styled-components": "^6.3.9",
     "typescript": "^5.7.2",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zundo": "^2.3.0"
   },
   "scripts": {
     "dev": "vite",
