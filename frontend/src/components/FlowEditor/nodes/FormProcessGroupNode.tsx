@@ -60,6 +60,10 @@ export interface FormProcessGroupData extends BaseNodeData {
   isDropTarget?: boolean;
   /** Sequential execution order enabled (Phase 3) */
   sequentialExecution?: boolean;
+  /** Edit handler from UnifiedFlowEditor */
+  onEdit?: () => void;
+  /** Delete handler from UnifiedFlowEditor */
+  onDelete?: () => void;
 }
 
 export interface FormProcessGroupNodeProps extends NodeProps<FormProcessGroupData> {}
@@ -459,9 +463,11 @@ export const FormProcessGroupNode: React.FC<FormProcessGroupNodeProps> = (props)
    */
   const handleConfigure = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // Configuration handled by BaseNode/UnifiedFlowEditor selection system
-    // Clicking this will select the node and open config panel
-  }, []);
+    // Call the onEdit handler passed from UnifiedFlowEditor
+    if (data.onEdit) {
+      data.onEdit();
+    }
+  }, [data]);
   
   // ============================================================================
   // Render
