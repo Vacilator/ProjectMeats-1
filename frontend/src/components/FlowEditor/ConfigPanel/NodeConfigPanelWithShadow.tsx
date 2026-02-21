@@ -16,10 +16,16 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
-import { Node } from '@xyflow/react';
+import { Node, Edge } from '@xyflow/react';
 import { AlertCircle, X } from 'lucide-react';
 import { NodeConfigPanel } from './NodeConfigPanel';
+import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
+import {
+  PrimaryButton,
+  SecondaryButton,
+  DangerButton,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -28,10 +34,13 @@ import { useNodeShadowState } from '../hooks/useNodeShadowState';
 export interface NodeConfigPanelWithShadowProps {
   node: Node | null;
   nodes: Node[];
+  edges: Edge[];
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   onClose: () => void;
   onUpdate: (nodeId: string, data: Record<string, any>) => void;
   onTest?: (nodeId: string) => void;
+  onSelectNode?: (nodeId: string) => void;
 }
 
 // ============================================================================
@@ -72,62 +81,6 @@ const ActionBar = styled.div<{ $show: boolean }>`
   border-top: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
-`;
-
-const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'danger' }>`
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-  
-  ${props => {
-    if (props.$variant === 'primary') {
-      return `
-        background: rgb(var(--color-primary));
-        color: white;
-        
-        &:hover:not(:disabled) {
-          background: rgb(var(--color-primary-dark));
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
-        }
-      `;
-    } else if (props.$variant === 'danger') {
-      return `
-        background: rgb(var(--color-error));
-        color: white;
-        
-        &:hover:not(:disabled) {
-          background: rgb(var(--color-error-dark));
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(var(--color-error), 0.3);
-        }
-      `;
-    } else {
-      return `
-        background: rgb(var(--color-surface-hover));
-        color: rgb(var(--color-text-primary));
-        border: 1px solid rgb(var(--color-border));
-        
-        &:hover:not(:disabled) {
-          background: rgb(var(--color-surface-active));
-          border-color: rgb(var(--color-primary));
-        }
-      `;
-    }
-  }}
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  &:active:not(:disabled) {
-    transform: scale(0.98);
-  }
 `;
 
 const ConfirmationModal = styled.div<{ $show: boolean }>`
@@ -210,10 +163,13 @@ const PanelContent = styled.div`
 export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps> = ({
   node,
   nodes,
+  edges,
   setNodes,
+  setEdges,
   onClose,
   onUpdate,
   onTest,
+  onSelectNode,
 }) => {
   const [showCloseConfirmation, setShowCloseConfirmation] = useState(false);
   
@@ -248,6 +204,48 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
     // Also call the original onUpdate to trigger history
     onUpdate(node.id, shadowConfig);
   }, [node, commitShadow, onUpdate, shadowConfig]);
+  
+  // Callbacks for FormProcessConfigPanel
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    // Remove node and its edges
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+  }, [setNodes, setEdges]);
+  
+  const handleAddStep = useCallback(() => {
+    if (!node) return;
+    
+    // Create a new formStep node inside the container
+    const newStep: Node = {
+      id: `step-${Date.now()}`,
+      type: 'formStep',
+      position: { x: 50, y: 50 + (nodes.filter(n => n.parentId === node.id).length * 100) },
+      data: {
+        name: `Step ${nodes.filter(n => n.parentId === node.id).length + 1}`,
+        entityType: '',
+        fields: [],
+      },
+      parentId: node.id,
+    };
+    
+    setNodes((nds) => [...nds, newStep]);
+  }, [node, nodes, setNodes]);
+  
+  const handleReorderSteps = useCallback((nodeIds: string[]) => {
+    // Reposition nodes based on new order
+    setNodes((nds) =>
+      nds.map((n) => {
+        const index = nodeIds.indexOf(n.id);
+        if (index !== -1) {
+          return {
+            ...n,
+            position: { x: 50, y: 50 + index * 100 },
+          };
+        }
+        return n;
+      })
+    );
+  }, [setNodes]);
 
   // Handle discard - revert to committed config
   const handleDiscard = useCallback(() => {
@@ -290,22 +288,39 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
 
       {/* Inner Panel Content */}
       <PanelContent>
-        <NodeConfigPanel
-          node={virtualNode}
-          onClose={handleClose}
-          onUpdate={handleShadowUpdate}
-          onTest={onTest}
-        />
+        {node?.type === 'formMultiStepContainer' ? (
+          /* Form Process Container - Special Panel */
+          <FormProcessConfigPanel
+            node={virtualNode!}
+            nodes={nodes}
+            edges={edges}
+            onUpdateNode={handleShadowUpdate}
+            onSelectNode={onSelectNode || (() => {})}
+            onDeleteNode={handleDeleteNode}
+            onAddStep={handleAddStep}
+            onReorderSteps={handleReorderSteps}
+          />
+        ) : (
+          /* Standard Node Config Panel */
+          <NodeConfigPanel
+            node={virtualNode}
+            nodes={nodes}
+            edges={edges}
+            onClose={handleClose}
+            onUpdate={handleShadowUpdate}
+            onTest={onTest}
+          />
+        )}
       </PanelContent>
 
       {/* Action Bar (Apply/Discard) */}
       <ActionBar $show={isDirty}>
-        <ActionButton $variant="secondary" onClick={handleDiscard}>
+        <SecondaryButton onClick={handleDiscard}>
           Discard Changes
-        </ActionButton>
-        <ActionButton $variant="primary" onClick={handleApply}>
+        </SecondaryButton>
+        <PrimaryButton onClick={handleApply}>
           Apply Changes
-        </ActionButton>
+        </PrimaryButton>
       </ActionBar>
 
       {/* Close Confirmation Modal */}
@@ -319,12 +334,12 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
             You have unsaved changes. Are you sure you want to close without applying them?
           </DialogMessage>
           <DialogActions>
-            <ActionButton $variant="secondary" onClick={cancelClose}>
+            <SecondaryButton onClick={cancelClose}>
               Cancel
-            </ActionButton>
-            <ActionButton $variant="danger" onClick={confirmCloseWithoutSaving}>
+            </SecondaryButton>
+            <DangerButton onClick={confirmCloseWithoutSaving}>
               Close Without Saving
-            </ActionButton>
+            </DangerButton>
           </DialogActions>
         </ConfirmationDialog>
       </ConfirmationModal>

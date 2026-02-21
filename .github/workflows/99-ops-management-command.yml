@@ -38,19 +38,21 @@ jobs:
       - name: Set Environment Context
         id: context
         run: |
-          if [ "${{ inputs.environment }}" == "prod" ]; then
-            echo "HOST=\"${{ secrets.PRODUCTION_HOST }}\"" >> $GITHUB_OUTPUT
-            echo "USER=\"${{ secrets.PRODUCTION_USER }}\"" >> $GITHUB_OUTPUT
-            echo "PASS=\"${{ secrets.SSH_PASSWORD }}\"" >> $GITHUB_OUTPUT
-          elif [ "${{ inputs.environment }}" == "uat" ]; then
-            echo "HOST=\"${{ secrets.STAGING_HOST }}\"" >> $GITHUB_OUTPUT
-            echo "USER=\"${{ secrets.STAGING_USER }}\"" >> $GITHUB_OUTPUT
-            echo "PASS=\"${{ secrets.SSH_PASSWORD }}\"" >> $GITHUB_OUTPUT
-          else
-            echo "HOST=\"${{ secrets.DEV_HOST }}\"" >> $GITHUB_OUTPUT
-            echo "USER=\"${{ secrets.DEV_USER }}\"" >> $GITHUB_OUTPUT
-            echo "PASS=\"${{ secrets.DEV_SSH_PASSWORD }}\"" >> $GITHUB_OUTPUT
-          fi
+          {
+            if [ "${{ inputs.environment }}" == "prod" ]; then
+              echo "HOST=\"${{ secrets.PRODUCTION_HOST }}\""
+              echo "USER=\"${{ secrets.PRODUCTION_USER }}\""
+              echo "PASS=\"${{ secrets.SSH_PASSWORD }}\""
+            elif [ "${{ inputs.environment }}" == "uat" ]; then
+              echo "HOST=\"${{ secrets.STAGING_HOST }}\""
+              echo "USER=\"${{ secrets.STAGING_USER }}\""
+              echo "PASS=\"${{ secrets.SSH_PASSWORD }}\""
+            else
+              echo "HOST=\"${{ secrets.DEV_HOST }}\""
+              echo "USER=\"${{ secrets.DEV_USER }}\""
+              echo "PASS=\"${{ secrets.DEV_SSH_PASSWORD }}\""
+            fi
+          } >> "$GITHUB_OUTPUT"
 
       - name: Execute Remote Command
         env:

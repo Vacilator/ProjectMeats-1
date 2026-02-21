@@ -84,9 +84,11 @@ import {
 } from 'lucide-react';
 
 import {
+  FormNode,
   FormStepSingleNode,
   FormReferenceNode,
   FormProcessNode,
+  FormProcessGroupNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -98,6 +100,7 @@ import {
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge } from './edges';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
+import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
@@ -712,6 +715,42 @@ const SearchInput = styled.input`
   
   &::placeholder {
     color: rgb(var(--color-text-tertiary));
+  }
+`;
+
+const CategoryFilters = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgb(var(--color-border));
+`;
+
+const FilterChip = styled.button<{ $active?: boolean; $color?: string }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid ${props => props.$active ? props.$color || 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  background: ${props => props.$active ? (props.$color ? `${props.$color}22` : 'rgb(var(--color-primary) / 0.1)') : 'transparent'};
+  color: ${props => props.$active ? (props.$color || 'rgb(var(--color-primary))') : 'rgb(var(--color-text-secondary))'};
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+  white-space: nowrap;
+  
+  &:hover {
+    border-color: ${props => props.$color || 'rgb(var(--color-primary))'};
+    background: ${props => props.$color ? `${props.$color}22` : 'rgb(var(--color-primary) / 0.1)'};
+    color: ${props => props.$color || 'rgb(var(--color-primary))'};
+  }
+  
+  &:active {
+    transform: scale(0.95);
   }
 `;
 
@@ -1501,12 +1540,14 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 
 // Static node types (not containers that need node access)
 const staticNodeTypes: NodeTypes = {
-  // New names (Phase 2)
-  formStepSingle: FormStepSingleNode,
+  // Form nodes (Phase E - 2026-02-19)
+  form: FormNode,  // NEW: Primary form node name
+  formStepSingle: FormStepSingleNode,  // Backward compatibility
   formProcess: FormProcessNode,
+  formProcessGroup: FormProcessGroupNode,
   // Backward compatibility aliases
-  formStep: FormStepSingleNode,
-  formMultiStepContainer: FormProcessNode,
+  formStep: FormStepSingleNode,  // Deprecated
+  formMultiStepContainer: FormProcessNode,  // Deprecated
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -1771,6 +1812,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     };
   }, [isFullscreen]);
   
+  // ============================================================================
+  // Context Menu (Phase E.3)
+  // ============================================================================
+  
+  const { menu, handleNodeContextMenu, handleCloseMenu } = useContextMenu();
+  
+  // Close context menu when clicking anywhere
+  useEffect(() => {
+    if (menu) {
+      const handleClick = () => handleCloseMenu();
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [menu, handleCloseMenu]);
+  
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
     let filteredNodes = Object.values(NODE_TYPE_REGISTRY);
@@ -1819,7 +1875,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState<Set<NodeCategory>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  // Toggle category filter
+  const toggleCategoryFilter = useCallback((category: NodeCategory) => {
+    setActiveFilters(prev => {
+      const newFilters = new Set(prev);
+      if (newFilters.has(category)) {
+        newFilters.delete(category);
+      } else {
+        newFilters.add(category);
+      }
+      return newFilters;
+    });
+  }, []);
   
   // Favorites & Recent
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -2579,12 +2649,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Root Cause: getIntersectingNodes() was returning 0 nodes even when containers exist
    * Console logs showed "Intersecting nodes found: 0" every time
    * Manual bounding box is more reliable and predictable
+   * 
+   * Enhanced logging added for debugging container detection issues
    */
   const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
-    // Get all container nodes
-    const containerNodes = nodes.filter(node => node.type === 'formMultiStepContainer');
+    console.log('[Container] =================================');
+    console.log('[Container] Looking for containers at position:', position);
+    
+    // Get all container nodes (support both formMultiStepContainer and formProcessGroup)
+    const containerNodes = nodes.filter(node => 
+      node.type === 'formMultiStepContainer' || 
+      node.type === 'formProcessGroup' ||
+      node.type === 'formProcess'
+    );
+    
+    console.log('[Container] Total nodes on canvas:', nodes.length);
+    console.log('[Container] Container nodes found:', containerNodes.length);
     
     if (containerNodes.length === 0) {
+      console.log('[Container] ❌ No containers on canvas');
       return null;
     }
     
@@ -2611,6 +2694,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         bottom: container.position.y + containerHeight, // Use actual dimensions
       };
       
+      console.log(`[Container] Checking ${container.id}:`, {
+        type: container.type,
+        position: container.position,
+        dimensions: { width: containerWidth, height: containerHeight },
+        bounds: bounds,
+        isExpanded: container.data?.isExpanded,
+      });
+      
       // Check if drop position is within bounds
       if (
         position.x >= bounds.left &&
@@ -2618,10 +2709,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         position.y >= bounds.top &&
         position.y <= bounds.bottom
       ) {
+        console.log(`[Container] ✅ Found matching container: ${container.id}`);
         return container;
+      } else {
+        console.log(`[Container] ❌ Position outside ${container.id} bounds`);
       }
     }
     
+    console.log('[Container] ❌ No container matched at position');
     return null;
   }, [nodes]);
   
@@ -2792,8 +2887,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const targetContainer = findContainerAtPosition(position);
       
       if (targetContainer) {
+        console.log(`[Container] ✅ Detected drop into container ${targetContainer.id}`);
+        
         // Phase 1.3: Ensure container is expanded
         if (!targetContainer.data.isExpanded) {
+          console.log(`[Container] Expanding collapsed container ${targetContainer.id}`);
           setNodes((nds) =>
             nds.map((n) => {
               if (n.id === targetContainer.id) {
@@ -2808,9 +2906,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               return n;
             })
           );
+        } else {
+          console.log(`[Container] Container ${targetContainer.id} already expanded`);
         }
       } else {
         console.log(`[Container] No container detected at position`, position);
+        console.log(`[Container] Node will be added to main canvas`);
       }
       
       // Check for nearby node to auto-connect
@@ -2849,16 +2950,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         console.log(`[Container] Setting up parent-child relationship with container ${targetContainer.id}`);
         
         // Phase 1.4: Don't allow containers to be nested
-        if (type === 'formMultiStepContainer') {
+        const isContainerType = type === 'formMultiStepContainer' || 
+                               type === 'formProcessGroup' || 
+                               type === 'formProcess';
+        
+        if (isContainerType) {
+          console.log(`[Container] ❌ Cannot nest containers - node type ${type} will be added to main canvas`);
           // Fall through to main canvas drop - don't allow nested containers
         } else {
+          console.log(`[Container] Adding node ${newNode.id} as child of container ${targetContainer.id}`);
+          
           // Phase 1.4: Set up React Flow native parent-child relationship
           
           // Calculate position relative to container
-          newNode.position = {
+          const relativePosition = {
             x: position.x - targetContainer.position.x,
             y: position.y - targetContainer.position.y,
           };
+          
+          console.log(`[Container] Position - Absolute: (${position.x}, ${position.y}), Relative: (${relativePosition.x}, ${relativePosition.y})`);
+          
+          newNode.position = relativePosition;
           
           // Phase 1.4: Set parentId property (React Flow v12+ native grouping)
           newNode.parentId = targetContainer.id;
@@ -2874,11 +2986,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           const isParentExpanded = targetContainer.data?.isExpanded ?? true;
           newNode.hidden = !isParentExpanded; // Hidden when collapsed, visible when expanded
           
+          console.log(`[Container] ✅ Node configured:`, {
+            nodeId: newNode.id,
+            parentId: newNode.parentId,
+            relativePosition: newNode.position,
+            extent: newNode.extent,
+            expandParent: newNode.expandParent,
+            hidden: newNode.hidden,
+          });
+          
           // Add node to main state
           // CRITICAL: Parent nodes must come before their children in the array
           // React Flow requirement: "Parent nodes must be in front of their child nodes"
           // Find parent index and insert child right after it
           const parentIndex = nodes.findIndex((n) => n.id === targetContainer.id);
+          console.log(`[Container] Inserting node at index ${parentIndex + 1} (after parent)`);
+          
           const updatedNodes = [
             ...nodes.slice(0, parentIndex + 1),
             newNode,
@@ -2889,11 +3012,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setNodeIdCounter((prev) => prev + 1);
           
           // Phase 3.3: Trigger auto-layout for container
+          console.log(`[Container] Triggering auto-layout for container ${targetContainer.id}`);
           const layoutResult = calculateContainerLayout(
             targetContainer.id,
             updatedNodes,
             edges
           );
+          
+          console.log(`[Layout] Result:`, {
+            containerWidth: layoutResult.containerWidth,
+            containerHeight: layoutResult.containerHeight,
+            childrenCount: layoutResult.nodes.filter(n => n.parentId === targetContainer.id).length,
+          });
           
           // Phase 3.3: Apply layout, container dimensions, AND clear drop target in SINGLE setNodes call
           // CRITICAL: Multiple setNodes calls can cause race conditions with parent/child rendering
@@ -3102,7 +3232,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const newParentId = container?.id || null;
     
     // Prevent containers from being nested in other containers
-    if (node.type === 'formMultiStepContainer' && newParentId) {
+    const isContainerNode = node.type === 'formMultiStepContainer' || 
+                           node.type === 'formProcessGroup' || 
+                           node.type === 'formProcess';
+    
+    if (isContainerNode && newParentId) {
       console.log('[Container] Cannot nest containers inside containers');
       return;
     }
@@ -4540,6 +4674,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     };
 
     const query = searchQuery.toLowerCase().trim();
+    const hasActiveFilters = activeFilters.size > 0;
     
     // Filter by available node types based on editor mode
     availableNodeTypes.forEach(node => {
@@ -4549,11 +4684,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
+      // Filter by active category filters (if any)
+      if (hasActiveFilters && !activeFilters.has(node.category)) {
+        return;
+      }
+      
       grouped[node.category].push(node);
     });
 
     return grouped;
-  }, [searchQuery, availableNodeTypes]);
+  }, [searchQuery, activeFilters, availableNodeTypes]);
 
   // ============================================================================
   // Get Favorite & Recent Nodes
@@ -4614,17 +4754,48 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* Node Palette - Visual & Expert Modes Only */}
       {!readOnly && isPaletteVisible && (activeEditorMode === 'visual' || activeEditorMode === 'expert') && (
         <NodePalette>
-          <PaletteTitle>Add Nodes</PaletteTitle>
-          
-          {/* Search Input */}
-          <SearchInput
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search nodes... (press / to focus)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.stopPropagation()}
-          />
+          <PaletteHeader>
+            <PaletteTitle>Add Nodes</PaletteTitle>
+            
+            {/* Search Input */}
+            <SearchInput
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search nodes... (press / to focus)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+            
+            {/* Category Filters */}
+            <CategoryFilters>
+              {(Object.keys(CATEGORY_LABELS) as NodeCategory[]).map(category => {
+                const isActive = activeFilters.has(category);
+                const categoryColor = {
+                  trigger: '#10b981',
+                  form: '#3b82f6',
+                  logic: '#f59e0b',
+                  action: '#8b5cf6',
+                  wait: '#ef4444',
+                  document: '#06b6d4',
+                  utility: '#64748b',
+                  terminal: '#059669',
+                }[category];
+                
+                return (
+                  <FilterChip
+                    key={category}
+                    $active={isActive}
+                    $color={categoryColor}
+                    onClick={() => toggleCategoryFilter(category)}
+                    title={`Filter by ${CATEGORY_LABELS[category]}`}
+                  >
+                    {CATEGORY_LABELS[category]}
+                  </FilterChip>
+                );
+              })}
+            </CategoryFilters>
+          </PaletteHeader>
           
           {/* Favorites Section */}
           {favoriteNodesList.length > 0 && (
@@ -4982,6 +5153,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onDragOver={onDragOver}
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
+        onNodeContextMenu={handleNodeContextMenu}
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -5131,6 +5303,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </AlignmentToolbar>
       </ReactFlow>
       )}
+      
+      {/* Phase E.3: Context Menu */}
+      {menu && (
+        <NodeContextMenu
+          node={menu.node}
+          x={menu.x}
+          y={menu.y}
+          onClose={handleCloseMenu}
+        />
+      )}
+      
       
       {/* Wizard Mode - Typeform-inspired (Phase 2.2 Batch 3) */}
       {activeEditorMode === 'wizard' && (
@@ -5418,10 +5601,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       <NodeConfigPanelWithShadow
         node={selectedNode}
         nodes={nodes}
+        edges={edges}
         setNodes={setNodes}
+        setEdges={setEdges}
         onClose={() => setSelectedNode(null)}
         onUpdate={handleNodeUpdate}
         onTest={handleNodeTest}
+        onSelectNode={(nodeId) => {
+          const node = nodes.find(n => n.id === nodeId);
+          if (node) setSelectedNode(node);
+        }}
       />
       
       {/* Template Selector Modal (Phase 2.5 Integration) */}

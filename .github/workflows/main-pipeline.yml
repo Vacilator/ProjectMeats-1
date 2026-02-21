@@ -22,12 +22,24 @@ on:
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: true  # Cancel old deployments when new commit arrives
+  cancel-in-progress: false  # NEVER cancel in-progress deployments - only skip queued ones via check-latest
 
 jobs:
   # ==========================================
-  # Detect Latest Commit (Prevents Stale Deploys)
+  # Detect Latest Commit (Smart Queue Management)
   # ==========================================
+  # This job prevents deploying stale commits when multiple commits are pushed rapidly.
+  # 
+  # Behavior:
+  # - If deployment is IN-PROGRESS: Let it finish (cancel-in-progress: false protects it)
+  # - If deployment is QUEUED: Check if it's the latest commit
+  #   - If YES: Proceed with deployment
+  #   - If NO: Skip gracefully (commits are included in next deployment via git history)
+  # 
+  # This ensures:
+  # 1. Running deployments are NEVER cancelled (prevents half-deployed state)
+  # 2. Queued deployments for old commits are skipped (saves CI time)
+  # 3. All commits are eventually deployed (git history is cumulative)
   check-latest:
     runs-on: ubuntu-latest
     outputs:
@@ -47,21 +59,21 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           
           # Get latest commit on branch
-          LATEST_SHA=$(git rev-parse origin/$BRANCH)
+          LATEST_SHA=$(git rev-parse "origin/$BRANCH")
           
           echo "Trigger SHA: $TRIGGER_SHA"
           echo "Latest SHA:  $LATEST_SHA"
           
           if [ "$TRIGGER_SHA" = "$LATEST_SHA" ]; then
             echo "✅ This is the latest commit - proceeding with deployment"
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "⏭️  Newer commit exists ($LATEST_SHA) - skipping this deployment"
             echo "This commit will be included in the next deployment"
-            echo "should_deploy=false" >> $GITHUB_OUTPUT
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
           fi
           
-          echo "latest_sha=$LATEST_SHA" >> $GITHUB_OUTPUT
+          echo "latest_sha=$LATEST_SHA" >> "$GITHUB_OUTPUT"
 
   # ==========================================
   # Route to Development

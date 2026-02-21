@@ -12,6 +12,22 @@ import styled from 'styled-components';
 import { X, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
 
+import {
+  Panel,
+  PanelHeader,
+  PanelTitle,
+  CloseButton,
+  PanelContent,
+  FormField,
+  Label,
+  RequiredIndicator as RequiredMarker,
+  Input,
+  TextArea,
+  HelpText,
+  PanelFooter,
+  Button,
+} from './shared/StyledComponents';
+
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
@@ -88,118 +104,31 @@ const Container = styled.div`
   }
 `;
 
-const Header = styled.div`
-  padding: 20px 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgb(var(--color-surface));
+const Divider = styled.div`
+  height: 1px;
+  background: rgb(var(--color-border));
+  margin: 24px 0;
 `;
 
-const Title = styled.h2`
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
 
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  padding: 8px;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
 
-  &:hover {
-    background: rgb(var(--color-surface-hover));
-    color: rgb(var(--color-text-primary));
-  }
-`;
 
-const Content = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-`;
 
-const FormGroup = styled.div`
-  margin-bottom: 24px;
-`;
 
-const Label = styled.label`
-  display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-`;
 
-const RequiredMarker = styled.span`
-  color: rgb(var(--color-error));
-  margin-left: 4px;
-`;
 
-const Input = styled.input`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s;
 
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
 
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-`;
 
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s;
-  resize: vertical;
-  min-height: 80px;
 
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
 
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-`;
 
-const HelpText = styled.p`
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
 
-  svg {
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-`;
+
+
+
+
+
 
 const IconGrid = styled.div`
   display: grid;
@@ -335,20 +264,9 @@ const RadioDescription = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
-const Divider = styled.div`
-  height: 1px;
-  background: rgb(var(--color-border));
-  margin: 24px 0;
-`;
 
-const Footer = styled.div`
-  padding: 20px 24px;
-  border-top: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  background: rgb(var(--color-surface));
-`;
+
+
 
 const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   padding: 10px 20px;
@@ -438,16 +356,16 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
 
   return (
     <Container>
-      <Header>
-        <Title>Configure Section</Title>
+      <PanelHeader>
+        <PanelTitle>Configure Section</PanelTitle>
         <CloseButton onClick={onClose}>
           <X size={20} />
         </CloseButton>
-      </Header>
+      </PanelHeader>
 
-      <Content>
+      <PanelContent>
         {/* Title */}
-        <FormGroup>
+        <FormField>
           <Label>
             Section Title
             <RequiredMarker>*</RequiredMarker>
@@ -462,20 +380,20 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
             <Info size={14} />
             <span>The title will be displayed at the top of the section</span>
           </HelpText>
-        </FormGroup>
+        </FormField>
 
         {/* Description */}
-        <FormGroup>
+        <FormField>
           <Label>Description (Optional)</Label>
           <TextArea
             value={formData.description}
             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
             placeholder="Add a description to help users understand this section"
           />
-        </FormGroup>
+        </FormField>
 
         {/* Icon Picker */}
-        <FormGroup>
+        <FormField>
           <Label>Section Icon</Label>
           <IconGrid>
             {SECTION_ICONS.map((icon) => (
@@ -490,12 +408,12 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
               </IconButton>
             ))}
           </IconGrid>
-        </FormGroup>
+        </FormField>
 
         <Divider />
 
         {/* Collapsible Settings */}
-        <FormGroup>
+        <FormField>
           <Label>Collapsible Behavior</Label>
           <ToggleContainer>
             <ToggleSwitch>
@@ -536,12 +454,12 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
                 : 'Section will always be visible and cannot be collapsed'}
             </span>
           </HelpText>
-        </FormGroup>
+        </FormField>
 
         <Divider />
 
         {/* Conditional Visibility */}
-        <FormGroup>
+        <FormField>
           <Label>Section Visibility</Label>
           <RadioGroup>
             <RadioOption>
@@ -585,17 +503,17 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
               />
             </div>
           )}
-        </FormGroup>
-      </Content>
+        </FormField>
+      </PanelContent>
 
-      <Footer>
+      <PanelFooter>
         <Button variant="secondary" onClick={onClose}>
           Cancel
         </Button>
         <Button variant="primary" onClick={handleSave} disabled={!isValid}>
           Save Section
         </Button>
-      </Footer>
+      </PanelFooter>
     </Container>
   );
 };

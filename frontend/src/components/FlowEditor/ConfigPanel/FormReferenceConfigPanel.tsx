@@ -10,6 +10,20 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { X, FileText, Edit, Eye, ExternalLink } from 'lucide-react';
+import {
+  PanelOverlay,
+  Panel,
+  PanelHeader,
+  PanelTitle,
+  CloseButton,
+  PanelContent,
+  FormField,
+  Label,
+  PrimaryButton,
+  EmptyState as SharedEmptyState,
+  EmptyIcon as SharedEmptyIcon,
+  EmptyText as SharedEmptyText,
+} from './shared/StyledComponents';
 import FormSelectorModal from '../../WorkForms/FormSelectorModal';
 import type { FormDefinition } from '../FormBuilder/FormBuilder';
 import type { Node } from '@xyflow/react';
@@ -28,15 +42,7 @@ export interface FormReferenceConfigPanelProps {
 // Styled Components
 // ============================================================================
 
-const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
+
 
 const Panel = styled.div`
   background: rgb(var(--color-surface));
@@ -61,57 +67,17 @@ const Panel = styled.div`
   }
 `;
 
-const Header = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-`;
 
-const Title = styled.h2`
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
 
-const CloseButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: rgb(var(--color-text-secondary));
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  &:hover {
-    background: rgba(var(--color-error), 0.1);
-    color: rgb(var(--color-error));
-  }
-`;
 
-const Content = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-`;
 
-const FormGroup = styled.div`
-  margin-bottom: 24px;
-`;
 
-const Label = styled.label`
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-  margin-bottom: 8px;
-`;
+
+
+
+
+
+
 
 const FormCard = styled.div`
   padding: 16px;
@@ -181,25 +147,11 @@ const ActionButton = styled.button`
   }
 `;
 
-const EmptyState = styled.div`
-  padding: 24px;
-  text-align: center;
-  color: rgb(var(--color-text-secondary));
-  background: rgba(var(--color-warning), 0.05);
-  border: 1px dashed rgb(var(--color-warning));
-  border-radius: 8px;
-`;
 
-const EmptyIcon = styled.div`
-  font-size: 32px;
-  margin-bottom: 8px;
-  opacity: 0.5;
-`;
 
-const EmptyText = styled.div`
-  font-size: 13px;
-  margin-bottom: 12px;
-`;
+
+
+
 
 const SelectButton = styled.button`
   padding: 8px 16px;
@@ -315,17 +267,17 @@ export const FormReferenceConfigPanel: React.FC<FormReferenceConfigPanelProps> =
   
   return (
     <>
-      <Overlay onClick={onClose}>
+      <PanelOverlay onClick={onClose}>
         <Panel onClick={(e) => e.stopPropagation()}>
-          <Header>
-            <Title>Configure Form Reference</Title>
+          <PanelHeader>
+            <PanelTitle>Configure Form Reference</PanelTitle>
             <CloseButton onClick={onClose}>
               <X size={20} />
             </CloseButton>
-          </Header>
+          </PanelHeader>
           
-          <Content>
-            <FormGroup>
+          <PanelContent>
+            <FormField>
               <Label>Selected Form</Label>
               {hasForm ? (
                 <FormCard>
@@ -351,18 +303,18 @@ export const FormReferenceConfigPanel: React.FC<FormReferenceConfigPanelProps> =
                   </ActionButtons>
                 </FormCard>
               ) : (
-                <EmptyState>
-                  <EmptyIcon>📋</EmptyIcon>
-                  <EmptyText>No form selected</EmptyText>
+                <SharedEmptyState>
+                  <SharedEmptyIcon>📋</SharedEmptyIcon>
+                  <SharedEmptyText>No form selected</SharedEmptyText>
                   <SelectButton onClick={() => setShowFormSelector(true)}>
                     Select a Form
                   </SelectButton>
-                </EmptyState>
+                </SharedEmptyState>
               )}
-            </FormGroup>
+            </FormField>
             
             {hasForm && (
-              <FormGroup>
+              <FormField>
                 <CheckboxLabel>
                   <Checkbox
                     type="checkbox"
@@ -374,9 +326,9 @@ export const FormReferenceConfigPanel: React.FC<FormReferenceConfigPanelProps> =
                 <HelpText>
                   When enabled, users can modify their submitted data before final submission.
                 </HelpText>
-              </FormGroup>
+              </FormField>
             )}
-          </Content>
+          </PanelContent>
           
           <Footer>
             <Button onClick={onClose}>Cancel</Button>
@@ -385,7 +337,7 @@ export const FormReferenceConfigPanel: React.FC<FormReferenceConfigPanelProps> =
             </Button>
           </Footer>
         </Panel>
-      </Overlay>
+      </PanelOverlay>
       
       <FormSelectorModal
         isOpen={showFormSelector}

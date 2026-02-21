@@ -219,10 +219,13 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
       const itemsResponse = await axios.get(
         `/api/v1/system/choice-lists/${choiceListSlug}/items/`
       );
-      setItems(itemsResponse.data);
+      // Ensure itemsResponse.data is always an array
+      const itemsData = Array.isArray(itemsResponse.data) ? itemsResponse.data : [];
+      setItems(itemsData);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load choice list');
+      setItems([]); // Reset to empty array on error
     } finally {
       setLoading(false);
     }

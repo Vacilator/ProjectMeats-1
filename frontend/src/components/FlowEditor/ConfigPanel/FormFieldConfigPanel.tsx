@@ -214,11 +214,7 @@ const Container = styled.div`
   height: 100%;
 `;
 
-const Header = styled.div`
-  padding: 20px 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-background));
-`;
+
 
 const Title = styled.h3`
   margin: 0 0 8px 0;
@@ -232,11 +228,7 @@ const Subtitle = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
-const Content = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-`;
+
 
 const Section = styled.div`
   margin-bottom: 32px;
@@ -269,23 +261,9 @@ const SectionContent = styled.div<{ $collapsed?: boolean }>`
   display: ${props => props.$collapsed ? 'none' : 'block'};
 `;
 
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-`;
 
-const Label = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin-bottom: 8px;
-`;
+
+
 
 const Required = styled.span`
   color: rgb(239, 68, 68);
@@ -328,30 +306,9 @@ const TextArea = styled.textarea`
   }
 `;
 
-const Select = styled.select`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-background));
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
 
-const Checkbox = styled.input`
-  width: 18px;
-  height: 18px;
-  margin-right: 8px;
-  cursor: pointer;
-`;
+
+
 
 const CheckboxLabel = styled.label`
   display: flex;
@@ -468,14 +425,7 @@ const OptionInput = styled.input`
   }
 `;
 
-const Footer = styled.div`
-  padding: 16px 24px;
-  border-top: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-background));
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-`;
+
 
 const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   padding: 10px 20px;
@@ -553,12 +503,12 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
 
   return (
     <Container>
-      <Header>
-        <Title>Configure Field</Title>
+      <PanelHeader>
+        <PanelTitle>Configure Field</PanelTitle>
         <Subtitle>{fieldTypeDef.icon} {fieldTypeDef.label}</Subtitle>
-      </Header>
+      </PanelHeader>
 
-      <Content>
+      <PanelContent>
         {/* Basic Configuration */}
         <Section>
           <SectionHeader onClick={() => toggleSection('basic')}>
@@ -568,7 +518,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
             {collapsedSections.has('basic') ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </SectionHeader>
           <SectionContent $collapsed={collapsedSections.has('basic')}>
-            <FormGroup>
+            <FormField>
               <Label>
                 Field Type <Required>*</Required>
               </Label>
@@ -584,9 +534,9 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   </FieldTypeCard>
                 ))}
               </FieldTypeGrid>
-            </FormGroup>
+            </FormField>
 
-            <FormGroup>
+            <FormField>
               <Label>
                 Field Label <Required>*</Required>
               </Label>
@@ -597,9 +547,9 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                 placeholder="e.g., Customer Name"
               />
               <HelpText>The label shown above the field</HelpText>
-            </FormGroup>
+            </FormField>
 
-            <FormGroup>
+            <FormField>
               <Label>Placeholder Text</Label>
               <Input
                 type="text"
@@ -608,9 +558,9 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                 placeholder="e.g., Enter customer name..."
               />
               <HelpText>Hint text shown inside the field when empty</HelpText>
-            </FormGroup>
+            </FormField>
 
-            <FormGroup>
+            <FormField>
               <Label>Help Text</Label>
               <TextArea
                 value={localField.helpText || ''}
@@ -618,9 +568,9 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                 placeholder="Additional instructions or help text for users..."
               />
               <HelpText>Helpful guidance shown below the field</HelpText>
-            </FormGroup>
+            </FormField>
 
-            <FormGroup>
+            <FormField>
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
@@ -630,10 +580,10 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                 Required Field
               </CheckboxLabel>
               <HelpText>User must provide a value before submitting</HelpText>
-            </FormGroup>
+            </FormField>
 
             {!['checkbox', 'file'].includes(localField.type) && (
-              <FormGroup>
+              <FormField>
                 <Label>Default Value</Label>
                 <Input
                   type={localField.type === 'number' ? 'number' : 'text'}
@@ -642,7 +592,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   placeholder="Optional default value..."
                 />
                 <HelpText>Value pre-filled when the form loads</HelpText>
-              </FormGroup>
+              </FormField>
             )}
           </SectionContent>
         </Section>
@@ -676,7 +626,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
               {collapsedSections.has('options') ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
             </SectionHeader>
             <SectionContent $collapsed={collapsedSections.has('options')}>
-              <FormGroup>
+              <FormField>
                 <Label>Options Source</Label>
                 <Select
                   value={localField.options?.source || 'manual'}
@@ -691,10 +641,10 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   <option value="tenant-list">Tenant List</option>
                   <option value="entity">Entity (Database)</option>
                 </Select>
-              </FormGroup>
+              </FormField>
 
               {localField.options?.source === 'manual' && (
-                <FormGroup>
+                <FormField>
                   <Label>Options (one per line)</Label>
                   <TextArea
                     value={localField.options?.manualOptions?.join('\n') || ''}
@@ -707,11 +657,11 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     placeholder="Option 1&#10;Option 2&#10;Option 3"
                   />
                   <HelpText>Enter each option on a new line</HelpText>
-                </FormGroup>
+                </FormField>
               )}
 
               {localField.options?.source === 'tenant-list' && (
-                <FormGroup>
+                <FormField>
                   <Label>Select Tenant List</Label>
                   <Select
                     value={localField.options?.tenantListId || ''}
@@ -730,12 +680,12 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     ))}
                   </Select>
                   <HelpText>Options will be loaded from the selected tenant list</HelpText>
-                </FormGroup>
+                </FormField>
               )}
 
               {localField.options?.source === 'entity' && (
                 <>
-                  <FormGroup>
+                  <FormField>
                     <Label>Entity Type</Label>
                     <Select
                       value={localField.options?.entityType || ''}
@@ -752,8 +702,8 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                       <option value="product">Products</option>
                       <option value="warehouse">Warehouses</option>
                     </Select>
-                  </FormGroup>
-                  <FormGroup>
+                  </FormField>
+                  <FormField>
                     <Label>Display Field</Label>
                     <Input
                       type="text"
@@ -767,7 +717,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                       placeholder="e.g., name"
                     />
                     <HelpText>Which field to show in the dropdown (e.g., "name")</HelpText>
-                  </FormGroup>
+                  </FormField>
                 </>
               )}
             </SectionContent>
@@ -783,7 +733,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
             {collapsedSections.has('visibility') ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </SectionHeader>
           <SectionContent $collapsed={collapsedSections.has('visibility')}>
-            <FormGroup>
+            <FormField>
               <ToggleButton
                 $active={localField.visibility?.mode === 'conditional'}
                 onClick={() => handleUpdate({
@@ -802,10 +752,10 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   ? 'This field will only be visible when conditions are met'
                   : 'This field is always visible in the form'}
               </HelpText>
-            </FormGroup>
+            </FormField>
 
             {localField.visibility?.mode === 'conditional' && (
-              <FormGroup>
+              <FormField>
                 <ConditionBuilder
                   conditions={localField.visibility?.conditions || []}
                   logic={localField.visibility?.logic || 'and'}
@@ -818,18 +768,18 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   })}
                   availableFields={availableFields}
                 />
-              </FormGroup>
+              </FormField>
             )}
           </SectionContent>
         </Section>
-      </Content>
+      </PanelContent>
 
-      <Footer>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button $variant="primary" onClick={handleSave}>
+      <PanelFooter>
+        <SecondaryButton onClick={onClose}>Cancel</SecondaryButton>
+        <PrimaryButton onClick={handleSave}>
           Save Field
-        </Button>
-      </Footer>
+        </PrimaryButton>
+      </PanelFooter>
     </Container>
   );
 };

@@ -20,12 +20,18 @@ export { FieldWithContext } from './FieldWithContext'; // Phase 5
 export { FormSelectionPanel } from './FormSelectionPanel';
 export { EntityFieldPicker } from './EntityFieldPicker';
 export { FieldConfigurationPanel } from './FieldConfigurationPanel';
+export { FieldPropertiesEditor } from './FieldPropertiesEditor'; // Phase C.1.2
 
 export type { NodeConfigPanelProps } from './NodeConfigPanel';
 export type { NodeConfigPanelWithShadowProps } from './NodeConfigPanelWithShadow'; // Phase 2
 export type { FormSelectionPanelProps } from './FormSelectionPanel';
 export type { EntityFieldPickerProps, SelectedField } from './EntityFieldPicker';
 export type { FieldConfigurationPanelProps, FieldConfig } from './FieldConfigurationPanel';
+export type { FieldPropertiesEditorProps, FieldProperties } from './FieldPropertiesEditor'; // Phase C.1.2
 export type { FieldWithContextProps } from './FieldWithContext'; // Phase 5
 export { StepManagerPanel } from './StepManagerPanel';
 export { FormProcessConfigPanel } from './FormProcessConfigPanel';
+
+// Phase D.2: Dynamic Configuration Engine
+export { DynamicConfigPanel } from './DynamicConfigPanel';
+export type { DynamicConfigPanelProps } from './DynamicConfigPanel';

@@ -202,12 +202,13 @@ export const FormStepSingleNode: React.FC<NodeProps<FormStepNodeData>> = (props)
   const nodeTypeDef = getNodeTypeDefinition('formStepSingle');
   
   // Safety check: provide fallback if nodeType is undefined
+  // Note: This fallback matches the registry definition (Form (Legacy))
   const nodeType = nodeTypeDef || {
     id: 'formStepSingle',
-    name: 'Form Step Single',
+    name: 'Form (Legacy)',  // Phase E Fix: Updated from 'Form Step Single'
     category: 'form' as const,
-    color: 'rgb(168, 85, 247)',
-    icon: 'ListChecks',
+    color: '#3b82f6',  // Match registry color
+    icon: '📋',  // Match registry icon
     maxInputs: 1,
     maxOutputs: 1,
     config: {},

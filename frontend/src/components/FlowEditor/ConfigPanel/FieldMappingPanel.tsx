@@ -20,6 +20,16 @@ import {
   Link, Unlink, ArrowRight, AlertCircle, CheckCircle, 
   ChevronDown, ChevronUp, Zap
 } from 'lucide-react';
+import {
+  Label,
+  Select,
+  Input,
+  EmptyState,
+  EmptyIcon,
+  EmptyText,
+  HelpText,
+  PrimaryButton,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -45,7 +55,7 @@ export interface FieldMapping {
   };
 }
 
-export interface FieldMappingPanelProps {
+interface FieldMappingPanelProps {
   mappings: FieldMapping[];
   formFields: Array<{ id: string; label: string; type: string }>;
   targetEntity: string;
@@ -331,50 +341,11 @@ const MappingConfig = styled.div<{ $collapsed?: boolean }>`
 
 const ConfigGroup = styled.div``;
 
-const Label = styled.label`
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgb(var(--color-text-tertiary));
-  margin-bottom: 6px;
-`;
 
-const Select = styled.select`
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
 
-const Input = styled.input`
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
+
+
+
 
 const ValidationAlert = styled.div<{ $type: 'error' | 'warning' | 'success' }>`
   display: flex;
@@ -405,44 +376,11 @@ const ValidationAlert = styled.div<{ $type: 'error' | 'warning' | 'success' }>`
   }}
 `;
 
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 48px 24px;
-  color: rgb(var(--color-text-tertiary));
-  font-size: 13px;
-  line-height: 1.6;
-`;
 
-const AddMappingButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px;
-  background: rgb(var(--color-background));
-  border: 2px dashed rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  color: rgb(var(--color-text-secondary));
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  margin-top: 12px;
-  
-  &:hover {
-    border-color: rgb(var(--color-primary));
-    color: rgb(var(--color-primary));
-    background: rgba(var(--color-primary), 0.05);
-  }
-`;
 
-const HelpText = styled.div`
-  font-size: 11px;
-  color: rgb(var(--color-text-tertiary));
-  margin-top: 4px;
-  line-height: 1.4;
-`;
+
+
+
 
 // ============================================================================
 // Component
@@ -544,6 +482,89 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
     return { valid: true, message: 'Mapping is valid' };
   };
 
+  // Phase C.4: Auto-suggest field mappings based on name similarity
+  const calculateStringSimilarity = (str1: string, str2: string): number => {
+    const s1 = str1.toLowerCase().replace(/[_\s-]/g, '');
+    const s2 = str2.toLowerCase().replace(/[_\s-]/g, '');
+
+    // Exact match
+    if (s1 === s2) return 1.0;
+
+    // One contains the other
+    if (s1.includes(s2) || s2.includes(s1)) return 0.8;
+
+    // Levenshtein distance (simple implementation)
+    const longer = s1.length > s2.length ? s1 : s2;
+    const shorter = s1.length > s2.length ? s2 : s1;
+    const longerLength = longer.length;
+
+    if (longerLength === 0) return 1.0;
+
+    // Calculate edit distance
+    const costs: number[] = [];
+    for (let i = 0; i <= shorter.length; i++) {
+      let lastValue = i;
+      for (let j = 0; j <= longer.length; j++) {
+        if (i === 0) {
+          costs[j] = j;
+        } else if (j > 0) {
+          let newValue = costs[j - 1];
+          if (shorter.charAt(i - 1) !== longer.charAt(j - 1)) {
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          }
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+      if (i > 0) costs[longer.length] = lastValue;
+    }
+
+    return (longerLength - costs[longer.length]) / longerLength;
+  };
+
+  const autoSuggestMappings = () => {
+    const suggestions: FieldMapping[] = [];
+    const unmappedFormFields = formFields.filter(ff => !mappedFormFields.has(ff.id));
+    const unmappedEntityFields = entityFields.filter(ef => !mappedEntityFields.has(ef.key));
+
+    unmappedFormFields.forEach(formField => {
+      let bestMatch: { field: typeof unmappedEntityFields[0]; score: number } | null = null;
+
+      unmappedEntityFields.forEach(entityField => {
+        // Calculate similarity score
+        const nameSimilarity = calculateStringSimilarity(formField.label, entityField.label);
+        const typeSimilarity = formField.type === entityField.type ? 1.0 : 
+                               (formField.type === 'text' && entityField.type === 'textarea') ? 0.8 :
+                               (formField.type === 'textarea' && entityField.type === 'text') ? 0.8 : 0;
+
+        // Combined score (70% name, 30% type)
+        const score = (nameSimilarity * 0.7) + (typeSimilarity * 0.3);
+
+        // Only consider if score > 0.5
+        if (score > 0.5 && (!bestMatch || score > bestMatch.score)) {
+          bestMatch = { field: entityField, score };
+        }
+      });
+
+      if (bestMatch && bestMatch.score >= 0.6) {
+        suggestions.push({
+          id: `mapping-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          formFieldId: formField.id,
+          entityField: bestMatch.field.key,
+          transformation: {
+            type: 'direct',
+          },
+        });
+      }
+    });
+
+    if (suggestions.length > 0) {
+      setLocalMappings([...localMappings, ...suggestions]);
+    }
+
+    return suggestions.length;
+  };
+
   const mappedFormFields = getMappedFormFields();
   const mappedEntityFields = getMappedEntityFields();
   const unmappedRequired = entityFields.filter(f => f.required && !mappedEntityFields.has(f.key));
@@ -560,6 +581,27 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
         </HeaderDescription>
       </Header>
 
+      {/* Phase C.4: Auto-Suggest Button */}
+      {formFields.length > 0 && entityFields.length > 0 && localMappings.length < formFields.length && (
+        <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <PrimaryButton 
+            onClick={() => {
+              const count = autoSuggestMappings();
+              if (count === 0) {
+                alert('No good matches found. Try mapping fields manually.');
+              }
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Zap size={16} />
+            Auto-Suggest Mappings
+          </PrimaryButton>
+          <HelpText style={{ margin: 0 }}>
+            Automatically map fields based on name similarity (60%+ confidence)
+          </HelpText>
+        </div>
+      )}
+
       {/* Validation Alerts */}
       {unmappedRequired.length > 0 && (
         <ValidationAlert $type="warning">
@@ -575,6 +617,8 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
         <EmptyState>
           <strong>No field mappings defined yet.</strong><br />
           Click on a form field (left) and an entity field (right) to create a mapping.
+          <br /><br />
+          Or click "Auto-Suggest Mappings" above to automatically map similar fields.
         </EmptyState>
       )}
 

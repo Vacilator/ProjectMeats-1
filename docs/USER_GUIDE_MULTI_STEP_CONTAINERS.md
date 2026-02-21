@@ -214,6 +214,86 @@ For issues, questions, or feature requests:
 
 ---
 
-**Last Updated**: February 8, 2026  
-**Version**: 1.0  
-**Status**: Complete
+## Phase E.3 New Features (February 2026)
+
+### Unlimited Steps with Auto-Layout
+
+FormProcess containers now support **unlimited steps** with intelligent vertical auto-layout:
+
+- **No hard limit**: Add as many steps as needed (tested with 20+)
+- **Automatic positioning**: Steps arranged vertically at 120px spacing
+- **Dynamic re-layout**: Container recalculates positions when steps added/removed
+- **Performance optimized**: Smooth animations even with many steps
+- **Smooth transitions**: 0.3s cubic-bezier animation for all layout changes
+
+#### How to Use:
+1. Click "Add Step" button repeatedly to add multiple steps
+2. Steps automatically stack vertically with consistent spacing
+3. Container auto-expands to fit all children
+4. Drag steps to reorder - layout updates instantly
+
+### Enhanced Drag-and-Drop
+
+**Drag from Palette into Container**:
+- Drag any "Form Step: Single" node from the palette
+- Hover over expanded container (dashed border highlights)
+- Drop anywhere inside container - automatic positioning applied
+- Step count in header updates immediately
+
+**Drag Between Containers**:
+- Drag a step from one FormProcess container
+- Hover over a different container
+- Drop to **re-parent** the step (moves to new container)
+- Both containers re-layout automatically
+- Step numbers recalculate in both containers
+
+**Visual Feedback**:
+- Container border highlights on hover with dragged node
+- Cursor changes to indicate valid drop target
+- Step count preview shows before drop
+
+### Expand/Collapse Animation
+
+Double-click container to toggle between compact and expanded views:
+
+- **Compact View**: Shows step count (e.g., "5 Steps")
+- **Expanded View**: Shows all child steps with dashed border
+- **Smooth Animation**: 300ms cubic-bezier transition
+- **Properties Animated**: Height, opacity, padding (synchronized)
+- **No Layout Shift**: Container size animates smoothly
+
+### Multi-Select and Group Movement
+
+Select and move multiple steps simultaneously:
+
+- **Shift+Click**: Add steps to selection (blue outline)
+- **Box Selection**: Click-drag empty area to select multiple
+- **Group Drag**: Drag one selected step to move all together
+- **Relative Positions**: Steps maintain spacing during group movement
+- **Native React Flow**: Built-in multi-select (no custom code needed)
+
+### Context Menu Actions
+
+Right-click on FormProcess container for quick actions:
+
+- **Add Step**: Creates new step inside container
+- **Duplicate Container**: Clones container + all child steps
+- **Delete**: Removes container and cascades to all children
+- **Menu Position**: Appears near cursor for easy access
+- **Click Outside**: Closes menu automatically
+
+### Nested Configuration Support
+
+Infrastructure for nested child configurations (developer feature):
+
+- **New Field Type**: `nested-children` for array configurations
+- **NestedChildrenRenderer**: Component for expandable child items
+- **Schema-Driven**: Define child structure declaratively
+- **Add/Remove/Update**: Full CRUD operations on child items
+- **Auto-Expand**: Single child or newly added children expand automatically
+
+---
+
+**Last Updated**: February 19, 2026  
+**Version**: 2.0  
+**Status**: Complete (Phase E.3)

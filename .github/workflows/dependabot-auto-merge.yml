@@ -1,26 +1,30 @@
 name: Dependabot Auto-Merge
 
 # Auto-merge passing dependabot PRs for safe updates
-run-name: "🤖 Auto-Merge: ${{ github.event.pull_request.title }}"
+run-name: "🤖 Dependabot: ${{ github.event.pull_request.title }}"
 
 on:
   pull_request:
-    types: [labeled, synchronize, opened, reopened]
+    types: [labeled]  # Only trigger on label changes to reduce noise
 
 permissions:
   contents: write
   pull-requests: write
 
-# Cancel old runs when new push to same PR
+# Cancel old runs when new label added to same PR
 concurrency:
-  group: auto-merge-${{ github.event.pull_request.number }}
+  group: dependabot-automerge-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   # Gate job: Check if this is a dependabot PR with automerge label
   check-eligibility:
-    name: "Check Eligibility"
+    name: "Check & Merge"
     runs-on: ubuntu-latest
+    # Only run for Dependabot PRs with automerge label
+    if: |
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      contains(github.event.pull_request.labels.*.name, 'automerge')
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
       is_dependabot: ${{ steps.check.outputs.is_dependabot }}
@@ -86,9 +90,9 @@ jobs:
 
       - name: Classify update type
         id: classify
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          
           # Determine update category
           if echo "$PR_TITLE" | grep -q "github-actions\|actions-unified"; then
             echo "category=github-actions" >> $GITHUB_OUTPUT
@@ -114,6 +118,7 @@ jobs:
           steps.classify.outputs.safe == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           CATEGORY=${{ steps.classify.outputs.category }}
@@ -126,27 +131,31 @@ jobs:
             --body "🤖 Auto-merged: All checks passed. Category: $CATEGORY" \
             --repo ${{ github.repository }}
           
-          echo "## ✅ Auto-Merge Successful" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Category:** $CATEGORY" >> $GITHUB_STEP_SUMMARY
-          echo "**PR:** #$PR_NUMBER" >> $GITHUB_STEP_SUMMARY
-          echo "**Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## ✅ Auto-Merge Successful"
+            echo ""
+            echo "**Category:** $CATEGORY"
+            echo "**PR:** #$PR_NUMBER"
+            echo "**Title:** $PR_TITLE"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Skip Docker updates
         if: |
           steps.check.outputs.status == 'success' &&
           steps.classify.outputs.category == 'docker'
         run: |
-          echo "## ⚠️ Manual Review Required" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Category:** Docker base image update" >> $GITHUB_STEP_SUMMARY
-          echo "**Reason:** Can break golden pipeline (build failures)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
-          echo "1. Review Dockerfile changes" >> $GITHUB_STEP_SUMMARY
-          echo "2. Test build locally: \`docker build -t test .\`" >> $GITHUB_STEP_SUMMARY
-          echo "3. Verify no breaking changes in base image changelog" >> $GITHUB_STEP_SUMMARY
-          echo "4. Merge manually if safe" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## ⚠️ Manual Review Required"
+            echo ""
+            echo "**Category:** Docker base image update"
+            echo "**Reason:** Can break golden pipeline (build failures)"
+            echo ""
+            echo "**Action Required:**"
+            echo "1. Review Dockerfile changes"
+            echo "2. Test build locally: \`docker build -t test .\`"
+            echo "3. Verify no breaking changes in base image changelog"
+            echo "4. Merge manually if safe"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Log skipped
         if: |
@@ -154,24 +163,30 @@ jobs:
           steps.classify.outputs.safe == 'false' &&
           steps.classify.outputs.category != 'docker'
         run: |
-          echo "## ⏭️ Skipped Auto-Merge" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Category:** ${{ steps.classify.outputs.category }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Reason:** Not in auto-merge whitelist" >> $GITHUB_STEP_SUMMARY
-          echo "**Action:** Manual review required" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## ⏭️ Skipped Auto-Merge"
+            echo ""
+            echo "**Category:** ${{ steps.classify.outputs.category }}"
+            echo "**Reason:** Not in auto-merge whitelist"
+            echo "**Action:** Manual review required"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Log pending
         if: steps.check.outputs.status == 'pending'
         run: |
-          echo "## ⏳ Waiting for Checks" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Pending checks:** ${{ steps.check.outputs.pending }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Note:** Auto-merge will run when all checks complete" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## ⏳ Waiting for Checks"
+            echo ""
+            echo "**Pending checks:** ${{ steps.check.outputs.pending }}"
+            echo "**Note:** Auto-merge will run when all checks complete"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Log failed
         if: steps.check.outputs.status == 'failed'
         run: |
-          echo "## ❌ Checks Failed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Failed checks:** ${{ steps.check.outputs.failed }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Action:** Fix failures before merging" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## ❌ Checks Failed"
+            echo ""
+            echo "**Failed checks:** ${{ steps.check.outputs.failed }}"
+            echo "**Action:** Fix failures before merging"
+          } >> "$GITHUB_STEP_SUMMARY"

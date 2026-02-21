@@ -119,10 +119,13 @@ const ActivityPage: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      // Ensure response.data.results is always an array
+      const results = Array.isArray(response.data.results) ? response.data.results : [];
+      
       if (appendMode) {
-        setLogs(prev => [...prev, ...response.data.results]);
+        setLogs(prev => [...prev, ...results]);
       } else {
-        setLogs(response.data.results);
+        setLogs(results);
       }
 
       setHasMore(!!response.data.next);

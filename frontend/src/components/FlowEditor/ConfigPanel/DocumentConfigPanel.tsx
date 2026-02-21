@@ -34,6 +34,31 @@ interface DocumentData {
   };
 }
 
+import {
+  Panel,
+  PanelHeader,
+  PanelTitle,
+  CloseButton,
+  PanelContent,
+  Section,
+  SectionHeader,
+  SectionTitle,
+  FormField,
+  Label,
+  RequiredIndicator,
+  Input,
+  Select,
+  TextArea,
+  Checkbox,
+  HelpText,
+  PanelFooter,
+  PrimaryButton,
+  SecondaryButton,
+  SettingRow,
+  SettingLabel,
+  SettingDescription,
+} from './shared/StyledComponents';
+
 interface DocumentConfigPanelProps {
   document: DocumentData;
   onChange: (document: DocumentData) => void;
@@ -81,14 +106,7 @@ const Container = styled.div`
   }
 `;
 
-const Header = styled.div`
-  padding: 20px 24px;
-  border-bottom: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgb(var(--color-surface));
-`;
+
 
 const HeaderTitle = styled.div`
   display: flex;
@@ -96,12 +114,7 @@ const HeaderTitle = styled.div`
   gap: 12px;
 `;
 
-const Title = styled.h2`
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
+
 
 const IconBadge = styled.div`
   width: 36px;
@@ -114,102 +127,21 @@ const IconBadge = styled.div`
   color: rgb(var(--color-primary));
 `;
 
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  padding: 8px;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
 
-  &:hover {
-    background: rgb(var(--color-surface-hover));
-    color: rgb(var(--color-text-primary));
-  }
-`;
 
-const Content = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-`;
 
-const FormGroup = styled.div`
-  margin-bottom: 24px;
-`;
 
-const Label = styled.label`
-  display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgb(var(--color-text-primary));
-`;
 
-const RequiredMarker = styled.span`
-  color: rgb(var(--color-error));
-  margin-left: 4px;
-`;
 
-const Input = styled.input`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s;
 
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
 
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-`;
 
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  font-size: 14px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-surface));
-  transition: border-color 0.2s;
-  resize: vertical;
-  min-height: 70px;
 
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
 
-  &::placeholder {
-    color: rgb(var(--color-text-tertiary));
-  }
-`;
 
-const HelpText = styled.p`
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
 
-  svg {
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-`;
+
+
 
 const PresetGrid = styled.div`
   display: grid;
@@ -390,14 +322,7 @@ const Divider = styled.div`
   margin: 24px 0;
 `;
 
-const Footer = styled.div`
-  padding: 20px 24px;
-  border-top: 1px solid rgb(var(--color-border));
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  background: rgb(var(--color-surface));
-`;
+
 
 const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   padding: 10px 20px;
@@ -525,24 +450,24 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
 
   return (
     <Container>
-      <Header>
-        <HeaderTitle>
+      <PanelHeader>
+        <PanelHeaderTitle>
           <IconBadge>
             <FileUp size={20} />
           </IconBadge>
-          <Title>Configure File Upload</Title>
-        </HeaderTitle>
+          <PanelTitle>Configure File Upload</PanelTitle>
+        </PanelHeaderTitle>
         <CloseButton onClick={onClose}>
           <X size={20} />
         </CloseButton>
-      </Header>
+      </PanelHeader>
 
-      <Content>
+      <PanelContent>
         {/* Label */}
-        <FormGroup>
+        <FormField>
           <Label>
             Field Label
-            <RequiredMarker>*</RequiredMarker>
+            <RequiredIndicator>*</RequiredIndicator>
           </Label>
           <Input
             type="text"
@@ -554,22 +479,22 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
             <Info size={14} />
             <span>The label shown to users above the upload field</span>
           </HelpText>
-        </FormGroup>
+        </FormField>
 
         {/* Description */}
-        <FormGroup>
+        <FormField>
           <Label>Description (Optional)</Label>
           <TextArea
             value={formData.description}
             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
             placeholder="Add instructions or requirements for the file upload"
           />
-        </FormGroup>
+        </FormField>
 
         <Divider />
 
         {/* File Type Restrictions */}
-        <FormGroup>
+        <FormField>
           <Label>Allowed File Types</Label>
           <PresetGrid>
             {FILE_TYPE_PRESETS.map((preset) => (
@@ -594,10 +519,10 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
             <Info size={14} />
             <span>Select which file types users can upload</span>
           </HelpText>
-        </FormGroup>
+        </FormField>
 
         {/* File Size Limit */}
-        <FormGroup>
+        <FormField>
           <Label>Maximum File Size</Label>
           <InputWithUnit>
             <Input
@@ -616,10 +541,10 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
             <Info size={14} />
             <span>Maximum size per file (1-100 MB)</span>
           </HelpText>
-        </FormGroup>
+        </FormField>
 
         {/* File Count Limits */}
-        <FormGroup>
+        <FormField>
           <Label>Number of Files</Label>
           <InputGroup>
             <InputWithUnit>
@@ -651,12 +576,12 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
             <Info size={14} />
             <span>Minimum and maximum number of files users can upload</span>
           </HelpText>
-        </FormGroup>
+        </FormField>
 
         <Divider />
 
         {/* Upload Folder */}
-        <FormGroup>
+        <FormField>
           <Label>Upload Destination Folder</Label>
           <Input
             type="text"
@@ -668,10 +593,10 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
             <Info size={14} />
             <span>Server folder where files will be stored</span>
           </HelpText>
-        </FormGroup>
+        </FormField>
 
         {/* OCR Toggle */}
-        <FormGroup>
+        <FormField>
           <Label>OCR Processing</Label>
           <ToggleContainer>
             <ToggleSwitch>
@@ -696,10 +621,10 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
               </WarningText>
             </WarningBox>
           )}
-        </FormGroup>
+        </FormField>
 
         {/* Required Toggle */}
-        <FormGroup>
+        <FormField>
           <ToggleContainer>
             <ToggleSwitch>
               <ToggleInput
@@ -715,12 +640,12 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
             <Info size={14} />
             <span>Users must upload at least {formData.minFiles} file(s) to submit</span>
           </HelpText>
-        </FormGroup>
+        </FormField>
 
         <Divider />
 
         {/* Conditional Visibility */}
-        <FormGroup>
+        <FormField>
           <Label>Field Visibility</Label>
           <RadioGroup>
             <RadioOption>
@@ -764,17 +689,17 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
               />
             </div>
           )}
-        </FormGroup>
-      </Content>
+        </FormField>
+      </PanelContent>
 
-      <Footer>
-        <Button variant="secondary" onClick={onClose}>
+      <PanelFooter>
+        <SecondaryButton onClick={onClose}>
           Cancel
-        </Button>
-        <Button variant="primary" onClick={handleSave} disabled={!isValid}>
+        </SecondaryButton>
+        <PrimaryButton onClick={handleSave} disabled={!isValid}>
           Save Upload Field
-        </Button>
-      </Footer>
+        </PrimaryButton>
+      </PanelFooter>
     </Container>
   );
 };

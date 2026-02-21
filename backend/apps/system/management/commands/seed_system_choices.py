@@ -1,13 +1,19 @@
 """
-Management command to seed system choice lists.
+Management command to seed system choice lists with STRICT IDEMPOTENCY.
 
-Seeds the database with default choice lists based on existing TextChoices
+Seeds the database with default Tier-1 choice lists based on existing TextChoices
 classes in apps/core/models.py.
 
+**Idempotency Guarantees:**
+- Uses update_or_create() to prevent duplicates (NEVER delete existing records)
+- Soft-deactivates items not in seed JSON (is_active=False)
+- Preserves UUIDs and foreign key relationships
+- Safe to run multiple times without side effects
+- See docs/GOLDEN_PIPELINE.md and POSTGRESQL_MIGRATION_GUIDE.md
+
 Usage:
-    python manage.py seed_system_choices
-    python manage.py seed_system_choices --dry-run
-    python manage.py seed_system_choices --force  # Recreate even if exists
+    python manage.py seed_system_choices --dry-run  # Preview changes
+    python manage.py seed_system_choices             # Apply changes
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -220,84 +226,167 @@ SYSTEM_CHOICE_LISTS = [
 
 
 class Command(BaseCommand):
-    help = 'Seed system choice lists with default values'
+    help = 'Seed system choice lists with STRICT IDEMPOTENCY (Tier-1)'
     
     def add_arguments(self, parser):
         parser.add_argument(
             '--dry-run',
             action='store_true',
-            help='Show what would be created without making changes',
-        )
-        parser.add_argument(
-            '--force',
-            action='store_true',
-            help='Recreate lists even if they already exist',
+            help='Preview changes without applying them (RECOMMENDED first run)',
         )
     
     def handle(self, *args, **options):
         dry_run = options['dry_run']
-        force = options['force']
         
         if dry_run:
-            self.stdout.write(self.style.WARNING('DRY RUN - No changes will be made\n'))
+            self.stdout.write(self.style.WARNING('═' * 70))
+            self.stdout.write(self.style.WARNING('DRY RUN MODE - No database changes will be made'))
+            self.stdout.write(self.style.WARNING('═' * 70))
+            self.stdout.write('')
         
-        created_lists = 0
-        created_items = 0
-        skipped_lists = 0
+        stats = {
+            'lists_created': 0,
+            'lists_updated': 0,
+            'items_created': 0,
+            'items_updated': 0,
+            'items_deactivated': 0,
+        }
         
         with transaction.atomic():
             for list_def in SYSTEM_CHOICE_LISTS:
                 slug = list_def['slug']
-                items = list_def.pop('items')
+                items_data = list_def.pop('items')  # Extract items for separate processing
                 
-                # Check if exists
-                exists = SystemChoiceList.objects.filter(slug=slug).exists()
-                
-                if exists and not force:
-                    skipped_lists += 1
-                    self.stdout.write(f'  SKIP: {slug} (already exists)')
-                    continue
-                
+                # ============================================================
+                # STEP 1: Update or create SystemChoiceList (IDEMPOTENT)
+                # Note: SystemChoiceList is system-wide (no tenant field)
+                # ============================================================
                 if dry_run:
-                    self.stdout.write(f'  CREATE: {slug} ({len(items)} items)')
-                    created_lists += 1
-                    created_items += len(items)
-                    continue
-                
-                # Create or update the list
-                if exists and force:
-                    SystemChoiceList.objects.filter(slug=slug).delete()
-                
-                choice_list = SystemChoiceList.objects.create(**list_def)
-                created_lists += 1
-                
-                # Create items
-                for item_def in items:
-                    SystemChoiceItem.objects.create(
-                        choice_list=choice_list,
-                        tenant=None,  # System-defined
-                        **item_def
+                    exists = SystemChoiceList.objects.filter(slug=slug).exists()
+                    if exists:
+                        self.stdout.write(f'  UPDATE: {slug}')
+                        stats['lists_updated'] += 1
+                    else:
+                        self.stdout.write(self.style.SUCCESS(f'  CREATE: {slug}'))
+                        stats['lists_created'] += 1
+                else:
+                    choice_list, created = SystemChoiceList.objects.update_or_create(
+                        slug=slug,
+                        defaults={
+                            'name': list_def['name'],
+                            'description': list_def.get('description', ''),
+                            'model_field_path': list_def.get('model_field_path', ''),
+                            'is_active': True,
+                        }
                     )
-                    created_items += 1
+                    
+                    if created:
+                        self.stdout.write(self.style.SUCCESS(f'  CREATED: {slug}'))
+                        stats['lists_created'] += 1
+                    else:
+                        self.stdout.write(f'  UPDATED: {slug}')
+                        stats['lists_updated'] += 1
                 
-                self.stdout.write(self.style.SUCCESS(
-                    f'  CREATED: {slug} ({len(items)} items)'
-                ))
+                # ============================================================
+                # STEP 2: Update or create SystemChoiceItem (IDEMPOTENT)
+                # Note: Items have tenant=None for system-defined choices
+                # ============================================================
+                if not dry_run:
+                    # Get choice_list for actual updates
+                    choice_list = SystemChoiceList.objects.get(slug=slug)
+                
+                # Track which values are in the seed data
+                seed_values = {item['value'] for item in items_data}
+                
+                for item_def in items_data:
+                    value = item_def['value']
+                    
+                    if dry_run:
+                        exists = SystemChoiceItem.objects.filter(
+                            choice_list__slug=slug,
+                            value=value,
+                            tenant=None
+                        ).exists()
+                        
+                        if exists:
+                            self.stdout.write(f'    UPDATE ITEM: {value} ({item_def["label"]})')
+                            stats['items_updated'] += 1
+                        else:
+                            self.stdout.write(self.style.SUCCESS(f'    CREATE ITEM: {value} ({item_def["label"]})'))
+                            stats['items_created'] += 1
+                    else:
+                        item, created = SystemChoiceItem.objects.update_or_create(
+                            choice_list=choice_list,
+                            value=value,
+                            tenant=None,  # Tier-1 system choices have no tenant
+                            defaults={
+                                'label': item_def['label'],
+                                'order': item_def.get('order', 0),
+                                'is_default': item_def.get('is_default', False),
+                                'is_active': True,  # Reactivate if previously deactivated
+                            }
+                        )
+                        
+                        if created:
+                            self.stdout.write(self.style.SUCCESS(f'    CREATED ITEM: {value} ({item_def["label"]})'))
+                            stats['items_created'] += 1
+                        else:
+                            self.stdout.write(f'    UPDATED ITEM: {value} ({item_def["label"]})')
+                            stats['items_updated'] += 1
+                
+                # ============================================================
+                # STEP 3: Soft-deactivate items NOT in seed (NEVER DELETE)
+                # ============================================================
+                if dry_run:
+                    obsolete_items = SystemChoiceItem.objects.filter(
+                        choice_list__slug=slug,
+                        tenant=None,
+                        is_active=True
+                    ).exclude(value__in=seed_values)
+                    
+                    if obsolete_items.exists():
+                        for item in obsolete_items:
+                            self.stdout.write(self.style.WARNING(
+                                f'    DEACTIVATE: {item.value} ({item.label}) [not in seed]'
+                            ))
+                            stats['items_deactivated'] += 1
+                else:
+                    deactivated_count = SystemChoiceItem.objects.filter(
+                        choice_list=choice_list,
+                        tenant=None,
+                        is_active=True
+                    ).exclude(value__in=seed_values).update(is_active=False)
+                    
+                    if deactivated_count > 0:
+                        self.stdout.write(self.style.WARNING(
+                            f'    DEACTIVATED: {deactivated_count} obsolete items'
+                        ))
+                        stats['items_deactivated'] += deactivated_count
+                
+                self.stdout.write('')  # Blank line between lists
         
-        # Summary
-        self.stdout.write('')
+        # ================================================================
+        # SUMMARY
+        # ================================================================
+        self.stdout.write('═' * 70)
         if dry_run:
-            self.stdout.write(self.style.WARNING(
-                f'Would create {created_lists} lists with {created_items} items'
-            ))
-            self.stdout.write(self.style.WARNING(
-                f'Would skip {skipped_lists} existing lists'
-            ))
+            self.stdout.write(self.style.WARNING('DRY RUN SUMMARY (no changes applied):'))
         else:
-            self.stdout.write(self.style.SUCCESS(
-                f'Created {created_lists} lists with {created_items} items'
-            ))
-            if skipped_lists:
-                self.stdout.write(
-                    f'Skipped {skipped_lists} existing lists (use --force to recreate)'
-                )
+            self.stdout.write(self.style.SUCCESS('SEEDING COMPLETE:'))
+        
+        self.stdout.write(f'  Lists created:      {stats["lists_created"]}')
+        self.stdout.write(f'  Lists updated:      {stats["lists_updated"]}')
+        self.stdout.write(f'  Items created:      {stats["items_created"]}')
+        self.stdout.write(f'  Items updated:      {stats["items_updated"]}')
+        self.stdout.write(f'  Items deactivated:  {stats["items_deactivated"]}')
+        self.stdout.write('═' * 70)
+        
+        if dry_run:
+            self.stdout.write('')
+            self.stdout.write(self.style.SUCCESS('✓ No duplicates will be created (idempotent)'))
+            self.stdout.write(self.style.SUCCESS('✓ UUIDs and foreign keys will be preserved'))
+            self.stdout.write(self.style.SUCCESS('✓ Run without --dry-run to apply changes'))
+        else:
+            self.stdout.write('')
+            self.stdout.write(self.style.SUCCESS('✓ All Tier-1 system choices synchronized'))
+            self.stdout.write(self.style.SUCCESS('✓ Safe to re-run anytime (idempotent)'))

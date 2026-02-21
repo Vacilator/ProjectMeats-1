@@ -103,17 +103,33 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   
   // === FORM ELEMENTS ===
   
-  // NEW: Phase 2 renamed nodes (2026-02-14)
-  formStepSingle: {
-    id: 'formStepSingle',
-    name: 'Form Step Single',
+  // Form node (renamed from formStepSingle in Phase E - 2026-02-19)
+  form: {
+    id: 'form',
+    name: 'Form',
     category: 'form',
     icon: '📋',
     color: '#3b82f6', // blue
-    description: 'Single step with form fields - drag INTO a form process container',
+    description: 'Single-page form for data collection - works standalone or in Form Process containers',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+  },
+  
+  // NEW: Phase 2 renamed nodes (2026-02-14)
+  // NOTE: This is now just an alias for backward compatibility
+  // The actual "Form" node is the primary type above
+  formStepSingle: {
+    id: 'formStepSingle',
+    name: 'Form (Legacy)',
+    category: 'form',
+    icon: '📋',
+    color: '#3b82f6', // blue
+    description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hidden: true, // Deprecated - use 'form' instead
   },
   
   formProcess: {
@@ -123,6 +139,18 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     icon: '📦',
     color: '#8b5cf6', // purple - distinct from regular form blue
     description: 'DROP ZONE: Drag form steps and nodes here to create a multi-step flow',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+  },
+  
+  formProcessGroup: {
+    id: 'formProcessGroup',
+    name: 'Form Process Group',
+    category: 'form',
+    icon: '📂',
+    color: '#a78bfa', // lighter purple - group variant
+    description: 'LABELED CONTAINER: Resizable group with labeled header and vertical auto-layout for child steps',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,

@@ -438,9 +438,13 @@ const OptionListsPage: React.FC = () => {
     setLoadingItems(slug);
     try {
       const response = await adminClient.get(`/system/choice-lists/${slug}/items/`);
-      setListItems(prev => ({ ...prev, [slug]: response.data }));
+      // Ensure response.data is always an array
+      const itemsData = Array.isArray(response.data) ? response.data : [];
+      setListItems(prev => ({ ...prev, [slug]: itemsData }));
     } catch (error) {
       console.error(`Failed to load items for ${slug}:`, error);
+      // Set empty array on error to prevent undefined
+      setListItems(prev => ({ ...prev, [slug]: [] }));
     } finally {
       setLoadingItems(null);
     }

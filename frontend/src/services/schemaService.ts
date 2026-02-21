@@ -7,7 +7,7 @@
  * Created: 2026-02-12
  */
 import { useQuery } from '@tanstack/react-query';
-import { adminClient } from './apiService';
+import { apiClient } from './apiService';
 
 export interface EntityType {
   id: string;
@@ -44,10 +44,16 @@ export interface EntityFieldsResponse {
  * Cached with React Query for 5 minutes.
  */
 export const getEntityTypes = async (): Promise<EntityType[]> => {
-  const response = await adminClient.get<{ count: number; results: EntityType[] }>(
-    '/system/entities/'
-  );
-  return response.data.results;
+  try {
+    const response = await apiClient.get<{ count: number; results: EntityType[] }>(
+      'system/entities/'
+    );
+    return response.data.results;
+  } catch (error) {
+    console.warn('[SchemaService] API call failed, using hardcoded entities:', error);
+    // Return hardcoded entities as fallback
+    return COMMON_ENTITY_TYPES;
+  }
 };
 
 /**
@@ -56,8 +62,8 @@ export const getEntityTypes = async (): Promise<EntityType[]> => {
  * @param entityId - Entity identifier (e.g., 'suppliers.supplier')
  */
 export const getEntityFields = async (entityId: string): Promise<EntityField[]> => {
-  const response = await adminClient.get<EntityFieldsResponse>(
-    `/system/entities/${entityId}/fields/`
+  const response = await apiClient.get<EntityFieldsResponse>(
+    `system/entities/${entityId}/fields/`
   );
   return response.data.fields;
 };
@@ -68,8 +74,8 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
  * @param entityId - Entity identifier
  */
 export const getEntityDisplayFields = async (entityId: string): Promise<string[]> => {
-  const response = await adminClient.get<{ entity_id: string; display_fields: string[] }>(
-    `/system/entities/${entityId}/display-fields/`
+  const response = await apiClient.get<{ entity_id: string; display_fields: string[] }>(
+    `system/entities/${entityId}/display-fields/`
   );
   return response.data.display_fields;
 };
@@ -77,16 +83,18 @@ export const getEntityDisplayFields = async (entityId: string): Promise<string[]
 /**
  * Hardcoded entity types for quick reference (until API loads).
  * This list should match the backend tenant_apps.
+ * 
+ * NOTE: Entity IDs use tenant_apps.* namespace (hotfix #3033)
  */
 export const COMMON_ENTITY_TYPES: EntityType[] = [
-  { id: 'suppliers.supplier', app: 'suppliers', model: 'supplier', label: 'Supplier', label_plural: 'Suppliers', description: 'Supplier entity', field_count: 0 },
-  { id: 'customers.customer', app: 'customers', model: 'customer', label: 'Customer', label_plural: 'Customers', description: 'Customer entity', field_count: 0 },
-  { id: 'products.product', app: 'products', model: 'product', label: 'Product', label_plural: 'Products', description: 'Product entity', field_count: 0 },
-  { id: 'sales_orders.salesorder', app: 'sales_orders', model: 'salesorder', label: 'Sales Order', label_plural: 'Sales Orders', description: 'Sales order entity', field_count: 0 },
-  { id: 'purchase_orders.purchaseorder', app: 'purchase_orders', model: 'purchaseorder', label: 'Purchase Order', label_plural: 'Purchase Orders', description: 'Purchase order entity', field_count: 0 },
-  { id: 'invoices.invoice', app: 'invoices', model: 'invoice', label: 'Invoice', label_plural: 'Invoices', description: 'Invoice entity', field_count: 0 },
-  { id: 'carriers.carrier', app: 'carriers', model: 'carrier', label: 'Carrier', label_plural: 'Carriers', description: 'Carrier entity', field_count: 0 },
-  { id: 'contacts.contact', app: 'contacts', model: 'contact', label: 'Contact', label_plural: 'Contacts', description: 'Contact entity', field_count: 0 },
+  { id: 'tenant_apps.suppliers.supplier', app: 'tenant_apps.suppliers', model: 'supplier', label: 'Supplier', label_plural: 'Suppliers', description: 'Supplier entity', field_count: 0 },
+  { id: 'tenant_apps.customers.customer', app: 'tenant_apps.customers', model: 'customer', label: 'Customer', label_plural: 'Customers', description: 'Customer entity', field_count: 0 },
+  { id: 'tenant_apps.products.product', app: 'tenant_apps.products', model: 'product', label: 'Product', label_plural: 'Products', description: 'Product entity', field_count: 0 },
+  { id: 'tenant_apps.sales_orders.salesorder', app: 'tenant_apps.sales_orders', model: 'salesorder', label: 'Sales Order', label_plural: 'Sales Orders', description: 'Sales order entity', field_count: 0 },
+  { id: 'tenant_apps.purchase_orders.purchaseorder', app: 'tenant_apps.purchase_orders', model: 'purchaseorder', label: 'Purchase Order', label_plural: 'Purchase Orders', description: 'Purchase order entity', field_count: 0 },
+  { id: 'tenant_apps.invoices.invoice', app: 'tenant_apps.invoices', model: 'invoice', label: 'Invoice', label_plural: 'Invoices', description: 'Invoice entity', field_count: 0 },
+  { id: 'tenant_apps.carriers.carrier', app: 'tenant_apps.carriers', model: 'carrier', label: 'Carrier', label_plural: 'Carriers', description: 'Carrier entity', field_count: 0 },
+  { id: 'tenant_apps.contacts.contact', app: 'tenant_apps.contacts', model: 'contact', label: 'Contact', label_plural: 'Contacts', description: 'Contact entity', field_count: 0 },
 ];
 
 /**
@@ -122,22 +130,38 @@ export const getFieldTypeIcon = (fieldType: string): string => {
  * Hook to fetch entity list with React Query caching.
  * 
  * Phase A Enhancement: Added error handling and fallback to hardcoded entities.
+ * Phase E Fix (2026-02-19): Improved fallback handling for empty dropdowns
+ * Phase E Fix 2 (2026-02-19): Always use fallback if API returns empty (401 auth issues)
  */
 export const useEntityList = () => {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['entities'],
     queryFn: getEntityTypes,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-    // Phase A: If API fails, fallback to hardcoded entities
-    onError: (error) => {
-      console.warn('Failed to fetch entities from API, using fallback:', error);
-    },
-    // Use fallback data if query fails
+    // Always show hardcoded entities immediately while loading
     placeholderData: COMMON_ENTITY_TYPES,
-    retry: 2, // Retry failed requests twice
+    // Retry failed requests
+    retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+
+  // CRITICAL FIX: If API returns empty (e.g., 401 auth failure), use fallback
+  // React Query's placeholderData only shows during loading, not when query "succeeds" with []
+  const data = query.data && query.data.length > 0 ? query.data : COMMON_ENTITY_TYPES;
+
+  console.log('[useEntityList] Hook result:', {
+    apiReturned: query.data?.length ?? 0,
+    usingFallback: data === COMMON_ENTITY_TYPES,
+    finalEntityCount: data.length,
+    isLoading: query.isLoading,
+    isError: query.isError,
+  });
+
+  return {
+    ...query,
+    data,
+  };
 };
 
 /**

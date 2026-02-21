@@ -15,6 +15,17 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Plus, Trash2, Edit2, AlertCircle } from 'lucide-react';
+import {
+  FormField,
+  Label,
+  Select,
+  Input,
+  TextArea,
+  HelpText,
+  PrimaryButton,
+  SecondaryButton,
+  EmptyState,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -39,7 +50,7 @@ export interface ValidationRule {
   errorMessage?: string;
 }
 
-export interface ValidationRuleBuilderProps {
+interface ValidationRuleBuilderProps {
   rules: ValidationRule[];
   onChange: (rules: ValidationRule[]) => void;
   fieldType?: string;
@@ -254,25 +265,19 @@ const AddButton = styled.button`
   }
 `;
 
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 32px 16px;
-  color: rgb(var(--color-text-tertiary));
-  font-size: 13px;
-`;
+
+
+
 
 const Modal = styled.div<{ $isOpen: boolean }>`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
   display: ${props => props.$isOpen ? 'flex' : 'none'};
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
   align-items: center;
   justify-content: center;
-  z-index: 2000;
-  padding: 24px;
+  z-index: 1000;
+  padding: 20px;
 `;
 
 const ModalContent = styled.div`
@@ -293,57 +298,38 @@ const ModalHeader = styled.div`
 
 const ModalTitle = styled.h3`
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: rgb(var(--color-text-primary));
 `;
 
 const ModalBody = styled.div`
-  padding: 24px;
+  flex: 1;
   overflow-y: auto;
+  padding: 24px;
 `;
 
 const ModalFooter = styled.div`
   padding: 16px 24px;
   border-top: 1px solid rgb(var(--color-border));
   display: flex;
-  gap: 12px;
   justify-content: flex-end;
+  gap: 12px;
 `;
 
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-`;
 
-const Label = styled.label`
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin-bottom: 8px;
-`;
 
-const Select = styled.select`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-background));
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
+
+
+
+
+
+
+
+
+
+
+
 
 const Input = styled.input`
   width: 100%;
@@ -382,12 +368,7 @@ const TextArea = styled.textarea`
   }
 `;
 
-const HelpText = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-tertiary));
-  margin-top: 6px;
-  line-height: 1.5;
-`;
+
 
 const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   padding: 10px 20px;
@@ -565,7 +546,7 @@ export const ValidationRuleBuilder: React.FC<ValidationRuleBuilderProps> = ({
           </ModalHeader>
 
           <ModalBody>
-            <FormGroup>
+            <FormField>
               <Label>Rule Type</Label>
               <Select
                 value={formData.type || ''}
@@ -581,10 +562,10 @@ export const ValidationRuleBuilder: React.FC<ValidationRuleBuilderProps> = ({
               {currentRuleDefinition && (
                 <HelpText>{currentRuleDefinition.description}</HelpText>
               )}
-            </FormGroup>
+            </FormField>
 
             {currentRuleDefinition?.requiresValue && (
-              <FormGroup>
+              <FormField>
                 <Label>Value</Label>
                 <Input
                   type={currentRuleDefinition.valueType || 'text'}
@@ -592,10 +573,10 @@ export const ValidationRuleBuilder: React.FC<ValidationRuleBuilderProps> = ({
                   onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                   placeholder={currentRuleDefinition.placeholder}
                 />
-              </FormGroup>
+              </FormField>
             )}
 
-            <FormGroup>
+            <FormField>
               <Label>Custom Error Message (Optional)</Label>
               <TextArea
                 value={formData.errorMessage || ''}
@@ -605,16 +586,16 @@ export const ValidationRuleBuilder: React.FC<ValidationRuleBuilderProps> = ({
               <HelpText>
                 Leave blank to use the default error message
               </HelpText>
-            </FormGroup>
+            </FormField>
           </ModalBody>
 
           <ModalFooter>
-            <Button onClick={() => setIsModalOpen(false)}>
+            <SecondaryButton onClick={() => setIsModalOpen(false)}>
               Cancel
-            </Button>
-            <Button $variant="primary" onClick={handleSaveRule} disabled={!formData.type}>
+            </SecondaryButton>
+            <PrimaryButton onClick={handleSaveRule} disabled={!formData.type}>
               {editingRule ? 'Update Rule' : 'Add Rule'}
-            </Button>
+            </PrimaryButton>
           </ModalFooter>
         </ModalContent>
       </Modal>

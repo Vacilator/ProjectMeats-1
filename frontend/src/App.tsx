@@ -72,6 +72,8 @@ import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
 import ActivityPage from './pages/Admin/Activity';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
+import { ReportBugButton } from './components/ReportBugButton';
 import CockpitPage from './pages/Cockpit';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
@@ -154,21 +156,22 @@ const App: React.FC = () => {
   }, []); // Run once on mount
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <AuthProvider>
-          <ThemeProvider>
-            <NotificationsProvider>
-              <ActionItemsProvider>
-                <QuickActionsProvider>
-              <Router
-                future={{
-                  v7_startTransition: true,
-                  v7_relativeSplatPath: true,
-                }}
-              >
-                <NavigationProvider>
-                  <Routes>
+    <ErrorBoundary showDetails={false}>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <NotificationsProvider>
+                <ActionItemsProvider>
+                  <QuickActionsProvider>
+                <Router
+                  future={{
+                    v7_startTransition: true,
+                    v7_relativeSplatPath: true,
+                  }}
+                >
+                  <NavigationProvider>
+                    <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
               <Route path="/" element={<Layout />}>
@@ -288,6 +291,9 @@ const App: React.FC = () => {
             </Routes>
             {/* Form Submission Modal - rendered at app level */}
             <FormSubmissionWrapper />
+            
+            {/* Global floating bug report button - always available */}
+            <ReportBugButton variant="floating" />
           </NavigationProvider>
         </Router>
               </QuickActionsProvider>
@@ -297,6 +303,7 @@ const App: React.FC = () => {
       </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 
