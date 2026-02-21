@@ -271,6 +271,9 @@ export const FormProcessGroupNode: React.FC<FormProcessGroupNodeProps> = (props)
   const { setNodes } = useReactFlow();
   const allNodes = useNodes();
   
+  // Debug logging
+  console.log('[FormProcessGroup] Rendered with ID:', id, 'Data:', data);
+  
   // ============================================================================
   // Derived State
   // ============================================================================
@@ -279,13 +282,18 @@ export const FormProcessGroupNode: React.FC<FormProcessGroupNodeProps> = (props)
    * Find all child nodes with parentId matching this group's ID
    */
   const childNodes = useMemo(() => {
-    return allNodes.filter(node => node.parentId === id);
+    const children = allNodes.filter(node => node.parentId === id);
+    console.log('[FormProcessGroup] Children found:', children.length, 'IDs:', children.map(c => c.id));
+    return children;
   }, [allNodes, id]);
   
   const stepCount = childNodes.length;
   const containerName = data.containerName || 'Untitled Form Process';
   const containerDescription = data.containerDescription;
   const isExpanded = data.isExpanded ?? false;
+  
+  console.log(`[FormProcessGroup] ${id} rendered with ${stepCount} steps (expanded: ${isExpanded})`);
+
   
   // ============================================================================
   // Event Handlers

@@ -22,7 +22,9 @@ export interface EntityType {
 export interface EntityField {
   name: string;
   label: string;
+  type: string;  // Mapped from field_type
   field_type: string;
+  required: boolean;  // Mapped from is_required
   is_required: boolean;
   help_text: string;
   max_length?: number;
@@ -59,13 +61,39 @@ export const getEntityTypes = async (): Promise<EntityType[]> => {
 /**
  * Get field definitions for a specific entity.
  * 
- * @param entityId - Entity identifier (e.g., 'suppliers.supplier')
+ * @param entityId - Entity identifier (e.g., 'tenant_apps.suppliers.supplier')
  */
 export const getEntityFields = async (entityId: string): Promise<EntityField[]> => {
-  const response = await apiClient.get<EntityFieldsResponse>(
-    `system/entities/${entityId}/fields/`
-  );
-  return response.data.fields;
+  console.log('[SchemaService] Fetching fields for entity:', entityId);
+  
+  try {
+    // CRITICAL FIX: Encode entity ID for URL (handles tenant_apps.* dots correctly)
+    const encodedEntityId = encodeURIComponent(entityId);
+    const url = `system/entities/${encodedEntityId}/fields/`;
+    
+    console.log('[SchemaService] Fetch URL:', url);
+    
+    const response = await apiClient.get<EntityFieldsResponse>(url);
+    
+    // Normalize field data (backend uses field_type/is_required, frontend uses type/required)
+    const normalizedFields = (response.data.fields || []).map(field => ({
+      ...field,
+      type: field.field_type || field.type,
+      required: field.is_required ?? field.required ?? false,
+    }));
+    
+    console.log('[SchemaService] Fields received:', {
+      entityId,
+      fieldCount: normalizedFields.length,
+      fields: normalizedFields.map(f => ({ name: f.name, type: f.type, required: f.required })),
+    });
+    
+    return normalizedFields;
+  } catch (error) {
+    console.error('[SchemaService] Failed to fetch fields for entity:', entityId, error);
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
+  }
 };
 
 /**
