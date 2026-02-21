@@ -117,7 +117,14 @@ import { NodeConfigPanelWithShadow } from './ConfigPanel';
 // import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 // import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 // import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
-import Fuse from 'fuse.js'; // Fuzzy search for palette
+import Fuse from 'fuse.js'; // PROMPT 2: Added fuzzy search
+import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
+import { TemplateSelector } from './templates/TemplateSelector';
+import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
+import { SidePanel } from './SidePanel';
+import { FormProcessModal, type ContainerData } from './Modals/FormProcessModal';
+import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
+import { WorkflowExecutionModal } from '../FormSubmission/WorkflowExecutionModal'; // Task 1: Integration
 import { PreviewPanel } from './panels/PreviewPanel';
 
 // ============================================================================
@@ -1635,7 +1642,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, setNodes, onNodesChangeBase]);
   
   // React Flow instance for viewport controls
-  const reactFlowInstance = useReactFlow();
+  const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
   
   // ============================================================================
   // Container State Restoration (Phase 4 Batch 5)
@@ -1887,12 +1894,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const node = nodes.find(n => n.id === nodeId);
     if (node) {
       setSelectedNodeId(nodeId);
-      // Center on node with animation (safely check if setCenter exists)
-      if (reactFlowInstance?.setCenter) {
-        reactFlowInstance.setCenter(node.position.x + 100, node.position.y + 50, { duration: 800, zoom: 1.2 });
-      }
+      // Center on node with animation
+      reactFlowSetCenter(node.position.x + 100, node.position.y + 50, { duration: 800, zoom: 1.2 });
     }
-  }, [nodes, reactFlowInstance]);
+  }, [nodes, reactFlowSetCenter]);
   
   // ============================================================================
   // Dry Run Debugger (Phase 7)
