@@ -1923,6 +1923,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   );
   
   // ============================================================================
+  // CRITICAL: Forward declarations for handlers used in early useEffects
+  // These prevent TDZ (Temporal Dead Zone) errors in keyboard shortcuts
+  // Full implementations are defined later in the file
+  // ============================================================================
+  
+  // Forward ref for handleSave (full implementation at line ~3760)
+  const handleSaveRef = useRef<(() => void) | null>(null);
+  const handleSave = useCallback(() => {
+    if (handleSaveRef.current) {
+      handleSaveRef.current();
+    }
+  }, []);
+  
+  // Forward ref for handleNodeDelete (full implementation at line ~4527)
+  const handleNodeDeleteRef = useRef<((nodeId: string) => Promise<void>) | null>(null);
+  const handleNodeDelete = useCallback(async (nodeId: string) => {
+    if (handleNodeDeleteRef.current) {
+      await handleNodeDeleteRef.current(nodeId);
+    }
+  }, []);
+  
+  // ============================================================================
   // Keyboard Shortcuts (Phase 7)
   // ============================================================================
   
@@ -1933,7 +1955,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Ctrl/Cmd + S: Save
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        handleQuickSave();
+        handleSave();
       }
       
       // Ctrl/Cmd + Z: Undo
@@ -1965,7 +1987,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedNodeId) {
           e.preventDefault();
-          handleDeleteNode(selectedNodeId);
+          handleNodeDelete(selectedNodeId);
         }
       }
       
@@ -1979,7 +2001,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeId, handleDeleteNode, handleQuickSave]);
+  }, [selectedNodeId, handleNodeDelete, handleSave]);
   
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
@@ -3757,7 +3779,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Save Handler
   // ============================================================================
   
-  const handleSave = useCallback(() => {
+  const handleSaveImpl = useCallback(() => {
     console.log('[FlowEditor] Quick save triggered');
     toast.success('Workflow saved');
     
@@ -3783,7 +3805,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
   }, [nodes, edges, onSave]);
   
-  // Alias for keyboard shortcut
+  // Populate forward ref
+  handleSaveRef.current = handleSaveImpl;
+  
+  // Alias for keyboard shortcut (now points to the forward ref wrapper)
   const handleQuickSave = handleSave;
 
   // ============================================================================
@@ -4524,7 +4549,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes]);
   
   // Batch 3: Handler to delete node from Delete button
-  const handleNodeDelete = useCallback(async (nodeId: string) => {
+  const handleNodeDeleteImpl = useCallback(async (nodeId: string) => {
     console.log('[UnifiedFlowEditor] Deleting node:', nodeId);
     
     const nodeToDelete = nodes.find(n => n.id === nodeId);
@@ -4572,6 +4597,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setHasUnsavedChanges(true);
     toast.success('Node deleted');
   }, [nodes, selectedNode, setNodes, setEdges]);
+  
+  // Populate forward ref
+  handleNodeDeleteRef.current = handleNodeDeleteImpl;
   
   // Batch 4: Handler to update node title
   const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
