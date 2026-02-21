@@ -113,6 +113,9 @@ import { NodeConfigPanelWithShadow } from './ConfigPanel';
 
 // FormBuilder Context Provider (2026-02-21 Comprehensive Enhancements)
 import { FormBuilderProvider } from '../../contexts/FormBuilderContext';
+
+// Error Boundary (2026-02-21 Comprehensive Enhancements)
+import { ErrorBoundary } from './ErrorBoundary';
 // NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
 // import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 // import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
@@ -6481,11 +6484,18 @@ export const UnifiedFlowEditor: React.FC<UnifiedFlowEditorProps> = (props) => {
   }, []);
 
   return (
-    <ReactFlowProvider>
-      <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
-        <UnifiedFlowEditorInner {...props} />
-      </FormBuilderProvider>
-    </ReactFlowProvider>
+    <ErrorBoundary 
+      componentName="Workforms Editor"
+      onError={(error, errorInfo) => {
+        console.error('[UnifiedFlowEditor] Critical error:', { error, errorInfo });
+      }}
+    >
+      <ReactFlowProvider>
+        <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
+          <UnifiedFlowEditorInner {...props} />
+        </FormBuilderProvider>
+      </ReactFlowProvider>
+    </ErrorBoundary>
   );
 };
 
