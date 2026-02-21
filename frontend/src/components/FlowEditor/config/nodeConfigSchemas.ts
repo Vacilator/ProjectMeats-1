@@ -11,7 +11,7 @@
  */
 
 import { NodeConfigSchema } from './types';
-import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Zap, Calendar, Webhook, Clock, FileSignature, Upload, Archive } from 'lucide-react';
+import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Zap, Calendar, Webhook, Clock, FileSignature, Upload, Archive, AlertCircle } from 'lucide-react';
 
 /**
  * IMPORTANT: FormBuilder Integration
@@ -925,6 +925,12 @@ export const allSchemas: NodeConfigSchema[] = [
   documentSignSchema,
   documentUploadSchema,
   documentStoreSchema,
+  // Phase 3: Logic & Control Flow schemas (2026-02-21 - Quick Wins)
+  conditionIfSchema,
+  actionEmailSchema,
+  endSuccessSchema,
+  endErrorSchema,
+  timerDelaySchema,
 ];
 
 // Export formStepSingleSchema as alias for backward compatibility
@@ -1629,5 +1635,373 @@ schemaRegistry.register(documentUploadSchema);
 schemaRegistry.register(documentStoreSchema);
 
 console.log('[Schema Registry] Registered document schemas (generate, sign, upload, store)');
+
+// ============================================================================
+// Logic & Control Flow Schemas (2026-02-21 - Quick Wins)
+// ============================================================================
+
+/**
+ * Condition If Schema
+ * Simple if/then branching logic
+ */
+export const conditionIfSchema: NodeConfigSchema = {
+  nodeType: 'conditionIf',
+  displayName: 'Condition: If',
+  description: 'Branch workflow based on condition (if/then/else)',
+  icon: Zap,
+  version: '1.0.0',
+  tags: ['logic', 'condition', 'branching', 'if-then'],
+  contextAware: true,
+
+  sections: [
+    {
+      id: 'condition',
+      title: 'Condition',
+      icon: Zap,
+      defaultExpanded: true,
+      description: 'Define the condition to evaluate',
+      fields: [
+        {
+          id: 'leftOperand',
+          type: 'variablePicker',
+          label: 'Left Value',
+          placeholder: 'Select value or variable...',
+          helpText: 'Value to compare (supports variables)',
+          required: true,
+          validation: [{ type: 'required', message: 'Left value is required' }]
+        },
+        {
+          id: 'operator',
+          type: 'select',
+          label: 'Operator',
+          required: true,
+          options: [
+            { value: 'equals', label: 'Equals (=)' },
+            { value: 'notEquals', label: 'Not Equals (≠)' },
+            { value: 'greaterThan', label: 'Greater Than (>)' },
+            { value: 'lessThan', label: 'Less Than (<)' },
+            { value: 'greaterThanOrEqual', label: 'Greater Than or Equal (≥)' },
+            { value: 'lessThanOrEqual', label: 'Less Than or Equal (≤)' },
+            { value: 'contains', label: 'Contains' },
+            { value: 'notContains', label: 'Does Not Contain' },
+            { value: 'startsWith', label: 'Starts With' },
+            { value: 'endsWith', label: 'Ends With' },
+            { value: 'isEmpty', label: 'Is Empty' },
+            { value: 'isNotEmpty', label: 'Is Not Empty' },
+          ],
+          validation: [{ type: 'required', message: 'Operator is required' }]
+        },
+        {
+          id: 'rightOperand',
+          type: 'variablePicker',
+          label: 'Right Value',
+          placeholder: 'Select value or enter text...',
+          helpText: 'Value to compare against',
+          visibilityCondition: {
+            field: 'operator',
+            operator: 'notIn',
+            value: ['isEmpty', 'isNotEmpty']
+          }
+        },
+      ]
+    },
+    {
+      id: 'paths',
+      title: 'Execution Paths',
+      icon: Navigation,
+      defaultExpanded: false,
+      description: 'Labels for true/false branches',
+      fields: [
+        {
+          id: 'trueBranchLabel',
+          type: 'text',
+          label: 'True Branch Label',
+          placeholder: 'e.g., Approved',
+          defaultValue: 'True',
+          helpText: 'Label for the "true" output connection'
+        },
+        {
+          id: 'falseBranchLabel',
+          type: 'text',
+          label: 'False Branch Label',
+          placeholder: 'e.g., Rejected',
+          defaultValue: 'False',
+          helpText: 'Label for the "false" output connection'
+        },
+      ]
+    },
+  ]
+};
+
+/**
+ * Action Email Schema
+ * Send email notifications
+ */
+export const actionEmailSchema: NodeConfigSchema = {
+  nodeType: 'actionEmail',
+  displayName: 'Action: Send Email',
+  description: 'Send email notification or message',
+  icon: Mail,
+  version: '1.0.0',
+  tags: ['action', 'email', 'notification', 'communication'],
+  contextAware: true,
+
+  sections: [
+    {
+      id: 'recipients',
+      title: 'Recipients',
+      icon: Mail,
+      defaultExpanded: true,
+      description: 'Email recipients configuration',
+      fields: [
+        {
+          id: 'to',
+          type: 'text',
+          label: 'To',
+          placeholder: 'user@example.com, {{customer.email}}',
+          helpText: 'Recipient email addresses (comma-separated, supports variables)',
+          required: true,
+          validation: [{ type: 'required', message: 'At least one recipient is required' }]
+        },
+        {
+          id: 'cc',
+          type: 'text',
+          label: 'CC',
+          placeholder: 'Optional CC addresses',
+          helpText: 'Carbon copy recipients (comma-separated)'
+        },
+        {
+          id: 'bcc',
+          type: 'text',
+          label: 'BCC',
+          placeholder: 'Optional BCC addresses',
+          helpText: 'Blind carbon copy recipients (comma-separated)'
+        },
+      ]
+    },
+    {
+      id: 'content',
+      title: 'Message Content',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Email subject and body',
+      fields: [
+        {
+          id: 'subject',
+          type: 'text',
+          label: 'Subject',
+          placeholder: 'e.g., Order Confirmation {{order.id}}',
+          helpText: 'Email subject line (supports variables)',
+          required: true,
+          validation: [{ type: 'required', message: 'Subject is required' }]
+        },
+        {
+          id: 'body',
+          type: 'textarea',
+          label: 'Body',
+          placeholder: 'Email body text (supports HTML and variables)...',
+          helpText: 'Email message body (supports HTML and template variables)',
+          required: true,
+          rows: 10,
+          validation: [{ type: 'required', message: 'Body is required' }]
+        },
+        {
+          id: 'bodyType',
+          type: 'select',
+          label: 'Body Format',
+          options: [
+            { value: 'html', label: 'HTML' },
+            { value: 'plain', label: 'Plain Text' },
+          ],
+          defaultValue: 'html',
+          helpText: 'Email body format'
+        },
+      ]
+    },
+    {
+      id: 'attachments',
+      title: 'Attachments (Optional)',
+      icon: Upload,
+      defaultExpanded: false,
+      description: 'Add file attachments',
+      fields: [
+        {
+          id: 'attachments',
+          type: 'variablePicker',
+          label: 'Attachments',
+          placeholder: 'Select files from previous steps...',
+          helpText: 'Files to attach (from document nodes or file uploads)',
+          multiple: true,
+        },
+      ]
+    },
+  ]
+};
+
+/**
+ * End Success Schema
+ * Successful workflow termination
+ */
+export const endSuccessSchema: NodeConfigSchema = {
+  nodeType: 'endSuccess',
+  displayName: 'End: Success',
+  description: 'Mark workflow as successfully completed',
+  icon: CheckSquare,
+  version: '1.0.0',
+  tags: ['terminal', 'end', 'success', 'completion'],
+  contextAware: true,
+
+  sections: [
+    {
+      id: 'completion',
+      title: 'Completion Details',
+      icon: CheckSquare,
+      defaultExpanded: true,
+      description: 'Success message and status',
+      fields: [
+        {
+          id: 'successMessage',
+          type: 'textarea',
+          label: 'Success Message',
+          placeholder: 'Workflow completed successfully',
+          helpText: 'Message to display or log on completion',
+          defaultValue: 'Workflow completed successfully',
+          rows: 3,
+        },
+        {
+          id: 'notifyUser',
+          type: 'boolean',
+          label: 'Notify User',
+          helpText: 'Send success notification to workflow initiator',
+          defaultValue: true,
+        },
+        {
+          id: 'returnData',
+          type: 'variablePicker',
+          label: 'Return Data (Optional)',
+          placeholder: 'Select data to return...',
+          helpText: 'Data to return as workflow result',
+          multiple: true,
+        },
+      ]
+    },
+  ]
+};
+
+/**
+ * End Error Schema
+ * Failed workflow termination
+ */
+export const endErrorSchema: NodeConfigSchema = {
+  nodeType: 'endError',
+  displayName: 'End: Error',
+  description: 'Mark workflow as failed with error',
+  icon: AlertCircle,
+  version: '1.0.0',
+  tags: ['terminal', 'end', 'error', 'failure'],
+  contextAware: true,
+
+  sections: [
+    {
+      id: 'error',
+      title: 'Error Details',
+      icon: AlertCircle,
+      defaultExpanded: true,
+      description: 'Error message and handling',
+      fields: [
+        {
+          id: 'errorMessage',
+          type: 'textarea',
+          label: 'Error Message',
+          placeholder: 'Workflow failed: ...',
+          helpText: 'Error message to display or log',
+          required: true,
+          rows: 3,
+          validation: [{ type: 'required', message: 'Error message is required' }]
+        },
+        {
+          id: 'errorCode',
+          type: 'text',
+          label: 'Error Code (Optional)',
+          placeholder: 'e.g., ERR_VALIDATION_001',
+          helpText: 'Unique error code for tracking and debugging',
+        },
+        {
+          id: 'notifyAdmin',
+          type: 'boolean',
+          label: 'Notify Administrator',
+          helpText: 'Send error notification to system administrators',
+          defaultValue: true,
+        },
+        {
+          id: 'retryable',
+          type: 'boolean',
+          label: 'Retryable',
+          helpText: 'Allow workflow to be retried after failure',
+          defaultValue: false,
+        },
+      ]
+    },
+  ]
+};
+
+/**
+ * Timer Delay Schema
+ * Wait/sleep for specified duration
+ */
+export const timerDelaySchema: NodeConfigSchema = {
+  nodeType: 'timerDelay',
+  displayName: 'Timer: Delay',
+  description: 'Wait for a specified duration before continuing',
+  icon: Clock,
+  version: '1.0.0',
+  tags: ['timer', 'delay', 'wait', 'sleep', 'pause'],
+  contextAware: true,
+
+  sections: [
+    {
+      id: 'delay',
+      title: 'Delay Configuration',
+      icon: Clock,
+      defaultExpanded: true,
+      description: 'Set wait duration',
+      fields: [
+        {
+          id: 'duration',
+          type: 'number',
+          label: 'Duration',
+          placeholder: '5',
+          helpText: 'How long to wait',
+          required: true,
+          min: 1,
+          validation: [
+            { type: 'required', message: 'Duration is required' },
+            { type: 'min', value: 1, message: 'Duration must be at least 1' }
+          ]
+        },
+        {
+          id: 'unit',
+          type: 'select',
+          label: 'Unit',
+          options: [
+            { value: 'seconds', label: 'Seconds' },
+            { value: 'minutes', label: 'Minutes' },
+            { value: 'hours', label: 'Hours' },
+            { value: 'days', label: 'Days' },
+          ],
+          defaultValue: 'minutes',
+          required: true,
+        },
+        {
+          id: 'skipOnRetry',
+          type: 'boolean',
+          label: 'Skip on Retry',
+          helpText: 'Skip this delay if workflow is retried',
+          defaultValue: false,
+        },
+      ]
+    },
+  ]
+};
 
 // Cache bust: 1771488534

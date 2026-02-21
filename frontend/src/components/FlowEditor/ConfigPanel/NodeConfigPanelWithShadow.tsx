@@ -26,6 +26,7 @@ import {
   SecondaryButton,
   DangerButton,
 } from './shared/StyledComponents';
+import { ErrorBoundary } from '../ErrorBoundary';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -302,14 +303,21 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
           />
         ) : (
           /* PHASE D/E: Dynamic Schema-Driven Config Panel (replaces hardcoded NodeConfigPanel) */
-          <DynamicConfigPanel
-            node={virtualNode!}
-            nodes={nodes}
-            edges={edges}
-            onUpdateNode={handleShadowUpdate}
-            onApply={handleApply}
-            onDiscard={handleDiscard}
-          />
+          <ErrorBoundary 
+            componentName="Configuration Panel"
+            onError={(error) => {
+              console.error('[NodeConfigPanelWithShadow] DynamicConfigPanel error:', error);
+            }}
+          >
+            <DynamicConfigPanel
+              node={virtualNode!}
+              nodes={nodes}
+              edges={edges}
+              onUpdateNode={handleShadowUpdate}
+              onApply={handleApply}
+              onDiscard={handleDiscard}
+            />
+          </ErrorBoundary>
         )}
       </PanelContent>
 

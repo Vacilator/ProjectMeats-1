@@ -110,6 +110,12 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { NodeConfigPanelWithShadow } from './ConfigPanel';
+
+// FormBuilder Context Provider (2026-02-21 Comprehensive Enhancements)
+import { FormBuilderProvider } from '../../contexts/FormBuilderContext';
+
+// Error Boundary (2026-02-21 Comprehensive Enhancements)
+import { ErrorBoundary } from './ErrorBoundary';
 // NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
 // import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 // import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
@@ -1856,28 +1862,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     saveFormBuilder
   } = useFormBuilder();
   
-  // Listen for openFormBuilder events from context menu and button clicks
-  useEffect(() => {
-    const handleOpenFormBuilder = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const { node, nodeId, nodeData } = customEvent.detail;
-      
-      // Handle from context menu (has node object)
-      if (node) {
-        openFormBuilder(node);
-      }
-      // Handle from button click (has nodeId + nodeData)
-      else if (nodeId) {
-        const foundNode = nodes.find(n => n.id === nodeId);
-        if (foundNode) {
-          openFormBuilder(foundNode);
-        }
-      }
-    };
-    
-    window.addEventListener('openFormBuilder', handleOpenFormBuilder);
-    return () => window.removeEventListener('openFormBuilder', handleOpenFormBuilder);
-  }, [openFormBuilder, nodes]);
+  // REMOVED: Old window.dispatchEvent listener (2026-02-21)
+  // Now using FormBuilderContext from provider wrapper
+  // See: FormBuilderContext.tsx and DynamicConfigPanel.tsx for new pattern
   
   // ============================================================================
   // Validation Engine (Phase 7)
@@ -3163,6 +3150,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             // This will be handled by the parent editor
           },
         };
+      }
+      
+      // Phase 3: FormProcessGroup as true React Flow group container (2026-02-21)
+      if (type === 'formProcessGroup') {
+        newNode.style = {
+          width: 600,  // Default width for group container
+          height: 400, // Default height for child nodes
+        };
+        newNode.data = {
+          ...newNode.data,
+          isExpanded: true, // Default to expanded so children are visible
+          isGroup: true, // Mark as group for React Flow
+        };
+        // Enable React Flow group behavior
+        (newNode as any).type = 'formProcessGroup'; // Explicit type for React Flow
       }
       
       // Phase 1.4: If dropping into a container, set parent-child relationship
@@ -6474,10 +6476,26 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
 // ============================================================================
 
 export const UnifiedFlowEditor: React.FC<UnifiedFlowEditorProps> = (props) => {
+  // Handler for node data updates from FormBuilder
+  const handleNodeDataUpdate = useCallback((nodeId: string, updates: any) => {
+    console.log('[UnifiedFlowEditor] Node data updated from FormBuilder:', { nodeId, updates });
+    // This will be called by FormBuilder context when data changes
+    // The actual state update happens inside UnifiedFlowEditorInner via setNodes
+  }, []);
+
   return (
-    <ReactFlowProvider>
-      <UnifiedFlowEditorInner {...props} />
-    </ReactFlowProvider>
+    <ErrorBoundary 
+      componentName="Workforms Editor"
+      onError={(error, errorInfo) => {
+        console.error('[UnifiedFlowEditor] Critical error:', { error, errorInfo });
+      }}
+    >
+      <ReactFlowProvider>
+        <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
+          <UnifiedFlowEditorInner {...props} />
+        </FormBuilderProvider>
+      </ReactFlowProvider>
+    </ErrorBoundary>
   );
 };
 
