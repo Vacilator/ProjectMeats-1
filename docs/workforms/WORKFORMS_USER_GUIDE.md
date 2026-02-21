@@ -1,8 +1,8 @@
 # WorkForms User Guide
 
-**Version**: 2.0  
-**Last Updated**: 2026-02-05  
-**Status**: Production Ready
+**Version**: 3.0  
+**Last Updated**: 2026-02-21  
+**Status**: Production Ready (Enhanced Stability)
 
 ---
 
@@ -391,6 +391,64 @@ Click any form to see a preview:
 
 ## Troubleshooting
 
+### 🆕 New Features (February 2026)
+
+#### Error Recovery
+**What's New**: If a component crashes, you'll see a friendly error screen with a "Try Again" button instead of losing your work.
+
+**How to Use**:
+1. If you see an error screen, don't panic - your workflow is saved
+2. Click **"Try Again"** to recover
+3. If the error persists, refresh the page
+4. In development mode, you'll see detailed error information to help us fix the issue
+
+#### Loading States
+**What's New**: When loading entity fields or performing slow operations, you'll see skeleton screens and helpful messages.
+
+**What You'll See**:
+- Animated skeleton screens while data loads
+- "Request timed out" message if operation takes longer than 5 seconds
+- **"Retry"** button to try the operation again
+- Clear error messages with actionable advice
+
+#### Form Process Groups
+**What's New**: Form Process nodes are now true containers - you can drag child nodes directly inside them.
+
+**How to Use**:
+1. Add a **Form Process** node to canvas
+2. Double-click to expand the container
+3. Drag **Form Step** nodes from the palette into the container
+4. Nodes automatically become children with proper relationships
+5. Double-click again to collapse
+
+#### Improved FormBuilder
+**What's New**: FormBuilder modal now opens reliably with type-safe communication.
+
+**How to Use**:
+1. Select a Form Process node
+2. Click **"🛠️ Open Full Form Builder"** button in the config panel
+3. Build your multi-step form in the modal
+4. Changes automatically sync back to the editor when you close
+
+---
+
+### Common Issues (Updated Feb 2026)
+
+### Editor Crashes (FIXED ✅)
+
+**Problem**: Deleting a node while its config panel is open used to crash the editor  
+**Status**: **FIXED** - Error boundaries now catch these crashes  
+**What You'll See**: Friendly error screen with retry button instead of blank page
+
+### Slow Field Loading (IMPROVED ✅)
+
+**Problem**: No feedback when entity fields took a long time to load  
+**Status**: **IMPROVED** - Skeleton loaders and timeout detection  
+**What You'll See**: 
+- Animated skeleton while loading
+- "Request timed out" after 5 seconds
+- Retry button to try again
+
 ### Nodes Not Appearing
 
 **Problem**: Dragged node doesn't appear on canvas  
@@ -425,6 +483,41 @@ Click any form to see a preview:
 **Problem**: Form fields not showing in action configuration  
 **Solution**: Make sure form step is connected before action node. Data flows top-to-bottom.
 
+### Empty Config Panel (NEW)
+
+**Problem**: Config panel shows "Select a node to configure its properties"  
+**Status**: **NORMAL BEHAVIOR**  
+**Solution**: This is expected when no node is selected. Click on any node to see its configuration.
+
+### Node Configuration Not Saving (TROUBLESHOOTING)
+
+**Problem**: Changes in config panel don't persist  
+**Solution**:
+1. Make sure to click **"Apply"** button (not just closing the panel)
+2. Check for validation errors (red indicators)
+3. Required fields must be filled before saving
+4. If using FormBuilder modal, close the modal to sync changes
+
+### Workflow Taking Long to Load (NEW)
+
+**Problem**: Workflow seems stuck loading  
+**What to Check**:
+1. Look for skeleton loaders - data is actively loading
+2. Wait for "Request timed out" message (5 seconds)
+3. Click **"Retry"** button if timeout occurs
+4. Check browser console for network errors
+5. Verify backend service is running
+
+### Cannot Drag Nodes into Form Process (NEW)
+
+**Problem**: Can't drag child nodes into Form Process container  
+**Solution**:
+1. Make sure Form Process node is **expanded** (double-click to expand)
+2. Look for dashed border - this indicates the drop zone
+3. Drag **Form Step** nodes specifically (not all node types work)
+4. Release mouse inside the dashed border area
+5. Child node should snap into place with automatic positioning
+
 ---
 
 ## Getting Help
@@ -444,6 +537,14 @@ Click any form to see a preview:
 
 ---
 
-**Last Updated**: 2026-02-05  
-**Version**: 2.0 (Post-Navigation Fix)  
+**Last Updated**: 2026-02-21  
+**Version**: 3.0 (Enhanced Stability + Error Recovery)  
 **Maintained By**: ProjectMeats Development Team
+
+**Recent Enhancements (Feb 2026)**:
+- ✅ Error boundaries with crash recovery
+- ✅ Loading states with skeleton screens
+- ✅ Timeout detection with retry buttons
+- ✅ Form Process as true drag-drop containers
+- ✅ Type-safe FormBuilder integration
+- ✅ Null safety improvements throughout
