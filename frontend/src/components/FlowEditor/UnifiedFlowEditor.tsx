@@ -1891,9 +1891,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     if (node) {
       setSelectedNodeId(nodeId);
       // Center on node with animation
-      setCenter(node.position.x + 100, node.position.y + 50, { duration: 800, zoom: 1.2 });
+      reactFlowInstance.setCenter(node.position.x + 100, node.position.y + 50, { duration: 800, zoom: 1.2 });
     }
-  }, [nodes, setCenter]);
+  }, [nodes, reactFlowInstance]);
   
   // ============================================================================
   // Dry Run Debugger (Phase 7)
