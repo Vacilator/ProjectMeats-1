@@ -339,7 +339,7 @@ const DropZoneText = styled.div`
  * 
  * @param props - Node props from React Flow
  */
-export const FormProcessGroupNode: React.FC<FormProcessGroupNodeProps> = (props) => {
+export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props) => {
   const { id, data, selected } = props;
   const { setNodes } = useReactFlow();
   const allNodes = useNodes();
@@ -550,7 +550,7 @@ export const FormProcessGroupNode: React.FC<FormProcessGroupNodeProps> = (props)
       )}
     </GroupContainer>
   );
-};
+});
 
 // Export type for use in nodeTypes registry
 export default FormProcessGroupNode;

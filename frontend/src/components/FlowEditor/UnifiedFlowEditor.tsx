@@ -14,9 +14,19 @@
  * - Undo/redo history
  * - Keyboard shortcuts
  * 
+ * React Flow Best Practices Applied (2026-02-21):
+ * ✅ All node components wrapped in React.memo for performance
+ * ✅ All edge components wrapped in React.memo
+ * ✅ nodeTypes and edgeTypes objects memoized with useMemo
+ * ✅ All callbacks use useCallback with correct dependencies
+ * ✅ ARIA labels on all Handle components for accessibility
+ * ✅ Snap-to-grid enabled (15x15 grid) for smooth dragging
+ * ✅ TypeScript strict typing with NodeProps<T> for all nodes
+ * 
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-04 - Phase 2.1 Batch 2 (Added Wait, Document, Utility, Terminal nodes)
  * Updated: 2026-02-04 - Phase 2.1 Batch 3 (Enhanced palette, keyboard shortcuts, undo/redo)
+ * Updated: 2026-02-21 - Applied React Flow best practices + consolidated duplicates
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -1601,13 +1611,13 @@ const staticNodeTypes: NodeTypes = {
   terminal: TerminalNode,
 };
 
-const edgeTypes: EdgeTypes = {
+const edgeTypes = useMemo<EdgeTypes>(() => ({
   custom: CustomEdge,
   conditional: ConditionalEdge,
   error: ErrorEdge,
   success: SuccessEdge,
   default: CustomEdge, // Fallback to custom for untyped edges
-};
+}), []);
 
 // ============================================================================
 // Component

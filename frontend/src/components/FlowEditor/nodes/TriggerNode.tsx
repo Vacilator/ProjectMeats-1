@@ -101,7 +101,7 @@ const TriggerBadge = styled.span<{ $type: string }>`
 // Component
 // ============================================================================
 
-export const TriggerNode: React.FC<NodeProps<TriggerNodeData>> = (props) => {
+export const TriggerNode = React.memo<NodeProps<TriggerNodeData>>((props) => {
   const { data, selected, id } = props;
   const {
     triggerType,
@@ -189,6 +189,6 @@ export const TriggerNode: React.FC<NodeProps<TriggerNodeData>> = (props) => {
       </div>
     </BaseNode>
   );
-};
+});
 
 export default TriggerNode;

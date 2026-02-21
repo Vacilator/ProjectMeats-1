@@ -144,7 +144,7 @@ const OPERATOR_LABELS: Record<string, string> = {
 // Component
 // ============================================================================
 
-export const ConditionIfNode: React.FC<NodeProps<ConditionIfNodeData>> = (props) => {
+export const ConditionIfNode = React.memo<NodeProps<ConditionIfNodeData>>((props) => {
   const { data, selected, id } = props;
   const nodeTypeDef = getNodeTypeDefinition('conditionIf');
   
@@ -217,16 +217,18 @@ export const ConditionIfNode: React.FC<NodeProps<ConditionIfNodeData>> = (props)
           position={Position.Bottom}
           id="true"
           $type="true"
+          aria-label="True branch - condition met"
         />
         <BranchHandle
           type="source"
           position={Position.Bottom}
           id="false"
           $type="false"
+          aria-label="False branch - condition not met"
         />
       </BranchHandles>
     </ConditionContainer>
   );
-};
+});
 
 export default ConditionIfNode;

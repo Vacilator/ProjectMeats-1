@@ -84,7 +84,7 @@ const ErrorBadge = styled.div`
 // Component
 // ============================================================================
 
-export const ErrorEdge: React.FC<EdgeProps<ErrorEdgeData>> = ({
+export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
   id,
   sourceX,
   sourceY,
@@ -203,6 +203,6 @@ export const ErrorEdge: React.FC<EdgeProps<ErrorEdgeData>> = ({
       </EdgeLabelRenderer>
     </>
   );
-};
+});
 
 export default ErrorEdge;

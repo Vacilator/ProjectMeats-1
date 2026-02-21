@@ -84,7 +84,7 @@ const SuccessBadge = styled.div`
 // Component
 // ============================================================================
 
-export const SuccessEdge: React.FC<EdgeProps<SuccessEdgeData>> = ({
+export const SuccessEdge = React.memo<EdgeProps<SuccessEdgeData>>(({
   id,
   sourceX,
   sourceY,
@@ -198,6 +198,6 @@ export const SuccessEdge: React.FC<EdgeProps<SuccessEdgeData>> = ({
       </EdgeLabelRenderer>
     </>
   );
-};
+});
 
 export default SuccessEdge;

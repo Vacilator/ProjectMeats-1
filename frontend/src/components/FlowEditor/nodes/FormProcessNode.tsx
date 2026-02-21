@@ -481,7 +481,7 @@ const EnterButton = styled.button`
  * - Expand/collapse toggles child visibility via hidden property
  * - Uses React Flow's official grouping pattern
  */
-export const FormProcessNode: React.FC<FormProcessNodeProps> = ({
+export const FormProcessNode = React.memo<FormProcessNodeProps>(({
   id,
   data,
   selected,
@@ -748,6 +748,6 @@ export const FormProcessNode: React.FC<FormProcessNodeProps> = ({
         </ContainerWrapper>
     </>
   );
-};
+});
 
 export default FormProcessNode;

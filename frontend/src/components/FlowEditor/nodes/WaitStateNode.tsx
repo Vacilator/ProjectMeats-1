@@ -137,7 +137,7 @@ const formatDeadline = (deadline?: { type: string; value: number | string }) => 
 // Component
 // ============================================================================
 
-export const WaitStateNode: React.FC<NodeProps<WaitStateNodeData>> = ({ data }) => {
+export const WaitStateNode = React.memo<NodeProps<WaitStateNodeData>>(({ data, id, selected }) => {
   const { waitType, assignedTo, deadline, reminderEnabled, escalationEnabled, message } = data;
   const typeInfo = getWaitTypeInfo(waitType);
   const Icon = typeInfo.icon;
@@ -205,6 +205,7 @@ export const WaitStateNode: React.FC<NodeProps<WaitStateNodeData>> = ({ data }) 
 
   return (
     <BaseNode
+      id={id}
       data={{
         ...data,
         label: typeInfo.label,
@@ -214,8 +215,19 @@ export const WaitStateNode: React.FC<NodeProps<WaitStateNodeData>> = ({ data }) 
           <WaitInfo>{configPreview}</WaitInfo>
         ) : undefined,
       }}
+      selected={selected}
+      nodeType={{
+        id: 'waitState',
+        name: typeInfo.label,
+        category: 'logic',
+        color: typeInfo.color,
+        icon: 'Clock',
+        maxInputs: 1,
+        maxOutputs: 1,
+        config: {},
+      }}
     />
   );
-};
+});
 
 export default WaitStateNode;

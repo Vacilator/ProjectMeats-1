@@ -67,16 +67,21 @@ export interface OutlookEmailNodeData {
   importance?: 'low' | 'normal' | 'high';
 }
 
-export const OutlookEmailNode: React.FC<NodeProps<OutlookEmailNodeData>> = ({ 
+export const OutlookEmailNode = React.memo<NodeProps<OutlookEmailNodeData>>(({ 
   data, 
-  selected 
+  selected,
+  id
 }) => {
   const displayRecipients = data.to?.slice(0, 2).join(', ') || 'No recipients';
   const hasMoreRecipients = data.to?.length > 2;
   
   return (
     <NodeContainer className={selected ? 'selected' : ''}>
-      <Handle type="target" position={Position.Top} />
+      <Handle 
+        type="target" 
+        position={Position.Top}
+        aria-label="Input connection"
+      />
       
       <NodeHeader>
         <NodeIcon>
@@ -100,9 +105,13 @@ export const OutlookEmailNode: React.FC<NodeProps<OutlookEmailNodeData>> = ({
         )}
       </NodeBody>
       
-      <Handle type="source" position={Position.Bottom} />
+      <Handle 
+        type="source" 
+        position={Position.Bottom}
+        aria-label="Output connection"
+      />
     </NodeContainer>
   );
-};
+});
 
 export default OutlookEmailNode;

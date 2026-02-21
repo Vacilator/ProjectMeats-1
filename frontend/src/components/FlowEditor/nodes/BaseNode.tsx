@@ -435,6 +435,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           position={Position.Top}
           id="input"
           $color={nodeType.color}
+          aria-label="Input connection handle"
         />
       )}
       
@@ -563,6 +564,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           position={Position.Bottom}
           id="output"
           $color={nodeType.color}
+          aria-label="Output connection handle"
         />
       )}
       
@@ -574,6 +576,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           id="error"
           $color="rgb(239, 68, 68)"
           style={{ top: '50%' }}
+          aria-label="Error route connection handle"
         />
       )}
     </NodeContainer>
