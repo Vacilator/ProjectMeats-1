@@ -145,6 +145,8 @@ import { FormProcessModal, type ContainerData } from './Modals/FormProcessModal'
 import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
 import { WorkflowExecutionModal } from '../FormSubmission/WorkflowExecutionModal'; // Task 1: Integration
 import { PreviewPanel } from './panels/PreviewPanel';
+import { FlowPreviewModal } from './Modals/FlowPreviewModal'; // Phase 1: Hybrid Functionality
+import { DataMappingPanel } from './ConfigPanel/DataMappingPanel'; // Phase 1: Hybrid Functionality
 
 // ============================================================================
 // TypeScript Interfaces
@@ -2245,6 +2247,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [isDeleting, setIsDeleting] = useState(false); // Phase 8.3
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false); // Phase 8.6
   const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false); // Task 1: Workflow Execution
+  const [isFlowPreviewOpen, setIsFlowPreviewOpen] = useState(false); // Phase 1: Hybrid Functionality
   
   // ============================================================================
   // Wizard Mode State (Phase 2.2 Batch 3)
@@ -5392,6 +5395,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             <Play size={14} style={{ marginRight: '4px' }} />
             Test Workflow
           </ToolbarButton>
+          
+          {/* Phase 1: Flow Preview Integration */}
+          <ToolbarButton 
+            onClick={() => setIsFlowPreviewOpen(true)}
+            title="Run Flow Preview"
+            style={{ 
+              fontWeight: 600, 
+              color: 'rgb(139, 92, 246)', // Purple accent
+              borderColor: 'rgb(139, 92, 246, 0.3)'
+            }}
+            disabled={nodes.length === 0}
+          >
+            <Eye size={14} style={{ marginRight: '4px' }} />
+            Preview Flow
+          </ToolbarButton>
         </Toolbar>
       )}
 
@@ -6334,6 +6352,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             nodes,
             edges,
           }}
+        />
+      )}
+      
+      {/* Phase 1: Flow Preview Modal */}
+      {isFlowPreviewOpen && (
+        <FlowPreviewModal
+          isOpen={isFlowPreviewOpen}
+          onClose={() => setIsFlowPreviewOpen(false)}
         />
       )}
 
