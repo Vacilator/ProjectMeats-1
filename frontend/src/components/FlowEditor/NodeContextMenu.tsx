@@ -500,8 +500,8 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       {/* Edit option for ALL nodes */}
       {onEdit && (
         <>
-          <MenuItem onClick={handleEdit} role="menuitem">
-            <Settings size={16} />
+          <MenuItem onClick={handleEdit} role="menuitem" aria-label="Edit node configuration">
+            <Settings size={16} aria-hidden="true" />
             <span>Edit Configuration</span>
           </MenuItem>
           <MenuSeparator />
@@ -510,25 +510,25 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       
       {isContainer && (
         <>
-          <MenuItem onClick={handleEditInBuilder}>
-            <Wand2 size={16} />
+          <MenuItem onClick={handleEditInBuilder} role="menuitem" aria-label="Edit container in form builder">
+            <Wand2 size={16} aria-hidden="true" />
             <span>Edit in FormBuilder</span>
           </MenuItem>
-          <MenuItem onClick={handleAddStep}>
-            <Plus size={16} />
+          <MenuItem onClick={handleAddStep} role="menuitem" aria-label="Add step to container">
+            <Plus size={16} aria-hidden="true" />
             <span>Add Step</span>
           </MenuItem>
-          <MenuItem onClick={handleExpandCollapseAll}>
-            <Maximize2 size={16} />
+          <MenuItem onClick={handleExpandCollapseAll} role="menuitem" aria-label="Expand or collapse all steps">
+            <Maximize2 size={16} aria-hidden="true" />
             <span>Expand/Collapse All</span>
           </MenuItem>
           <MenuSeparator />
-          <MenuItem onClick={handleDuplicateContainer}>
-            <Copy size={16} />
+          <MenuItem onClick={handleDuplicateContainer} role="menuitem" aria-label="Duplicate container">
+            <Copy size={16} aria-hidden="true" />
             <span>Duplicate Container</span>
           </MenuItem>
-          <MenuItem onClick={handleConvertToSubFlow}>
-            <Layers size={16} />
+          <MenuItem onClick={handleConvertToSubFlow} role="menuitem" aria-label="Convert to sub-flow">
+            <Layers size={16} aria-hidden="true" />
             <span>Convert to Sub-Flow</span>
           </MenuItem>
           <MenuSeparator />
@@ -537,8 +537,8 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       
       {isChildNode && (
         <>
-          <MenuItem onClick={handleExtract}>
-            <Move size={16} />
+          <MenuItem onClick={handleExtract} role="menuitem" aria-label="Extract from container">
+            <Move size={16} aria-hidden="true" />
             <span>Extract from Container</span>
           </MenuItem>
           <MenuSeparator />
@@ -547,16 +547,16 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       
       {!isContainer && (
         <>
-          <MenuItem onClick={handleCopy}>
-            <Copy size={16} />
+          <MenuItem onClick={handleCopy} role="menuitem" aria-label="Copy node">
+            <Copy size={16} aria-hidden="true" />
             <span>Copy Node</span>
           </MenuItem>
           <MenuSeparator />
         </>
       )}
       
-      <MenuItem onClick={handleDelete} danger>
-        <Trash2 size={16} />
+      <MenuItem onClick={handleDelete} danger role="menuitem" aria-label={`Delete ${isContainer ? 'container' : 'node'}`}>
+        <Trash2 size={16} aria-hidden="true" />
         <span>Delete {isContainer ? 'Container' : 'Node'}</span>
       </MenuItem>
     </MenuContainer>,

@@ -1633,21 +1633,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   
-  // Debug state changes for config panel visibility
-  useEffect(() => {
-    console.log('🔍 [STATE DEBUG] selectedNode changed:', selectedNode?.id || 'null', selectedNode?.type || 'none');
-    if (selectedNode) {
-      console.log('✅ [STATE DEBUG] Config panel should be VISIBLE for:', selectedNode.type);
-    } else {
-      console.log('❌ [STATE DEBUG] Config panel should be HIDDEN');
-    }
-  }, [selectedNode]);
-  
-  // Debug selectedNodeId changes
-  useEffect(() => {
-    console.log('🔍 [STATE DEBUG] selectedNodeId changed:', selectedNodeId || 'null');
-  }, [selectedNodeId]);
-  
   // Phase E: Wrap onNodesChange to handle container deletion
   const onNodesChange = useCallback((changes: any[]) => {
     // Check if any containers are being removed
@@ -4618,7 +4603,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     debounce((event: React.MouseEvent, node: Node) => {
       event.stopPropagation();
       event.preventDefault();
-      console.log('🖱️ [NODE CLICK] Opening config for:', node.type, node.id);
       handleNodeEdit(node.id);
     }, 300, { leading: true, trailing: false }),
     [handleNodeEdit]
@@ -4626,18 +4610,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Batch 3: Handler to delete node from Delete button
   const handleNodeDeleteImpl = useCallback(async (nodeId: string) => {
-    console.log('[UnifiedFlowEditor] Deleting node:', nodeId);
-    
     // SAFETY: Validate state before deletion
     if (!nodes || nodes.length === 0) {
-      console.error('[FlowEditor] Cannot delete: No nodes available');
       toast.error('Cannot delete node: Invalid state');
       return;
     }
     
     const nodeToDelete = nodes.find(n => n.id === nodeId);
     if (!nodeToDelete) {
-      console.warn('[FlowEditor] Node not found:', nodeId);
       toast.warning('Node not found');
       return;
     }
@@ -4650,9 +4630,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         if (tenantFormId) {
           try {
             await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
-            console.log('[UnifiedFlowEditor] Decremented usage count for form:', tenantFormId);
           } catch (error) {
-            console.error('[UnifiedFlowEditor] Failed to decrement usage count:', error);
+            console.error('Failed to decrement form usage count:', error);
             // Continue with deletion even if API call fails
           }
         }
@@ -4663,7 +4642,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         );
         
         if (childNodeIds.size > 0) {
-          console.log('[UnifiedFlowEditor] Also removing', childNodeIds.size, 'child nodes');
           setNodes(nds => nds.filter(n => 
             n.id !== nodeId && !childNodeIds.has(n.id)
           ));
@@ -5656,7 +5634,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           y={menu.y}
           onClose={handleCloseMenu}
           onEdit={(nodeId) => {
-            console.log('📝 [CONTEXT MENU] Edit clicked for:', nodeId);
             handleCloseMenu();
             handleNodeEdit(nodeId);
           }}
@@ -5955,18 +5932,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             edges={edges}
             setNodes={setNodes}
             setEdges={setEdges}
-            onClose={() => {
-              console.log('🔒 [CLOSE] Closing config panel');
-              setSelectedNode(null);
-            }}
+            onClose={() => setSelectedNode(null)}
             onUpdate={handleNodeUpdate}
             onTest={handleNodeTest}
             onSelectNode={(nodeId) => {
               const node = nodes.find(n => n.id === nodeId);
-              if (node) {
-                console.log('🔄 [SELECT] Switching to node:', nodeId);
-                setSelectedNode(node);
-              }
+              if (node) setSelectedNode(node);
             }}
           />
         </RightSidebar>,
