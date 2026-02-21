@@ -1,13 +1,14 @@
 """
 Signals for the Workflows app.
 
+Phase 5 Part 2: Event-Driven Workflows
 Handles automatic creation of FormStepSubmission records when a FormSubmission
-is created, and captures form snapshot for versioning.
+is created, captures form snapshot for versioning, and triggers event-driven workflows.
 """
 import logging
 
 from django.db import transaction
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from .models import FormSubmission, FormStepSubmission, StepSubmissionStatus
@@ -15,6 +16,118 @@ from .services import FieldRegistry
 from .services.field_registry import ENTITY_MODEL_MAP
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# EVENT-DRIVEN WORKFLOW TRIGGERS (Phase 5 Part 2)
+# =============================================================================
+
+def trigger_event_workflows(sender, instance, event_type, **kwargs):
+    """
+    Trigger workflows that match entity events.
+    
+    Phase 5 Part 2: Event Triggers
+    Called by post_save and post_delete signals to execute matching workflows.
+    
+    Args:
+        sender: Model class
+        instance: Model instance
+        event_type: 'create', 'update', or 'delete'
+    """
+    from .models import TenantWorkflow
+    from .tasks import execute_event_workflow
+    
+    # Get entity type from sender model
+    entity_type = _get_entity_type_from_model(
+        sender._meta.app_label,
+        sender._meta.model_name
+    )
+    
+    if not entity_type:
+        return
+    
+    # Get tenant from instance (if multi-tenant model)
+    tenant = getattr(instance, 'tenant', None)
+    if not tenant:
+        return
+    
+    # Find matching workflows
+    workflows = TenantWorkflow.objects.filter(
+        tenant=tenant,
+        status='active',
+        trigger_type='event',
+        trigger_config__entity=entity_type,
+        trigger_config__triggerOn__contains=[event_type]
+    )
+    
+    # Queue each workflow for execution
+    for workflow in workflows:
+        logger.info(f'[EventTrigger] Queuing workflow {workflow.id} for {entity_type}.{event_type}')
+        
+        # Execute asynchronously via Celery
+        execute_event_workflow.delay(
+            workflow_id=str(workflow.id),
+            entity_type=entity_type,
+            entity_id=str(instance.id),
+            event_type=event_type,
+            context={
+                'tenant_id': str(tenant.id),
+                'user_id': getattr(instance, 'created_by_id', None)
+            }
+        )
+
+
+# Register signal handlers for common entities
+def register_entity_signals():
+    """
+    Register post_save and post_delete signals for all entity types.
+    
+    Phase 5 Part 2: Dynamic Signal Registration
+    Called on app ready to wire up event-driven workflows.
+    """
+    from django.apps import apps
+    
+    # Entity types to monitor
+    entity_models = [
+        ('accounts', 'Customer'),
+        ('accounts', 'Supplier'),
+        ('procurement', 'PurchaseOrder'),
+        ('sales', 'SalesOrder'),
+        ('invoicing', 'Invoice'),
+        ('inventory', 'Product'),
+    ]
+    
+    for app_label, model_name in entity_models:
+        try:
+            model = apps.get_model(app_label, model_name)
+            
+            # Connect post_save for create/update
+            post_save.connect(
+                lambda sender, instance, created, **kwargs: trigger_event_workflows(
+                    sender, instance, 'create' if created else 'update', **kwargs
+                ),
+                sender=model,
+                dispatch_uid=f'workflow_event_{app_label}_{model_name}_save'
+            )
+            
+            # Connect post_delete for delete
+            post_delete.connect(
+                lambda sender, instance, **kwargs: trigger_event_workflows(
+                    sender, instance, 'delete', **kwargs
+                ),
+                sender=model,
+                dispatch_uid=f'workflow_event_{app_label}_{model_name}_delete'
+            )
+            
+            logger.info(f'[Signals] Registered event triggers for {app_label}.{model_name}')
+            
+        except LookupError:
+            logger.warning(f'[Signals] Model not found: {app_label}.{model_name}')
+
+
+# =============================================================================
+# FORM SUBMISSION SIGNALS (Existing)
+# =============================================================================
 
 
 def _get_entity_type_from_model(app_label: str, model_name: str) -> str:
