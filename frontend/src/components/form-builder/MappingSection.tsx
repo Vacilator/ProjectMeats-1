@@ -11,10 +11,15 @@
 
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { X, Zap, Check, TrendingUp } from 'lucide-react';
+import { X, Zap, Check, TrendingUp, Settings } from 'lucide-react';
 import { useFormBuilderStore } from './store';
 import { autoMapFields } from '../FlowEditor/utils/autoPopulateEngine';
 import { Variable } from '../FlowEditor/components/VariablePicker';
+import {
+  getAvailableTransformations,
+  getTransformationName,
+  type TransformationType,
+} from '../FlowEditor/utils/transformations';
 
 const Overlay = styled.div<{ isOpen: boolean }>`
   position: fixed;
@@ -140,6 +145,39 @@ const MappingScore = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
+const TransformSection = styled.div`
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(var(--color-border));
+`;
+
+const TransformLabel = styled.div`
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const TransformSelect = styled.select`
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 4px;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
 const ApplyButton = styled.button`
   padding: 8px 12px;
   background: rgb(var(--color-primary));
@@ -186,6 +224,7 @@ export const MappingSection: React.FC = () => {
     confidence: 'high' | 'medium' | 'low';
   }>>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedTransformations, setSelectedTransformations] = useState<Record<string, TransformationType>>({});
   
   const handleAutoMap = () => {
     if (!activeStepId) return;
@@ -304,6 +343,30 @@ export const MappingSection: React.FC = () => {
                   <MappingScore>
                     Match score: {mapping.score}%
                   </MappingScore>
+                  
+                  <TransformSection>
+                    <TransformLabel>
+                      <Settings size={10} />
+                      Transformation (Optional)
+                    </TransformLabel>
+                    <TransformSelect
+                      value={selectedTransformations[`${mapping.sourceVariable.id}-${mapping.targetField.id}`] || ''}
+                      onChange={(e) => {
+                        const key = `${mapping.sourceVariable.id}-${mapping.targetField.id}`;
+                        setSelectedTransformations({
+                          ...selectedTransformations,
+                          [key]: e.target.value as TransformationType
+                        });
+                      }}
+                    >
+                      <option value="">No transformation</option>
+                      {getAvailableTransformations(mapping.targetField.type).map((transform) => (
+                        <option key={transform} value={transform}>
+                          {getTransformationName(transform)}
+                        </option>
+                      ))}
+                    </TransformSelect>
+                  </TransformSection>
                   
                   <ApplyButton onClick={() => handleApplyMapping(mapping)}>
                     <Check size={14} />
