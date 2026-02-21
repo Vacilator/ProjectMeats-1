@@ -1,104 +1,126 @@
-# ProjectMeats Planning Documents
+# Planning Documents
 
-> **Last Updated**: 2026-02-01
-
-This directory contains **active planning documents** for ProjectMeats v2.0.
+This directory contains **active planning documents** for ProjectMeats development.
 
 ---
 
-## 🎯 Source of Truth
+## 🎯 CURRENT ACTIVE PLAN (2026-02-21)
 
-| Document | Purpose | Update Frequency |
-|----------|---------|------------------|
-| **[PROJECTMEATS_V2_MASTER_PLAN.md](PROJECTMEATS_V2_MASTER_PLAN.md)** | THE master plan for v2.0 overhaul | Weekly |
-| **[PROGRESS_TRACKER.md](PROGRESS_TRACKER.md)** | Real-time progress tracking | Daily |
+### **[Intelligent Workform Editor - Master Implementation Plan](./INTELLIGENT_WORKFORM_EDITOR_MASTER_PLAN.md)**
+**Status:** 📋 Ready for Implementation  
+**Timeline:** 2-3 weeks (8 phases)  
+**Priority:** ⭐ HIGHEST  
+**Risk:** 🟢 LOW (builds on existing infrastructure)
 
----
+**Summary:** Production-ready workflow editor combining specialized nodes, true container architecture, FormBuilder modal, trigger system, document handling, and smart UX features. **Zero breaking changes.**
 
-## 📋 Active Plans
-
-| Plan | Scope | Status |
-|------|-------|--------|
-| [Master Plan v3.1](PROJECTMEATS_V2_MASTER_PLAN.md) | Full v2.0 implementation | 🔄 28% Complete |
-| [Progress Tracker](PROGRESS_TRACKER.md) | Task tracking & metrics | 🔄 Updated daily |
-| **[Multi-Step Container](MULTI_STEP_CONTAINER_IMPLEMENTATION_PLAN.md)** | **Container workflows fix** | **⏳ Ready to Execute** |
-| [Forms Enhancement](FORMS_FLOWS_ENHANCEMENT_PLAN.md) | Forms & workflows | 🔄 Wave 3 |
-| [Doc Organization](DOCUMENTATION_ORGANIZATION_PLAN.md) | Documentation cleanup | 🔄 Wave 5 |
+**Supporting Documents:**
+- [Architecture Decision Analysis](./ARCHITECTURE_DECISION_ANALYSIS.md) - Detailed comparison of 3 approaches (consolidation vs. enhancement vs. hybrid)
+- [Phase F Schema Completion Guide](./PHASE_F_SCHEMA_COMPLETION_GUIDE.md) - Alternative approach focusing only on schema completion
 
 ---
 
-## 📦 Archived Plans
+## 📂 Archive
 
-Plans that have been **consolidated into the Master Plan**:
+**16 superseded plans** have been moved to `archive/` directory (as of 2026-02-21):
+- ADMIN_WORKSPACE_IMPLEMENTATION_PLAN.md
+- COCKPIT_WORKFORMS_OVERHAUL_PLAN.md
+- CONTAINER_UI_FIXES_STATUS.md
+- DOCUMENTATION_ORGANIZATION_PLAN.md
+- FORMS_FLOWS_ENHANCEMENT_PLAN.md
+- MASTER_EXECUTION_PLAN_2026.md
+- MULTI_STEP_CONTAINER_IMPLEMENTATION_PLAN.md
+- MULTI_STEP_CONTAINER_QUICK_REFERENCE.md
+- NODE_CONFIGURATION_OVERHAUL_2026.md
+- PRODUCT_FK_MIGRATION_PLAN.md
+- PROGRESS_TRACKER.md
+- PROJECTMEATS_V2_MASTER_PLAN.md
+- REMAINING_WORK_OUTLINE.md
+- UNIFIED_WORKFORM_OVERHAUL_PLAN.md
+- WORKFORMS_INTEGRATION_PLAN.md
+- WORKFORMS_NAVIGATION_FIX_PLAN.md
 
-| Plan | Now Part Of | Location |
-|------|-------------|----------|
-| Form System Overhaul | Wave 3: Forms & Flows | [archive/superseded-plans/](../archive/superseded-plans/) |
-| Data Entity Restructuring | Wave 6: Model Migrations | [archive/superseded-plans/](../archive/superseded-plans/) |
-| Admin Backend Revamp | Wave 4: Admin Studio | [archive/superseded-plans/](../archive/superseded-plans/) |
-| Form Editor & Execution | Forms Enhancement Plan | [archive/superseded-plans/](../archive/superseded-plans/) |
-
----
-
-## 🔄 Plan Hierarchy
-
-```
-Master Plan v3.1 (Source of Truth)
-├── Wave 0: Preparation ✅
-├── Wave 1: Foundation 
-├── Wave 2: Cockpit Command Center
-├── Wave 3: Forms & Flows ← FORMS_FLOWS_ENHANCEMENT_PLAN.md
-├── Wave 4: Admin Studio Enhancement
-├── Wave 5: Repository Cleanup ← DOCUMENTATION_ORGANIZATION_PLAN.md
-├── Wave 6: Model Migrations
-├── Wave 7: Finalization
-├── Wave F: Features
-├── Wave M: Mobile
-├── Wave T: Testing
-└── Wave I: Infrastructure
-```
+**Reason for Archive:** These plans were superseded by the **Smart Enhanced Specialized Architecture** approach, which combines the best elements of all previous planning efforts while maintaining stability and avoiding breaking changes.
 
 ---
 
-## 📏 Planning Standards
+## 🚀 How to Use This Directory
 
-### When to Create a New Plan
+### For Developers
+1. **Read the Master Plan First** - Understand the 8-phase implementation approach
+2. **Check Phase Dependencies** - Each phase builds on the previous one
+3. **Reference Supporting Docs** - Use Architecture Analysis for decision rationale
+4. **Update Status as You Work** - Mark phases as in-progress/complete
 
-- **DO** create a plan for multi-week efforts spanning multiple waves
-- **DO** create a plan when detailed task breakdown needed beyond Master Plan
-- **DON'T** create a plan that duplicates Master Plan content
-- **DON'T** create standalone plans - link them to Master Plan wave
+### For Product/PM
+1. **Master Plan = Single Source of Truth** - All current work aligns with this plan
+2. **Timeline is Realistic** - 2-3 weeks based on existing infrastructure
+3. **Risk is Low** - No breaking changes, incremental rollout
+4. **Success Metrics Defined** - Clear quantitative and qualitative measures
 
-### Plan Document Template
+### For Stakeholders
+1. **Current Focus:** Intelligent Workform Editor (8 phases)
+2. **Deliverables:** Production-ready editor with rich features
+3. **Timeline:** 2-3 weeks from start date
+4. **Business Value:** Faster workflow creation, better UX, reduced support tickets
+
+---
+
+## 📝 Plan Creation Guidelines
+
+When creating a **new** plan (rare - coordinate with team first):
 
 ```markdown
-# [Feature/Area] Plan
+# [Feature Name] Implementation Plan
 
-**Document Version**: 1.0  
-**Created**: YYYY-MM-DD  
-**Status**: 📋 PLANNING | 🔄 IN PROGRESS | ✅ COMPLETE  
-**Tracked In**: Wave X of Master Plan v3.1
+**Status**: 📋 Planning | 🚧 In Progress | ✅ Complete  
+**Priority**: ⭐ High | Medium | Low  
+**Timeline**: X weeks  
+**Risk**: 🟢 Low | 🟡 Medium | 🔴 High  
+**Owner**: Team/Person  
+**Related To**: [Link to master plan if applicable]
 
----
+## Objective
+Clear problem statement (1-2 sentences)
 
-## Related Documents
-| Document | Purpose |
-|----------|---------|
-| [Master Plan](PROJECTMEATS_V2_MASTER_PLAN.md) | Parent plan |
-| [Progress Tracker](PROGRESS_TRACKER.md) | Task tracking |
+## Current State
+What exists today? What's the gap?
 
----
+## Proposed Solution
+High-level approach (not implementation details)
 
-## Executive Summary
-[Brief description of what this plan covers]
+## Implementation Phases
+Numbered phases with deliverables
 
-## Tasks
-[Detailed task breakdown]
+## Success Metrics
+How do we measure success? (quantitative + qualitative)
 
-## Success Criteria
-[How we know this plan is complete]
+## Risks & Mitigation
+What could go wrong? Mitigation strategies?
+
+## Dependencies
+What must complete before this? What blocks on this?
 ```
 
 ---
 
-*This directory is part of the [Documentation Organization](DOCUMENTATION_ORGANIZATION_PLAN.md) effort*
+## 🔍 Quick Reference
+
+**Need to find something?**
+- **Current work:** See INTELLIGENT_WORKFORM_EDITOR_MASTER_PLAN.md
+- **Historical context:** Check archive/ directory
+- **Decision rationale:** See ARCHITECTURE_DECISION_ANALYSIS.md
+- **Alternative approaches:** See PHASE_F_SCHEMA_COMPLETION_GUIDE.md
+
+**Questions?**
+- Consult the master plan first
+- Check supporting documents
+- Review archived plans for context
+- Ask in team chat if still unclear
+
+---
+
+**Last Updated:** 2026-02-21  
+**Active Plans:** 1 (Master Plan + 2 supporting docs)  
+**Archived Plans:** 16  
+**Next Review:** After Phase 8 completion
