@@ -229,6 +229,7 @@ export const navigation: NavigationItem[] = [
 /**
  * Admin Workspace Navigation (Bottom Section)
  * Tenant-specific administration and configuration pages
+ * Updated 2026-02-21: Changed from /admin/* to /workspace/* to avoid Django conflict
  */
 export const adminWorkspaceNavigation: NavigationItem[] = [
   {
@@ -238,37 +239,37 @@ export const adminWorkspaceNavigation: NavigationItem[] = [
       {
         label: 'Configurations',
         icon: '🔧',
-        path: '/admin/configurations',
+        path: '/workspace/configurations',
         roles: ['admin', 'superuser'],
       },
       {
         label: 'Customizations',
         icon: '🎨',
-        path: '/admin/customizations',
+        path: '/workspace/customizations',
         roles: ['admin', 'superuser'],
       },
       {
         label: 'Users & Invitations',
         icon: '👥',
-        path: '/admin/users',
+        path: '/workspace/users',
         roles: ['admin', 'superuser'],
       },
       {
         label: 'Profile',
         icon: '🏢',
-        path: '/admin/profile',
+        path: '/workspace/profile',
         roles: ['admin', 'superuser'],
       },
       {
         label: 'Billing',
         icon: '💳',
-        path: '/admin/billing',
+        path: '/workspace/billing',
         roles: ['admin', 'superuser'],
       },
       {
         label: 'Option Lists',
         icon: '📋',
-        path: '/admin/option-lists',
+        path: '/workspace/option-lists',
         roles: ['admin', 'superuser'],
       },
     ],
