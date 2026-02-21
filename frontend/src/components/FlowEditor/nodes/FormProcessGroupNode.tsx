@@ -56,6 +56,10 @@ export interface FormProcessGroupData extends BaseNodeData {
   tenantWorkFormId?: string;
   /** Group flag for React Flow */
   isGroup?: boolean;
+  /** Drop target indicator (Phase 3) */
+  isDropTarget?: boolean;
+  /** Sequential execution order enabled (Phase 3) */
+  sequentialExecution?: boolean;
 }
 
 export interface FormProcessGroupNodeProps extends NodeProps<FormProcessGroupData> {}
@@ -67,24 +71,31 @@ export interface FormProcessGroupNodeProps extends NodeProps<FormProcessGroupDat
 /**
  * Container wrapper with group styling
  * Adapts size based on expanded/collapsed state
+ * Phase 3: Added drop zone indicator
  */
-const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number }>`
+const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; isDropTarget?: boolean }>`
   min-width: ${props => props.isExpanded ? '600px' : '280px'};
   min-height: ${props => props.isExpanded ? `${Math.max(400, props.stepCount * 120 + 80)}px` : 'auto'};
   max-width: ${props => props.isExpanded ? '1200px' : '320px'};
   
-  background: ${props => props.isExpanded 
-    ? 'rgba(139, 92, 246, 0.03)' // Light purple tint when expanded
-    : 'rgb(var(--color-background-secondary))'};
+  background: ${props => {
+    if (props.isDropTarget) return 'rgba(139, 92, 246, 0.15)'; // Highlight when dragging over
+    return props.isExpanded 
+      ? 'rgba(139, 92, 246, 0.03)' 
+      : 'rgb(var(--color-background-secondary))';
+  }};
   
-  border: 2px ${props => props.isExpanded ? 'dashed' : 'solid'} rgba(139, 92, 246, 0.5);
+  border: 2px ${props => props.isExpanded ? 'dashed' : 'solid'} ${props => 
+    props.isDropTarget ? 'rgba(139, 92, 246, 0.8)' : 'rgba(139, 92, 246, 0.5)'
+  };
   border-radius: 12px;
   overflow: ${props => props.isExpanded ? 'visible' : 'hidden'};
   position: relative;
   
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.1),
-    0 0 0 4px rgba(139, 92, 246, 0.1);
+  box-shadow: ${props => props.isDropTarget
+    ? '0 8px 24px rgba(139, 92, 246, 0.3), 0 0 0 6px rgba(139, 92, 246, 0.2)'
+    : '0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(139, 92, 246, 0.1)'
+  };
   
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
@@ -97,7 +108,7 @@ const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number }>`
   /* Group label indicator */
   ${props => props.isExpanded && `
     &::after {
-      content: 'FORM PROCESS GROUP';
+      content: '${props.isDropTarget ? 'DROP HERE TO ADD' : 'FORM PROCESS GROUP'}';
       position: absolute;
       top: 12px;
       right: 16px;
@@ -254,6 +265,64 @@ const StepPreview = styled.div`
   border-left: 2px solid rgba(139, 92, 246, 0.3);
 `;
 
+/**
+ * Sequential execution indicator (Phase 3)
+ */
+const SequentialIndicator = styled.div<{ enabled: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: ${props => props.enabled 
+    ? 'rgba(34, 197, 94, 0.1)' 
+    : 'rgba(148, 163, 184, 0.1)'};
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  color: ${props => props.enabled 
+    ? 'rgb(34, 197, 94)' 
+    : 'rgb(148, 163, 184)'};
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+/**
+ * Drop zone overlay (Phase 3)
+ */
+const DropZoneOverlay = styled.div<{ show: boolean }>`
+  position: absolute;
+  inset: 0;
+  display: ${props => props.show ? 'flex' : 'none'};
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 92, 246, 0.1);
+  border: 3px dashed rgba(139, 92, 246, 0.5);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 10;
+  animation: pulse 2s ease-in-out infinite;
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+`;
+
+const DropZoneText = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(139, 92, 246, 0.9);
+  text-align: center;
+  padding: 20px;
+  background: rgb(var(--color-surface));
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+`;
+
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -286,6 +355,8 @@ export const FormProcessGroupNode: React.FC<FormProcessGroupNodeProps> = (props)
   const containerName = data.containerName || 'Untitled Form Process';
   const containerDescription = data.containerDescription;
   const isExpanded = data.isExpanded ?? false;
+  const isDropTarget = data.isDropTarget ?? false; // Phase 3: Drop zone indicator
+  const sequentialExecution = data.sequentialExecution ?? true; // Phase 3: Sequential by default
   
   // ============================================================================
   // Event Handlers
@@ -392,9 +463,20 @@ export const FormProcessGroupNode: React.FC<FormProcessGroupNodeProps> = (props)
     <GroupContainer 
       isExpanded={isExpanded} 
       stepCount={stepCount}
+      isDropTarget={isDropTarget}
       data-node-id={id}
       data-node-type="formProcessGroup"
     >
+      {/* Phase 3: Drop zone overlay */}
+      <DropZoneOverlay show={isDropTarget && isExpanded}>
+        <DropZoneText>
+          📦 Drop any node here<br/>
+          <small style={{ fontSize: '12px', opacity: 0.7 }}>
+            Forms, Actions, Logic, Wait states...
+          </small>
+        </DropZoneText>
+      </DropZoneOverlay>
+      
       <GroupHeader isExpanded={isExpanded} onClick={handleToggleExpand}>
         <ExpandIcon isExpanded={isExpanded}>
           {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
@@ -409,6 +491,10 @@ export const FormProcessGroupNode: React.FC<FormProcessGroupNodeProps> = (props)
             {containerDescription && (
               <span>• {containerDescription.slice(0, 40)}{containerDescription.length > 40 ? '...' : ''}</span>
             )}
+            {/* Phase 3: Sequential execution indicator */}
+            <SequentialIndicator enabled={sequentialExecution}>
+              ▶ Sequential
+            </SequentialIndicator>
           </GroupMeta>
         </GroupTitle>
         
