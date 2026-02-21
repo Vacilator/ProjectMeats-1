@@ -30,6 +30,8 @@ export interface ContextMenuProps {
   y: number;
   /** Callback to close menu */
   onClose: () => void;
+  /** Callback to edit node configuration */
+  onEdit?: (nodeId: string) => void;
 }
 
 export interface ContextMenuAction {
@@ -53,21 +55,23 @@ const MenuContainer = styled.div<{ x: number; y: number }>`
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 10px 30px rgba(0, 0, 0, 0.25),
     0 0 0 1px rgba(0, 0, 0, 0.05);
   padding: 6px;
-  min-width: 200px;
-  z-index: 10000;
-  animation: menuSlide 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 220px;
+  z-index: 9999;
+  opacity: 1 !important;
+  backdrop-filter: blur(10px);
+  animation: menuSlide 0.1s ease-out;
   
   @keyframes menuSlide {
     from {
       opacity: 0;
-      transform: translateY(-8px) scale(0.96);
+      transform: scale(0.95) translateY(-4px);
     }
     to {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: scale(1) translateY(0);
     }
   }
 `;
@@ -77,26 +81,29 @@ const MenuItem = styled.button<{ danger?: boolean }>`
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border: none;
   background: transparent;
   color: ${props => props.danger 
     ? 'rgb(239, 68, 68)' 
     : 'rgb(var(--color-text-primary))'};
   font-size: 14px;
+  font-family: inherit;
   text-align: left;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: all 0.1s ease-out;
   
   &:hover {
     background: ${props => props.danger 
       ? 'rgba(239, 68, 68, 0.1)' 
-      : 'rgba(var(--color-primary), 0.08)'};
+      : 'rgb(var(--color-primary) / 0.1)'};
+    color: ${props => props.danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
+    transform: translateX(2px);
   }
   
   &:active {
-    transform: scale(0.98);
+    transform: scale(0.98) translateX(2px);
   }
   
   svg {
@@ -104,6 +111,12 @@ const MenuItem = styled.button<{ danger?: boolean }>`
     width: 16px;
     height: 16px;
     opacity: 0.7;
+    transition: opacity 0.1s ease-out;
+  }
+  
+  &:hover svg {
+    opacity: 1;
+  }
   }
 `;
 
@@ -133,16 +146,65 @@ const MenuHeader = styled.div`
  * 
  * Displays context-sensitive actions based on node type.
  * Container nodes get "Add Step", "Duplicate Container", etc.
- * Regular nodes get "Copy", "Delete", etc.
+ * Regular nodes get "Edit", "Copy", "Delete", etc.
  * 
  * @param props - Context menu properties
  */
-export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose }) => {
+export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose, onEdit }) => {
   const { setNodes, getNode, getNodes } = useReactFlow();
+  const menuRef = React.useRef<HTMLDivElement>(null);
+  
+  // Clamp position to viewport
+  const [position, setPosition] = React.useState({ x, y });
+  
+  React.useEffect(() => {
+    if (!menuRef.current) return;
+    
+    const menuRect = menuRef.current.getBoundingClientRect();
+    const clampedX = Math.max(0, Math.min(x, window.innerWidth - menuRect.width - 10));
+    const clampedY = Math.max(0, Math.min(y, window.innerHeight - menuRect.height - 10));
+    
+    if (clampedX !== x || clampedY !== y) {
+      setPosition({ x: clampedX, y: clampedY });
+    }
+  }, [x, y]);
+  
+  // Close on outside click
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside, { passive: true });
+    document.addEventListener('keydown', handleEscape);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [onClose]);
   
   // ============================================================================
   // Action Handlers
   // ============================================================================
+  
+  /**
+   * Edit node configuration
+   */
+  const handleEdit = useCallback(() => {
+    if (!node || !onEdit) return;
+    
+    onEdit(node.id);
+    onClose();
+  }, [node, onEdit, onClose]);
   
   /**
    * Add a new step to container
@@ -349,10 +411,21 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
   const isChildNode = !!node.parentId;
   
   return (
-    <MenuContainer x={x} y={y} onClick={(e) => e.stopPropagation()}>
+    <MenuContainer ref={menuRef} x={position.x} y={position.y} onClick={(e) => e.stopPropagation()} role="menu" aria-label="Node context menu">
       <MenuHeader>
         {isContainer ? 'Container Actions' : isChildNode ? 'Step Actions' : 'Node Actions'}
       </MenuHeader>
+      
+      {/* Edit option for ALL nodes */}
+      {onEdit && (
+        <>
+          <MenuItem onClick={handleEdit} role="menuitem">
+            <Settings size={16} />
+            <span>Edit Configuration</span>
+          </MenuItem>
+          <MenuSeparator />
+        </>
+      )}
       
       {isContainer && (
         <>
