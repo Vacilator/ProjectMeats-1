@@ -110,21 +110,14 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { NodeConfigPanelWithShadow } from './ConfigPanel';
-<<<<<<< HEAD
-// ⚠️ NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is the ONLY renderer
-=======
 // NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
->>>>>>> upstream/development
 // import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 // import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 // import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 // import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 // import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 // import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
-<<<<<<< HEAD
-import Fuse from 'fuse.js'; // PROMPT 2: Added fuzzy search
-=======
->>>>>>> upstream/development
+import Fuse from 'fuse.js'; // Fuzzy search for palette
 import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
@@ -1901,8 +1894,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const node = nodes.find(n => n.id === nodeId);
     if (node) {
       setSelectedNodeId(nodeId);
-      // Center on node with animation
-      reactFlowInstance.setCenter(node.position.x + 100, node.position.y + 50, { duration: 800, zoom: 1.2 });
+      // Center on node with animation (safely check if setCenter exists)
+      if (reactFlowInstance?.setCenter) {
+        reactFlowInstance.setCenter(node.position.x + 100, node.position.y + 50, { duration: 800, zoom: 1.2 });
+      }
     }
   }, [nodes, reactFlowInstance]);
   
@@ -2921,6 +2916,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     // FIX: screenToFlowPosition expects ABSOLUTE screen coordinates
     // It handles viewport transformation internally - do NOT subtract bounds
+    if (!reactFlowInstance?.screenToFlowPosition) {
+      console.error('[onDragOver] reactFlowInstance not ready');
+      return;
+    }
     const flowPosition = reactFlowInstance.screenToFlowPosition({
       x: event.clientX,
       y: event.clientY,
@@ -3052,6 +3051,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // FIX: screenToFlowPosition expects ABSOLUTE screen coordinates
       // It handles viewport transformation internally - do NOT subtract bounds
+      if (!reactFlowInstance?.screenToFlowPosition) {
+        console.error('[onDrop] reactFlowInstance not ready');
+        return;
+      }
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
@@ -3847,7 +3850,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     try {
       // Get current viewport
-      const viewport = reactFlowInstance.getViewport();
+      const viewport = reactFlowInstance?.getViewport() || { x: 0, y: 0, zoom: 1 };
       
       // Save workflow (create or update)
       const savedWorkflow = await saveWorkflow(
@@ -3914,7 +3917,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setHasUnsavedChanges(false);
       
       // Restore viewport if saved
-      if (loadedWorkflow.workflow_definition.viewport && reactFlowInstance) {
+      if (loadedWorkflow.workflow_definition.viewport && reactFlowInstance?.setViewport) {
         reactFlowInstance.setViewport(loadedWorkflow.workflow_definition.viewport);
       }
       
@@ -4084,19 +4087,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const fitView = useCallback(() => {
-    reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+    if (reactFlowInstance?.fitView) {
+      reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+    }
   }, [reactFlowInstance]);
   
   const zoomIn = useCallback(() => {
-    reactFlowInstance.zoomIn({ duration: 300 });
+    if (reactFlowInstance?.zoomIn) {
+      reactFlowInstance.zoomIn({ duration: 300 });
+    }
   }, [reactFlowInstance]);
   
   const zoomOut = useCallback(() => {
-    reactFlowInstance.zoomOut({ duration: 300 });
+    if (reactFlowInstance?.zoomOut) {
+      reactFlowInstance.zoomOut({ duration: 300 });
+    }
   }, [reactFlowInstance]);
   
   const zoomTo = useCallback((level: number) => {
-    reactFlowInstance.zoomTo(level, { duration: 300 });
+    if (reactFlowInstance?.zoomTo) {
+      reactFlowInstance.zoomTo(level, { duration: 300 });
+    }
   }, [reactFlowInstance]);
   
   const selectAll = useCallback(() => {
@@ -4819,7 +4830,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     // Fit view to show full template
     setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+      if (reactFlowInstance?.fitView) {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+      }
     }, 100);
   }, [setNodes, setEdges, reactFlowInstance]);
 
