@@ -110,12 +110,14 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { NodeConfigPanelWithShadow } from './ConfigPanel';
-import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
-import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
-import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
-import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
-import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
-import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
+// ⚠️ NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is the ONLY renderer
+// import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
+// import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
+// import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
+// import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
+// import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
+// import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
+import Fuse from 'fuse.js'; // PROMPT 2: Added fuzzy search
 import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
@@ -149,6 +151,9 @@ interface FavoritesState {
   nodeTypeIds: string[];
   lastUsed: string[];
 }
+
+// ⚠️ PROMPT 2: Nuclear Cleanup Complete - Enable Full Dynamic Mode
+const ENABLE_FULL_DYNAMIC_MODE = true;
 
 // ============================================================================
 // Styled Components
