@@ -166,11 +166,18 @@ class WorkFormPermissionHelper:
         Returns:
             dict: Permission configuration for frontend
         """
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[WorkFormPermissions] Checking permissions for user: {user}, is_authenticated: {user.is_authenticated if user else False}, is_superuser: {user.is_superuser if user else False}, tenant: {tenant}")
+        
         if not user or not user.is_authenticated:
+            logger.info("[WorkFormPermissions] User not authenticated - returning anonymous permissions")
             return WorkFormPermissionHelper._get_anonymous_permissions()
         
         # Superusers get full access
         if user.is_superuser:
+            logger.info("[WorkFormPermissions] User is superuser - returning full permissions")
             return WorkFormPermissionHelper._get_superuser_permissions()
         
         # Get tenant role
@@ -182,7 +189,9 @@ class WorkFormPermissionHelper:
                 is_active=True
             )
             role = tenant_user.role
+            logger.info(f"[WorkFormPermissions] Found tenant role: {role}")
         except TenantUser.DoesNotExist:
+            logger.warning(f"[WorkFormPermissions] TenantUser not found for user {user.id} in tenant {tenant.id if tenant else None}")
             return WorkFormPermissionHelper._get_anonymous_permissions()
         
         # Generate permissions based on role
