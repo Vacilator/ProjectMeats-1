@@ -37,6 +37,9 @@ from .views import (
     WorkFormPermissionsAPIView
 )
 
+# Debug helper (temporary)
+from .debug_permissions import DebugPermissionsView
+
 # Phase 5: Workflow Trigger API Views
 from .views_triggers import (
     WorkflowWebhookAPIView,
@@ -129,6 +132,9 @@ urlpatterns = [
     
     # Phase 4.2: WorkForms Permissions endpoint
     path('permissions/', WorkFormPermissionsAPIView.as_view(), name='workforms-permissions'),
+    
+    # Debug endpoint (temporary - for diagnosing superuser permissions issue)
+    path('debug-permissions/', DebugPermissionsView.as_view(), name='debug-permissions'),
     
     # Phase 5: Workflow Trigger API endpoints
     path('workflows/<uuid:workflow_id>/webhooks/', WorkflowWebhookAPIView.as_view(), name='workflow-webhooks'),
