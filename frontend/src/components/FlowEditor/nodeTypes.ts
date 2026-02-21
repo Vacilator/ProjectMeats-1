@@ -528,6 +528,19 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     hasErrorRoute: true,
   },
   
+  documentUpload: {
+    id: 'documentUpload',
+    name: 'Upload Document',
+    category: 'document',
+    icon: '📤',
+    color: '#06b6d4',
+    description: 'Upload document to external service',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hasErrorRoute: true,
+  },
+  
   // === UTILITIES ===
   dataTransform: {
     id: 'dataTransform',
