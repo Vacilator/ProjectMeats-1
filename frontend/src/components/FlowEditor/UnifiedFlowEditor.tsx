@@ -110,12 +110,13 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { NodeConfigPanelWithShadow } from './ConfigPanel';
-import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
-import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
-import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
-import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
-import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
-import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
+// NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
+// import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
+// import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
+// import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
+// import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
+// import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
+// import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
 import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
@@ -5793,8 +5794,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onStartBlank={handleStartBlank}
       />
       
+      {/* 
+        NUCLEAR CLEANUP: All hardcoded config panels removed
+        NodeConfigPanelWithShadow (DynamicConfigPanel) is now the ONLY renderer
+        These SidePanel modals are no longer needed - all config handled by the main panel
+      
       {/* FormStep Configuration Panel (using SidePanel instead of EntityFormStepModal) */}
-      <SidePanel
+      {/* <SidePanel
         isOpen={formStepModalOpen && !!selectedFormStep}
         onClose={() => {
           setFormStepModalOpen(false);
@@ -5816,9 +5822,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             availableFields={getPreviousStepFields(selectedFormStep.id)}
           />
         )}
-      </SidePanel>
+      </SidePanel> */}
       
-      {/* FormMultiStepContainer Configuration Modal (Phase 4.3) */}
+      {/* FormMultiStepContainer Configuration Modal (Phase 4.3) - KEEPING THIS */}
       <FormProcessModal
         isOpen={containerModalOpen && !!selectedContainer}
         onClose={() => {
