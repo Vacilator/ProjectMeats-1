@@ -1584,9 +1584,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   editorMode = 'visual',
   allowedNodeCategories, // Phase 4.2: Permission-based filtering
 }) => {
-  const [nodes, setNodes, onNodesChangeBase] = useNodesState(initialNodes);
+  // Normalize nodes to ensure all have required properties (maxInputs, maxOutputs)
+  const normalizedInitialNodes = useMemo(() => normalizeNodes(initialNodes), [initialNodes]);
+  
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState(normalizedInitialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [nodeIdCounter, setNodeIdCounter] = useState(initialNodes.length + 1);
+  const [nodeIdCounter, setNodeIdCounter] = useState(normalizedInitialNodes.length + 1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Phase E: Wrap onNodesChange to handle container deletion
@@ -1646,16 +1649,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * weren't persisted or became stale. Also cleans up orphaned nodes.
    */
   useEffect(() => {
-    if (initialNodes && initialNodes.length > 0) {
+    if (normalizedInitialNodes && normalizedInitialNodes.length > 0) {
       // Find all container nodes
-      const containerNodes = initialNodes.filter(
+      const containerNodes = normalizedInitialNodes.filter(
         n => n.type === 'formMultiStepContainer'
       );
       
       const containerIds = new Set(containerNodes.map(c => c.id));
       
       // Check for orphaned nodes (containerNodeId pointing to non-existent container)
-      const orphanedNodes = initialNodes.filter(
+      const orphanedNodes = normalizedInitialNodes.filter(
         n => n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)
       );
       
@@ -1683,7 +1686,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         // Rebuild statistics for each container
         containerNodes.forEach(container => {
           // Count child nodes
-          const childNodes = initialNodes.filter(
+          const childNodes = normalizedInitialNodes.filter(
             n => n.data?.containerNodeId === container.id
           );
           
@@ -2032,7 +2035,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   
   // Undo/Redo history
-  const [history, setHistory] = useState<HistoryState[]>([{ nodes: initialNodes, edges: initialEdges }]);
+  const [history, setHistory] = useState<HistoryState[]>([{ nodes: normalizedInitialNodes, edges: initialEdges }]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isPaletteVisible, setIsPaletteVisible] = useState(true);
 
@@ -2601,6 +2604,34 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     return { valid: true };
   }, []);
   
+  // Helper function to safely get max connections from node data or type definition
+  const getNodeMaxConnections = useCallback((node: Node): { maxInputs: number; maxOutputs: number } => {
+    // First try to get from node data
+    if (node.data && typeof node.data.maxInputs !== 'undefined' && typeof node.data.maxOutputs !== 'undefined') {
+      return {
+        maxInputs: node.data.maxInputs,
+        maxOutputs: node.data.maxOutputs,
+      };
+    }
+    
+    // Fall back to node type definition
+    const nodeType = node.type || '';
+    const nodeDef = NODE_TYPE_REGISTRY[nodeType];
+    
+    if (nodeDef) {
+      return {
+        maxInputs: nodeDef.maxInputs ?? 1,
+        maxOutputs: nodeDef.maxOutputs ?? 1,
+      };
+    }
+    
+    // Default fallback
+    return {
+      maxInputs: 1,
+      maxOutputs: 1,
+    };
+  }, []);
+  
   // Real-time connection validation for React Flow
   const isValidConnection = useCallback((connection: Connection) => {
     const sourceNode = nodes.find(n => n.id === connection.source);
@@ -2616,20 +2647,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     // Check max outputs on source
     const sourceOutputs = edges.filter(e => e.source === connection.source);
-    const sourceMaxOutputs = sourceNode.data.maxOutputs || Infinity;
-    if (sourceOutputs.length >= sourceMaxOutputs) {
+    const { maxOutputs: sourceMaxOutputs } = getNodeMaxConnections(sourceNode);
+    if (sourceMaxOutputs !== -1 && sourceOutputs.length >= sourceMaxOutputs) {
       return false;
     }
     
     // Check max inputs on target
     const targetInputs = edges.filter(e => e.target === connection.target);
-    const targetMaxInputs = targetNode.data.maxInputs || Infinity;
-    if (targetInputs.length >= targetMaxInputs) {
+    const { maxInputs: targetMaxInputs } = getNodeMaxConnections(targetNode);
+    if (targetMaxInputs !== -1 && targetInputs.length >= targetMaxInputs) {
       return false;
     }
     
     return true;
-  }, [nodes, edges, isValidConnectionType]);
+  }, [nodes, edges, isValidConnectionType, getNodeMaxConnections]);
   
   const onConnect = useCallback(
     (params: Connection) => {
@@ -2673,23 +2704,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // Check max outputs on source
       const sourceOutputs = edges.filter(e => e.source === params.source);
-      const sourceMaxOutputs = sourceNode.data.maxOutputs || Infinity;
-      if (sourceOutputs.length >= sourceMaxOutputs) {
-        console.warn(`Node ${sourceNode.data.label} has reached max outputs (${sourceMaxOutputs})`);
+      const { maxOutputs: sourceMaxOutputs } = getNodeMaxConnections(sourceNode);
+      if (sourceMaxOutputs !== -1 && sourceOutputs.length >= sourceMaxOutputs) {
+        const label = sourceNode.data?.label || `Node ${sourceNode.id}`;
+        console.warn(`Node ${label} has reached max outputs (${sourceMaxOutputs})`);
         return;
       }
       
       // Check max inputs on target
       const targetInputs = edges.filter(e => e.target === params.target);
-      const targetMaxInputs = targetNode.data.maxInputs || Infinity;
-      if (targetInputs.length >= targetMaxInputs) {
-        console.warn(`Node ${targetNode.data.label} has reached max inputs (${targetMaxInputs})`);
+      const { maxInputs: targetMaxInputs } = getNodeMaxConnections(targetNode);
+      if (targetMaxInputs !== -1 && targetInputs.length >= targetMaxInputs) {
+        const label = targetNode.data?.label || `Node ${targetNode.id}`;
+        console.warn(`Node ${label} has reached max inputs (${targetMaxInputs})`);
         return;
       }
       
       setEdges((eds) => addEdge(params, eds));
     },
-    [nodes, edges, setEdges, isValidConnectionType]
+    [nodes, edges, setEdges, isValidConnectionType, getNodeMaxConnections]
   );
 
   // ============================================================================
@@ -6140,6 +6173,47 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/**
+ * Normalize node data to ensure all required properties exist.
+ * This fixes issues where nodes loaded from database may be missing maxInputs/maxOutputs.
+ * Returns a new node object to avoid mutations.
+ */
+export function normalizeNodeData(node: Node): Node {
+  // Get node type definition
+  const nodeType = node.type || '';
+  const nodeDef = NODE_TYPE_REGISTRY[nodeType];
+  
+  // Initialize data if undefined
+  const data = node.data || {};
+  
+  // Create new data object with normalized properties
+  const normalizedData = {
+    ...data,
+  };
+  
+  // Ensure maxInputs and maxOutputs are set
+  if (typeof normalizedData.maxInputs === 'undefined' && nodeDef) {
+    normalizedData.maxInputs = nodeDef.maxInputs ?? 1;
+  }
+  
+  if (typeof normalizedData.maxOutputs === 'undefined' && nodeDef) {
+    normalizedData.maxOutputs = nodeDef.maxOutputs ?? 1;
+  }
+  
+  // Return new node object
+  return {
+    ...node,
+    data: normalizedData,
+  };
+}
+
+/**
+ * Normalize an array of nodes to ensure all have required properties.
+ */
+export function normalizeNodes(nodes: Node[]): Node[] {
+  return nodes.map(normalizeNodeData);
+}
 
 function getReactFlowNodeType(nodeTypeId: string): string {
   // Map node type IDs to React Flow node component names
