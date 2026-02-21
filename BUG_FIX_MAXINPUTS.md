@@ -44,22 +44,31 @@ const getNodeMaxConnections = (node: Node) => {
 To prevent the issue from occurring in the first place, we normalize all nodes when loaded:
 
 ```typescript
-function normalizeNodeData(node: Node): Node {
-  if (!node.data) {
-    node.data = {};
+export function normalizeNodeData(node: Node): Node {
+  const nodeType = node.type || '';
+  const nodeDef = NODE_TYPE_REGISTRY[nodeType];
+  
+  // Initialize data if undefined
+  const data = node.data || {};
+  
+  // Create new data object with normalized properties (no mutation)
+  const normalizedData = {
+    ...data,
+  };
+  
+  if (typeof normalizedData.maxInputs === 'undefined' && nodeDef) {
+    normalizedData.maxInputs = nodeDef.maxInputs ?? 1;
   }
   
-  const nodeDef = NODE_TYPE_REGISTRY[node.type];
-  
-  if (typeof node.data.maxInputs === 'undefined' && nodeDef) {
-    node.data.maxInputs = nodeDef.maxInputs ?? 1;
+  if (typeof normalizedData.maxOutputs === 'undefined' && nodeDef) {
+    normalizedData.maxOutputs = nodeDef.maxOutputs ?? 1;
   }
   
-  if (typeof node.data.maxOutputs === 'undefined' && nodeDef) {
-    node.data.maxOutputs = nodeDef.maxOutputs ?? 1;
-  }
-  
-  return node;
+  // Return new node object (no mutation)
+  return {
+    ...node,
+    data: normalizedData,
+  };
 }
 ```
 

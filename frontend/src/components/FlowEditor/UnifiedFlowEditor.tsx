@@ -2573,7 +2573,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const sourceOutputs = edges.filter(e => e.source === params.source);
       const { maxOutputs: sourceMaxOutputs } = getNodeMaxConnections(sourceNode);
       if (sourceMaxOutputs !== -1 && sourceOutputs.length >= sourceMaxOutputs) {
-        const label = sourceNode.data?.label || 'Unknown node';
+        const label = sourceNode.data?.label || `Node ${sourceNode.id}`;
         console.warn(`Node ${label} has reached max outputs (${sourceMaxOutputs})`);
         return;
       }
@@ -2582,7 +2582,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const targetInputs = edges.filter(e => e.target === params.target);
       const { maxInputs: targetMaxInputs } = getNodeMaxConnections(targetNode);
       if (targetMaxInputs !== -1 && targetInputs.length >= targetMaxInputs) {
-        const label = targetNode.data?.label || 'Unknown node';
+        const label = targetNode.data?.label || `Node ${targetNode.id}`;
         console.warn(`Node ${label} has reached max inputs (${targetMaxInputs})`);
         return;
       }
