@@ -15,7 +15,7 @@
 import React, { useCallback } from 'react';
 import styled from 'styled-components';
 import { Node, useReactFlow } from '@xyflow/react';
-import { Plus, Copy, Layers, Trash2, Settings, Move } from 'lucide-react';
+import { Plus, Copy, Layers, Trash2, Settings, Move, Wand2, Maximize2, Minimize2 } from 'lucide-react';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -296,6 +296,46 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
     onClose();
   }, [node, getNode, setNodes, onClose]);
   
+  /**
+   * Edit in FormBuilder (Phase 3)
+   */
+  const handleEditInBuilder = useCallback(() => {
+    if (!node) return;
+    
+    // TODO: Open FormBuilder modal for this container
+    console.log('Edit in FormBuilder:', node.id);
+    // This will be wired in Phase 4
+    
+    onClose();
+  }, [node, onClose]);
+  
+  /**
+   * Expand/Collapse All children (Phase 3)
+   */
+  const handleExpandCollapseAll = useCallback(() => {
+    if (!node) return;
+    
+    const childNodes = getNodes().filter(n => n.parentId === node.id);
+    const allExpanded = childNodes.every(n => n.data.isExpanded);
+    
+    setNodes((nodes) =>
+      nodes.map((n) => {
+        if (n.parentId === node.id) {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              isExpanded: !allExpanded, // Toggle: if all expanded, collapse all, else expand all
+            },
+          };
+        }
+        return n;
+      })
+    );
+    
+    onClose();
+  }, [node, getNodes, setNodes, onClose]);
+  
   // ============================================================================
   // Render
   // ============================================================================
@@ -316,10 +356,19 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       
       {isContainer && (
         <>
+          <MenuItem onClick={handleEditInBuilder}>
+            <Wand2 size={16} />
+            <span>Edit in FormBuilder</span>
+          </MenuItem>
           <MenuItem onClick={handleAddStep}>
             <Plus size={16} />
             <span>Add Step</span>
           </MenuItem>
+          <MenuItem onClick={handleExpandCollapseAll}>
+            <Maximize2 size={16} />
+            <span>Expand/Collapse All</span>
+          </MenuItem>
+          <MenuSeparator />
           <MenuItem onClick={handleDuplicateContainer}>
             <Copy size={16} />
             <span>Duplicate Container</span>
