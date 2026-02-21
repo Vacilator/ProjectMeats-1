@@ -1929,18 +1929,24 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   // Forward ref for handleSave (full implementation at line ~3760)
+  // SAFETY: Using forward ref pattern to prevent TDZ issues in early useEffect hooks
   const handleSaveRef = useRef<(() => void) | null>(null);
   const handleSave = useCallback(() => {
     if (handleSaveRef.current) {
       handleSaveRef.current();
+    } else {
+      console.warn('[FlowEditor] handleSave called before initialization');
     }
   }, []);
   
   // Forward ref for handleNodeDelete (full implementation at line ~4527)
+  // SAFETY: Using forward ref pattern to prevent TDZ issues in keyboard shortcuts
   const handleNodeDeleteRef = useRef<((nodeId: string) => Promise<void>) | null>(null);
   const handleNodeDelete = useCallback(async (nodeId: string) => {
     if (handleNodeDeleteRef.current) {
       await handleNodeDeleteRef.current(nodeId);
+    } else {
+      console.warn('[FlowEditor] handleNodeDelete called before initialization');
     }
   }, []);
   
@@ -3781,31 +3787,44 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   const handleSaveImpl = useCallback(() => {
     console.log('[FlowEditor] Quick save triggered');
+    
+    // SAFETY: Validate state before save
+    if (!nodes || !edges) {
+      console.error('[FlowEditor] Cannot save: nodes or edges undefined');
+      toast.error('Cannot save workflow: Invalid state');
+      return;
+    }
+    
     toast.success('Workflow saved');
     
     if (onSave) {
-      // Log container information for debugging (Phase E)
-      const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
-      const nodesInContainers = nodes.filter(n => n.parentNode); // Phase E: Using React Flow parentNode
-      
-      console.log('[Save] Workflow saved with container state:');
-      console.log(`  - ${containerNodes.length} container(s)`);
-      console.log(`  - ${nodesInContainers.length} node(s) in containers`);
-      
-      if (containerNodes.length > 0) {
-        containerNodes.forEach(container => {
-          const childNodes = nodes.filter(n => n.parentId === container.id); // Phase E: Using parentNode
-          console.log(`  - Container ${container.id}: ${childNodes.length} nodes`);
-        });
+      try {
+        // Log container information for debugging (Phase E)
+        const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
+        const nodesInContainers = nodes.filter(n => n.parentNode); // Phase E: Using React Flow parentNode
+        
+        console.log('[Save] Workflow saved with container state:');
+        console.log(`  - ${containerNodes.length} container(s)`);
+        console.log(`  - ${nodesInContainers.length} node(s) in containers`);
+        
+        if (containerNodes.length > 0) {
+          containerNodes.forEach(container => {
+            const childNodes = nodes.filter(n => n.parentId === container.id); // Phase E: Using parentNode
+            console.log(`  - Container ${container.id}: ${childNodes.length} nodes`);
+          });
+        }
+        
+        onSave(nodes, edges);
+        console.log('Flow saved successfully!');
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        console.error('[FlowEditor] Save failed:', error);
+        toast.error('Failed to save workflow');
       }
-      
-      onSave(nodes, edges);
-      console.log('Flow saved successfully!');
-      setHasUnsavedChanges(false);
     }
   }, [nodes, edges, onSave]);
   
-  // Populate forward ref
+  // Populate forward ref (CRITICAL: Must be after useCallback definition)
   handleSaveRef.current = handleSaveImpl;
   
   // Alias for keyboard shortcut (now points to the forward ref wrapper)
@@ -4552,53 +4571,71 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const handleNodeDeleteImpl = useCallback(async (nodeId: string) => {
     console.log('[UnifiedFlowEditor] Deleting node:', nodeId);
     
-    const nodeToDelete = nodes.find(n => n.id === nodeId);
+    // SAFETY: Validate state before deletion
+    if (!nodes || nodes.length === 0) {
+      console.error('[FlowEditor] Cannot delete: No nodes available');
+      toast.error('Cannot delete node: Invalid state');
+      return;
+    }
     
-    // Phase 2: Decrement usage_count when formProcess node is deleted
-    if (nodeToDelete?.type === 'formProcess' || nodeToDelete?.type === 'formMultiStepContainer') {
-      const tenantFormId = nodeToDelete.data?.tenantFormId;
-      
-      if (tenantFormId) {
-        try {
-          await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
-          console.log('[UnifiedFlowEditor] Decremented usage count for form:', tenantFormId);
-        } catch (error) {
-          console.error('[UnifiedFlowEditor] Failed to decrement usage count:', error);
-          // Continue with deletion even if API call fails
+    const nodeToDelete = nodes.find(n => n.id === nodeId);
+    if (!nodeToDelete) {
+      console.warn('[FlowEditor] Node not found:', nodeId);
+      toast.warning('Node not found');
+      return;
+    }
+    
+    try {
+      // Phase 2: Decrement usage_count when formProcess node is deleted
+      if (nodeToDelete.type === 'formProcess' || nodeToDelete.type === 'formMultiStepContainer') {
+        const tenantFormId = nodeToDelete.data?.tenantFormId;
+        
+        if (tenantFormId) {
+          try {
+            await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
+            console.log('[UnifiedFlowEditor] Decremented usage count for form:', tenantFormId);
+          } catch (error) {
+            console.error('[UnifiedFlowEditor] Failed to decrement usage count:', error);
+            // Continue with deletion even if API call fails
+          }
         }
-      }
-      
-      // If deleting a container, also remove its children
-      const childNodeIds = new Set(
-        nodes.filter(n => n.parentId === nodeId).map(n => n.id)
-      );
-      
-      if (childNodeIds.size > 0) {
-        console.log('[UnifiedFlowEditor] Also removing', childNodeIds.size, 'child nodes');
-        setNodes(nds => nds.filter(n => 
-          n.id !== nodeId && !childNodeIds.has(n.id)
-        ));
+        
+        // If deleting a container, also remove its children
+        const childNodeIds = new Set(
+          nodes.filter(n => n.parentId === nodeId).map(n => n.id)
+        );
+        
+        if (childNodeIds.size > 0) {
+          console.log('[UnifiedFlowEditor] Also removing', childNodeIds.size, 'child nodes');
+          setNodes(nds => nds.filter(n => 
+            n.id !== nodeId && !childNodeIds.has(n.id)
+          ));
+        } else {
+          setNodes(nds => nds.filter(n => n.id !== nodeId));
+        }
       } else {
+        // Remove node normally
         setNodes(nds => nds.filter(n => n.id !== nodeId));
       }
-    } else {
-      // Remove node normally
-      setNodes(nds => nds.filter(n => n.id !== nodeId));
+      
+      // Remove connected edges
+      setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+      
+      // Clear selections if deleted node was selected
+      if (selectedNode?.id === nodeId) {
+        setSelectedNode(null);
+      }
+      
+      setHasUnsavedChanges(true);
+      toast.success('Node deleted');
+      console.log('[UnifiedFlowEditor] Node deleted successfully:', nodeId);
+    } catch (error) {
+      console.error('[FlowEditor] Delete failed:', error);
+      toast.error('Failed to delete node');
     }
-    
-    // Remove connected edges
-    setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
-    
-    // Clear selections if deleted node was selected
-    if (selectedNode?.id === nodeId) {
-      setSelectedNode(null);
-    }
-    
-    setHasUnsavedChanges(true);
-    toast.success('Node deleted');
   }, [nodes, selectedNode, setNodes, setEdges]);
   
-  // Populate forward ref
+  // Populate forward ref (CRITICAL: Must be after useCallback definition)
   handleNodeDeleteRef.current = handleNodeDeleteImpl;
   
   // Batch 4: Handler to update node title
