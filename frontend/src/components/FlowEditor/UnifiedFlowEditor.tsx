@@ -98,6 +98,8 @@ import {
   TerminalNode,
 } from './nodes';
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge } from './edges';
+import { FormBuilder } from '../form-builder';
+import { useFormBuilder } from './hooks/useFormBuilder';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
@@ -1826,6 +1828,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       return () => document.removeEventListener('click', handleClick);
     }
   }, [menu, handleCloseMenu]);
+  
+  // ============================================================================
+  // FormBuilder Integration (Phase 6)
+  // ============================================================================
+  
+  const {
+    isOpen: isFormBuilderOpen,
+    editingNodeId,
+    openFormBuilder,
+    closeFormBuilder,
+    saveFormBuilder
+  } = useFormBuilder();
+  
+  // Listen for openFormBuilder events from context menu
+  useEffect(() => {
+    const handleOpenFormBuilder = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { node } = customEvent.detail;
+      if (node) {
+        openFormBuilder(node);
+      }
+    };
+    
+    window.addEventListener('openFormBuilder', handleOpenFormBuilder);
+    return () => window.removeEventListener('openFormBuilder', handleOpenFormBuilder);
+  }, [openFormBuilder]);
   
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
