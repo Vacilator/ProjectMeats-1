@@ -4694,9 +4694,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     
-    console.log('✏️ [EDIT BUTTON] Opening modal for:', node.type, nodeId);
+    console.log('✏️ [EDIT BUTTON] Opening config panel for:', node.type, nodeId);
     
-    // Close all modals first
+    // Close all legacy modals first
     setFormStepModalOpen(false);
     setFormFieldModalOpen(false);
     setSectionModalOpen(false);
@@ -4705,12 +4705,26 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setFormReferenceModalOpen(false);
     setContainerModalOpen(false);
     
-    // Route to appropriate config panel based on node type
+    // FORCE CONFIG PANEL OPEN: Set selectedNode to trigger NodeConfigPanelWithShadow
+    // This is the universal config panel that handles ALL node types dynamically
+    setSelectedNode(node);
+    setSelectedNodeId(nodeId);
+    
+    // Force re-render by adding a key change if needed
+    // The portal will remount with the new node
+    console.log('[handleNodeEdit] Config panel state updated:', {
+      nodeId,
+      nodeType: node.type,
+      selectedNodeSet: true,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Route to appropriate specific config panel based on node type (legacy support)
+    // These are backup modals - primary config is via DynamicConfigPanel
     switch (node.type) {
       case 'formStep':
-        console.log('✏️ [EDIT BUTTON] Opening FormStep modal');
+        console.log('✏️ [EDIT BUTTON] Setting FormStep data');
         setSelectedFormStep(node);
-        setFormStepModalOpen(true);
         break;
       
       case 'formMultiStepContainer':
@@ -4720,30 +4734,26 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         break;
         
       case 'formReference':
-        console.log('✏️ [EDIT BUTTON] Opening FormReference modal');
+        console.log('✏️ [EDIT BUTTON] Setting FormReference data');
         setSelectedFormReference(node);
-        setFormReferenceModalOpen(true);
         break;
         
       case 'formField':
-        console.log('✏️ [EDIT BUTTON] Opening FormField modal');
+        console.log('✏️ [EDIT BUTTON] Setting FormField data');
         setSelectedFormField(node);
-        setFormFieldModalOpen(true);
         break;
         
       case 'formSection':
       case 'section':
-        console.log('✏️ [EDIT BUTTON] Opening Section modal');
+        console.log('✏️ [EDIT BUTTON] Setting Section data');
         setSelectedSection(node);
-        setSectionModalOpen(true);
         break;
         
       case 'formFileUpload':
       case 'document':
       case 'upload':
-        console.log('✏️ [EDIT BUTTON] Opening Document modal');
+        console.log('✏️ [EDIT BUTTON] Setting Document data');
         setSelectedDocument(node);
-        setDocumentModalOpen(true);
         break;
         
       case 'action':
@@ -4758,19 +4768,53 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         break;
         
       default:
-        setSelectedNode(node);
+        console.log('✏️ [EDIT BUTTON] Using DynamicConfigPanel for:', node.type);
+        // selectedNode already set at the beginning of this function
+        break;
     }
   }, [nodes]);
   
+  // Debug: Log modal state changes to diagnose visibility issues
+  useEffect(() => {
+    if (selectedNode) {
+      console.log('[Modal State] Config panel SHOULD be visible:', {
+        nodeId: selectedNode.id,
+        nodeType: selectedNode.type,
+        hasData: !!selectedNode.data,
+        dataKeys: Object.keys(selectedNode.data || {}),
+        timestamp: new Date().toISOString()
+      });
+      
+      // Force check that DOM element exists
+      setTimeout(() => {
+        const portalElement = document.querySelector('[class*="RightSidebar"]');
+        if (portalElement) {
+          console.log('[Modal State] ✅ Portal element found in DOM');
+        } else {
+          console.error('[Modal State] ❌ Portal element NOT found in DOM - render issue!');
+        }
+      }, 100);
+    } else {
+      console.log('[Modal State] Config panel closed (selectedNode is null)');
+    }
+  }, [selectedNode]);
+  
   // Handler for direct node clicks (opens config panel) - debounced to prevent double-triggers
-  const handleNodeClick = useCallback(
-    debounce((event: React.MouseEvent, node: Node) => {
-      event.stopPropagation();
-      event.preventDefault();
+  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    event.stopPropagation();
+    event.preventDefault();
+    
+    console.log('[handleNodeClick] Node clicked, opening config:', {
+      nodeType: node.type,
+      nodeId: node.id,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Short timeout to prevent double-triggers and allow event to fully propagate
+    setTimeout(() => {
       handleNodeEdit(node.id);
-    }, 300, { leading: true, trailing: false }),
-    [handleNodeEdit]
-  );
+    }, 50);
+  }, [handleNodeEdit]);
   
   // Batch 3: Handler to delete node from Delete button
   const handleNodeDeleteImpl = useCallback(async (nodeId: string) => {
@@ -6114,20 +6158,37 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       )}
 
       {/* Configuration Panel with Shadow State (Phase 2) - Portal Rendered */}
+      {/* Force re-render with key on selectedNode.id change */}
       {selectedNode !== null && createPortal(
-        <RightSidebar $isOpen={true}>
+        <RightSidebar 
+          $isOpen={true}
+          key={`config-panel-${selectedNode.id}-${selectedNode.type}`}
+          style={{
+            display: 'flex',
+            opacity: 1,
+            visibility: 'visible',
+            pointerEvents: 'auto'
+          }}
+        >
           <NodeConfigPanelWithShadow
+            key={`panel-content-${selectedNode.id}`}
             node={selectedNode}
             nodes={nodes}
             edges={edges}
             setNodes={setNodes}
             setEdges={setEdges}
-            onClose={() => setSelectedNode(null)}
+            onClose={() => {
+              console.log('[Config Panel] Closing panel for node:', selectedNode.id);
+              setSelectedNode(null);
+            }}
             onUpdate={handleNodeUpdate}
             onTest={handleNodeTest}
             onSelectNode={(nodeId) => {
               const node = nodes.find(n => n.id === nodeId);
-              if (node) setSelectedNode(node);
+              if (node) {
+                console.log('[Config Panel] Switching to node:', nodeId);
+                setSelectedNode(node);
+              }
             }}
           />
         </RightSidebar>,
