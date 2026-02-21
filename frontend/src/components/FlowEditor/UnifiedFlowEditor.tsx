@@ -121,6 +121,7 @@ import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
+import { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization'; // Fix test imports
 import { NodeConfigPanelWithShadow } from './ConfigPanel';
 
 // FormBuilder Context Provider (2026-02-21 Comprehensive Enhancements)
@@ -6359,45 +6360,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 // ============================================================================
 
 /**
- * Normalize node data to ensure all required properties exist.
- * This fixes issues where nodes loaded from database may be missing maxInputs/maxOutputs.
- * Returns a new node object to avoid mutations.
+ * Legacy exports for backward compatibility.
+ * These functions are now in utils/nodeNormalization.ts
+ * 
+ * @deprecated Import from utils/nodeNormalization.ts instead
  */
-export function normalizeNodeData(node: Node): Node {
-  // Get node type definition
-  const nodeType = node.type || '';
-  const nodeDef = NODE_TYPE_REGISTRY[nodeType];
-  
-  // Initialize data if undefined
-  const data = node.data || {};
-  
-  // Create new data object with normalized properties
-  const normalizedData = {
-    ...data,
-  };
-  
-  // Ensure maxInputs and maxOutputs are set
-  if (typeof normalizedData.maxInputs === 'undefined' && nodeDef) {
-    normalizedData.maxInputs = nodeDef.maxInputs ?? 1;
-  }
-  
-  if (typeof normalizedData.maxOutputs === 'undefined' && nodeDef) {
-    normalizedData.maxOutputs = nodeDef.maxOutputs ?? 1;
-  }
-  
-  // Return new node object
-  return {
-    ...node,
-    data: normalizedData,
-  };
-}
-
-/**
- * Normalize an array of nodes to ensure all have required properties.
- */
-export function normalizeNodes(nodes: Node[]): Node[] {
-  return nodes.map(normalizeNodeData);
-}
+export { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization';
 
 function getReactFlowNodeType(nodeTypeId: string): string {
   // Map node type IDs to React Flow node component names
