@@ -338,6 +338,37 @@ export const formSchema: NodeConfigSchema = {
           defaultValue: false
         }
       ]
+    },
+
+    // ========================================================================
+    // Form Builder (Phase 6)
+    // ========================================================================
+    {
+      id: 'formBuilder',
+      title: 'Form Builder',
+      icon: Settings,
+      defaultExpanded: false,
+      description: 'Open the visual form builder for advanced field configuration',
+      fields: [
+        {
+          id: '_formBuilderButton',
+          type: 'button',
+          label: '🛠️ Open Full Form Builder',
+          helpText: 'Open the visual form builder to configure fields, validations, and field mappings',
+          variant: 'primary',
+          onClick: (nodeId: string, nodeData: any) => {
+            // Dispatch custom event to open FormBuilder modal
+            window.dispatchEvent(new CustomEvent('openFormBuilder', {
+              detail: { nodeId, nodeData, nodeType: 'form' }
+            }));
+          }
+        },
+        {
+          id: '_formBuilderInfo',
+          type: 'info',
+          content: 'The Form Builder provides a visual interface to configure fields, add validation rules, set up conditional logic, and define field mappings from upstream nodes.'
+        }
+      ]
     }
   ],
 
@@ -477,6 +508,37 @@ export const formProcessSchema: NodeConfigSchema = {
           label: 'Confirm on Exit',
           helpText: 'Require confirmation before exiting form',
           defaultValue: true
+        }
+      ]
+    },
+
+    // ========================================================================
+    // Form Builder (Phase 6)
+    // ========================================================================
+    {
+      id: 'formBuilder',
+      title: 'Form Builder',
+      icon: Settings,
+      defaultExpanded: false,
+      description: 'Manage child form steps and configure the form process',
+      fields: [
+        {
+          id: '_formBuilderButton',
+          type: 'button',
+          label: '🛠️ Open Full Form Builder',
+          helpText: 'Open the visual form builder to manage form steps, configure navigation, and set up data flow',
+          variant: 'primary',
+          onClick: (nodeId: string, nodeData: any) => {
+            // Dispatch custom event to open FormBuilder modal
+            window.dispatchEvent(new CustomEvent('openFormBuilder', {
+              detail: { nodeId, nodeData, nodeType: 'formProcessGroup' }
+            }));
+          }
+        },
+        {
+          id: '_formBuilderInfo',
+          type: 'info',
+          content: 'The Form Builder allows you to visually manage all form steps within this container, set up navigation flow, and configure data mappings between steps.'
         }
       ]
     }

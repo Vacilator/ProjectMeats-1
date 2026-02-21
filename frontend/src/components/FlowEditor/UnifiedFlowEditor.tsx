@@ -1852,19 +1852,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     saveFormBuilder
   } = useFormBuilder();
   
-  // Listen for openFormBuilder events from context menu
+  // Listen for openFormBuilder events from context menu and button clicks
   useEffect(() => {
     const handleOpenFormBuilder = (event: Event) => {
       const customEvent = event as CustomEvent;
-      const { node } = customEvent.detail;
+      const { node, nodeId, nodeData } = customEvent.detail;
+      
+      // Handle from context menu (has node object)
       if (node) {
         openFormBuilder(node);
+      }
+      // Handle from button click (has nodeId + nodeData)
+      else if (nodeId) {
+        const foundNode = nodes.find(n => n.id === nodeId);
+        if (foundNode) {
+          openFormBuilder(foundNode);
+        }
       }
     };
     
     window.addEventListener('openFormBuilder', handleOpenFormBuilder);
     return () => window.removeEventListener('openFormBuilder', handleOpenFormBuilder);
-  }, [openFormBuilder]);
+  }, [openFormBuilder, nodes]);
   
   // ============================================================================
   // Validation Engine (Phase 7)
@@ -6206,6 +6215,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* Help Modal (Workform Batch 2) */}
       {isHelpModalOpen && (
         <HelpModal onClose={() => setIsHelpModalOpen(false)} />
+      )}
+
+      {/* FormBuilder Modal (Phase 6) */}
+      {isFormBuilderOpen && editingNodeId && (
+        <FormBuilder
+          isOpen={isFormBuilderOpen}
+          onClose={closeFormBuilder}
+          onSave={saveFormBuilder}
+          nodeId={editingNodeId}
+        />
       )}
     </EditorContainer>
   );
