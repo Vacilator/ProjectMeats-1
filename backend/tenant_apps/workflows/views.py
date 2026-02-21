@@ -5,6 +5,7 @@ Bundle Two: System → Tenant Workflows & New Data Entities
 Provides REST API endpoints for Forms, Workflows, and Lists.
 """
 
+from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Max, Prefetch, Q
 from django.utils import timezone
@@ -1397,6 +1398,8 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(form_id=form_id)
 
         # Filter by assigned_to
+        # Note: This filters submissions for forms where the user is assigned to ANY step
+        # via StepAssignment, not just the current step of the submission.
         assigned_to = self.request.query_params.get("assigned_to")
         if assigned_to:
             if assigned_to == "me":
@@ -1405,8 +1408,6 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             elif self.request.user.is_staff:
                 # Admin users can filter by specific user ID
                 try:
-                    from django.contrib.auth.models import User
-
                     user = User.objects.get(id=assigned_to)
                     qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
                 except (User.DoesNotExist, ValueError):
