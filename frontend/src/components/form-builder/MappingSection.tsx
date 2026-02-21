@@ -2,16 +2,19 @@
  * Mapping Section Component
  * 
  * Manages field mappings for data inheritance.
- * Provides Auto-Map functionality (Phase 5).
+ * Provides Auto-Map functionality with smart matching.
  * 
  * Created: 2026-02-21
  * Phase: 4 - FormBuilder Suite
+ * Updated: Phase 5 - Auto-Map Integration
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
-import { X, Zap } from 'lucide-react';
+import { X, Zap, Check, TrendingUp } from 'lucide-react';
 import { useFormBuilderStore } from './store';
+import { autoMapFields } from '../FlowEditor/utils/autoPopulateEngine';
+import { Variable } from '../FlowEditor/components/VariablePicker';
 
 const Overlay = styled.div<{ isOpen: boolean }>`
   position: fixed;
@@ -74,6 +77,82 @@ const AutoMapButton = styled.button`
   align-items: center;
   justify-content: center;
   gap: 8px;
+  margin-bottom: 20px;
+  
+  &:hover {
+    opacity: 0.9;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const MappingList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const MappingItem = styled.div`
+  padding: 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  background: rgb(var(--color-surface-hover));
+`;
+
+const MappingHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+`;
+
+const MappingPath = styled.div`
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ConfidenceBadge = styled.span<{ confidence: string }>`
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: ${props => {
+    if (props.confidence === 'high') return 'rgba(34, 197, 94, 0.15)';
+    if (props.confidence === 'medium') return 'rgba(234, 179, 8, 0.15)';
+    return 'rgba(var(--color-primary), 0.15)';
+  }};
+  color: ${props => {
+    if (props.confidence === 'high') return 'rgb(34, 197, 94)';
+    if (props.confidence === 'medium') return 'rgb(234, 179, 8)';
+    return 'rgb(var(--color-primary))';
+  }};
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const MappingScore = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const ApplyButton = styled.button`
+  padding: 8px 12px;
+  background: rgb(var(--color-primary));
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   
   &:hover {
     opacity: 0.9;
@@ -99,12 +178,96 @@ const Button = styled.button`
 `;
 
 export const MappingSection: React.FC = () => {
-  const { isMappingModalOpen, activeStepId, closeMappingModal, autoMapFields } = useFormBuilderStore();
+  const { isMappingModalOpen, activeStepId, steps, closeMappingModal, saveMapping } = useFormBuilderStore();
+  const [mappingSuggestions, setMappingSuggestions] = useState<Array<{
+    sourceVariable: Variable;
+    targetField: any;
+    score: number;
+    confidence: 'high' | 'medium' | 'low';
+  }>>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const handleAutoMap = () => {
-    if (activeStepId) {
-      autoMapFields(activeStepId);
+    if (!activeStepId) return;
+    
+    setIsProcessing(true);
+    
+    // Mock available variables (in real implementation, get from upstream nodes)
+    const mockVariables: Variable[] = [
+      {
+        id: 'var1',
+        name: 'customerName',
+        displayName: 'Customer Name',
+        type: 'text',
+        nodeId: 'node1',
+        nodeName: 'Customer Info',
+        nodeType: 'form',
+        path: 'step1.customerName',
+        sampleValue: 'John Doe'
+      },
+      {
+        id: 'var2',
+        name: 'email',
+        displayName: 'Email Address',
+        type: 'email',
+        nodeId: 'node1',
+        nodeName: 'Customer Info',
+        nodeType: 'form',
+        path: 'step1.email',
+        sampleValue: 'john@example.com'
+      },
+      {
+        id: 'var3',
+        name: 'phone',
+        displayName: 'Phone Number',
+        type: 'phone',
+        nodeId: 'node1',
+        nodeName: 'Customer Info',
+        nodeType: 'form',
+        path: 'step1.phone',
+        sampleValue: '+1234567890'
+      },
+      {
+        id: 'var4',
+        name: 'companyName',
+        displayName: 'Company Name',
+        type: 'text',
+        nodeId: 'node1',
+        nodeName: 'Customer Info',
+        nodeType: 'form',
+        path: 'step1.companyName',
+        sampleValue: 'Acme Corp'
+      }
+    ];
+    
+    // Get current step fields
+    const currentStep = steps.find(s => s.id === activeStepId);
+    if (!currentStep) {
+      setIsProcessing(false);
+      return;
     }
+    
+    // Run auto-map algorithm
+    const suggestions = autoMapFields(mockVariables, currentStep.fields, 60);
+    setMappingSuggestions(suggestions);
+    setIsProcessing(false);
+  };
+  
+  const handleApplyMapping = (mapping: any) => {
+    if (!activeStepId) return;
+    
+    saveMapping(activeStepId, {
+      id: `mapping-${Date.now()}`,
+      sourceStep: mapping.sourceVariable.nodeId,
+      sourceField: mapping.sourceVariable.path,
+      targetField: mapping.targetField.id,
+      autoMapped: true
+    });
+    
+    // Remove from suggestions
+    setMappingSuggestions(prev => 
+      prev.filter(s => s.targetField.id !== mapping.targetField.id)
+    );
   };
   
   return (
@@ -118,15 +281,44 @@ export const MappingSection: React.FC = () => {
         </Header>
         
         <Content>
-          <AutoMapButton onClick={handleAutoMap}>
+          <AutoMapButton onClick={handleAutoMap} disabled={isProcessing}>
             <Zap size={16} />
-            Auto-Map Fields
+            {isProcessing ? 'Analyzing...' : 'Auto-Map Fields'}
           </AutoMapButton>
           
-          <EmptyMessage>
-            Auto-Map algorithm will be implemented in Phase 5.
-            It will intelligently match fields from previous steps based on name similarity and type compatibility.
-          </EmptyMessage>
+          {mappingSuggestions.length > 0 ? (
+            <MappingList>
+              {mappingSuggestions.map((mapping, index) => (
+                <MappingItem key={index}>
+                  <MappingHeader>
+                    <MappingPath>
+                      {mapping.sourceVariable.path} → {mapping.targetField.label}
+                    </MappingPath>
+                    <ConfidenceBadge confidence={mapping.confidence}>
+                      {mapping.confidence === 'high' && <Check size={10} />}
+                      {mapping.confidence === 'medium' && <TrendingUp size={10} />}
+                      {mapping.confidence}
+                    </ConfidenceBadge>
+                  </MappingHeader>
+                  
+                  <MappingScore>
+                    Match score: {mapping.score}%
+                  </MappingScore>
+                  
+                  <ApplyButton onClick={() => handleApplyMapping(mapping)}>
+                    <Check size={14} />
+                    Apply Mapping
+                  </ApplyButton>
+                </MappingItem>
+              ))}
+            </MappingList>
+          ) : (
+            <EmptyMessage>
+              {isProcessing 
+                ? 'Analyzing field relationships...' 
+                : 'Click "Auto-Map Fields" to find intelligent field mappings based on name similarity and type compatibility.'}
+            </EmptyMessage>
+          )}
         </Content>
         
         <Footer>

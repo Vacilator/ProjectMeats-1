@@ -10,9 +10,11 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { X, Save, Sparkles } from 'lucide-react';
-import { FormField, FieldType, ValidationType } from './types';
+import { X, Save, Sparkles, TrendingUp } from 'lucide-react';
+import { FormField, FieldType, ValidationType, AutoPopulateSuggestion } from './types';
 import { useFormBuilderStore } from './store';
+import { generateAutoPopulateSuggestions } from '../FlowEditor/utils/autoPopulateEngine';
+import { Variable } from '../FlowEditor/components/VariablePicker';
 
 /**
  * Styled Components
@@ -175,13 +177,64 @@ const SuggestionHeader = styled.div`
   color: rgb(var(--color-primary));
   font-size: 13px;
   font-weight: 500;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 `;
 
-const SuggestionText = styled.p`
+const SuggestionList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const SuggestionItem = styled.button`
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+  background: rgb(var(--color-surface));
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    background: rgba(var(--color-primary), 0.05);
+  }
+`;
+
+const SuggestionItemHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+`;
+
+const SuggestionFieldName = styled.span`
   font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+  font-family: 'Courier New', monospace;
+`;
+
+const SuggestionScore = styled.span<{ confidence: string }>`
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: ${props => {
+    if (props.confidence === 'high') return 'rgba(34, 197, 94, 0.15)';
+    if (props.confidence === 'medium') return 'rgba(234, 179, 8, 0.15)';
+    return 'rgba(var(--color-primary), 0.15)';
+  }};
+  color: ${props => {
+    if (props.confidence === 'high') return 'rgb(34, 197, 94)';
+    if (props.confidence === 'medium') return 'rgb(234, 179, 8)';
+    return 'rgb(var(--color-primary))';
+  }};
+`;
+
+const SuggestionReason = styled.div`
+  font-size: 12px;
   color: rgb(var(--color-text-secondary));
-  margin: 0;
 `;
 
 const Footer = styled.div`
@@ -257,7 +310,8 @@ export const FieldConfigModal: React.FC = () => {
     activeStepId,
     editingField,
     closeFieldModal,
-    saveField
+    saveField,
+    steps
   } = useFormBuilderStore();
   
   // Field state
@@ -271,6 +325,10 @@ export const FieldConfigModal: React.FC = () => {
     validation: [],
     width: 'full'
   });
+  
+  // Suggestions state
+  const [suggestions, setSuggestions] = useState<AutoPopulateSuggestion[]>([]);
+  const [availableVariables, setAvailableVariables] = useState<Variable[]>([]);
   
   // Load editing field
   useEffect(() => {
@@ -290,6 +348,62 @@ export const FieldConfigModal: React.FC = () => {
     }
   }, [editingField, isFieldModalOpen]);
   
+  // Generate suggestions when field label changes
+  useEffect(() => {
+    if (!fieldData.label || !activeStepId) {
+      setSuggestions([]);
+      return;
+    }
+    
+    // Mock available variables (in real implementation, get from upstream nodes)
+    const mockVariables: Variable[] = [
+      {
+        id: 'var1',
+        name: 'customerName',
+        displayName: 'Customer Name',
+        type: 'text',
+        nodeId: 'node1',
+        nodeName: 'Customer Info',
+        nodeType: 'form',
+        path: 'step1.customerName',
+        sampleValue: 'John Doe'
+      },
+      {
+        id: 'var2',
+        name: 'email',
+        displayName: 'Email Address',
+        type: 'email',
+        nodeId: 'node1',
+        nodeName: 'Customer Info',
+        nodeType: 'form',
+        path: 'step1.email',
+        sampleValue: 'john@example.com'
+      },
+      {
+        id: 'var3',
+        name: 'phone',
+        displayName: 'Phone Number',
+        type: 'phone',
+        nodeId: 'node1',
+        nodeName: 'Customer Info',
+        nodeType: 'form',
+        path: 'step1.phone',
+        sampleValue: '+1234567890'
+      }
+    ];
+    
+    setAvailableVariables(mockVariables);
+    
+    // Generate suggestions
+    const newSuggestions = generateAutoPopulateSuggestions(
+      fieldData,
+      mockVariables,
+      3
+    );
+    
+    setSuggestions(newSuggestions);
+  }, [fieldData.label, fieldData.type, activeStepId]);
+  
   const handleSave = () => {
     if (!activeStepId) return;
     if (!fieldData.label.trim()) {
@@ -304,8 +418,24 @@ export const FieldConfigModal: React.FC = () => {
     setFieldData(prev => ({ ...prev, [key]: value }));
   };
   
-  // Show suggestion (placeholder for Phase 5)
-  const showSuggestion = false; // Will be enabled in Phase 5
+  // Apply suggestion
+  const handleApplySuggestion = (suggestion: AutoPopulateSuggestion) => {
+    const sourceVariable = availableVariables.find(
+      v => v.path === suggestion.sourceField
+    );
+    
+    if (sourceVariable) {
+      setFieldData(prev => ({
+        ...prev,
+        autoPopulate: {
+          enabled: true,
+          sourceStep: suggestion.sourceStep,
+          sourceField: suggestion.sourceField,
+          mode: 'copy'
+        }
+      }));
+    }
+  };
   
   return (
     <Overlay isOpen={isFieldModalOpen} onClick={closeFieldModal}>
@@ -392,15 +522,31 @@ export const FieldConfigModal: React.FC = () => {
             </Select>
           </FormGroup>
           
-          {showSuggestion && (
+          {suggestions.length > 0 && (
             <SuggestionBox>
               <SuggestionHeader>
                 <Sparkles size={16} />
-                Smart Suggestion
+                Smart Auto-Populate Suggestions
               </SuggestionHeader>
-              <SuggestionText>
-                Auto-populate suggestions will appear here in Phase 5.
-              </SuggestionText>
+              <SuggestionList>
+                {suggestions.map((suggestion, index) => (
+                  <SuggestionItem
+                    key={index}
+                    onClick={() => handleApplySuggestion(suggestion)}
+                  >
+                    <SuggestionItemHeader>
+                      <SuggestionFieldName>
+                        {suggestion.sourceField}
+                      </SuggestionFieldName>
+                      <SuggestionScore confidence={suggestion.confidence}>
+                        <TrendingUp size={10} style={{ marginRight: '4px', display: 'inline' }} />
+                        {suggestion.score}% match
+                      </SuggestionScore>
+                    </SuggestionItemHeader>
+                    <SuggestionReason>{suggestion.reason}</SuggestionReason>
+                  </SuggestionItem>
+                ))}
+              </SuggestionList>
             </SuggestionBox>
           )}
         </Content>
