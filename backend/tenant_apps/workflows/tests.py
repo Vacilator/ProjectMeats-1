@@ -847,7 +847,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         self.assertNotIn(str(self.submission_no_assignments.id), submission_ids)
 
     def test_filter_assigned_to_invalid_user_id(self):
-        """Test filtering by invalid user ID returns empty queryset."""
+        """Test filtering by invalid numeric user ID returns empty queryset."""
         from rest_framework.test import APIRequestFactory
 
         from .views import FormSubmissionViewSet
@@ -862,6 +862,30 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         viewset.format_kwarg = None
 
         queryset = viewset.get_queryset()
+
+        # Invalid user ID should return empty queryset
+        self.assertEqual(queryset.count(), 0)
+
+    def test_filter_assigned_to_malformed_user_id(self):
+        """Test filtering by malformed (non-numeric) user ID returns empty queryset."""
+        from rest_framework.test import APIRequestFactory
+
+        from .views import FormSubmissionViewSet
+
+        factory = APIRequestFactory()
+        # Try with a non-numeric string
+        request = factory.get("/api/workflows/form-submissions/?assigned_to=invalid_string")
+        request.user = self.admin_user
+        request.tenant = self.tenant
+
+        viewset = FormSubmissionViewSet()
+        viewset.request = request
+        viewset.format_kwarg = None
+
+        queryset = viewset.get_queryset()
+
+        # Malformed user ID should return empty queryset (ValueError caught)
+        self.assertEqual(queryset.count(), 0)
 
         # Invalid user ID should return empty queryset
         self.assertEqual(queryset.count(), 0)
