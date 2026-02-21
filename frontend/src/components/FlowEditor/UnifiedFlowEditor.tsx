@@ -100,6 +100,9 @@ import {
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge } from './edges';
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
+import { ValidationDrawer } from './components/ValidationDrawer';
+import { DryRunDebugger } from './components/DryRunDebugger';
+import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER } from './nodeTypes';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
@@ -1855,6 +1858,108 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     return () => window.removeEventListener('openFormBuilder', handleOpenFormBuilder);
   }, [openFormBuilder]);
   
+  // ============================================================================
+  // Validation Engine (Phase 7)
+  // ============================================================================
+  
+  const [validationResult, setValidationResult] = useState<ValidationResult>({
+    isValid: true,
+    issues: [],
+    errorCount: 0,
+    warningCount: 0,
+    infoCount: 0,
+  });
+  const [showValidationDrawer, setShowValidationDrawer] = useState(false);
+  
+  // Run validation whenever nodes or edges change
+  useEffect(() => {
+    const result = validateWorkflow(nodes, edges);
+    setValidationResult(result);
+    
+    // Auto-show drawer if there are errors
+    if (result.errorCount > 0 && !showValidationDrawer) {
+      setShowValidationDrawer(true);
+    }
+  }, [nodes, edges]);
+  
+  const handleNavigateToNode = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setSelectedNodeId(nodeId);
+      // Center on node with animation
+      setCenter(node.position.x + 100, node.position.y + 50, { duration: 800, zoom: 1.2 });
+    }
+  }, [nodes, setCenter]);
+  
+  // ============================================================================
+  // Dry Run Debugger (Phase 7)
+  // ============================================================================
+  
+  const [showDebugger, setShowDebugger] = useState(false);
+  const selectedNodeForDebug = useMemo(() => 
+    nodes.find(n => n.id === selectedNodeId) || null,
+    [nodes, selectedNodeId]
+  );
+  
+  // ============================================================================
+  // Keyboard Shortcuts (Phase 7)
+  // ============================================================================
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTypingInInput(e)) return;
+      
+      // Ctrl/Cmd + S: Save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleQuickSave();
+      }
+      
+      // Ctrl/Cmd + Z: Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        // Undo will be handled by React Flow's internal history
+        console.log('[Keyboard] Undo requested');
+      }
+      
+      // Ctrl/Cmd + Shift + Z: Redo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        console.log('[Keyboard] Redo requested');
+      }
+      
+      // Ctrl/Cmd + P: Toggle palette
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        setIsPaletteOpen(prev => !prev);
+      }
+      
+      // Ctrl/Cmd + D: Toggle debugger
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        setShowDebugger(prev => !prev);
+      }
+      
+      // Delete: Delete selected node
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodeId) {
+          e.preventDefault();
+          handleDeleteNode(selectedNodeId);
+        }
+      }
+      
+      // Escape: Close all modals
+      if (e.key === 'Escape') {
+        setShowValidationDrawer(false);
+        setShowDebugger(false);
+        setIsPaletteOpen(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNodeId, handleDeleteNode, handleQuickSave]);
+  
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
     let filteredNodes = Object.values(NODE_TYPE_REGISTRY);
@@ -3594,6 +3699,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const handleSave = useCallback(() => {
+    console.log('[FlowEditor] Quick save triggered');
+    toast.success('Workflow saved');
+    
     if (onSave) {
       // Log container information for debugging (Phase E)
       const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
@@ -3615,6 +3723,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setHasUnsavedChanges(false);
     }
   }, [nodes, edges, onSave]);
+  
+  // Alias for keyboard shortcut
+  const handleQuickSave = handleSave;
 
   // ============================================================================
   // Phase 7: Workflow Persistence Handlers
