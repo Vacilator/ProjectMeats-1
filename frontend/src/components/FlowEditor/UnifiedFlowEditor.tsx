@@ -718,6 +718,42 @@ const SearchInput = styled.input`
   }
 `;
 
+const CategoryFilters = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgb(var(--color-border));
+`;
+
+const FilterChip = styled.button<{ $active?: boolean; $color?: string }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid ${props => props.$active ? props.$color || 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  background: ${props => props.$active ? (props.$color ? `${props.$color}22` : 'rgb(var(--color-primary) / 0.1)') : 'transparent'};
+  color: ${props => props.$active ? (props.$color || 'rgb(var(--color-primary))') : 'rgb(var(--color-text-secondary))'};
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+  white-space: nowrap;
+  
+  &:hover {
+    border-color: ${props => props.$color || 'rgb(var(--color-primary))'};
+    background: ${props => props.$color ? `${props.$color}22` : 'rgb(var(--color-primary) / 0.1)'};
+    color: ${props => props.$color || 'rgb(var(--color-primary))'};
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
 const PaletteCategory = styled.div<{ $collapsed?: boolean }>`
   border-bottom: 1px solid rgb(var(--color-border));
   
@@ -1839,7 +1875,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState<Set<NodeCategory>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  // Toggle category filter
+  const toggleCategoryFilter = useCallback((category: NodeCategory) => {
+    setActiveFilters(prev => {
+      const newFilters = new Set(prev);
+      if (newFilters.has(category)) {
+        newFilters.delete(category);
+      } else {
+        newFilters.add(category);
+      }
+      return newFilters;
+    });
+  }, []);
   
   // Favorites & Recent
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -4624,6 +4674,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     };
 
     const query = searchQuery.toLowerCase().trim();
+    const hasActiveFilters = activeFilters.size > 0;
     
     // Filter by available node types based on editor mode
     availableNodeTypes.forEach(node => {
@@ -4633,11 +4684,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
+      // Filter by active category filters (if any)
+      if (hasActiveFilters && !activeFilters.has(node.category)) {
+        return;
+      }
+      
       grouped[node.category].push(node);
     });
 
     return grouped;
-  }, [searchQuery, availableNodeTypes]);
+  }, [searchQuery, activeFilters, availableNodeTypes]);
 
   // ============================================================================
   // Get Favorite & Recent Nodes
@@ -4698,17 +4754,48 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* Node Palette - Visual & Expert Modes Only */}
       {!readOnly && isPaletteVisible && (activeEditorMode === 'visual' || activeEditorMode === 'expert') && (
         <NodePalette>
-          <PaletteTitle>Add Nodes</PaletteTitle>
-          
-          {/* Search Input */}
-          <SearchInput
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search nodes... (press / to focus)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.stopPropagation()}
-          />
+          <PaletteHeader>
+            <PaletteTitle>Add Nodes</PaletteTitle>
+            
+            {/* Search Input */}
+            <SearchInput
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search nodes... (press / to focus)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+            
+            {/* Category Filters */}
+            <CategoryFilters>
+              {(Object.keys(CATEGORY_LABELS) as NodeCategory[]).map(category => {
+                const isActive = activeFilters.has(category);
+                const categoryColor = {
+                  trigger: '#10b981',
+                  form: '#3b82f6',
+                  logic: '#f59e0b',
+                  action: '#8b5cf6',
+                  wait: '#ef4444',
+                  document: '#06b6d4',
+                  utility: '#64748b',
+                  terminal: '#059669',
+                }[category];
+                
+                return (
+                  <FilterChip
+                    key={category}
+                    $active={isActive}
+                    $color={categoryColor}
+                    onClick={() => toggleCategoryFilter(category)}
+                    title={`Filter by ${CATEGORY_LABELS[category]}`}
+                  >
+                    {CATEGORY_LABELS[category]}
+                  </FilterChip>
+                );
+              })}
+            </CategoryFilters>
+          </PaletteHeader>
           
           {/* Favorites Section */}
           {favoriteNodesList.length > 0 && (
