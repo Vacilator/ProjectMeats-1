@@ -4569,6 +4569,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
   }, [nodes]);
   
+  // Handler for direct node clicks (opens config panel)
+  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    console.log('🖱️ [NODE CLICK] Opening config for:', node.type, node.id);
+    handleNodeEdit(node.id);
+  }, [handleNodeEdit]);
+  
   // Batch 3: Handler to delete node from Delete button
   const handleNodeDeleteImpl = useCallback(async (nodeId: string) => {
     console.log('[UnifiedFlowEditor] Deleting node:', nodeId);
@@ -5440,6 +5446,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onDragOver={onDragOver}
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
+        onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
