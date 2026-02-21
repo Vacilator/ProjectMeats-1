@@ -55,8 +55,8 @@ import {
 // ============================================================================
 
 export interface DynamicConfigPanelProps {
-  /** Current node being configured */
-  node: Node;
+  /** Current node being configured (nullable when no node selected) */
+  node: Node | null;
   
   /** All nodes in the flow (for context) */
   nodes: Node[];
@@ -89,14 +89,29 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   onApply,
   onDiscard
 }) => {
+  // ============================================================================
+  // NULL SAFETY GUARD - Return early if no node selected
+  // ============================================================================
+  if (!node || !node.data) {
+    return (
+      <EmptyStateContainer>
+        <EmptyStateIcon>📝</EmptyStateIcon>
+        <EmptyStateTitle>No Node Selected</EmptyStateTitle>
+        <EmptyStateMessage>
+          Select a node in the canvas to configure its properties.
+        </EmptyStateMessage>
+      </EmptyStateContainer>
+    );
+  }
+
   // Local form state (shadow state - changes not applied until user clicks Apply)
-  const [formData, setFormData] = useState<Record<string, any>>(node.data || {});
+  const [formData, setFormData] = useState<Record<string, any>>(node?.data || {});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   // Phase E.3: Compute upstream variables for data inheritance
   const { variables: upstreamVariables } = useUpstreamVariables({
-    currentNodeId: node.id,
+    currentNodeId: node?.id || '',
     nodes,
     edges,
   });
@@ -106,7 +121,9 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   // Get schema for this node type
   const schema = useMemo(() => {
-    const resolvedSchema = schemaRegistry.getSchema(node.type!);
+    if (!node?.type) return null;
+    
+    const resolvedSchema = schemaRegistry.getSchema(node.type);
     
     // Debug logging for schema resolution
     console.log('[DynamicConfigPanel] Schema resolution:', {
@@ -117,13 +134,15 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     });
     
     return resolvedSchema;
-  }, [node.type, node.id]);
+  }, [node?.type, node?.id]);
 
   // Reset form data when node changes
   useEffect(() => {
-    setFormData(node.data || {});
-    setErrors({});
-  }, [node.id, node.data]);
+    if (node?.data) {
+      setFormData(node.data);
+      setErrors({});
+    }
+  }, [node?.id, node?.data]);
 
   // Show error if no schema found
   if (!schema) {
@@ -131,7 +150,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       <ErrorPanel>
         <ErrorTitle>Configuration Error</ErrorTitle>
         <ErrorMessage>
-          No configuration schema found for node type: <code>{node.type}</code>
+          No configuration schema found for node type: <code>{node?.type || 'unknown'}</code>
         </ErrorMessage>
         <ErrorHint>
           This node type has not been migrated to the dynamic configuration system yet.
@@ -191,6 +210,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   // Handle Apply button
   const handleApply = () => {
+    if (!node?.id) {
+      console.warn('[DynamicConfigPanel] Cannot apply changes: node ID is missing');
+      return;
+    }
     // Update node with form data
     onUpdateNode(node.id, formData);
     if (onApply) {
@@ -201,8 +224,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   // Handle Discard button
   const handleDiscard = () => {
     // Reset form data to node data
-    setFormData(node.data || {});
-    setErrors({});
+    if (node?.data) {
+      setFormData(node.data);
+      setErrors({});
+    }
     if (onDiscard) {
       onDiscard();
     }
@@ -210,8 +235,9 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   // Check if form has changes
   const hasChanges = useMemo(() => {
+    if (!node?.data) return false;
     return JSON.stringify(formData) !== JSON.stringify(node.data);
-  }, [formData, node.data]);
+  }, [formData, node?.data]);
 
   // Check if form is valid
   const isValid = useMemo(() => {
@@ -293,6 +319,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
               variant={field.metadata?.variant || 'secondary'}
               fullWidth
               onClick={() => {
+                if (!node) {
+                  console.warn('[DynamicConfigPanel] Cannot execute button action: node is null');
+                  return;
+                }
                 // Check if button has FormBuilder action metadata
                 if (field.metadata?.action === 'openFormBuilder') {
                   console.log('[DynamicConfigPanel] Opening FormBuilder for node:', node.id);
@@ -582,6 +612,37 @@ const ErrorHint = styled.p`
   font-size: 13px;
   color: rgb(var(--color-text-tertiary));
   font-style: italic;
+`;
+
+// Empty State Components (2026-02-21 Null Safety Fix)
+const EmptyStateContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  min-height: 200px;
+`;
+
+const EmptyStateIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+`;
+
+const EmptyStateTitle = styled.h3`
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+`;
+
+const EmptyStateMessage = styled.p`
+  margin: 0;
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+  max-width: 300px;
 `;
 
 // Button Field Container (2026-02-21 Comprehensive Enhancements)
