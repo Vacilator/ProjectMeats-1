@@ -18,6 +18,9 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 // Phase E.3: Data inheritance hook
 import { useUpstreamVariables } from '../hooks/useUpstreamVariables';
 
+// FormBuilder Context (2026-02-21 Comprehensive Enhancements)
+import { useFormBuilderContext } from '../../../contexts/FormBuilderContext';
+
 // Configuration engine imports
 import { schemaRegistry } from '../config/schemaRegistry';
 import { NodeConfigSchema, ConfigSection, ConfigField } from '../config/types';
@@ -97,6 +100,9 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     nodes,
     edges,
   });
+
+  // FormBuilder Context (2026-02-21 Comprehensive Enhancements)
+  const { openFormBuilder } = useFormBuilderContext();
 
   // Get schema for this node type
   const schema = useMemo(() => {
@@ -279,6 +285,31 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'validation-builder':
         return renderValidationBuilder(commonProps);
       
+      // Button fields (2026-02-21 Comprehensive Enhancements)
+      case 'button':
+        return (
+          <ButtonFieldContainer key={field.id}>
+            <Button
+              variant={field.metadata?.variant || 'secondary'}
+              fullWidth
+              onClick={() => {
+                // Check if button has FormBuilder action metadata
+                if (field.metadata?.action === 'openFormBuilder') {
+                  console.log('[DynamicConfigPanel] Opening FormBuilder for node:', node.id);
+                  openFormBuilder(node);
+                } else if (field.metadata?.onClick) {
+                  // Custom onClick handler from schema
+                  field.metadata.onClick(node, formData);
+                } else {
+                  console.warn('[DynamicConfigPanel] Button has no action:', field.id);
+                }
+              }}
+            >
+              {field.label}
+            </Button>
+          </ButtonFieldContainer>
+        );
+      
       // Phase E.3: Nested children
       case 'nested-children':
         return (
@@ -433,7 +464,7 @@ const FooterActions = styled.div`
   gap: 8px;
 `;
 
-const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
+const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger'; fullWidth?: boolean }>`
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 14px;
@@ -441,24 +472,36 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
   cursor: pointer;
   transition: all 0.2s;
   border: none;
+  width: ${props => props.fullWidth ? '100%' : 'auto'};
 
-  ${({ variant }) =>
-    variant === 'primary'
-      ? `
-    background: rgb(var(--color-primary));
-    color: white;
-    &:hover:not(:disabled) {
-      background: rgb(var(--color-primary-hover));
+  ${({ variant = 'secondary' }) => {
+    if (variant === 'primary') {
+      return `
+        background: rgb(var(--color-primary));
+        color: white;
+        &:hover:not(:disabled) {
+          background: rgb(var(--color-primary-hover));
+        }
+      `;
+    } else if (variant === 'danger') {
+      return `
+        background: rgb(var(--color-error));
+        color: white;
+        &:hover:not(:disabled) {
+          background: rgb(239, 68, 68);
+        }
+      `;
+    } else {
+      return `
+        background: transparent;
+        color: rgb(var(--color-text-secondary));
+        border: 1px solid rgb(var(--color-border));
+        &:hover:not(:disabled) {
+          background: rgb(var(--color-background-hover));
+        }
+      `;
     }
-  `
-      : `
-    background: transparent;
-    color: rgb(var(--color-text-secondary));
-    border: 1px solid rgb(var(--color-border));
-    &:hover:not(:disabled) {
-      background: rgb(var(--color-background-hover));
-    }
-  `}
+  }}
 
   &:disabled {
     opacity: 0.5;
@@ -539,4 +582,9 @@ const ErrorHint = styled.p`
   font-size: 13px;
   color: rgb(var(--color-text-tertiary));
   font-style: italic;
+`;
+
+// Button Field Container (2026-02-21 Comprehensive Enhancements)
+const ButtonFieldContainer = styled.div`
+  margin-bottom: 16px;
 `;
