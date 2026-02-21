@@ -4,15 +4,24 @@
  * Right-click context menu for flow editor nodes.
  * Provides quick actions for containers and nodes.
  * 
+ * Advanced Features:
+ * - React Portal rendering to document.body
+ * - Smart viewport flipping (never off-screen)
+ * - Zoom-aware positioning
+ * - Full opacity with dark theme
+ * - 120ms entrance animation
+ * 
  * Based on React Flow context menu example:
  * https://reactflow.dev/examples/interaction/context-menu
  * 
  * Created: 2026-02-19 - Phase E.3
+ * Enhanced: 2026-02-21 - Advanced positioning
  * 
  * @module NodeContextMenu
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useLayoutEffect, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { Node, useReactFlow } from '@xyflow/react';
 import { Plus, Copy, Layers, Trash2, Settings, Move, Wand2, Maximize2, Minimize2 } from 'lucide-react';
@@ -47,27 +56,33 @@ export interface ContextMenuAction {
 // Styled Components
 // ============================================================================
 
-const MenuContainer = styled.div<{ x: number; y: number }>`
+const MenuContainer = styled.div<{ x: number; y: number; flipX: boolean; flipY: boolean }>`
   position: fixed;
   top: ${props => props.y}px;
   left: ${props => props.x}px;
-  background: rgb(var(--color-background-primary));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 8px;
+  background: #1f2937 !important;
+  border: 1px solid #374151;
+  border-radius: 12px;
   box-shadow: 
-    0 10px 30px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
+    0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.2);
   padding: 6px;
   min-width: 220px;
   z-index: 9999;
   opacity: 1 !important;
   backdrop-filter: blur(10px);
-  animation: menuSlide 0.1s ease-out;
+  animation: menuEntrance 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: ${props => 
+    props.flipX && props.flipY ? 'bottom right' :
+    props.flipX ? 'top right' :
+    props.flipY ? 'bottom left' :
+    'top left'
+  };
   
-  @keyframes menuSlide {
+  @keyframes menuEntrance {
     from {
       opacity: 0;
-      transform: scale(0.95) translateY(-4px);
+      transform: scale(0.92) translateY(-4px);
     }
     to {
       opacity: 1;
@@ -148,29 +163,85 @@ const MenuHeader = styled.div`
  * Container nodes get "Add Step", "Duplicate Container", etc.
  * Regular nodes get "Edit", "Copy", "Delete", etc.
  * 
+ * Advanced positioning features:
+ * - Smart viewport flipping (left/right, top/bottom)
+ * - Zoom-aware positioning with transform compensation
+ * - React Portal rendering to document.body
+ * - 12px viewport padding for safety
+ * 
  * @param props - Context menu properties
  */
 export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose, onEdit }) => {
-  const { setNodes, getNode, getNodes } = useReactFlow();
-  const menuRef = React.useRef<HTMLDivElement>(null);
+  const { setNodes, getNode, getNodes, getViewport } = useReactFlow();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ x, y, flipX: false, flipY: false });
   
-  // Clamp position to viewport
-  const [position, setPosition] = React.useState({ x, y });
-  
-  React.useEffect(() => {
+  // Advanced positioning with viewport flipping and zoom compensation
+  useLayoutEffect(() => {
     if (!menuRef.current) return;
     
     const menuRect = menuRef.current.getBoundingClientRect();
-    const clampedX = Math.max(0, Math.min(x, window.innerWidth - menuRect.width - 10));
-    const clampedY = Math.max(0, Math.min(y, window.innerHeight - menuRect.height - 10));
+    const viewport = getViewport();
+    const PADDING = 12; // Minimum distance from viewport edges
     
-    if (clampedX !== x || clampedY !== y) {
-      setPosition({ x: clampedX, y: clampedY });
+    let finalX = x;
+    let finalY = y;
+    let flipX = false;
+    let flipY = false;
+    
+    // Apply subtle zoom compensation
+    const zoomFactor = viewport.zoom;
+    const zoomOffset = (1 - zoomFactor) * 8; // Subtle offset based on zoom
+    
+    // Check horizontal overflow and flip if needed
+    if (x + menuRect.width + PADDING > window.innerWidth) {
+      finalX = x - menuRect.width; // Flip to left
+      flipX = true;
     }
-  }, [x, y]);
+    
+    // Check vertical overflow and flip if needed
+    if (y + menuRect.height + PADDING > window.innerHeight) {
+      finalY = y - menuRect.height; // Flip to top
+      flipY = true;
+    }
+    
+    // Clamp to viewport with padding
+    finalX = Math.max(PADDING, Math.min(finalX, window.innerWidth - menuRect.width - PADDING));
+    finalY = Math.max(PADDING, Math.min(finalY, window.innerHeight - menuRect.height - PADDING));
+    
+    // Apply zoom offset
+    finalX += zoomOffset;
+    finalY += zoomOffset;
+    
+    setPosition({ x: finalX, y: finalY, flipX, flipY });
+  }, [x, y, getViewport]);
   
-  // Close on outside click
-  React.useEffect(() => {
+  // Recalculate on window resize or zoom change
+  useEffect(() => {
+    const handleResize = () => {
+      if (!menuRef.current) return;
+      
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const PADDING = 12;
+      
+      let finalX = position.x;
+      let finalY = position.y;
+      
+      // Re-clamp on resize
+      finalX = Math.max(PADDING, Math.min(finalX, window.innerWidth - menuRect.width - PADDING));
+      finalY = Math.max(PADDING, Math.min(finalY, window.innerHeight - menuRect.height - PADDING));
+      
+      if (finalX !== position.x || finalY !== position.y) {
+        setPosition({ x: finalX, y: finalY, flipX: position.flipX, flipY: position.flipY });
+      }
+    };
+    
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, [position]);
+  
+  // Close on outside click (passive listener for performance)
+  useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
@@ -184,7 +255,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
     };
     
     document.addEventListener('mousedown', handleClickOutside, { passive: true });
-    document.addEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleEscape, { passive: true } as AddEventListenerOptions);
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -410,8 +481,18 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
   
   const isChildNode = !!node.parentId;
   
-  return (
-    <MenuContainer ref={menuRef} x={position.x} y={position.y} onClick={(e) => e.stopPropagation()} role="menu" aria-label="Node context menu">
+  // Render menu via React Portal to document.body
+  return createPortal(
+    <MenuContainer 
+      ref={menuRef} 
+      x={position.x} 
+      y={position.y} 
+      flipX={position.flipX}
+      flipY={position.flipY}
+      onClick={(e) => e.stopPropagation()} 
+      role="menu" 
+      aria-label="Node context menu"
+    >
       <MenuHeader>
         {isContainer ? 'Container Actions' : isChildNode ? 'Step Actions' : 'Node Actions'}
       </MenuHeader>
@@ -478,7 +559,8 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
         <Trash2 size={16} />
         <span>Delete {isContainer ? 'Container' : 'Node'}</span>
       </MenuItem>
-    </MenuContainer>
+    </MenuContainer>,
+    document.body
   );
 };
 
