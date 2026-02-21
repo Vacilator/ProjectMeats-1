@@ -17,7 +17,7 @@
  * React Flow Best Practices Applied (2026-02-21):
  * ✅ All node components wrapped in React.memo for performance
  * ✅ All edge components wrapped in React.memo
- * ✅ nodeTypes and edgeTypes objects memoized with useMemo
+ * ✅ nodeTypes and staticEdgeTypes objects are static (no useMemo needed for constants)
  * ✅ All callbacks use useCallback with correct dependencies
  * ✅ ARIA labels on all Handle components for accessibility
  * ✅ Snap-to-grid enabled (15x15 grid) for smooth dragging
@@ -1617,13 +1617,14 @@ const staticNodeTypes: NodeTypes = {
   terminal: TerminalNode,
 };
 
-const edgeTypes = useMemo<EdgeTypes>(() => ({
+// Static edge types (no useMemo needed - these are constant)
+const staticEdgeTypes: EdgeTypes = {
   custom: CustomEdge,
   conditional: ConditionalEdge,
   error: ErrorEdge,
   success: SuccessEdge,
   default: CustomEdge, // Fallback to custom for untyped edges
-}), []);
+};
 
 // ============================================================================
 // Component
@@ -5667,7 +5668,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onPaneClick={handleCloseMenu}
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
+        edgeTypes={staticEdgeTypes}
         defaultEdgeOptions={{ 
           type: 'custom',
           markerEnd: {
