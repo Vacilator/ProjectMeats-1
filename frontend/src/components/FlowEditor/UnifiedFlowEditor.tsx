@@ -1597,6 +1597,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [nodeIdCounter, setNodeIdCounter] = useState(normalizedInitialNodes.length + 1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
+  // Selected node state (moved here to fix TDZ - used in useMemo at line ~1917)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  
   // Phase E: Wrap onNodesChange to handle container deletion
   const onNodesChange = useCallback((changes: any[]) => {
     // Check if any containers are being removed
@@ -2054,8 +2058,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [isPaletteVisible, setIsPaletteVisible] = useState(true);
 
   // Configuration Panel
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // NOTE: selectedNode and selectedNodeId moved to top of component to fix TDZ
   
   // FormStep specialized configuration (Phase 4.2.B Integration)
   const [formStepModalOpen, setFormStepModalOpen] = useState(false);
