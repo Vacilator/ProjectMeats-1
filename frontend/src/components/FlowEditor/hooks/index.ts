@@ -36,3 +36,7 @@ export type { UpstreamVariable, FieldType } from './useUpstreamVariables';
 
 // Node shadow state (already exists)
 export { useNodeShadowState } from './useNodeShadowState';
+
+// Form data mapping (Phase 1: Hybrid Functionality)
+export { useFormDataMapping } from './useFormDataMapping';
+export type { FormDataMapping, FormOutputField, UseFormDataMappingReturn } from './useFormDataMapping';
