@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
-from django.db.models import Count, Prefetch, Max
+from django.db.models import Count, Prefetch, Max, Q
 from django.utils import timezone
 from django.db import transaction
 
@@ -1412,6 +1412,26 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         form_id = self.request.query_params.get('form')
         if form_id:
             qs = qs.filter(form_id=form_id)
+        
+        # Filter by assigned_to
+        assigned_to = self.request.query_params.get('assigned_to')
+        if assigned_to:
+            if assigned_to == 'me':
+                # Filter submissions where current user is assigned to at least one step
+                qs = qs.filter(
+                    form__step_assignments__assigned_user=self.request.user
+                ).distinct()
+            elif self.request.user.is_staff:
+                # Admin users can filter by specific user ID
+                try:
+                    from django.contrib.auth.models import User
+                    user = User.objects.get(id=assigned_to)
+                    qs = qs.filter(
+                        form__step_assignments__assigned_user=user
+                    ).distinct()
+                except (User.DoesNotExist, ValueError):
+                    # Invalid user ID - return empty queryset
+                    qs = qs.none()
         
         return qs.select_related('form', 'created_by', 'current_step').prefetch_related(
             'step_submissions__step',

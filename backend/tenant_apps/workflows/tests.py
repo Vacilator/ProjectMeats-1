@@ -798,3 +798,230 @@ class UserNotificationPreferencesModelTest(TestCase):
         # Task completed should have in_app only
         self.assertIn(DeliveryChannel.IN_APP, defaults[NotificationType.TASK_COMPLETED])
         self.assertNotIn(DeliveryChannel.EMAIL, defaults[NotificationType.TASK_COMPLETED])
+
+
+class FormSubmissionAssignedToFilterTest(TestCase):
+    """Test FormSubmission filtering by assigned_to parameter."""
+    
+    def setUp(self):
+        """Set up test data."""
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        
+        # Create users
+        self.user1 = User.objects.create_user(
+            username=f'user1_{unique_id}',
+            email=f'user1_{unique_id}@example.com',
+            password='testpass123'
+        )
+        self.user2 = User.objects.create_user(
+            username=f'user2_{unique_id}',
+            email=f'user2_{unique_id}@example.com',
+            password='testpass123'
+        )
+        self.admin_user = User.objects.create_user(
+            username=f'admin_{unique_id}',
+            email=f'admin_{unique_id}@example.com',
+            password='testpass123',
+            is_staff=True
+        )
+        
+        # Create tenant
+        self.tenant = Tenant.objects.create(
+            name=f'Test Tenant {unique_id}',
+            slug=f'test-tenant-{unique_id}'
+        )
+        
+        # Create form
+        from .models import FormSubmission, FormSubmissionStatus, StepAssignment, AssignmentType
+        
+        self.form = TenantForm.objects.create(
+            tenant=self.tenant,
+            name='Test Form',
+            created_by=self.user1
+        )
+        
+        # Create form steps
+        self.step1 = TenantFormEntity.objects.create(
+            form=self.form,
+            entity_type='customer',
+            step_name='Customer Info',
+            order=0
+        )
+        self.step2 = TenantFormEntity.objects.create(
+            form=self.form,
+            entity_type='supplier',
+            step_name='Supplier Info',
+            order=1
+        )
+        
+        # Create step assignments
+        StepAssignment.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            step=self.step1,
+            assignment_type=AssignmentType.USER,
+            assigned_user=self.user1
+        )
+        StepAssignment.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            step=self.step2,
+            assignment_type=AssignmentType.USER,
+            assigned_user=self.user2
+        )
+        
+        # Create form submissions
+        self.submission1 = FormSubmission.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            created_by=self.user1,
+            status=FormSubmissionStatus.IN_PROGRESS
+        )
+        self.submission2 = FormSubmission.objects.create(
+            tenant=self.tenant,
+            form=self.form,
+            created_by=self.user2,
+            status=FormSubmissionStatus.IN_PROGRESS
+        )
+        
+        # Create form without assignments for negative testing
+        self.form_no_assignments = TenantForm.objects.create(
+            tenant=self.tenant,
+            name='Form Without Assignments',
+            created_by=self.user1
+        )
+        self.submission_no_assignments = FormSubmission.objects.create(
+            tenant=self.tenant,
+            form=self.form_no_assignments,
+            created_by=self.user1,
+            status=FormSubmissionStatus.IN_PROGRESS
+        )
+    
+    def test_filter_assigned_to_me_user1(self):
+        """Test filtering by assigned_to=me for user1."""
+        from rest_framework.test import APIRequestFactory
+        from .views import FormSubmissionViewSet
+        
+        factory = APIRequestFactory()
+        request = factory.get('/api/workflows/form-submissions/?assigned_to=me')
+        request.user = self.user1
+        request.tenant = self.tenant
+        
+        viewset = FormSubmissionViewSet()
+        viewset.request = request
+        viewset.format_kwarg = None
+        
+        queryset = viewset.get_queryset()
+        
+        # User1 is assigned to step1 of self.form, so submission1 and submission2 should appear
+        # (both submissions use self.form which has user1 assigned to step1)
+        submission_ids = [str(s.id) for s in queryset]
+        self.assertIn(str(self.submission1.id), submission_ids)
+        self.assertIn(str(self.submission2.id), submission_ids)
+        
+        # submission_no_assignments should NOT appear (no assignments)
+        self.assertNotIn(str(self.submission_no_assignments.id), submission_ids)
+    
+    def test_filter_assigned_to_me_user2(self):
+        """Test filtering by assigned_to=me for user2."""
+        from rest_framework.test import APIRequestFactory
+        from .views import FormSubmissionViewSet
+        
+        factory = APIRequestFactory()
+        request = factory.get('/api/workflows/form-submissions/?assigned_to=me')
+        request.user = self.user2
+        request.tenant = self.tenant
+        
+        viewset = FormSubmissionViewSet()
+        viewset.request = request
+        viewset.format_kwarg = None
+        
+        queryset = viewset.get_queryset()
+        
+        # User2 is assigned to step2 of self.form, so submission1 and submission2 should appear
+        submission_ids = [str(s.id) for s in queryset]
+        self.assertIn(str(self.submission1.id), submission_ids)
+        self.assertIn(str(self.submission2.id), submission_ids)
+        
+        # submission_no_assignments should NOT appear (no assignments)
+        self.assertNotIn(str(self.submission_no_assignments.id), submission_ids)
+    
+    def test_filter_assigned_to_specific_user_as_admin(self):
+        """Test filtering by specific user ID as admin."""
+        from rest_framework.test import APIRequestFactory
+        from .views import FormSubmissionViewSet
+        
+        factory = APIRequestFactory()
+        request = factory.get(f'/api/workflows/form-submissions/?assigned_to={self.user1.id}')
+        request.user = self.admin_user
+        request.tenant = self.tenant
+        
+        viewset = FormSubmissionViewSet()
+        viewset.request = request
+        viewset.format_kwarg = None
+        
+        queryset = viewset.get_queryset()
+        
+        # Admin filtering by user1's ID should get submissions with user1 assigned
+        submission_ids = [str(s.id) for s in queryset]
+        self.assertIn(str(self.submission1.id), submission_ids)
+        self.assertIn(str(self.submission2.id), submission_ids)
+    
+    def test_filter_assigned_to_without_assignments(self):
+        """Test that submissions without step assignments are not returned."""
+        from rest_framework.test import APIRequestFactory
+        from .views import FormSubmissionViewSet
+        
+        factory = APIRequestFactory()
+        request = factory.get('/api/workflows/form-submissions/?assigned_to=me')
+        request.user = self.user1
+        request.tenant = self.tenant
+        
+        viewset = FormSubmissionViewSet()
+        viewset.request = request
+        viewset.format_kwarg = None
+        
+        queryset = viewset.get_queryset()
+        
+        # submission_no_assignments should NOT appear (no step assignments)
+        submission_ids = [str(s.id) for s in queryset]
+        self.assertNotIn(str(self.submission_no_assignments.id), submission_ids)
+    
+    def test_filter_assigned_to_invalid_user_id(self):
+        """Test filtering by invalid user ID returns empty queryset."""
+        from rest_framework.test import APIRequestFactory
+        from .views import FormSubmissionViewSet
+        
+        factory = APIRequestFactory()
+        request = factory.get('/api/workflows/form-submissions/?assigned_to=99999')
+        request.user = self.admin_user
+        request.tenant = self.tenant
+        
+        viewset = FormSubmissionViewSet()
+        viewset.request = request
+        viewset.format_kwarg = None
+        
+        queryset = viewset.get_queryset()
+        
+        # Invalid user ID should return empty queryset
+        self.assertEqual(queryset.count(), 0)
+    
+    def test_filter_no_assigned_to_parameter(self):
+        """Test that without assigned_to parameter, all submissions are returned."""
+        from rest_framework.test import APIRequestFactory
+        from .views import FormSubmissionViewSet
+        
+        factory = APIRequestFactory()
+        request = factory.get('/api/workflows/form-submissions/')
+        request.user = self.admin_user
+        request.tenant = self.tenant
+        
+        viewset = FormSubmissionViewSet()
+        viewset.request = request
+        viewset.format_kwarg = None
+        
+        queryset = viewset.get_queryset()
+        
+        # Without assigned_to filter, all submissions should be returned for admin
+        self.assertEqual(queryset.count(), 3)
