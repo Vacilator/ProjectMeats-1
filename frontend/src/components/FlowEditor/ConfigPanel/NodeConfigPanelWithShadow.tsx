@@ -18,7 +18,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { AlertCircle, X } from 'lucide-react';
-import { NodeConfigPanel } from './NodeConfigPanel';
+import { DynamicConfigPanel } from './DynamicConfigPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
 import {
@@ -26,6 +26,7 @@ import {
   SecondaryButton,
   DangerButton,
 } from './shared/StyledComponents';
+import { ErrorBoundary } from '../ErrorBoundary';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -301,15 +302,22 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
             onReorderSteps={handleReorderSteps}
           />
         ) : (
-          /* Standard Node Config Panel */
-          <NodeConfigPanel
-            node={virtualNode}
-            nodes={nodes}
-            edges={edges}
-            onClose={handleClose}
-            onUpdate={handleShadowUpdate}
-            onTest={onTest}
-          />
+          /* PHASE D/E: Dynamic Schema-Driven Config Panel (replaces hardcoded NodeConfigPanel) */
+          <ErrorBoundary 
+            componentName="Configuration Panel"
+            onError={(error) => {
+              console.error('[NodeConfigPanelWithShadow] DynamicConfigPanel error:', error);
+            }}
+          >
+            <DynamicConfigPanel
+              node={virtualNode!}
+              nodes={nodes}
+              edges={edges}
+              onUpdateNode={handleShadowUpdate}
+              onApply={handleApply}
+              onDiscard={handleDiscard}
+            />
+          </ErrorBoundary>
         )}
       </PanelContent>
 

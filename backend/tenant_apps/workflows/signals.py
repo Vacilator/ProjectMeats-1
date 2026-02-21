@@ -179,3 +179,99 @@ def _build_form_snapshot(form):
         snapshot['rules'].append(rule_data)
     
     return snapshot
+
+
+# =============================================================================
+# Phase 5 Part 2: Event-Driven Workflow Triggers
+# =============================================================================
+
+def trigger_event_workflows(sender, instance, created=False, **kwargs):
+    """
+    Trigger workflows based on entity events (create/update).
+    
+    Called by Django signals (post_save) on entity models.
+    
+    Args:
+        sender: Model class that sent the signal
+        instance: Model instance that was saved
+        created: True if this is a new record
+        **kwargs: Additional signal data
+    """
+    from .models import TenantWorkflow, TriggerType
+    from .tasks import execute_event_workflow
+    
+    # Determine entity type from model
+    entity_type = _get_entity_type_from_model(
+        sender._meta.app_label.replace('tenant_apps.', ''),
+        sender._meta.model_name
+    )
+    
+    if not entity_type:
+        return
+    
+    # Determine event type
+    event_type = 'created' if created else 'updated'
+    
+    try:
+        # Find workflows with EVENT trigger type matching this entity
+        workflows = TenantWorkflow.objects.filter(
+            tenant=instance.tenant,
+            trigger_type=TriggerType.EVENT,
+            is_active=True,
+            trigger_config__entity_type=entity_type,
+        ).select_related('tenant')
+        
+        # Check if event_type matches (if specified in trigger_config)
+        for workflow in workflows:
+            event_filter = workflow.trigger_config.get('event_type', 'any')
+            if event_filter in [event_type, 'any']:
+                logger.info(
+                    f"[Event] Triggering workflow {workflow.name} "
+                    f"for {entity_type}:{instance.id} ({event_type})"
+                )
+                
+                # Execute workflow asynchronously via Celery
+                execute_event_workflow.delay(
+                    workflow_id=workflow.id,
+                    tenant_id=instance.tenant.id,
+                    entity_type=entity_type,
+                    entity_id=instance.id,
+                    event_type=event_type,
+                )
+            
+    except Exception as e:
+        logger.exception(f"Error triggering event workflows for {entity_type}:{instance.id}: {str(e)}")
+
+
+def register_entity_signals():
+    """
+    Register post_save signals for all entity models to trigger workflows.
+    
+    Should be called once at app startup (in apps.py ready() method).
+    """
+    from django.db.models.signals import post_save
+    from tenant_apps.suppliers.models import Supplier
+    from tenant_apps.customers.models import Customer
+    from tenant_apps.purchase_orders.models import PurchaseOrder
+    from tenant_apps.sales_orders.models import SalesOrder
+    from tenant_apps.invoices.models import Invoice
+    from tenant_apps.products.models import Product
+    
+    entity_models = [
+        Supplier,
+        Customer,
+        PurchaseOrder,
+        SalesOrder,
+        Invoice,
+        Product,
+    ]
+    
+    for model in entity_models:
+        post_save.connect(
+            trigger_event_workflows,
+            sender=model,
+            dispatch_uid=f'workflow_trigger_{model._meta.label}'
+        )
+        logger.info(f"[Signals] Registered workflow trigger for {model._meta.label}")
+    
+    logger.info("[Signals] All entity workflow triggers registered")
