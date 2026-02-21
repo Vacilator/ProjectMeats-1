@@ -322,6 +322,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
 
   const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const entityType = e.target.value;
+    console.log('[EntityFieldPicker] Entity selected:', entityType);
     setSelectedEntityType(entityType);
     setSearchTerm('');
     setFieldTypeFilter('all');
@@ -330,6 +331,7 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     onFieldsChange([]);
     
     if (onEntityTypeChange) {
+      console.log('[EntityFieldPicker] Notifying parent of entity change');
       onEntityTypeChange(entityType);
     }
   };
@@ -462,10 +464,20 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
             <option value="">-- Select entity --</option>
             {entities.map(entity => (
               <option key={entity.id} value={entity.id}>
-                {entity.label_plural}
+                {entity.label_plural} {selectedEntityType === entity.id && availableFields.length > 0 ? `(${availableFields.length} fields)` : ''}
               </option>
             ))}
           </Select>
+          {selectedEntityType && fieldsLoading && (
+            <LoadingText style={{ padding: '8px 0', textAlign: 'left', fontSize: '12px' }}>
+              Loading fields for {entities.find(e => e.id === selectedEntityType)?.label_plural}...
+            </LoadingText>
+          )}
+          {selectedEntityType && !fieldsLoading && availableFields.length === 0 && !fieldsError && (
+            <ErrorText style={{ marginTop: '8px', fontSize: '12px' }}>
+              No fields found for this entity. This may indicate a backend configuration issue.
+            </ErrorText>
+          )}
         </EntitySelector>
       </Section>
 
