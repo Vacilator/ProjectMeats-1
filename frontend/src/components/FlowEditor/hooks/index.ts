@@ -40,3 +40,10 @@ export { useNodeShadowState } from './useNodeShadowState';
 // Form data mapping (Phase 1: Hybrid Functionality)
 export { useFormDataMapping } from './useFormDataMapping';
 export type { FormDataMapping, FormOutputField, UseFormDataMappingReturn } from './useFormDataMapping';
+
+// Keyboard shortcuts (Phase 2: UI/UX)
+export { useKeyboardShortcuts } from './useKeyboardShortcuts';
+
+// Undo/Redo (Phase 3: Performance & Stability)
+export { useUndoRedo, createFlowSnapshot, areStatesEqual } from './useUndoRedo';
+export type { FlowState, UseUndoRedoOptions, UseUndoRedoReturn } from './useUndoRedo';
