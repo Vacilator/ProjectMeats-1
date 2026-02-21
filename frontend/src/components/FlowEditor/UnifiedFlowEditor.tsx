@@ -110,14 +110,21 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { NodeConfigPanelWithShadow } from './ConfigPanel';
+<<<<<<< HEAD
 // ⚠️ NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is the ONLY renderer
+=======
+// NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
+>>>>>>> upstream/development
 // import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 // import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 // import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 // import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 // import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 // import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
+<<<<<<< HEAD
 import Fuse from 'fuse.js'; // PROMPT 2: Added fuzzy search
+=======
+>>>>>>> upstream/development
 import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
@@ -4835,7 +4842,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [setNodes, setEdges]);
 
   // ============================================================================
-  // Filter Nodes by Search Query
+  // Filter Nodes by Search Query (with Fuzzy Search - PROMPT 3)
   // ============================================================================
   
   const filteredNodesByCategory = useMemo(() => {
@@ -4853,14 +4860,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const query = searchQuery.toLowerCase().trim();
     const hasActiveFilters = activeFilters.size > 0;
     
-    // Filter by available node types based on editor mode
-    availableNodeTypes.forEach(node => {
-      // Filter by search query
-      if (query && !node.name.toLowerCase().includes(query) && 
-          !node.description.toLowerCase().includes(query)) {
-        return;
-      }
+    // PROMPT 3: Use Fuse.js for fuzzy search
+    let searchResults: typeof NODE_TYPE_REGISTRY[string][] = availableNodeTypes;
+    
+    if (query) {
+      const fuse = new Fuse(availableNodeTypes, {
+        keys: ['name', 'description', 'category'],
+        threshold: 0.3, // 0 = exact match, 1 = match anything
+        includeScore: true,
+      });
       
+      const fuseResults = fuse.search(query);
+      searchResults = fuseResults.map(result => result.item);
+    }
+    
+    // Filter by available node types based on editor mode and search
+    searchResults.forEach(node => {
       // Filter by active category filters (if any)
       if (hasActiveFilters && !activeFilters.has(node.category)) {
         return;
@@ -5798,8 +5813,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onStartBlank={handleStartBlank}
       />
       
+      {/* 
+        NUCLEAR CLEANUP: All hardcoded config panels removed
+        NodeConfigPanelWithShadow (DynamicConfigPanel) is now the ONLY renderer
+        These SidePanel modals are no longer needed - all config handled by the main panel
+      
       {/* FormStep Configuration Panel (using SidePanel instead of EntityFormStepModal) */}
-      <SidePanel
+      {/* <SidePanel
         isOpen={formStepModalOpen && !!selectedFormStep}
         onClose={() => {
           setFormStepModalOpen(false);
@@ -5821,9 +5841,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             availableFields={getPreviousStepFields(selectedFormStep.id)}
           />
         )}
-      </SidePanel>
+      </SidePanel> */}
       
-      {/* FormMultiStepContainer Configuration Modal (Phase 4.3) */}
+      {/* FormMultiStepContainer Configuration Modal (Phase 4.3) - KEEPING THIS */}
       <FormProcessModal
         isOpen={containerModalOpen && !!selectedContainer}
         onClose={() => {
