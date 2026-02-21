@@ -118,13 +118,6 @@ import { NodeConfigPanelWithShadow } from './ConfigPanel';
 // import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 // import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
 import Fuse from 'fuse.js'; // Fuzzy search for palette
-import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
-import { TemplateSelector } from './templates/TemplateSelector';
-import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
-import { SidePanel } from './SidePanel';
-import { FormProcessModal, type ContainerData } from './Modals/FormProcessModal';
-import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
-import { WorkflowExecutionModal } from '../FormSubmission/WorkflowExecutionModal'; // Task 1: Integration
 import { PreviewPanel } from './panels/PreviewPanel';
 
 // ============================================================================
