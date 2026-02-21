@@ -25,7 +25,7 @@ import {
   EmptyText as SharedEmptyText,
 } from './shared/StyledComponents';
 import FormSelectorModal from '../../WorkForms/FormSelectorModal';
-import type { FormDefinition } from '../FormBuilder/FormBuilder';
+import type { FormDefinition } from '../../form-builder';
 import type { Node } from '@xyflow/react';
 
 // ============================================================================

@@ -173,7 +173,7 @@ function getActionDetails(data: ActionNodeData) {
 // Component
 // ============================================================================
 
-export const ActionNode: React.FC<NodeProps<ActionNodeData>> = (props) => {
+export const ActionNode = React.memo<NodeProps<ActionNodeData>>((props) => {
   const { data, selected, id } = props;
   const { actionType = 'email' } = data; // Default to 'email' if undefined
   
@@ -244,6 +244,6 @@ export const ActionNode: React.FC<NodeProps<ActionNodeData>> = (props) => {
       </div>
     </BaseNode>
   );
-};
+});
 
 export default ActionNode;

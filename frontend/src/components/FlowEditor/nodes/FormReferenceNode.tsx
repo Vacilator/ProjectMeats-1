@@ -184,7 +184,7 @@ const Badge = styled.span<{ $type?: 'warning' | 'info' }>`
 // Form Reference Node Component
 // ============================================================================
 
-export const FormReferenceNode: React.FC<NodeProps<FormReferenceNodeData>> = ({ data, selected }) => {
+export const FormReferenceNode = React.memo<NodeProps<FormReferenceNodeData>>(({ data, selected, id }) => {
   const hasForm = data.formId && data.formName;
   
   const handleEditForm = () => {
@@ -202,78 +202,90 @@ export const FormReferenceNode: React.FC<NodeProps<FormReferenceNodeData>> = ({ 
     console.log('Change form');
   };
   
+  const displayNode = hasForm ? (
+    <>
+      <FormInfo>
+        <FormHeader>
+          <FormIcon>
+            <FileText size={20} />
+          </FormIcon>
+          <FormDetails>
+            <FormName>{data.formName}</FormName>
+            {data.formDescription && (
+              <FormDescription>{data.formDescription}</FormDescription>
+            )}
+          </FormDetails>
+        </FormHeader>
+        
+        <FormStats>
+          <StatItem>
+            <StatLabel>Sections</StatLabel>
+            <StatValue>{data.sectionCount || 0}</StatValue>
+          </StatItem>
+          <StatItem>
+            <StatLabel>Fields</StatLabel>
+            <StatValue>{data.fieldCount || 0}</StatValue>
+          </StatItem>
+        </FormStats>
+        
+        {data.allowEdit && (
+          <Badge $type="info">User can edit</Badge>
+        )}
+        
+        {data.prefillData && Object.keys(data.prefillData).length > 0 && (
+          <Badge $type="info">
+            {Object.keys(data.prefillData).length} fields prefilled
+          </Badge>
+        )}
+      </FormInfo>
+      
+      <ActionButtons>
+        <ActionButton onClick={handlePreviewForm} title="Preview form" role="button">
+          <Eye size={14} />
+          Preview
+        </ActionButton>
+        <ActionButton onClick={handleEditForm} title="Edit form in builder" role="button">
+          <Edit size={14} />
+          Edit
+        </ActionButton>
+        <ActionButton onClick={handleChangeForm} title="Select different form" role="button">
+          <ExternalLink size={14} />
+          Change
+        </ActionButton>
+      </ActionButtons>
+    </>
+  ) : (
+    <EmptyState>
+      <EmptyIcon>📋</EmptyIcon>
+      <EmptyText>
+        No form selected.<br />
+        Click to select a form from the library.
+      </EmptyText>
+    </EmptyState>
+  );
+
   return (
     <BaseNode
-      data={data}
+      id={id}
+      data={{
+        ...data,
+        label: data.formName || 'Form Reference',
+      }}
       selected={selected}
-      icon={<FileText size={20} />}
-      color="var(--color-primary)"
+      nodeType={{
+        id: 'formReference',
+        name: 'Form Reference',
+        category: 'form',
+        color: 'rgb(99, 102, 241)', // Indigo
+        icon: 'FileText',
+        maxInputs: 1,
+        maxOutputs: 1,
+        config: {},
+      }}
     >
-      <Container>
-        {hasForm ? (
-          <>
-            <FormInfo>
-              <FormHeader>
-                <FormIcon>
-                  <FileText size={20} />
-                </FormIcon>
-                <FormDetails>
-                  <FormName>{data.formName}</FormName>
-                  {data.formDescription && (
-                    <FormDescription>{data.formDescription}</FormDescription>
-                  )}
-                </FormDetails>
-              </FormHeader>
-              
-              <FormStats>
-                <StatItem>
-                  <StatLabel>Sections</StatLabel>
-                  <StatValue>{data.sectionCount || 0}</StatValue>
-                </StatItem>
-                <StatItem>
-                  <StatLabel>Fields</StatLabel>
-                  <StatValue>{data.fieldCount || 0}</StatValue>
-                </StatItem>
-              </FormStats>
-              
-              {data.allowEdit && (
-                <Badge $type="info">User can edit</Badge>
-              )}
-              
-              {data.prefillData && Object.keys(data.prefillData).length > 0 && (
-                <Badge $type="info">
-                  {Object.keys(data.prefillData).length} fields prefilled
-                </Badge>
-              )}
-            </FormInfo>
-            
-            <ActionButtons>
-              <ActionButton onClick={handlePreviewForm} title="Preview form">
-                <Eye size={14} />
-                Preview
-              </ActionButton>
-              <ActionButton onClick={handleEditForm} title="Edit form in builder">
-                <Edit size={14} />
-                Edit
-              </ActionButton>
-              <ActionButton onClick={handleChangeForm} title="Select different form">
-                <ExternalLink size={14} />
-                Change
-              </ActionButton>
-            </ActionButtons>
-          </>
-        ) : (
-          <EmptyState>
-            <EmptyIcon>📋</EmptyIcon>
-            <EmptyText>
-              No form selected.<br />
-              Click to select a form from the library.
-            </EmptyText>
-          </EmptyState>
-        )}
-      </Container>
+      <Container>{displayNode}</Container>
     </BaseNode>
   );
-};
+});
 
 export default FormReferenceNode;

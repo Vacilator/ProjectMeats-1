@@ -1,7 +1,9 @@
 /**
  * FormBuilder components barrel export.
+ * 
+ * NOTE: Main FormBuilder.tsx removed - use components/form-builder instead.
+ * This module kept for ConditionalVisibilityRules used by SchemaEditor.
  */
-export { default as FormBuilder } from './FormBuilder';
 export { default as ConditionalVisibilityRules } from './ConditionalVisibilityRules';
 export { default as useConditionalVisibility } from './useConditionalVisibility';
 export { default as FieldConfigPanel } from './FieldConfigPanel';
@@ -23,8 +25,3 @@ export type {
   FieldConfig,
   FieldConfigPanelProps,
 } from './FieldConfigPanel';
-export type {
-  FormSection,
-  FormDefinition,
-  FormBuilderProps,
-} from './FormBuilder';

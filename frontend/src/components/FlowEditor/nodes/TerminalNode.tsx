@@ -128,7 +128,7 @@ const getTerminalTypeInfo = (terminalType: TerminalType) => {
 // Component
 // ============================================================================
 
-export const TerminalNode: React.FC<NodeProps<TerminalNodeData>> = ({ data }) => {
+export const TerminalNode = React.memo<NodeProps<TerminalNodeData>>(({ data, id, selected }) => {
   const {
     terminalType,
     message,
@@ -185,6 +185,7 @@ export const TerminalNode: React.FC<NodeProps<TerminalNodeData>> = ({ data }) =>
 
   return (
     <BaseNode
+      id={id}
       data={{
         ...data,
         label: typeInfo.label,
@@ -196,8 +197,19 @@ export const TerminalNode: React.FC<NodeProps<TerminalNodeData>> = ({ data }) =>
           <TerminalInfo>{configPreview}</TerminalInfo>
         ) : undefined,
       }}
+      selected={selected}
+      nodeType={{
+        id: 'terminal',
+        name: typeInfo.label,
+        category: 'logic',
+        color: typeInfo.color,
+        icon: 'CheckCircle2',
+        maxInputs: 1,
+        maxOutputs: 0,
+        config: {},
+      }}
     />
   );
-};
+});
 
 export default TerminalNode;

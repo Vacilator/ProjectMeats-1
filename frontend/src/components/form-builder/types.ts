@@ -258,3 +258,37 @@ export interface FormBuilderState {
 export interface PreviewTestData {
   [fieldId: string]: any;
 }
+
+/**
+ * Legacy FormDefinition (for backward compatibility with old FormBuilder)
+ * 
+ * @deprecated Use FormStep-based architecture instead
+ * This interface is kept for compatibility with existing code that imports
+ * from components/FormBuilder/FormBuilder.tsx
+ */
+export interface FormSection {
+  id: string;
+  title: string;
+  description?: string;
+  fields: FormField[];
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
+  icon?: string;
+}
+
+export interface FormDefinition {
+  id?: string;
+  name: string;
+  description?: string;
+  sections: FormSection[];
+  settings: {
+    multiPage?: boolean;
+    showProgress?: boolean;
+    allowSave?: boolean;
+    submitButtonText?: string;
+    theme?: 'light' | 'dark' | 'auto';
+  };
+  visibilityRules?: any[];
+  createdAt?: string;
+  updatedAt?: string;
+}

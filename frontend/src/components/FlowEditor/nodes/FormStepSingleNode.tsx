@@ -197,7 +197,7 @@ const FIELD_TYPE_ICONS: Record<FormFieldType, string> = {
 // Component
 // ============================================================================
 
-export const FormStepSingleNode: React.FC<NodeProps<FormStepNodeData>> = (props) => {
+export const FormStepSingleNode = React.memo<NodeProps<FormStepNodeData>>((props) => {
   const { data, selected, id } = props;
   const nodeTypeDef = getNodeTypeDefinition('formStepSingle');
   
@@ -269,6 +269,6 @@ export const FormStepSingleNode: React.FC<NodeProps<FormStepNodeData>> = (props)
       </div>
     </BaseNode>
   );
-};
+});
 
 export default FormStepSingleNode;

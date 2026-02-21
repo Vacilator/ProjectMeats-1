@@ -144,7 +144,7 @@ const getUtilityTypeInfo = (utilityType: UtilityType) => {
 // Component
 // ============================================================================
 
-export const UtilityNode: React.FC<NodeProps<UtilityNodeData>> = ({ data }) => {
+export const UtilityNode = React.memo<NodeProps<UtilityNodeData>>(({ data, id, selected }) => {
   const { utilityType, transformRules, lookupConfig, mergeStrategy, commentText, code } = data;
 
   const typeInfo = getUtilityTypeInfo(utilityType);
@@ -202,6 +202,7 @@ export const UtilityNode: React.FC<NodeProps<UtilityNodeData>> = ({ data }) => {
 
   return (
     <BaseNode
+      id={id}
       data={{
         ...data,
         label: typeInfo.label,
@@ -211,8 +212,19 @@ export const UtilityNode: React.FC<NodeProps<UtilityNodeData>> = ({ data }) => {
           <UtilityInfo>{configPreview}</UtilityInfo>
         ) : undefined,
       }}
+      selected={selected}
+      nodeType={{
+        id: 'utility',
+        name: typeInfo.label,
+        category: 'logic',
+        color: typeInfo.color,
+        icon: 'Code',
+        maxInputs: 1,
+        maxOutputs: 1,
+        config: {},
+      }}
     />
   );
-};
+});
 
 export default UtilityNode;
