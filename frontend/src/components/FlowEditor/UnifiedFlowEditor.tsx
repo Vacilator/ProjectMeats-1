@@ -19,6 +19,7 @@
  * Updated: 2026-02-04 - Phase 2.1 Batch 3 (Enhanced palette, keyboard shortcuts, undo/redo)
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
 import Editor from '@monaco-editor/react';
@@ -217,13 +218,14 @@ const RightSidebar = styled.div<{ $isOpen: boolean }>`
   border-left: 1px solid rgb(var(--color-border));
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
   z-index: 10000;
+  display: ${props => props.$isOpen ? 'flex' : 'none'} !important;
+  opacity: ${props => props.$isOpen ? '1' : '0'} !important;
+  visibility: ${props => props.$isOpen ? 'visible' : 'hidden'} !important;
   transform: translateX(${props => props.$isOpen ? '0' : '100%'});
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  visibility: ${props => props.$isOpen ? 'visible' : 'hidden'};
-  opacity: ${props => props.$isOpen ? '1' : '0'};
-  display: flex;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
   flex-direction: column;
   overflow: hidden;
+  pointer-events: ${props => props.$isOpen ? 'auto' : 'none'};
 `;
 
 // ============================================================================
@@ -1630,6 +1632,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Selected node state (moved here to fix TDZ - used in useMemo at line ~1917)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  
+  // Debug state changes for config panel visibility
+  useEffect(() => {
+    console.log('🔍 [STATE DEBUG] selectedNode changed:', selectedNode?.id || 'null', selectedNode?.type || 'none');
+    if (selectedNode) {
+      console.log('✅ [STATE DEBUG] Config panel should be VISIBLE for:', selectedNode.type);
+    } else {
+      console.log('❌ [STATE DEBUG] Config panel should be HIDDEN');
+    }
+  }, [selectedNode]);
+  
+  // Debug selectedNodeId changes
+  useEffect(() => {
+    console.log('🔍 [STATE DEBUG] selectedNodeId changed:', selectedNodeId || 'null');
+  }, [selectedNodeId]);
   
   // Phase E: Wrap onNodesChange to handle container deletion
   const onNodesChange = useCallback((changes: any[]) => {
@@ -4599,9 +4616,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Handler for direct node clicks (opens config panel) - debounced to prevent double-triggers
   const handleNodeClick = useCallback(
     debounce((event: React.MouseEvent, node: Node) => {
+      event.stopPropagation();
+      event.preventDefault();
       console.log('🖱️ [NODE CLICK] Opening config for:', node.type, node.id);
       handleNodeEdit(node.id);
-    }, 150, { leading: true, trailing: false }),
+    }, 300, { leading: true, trailing: false }),
     [handleNodeEdit]
   );
   
@@ -5636,7 +5655,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           x={menu.x}
           y={menu.y}
           onClose={handleCloseMenu}
-          onEdit={handleNodeEdit}
+          onEdit={(nodeId) => {
+            console.log('📝 [CONTEXT MENU] Edit clicked for:', nodeId);
+            handleCloseMenu();
+            handleNodeEdit(nodeId);
+          }}
         />
       )}
       
@@ -5923,23 +5946,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </DragGhost>
       )}
 
-      {/* Configuration Panel with Shadow State (Phase 2) */}
-      <RightSidebar $isOpen={selectedNode !== null}>
-        <NodeConfigPanelWithShadow
-          node={selectedNode}
-          nodes={nodes}
-          edges={edges}
-          setNodes={setNodes}
-          setEdges={setEdges}
-          onClose={() => setSelectedNode(null)}
-          onUpdate={handleNodeUpdate}
-          onTest={handleNodeTest}
-          onSelectNode={(nodeId) => {
-            const node = nodes.find(n => n.id === nodeId);
-            if (node) setSelectedNode(node);
-          }}
-        />
-      </RightSidebar>
+      {/* Configuration Panel with Shadow State (Phase 2) - Portal Rendered */}
+      {selectedNode !== null && createPortal(
+        <RightSidebar $isOpen={true}>
+          <NodeConfigPanelWithShadow
+            node={selectedNode}
+            nodes={nodes}
+            edges={edges}
+            setNodes={setNodes}
+            setEdges={setEdges}
+            onClose={() => {
+              console.log('🔒 [CLOSE] Closing config panel');
+              setSelectedNode(null);
+            }}
+            onUpdate={handleNodeUpdate}
+            onTest={handleNodeTest}
+            onSelectNode={(nodeId) => {
+              const node = nodes.find(n => n.id === nodeId);
+              if (node) {
+                console.log('🔄 [SELECT] Switching to node:', nodeId);
+                setSelectedNode(node);
+              }
+            }}
+          />
+        </RightSidebar>,
+        document.body
+      )}
       
       {/* Template Selector Modal (Phase 2.5 Integration) */}
       <TemplateSelector
