@@ -825,7 +825,13 @@ export const allSchemas: NodeConfigSchema[] = [
   formProcessSchema,
   formProcessGroupSchema,
   createRecordSchema,
-  outlookEmailSchema
+  outlookEmailSchema,
+  // Phase 2: Trigger and Document schemas (2026-02-21)
+  triggerSchema,
+  documentGenerateSchema,
+  documentSignSchema,
+  documentUploadSchema,
+  documentStoreSchema,
 ];
 
 // Export formStepSingleSchema as alias for backward compatibility
