@@ -26,10 +26,13 @@ from apps.tenants.models import Tenant
 
 class TriggerType(models.TextChoices):
     """Types of workflow triggers."""
-    SCHEDULED = 'scheduled', 'Scheduled Task'
-    RECORD_CREATED = 'record_created', 'New Record Created'
-    RECORD_UPDATED = 'record_updated', 'Record Field Updated'
     MANUAL = 'manual', 'Manual Run'
+    SCHEDULED = 'scheduled', 'Scheduled Task'
+    WEBHOOK = 'webhook', 'Webhook (External API)'
+    EVENT = 'event', 'Database Event'
+    FORM_SUBMIT = 'form_submit', 'Form Submission'
+    RECORD_CREATED = 'record_created', 'New Record Created'  # Legacy - use EVENT
+    RECORD_UPDATED = 'record_updated', 'Record Field Updated'  # Legacy - use EVENT
 
 
 class OperatorType(models.TextChoices):
