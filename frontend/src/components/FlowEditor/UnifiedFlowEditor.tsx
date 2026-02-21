@@ -3360,6 +3360,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Phase 5: Prevent unnecessary re-layouts during minor adjustments
    */
   const onNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
+    // Close context menu if open
+    handleCloseMenu();
+    
     // Store initial position for comparison on drag stop
     dragStartPositionRef.current = {
       nodeId: node.id,
@@ -3367,7 +3370,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       y: node.position.y,
     };
     console.log(`[DragStart] Tracking node ${node.id} at position (${node.position.x}, ${node.position.y})`);
-  }, []);
+  }, [handleCloseMenu]);
   
   /**
    * Phase 5: Handle node drag stop - detect reordering within container
@@ -5448,6 +5451,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onNodeDragStop={onNodeDragStop}
         onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
+        onPaneClick={handleCloseMenu}
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -5605,6 +5609,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           x={menu.x}
           y={menu.y}
           onClose={handleCloseMenu}
+          onEdit={handleNodeEdit}
         />
       )}
       
