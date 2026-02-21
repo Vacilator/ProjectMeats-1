@@ -20,6 +20,7 @@
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import { debounce } from 'lodash';
 import Editor from '@monaco-editor/react';
 import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
@@ -200,6 +201,29 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
                 height 0.3s ease,
                 opacity 0.2s ease;
   }
+`;
+
+// ============================================================================
+// Right Sidebar for Config Panel (Phase E)
+// ============================================================================
+
+const RightSidebar = styled.div<{ $isOpen: boolean }>`
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  background: rgb(var(--color-surface));
+  border-left: 1px solid rgb(var(--color-border));
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  transform: translateX(${props => props.$isOpen ? '0' : '100%'});
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  visibility: ${props => props.$isOpen ? 'visible' : 'hidden'};
+  opacity: ${props => props.$isOpen ? '1' : '0'};
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 `;
 
 // ============================================================================
@@ -4572,11 +4596,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
   }, [nodes]);
   
-  // Handler for direct node clicks (opens config panel)
-  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    console.log('🖱️ [NODE CLICK] Opening config for:', node.type, node.id);
-    handleNodeEdit(node.id);
-  }, [handleNodeEdit]);
+  // Handler for direct node clicks (opens config panel) - debounced to prevent double-triggers
+  const handleNodeClick = useCallback(
+    debounce((event: React.MouseEvent, node: Node) => {
+      console.log('🖱️ [NODE CLICK] Opening config for:', node.type, node.id);
+      handleNodeEdit(node.id);
+    }, 150, { leading: true, trailing: false }),
+    [handleNodeEdit]
+  );
   
   // Batch 3: Handler to delete node from Delete button
   const handleNodeDeleteImpl = useCallback(async (nodeId: string) => {
@@ -5897,20 +5924,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       )}
 
       {/* Configuration Panel with Shadow State (Phase 2) */}
-      <NodeConfigPanelWithShadow
-        node={selectedNode}
-        nodes={nodes}
-        edges={edges}
-        setNodes={setNodes}
-        setEdges={setEdges}
-        onClose={() => setSelectedNode(null)}
-        onUpdate={handleNodeUpdate}
-        onTest={handleNodeTest}
-        onSelectNode={(nodeId) => {
-          const node = nodes.find(n => n.id === nodeId);
-          if (node) setSelectedNode(node);
-        }}
-      />
+      <RightSidebar $isOpen={selectedNode !== null}>
+        <NodeConfigPanelWithShadow
+          node={selectedNode}
+          nodes={nodes}
+          edges={edges}
+          setNodes={setNodes}
+          setEdges={setEdges}
+          onClose={() => setSelectedNode(null)}
+          onUpdate={handleNodeUpdate}
+          onTest={handleNodeTest}
+          onSelectNode={(nodeId) => {
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) setSelectedNode(node);
+          }}
+        />
+      </RightSidebar>
       
       {/* Template Selector Modal (Phase 2.5 Integration) */}
       <TemplateSelector
