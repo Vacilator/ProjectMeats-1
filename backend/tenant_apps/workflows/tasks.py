@@ -8,6 +8,8 @@ Tasks:
 - execute_event_workflow: Run workflows triggered by entity changes
 - execute_workflow_action: Execute individual workflow actions
 - cleanup_old_executions: Maintenance task for execution history
+
+Note: Models are imported inside functions to avoid circular imports during app initialization.
 """
 import logging
 from celery import shared_task

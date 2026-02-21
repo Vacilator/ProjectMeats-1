@@ -197,7 +197,7 @@ def trigger_event_workflows(sender, instance, created=False, **kwargs):
         created: True if this is a new record
         **kwargs: Additional signal data
     """
-    from .models import WorkflowTrigger, TriggerType
+    from .models import TenantWorkflow, TriggerType
     from .tasks import execute_event_workflow
     
     # Determine entity type from model
@@ -213,29 +213,31 @@ def trigger_event_workflows(sender, instance, created=False, **kwargs):
     event_type = 'created' if created else 'updated'
     
     try:
-        # Find workflows listening for this event
-        triggers = WorkflowTrigger.objects.filter(
+        # Find workflows with EVENT trigger type matching this entity
+        workflows = TenantWorkflow.objects.filter(
             tenant=instance.tenant,
             trigger_type=TriggerType.EVENT,
             is_active=True,
-            config__entity_type=entity_type,
-            config__event_type__in=[event_type, 'any']  # Match specific or 'any'
-        ).select_related('workflow')
+            trigger_config__entity_type=entity_type,
+        ).select_related('tenant')
         
-        for trigger in triggers:
-            logger.info(
-                f"[Event] Triggering workflow {trigger.workflow.name} "
-                f"for {entity_type}:{instance.id} ({event_type})"
-            )
-            
-            # Execute workflow asynchronously via Celery
-            execute_event_workflow.delay(
-                workflow_id=trigger.workflow.id,
-                tenant_id=instance.tenant.id,
-                entity_type=entity_type,
-                entity_id=instance.id,
-                event_type=event_type,
-            )
+        # Check if event_type matches (if specified in trigger_config)
+        for workflow in workflows:
+            event_filter = workflow.trigger_config.get('event_type', 'any')
+            if event_filter in [event_type, 'any']:
+                logger.info(
+                    f"[Event] Triggering workflow {workflow.name} "
+                    f"for {entity_type}:{instance.id} ({event_type})"
+                )
+                
+                # Execute workflow asynchronously via Celery
+                execute_event_workflow.delay(
+                    workflow_id=workflow.id,
+                    tenant_id=instance.tenant.id,
+                    entity_type=entity_type,
+                    entity_id=instance.id,
+                    event_type=event_type,
+                )
             
     except Exception as e:
         logger.exception(f"Error triggering event workflows for {entity_type}:{instance.id}: {str(e)}")
