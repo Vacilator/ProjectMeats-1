@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { apiService, AccountsReceivable } from '../services/apiService';
+import { apiService, Invoice } from '../services/apiService';
 
 // Styled Components
 const Header = styled.div`
@@ -312,16 +312,16 @@ const SubmitButton = styled.button`
 `;
 
 const AccountsReceivables: React.FC = () => {
-  const [receivables, setReceivables] = useState<AccountsReceivable[]>([]);
+  const [receivables, setReceivables] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingReceivable, setEditingReceivable] = useState<AccountsReceivable | null>(null);
+  const [editingReceivable, setEditingReceivable] = useState<Invoice | null>(null);
   const [formData, setFormData] = useState({
     invoice_number: '',
     customer: '',
-    amount: '',
+    total: '',
     due_date: '',
-    status: 'pending',
+    status: 'draft',
   });
 
   useEffect(() => {
@@ -331,10 +331,10 @@ const AccountsReceivables: React.FC = () => {
   const loadReceivables = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getAccountsReceivables();
+      const data = await apiService.getInvoices();
       setReceivables(data);
     } catch (error) {
-      console.error('Error loading accounts receivables:', error);
+      console.error('Error loading invoices:', error);
     } finally {
       setLoading(false);
     }
@@ -345,14 +345,14 @@ const AccountsReceivables: React.FC = () => {
     try {
       const receivableData = {
         ...formData,
-        amount: parseFloat(formData.amount),
+        total: parseFloat(formData.total),
         customer: parseInt(formData.customer),
       };
 
       if (editingReceivable) {
-        await apiService.updateAccountsReceivable(editingReceivable.id, receivableData);
+        await apiService.updateInvoice(editingReceivable.id, receivableData);
       } else {
-        await apiService.createAccountsReceivable(receivableData);
+        await apiService.createInvoice(receivableData);
       }
 
       await loadReceivables();
@@ -361,14 +361,14 @@ const AccountsReceivables: React.FC = () => {
       setFormData({
         invoice_number: '',
         customer: '',
-        amount: '',
+        total: '',
         due_date: '',
-        status: 'pending',
+        status: 'draft',
       });
     } catch (error: unknown) {
       // Log detailed error information
       const err = error as Error & { response?: { status: number; data: unknown }; stack?: string };
-      console.error('Error saving accounts receivable:', {
+      console.error('Error saving invoice:', {
         message: err.message || 'Unknown error',
         stack: err.stack || 'No stack trace available',
         response: err.response ? {
@@ -377,27 +377,27 @@ const AccountsReceivables: React.FC = () => {
         } : 'No response data'
       });
       // Display user-friendly error to the UI
-      alert(`Failed to save accounts receivable: ${err.message || 'Please try again later'}`);
+      alert(`Failed to save invoice: ${err.message || 'Please try again later'}`);
     }
   };
 
-  const handleEdit = (receivable: AccountsReceivable) => {
+  const handleEdit = (receivable: Invoice) => {
     setEditingReceivable(receivable);
     setFormData({
       invoice_number: receivable.invoice_number,
       customer: receivable.customer.toString(),
-      amount: receivable.amount.toString(),
-      due_date: receivable.due_date,
+      total: receivable.total?.toString() || '',
+      due_date: receivable.due_date || '',
       status: receivable.status,
     });
     setShowForm(true);
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this receivable?')) {
+    if (window.confirm('Are you sure you want to delete this invoice?')) {
       try {
-        await apiService.deleteAccountsReceivable(id);
-        alert('Accounts receivable deleted successfully!');
+        await apiService.deleteInvoice(id);
+        alert('Invoice deleted successfully!');
         await loadReceivables(); // Re-fetch to update the list
       } catch (error: unknown) {
         // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
@@ -506,9 +506,9 @@ const AccountsReceivables: React.FC = () => {
             {receivables.map((receivable) => (
               <TableRow key={receivable.id}>
                 <TableCell>{receivable.invoice_number}</TableCell>
-                <TableCell>{receivable.customer}</TableCell>
-                <TableCell>${(Number(receivable.amount) || 0).toFixed(2)}</TableCell>
-                <TableCell>{new Date(receivable.due_date).toLocaleDateString()}</TableCell>
+                <TableCell>{receivable.customer_name || receivable.customer}</TableCell>
+                <TableCell>${(Number(receivable.total) || 0).toFixed(2)}</TableCell>
+                <TableCell>{receivable.due_date ? new Date(receivable.due_date).toLocaleDateString() : 'N/A'}</TableCell>
                 <TableCell>
                   <StatusBadge $color={getStatusColor(receivable.status)}>
                     {receivable.status.toUpperCase()}
@@ -553,12 +553,12 @@ const AccountsReceivables: React.FC = () => {
                 />
               </FormGroup>
               <FormGroup>
-                <Label>Amount</Label>
+                <Label>Total Amount</Label>
                 <Input
                   type="number"
                   step="0.01"
-                  name="amount"
-                  value={formData.amount}
+                  name="total"
+                  value={formData.total}
                   onChange={handleInputChange}
                   required
                 />
