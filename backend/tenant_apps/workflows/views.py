@@ -1398,8 +1398,8 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(form_id=form_id)
 
         # Filter by assigned_to
-        # Note: This filters submissions for forms where the user is assigned to ANY step
-        # via StepAssignment, not just the current step of the submission.
+        # Note: This filters submissions where the user has at least one step assignment
+        # in the form definition (via StepAssignment), regardless of the submission's current step.
         assigned_to = self.request.query_params.get("assigned_to")
         if assigned_to:
             if assigned_to == "me":
@@ -1413,6 +1413,10 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
                 except (User.DoesNotExist, ValueError):
                     # Invalid user ID - return empty queryset
                     qs = qs.none()
+            else:
+                # Non-admin users can only use assigned_to=me
+                # Return empty queryset to prevent user ID enumeration
+                qs = qs.none()
 
         return qs.select_related("form", "created_by", "current_step").prefetch_related(
             "step_submissions__step", "step_submissions__completed_by"

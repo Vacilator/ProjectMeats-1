@@ -885,3 +885,25 @@ class FormSubmissionAssignedToFilterTest(TestCase):
 
         # Without assigned_to filter, all submissions should be returned for admin
         self.assertEqual(queryset.count(), 3)
+
+    def test_filter_assigned_to_non_admin_with_user_id(self):
+        """Test that non-admin users cannot filter by specific user ID (security)."""
+        from rest_framework.test import APIRequestFactory
+
+        from .views import FormSubmissionViewSet
+
+        factory = APIRequestFactory()
+        # Non-admin user tries to filter by another user's ID
+        request = factory.get(f"/api/workflows/form-submissions/?assigned_to={self.user2.id}")
+        request.user = self.user1
+        request.tenant = self.tenant
+
+        viewset = FormSubmissionViewSet()
+        viewset.request = request
+        viewset.format_kwarg = None
+
+        queryset = viewset.get_queryset()
+
+        # Non-admin users should get empty queryset when trying to use user IDs
+        # This prevents user ID enumeration attacks
+        self.assertEqual(queryset.count(), 0)
