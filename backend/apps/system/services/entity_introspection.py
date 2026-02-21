@@ -112,15 +112,31 @@ def get_entity_fields(entity_id: str):
     Get field metadata for a specific entity.
     
     Args:
-        entity_id: Entity identifier (e.g., 'suppliers.supplier')
+        entity_id: Entity identifier (e.g., 'tenant_apps.suppliers.supplier' or 'suppliers.supplier')
         
     Returns:
         List of field definitions with metadata
     """
     try:
-        app_label, model_name = entity_id.split('.')
+        # Handle both formats:
+        # 1. Full path: 'tenant_apps.suppliers.supplier'
+        # 2. Short path: 'suppliers.supplier'
+        parts = entity_id.split('.')
+        if len(parts) == 3 and parts[0] == 'tenant_apps':
+            # Full path format: tenant_apps.app_name.model_name
+            app_label = f"{parts[0]}.{parts[1]}"  # e.g., 'tenant_apps.suppliers'
+            model_name = parts[2]  # e.g., 'supplier'
+        elif len(parts) == 2:
+            # Short path format: app_name.model_name
+            # Assume it's under tenant_apps
+            app_label = f"tenant_apps.{parts[0]}"
+            model_name = parts[1]
+        else:
+            return []
+        
         model = apps.get_model(app_label, model_name)
-    except (ValueError, LookupError):
+    except (ValueError, LookupError) as e:
+        print(f"[Entity Introspection] Failed to get model for '{entity_id}': {e}")
         return []
     
     fields = []
@@ -172,13 +188,27 @@ def get_entity_display_fields(entity_id: str):
     Get recommended display fields for an entity (for lookups).
     
     Args:
-        entity_id: Entity identifier
+        entity_id: Entity identifier (e.g., 'tenant_apps.suppliers.supplier' or 'suppliers.supplier')
         
     Returns:
         List of field names suitable for display
     """
     try:
-        app_label, model_name = entity_id.split('.')
+        # Handle both formats:
+        # 1. Full path: 'tenant_apps.suppliers.supplier'
+        # 2. Short path: 'suppliers.supplier'
+        parts = entity_id.split('.')
+        if len(parts) == 3 and parts[0] == 'tenant_apps':
+            # Full path format
+            app_label = f"{parts[0]}.{parts[1]}"
+            model_name = parts[2]
+        elif len(parts) == 2:
+            # Short path format - assume tenant_apps
+            app_label = f"tenant_apps.{parts[0]}"
+            model_name = parts[1]
+        else:
+            return []
+        
         model = apps.get_model(app_label, model_name)
     except (ValueError, LookupError):
         return []
