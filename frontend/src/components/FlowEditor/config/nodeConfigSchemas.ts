@@ -7,10 +7,31 @@
  * 
  * Created: 2026-02-18
  * Phase: D.1 - Foundation
+ * Updated: 2026-02-21 - Removed window.dispatchEvent (use FormBuilderContext instead)
  */
 
 import { NodeConfigSchema } from './types';
 import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Zap, Calendar, Webhook, Clock, FileSignature, Upload, Archive } from 'lucide-react';
+
+/**
+ * IMPORTANT: FormBuilder Integration
+ * 
+ * The onClick handlers for FormBuilder buttons should NOT dispatch window events.
+ * Instead, they should use FormBuilderContext from the component consuming these schemas.
+ * 
+ * Pattern:
+ * ```tsx
+ * const { openFormBuilder } = useFormBuilderContext();
+ * 
+ * // In DynamicConfigPanel or NodeConfigPanelWithShadow:
+ * if (field.type === 'button' && field.onClick) {
+ *   field.onClick(nodeId, nodeData); // This will call the function below
+ * }
+ * ```
+ * 
+ * The onClick functions below are factories that RETURN a function expecting context.
+ * The consuming component must wrap them to inject the FormBuilderContext.
+ */
 
 // ============================================================================
 // Form Node Schema (Phase E - 2026-02-19)
@@ -356,11 +377,16 @@ export const formSchema: NodeConfigSchema = {
           label: '🛠️ Open Full Form Builder',
           helpText: 'Open the visual form builder to configure fields, validations, and field mappings',
           variant: 'primary',
+          // METADATA for FormBuilder integration (processed by DynamicConfigPanel)
+          metadata: {
+            action: 'openFormBuilder',
+            nodeType: 'form'
+          },
           onClick: (nodeId: string, nodeData: any) => {
-            // Dispatch custom event to open FormBuilder modal
-            window.dispatchEvent(new CustomEvent('openFormBuilder', {
-              detail: { nodeId, nodeData, nodeType: 'form' }
-            }));
+            // This onClick will be wrapped by DynamicConfigPanel to inject FormBuilderContext
+            // See: DynamicConfigPanel.tsx for context injection
+            console.log('[FormBuilder] Button clicked - context injection required');
+            return { nodeId, nodeData, nodeType: 'form' };
           }
         },
         {
@@ -528,11 +554,16 @@ export const formProcessSchema: NodeConfigSchema = {
           label: '🛠️ Open Full Form Builder',
           helpText: 'Open the visual form builder to manage form steps, configure navigation, and set up data flow',
           variant: 'primary',
+          // METADATA for FormBuilder integration (processed by DynamicConfigPanel)
+          metadata: {
+            action: 'openFormBuilder',
+            nodeType: 'formProcessGroup'
+          },
           onClick: (nodeId: string, nodeData: any) => {
-            // Dispatch custom event to open FormBuilder modal
-            window.dispatchEvent(new CustomEvent('openFormBuilder', {
-              detail: { nodeId, nodeData, nodeType: 'formProcessGroup' }
-            }));
+            // This onClick will be wrapped by DynamicConfigPanel to inject FormBuilderContext
+            // See: DynamicConfigPanel.tsx for context injection
+            console.log('[FormBuilder] Button clicked - context injection required');
+            return { nodeId, nodeData, nodeType: 'formProcessGroup' };
           }
         },
         {
