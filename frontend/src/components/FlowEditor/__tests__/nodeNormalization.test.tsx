@@ -9,8 +9,8 @@
 import { describe, it, expect } from 'vitest';
 import { Node } from '@xyflow/react';
 
-// Import the actual functions from the component
-import { normalizeNodeData, normalizeNodes } from '../UnifiedFlowEditor';
+// Import the actual functions from the utility file
+import { normalizeNodeData, normalizeNodes } from '../utils/nodeNormalization';
 
 describe('Node Normalization', () => {
   describe('normalizeNodeData', () => {
