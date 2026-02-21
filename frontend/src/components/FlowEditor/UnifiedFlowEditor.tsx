@@ -110,21 +110,14 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { NodeConfigPanelWithShadow } from './ConfigPanel';
-<<<<<<< HEAD
-// ⚠️ NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is the ONLY renderer
-=======
 // NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
->>>>>>> upstream/development
 // import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
 // import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 // import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 // import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 // import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
 // import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
-<<<<<<< HEAD
 import Fuse from 'fuse.js'; // PROMPT 2: Added fuzzy search
-=======
->>>>>>> upstream/development
 import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
 import { FlowTemplate, FLOW_TEMPLATES } from './templates/flowTemplates';
@@ -1649,7 +1642,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, setNodes, onNodesChangeBase]);
   
   // React Flow instance for viewport controls
-  const reactFlowInstance = useReactFlow();
+  const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
   
   // ============================================================================
   // Container State Restoration (Phase 4 Batch 5)
@@ -1902,9 +1895,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     if (node) {
       setSelectedNodeId(nodeId);
       // Center on node with animation
-      reactFlowInstance.setCenter(node.position.x + 100, node.position.y + 50, { duration: 800, zoom: 1.2 });
+      reactFlowSetCenter(node.position.x + 100, node.position.y + 50, { duration: 800, zoom: 1.2 });
     }
-  }, [nodes, reactFlowInstance]);
+  }, [nodes, reactFlowSetCenter]);
   
   // ============================================================================
   // Dry Run Debugger (Phase 7)
