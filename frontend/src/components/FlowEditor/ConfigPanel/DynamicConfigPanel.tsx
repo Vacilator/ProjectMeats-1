@@ -128,13 +128,13 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const resolvedSchema = schemaRegistry.getSchema(node.type);
     
     // Debug logging for schema resolution
-    const isFallback = resolvedSchema.version?.includes('fallback');
+    const isFallback = resolvedSchema?.version?.includes('fallback');
     console.log('[DynamicConfigPanel] Schema resolution:', {
       nodeType: node.type,
       nodeId: node.id,
-      schemaDisplayName: resolvedSchema.displayName,
+      schemaDisplayName: resolvedSchema?.displayName,
       isFallback,
-      sectionCount: resolvedSchema.sections.length,
+      sectionCount: resolvedSchema?.sections?.length || 0,
     });
     
     return resolvedSchema;
