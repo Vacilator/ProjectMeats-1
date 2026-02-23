@@ -8,12 +8,14 @@
  * 
  * Created: 2026-02-18
  * Phase: D.2 - Dynamic Panel
+ * Updated: 2026-02-23 - Added auto-save functionality (Phase 4: Advanced Config)
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { debounce } from 'lodash';
 
 // Phase E.3: Data inheritance hook
 import { useUpstreamVariables } from '../hooks/useUpstreamVariables';
@@ -193,7 +195,33 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         [fieldId]: error || ''
       }));
     }
+    
+    // AUTO-SAVE: Debounced auto-save after field change (Phase 4: Advanced Config)
+    debouncedAutoSave(fieldId, value);
   };
+
+  // Auto-save functionality (debounced to avoid excessive updates)
+  const debouncedAutoSave = useMemo(
+    () =>
+      debounce((fieldId: string, value: any) => {
+        if (!node?.id) return;
+        
+        // Only auto-save if no errors
+        const hasErrors = Object.values(errors).some(error => error);
+        if (!hasErrors) {
+          console.log(`[DynamicConfigPanel] Auto-saving field: ${fieldId}`);
+          onUpdateNode(node.id, { ...formData, [fieldId]: value });
+        }
+      }, 1000), // 1 second debounce
+    [node?.id, formData, errors, onUpdateNode]
+  );
+
+  // Cleanup debounced function on unmount
+  useEffect(() => {
+    return () => {
+      debouncedAutoSave.cancel();
+    };
+  }, [debouncedAutoSave]);
 
   // Toggle section collapse
   const toggleSection = (sectionId: string) => {
