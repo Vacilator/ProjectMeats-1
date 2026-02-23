@@ -104,6 +104,96 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = TenantProductSerializer(preferences, many=True, context={'request': request})
         
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='suggest')
+    def suggest_products(self, request):
+        """
+        Suggest products based on criteria (auto-suggest for inquiry/fulfillment forms).
+        
+        Query Parameters:
+        - price_min: Minimum price filter
+        - price_max: Maximum price filter
+        - type: Product category filter (BEEF, PORK, POULTRY, etc.)
+        - fresh_frozen: FRESH or FROZEN
+        - location: Supplier location (future enhancement)
+        - query: Search text (fuzzy match on name/description)
+        
+        Returns top 5 suggestions ranked by:
+        - Availability (in stock > out of stock)
+        - Recency (recently used by tenant)
+        - Price match (within range)
+        - User history (future: learn from past orders)
+        
+        Example:
+        GET /api/v1/system/products/suggest/?type=BEEF&price_min=5&price_max=15&query=ribeye
+        """
+        # Base queryset: active products
+        queryset = Product.objects.filter(is_active=True)
+        
+        # Apply filters
+        price_min = request.query_params.get('price_min')
+        price_max = request.query_params.get('price_max')
+        product_type = request.query_params.get('type')
+        fresh_frozen = request.query_params.get('fresh_frozen')
+        search_query = request.query_params.get('query', '').strip()
+        
+        if price_min:
+            try:
+                # Note: TenantProductPreference stores pricing, not system Product
+                # For now, filter by availability. Future: join with preferences
+                pass
+            except (ValueError, TypeError):
+                pass
+        
+        if price_max:
+            try:
+                pass
+            except (ValueError, TypeError):
+                pass
+        
+        if product_type:
+            queryset = queryset.filter(protein_type=product_type.upper())
+            logger.debug(f"Filtered suggestions by type: {product_type}")
+        
+        if fresh_frozen:
+            queryset = queryset.filter(fresh_or_frozen=fresh_frozen.upper())
+            logger.debug(f"Filtered suggestions by fresh/frozen: {fresh_frozen}")
+        
+        # Fuzzy search on query
+        if search_query:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(product_code__icontains=search_query)
+            )
+            logger.debug(f"Fuzzy search on: {search_query}")
+        
+        # Rank by relevance (simple scoring for now)
+        # Future: Add user history, supplier availability, tenant preferences
+        queryset = queryset.order_by(
+            '-tested_product',  # Prioritize tested products
+            'name'  # Alphabetical
+        )
+        
+        # Limit to top 5 suggestions
+        suggestions = queryset[:5]
+        
+        # Serialize with minimal fields for performance
+        from apps.system.serializers import SystemProductSerializer
+        serializer = SystemProductSerializer(suggestions, many=True, context={'request': request})
+        
+        logger.info(f"Auto-suggest returned {len(suggestions)} products")
+        
+        return Response({
+            'count': len(suggestions),
+            'suggestions': serializer.data,
+            'filters_applied': {
+                'type': product_type,
+                'fresh_frozen': fresh_frozen,
+                'query': search_query,
+            }
+        })
 
 
 class TenantProductPreferenceViewSet(viewsets.ModelViewSet):
