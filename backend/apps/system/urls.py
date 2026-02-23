@@ -21,6 +21,8 @@ from apps.system.views import (
     ConfigResolverView,
     ConfigAuditLogViewSet,
     EntityIntrospectionViewSet,
+    SystemProductViewSet,
+    TenantProductPreferenceViewSet,
 )
 
 app_name = 'system'
@@ -33,6 +35,8 @@ router.register(r'tenant-configs', TenantConfigViewSet, basename='tenant-config'
 router.register(r'config', ConfigResolverView, basename='config')
 router.register(r'audit-logs', ConfigAuditLogViewSet, basename='audit-log')
 router.register(r'entities', EntityIntrospectionViewSet, basename='entity')
+router.register(r'products', SystemProductViewSet, basename='product')
+router.register(r'product-preferences', TenantProductPreferenceViewSet, basename='product-preference')
 
 urlpatterns = [
     path('', include(router.urls)),
