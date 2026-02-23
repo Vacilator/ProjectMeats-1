@@ -76,14 +76,111 @@ class ConfigSchemaRegistry {
    * Get schema for a node type
    * 
    * @param nodeType - Node type identifier
-   * @returns Schema or undefined if not found
+   * @returns Schema (always returns a schema, using fallback if needed)
    */
-  getSchema(nodeType: string): NodeConfigSchema | undefined {
+  getSchema(nodeType: string): NodeConfigSchema {
     const schema = this.schemas.get(nodeType);
     if (!schema) {
-      console.warn(`No schema found for node type: ${nodeType}`);
+      console.warn(`[Schema Registry] No schema found for node type: ${nodeType}, using fallback`);
+      return this.createFallbackSchema(nodeType);
     }
     return schema;
+  }
+  
+  /**
+   * Create a fallback schema for node types without explicit schemas
+   * Provides basic configuration fields that work for any node
+   * 
+   * @param nodeType - Node type identifier
+   * @returns Basic configuration schema
+   */
+  private createFallbackSchema(nodeType: string): NodeConfigSchema {
+    return {
+      nodeType,
+      displayName: this.formatNodeTypeName(nodeType),
+      category: this.inferCategory(nodeType),
+      description: `Configure ${this.formatNodeTypeName(nodeType)} node`,
+      version: '1.0.0-fallback',
+      sections: [
+        {
+          id: 'basic',
+          title: 'Basic Configuration',
+          fields: [
+            {
+              id: 'name',
+              label: 'Node Name',
+              type: 'text',
+              placeholder: 'Enter node name',
+              helpText: 'A descriptive name for this node',
+              defaultValue: '',
+              required: false,
+            },
+            {
+              id: 'description',
+              label: 'Description',
+              type: 'textarea',
+              placeholder: 'Enter description',
+              helpText: 'Optional description of what this node does',
+              defaultValue: '',
+              required: false,
+            },
+            {
+              id: 'notes',
+              label: 'Notes',
+              type: 'textarea',
+              placeholder: 'Add notes or comments',
+              helpText: 'Internal notes for documentation',
+              defaultValue: '',
+              required: false,
+            },
+          ],
+        },
+        {
+          id: 'advanced',
+          title: 'Advanced',
+          collapsed: true,
+          fields: [
+            {
+              id: 'customData',
+              label: 'Custom Configuration (JSON)',
+              type: 'textarea',
+              placeholder: '{"key": "value"}',
+              helpText: 'Advanced: Edit node data as JSON',
+              defaultValue: '{}',
+              required: false,
+            },
+          ],
+        },
+      ],
+    };
+  }
+  
+  /**
+   * Format node type name for display
+   */
+  private formatNodeTypeName(nodeType: string): string {
+    // Convert camelCase/PascalCase to Title Case
+    return nodeType
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .trim();
+  }
+  
+  /**
+   * Infer category from node type prefix
+   */
+  private inferCategory(nodeType: string): string {
+    if (nodeType.startsWith('trigger')) return 'trigger';
+    if (nodeType.startsWith('form')) return 'form';
+    if (nodeType.startsWith('condition')) return 'logic';
+    if (nodeType.startsWith('action')) return 'action';
+    if (nodeType.startsWith('data')) return 'data';
+    if (nodeType.startsWith('loop')) return 'loop';
+    if (nodeType.startsWith('wait') || nodeType.startsWith('pending')) return 'wait';
+    if (nodeType.startsWith('document')) return 'document';
+    if (nodeType.startsWith('utility') || nodeType.startsWith('group') || nodeType.startsWith('note')) return 'utility';
+    if (nodeType.startsWith('end') || nodeType.startsWith('terminal')) return 'terminal';
+    return 'action'; // Default fallback
   }
 
   /**
