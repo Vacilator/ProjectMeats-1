@@ -423,6 +423,10 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       $isDragging={isDragging}
       onDragStart={() => setIsDragging(true)}
       onDragEnd={() => setIsDragging(false)}
+      role="article"
+      aria-label={`${nodeType.name} node: ${data.label || 'Untitled'}`}
+      aria-selected={selected}
+      tabIndex={0}
     >
       {/* Input Handle */}
       {showInputHandle && (
@@ -431,6 +435,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           position={Position.Top}
           id="input"
           $color={nodeType.color}
+          aria-label="Input connection handle"
         />
       )}
       
@@ -462,8 +467,11 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
             $variant="edit" 
             onClick={handleEdit}
             title="Edit node configuration"
+            aria-label={`Edit ${data.label || 'node'} configuration`}
+            role="button"
+            tabIndex={0}
           >
-            <Edit2 />
+            <Edit2 aria-hidden="true" />
           </ControlButton>
         )}
         {onDelete && (
@@ -471,8 +479,11 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
             $variant="delete" 
             onClick={handleDelete}
             title="Delete node"
+            aria-label={`Delete ${data.label || 'node'}`}
+            role="button"
+            tabIndex={0}
           >
-            <Trash2 />
+            <Trash2 aria-hidden="true" />
           </ControlButton>
         )}
       </NodeControls>
@@ -553,6 +564,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           position={Position.Bottom}
           id="output"
           $color={nodeType.color}
+          aria-label="Output connection handle"
         />
       )}
       
@@ -564,6 +576,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           id="error"
           $color="rgb(239, 68, 68)"
           style={{ top: '50%' }}
+          aria-label="Error route connection handle"
         />
       )}
     </NodeContainer>

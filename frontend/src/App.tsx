@@ -248,45 +248,48 @@ const App: React.FC = () => {
                 <Route path="my-tasks" element={<Navigate to="/workforms/tasks" replace />} />
                 
                 {/* Admin Workspace - Wrapped with error boundary */}
-                <Route path="admin/option-lists" element={
+                <Route path="workspace/option-lists" element={
                   <AdminErrorBoundary fallbackTitle="Option Lists Error">
                     <OptionListsPage />
                   </AdminErrorBoundary>
                 } />
-                <Route path="admin/configurations" element={
+                <Route path="workspace/configurations" element={
                   <AdminErrorBoundary fallbackTitle="Configurations Error">
                     <ConfigurationsPage />
                   </AdminErrorBoundary>
                 } />
-                <Route path="admin/customizations" element={
+                <Route path="workspace/customizations" element={
                   <AdminErrorBoundary fallbackTitle="Customizations Error">
                     <CustomizationsPage />
                   </AdminErrorBoundary>
                 } />
-                <Route path="admin/users" element={
+                <Route path="workspace/users" element={
                   <AdminErrorBoundary fallbackTitle="Users Management Error">
                     <UsersPage />
                   </AdminErrorBoundary>
                 } />
-                <Route path="admin/profile" element={
+                <Route path="workspace/profile" element={
                   <AdminErrorBoundary fallbackTitle="Profile Settings Error">
                     <AdminProfilePage />
                   </AdminErrorBoundary>
                 } />
-                <Route path="admin/billing" element={
+                <Route path="workspace/billing" element={
                   <AdminErrorBoundary fallbackTitle="Billing Error">
                     <BillingPage />
                   </AdminErrorBoundary>
                 } />
-                <Route path="admin/activity" element={
+                <Route path="workspace/activity" element={
                   <AdminErrorBoundary fallbackTitle="Activity Logs Error">
                     <ActivityPage />
                   </AdminErrorBoundary>
                 } />
                 
+                {/* Backward compatibility redirect */}
+                <Route path="admin/*" element={<Navigate to={`/workspace/${window.location.pathname.replace('/admin/', '')}`} replace />} />
+                
                 {/* Cockpit (Command Center Dashboard) */}
                 <Route path="cockpit" element={<CockpitPage />} />
-                <Route path="workspace" element={<Navigate to="/cockpit" replace />} />
+                {/* Note: /workspace now points to Admin Workspace, not Cockpit */}
               </Route>
             </Routes>
             {/* Form Submission Modal - rendered at app level */}

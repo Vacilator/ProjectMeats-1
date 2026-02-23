@@ -119,7 +119,7 @@ const getEdgeStyle = (edgeType?: string, animated?: boolean) => {
 // Component
 // ============================================================================
 
-export const CustomEdge: React.FC<EdgeProps<CustomEdgeData>> = ({
+export const CustomEdge = React.memo<EdgeProps<CustomEdgeData>>(({
   id,
   sourceX,
   sourceY,
@@ -199,6 +199,6 @@ export const CustomEdge: React.FC<EdgeProps<CustomEdgeData>> = ({
       </EdgeLabelRenderer>
     </>
   );
-};
+});
 
 export default CustomEdge;

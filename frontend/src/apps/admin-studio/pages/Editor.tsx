@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import SchemaEditor from '../components/SchemaEditorSimple';
-import WorkflowCanvas from '../components/WorkflowCanvas';
+// Use UnifiedFlowEditor instead of WorkflowCanvas
+import { UnifiedFlowEditor } from '../../../components/FlowEditor';
 import { VersionHistory } from '../components/VersionHistory';
 
 import { useParams, useNavigate } from 'react-router-dom';
@@ -218,7 +219,14 @@ const Editor: React.FC<EditorProps> = () => {
           <SchemaEditor blueprintId={blueprintId} csrfToken={csrfToken || ''} />
         )}
         {activeTab === 'canvas' && (
-          <WorkflowCanvas blueprintId={blueprintId} csrfToken={csrfToken || ''} />
+          <UnifiedFlowEditor
+            readOnly={false}
+            editorMode="visual"
+            onSave={(nodes, edges) => {
+              console.log('Workflow saved:', { nodes, edges });
+              // TODO: Integrate with backend persistence
+            }}
+          />
         )}
         {activeTab === 'history' && blueprintId && (
           <VersionHistory

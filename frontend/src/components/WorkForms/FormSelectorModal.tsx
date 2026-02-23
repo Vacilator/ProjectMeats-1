@@ -12,7 +12,7 @@ import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
 import { X, Search, Check, FileText, Calendar, Users } from 'lucide-react';
 import { adminClient } from '../../services/apiService';
-import type { FormDefinition } from '../FormBuilder/FormBuilder';
+import type { FormDefinition } from '../form-builder';
 
 // ============================================================================
 // TypeScript Interfaces

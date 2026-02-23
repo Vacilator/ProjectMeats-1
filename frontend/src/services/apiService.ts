@@ -492,6 +492,30 @@ export interface AccountsReceivable {
   updated_at: string;
 }
 
+export interface Invoice {
+  id: number;
+  tenant: number;
+  invoice_number: string;
+  date_time_stamp: string;
+  customer: number;
+  customer_name?: string;
+  sales_order?: number;
+  product?: number;
+  pick_up_date?: string;
+  delivery_date?: string;
+  due_date?: string;
+  our_sales_order_num?: string;
+  delivery_po_num?: string;
+  payment_terms?: string;
+  subtotal?: number;
+  tax?: number;
+  total?: number;
+  status: string;
+  payment_status?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // API Service Class
 export class ApiService {
   // Suppliers
@@ -776,6 +800,39 @@ export class ApiService {
 
   async deleteAccountsReceivable(id: number): Promise<void> {
     await apiClient.delete(`/accounts-receivables/${id}/`);
+  }
+
+  // Invoices
+  async getInvoices(): Promise<Invoice[]> {
+    const response = await apiClient.get('/invoices/');
+    return response.data.results || response.data;
+  }
+
+  async getInvoice(id: number): Promise<Invoice> {
+    const response = await apiClient.get(`/invoices/${id}/`);
+    return response.data;
+  }
+
+  async createInvoice(invoice: Partial<Invoice>): Promise<Invoice> {
+    try {
+      const response = await apiClient.post('/invoices/', invoice);
+      return response.data;
+    } catch (error: unknown) {
+      throw new Error(`Failed to create invoice: ${getErrorMessage(error)}`);
+    }
+  }
+
+  async updateInvoice(id: number, invoice: Partial<Invoice>): Promise<Invoice> {
+    try {
+      const response = await apiClient.patch(`/invoices/${id}/`, invoice);
+      return response.data;
+    } catch (error: unknown) {
+      throw new Error(`Failed to update invoice: ${getErrorMessage(error)}`);
+    }
+  }
+
+  async deleteInvoice(id: number): Promise<void> {
+    await apiClient.delete(`/invoices/${id}/`);
   }
 }
 

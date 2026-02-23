@@ -4,18 +4,27 @@
  * Right-click context menu for flow editor nodes.
  * Provides quick actions for containers and nodes.
  * 
+ * Advanced Features:
+ * - React Portal rendering to document.body
+ * - Smart viewport flipping (never off-screen)
+ * - Zoom-aware positioning
+ * - Full opacity with dark theme
+ * - 120ms entrance animation
+ * 
  * Based on React Flow context menu example:
  * https://reactflow.dev/examples/interaction/context-menu
  * 
  * Created: 2026-02-19 - Phase E.3
+ * Enhanced: 2026-02-21 - Advanced positioning
  * 
  * @module NodeContextMenu
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useLayoutEffect, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { Node, useReactFlow } from '@xyflow/react';
-import { Plus, Copy, Layers, Trash2, Settings, Move } from 'lucide-react';
+import { Plus, Copy, Layers, Trash2, Settings, Move, Wand2, Maximize2, Minimize2 } from 'lucide-react';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -30,6 +39,8 @@ export interface ContextMenuProps {
   y: number;
   /** Callback to close menu */
   onClose: () => void;
+  /** Callback to edit node configuration */
+  onEdit?: (nodeId: string) => void;
 }
 
 export interface ContextMenuAction {
@@ -45,29 +56,37 @@ export interface ContextMenuAction {
 // Styled Components
 // ============================================================================
 
-const MenuContainer = styled.div<{ x: number; y: number }>`
+const MenuContainer = styled.div<{ x: number; y: number; flipX: boolean; flipY: boolean }>`
   position: fixed;
   top: ${props => props.y}px;
   left: ${props => props.x}px;
-  background: rgb(var(--color-background-primary));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 8px;
+  background: #1f2937 !important;
+  border: 1px solid #374151;
+  border-radius: 12px;
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
+    0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.2);
   padding: 6px;
-  min-width: 200px;
-  z-index: 10000;
-  animation: menuSlide 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 220px;
+  z-index: 9999;
+  opacity: 1 !important;
+  backdrop-filter: blur(10px);
+  animation: menuEntrance 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: ${props => 
+    props.flipX && props.flipY ? 'bottom right' :
+    props.flipX ? 'top right' :
+    props.flipY ? 'bottom left' :
+    'top left'
+  };
   
-  @keyframes menuSlide {
+  @keyframes menuEntrance {
     from {
       opacity: 0;
-      transform: translateY(-8px) scale(0.96);
+      transform: scale(0.92) translateY(-4px);
     }
     to {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: scale(1) translateY(0);
     }
   }
 `;
@@ -77,26 +96,29 @@ const MenuItem = styled.button<{ danger?: boolean }>`
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border: none;
   background: transparent;
   color: ${props => props.danger 
     ? 'rgb(239, 68, 68)' 
     : 'rgb(var(--color-text-primary))'};
   font-size: 14px;
+  font-family: inherit;
   text-align: left;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: all 0.1s ease-out;
   
   &:hover {
     background: ${props => props.danger 
       ? 'rgba(239, 68, 68, 0.1)' 
-      : 'rgba(var(--color-primary), 0.08)'};
+      : 'rgb(var(--color-primary) / 0.1)'};
+    color: ${props => props.danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
+    transform: translateX(2px);
   }
   
   &:active {
-    transform: scale(0.98);
+    transform: scale(0.98) translateX(2px);
   }
   
   svg {
@@ -104,6 +126,12 @@ const MenuItem = styled.button<{ danger?: boolean }>`
     width: 16px;
     height: 16px;
     opacity: 0.7;
+    transition: opacity 0.1s ease-out;
+  }
+  
+  &:hover svg {
+    opacity: 1;
+  }
   }
 `;
 
@@ -133,16 +161,121 @@ const MenuHeader = styled.div`
  * 
  * Displays context-sensitive actions based on node type.
  * Container nodes get "Add Step", "Duplicate Container", etc.
- * Regular nodes get "Copy", "Delete", etc.
+ * Regular nodes get "Edit", "Copy", "Delete", etc.
+ * 
+ * Advanced positioning features:
+ * - Smart viewport flipping (left/right, top/bottom)
+ * - Zoom-aware positioning with transform compensation
+ * - React Portal rendering to document.body
+ * - 12px viewport padding for safety
  * 
  * @param props - Context menu properties
  */
-export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose }) => {
-  const { setNodes, getNode, getNodes } = useReactFlow();
+export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose, onEdit }) => {
+  const { setNodes, getNode, getNodes, getViewport } = useReactFlow();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ x, y, flipX: false, flipY: false });
+  
+  // Advanced positioning with viewport flipping and zoom compensation
+  useLayoutEffect(() => {
+    if (!menuRef.current) return;
+    
+    const menuRect = menuRef.current.getBoundingClientRect();
+    const viewport = getViewport();
+    const PADDING = 12; // Minimum distance from viewport edges
+    
+    let finalX = x;
+    let finalY = y;
+    let flipX = false;
+    let flipY = false;
+    
+    // Apply subtle zoom compensation
+    const zoomFactor = viewport.zoom;
+    const zoomOffset = (1 - zoomFactor) * 8; // Subtle offset based on zoom
+    
+    // Check horizontal overflow and flip if needed
+    if (x + menuRect.width + PADDING > window.innerWidth) {
+      finalX = x - menuRect.width; // Flip to left
+      flipX = true;
+    }
+    
+    // Check vertical overflow and flip if needed
+    if (y + menuRect.height + PADDING > window.innerHeight) {
+      finalY = y - menuRect.height; // Flip to top
+      flipY = true;
+    }
+    
+    // Clamp to viewport with padding
+    finalX = Math.max(PADDING, Math.min(finalX, window.innerWidth - menuRect.width - PADDING));
+    finalY = Math.max(PADDING, Math.min(finalY, window.innerHeight - menuRect.height - PADDING));
+    
+    // Apply zoom offset
+    finalX += zoomOffset;
+    finalY += zoomOffset;
+    
+    setPosition({ x: finalX, y: finalY, flipX, flipY });
+  }, [x, y, getViewport]);
+  
+  // Recalculate on window resize or zoom change
+  useEffect(() => {
+    const handleResize = () => {
+      if (!menuRef.current) return;
+      
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const PADDING = 12;
+      
+      let finalX = position.x;
+      let finalY = position.y;
+      
+      // Re-clamp on resize
+      finalX = Math.max(PADDING, Math.min(finalX, window.innerWidth - menuRect.width - PADDING));
+      finalY = Math.max(PADDING, Math.min(finalY, window.innerHeight - menuRect.height - PADDING));
+      
+      if (finalX !== position.x || finalY !== position.y) {
+        setPosition({ x: finalX, y: finalY, flipX: position.flipX, flipY: position.flipY });
+      }
+    };
+    
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, [position]);
+  
+  // Close on outside click (passive listener for performance)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside, { passive: true });
+    document.addEventListener('keydown', handleEscape, { passive: true } as AddEventListenerOptions);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [onClose]);
   
   // ============================================================================
   // Action Handlers
   // ============================================================================
+  
+  /**
+   * Edit node configuration
+   */
+  const handleEdit = useCallback(() => {
+    if (!node || !onEdit) return;
+    
+    onEdit(node.id);
+    onClose();
+  }, [node, onEdit, onClose]);
   
   /**
    * Add a new step to container
@@ -296,6 +429,46 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
     onClose();
   }, [node, getNode, setNodes, onClose]);
   
+  /**
+   * Edit in FormBuilder (Phase 3)
+   */
+  const handleEditInBuilder = useCallback(() => {
+    if (!node) return;
+    
+    // TODO: Open FormBuilder modal for this container
+    console.log('Edit in FormBuilder:', node.id);
+    // This will be wired in Phase 4
+    
+    onClose();
+  }, [node, onClose]);
+  
+  /**
+   * Expand/Collapse All children (Phase 3)
+   */
+  const handleExpandCollapseAll = useCallback(() => {
+    if (!node) return;
+    
+    const childNodes = getNodes().filter(n => n.parentId === node.id);
+    const allExpanded = childNodes.every(n => n.data.isExpanded);
+    
+    setNodes((nodes) =>
+      nodes.map((n) => {
+        if (n.parentId === node.id) {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              isExpanded: !allExpanded, // Toggle: if all expanded, collapse all, else expand all
+            },
+          };
+        }
+        return n;
+      })
+    );
+    
+    onClose();
+  }, [node, getNodes, setNodes, onClose]);
+  
   // ============================================================================
   // Render
   // ============================================================================
@@ -308,24 +481,54 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
   
   const isChildNode = !!node.parentId;
   
-  return (
-    <MenuContainer x={x} y={y} onClick={(e) => e.stopPropagation()}>
+  // Render menu via React Portal to document.body
+  return createPortal(
+    <MenuContainer 
+      ref={menuRef} 
+      x={position.x} 
+      y={position.y} 
+      flipX={position.flipX}
+      flipY={position.flipY}
+      onClick={(e) => e.stopPropagation()} 
+      role="menu" 
+      aria-label="Node context menu"
+    >
       <MenuHeader>
         {isContainer ? 'Container Actions' : isChildNode ? 'Step Actions' : 'Node Actions'}
       </MenuHeader>
       
+      {/* Edit option for ALL nodes */}
+      {onEdit && (
+        <>
+          <MenuItem onClick={handleEdit} role="menuitem" aria-label="Edit node configuration">
+            <Settings size={16} aria-hidden="true" />
+            <span>Edit Configuration</span>
+          </MenuItem>
+          <MenuSeparator />
+        </>
+      )}
+      
       {isContainer && (
         <>
-          <MenuItem onClick={handleAddStep}>
-            <Plus size={16} />
+          <MenuItem onClick={handleEditInBuilder} role="menuitem" aria-label="Edit container in form builder">
+            <Wand2 size={16} aria-hidden="true" />
+            <span>Edit in FormBuilder</span>
+          </MenuItem>
+          <MenuItem onClick={handleAddStep} role="menuitem" aria-label="Add step to container">
+            <Plus size={16} aria-hidden="true" />
             <span>Add Step</span>
           </MenuItem>
-          <MenuItem onClick={handleDuplicateContainer}>
-            <Copy size={16} />
+          <MenuItem onClick={handleExpandCollapseAll} role="menuitem" aria-label="Expand or collapse all steps">
+            <Maximize2 size={16} aria-hidden="true" />
+            <span>Expand/Collapse All</span>
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem onClick={handleDuplicateContainer} role="menuitem" aria-label="Duplicate container">
+            <Copy size={16} aria-hidden="true" />
             <span>Duplicate Container</span>
           </MenuItem>
-          <MenuItem onClick={handleConvertToSubFlow}>
-            <Layers size={16} />
+          <MenuItem onClick={handleConvertToSubFlow} role="menuitem" aria-label="Convert to sub-flow">
+            <Layers size={16} aria-hidden="true" />
             <span>Convert to Sub-Flow</span>
           </MenuItem>
           <MenuSeparator />
@@ -334,8 +537,8 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       
       {isChildNode && (
         <>
-          <MenuItem onClick={handleExtract}>
-            <Move size={16} />
+          <MenuItem onClick={handleExtract} role="menuitem" aria-label="Extract from container">
+            <Move size={16} aria-hidden="true" />
             <span>Extract from Container</span>
           </MenuItem>
           <MenuSeparator />
@@ -344,19 +547,20 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       
       {!isContainer && (
         <>
-          <MenuItem onClick={handleCopy}>
-            <Copy size={16} />
+          <MenuItem onClick={handleCopy} role="menuitem" aria-label="Copy node">
+            <Copy size={16} aria-hidden="true" />
             <span>Copy Node</span>
           </MenuItem>
           <MenuSeparator />
         </>
       )}
       
-      <MenuItem onClick={handleDelete} danger>
-        <Trash2 size={16} />
+      <MenuItem onClick={handleDelete} danger role="menuitem" aria-label={`Delete ${isContainer ? 'container' : 'node'}`}>
+        <Trash2 size={16} aria-hidden="true" />
         <span>Delete {isContainer ? 'Container' : 'Node'}</span>
       </MenuItem>
-    </MenuContainer>
+    </MenuContainer>,
+    document.body
   );
 };
 

@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 import { useEntityList, useEntityFields, EntityType, EntityField } from '../../../services/schemaService';
 import workformsApi from '../../../services/workformsApi';
 import {
@@ -25,6 +26,18 @@ import {
   Input,
   EmptyState,
 } from './shared/StyledComponents';
+import { 
+  FieldListSkeleton, 
+  EntitySelectorSkeleton,
+  RetryButton,
+  ErrorStateContainer,
+  ErrorIcon,
+  ErrorTitle,
+  ErrorMessage,
+  TimeoutContainer,
+  TimeoutMessage
+} from './SkeletonLoaders';
+import { useTimeout } from '../hooks/useTimeout';
 
 // ============================================================================
 // Types
@@ -287,13 +300,32 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
   const [fieldTypeFilter, setFieldTypeFilter] = useState<string>('all');
   const [checkedFields, setCheckedFields] = useState<Set<string>>(new Set());
+  const [retryCount, setRetryCount] = useState(0);
 
   // Use React Query hooks from schemaService
-  const { data: entities = [], isLoading: entitiesLoading, error: entitiesError } = useEntityList();
-  const { data: fieldsData, isLoading: fieldsLoading, error: fieldsError } = useEntityFields(
+  const { data: entities = [], isLoading: entitiesLoading, error: entitiesError, refetch: refetchEntities } = useEntityList();
+  const { data: fieldsData, isLoading: fieldsLoading, error: fieldsError, refetch: refetchFields } = useEntityFields(
     selectedEntityType,
     { enabled: !!selectedEntityType }
   );
+  
+  // Timeout detection for fields loading
+  const { isTimedOut: fieldsTimedOut, resetTimeout: resetFieldsTimeout } = useTimeout({
+    isLoading: fieldsLoading,
+    timeout: 5000,
+    onTimeout: () => {
+      console.warn('[EntityFieldPicker] Field loading timed out after 5s');
+    }
+  });
+  
+  // Timeout detection for entities loading
+  const { isTimedOut: entitiesTimedOut, resetTimeout: resetEntitiesTimeout } = useTimeout({
+    isLoading: entitiesLoading,
+    timeout: 5000,
+    onTimeout: () => {
+      console.warn('[EntityFieldPicker] Entity loading timed out after 5s');
+    }
+  });
   
   const availableFields = fieldsData?.fields || [];
   const loading = entitiesLoading || fieldsLoading;
@@ -322,16 +354,34 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
 
   const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const entityType = e.target.value;
+    console.log('[EntityFieldPicker] Entity selected:', entityType);
     setSelectedEntityType(entityType);
     setSearchTerm('');
     setFieldTypeFilter('all');
     setCheckedFields(new Set());
+    resetFieldsTimeout(); // Reset timeout when changing entity
     // Clear selected fields when changing entity type
     onFieldsChange([]);
     
     if (onEntityTypeChange) {
+      console.log('[EntityFieldPicker] Notifying parent of entity change');
       onEntityTypeChange(entityType);
     }
+  };
+  
+  // Retry handlers
+  const handleRetryEntities = () => {
+    console.log('[EntityFieldPicker] Retrying entity list fetch');
+    setRetryCount(prev => prev + 1);
+    resetEntitiesTimeout();
+    refetchEntities();
+  };
+  
+  const handleRetryFields = () => {
+    console.log('[EntityFieldPicker] Retrying fields fetch');
+    setRetryCount(prev => prev + 1);
+    resetFieldsTimeout();
+    refetchFields();
   };
 
   const handleAddField = (field: EntityField) => {
@@ -462,10 +512,20 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
             <option value="">-- Select entity --</option>
             {entities.map(entity => (
               <option key={entity.id} value={entity.id}>
-                {entity.label_plural}
+                {entity.label_plural} {selectedEntityType === entity.id && availableFields.length > 0 ? `(${availableFields.length} fields)` : ''}
               </option>
             ))}
           </Select>
+          {selectedEntityType && fieldsLoading && (
+            <LoadingText style={{ padding: '8px 0', textAlign: 'left', fontSize: '12px' }}>
+              Loading fields for {entities.find(e => e.id === selectedEntityType)?.label_plural}...
+            </LoadingText>
+          )}
+          {selectedEntityType && !fieldsLoading && availableFields.length === 0 && !fieldsError && (
+            <ErrorText style={{ marginTop: '8px', fontSize: '12px' }}>
+              No fields found for this entity. This may indicate a backend configuration issue.
+            </ErrorText>
+          )}
         </EntitySelector>
       </Section>
 
@@ -539,10 +599,70 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
             </BulkActions>
           )}
           
-          {loading ? (
-            <LoadingText>Loading fields...</LoadingText>
-          ) : error ? (
-            <ErrorText>{error instanceof Error ? error.message : 'Failed to load fields'}</ErrorText>
+          {/* Entity loading skeleton */}
+          {entitiesLoading && (
+            <EntitySelectorSkeleton />
+          )}
+          
+          {/* Entity loading error with retry */}
+          {entitiesError && (
+            <ErrorStateContainer>
+              <ErrorIcon>
+                <AlertCircle size={32} />
+              </ErrorIcon>
+              <ErrorTitle>Failed to Load Entities</ErrorTitle>
+              <ErrorMessage>
+                {entitiesError instanceof Error ? entitiesError.message : 'Could not fetch entity list'}
+              </ErrorMessage>
+              <RetryButton onClick={handleRetryEntities}>
+                <RefreshCw size={16} />
+                Retry
+              </RetryButton>
+            </ErrorStateContainer>
+          )}
+          
+          {/* Entity loading timeout */}
+          {entitiesTimedOut && !entitiesError && (
+            <TimeoutContainer>
+              <TimeoutMessage>
+                Loading is taking longer than expected...
+              </TimeoutMessage>
+              <RetryButton onClick={handleRetryEntities}>
+                <RefreshCw size={16} />
+                Retry
+              </RetryButton>
+            </TimeoutContainer>
+          )}
+          
+          {/* Fields loading skeleton */}
+          {fieldsLoading && !fieldsTimedOut ? (
+            <FieldListSkeleton count={5} />
+          ) : /* Fields timeout */
+          fieldsTimedOut && !fieldsError ? (
+            <TimeoutContainer>
+              <TimeoutMessage>
+                Loading fields is taking longer than expected (&gt;5s)...
+              </TimeoutMessage>
+              <RetryButton onClick={handleRetryFields}>
+                <RefreshCw size={16} />
+                Retry
+              </RetryButton>
+            </TimeoutContainer>
+          ) : /* Fields error */
+          fieldsError ? (
+            <ErrorStateContainer>
+              <ErrorIcon>
+                <AlertCircle size={32} />
+              </ErrorIcon>
+              <ErrorTitle>Failed to Load Fields</ErrorTitle>
+              <ErrorMessage>
+                {fieldsError instanceof Error ? fieldsError.message : 'Could not fetch fields for this entity'}
+              </ErrorMessage>
+              <RetryButton onClick={handleRetryFields}>
+                <RefreshCw size={16} />
+                Retry (Attempt {retryCount + 1})
+              </RetryButton>
+            </ErrorStateContainer>
           ) : (
             <FieldsList>
               {filteredAvailableFields.length === 0 ? (

@@ -38,6 +38,7 @@ const Header: React.FC<HeaderProps> = () => {
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showFormsSubmenu, setShowFormsSubmenu] = useState(false);
   const quickMenuRef = useRef<HTMLDivElement>(null);
   
   // Get current user info
@@ -47,6 +48,7 @@ const Header: React.FC<HeaderProps> = () => {
   // Quick Actions context
   const {
     quickActions,
+    availableForms,
     isLoading: quickActionsLoading,
     openFormModal,
     isEditorOpen,
@@ -186,6 +188,82 @@ const Header: React.FC<HeaderProps> = () => {
                     <span>{item.label}</span>
                   </QuickMenuItem>
                 ))
+              )}
+              
+              {/* Forms Submenu - Always show regardless of custom actions */}
+              <QuickMenuDivider />
+              <QuickMenuItem
+                $theme={theme}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFormsSubmenu(!showFormsSubmenu);
+                }}
+                style={{ justifyContent: 'space-between' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <IconWrapper>📋</IconWrapper>
+                  <span>Forms</span>
+                </div>
+                <span style={{ fontSize: '12px' }}>
+                  {showFormsSubmenu ? '▴' : '▾'}
+                </span>
+              </QuickMenuItem>
+              
+              {showFormsSubmenu && (
+                <FormsSubmenu $theme={theme}>
+                  <SubmenuItem 
+                    $theme={theme}
+                    onClick={() => {
+                      navigate('/workflows');
+                      setShowQuickMenu(false);
+                      setShowFormsSubmenu(false);
+                    }}
+                  >
+                    <span>🗂️</span>
+                    <span>View All Workflows</span>
+                  </SubmenuItem>
+                  
+                  {availableForms.length > 0 && (
+                    <>
+                      <SubmenuDivider />
+                      <SubmenuHeader>Published Forms</SubmenuHeader>
+                      {availableForms.slice(0, 5).map((form) => (
+                        <SubmenuItem
+                          key={form.id}
+                          $theme={theme}
+                          onClick={() => {
+                            openFormModal(form.id);
+                            setShowQuickMenu(false);
+                            setShowFormsSubmenu(false);
+                          }}
+                          title={`Run ${form.name}`}
+                        >
+                          <span>▶️</span>
+                          <span>{form.name}</span>
+                        </SubmenuItem>
+                      ))}
+                      {availableForms.length > 5 && (
+                        <SubmenuItem 
+                          $theme={theme}
+                          style={{ fontSize: '11px', fontStyle: 'italic' }}
+                          onClick={() => {
+                            navigate('/workflows');
+                            setShowQuickMenu(false);
+                            setShowFormsSubmenu(false);
+                          }}
+                        >
+                          <span>+{availableForms.length - 5} more forms...</span>
+                        </SubmenuItem>
+                      )}
+                    </>
+                  )}
+                  
+                  {availableForms.length === 0 && (
+                    <SubmenuItem $theme={theme} style={{ fontSize: '12px', fontStyle: 'italic', cursor: 'default', opacity: 0.6 }}>
+                      <span>No published forms yet</span>
+                    </SubmenuItem>
+                  )}
+                </FormsSubmenu>
               )}
               
               {/* Customize Link */}
@@ -419,6 +497,62 @@ const ThemeToggleButton = styled.button<{ $theme: Theme }>`
     background-color: ${(props) => props.$theme.colors.surfaceHover};
     transform: scale(1.1);
   }
+`;
+
+// Forms Submenu Styled Components
+const QuickMenuDivider = styled.div`
+  height: 1px;
+  background: rgba(var(--color-border) / 0.3);
+  margin: 4px 0;
+`;
+
+const FormsSubmenu = styled.div<{ $theme: Theme }>`
+  margin-left: 16px;
+  margin-right: 8px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  padding-left: 16px;
+  border-left: 2px solid ${(props) => props.$theme.colors.border};
+`;
+
+const SubmenuHeader = styled.div`
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--color-text-tertiary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const SubmenuItem = styled.button<{ $theme: Theme }>`
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: ${(props) => props.$theme.colors.textSecondary};
+  font-size: 13px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  text-align: left;
+
+  &:hover {
+    background: ${(props) => props.$theme.colors.surfaceHover};
+    color: ${(props) => props.$theme.colors.textPrimary};
+  }
+
+  span:first-child {
+    font-size: 14px;
+  }
+`;
+
+const SubmenuDivider = styled.div`
+  height: 1px;
+  background: rgba(var(--color-border) / 0.2);
+  margin: 4px 8px;
 `;
 
 export default Header;

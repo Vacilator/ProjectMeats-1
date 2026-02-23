@@ -131,7 +131,7 @@ const getDocumentTypeInfo = (documentType: DocumentType) => {
 // Component
 // ============================================================================
 
-export const DocumentNode: React.FC<NodeProps<DocumentNodeData>> = ({ data }) => {
+export const DocumentNode = React.memo<NodeProps<DocumentNodeData>>(({ data, id, selected }) => {
   const {
     documentType,
     template,
@@ -208,6 +208,7 @@ export const DocumentNode: React.FC<NodeProps<DocumentNodeData>> = ({ data }) =>
 
   return (
     <BaseNode
+      id={id}
       data={{
         ...data,
         label: typeInfo.label,
@@ -217,8 +218,19 @@ export const DocumentNode: React.FC<NodeProps<DocumentNodeData>> = ({ data }) =>
           <DocumentInfo>{configPreview}</DocumentInfo>
         ) : undefined,
       }}
+      selected={selected}
+      nodeType={{
+        id: 'document',
+        name: typeInfo.label,
+        category: 'action',
+        color: typeInfo.color,
+        icon: 'FileText',
+        maxInputs: 1,
+        maxOutputs: 1,
+        config: {},
+      }}
     />
   );
-};
+});
 
 export default DocumentNode;

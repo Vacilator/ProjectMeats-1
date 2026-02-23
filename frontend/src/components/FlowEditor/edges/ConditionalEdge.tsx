@@ -81,7 +81,7 @@ const TrueFalseIndicator = styled.div<{ isTrue?: boolean }>`
 // Component
 // ============================================================================
 
-export const ConditionalEdge: React.FC<EdgeProps<ConditionalEdgeData>> = ({
+export const ConditionalEdge = React.memo<EdgeProps<ConditionalEdgeData>>(({
   id,
   sourceX,
   sourceY,
@@ -185,6 +185,6 @@ export const ConditionalEdge: React.FC<EdgeProps<ConditionalEdgeData>> = ({
       </EdgeLabelRenderer>
     </>
   );
-};
+});
 
 export default ConditionalEdge;

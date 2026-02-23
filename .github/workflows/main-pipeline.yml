@@ -48,7 +48,7 @@ jobs:
       trigger_sha: ${{ github.sha }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 10  # Get recent commits to check for newer ones
       
