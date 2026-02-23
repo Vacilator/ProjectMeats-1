@@ -85,11 +85,15 @@ const Suppliers: React.FC = () => {
       console.log('[Suppliers] Fetching all products...');
       const response = await apiClient.get('/products/');
       console.log('[Suppliers] Products fetched:', {
-        count: response.data?.length || 0,
-        sample: response.data?.[0],
-        allData: response.data
+        count: response.data?.length || response.data?.count || 0,
+        isPaginated: !!response.data?.results,
+        sample: response.data?.results?.[0] || response.data?.[0],
+        fullResponse: response.data
       });
-      setProducts(response.data);
+      
+      // Handle both paginated and non-paginated responses
+      const productsData = response.data?.results || response.data || [];
+      setProducts(productsData);
     } catch (error) {
       console.error('[Suppliers] Error fetching products:', error);
     }
@@ -104,13 +108,16 @@ const Suppliers: React.FC = () => {
       console.log('[Suppliers] Request URL:', fullUrl);
       
       const response = await apiClient.get(fullUrl);
-      const data = response.data;
+      
+      // Handle both paginated and non-paginated responses
+      const data = response.data?.results || response.data || [];
       
       console.log('[Suppliers] Filtered products fetched:', {
-        count: data?.length || 0,
+        count: data?.length || response.data?.count || 0,
+        isPaginated: !!response.data?.results,
         proteinTypes,
         sample: data?.[0],
-        allData: data
+        fullResponse: response.data
       });
       
       setProducts(data);
