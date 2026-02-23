@@ -32,11 +32,11 @@ updates:
     # Group related dependencies into single PRs
     groups:
       # Unified backend group to reduce PR noise
+      # CRITICAL: Only auto-merge minor/patch, NOT major versions
       backend-unified:
         patterns:
           - "*"
         update-types:
-          - "major"
           - "minor"
           - "patch"
     # Ignore patch updates for these non-critical dependencies
@@ -71,12 +71,12 @@ updates:
       prefix: "chore(deps)"
       include: "scope"
     # UNIFIED GROUP: Consolidates ALL frontend dependencies into ONE PR
+    # CRITICAL: Only auto-merge minor/patch, NOT major versions
     groups:
       frontend-unified:
         patterns:
           - "*"  # Catch everything
         update-types:
-          - "major"
           - "minor"
           - "patch"
     # Ignore patch updates for non-critical dev dependencies
@@ -88,6 +88,16 @@ updates:
       # Storybook major updates (handle manually due to breaking changes)
       - dependency-name: "@storybook/*"
         update-types: ["version-update:semver-major"]
+      # CRITICAL: Known major version breaking changes (block auto-merge)
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+        reason: "Tailwind v4 requires @tailwindcss/postcss + config changes"
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+        reason: "React major versions require manual migration"
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+        reason: "Vite major versions often have plugin breaking changes"
       # OWASP: Document ignored vulnerabilities
       # Example:
       # - dependency-name: "axios"

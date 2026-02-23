@@ -23,6 +23,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 import Modal from '../Modal/Modal';
 import { apiClient } from '../../services/apiService';
 import { 
@@ -53,6 +54,17 @@ interface EntityData {
 // ============================================================================
 // Entity Configuration
 // ============================================================================
+
+// Map entity types to list page routes
+const ENTITY_ROUTES: Record<string, string> = {
+  supplier: '/suppliers',
+  customer: '/customers',
+  contact: '/contacts',
+  purchase_order: '/purchase-orders',
+  sales_order: '/sales-orders',
+  carrier: '/carriers',
+  plant: '/suppliers/plants',
+};
 
 const ENTITY_CONFIG: Record<string, {
   icon: typeof Building2;
@@ -174,6 +186,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   const [entity, setEntity] = useState<EntityData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const config = ENTITY_CONFIG[entityType];
 
@@ -204,18 +217,24 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
 
   const Icon = config.icon;
   const entityName = entity?.name || entity?.title || entity?.order_number || 'Unknown';
+  const listRoute = ENTITY_ROUTES[entityType];
+
+  const handleViewFullDetails = () => {
+    onClose();
+    if (listRoute) {
+      navigate(listRoute);
+    } else {
+      console.warn(`No route defined for entity type: ${entityType}`);
+    }
+  };
 
   const modalFooter = (
     <FooterContainer>
       <CloseButton onClick={onClose}>Close</CloseButton>
       <ViewFullButton
-        onClick={() => {
-          onClose();
-          // TODO: Navigate to full detail page when implemented
-          console.log(`Navigate to ${entityType} detail:`, entityId);
-        }}
-        title="Full detail page (coming soon)"
-        disabled
+        onClick={handleViewFullDetails}
+        title={listRoute ? `Navigate to ${config.displayName} list page` : 'Route not configured'}
+        disabled={!listRoute}
       >
         <ExternalLink size={16} />
         View Full Details
