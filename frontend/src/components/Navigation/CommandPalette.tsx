@@ -14,10 +14,11 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
-import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2, Package, Truck } from 'lucide-react';
+import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2, Package, Truck, Star } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
 import { EntityDetailModal } from '../Shared/EntityDetailModal';
+import { useFavorites } from '../../hooks/useFavorites';
 
 // ============================================================================
 // TypeScript Interfaces
