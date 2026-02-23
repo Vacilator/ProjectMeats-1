@@ -5,7 +5,7 @@ import { MultiSelect } from '../components/Shared';
 import { US_STATES } from '../utils/constants/states';
 import { DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
-import { apiService, Supplier } from '../services/apiService';
+import { apiService, apiClient, Supplier } from '../services/apiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 
@@ -71,15 +71,8 @@ const Suppliers: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/v1/products/', {
-        headers: {
-          'Authorization': `Token ${localStorage.getItem('authToken')}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
-      }
+      const response = await apiClient.get('/products/');
+      setProducts(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);
     }
@@ -89,24 +82,19 @@ const Suppliers: React.FC = () => {
     try {
       // Build query string with multiple protein parameters
       const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
-      const response = await fetch(`/api/v1/products/?${proteinParams}`, {
-        headers: {
-          'Authorization': `Token ${localStorage.getItem('authToken')}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
-        
-        // Auto-select filtered products
-        const filteredProductIds = data.map((p: any) => p.id);
-        setFormData(prev => ({
-          ...prev,
-          products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
-        }));
-        
-        console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
-      }
+      const response = await apiClient.get(`/products/?${proteinParams}`);
+      const data = response.data;
+      
+      setProducts(data);
+      
+      // Auto-select filtered products
+      const filteredProductIds = data.map((p: any) => p.id);
+      setFormData(prev => ({
+        ...prev,
+        products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
+      }));
+      
+      console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
     } catch (error) {
       console.error('Error fetching filtered products:', error);
     }
