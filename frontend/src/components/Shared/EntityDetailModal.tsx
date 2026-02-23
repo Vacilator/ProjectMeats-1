@@ -220,11 +220,20 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   const listRoute = ENTITY_ROUTES[entityType];
 
   const handleViewFullDetails = () => {
+    console.log('[EntityDetailModal] View Full Details clicked', {
+      entityType,
+      listRoute,
+      entity,
+      timestamp: new Date().toISOString()
+    });
+    
     onClose();
+    
     if (listRoute) {
+      console.log(`[EntityDetailModal] Navigating to: ${listRoute}`);
       navigate(listRoute);
     } else {
-      console.warn(`No route defined for entity type: ${entityType}`);
+      console.warn(`[EntityDetailModal] No route defined for entity type: ${entityType}`);
     }
   };
 
