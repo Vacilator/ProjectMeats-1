@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Entity type configuration for universal search
 SEARCHABLE_ENTITIES = {
     'supplier': {
-        'app': 'tenant_apps.suppliers',
+        'app': 'suppliers',
         'model': 'Supplier',
         'search_fields': ['name', 'contact_person', 'email', 'phone'],
         'display_field': 'name',
@@ -36,7 +36,7 @@ SEARCHABLE_ENTITIES = {
         'operators': ['supplier:', 's:'],
     },
     'customer': {
-        'app': 'tenant_apps.customers',
+        'app': 'customers',
         'model': 'Customer',
         'search_fields': ['name', 'contact_person', 'email', 'phone'],
         'display_field': 'name',
@@ -46,7 +46,7 @@ SEARCHABLE_ENTITIES = {
         'operators': ['customer:', 'c:'],
     },
     'purchase_order': {
-        'app': 'tenant_apps.purchase_orders',
+        'app': 'purchase_orders',
         'model': 'PurchaseOrder',
         'search_fields': ['order_number', 'our_purchase_order_num', 'notes'],
         'display_field': 'order_number',
@@ -57,10 +57,10 @@ SEARCHABLE_ENTITIES = {
         'related_display': 'supplier__name',
     },
     'sales_order': {
-        'app': 'tenant_apps.sales_orders',
+        'app': 'sales_orders',
         'model': 'SalesOrder',
-        'search_fields': ['order_number', 'our_sales_order_num', 'notes'],
-        'display_field': 'order_number',
+        'search_fields': ['our_sales_order_num', 'delivery_po_num', 'notes'],
+        'display_field': 'our_sales_order_num',
         'icon': 'Receipt',
         'color': '#8b5cf6',  # violet
         'route': '/sales-orders/{id}',
@@ -68,17 +68,17 @@ SEARCHABLE_ENTITIES = {
         'related_display': 'customer__name',
     },
     'product': {
-        'app': 'tenant_apps.products',
+        'app': 'products',
         'model': 'Product',
-        'search_fields': ['name', 'sku', 'description'],
-        'display_field': 'name',
+        'search_fields': ['product_code', 'description_of_product_item', 'type_of_protein'],
+        'display_field': 'product_code',
         'icon': 'Package',
         'color': '#ec4899',  # pink
         'route': '/products/{id}',
         'operators': ['product:', 'p:'],
     },
     'contact': {
-        'app': 'tenant_apps.contacts',
+        'app': 'contacts',
         'model': 'Contact',
         'search_fields': ['first_name', 'last_name', 'email', 'phone'],
         'display_field': 'full_name',  # Computed
@@ -88,7 +88,7 @@ SEARCHABLE_ENTITIES = {
         'operators': ['contact:', '@'],
     },
     'invoice': {
-        'app': 'tenant_apps.invoices',
+        'app': 'invoices',
         'model': 'Invoice',
         'search_fields': ['invoice_number', 'notes'],
         'display_field': 'invoice_number',
@@ -99,9 +99,9 @@ SEARCHABLE_ENTITIES = {
         'related_display': 'customer__name',
     },
     'plant': {
-        'app': 'tenant_apps.plants',
+        'app': 'plants',
         'model': 'Plant',
-        'search_fields': ['name', 'establishment_number', 'city'],
+        'search_fields': ['name', 'plant_est_num', 'city'],
         'display_field': 'name',
         'icon': 'Factory',
         'color': '#f97316',  # orange
@@ -109,7 +109,7 @@ SEARCHABLE_ENTITIES = {
         'operators': ['plant:'],
     },
     'carrier': {
-        'app': 'tenant_apps.carriers',
+        'app': 'carriers',
         'model': 'Carrier',
         'search_fields': ['name', 'mc_number', 'dot_number'],
         'display_field': 'name',
