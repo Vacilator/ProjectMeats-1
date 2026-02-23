@@ -62,8 +62,10 @@ const ENTITY_ROUTES: Record<string, string> = {
   contact: '/contacts',
   purchase_order: '/purchase-orders',
   sales_order: '/sales-orders',
+  product: '/products',
   carrier: '/carriers',
   plant: '/suppliers/plants',
+  invoice: '/accounting/receivables',
 };
 
 const ENTITY_CONFIG: Record<string, {
@@ -168,6 +170,31 @@ const ENTITY_CONFIG: Record<string, {
       { key: 'phone', label: 'Phone', icon: Phone },
       { key: 'title', label: 'Title' },
       { key: 'company', label: 'Company', icon: Building2 },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
+    ],
+  },
+  plant: {
+    icon: Building2,
+    color: '#f97316',
+    apiPath: 'plants',
+    displayName: 'Plant',
+    fields: [
+      { key: 'plant_est_num', label: 'Est. Number', icon: FileText },
+      { key: 'city', label: 'City', icon: MapPin },
+      { key: 'state', label: 'State' },
+      { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
+    ],
+  },
+  invoice: {
+    icon: FileText,
+    color: '#14b8a6',
+    apiPath: 'accounting/receivables/invoices',
+    displayName: 'Invoice',
+    fields: [
+      { key: 'invoice_number', label: 'Invoice Number', icon: FileText },
+      { key: 'customer_name', label: 'Customer', icon: Users },
+      { key: 'amount', label: 'Amount', format: (val) => val ? `$${parseFloat(val).toFixed(2)}` : 'N/A' },
+      { key: 'status', label: 'Status' },
       { key: 'created_at', label: 'Created', icon: Calendar, format: (val) => new Date(val).toLocaleDateString() },
     ],
   },
