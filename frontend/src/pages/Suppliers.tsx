@@ -47,12 +47,23 @@ const Suppliers: React.FC = () => {
     fetchProducts();
   }, []);
 
+  // Debug: Log products state changes
+  useEffect(() => {
+    console.log('[Suppliers] Products state updated:', {
+      count: products.length,
+      products: products,
+      multiSelectOptions: products.map(p => ({ value: String(p.id), label: `${p.product_code} - ${p.description_of_product_item}` }))
+    });
+  }, [products]);
+
   // Auto-fetch products when preferred_protein_types changes
   useEffect(() => {
+    console.log('[Suppliers] Protein types changed:', formData.preferred_protein_types);
     if (formData.preferred_protein_types && formData.preferred_protein_types.length > 0) {
       fetchFilteredProducts(formData.preferred_protein_types);
     } else {
       // Reset to all products if no protein types selected
+      console.log('[Suppliers] No protein types selected, fetching all products');
       fetchProducts();
     }
   }, [formData.preferred_protein_types]);
@@ -71,19 +82,36 @@ const Suppliers: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
+      console.log('[Suppliers] Fetching all products...');
       const response = await apiClient.get('/products/');
+      console.log('[Suppliers] Products fetched:', {
+        count: response.data?.length || 0,
+        sample: response.data?.[0],
+        allData: response.data
+      });
       setProducts(response.data);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('[Suppliers] Error fetching products:', error);
     }
   };
 
   const fetchFilteredProducts = async (proteinTypes: string[]) => {
     try {
+      console.log('[Suppliers] Fetching filtered products for protein types:', proteinTypes);
       // Build query string with multiple protein parameters
       const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
-      const response = await apiClient.get(`/products/?${proteinParams}`);
+      const fullUrl = `/products/?${proteinParams}`;
+      console.log('[Suppliers] Request URL:', fullUrl);
+      
+      const response = await apiClient.get(fullUrl);
       const data = response.data;
+      
+      console.log('[Suppliers] Filtered products fetched:', {
+        count: data?.length || 0,
+        proteinTypes,
+        sample: data?.[0],
+        allData: data
+      });
       
       setProducts(data);
       
@@ -94,9 +122,9 @@ const Suppliers: React.FC = () => {
         products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
       }));
       
-      console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
+      console.log(`[Suppliers] ✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
     } catch (error) {
-      console.error('Error fetching filtered products:', error);
+      console.error('[Suppliers] Error fetching filtered products:', error);
     }
   };
 
