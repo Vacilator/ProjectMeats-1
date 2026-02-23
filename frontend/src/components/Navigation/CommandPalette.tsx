@@ -32,6 +32,8 @@ interface SearchResult {
   color: string;
   route: string;
   score: number;
+  labels?: string[];  // NEW: Smart labels
+  metadata?: Record<string, any>;
 }
 
 interface SearchResponse {
@@ -253,6 +255,74 @@ const ResultType = styled.span`
   text-transform: capitalize;
 `;
 
+const ResultLabels = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+`;
+
+const Label = styled.span`
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  background: rgb(var(--color-primary) / 0.1);
+  color: rgb(var(--color-primary));
+  white-space: nowrap;
+`;
+
+const ScoreBadge = styled.span<{ $score: number }>`
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  background: ${props => 
+    props.$score >= 80 ? 'rgb(34, 197, 94 / 0.15)' :
+    props.$score >= 60 ? 'rgb(234, 179, 8 / 0.15)' :
+    'rgb(var(--color-text-tertiary) / 0.1)'
+  };
+  color: ${props =>
+    props.$score >= 80 ? 'rgb(34, 197, 94)' :
+    props.$score >= 60 ? 'rgb(234, 179, 8)' :
+    'rgb(var(--color-text-tertiary))'
+  };
+`;
+
+const SearchOptions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid rgb(var(--color-border));
+`;
+
+const DateRangeSelect = styled.select`
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  background: rgb(var(--color-background-secondary));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+  }
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
+  }
+`;
+
+const ResultsCount = styled.span`
+  font-size: 0.8rem;
+  color: rgb(var(--color-text-secondary));
+  margin-left: auto;
+`;
+
 const Footer = styled.div`
   display: flex;
   align-items: center;
@@ -423,6 +493,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const [recentItems, setRecentItems] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [dateRange, setDateRange] = useState('last_30_days');  // NEW: Date range filter
+  const [totalCount, setTotalCount] = useState(0);  // NEW: Total results count
   
   // Entity detail modal state
   const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: number } | null>(null);
@@ -456,17 +528,20 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     }
   };
 
-  // Debounced search with caching
+  // Debounced search with caching and ranked results
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
+      setTotalCount(0);
       return;
     }
 
     // Check cache first
-    const cached = getCachedResults(query);
+    const cacheKey = `${query}-${dateRange}`;
+    const cached = getCachedResults(cacheKey);
     if (cached) {
       setResults(cached);
+      setTotalCount(cached.length);
       setSelectedIndex(0);
       return;
     }
@@ -474,26 +549,40 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const response = await apiClient.get<SearchResponse>('search/universal/', {
-          params: { q: query, limit: 8 }
+        // Use ranked search API
+        const response = await apiClient.get<SearchResponse>('system/search/ranked/', {
+          params: { 
+            q: query, 
+            date_range: dateRange,
+            limit: 8 
+          }
         });
         const fetchedResults = response.data.results;
         
         // Cache the results
-        setCachedResults(query, fetchedResults);
+        setCachedResults(cacheKey, fetchedResults);
         
         setResults(fetchedResults);
+        setTotalCount(response.data.total || fetchedResults.length);
         setSelectedIndex(0);
+        
+        console.log('[CommandPalette] Ranked search completed:', {
+          query,
+          dateRange,
+          resultsCount: fetchedResults.length,
+          topScore: fetchedResults[0]?.score,
+        });
       } catch (err) {
-        console.error('Search failed:', err);
+        console.error('[CommandPalette] Search failed:', err);
         setResults([]);
+        setTotalCount(0);
       } finally {
         setIsLoading(false);
       }
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, dateRange]);  // Re-search when date range changes
 
   // Keyboard navigation - now supports quick actions
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -578,11 +667,30 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           </CloseButton>
         </SearchInputContainer>
 
+        {/* Date Range Filter - Show only when searching */}
+        {query.length >= 2 && (
+          <SearchOptions>
+            <DateRangeSelect 
+              value={dateRange} 
+              onChange={(e) => setDateRange(e.target.value)}
+              aria-label="Filter by date range"
+            >
+              <option value="last_7_days">Last 7 days</option>
+              <option value="last_30_days">Last 30 days</option>
+              <option value="last_90_days">Last 90 days</option>
+              <option value="all_time">All time</option>
+            </DateRangeSelect>
+            {totalCount > 0 && (
+              <ResultsCount>{totalCount} results</ResultsCount>
+            )}
+          </SearchOptions>
+        )}
+
         <ResultsContainer>
           {isLoading ? (
             <LoadingSpinner>Searching...</LoadingSpinner>
           ) : query.length >= 2 ? (
-            // Search results
+            // Search results with smart labels
             displayItems.length > 0 ? (
               <ResultSection>
                 <SectionTitle>Results ({displayItems.length})</SectionTitle>
@@ -601,7 +709,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                       {item.subtitle && (
                         <ResultSubtitle>{item.subtitle}</ResultSubtitle>
                       )}
+                      {/* Smart Labels */}
+                      {item.labels && item.labels.length > 0 && (
+                        <ResultLabels>
+                          {item.labels.map((label, idx) => (
+                            <Label key={idx}>{label}</Label>
+                          ))}
+                        </ResultLabels>
+                      )}
                     </ResultContent>
+                    {/* Score Badge */}
+                    <ScoreBadge $score={item.score || 0}>
+                      {Math.round(item.score || 0)}
+                    </ScoreBadge>
                     <ResultType>{item.type.replace('_', ' ')}</ResultType>
                   </ResultItem>
                 ))}

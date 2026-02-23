@@ -24,6 +24,7 @@ from apps.system.views import (
     SystemProductViewSet,
     TenantProductPreferenceViewSet,
 )
+from apps.system.views.search_viewset import RankedSearchViewSet
 
 app_name = 'system'
 
@@ -37,6 +38,7 @@ router.register(r'audit-logs', ConfigAuditLogViewSet, basename='audit-log')
 router.register(r'entities', EntityIntrospectionViewSet, basename='entity')
 router.register(r'products', SystemProductViewSet, basename='product')
 router.register(r'product-preferences', TenantProductPreferenceViewSet, basename='product-preference')
+router.register(r'search/ranked', RankedSearchViewSet, basename='ranked-search')
 
 urlpatterns = [
     path('', include(router.urls)),
