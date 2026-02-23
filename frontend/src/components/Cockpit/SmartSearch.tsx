@@ -410,30 +410,44 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setIsLoading(true);
 
     try {
-      // Call universal search API
-      const response = await apiClient.get('/search/', {
+      console.log('[SmartSearch] Searching for:', searchQuery);
+      
+      // Call universal search API (correct endpoint)
+      const response = await apiClient.get('/search/universal/', {
         params: { q: searchQuery, limit: 5 },
       });
 
-      // Group results by type
-      const grouped: Record<string, SearchEntity[]> = {};
-      response.data.results?.forEach((item: any) => {
-        const type = item.type;
-        if (!grouped[type]) {
-          grouped[type] = [];
-        }
-        grouped[type].push({
-          id: item.id,
-          type,
-          name: item.title,
-          subtitle: item.subtitle,
-          metadata: item.metadata,
-        });
-      });
+      console.log('[SmartSearch] Search response:', response.data);
 
+      // The API returns results already grouped by type
+      // Format: { results: [{type, id, title, subtitle, metadata}], counts: {}, total: N }
+      const grouped: Record<string, SearchEntity[]> = {};
+      
+      if (response.data.results && Array.isArray(response.data.results)) {
+        response.data.results.forEach((item: any) => {
+          const type = item.type;
+          if (!grouped[type]) {
+            grouped[type] = [];
+          }
+          grouped[type].push({
+            id: item.id,
+            type,
+            name: item.title || item.name || 'Unnamed',
+            subtitle: item.subtitle || '',
+            metadata: item.metadata || {},
+          });
+        });
+      }
+
+      console.log('[SmartSearch] Grouped results:', grouped);
       setResults(grouped);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[SmartSearch] Search failed:', error);
+      console.error('[SmartSearch] Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       setResults({});
     } finally {
       setIsLoading(false);
