@@ -699,9 +699,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
             console.log('[CommandPalette] Expanding entity:', entity);
             setSelectedEntity(null); // Close detail modal
             // Trigger search with entity context for mind-map view
-            handleSelectResult({
-              ...entity,
+            handleSelect({
+              id: entity.id,
               type: entity.type,
+              title: entity.name || entity.title || '',
+              subtitle: entity.subtitle || '',
+              icon: entity.metadata?.icon || '',
+              color: entity.metadata?.color || 'rgb(var(--color-primary))',
+              route: entity.metadata?.listRoute || `/${entity.type}s`,
+              score: 1,
             });
           }}
         />
