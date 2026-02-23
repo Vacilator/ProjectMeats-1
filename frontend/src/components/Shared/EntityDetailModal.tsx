@@ -41,6 +41,8 @@ interface EntityDetailModalProps {
   onClose: () => void;
   entityType: string;
   entityId: number | string;
+  /** Optional callback to expand entity and show related records */
+  onExpandEntity?: (entity: any) => void;
 }
 
 interface EntityData {
@@ -209,6 +211,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   onClose,
   entityType,
   entityId,
+  onExpandEntity,
 }) => {
   const [entity, setEntity] = useState<EntityData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -254,10 +257,20 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
       timestamp: new Date().toISOString()
     });
     
-    onClose();
-    
-    if (listRoute) {
+    // Instead of navigating away, trigger expansion to show related records
+    if (onExpandEntity && entity) {
+      onExpandEntity({
+        id: entity.id,
+        type: entityType as any,
+        name: entityName,
+        subtitle: '',
+        metadata: entity,
+      });
+      onClose();
+    } else if (listRoute) {
+      // Fallback to navigation if onExpandEntity not provided
       console.log(`[EntityDetailModal] Navigating to: ${listRoute}`);
+      onClose();
       navigate(listRoute);
     } else {
       console.warn(`[EntityDetailModal] No route defined for entity type: ${entityType}`);
@@ -269,11 +282,11 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
       <CloseButton onClick={onClose}>Close</CloseButton>
       <ViewFullButton
         onClick={handleViewFullDetails}
-        title={listRoute ? `Navigate to ${config.displayName} list page` : 'Route not configured'}
-        disabled={!listRoute}
+        title={onExpandEntity ? 'Explore related records' : (listRoute ? `Navigate to ${config.displayName} list page` : 'Route not configured')}
+        disabled={!onExpandEntity && !listRoute}
       >
         <ExternalLink size={16} />
-        View Full Details
+        {onExpandEntity ? 'Explore Relations' : 'View Full Details'}
       </ViewFullButton>
     </FooterContainer>
   );

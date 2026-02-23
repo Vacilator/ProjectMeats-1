@@ -10,3 +10,8 @@ export { EmptyState } from './EmptyState';
 export { LoadingSkeleton } from './LoadingSkeleton';
 export { RoleBadge } from './RoleBadge';
 export { StatusBadge } from './StatusBadge';
+
+// Phase 3: Tiered Choice Engine & Virtual Schema UI
+export { default as SystemChoiceManager } from './SystemChoiceManager';
+export { default as TenantChoiceOverride } from './TenantChoiceOverride';
+export { default as VirtualFieldManager } from './VirtualFieldManager';

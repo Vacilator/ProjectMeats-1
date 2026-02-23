@@ -694,6 +694,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           onClose={() => setSelectedEntity(null)}
           entityType={selectedEntity.type}
           entityId={selectedEntity.id}
+          onExpandEntity={(entity) => {
+            // Keep modal open but load relational data for expanded view
+            console.log('[CommandPalette] Expanding entity:', entity);
+            setSelectedEntity(null); // Close detail modal
+            // Trigger search with entity context for mind-map view
+            handleSelectResult({
+              ...entity,
+              type: entity.type,
+            });
+          }}
         />
       )}
     </Overlay>
