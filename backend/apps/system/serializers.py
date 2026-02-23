@@ -229,7 +229,15 @@ class ConfigAuditLogSummarySerializer(serializers.ModelSerializer):
             'user_display',
             'created_at',
         ]
-        read_only_fields = fields
+        read_only_fields = [
+            'id',
+            'entity_type',
+            'entity_name',
+            'change_type',
+            'field_name',
+            'user_display',
+            'created_at',
+        ]
     
     def get_user_display(self, obj):
         """Return user display name or email."""
@@ -279,7 +287,32 @@ class SystemProductSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = fields  # All fields read-only
+        read_only_fields = [
+            'id',
+            'product_code',
+            'name',
+            'description',
+            'category',
+            'category_display',
+            'protein_type',
+            'fresh_or_frozen',
+            'is_frozen',
+            'is_fresh',
+            'package_type',
+            'carton_type',
+            'unit_weight',
+            'uom',
+            'pcs_per_carton',
+            'namp_code',
+            'usda_code',
+            'ub_code',
+            'edible_or_inedible',
+            'net_or_catch',
+            'tested_product',
+            'is_active',
+            'created_at',
+            'updated_at',
+        ]  # All fields read-only
 
 
 class TenantProductPreferenceSerializer(serializers.ModelSerializer):
@@ -370,4 +403,26 @@ class TenantProductSerializer(serializers.ModelSerializer):
             'is_favorite',
             'sort_order',
         ]
-        read_only_fields = fields  # All read-only (used for display)
+        read_only_fields = [
+            'id',
+            'product',
+            'product_code',
+            'product_name',
+            'description',
+            'category',
+            'protein_type',
+            'fresh_or_frozen',
+            'package_type',
+            'unit_weight',
+            'uom',
+            'namp_code',
+            'display_name',
+            'effective_name',
+            'effective_code',
+            'default_price',
+            'default_cost',
+            'preferred_supplier',
+            'is_active',
+            'is_favorite',
+            'sort_order',
+        ]  # All read-only (used for display)
