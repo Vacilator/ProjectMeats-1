@@ -7,6 +7,8 @@ Provides DRF serializers for:
 - SystemFieldSchema
 - TenantConfig
 - ConfigAuditLog
+- Product (system-wide)
+- TenantProductPreference (tenant customizations)
 """
 from rest_framework import serializers
 
@@ -16,6 +18,8 @@ from apps.system.models import (
     SystemFieldSchema,
     TenantConfig,
     ConfigAuditLog,
+    Product,
+    TenantProductPreference,
 )
 
 
@@ -232,3 +236,138 @@ class ConfigAuditLogSummarySerializer(serializers.ModelSerializer):
         if obj.user:
             return obj.user.get_full_name() or obj.user.email
         return obj.user_email or 'System'
+
+
+# === PRODUCT SERIALIZERS ===
+
+class SystemProductSerializer(serializers.ModelSerializer):
+    """
+    Serializer for system-wide products (read-only).
+    
+    System products are the master catalog shared by all tenants.
+    Created via: python manage.py seed_system_products
+    """
+    category_display = serializers.CharField(source='get_category_display', read_only=True)
+    is_frozen = serializers.BooleanField(read_only=True)
+    is_fresh = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = Product
+        fields = [
+            'id',
+            'product_code',
+            'name',
+            'description',
+            'category',
+            'category_display',
+            'protein_type',
+            'fresh_or_frozen',
+            'is_frozen',
+            'is_fresh',
+            'package_type',
+            'carton_type',
+            'unit_weight',
+            'uom',
+            'pcs_per_carton',
+            'namp_code',
+            'usda_code',
+            'ub_code',
+            'edible_or_inedible',
+            'net_or_catch',
+            'tested_product',
+            'is_active',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = fields  # All fields read-only
+
+
+class TenantProductPreferenceSerializer(serializers.ModelSerializer):
+    """
+    Serializer for tenant product preferences.
+    
+    Allows tenants to customize system products:
+    - Custom display names
+    - Pricing
+    - Preferred suppliers
+    - Favorites
+    """
+    product_code = serializers.CharField(source='product.product_code', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    effective_name = serializers.CharField(read_only=True)
+    effective_code = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = TenantProductPreference
+        fields = [
+            'id',
+            'product',
+            'product_code',
+            'product_name',
+            'display_name',
+            'effective_name',
+            'internal_code',
+            'effective_code',
+            'notes',
+            'default_price',
+            'default_cost',
+            'preferred_supplier',
+            'supplier_item_number',
+            'is_active',
+            'is_favorite',
+            'sort_order',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'product_code', 'product_name', 'effective_name', 'effective_code']
+
+
+class TenantProductSerializer(serializers.ModelSerializer):
+    """
+    Serializer for combined product + tenant preference.
+    
+    Used in /api/v1/products/my-products/ endpoint.
+    Returns system product data WITH tenant customizations.
+    """
+    # System product fields
+    product_code = serializers.CharField(source='product.product_code', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    description = serializers.CharField(source='product.description', read_only=True)
+    category = serializers.CharField(source='product.category', read_only=True)
+    protein_type = serializers.CharField(source='product.protein_type', read_only=True)
+    fresh_or_frozen = serializers.CharField(source='product.fresh_or_frozen', read_only=True)
+    package_type = serializers.CharField(source='product.package_type', read_only=True)
+    unit_weight = serializers.DecimalField(source='product.unit_weight', max_digits=10, decimal_places=2, read_only=True)
+    uom = serializers.CharField(source='product.uom', read_only=True)
+    namp_code = serializers.CharField(source='product.namp_code', read_only=True)
+    
+    # Tenant preference fields
+    effective_name = serializers.CharField(read_only=True)
+    effective_code = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = TenantProductPreference
+        fields = [
+            'id',
+            'product',
+            'product_code',
+            'product_name',
+            'description',
+            'category',
+            'protein_type',
+            'fresh_or_frozen',
+            'package_type',
+            'unit_weight',
+            'uom',
+            'namp_code',
+            'display_name',
+            'effective_name',
+            'effective_code',
+            'default_price',
+            'default_cost',
+            'preferred_supplier',
+            'is_active',
+            'is_favorite',
+            'sort_order',
+        ]
+        read_only_fields = fields  # All read-only (used for display)
