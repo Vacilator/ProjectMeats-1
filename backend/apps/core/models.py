@@ -479,9 +479,59 @@ class UserPreferences(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        verbose_name = "User Preference"
+        verbose_name = "User Preferences"
         verbose_name_plural = "User Preferences"
-        ordering = ['-updated_at']
     
     def __str__(self):
         return f"Preferences for {self.user.username}"
+
+
+class UserFavorite(models.Model):
+    """
+    User-specific favorites for quick access to entities.
+    
+    Allows users to bookmark entities (customers, suppliers, products, etc.)
+    for quick access in the Cockpit interface. User-scoped (not tenant-scoped).
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='favorites',
+        help_text="User who favorited this entity"
+    )
+    entity_type = models.CharField(
+        max_length=50,
+        db_index=True,
+        help_text="Type of entity (customer, supplier, product, etc.)"
+    )
+    entity_id = models.IntegerField(
+        help_text="ID of the favorited entity"
+    )
+    entity_title = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Cached title for display"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="When this was favorited"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'entity_type', 'entity_id'],
+                name='unique_user_favorite'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['user', '-created_at'], name='core_userfa_user_created_idx'),
+            models.Index(fields=['user', 'entity_type'], name='core_userfa_user_entity_idx'),
+        ]
+        verbose_name = 'User Favorite'
+        verbose_name_plural = 'User Favorites'
+
+    def __str__(self):
+        return f"{self.user.username}'s favorite: {self.entity_type} #{self.entity_id}"

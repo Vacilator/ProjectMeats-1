@@ -1,13 +1,15 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny
+from rest_framework import status, viewsets
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, action
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework.serializers import ValidationError
 from apps.tenants.models import Tenant, TenantUser
 from apps.core.throttling import AuthRateThrottle
+from apps.core.models import UserFavorite
+from apps.core.serializers import UserFavoriteSerializer
 
 
 @api_view(["POST"])
@@ -825,3 +827,57 @@ class FeatureFlagsView(APIView):
             'user_id': request.user.id,
             'tenant_id': str(request.tenant.id) if hasattr(request, 'tenant') and request.tenant else None
         })
+
+
+
+# ============================================================================
+# Favorites ViewSet
+# ============================================================================
+
+class FavoritesViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing user favorites."""
+    serializer_class = UserFavoriteSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return UserFavorite.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    @action(detail=False, methods=['post'])
+    def toggle(self, request):
+        entity_type = request.data.get('entity_type')
+        entity_id = request.data.get('entity_id')
+        entity_title = request.data.get('entity_title', '')
+        
+        if not entity_type or not entity_id:
+            return Response({'error': 'entity_type and entity_id required'}, status=400)
+        
+        favorite = UserFavorite.objects.filter(
+            user=request.user, entity_type=entity_type, entity_id=entity_id
+        ).first()
+        
+        if favorite:
+            favorite.delete()
+            return Response({'action': 'removed', 'favorite': None})
+        else:
+            favorite = UserFavorite.objects.create(
+                user=request.user, entity_type=entity_type,
+                entity_id=entity_id, entity_title=entity_title
+            )
+            return Response({'action': 'added', 'favorite': UserFavoriteSerializer(favorite).data}, status=201)
+    
+    @action(detail=False, methods=['get'])
+    def check(self, request):
+        entity_type = request.query_params.get('entity_type')
+        entity_id = request.query_params.get('entity_id')
+        
+        if not entity_type or not entity_id:
+            return Response({'error': 'entity_type and entity_id required'}, status=400)
+        
+        is_favorited = UserFavorite.objects.filter(
+            user=request.user, entity_type=entity_type, entity_id=entity_id
+        ).exists()
+        
+        return Response({'is_favorited': is_favorited})
