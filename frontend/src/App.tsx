@@ -23,6 +23,9 @@ const queryClient = new QueryClient({
       retry: 1,
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000, // 5 minutes
+      // IMPORTANT: Refetch on mount to ensure tenant context is correct
+      // This prevents stale cached data from previous tenant after hard refresh
+      refetchOnMount: 'always',
     },
   },
 });
@@ -104,6 +107,36 @@ const FormSubmissionWrapper: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // Handle hard refresh - clear React Query cache to ensure fresh data with correct tenant
+  useEffect(() => {
+    const storedTenantId = localStorage.getItem('tenantId');
+    
+    // Check if this is a hard refresh (performance.navigation.type === 1)
+    // Or if sessionStorage was cleared (hard refresh clears sessionStorage)
+    const isHardRefresh = !sessionStorage.getItem('appInitialized');
+    
+    if (isHardRefresh) {
+      console.log('[App] Hard refresh detected - clearing React Query cache');
+      queryClient.clear();
+      // Mark app as initialized in session
+      sessionStorage.setItem('appInitialized', 'true');
+      
+      // Store current tenant to detect changes
+      if (storedTenantId) {
+        sessionStorage.setItem('currentTenantId', storedTenantId);
+      }
+    } else {
+      // Not a hard refresh - check if tenant changed
+      const lastTenantId = sessionStorage.getItem('currentTenantId');
+      
+      if (storedTenantId && lastTenantId && storedTenantId !== lastTenantId) {
+        console.log('[App] Tenant changed - clearing React Query cache');
+        queryClient.clear();
+        sessionStorage.setItem('currentTenantId', storedTenantId);
+      }
+    }
+  }, []);
+
   // Dynamic favicon and title based on environment
   useEffect(() => {
     const updateFaviconAndTitle = () => {
