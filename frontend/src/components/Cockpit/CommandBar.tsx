@@ -160,7 +160,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   }, [onOpenPalette]);
 
   return (
-    <Container $compact={compact} className={className}>
+    <Container $compact={compact} className={className} data-tour="search-input">
       <SearchInputWrapper
         ref={inputRef}
         onClick={handleClick}
