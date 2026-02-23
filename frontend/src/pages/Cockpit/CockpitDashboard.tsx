@@ -33,7 +33,7 @@ import {
   ActionItemsWidget,
   CalendarWidget,
 } from '../../components/Widgets';
-import { CommandBar } from '../../components/Cockpit';
+import { CommandBar, WidgetBar } from '../../components/Cockpit';
 import { CommandPalette } from '../../components/Navigation/CommandPalette';
 import { useCommandPalette } from '../../hooks/useCommandPalette';
 import { apiClient } from '../../services/apiService';
@@ -625,6 +625,9 @@ export const CockpitDashboard: React.FC = () => {
       
       {/* Command Palette Modal */}
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
+
+      {/* Widget Bar - Always Visible Sidebar */}
+      <WidgetBar />
 
       <GridWrapper ref={containerRef}>
         {widgets.length === 0 ? (
