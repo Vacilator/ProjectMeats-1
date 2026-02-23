@@ -16,7 +16,7 @@ const Suppliers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
-  const [products, setProducts] = useState<Array<{ id: number; product_code: string; description_of_product_item: string }>>([]);
+  const [products, setProducts] = useState<Array<{ id: string; product_code: string; effective_name?: string; name?: string; product_name?: string }>>([]);
   const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
@@ -52,7 +52,10 @@ const Suppliers: React.FC = () => {
     console.log('[Suppliers] Products state updated:', {
       count: products.length,
       products: products,
-      multiSelectOptions: products.map(p => ({ value: String(p.id), label: `${p.product_code} - ${p.description_of_product_item}` }))
+      multiSelectOptions: products.map(p => ({ 
+        value: String(p.id), 
+        label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}` 
+      }))
     });
   }, [products]);
 
@@ -82,39 +85,37 @@ const Suppliers: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      console.log('[Suppliers] Fetching all products...');
-      const response = await apiClient.get('/products/');
-      console.log('[Suppliers] Products fetched:', {
-        count: response.data?.length || response.data?.count || 0,
-        isPaginated: !!response.data?.results,
-        sample: response.data?.results?.[0] || response.data?.[0],
+      console.log('[Suppliers] Fetching tenant products from system catalog...');
+      const response = await apiClient.get('/system/products/my-products/');
+      console.log('[Suppliers] Tenant products fetched:', {
+        count: response.data?.length || 0,
+        sample: response.data?.[0],
         fullResponse: response.data
       });
       
-      // Handle both paginated and non-paginated responses
-      const productsData = response.data?.results || response.data || [];
+      // System products return flat array (not paginated)
+      const productsData = response.data || [];
       setProducts(productsData);
     } catch (error) {
-      console.error('[Suppliers] Error fetching products:', error);
+      console.error('[Suppliers] Error fetching tenant products:', error);
     }
   };
 
   const fetchFilteredProducts = async (proteinTypes: string[]) => {
     try {
       console.log('[Suppliers] Fetching filtered products for protein types:', proteinTypes);
-      // Build query string with multiple protein parameters
-      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
-      const fullUrl = `/products/?${proteinParams}`;
+      // Build query string with multiple protein parameters for system products
+      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type.toUpperCase())}`).join('&');
+      const fullUrl = `/system/products/?${proteinParams}`;
       console.log('[Suppliers] Request URL:', fullUrl);
       
       const response = await apiClient.get(fullUrl);
       
-      // Handle both paginated and non-paginated responses
-      const data = response.data?.results || response.data || [];
+      // System products return flat array (not paginated)
+      const data = response.data || [];
       
-      console.log('[Suppliers] Filtered products fetched:', {
-        count: data?.length || response.data?.count || 0,
-        isPaginated: !!response.data?.results,
+      console.log('[Suppliers] Filtered system products fetched:', {
+        count: data?.length || 0,
         proteinTypes,
         sample: data?.[0],
         fullResponse: response.data
@@ -375,7 +376,10 @@ const Suppliers: React.FC = () => {
                   <MultiSelect
                     value={formData.products.map(String)}
                     onChange={(values) => setFormData({ ...formData, products: values.map(Number) })}
-                    options={products.map(p => ({ value: String(p.id), label: `${p.product_code} - ${p.description_of_product_item}` }))}
+                    options={products.map(p => ({ 
+                      value: String(p.id), 
+                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}` 
+                    }))}
                     label="Products"
                     placeholder="Select products to associate (hold Ctrl/Cmd for multiple)"
                   />
