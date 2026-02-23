@@ -121,18 +121,20 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   // FormBuilder Context (2026-02-21 Comprehensive Enhancements)
   const { openFormBuilder } = useFormBuilderContext();
 
-  // Get schema for this node type
+  // Get schema for this node type (now always returns a schema via fallback)
   const schema = useMemo(() => {
     if (!node?.type) return null;
     
     const resolvedSchema = schemaRegistry.getSchema(node.type);
     
     // Debug logging for schema resolution
+    const isFallback = resolvedSchema.version?.includes('fallback');
     console.log('[DynamicConfigPanel] Schema resolution:', {
       nodeType: node.type,
       nodeId: node.id,
-      schemaFound: !!resolvedSchema,
-      schemaDisplayName: resolvedSchema?.displayName,
+      schemaDisplayName: resolvedSchema.displayName,
+      isFallback,
+      sectionCount: resolvedSchema.sections.length,
     });
     
     return resolvedSchema;
@@ -146,18 +148,22 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     }
   }, [node?.id, node?.data]);
 
-  // Show error if no schema found
+  // REMOVED: Error panel no longer needed - schemaRegistry always returns a schema
+  // Fallback schemas are automatically generated for nodes without explicit schemas
+
+  // REMOVED: Error panel no longer needed - schemaRegistry always returns a schema
+  // Fallback schemas are automatically generated for nodes without explicit schemas
+
+  // Safety check - if no schema (shouldn't happen), return empty state
   if (!schema) {
     return (
-      <ErrorPanel>
-        <ErrorTitle>Configuration Error</ErrorTitle>
-        <ErrorMessage>
-          No configuration schema found for node type: <code>{node?.type || 'unknown'}</code>
-        </ErrorMessage>
-        <ErrorHint>
-          This node type has not been migrated to the dynamic configuration system yet.
-        </ErrorHint>
-      </ErrorPanel>
+      <EmptyStateContainer>
+        <EmptyStateIcon>⚙️</EmptyStateIcon>
+        <EmptyStateTitle>Unable to Load Configuration</EmptyStateTitle>
+        <EmptyStateMessage>
+          Node type: {node?.type || 'unknown'}
+        </EmptyStateMessage>
+      </EmptyStateContainer>
     );
   }
 
