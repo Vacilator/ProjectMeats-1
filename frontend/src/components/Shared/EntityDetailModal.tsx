@@ -64,7 +64,7 @@ const ENTITY_CONFIG: Record<string, {
   supplier: {
     icon: Building2,
     color: '#3b82f6',
-    apiPath: 'suppliers/suppliers',
+    apiPath: 'suppliers',
     displayName: 'Supplier',
     fields: [
       { key: 'contact_person', label: 'Contact Person', icon: User },
@@ -79,7 +79,7 @@ const ENTITY_CONFIG: Record<string, {
   customer: {
     icon: Users,
     color: '#10b981',
-    apiPath: 'customers/customers',
+    apiPath: 'customers',
     displayName: 'Customer',
     fields: [
       { key: 'contact_person', label: 'Contact Person', icon: User },
@@ -94,7 +94,7 @@ const ENTITY_CONFIG: Record<string, {
   purchase_order: {
     icon: ShoppingCart,
     color: '#f59e0b',
-    apiPath: 'purchase-orders/purchase-orders',
+    apiPath: 'purchase-orders',
     displayName: 'Purchase Order',
     fields: [
       { key: 'order_number', label: 'Order Number', icon: FileText },
@@ -108,7 +108,7 @@ const ENTITY_CONFIG: Record<string, {
   sales_order: {
     icon: Receipt,
     color: '#8b5cf6',
-    apiPath: 'sales-orders/sales-orders',
+    apiPath: 'sales-orders',
     displayName: 'Sales Order',
     fields: [
       { key: 'order_number', label: 'Order Number', icon: FileText },
@@ -122,7 +122,7 @@ const ENTITY_CONFIG: Record<string, {
   product: {
     icon: Package,
     color: '#ec4899',
-    apiPath: 'products/products',
+    apiPath: 'products',
     displayName: 'Product',
     fields: [
       { key: 'sku', label: 'SKU', icon: FileText },
@@ -136,7 +136,7 @@ const ENTITY_CONFIG: Record<string, {
   carrier: {
     icon: Truck,
     color: '#06b6d4',
-    apiPath: 'carriers/carriers',
+    apiPath: 'carriers',
     displayName: 'Carrier',
     fields: [
       { key: 'contact_person', label: 'Contact Person', icon: User },
@@ -149,7 +149,7 @@ const ENTITY_CONFIG: Record<string, {
   contact: {
     icon: User,
     color: '#6366f1',
-    apiPath: 'contacts/contacts',
+    apiPath: 'contacts',
     displayName: 'Contact',
     fields: [
       { key: 'email', label: 'Email', icon: Mail },
