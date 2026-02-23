@@ -2024,12 +2024,26 @@ export const timerDelaySchema: NodeConfigSchema = {
 const formStepSchema: NodeConfigSchema = {
   nodeType: 'formStep',
   displayName: 'Form Step (Deprecated)',
-  description: '[DEPRECATED] Use "Form" node instead',
+  description: '[DEPRECATED] Use "Form" node instead. This schema is provided for backward compatibility only.',
   icon: FileText,
   version: '1.0.0',
   tags: ['form', 'deprecated'],
   contextAware: true,
   sections: [
+    {
+      id: 'deprecation',
+      title: 'Migration Notice',
+      icon: AlertCircle,
+      defaultExpanded: true,
+      description: 'This node type is deprecated. Please migrate to the new "Form" node type.',
+      fields: [
+        {
+          id: '_migrationWarning',
+          type: 'info',
+          content: '⚠️ **This node type is deprecated.** Please use the "Form" node instead for new workflows. Existing "formStep" nodes will continue to work but will not receive new features.',
+        }
+      ]
+    },
     {
       id: 'basic',
       title: 'Basic Properties',
@@ -2042,12 +2056,17 @@ const formStepSchema: NodeConfigSchema = {
           label: 'Step Name',
           placeholder: 'e.g., Customer Information',
           required: true,
+          validation: [
+            { type: 'required', message: 'Step name is required' },
+            { type: 'minLength', value: 3, message: 'Name must be at least 3 characters' }
+          ]
         },
         {
           id: 'description',
           type: 'textarea',
           label: 'Description',
           placeholder: 'Describe this form step...',
+          helpText: 'Optional description for documentation'
         },
       ]
     }
@@ -2057,10 +2076,10 @@ const formStepSchema: NodeConfigSchema = {
 const formFieldSchema: NodeConfigSchema = {
   nodeType: 'formField',
   displayName: 'Form Field',
-  description: 'Individual form field element',
+  description: 'Individual form field element with advanced validation and conditional logic',
   icon: FileText,
-  version: '1.0.0',
-  tags: ['form', 'field'],
+  version: '2.0.0',
+  tags: ['form', 'field', 'input'],
   contextAware: false,
   sections: [
     {
@@ -2075,29 +2094,220 @@ const formFieldSchema: NodeConfigSchema = {
           label: 'Field Label',
           placeholder: 'e.g., Email Address',
           required: true,
+          validation: [
+            { type: 'required', message: 'Field label is required' },
+            { type: 'minLength', value: 2, message: 'Label must be at least 2 characters' }
+          ]
+        },
+        {
+          id: 'fieldName',
+          type: 'text',
+          label: 'Field Name (Key)',
+          placeholder: 'e.g., email',
+          helpText: 'Internal field name used for data storage (no spaces, lowercase)',
+          required: true,
+          validation: [
+            { type: 'required', message: 'Field name is required' },
+            { type: 'pattern', value: '^[a-z][a-z0-9_]*$', message: 'Must start with lowercase letter, only lowercase, numbers, and underscores allowed' }
+          ]
         },
         {
           id: 'fieldType',
           type: 'select',
           label: 'Field Type',
           options: [
-            { value: 'text', label: 'Text' },
-            { value: 'email', label: 'Email' },
-            { value: 'number', label: 'Number' },
-            { value: 'date', label: 'Date' },
-            { value: 'select', label: 'Dropdown' },
-            { value: 'checkbox', label: 'Checkbox' },
-            { value: 'textarea', label: 'Text Area' },
+            { value: 'text', label: 'Text', description: 'Single line text input' },
+            { value: 'email', label: 'Email', description: 'Email address with validation' },
+            { value: 'number', label: 'Number', description: 'Numeric input' },
+            { value: 'tel', label: 'Phone', description: 'Phone number input' },
+            { value: 'url', label: 'URL', description: 'Website URL' },
+            { value: 'date', label: 'Date', description: 'Date picker' },
+            { value: 'datetime', label: 'Date & Time', description: 'Date and time picker' },
+            { value: 'time', label: 'Time', description: 'Time picker' },
+            { value: 'select', label: 'Dropdown', description: 'Single selection dropdown' },
+            { value: 'multiselect', label: 'Multi-select', description: 'Multiple selection dropdown' },
+            { value: 'radio', label: 'Radio Buttons', description: 'Single selection from list' },
+            { value: 'checkbox', label: 'Checkbox', description: 'Single checkbox' },
+            { value: 'checkbox-group', label: 'Checkbox Group', description: 'Multiple checkboxes' },
+            { value: 'textarea', label: 'Text Area', description: 'Multi-line text input' },
+            { value: 'file', label: 'File Upload', description: 'File upload field' },
+            { value: 'color', label: 'Color Picker', description: 'Color selection' },
           ],
           defaultValue: 'text',
           required: true,
         },
         {
+          id: 'placeholder',
+          type: 'text',
+          label: 'Placeholder',
+          placeholder: 'e.g., Enter your email...',
+          helpText: 'Hint text shown when field is empty'
+        },
+        {
+          id: 'helpText',
+          type: 'textarea',
+          label: 'Help Text',
+          placeholder: 'Additional guidance for users...',
+          helpText: 'Helpful instructions displayed below the field'
+        },
+        {
+          id: 'defaultValue',
+          type: 'text',
+          label: 'Default Value',
+          placeholder: 'Default value',
+          helpText: 'Pre-filled value when form loads'
+        }
+      ]
+    },
+    {
+      id: 'validation',
+      title: 'Validation Rules',
+      icon: CheckSquare,
+      collapsible: true,
+      defaultExpanded: false,
+      fields: [
+        {
           id: 'required',
-          type: 'boolean',
-          label: 'Required',
+          type: 'toggle',
+          label: 'Required Field',
+          helpText: 'User must fill this field before submitting',
           defaultValue: false,
         },
+        {
+          id: 'minLength',
+          type: 'number',
+          label: 'Minimum Length',
+          placeholder: 'e.g., 3',
+          helpText: 'Minimum number of characters',
+          conditional: {
+            field: 'fieldType',
+            operator: 'in',
+            value: ['text', 'textarea', 'email', 'url', 'tel']
+          }
+        },
+        {
+          id: 'maxLength',
+          type: 'number',
+          label: 'Maximum Length',
+          placeholder: 'e.g., 100',
+          helpText: 'Maximum number of characters',
+          conditional: {
+            field: 'fieldType',
+            operator: 'in',
+            value: ['text', 'textarea', 'email', 'url', 'tel']
+          }
+        },
+        {
+          id: 'min',
+          type: 'number',
+          label: 'Minimum Value',
+          placeholder: 'e.g., 0',
+          helpText: 'Minimum numeric value',
+          conditional: {
+            field: 'fieldType',
+            operator: 'equals',
+            value: 'number'
+          }
+        },
+        {
+          id: 'max',
+          type: 'number',
+          label: 'Maximum Value',
+          placeholder: 'e.g., 100',
+          helpText: 'Maximum numeric value',
+          conditional: {
+            field: 'fieldType',
+            operator: 'equals',
+            value: 'number'
+          }
+        },
+        {
+          id: 'pattern',
+          type: 'text',
+          label: 'Custom Pattern (Regex)',
+          placeholder: 'e.g., ^[A-Z]{2}[0-9]{4}$',
+          helpText: 'Regular expression for custom validation'
+        },
+        {
+          id: 'customValidationMessage',
+          type: 'text',
+          label: 'Custom Error Message',
+          placeholder: 'e.g., Please enter a valid format',
+          helpText: 'Error message shown when validation fails'
+        }
+      ]
+    },
+    {
+      id: 'options',
+      title: 'Field Options',
+      icon: Package,
+      collapsible: true,
+      defaultExpanded: false,
+      description: 'Configure options for dropdown, radio, and checkbox fields',
+      conditional: {
+        field: 'fieldType',
+        operator: 'in',
+        value: ['select', 'multiselect', 'radio', 'checkbox-group']
+      },
+      fields: [
+        {
+          id: 'options',
+          type: 'nested-children',
+          label: 'Options',
+          helpText: 'Add options for this field',
+          defaultValue: [],
+          itemSchema: {
+            fields: [
+              { id: 'value', type: 'text', label: 'Value', required: true },
+              { id: 'label', type: 'text', label: 'Label', required: true },
+              { id: 'disabled', type: 'toggle', label: 'Disabled', defaultValue: false }
+            ]
+          }
+        },
+        {
+          id: 'allowCustomOption',
+          type: 'toggle',
+          label: 'Allow Custom Input',
+          helpText: 'Let users enter their own value',
+          defaultValue: false
+        }
+      ]
+    },
+    {
+      id: 'advanced',
+      title: 'Advanced Settings',
+      icon: Settings,
+      collapsible: true,
+      defaultExpanded: false,
+      fields: [
+        {
+          id: 'disabled',
+          type: 'toggle',
+          label: 'Disabled',
+          helpText: 'Field is visible but not editable',
+          defaultValue: false
+        },
+        {
+          id: 'hidden',
+          type: 'toggle',
+          label: 'Hidden',
+          helpText: 'Field is not visible to users',
+          defaultValue: false
+        },
+        {
+          id: 'readonly',
+          type: 'toggle',
+          label: 'Read Only',
+          helpText: 'Field is visible and selectable but not editable',
+          defaultValue: false
+        },
+        {
+          id: 'autoComplete',
+          type: 'text',
+          label: 'Auto Complete',
+          placeholder: 'e.g., email, tel, name',
+          helpText: 'Browser autocomplete hint'
+        }
       ]
     }
   ]
