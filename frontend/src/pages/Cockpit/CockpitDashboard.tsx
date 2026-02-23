@@ -633,9 +633,6 @@ export const CockpitDashboard: React.FC = () => {
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
       <GridWrapper ref={containerRef} data-tour="search-results">
-=======
-      <GridWrapper ref={containerRef} data-tour="search-results">
->>>>>>> upstream/development
         {widgets.length === 0 ? (
           <EmptyState>
             <LayoutGrid size={48} />
