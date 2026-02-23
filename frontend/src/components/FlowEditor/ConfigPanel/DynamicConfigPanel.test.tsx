@@ -187,6 +187,15 @@ describe('DynamicConfigPanel', () => {
       expect(screen.getByTestId('field-description')).toBeInTheDocument();
     });
 
+    /**
+     * Test fallback schema for unknown types.
+     * 
+     * IMPORTANT: As of PR #3217, schemaRegistry.getSchema() ALWAYS returns a valid schema
+     * via createFallbackSchema(). The error panel has been REMOVED because all 50 node types
+     * now have either explicit schemas or auto-generated fallback schemas.
+     * 
+     * This test verifies the NEW behavior: unknown types render with fallback config.
+     */
     it('should show error panel when schema not found', () => {
       const nodeWithUnknownType: Node = {
         id: 'test-node',
@@ -204,8 +213,10 @@ describe('DynamicConfigPanel', () => {
         />
       );
 
-      expect(screen.getByText('Configuration Error')).toBeInTheDocument();
-      expect(screen.getByText(/No configuration schema found/)).toBeInTheDocument();
+      // Fallback schema should render (no error panel)
+      // The panel shows node details when data is empty
+      expect(screen.getByText(/Node type/i)).toBeInTheDocument();
+      expect(screen.getByText(/unknown-type/i)).toBeInTheDocument();
     });
 
     it('should handle field changes', async () => {

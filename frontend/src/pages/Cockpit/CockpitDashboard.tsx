@@ -33,7 +33,7 @@ import {
   ActionItemsWidget,
   CalendarWidget,
 } from '../../components/Widgets';
-import { CommandBar, WidgetBar } from '../../components/Cockpit';
+import { CommandBar, WidgetBar, CockpitTour } from '../../components/Cockpit';
 import { CommandPalette } from '../../components/Navigation/CommandPalette';
 import { useCommandPalette } from '../../hooks/useCommandPalette';
 import { apiClient } from '../../services/apiService';
@@ -623,13 +623,19 @@ export const CockpitDashboard: React.FC = () => {
         </ToolbarActions>
       </ToolbarWrapper>
       
+      {/* Guided Tour */}
+      <CockpitTour enabled={true} />
+      
+      {/* Widget Bar - Always Visible Sidebar */}
+      <WidgetBar />
+      
       {/* Command Palette Modal */}
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
-      {/* Widget Bar - Always Visible Sidebar */}
-      <WidgetBar />
-
-      <GridWrapper ref={containerRef}>
+      <GridWrapper ref={containerRef} data-tour="search-results">
+=======
+      <GridWrapper ref={containerRef} data-tour="search-results">
+>>>>>>> upstream/development
         {widgets.length === 0 ? (
           <EmptyState>
             <LayoutGrid size={48} />
