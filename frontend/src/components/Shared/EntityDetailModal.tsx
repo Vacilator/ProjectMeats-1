@@ -759,6 +759,14 @@ const RelationsHeader = styled.h3`
   margin: 0 0 1rem 0;
 `;
 
+const ViewModeHint = styled.span`
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: rgb(var(--color-text-secondary));
+  margin-left: 0.5rem;
+  font-style: italic;
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 2rem 1rem;
