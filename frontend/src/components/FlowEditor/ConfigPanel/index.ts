@@ -41,3 +41,11 @@ export { TabbedConfigPanel } from './TabbedConfigPanel';
 export type { TabbedConfigPanelProps } from './TabbedConfigPanel';
 export { TabbedConfigPanelWithShadow } from './TabbedConfigPanelWithShadow';
 export type { TabbedConfigPanelWithShadowProps } from './TabbedConfigPanelWithShadow';
+
+// Phase D.4: Visual Builders (2026-02-24)
+export { VisualFormBuilderPanel } from './VisualFormBuilderPanel';
+export type { VisualFormBuilderPanelProps } from './VisualFormBuilderPanel';
+export { LiveFormPreview } from './LiveFormPreview';
+export type { LiveFormPreviewProps } from './LiveFormPreview';
+export { VisualConditionalBuilder } from './VisualConditionalBuilder';
+export type { VisualConditionalBuilderProps } from './VisualConditionalBuilder';
