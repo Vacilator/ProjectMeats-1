@@ -35,3 +35,7 @@ export { FormProcessConfigPanel } from './FormProcessConfigPanel';
 // Phase D.2: Dynamic Configuration Engine
 export { DynamicConfigPanel } from './DynamicConfigPanel';
 export type { DynamicConfigPanelProps } from './DynamicConfigPanel';
+
+// Phase D.3: Tabbed Config Panel (2026-02-24)
+export { TabbedConfigPanel } from './TabbedConfigPanel';
+export type { TabbedConfigPanelProps } from './TabbedConfigPanel';
