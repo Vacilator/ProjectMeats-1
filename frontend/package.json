@@ -33,6 +33,7 @@
     "colorthief": "^2.6.0",
     "dagre": "^0.8.5",
     "date-fns": "^4.1.0",
+    "framer-motion": "^11.18.2",
     "fuse.js": "^7.1.0",
     "lucide-react": "^0.575.0",
     "react": "^19.2.4",
