@@ -1627,6 +1627,62 @@ const staticEdgeTypes: EdgeTypes = {
 };
 
 // ============================================================================
+// Error Boundary for Config Panel
+// ============================================================================
+
+class ConfigPanelErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null };
+  
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[Config Panel] Error caught:', error, errorInfo);
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          padding: '20px',
+          background: 'rgb(var(--color-error) / 0.1)',
+          borderRadius: '8px',
+          margin: '20px'
+        }}>
+          <h3 style={{ color: 'rgb(var(--color-error))', marginBottom: '10px' }}>
+            Panel Error
+          </h3>
+          <p style={{ color: 'rgb(var(--color-text-secondary))', marginBottom: '15px' }}>
+            {this.state.error?.message || 'Unknown error occurred'}
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            style={{
+              padding: '8px 16px',
+              background: 'rgb(var(--color-primary))',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Retry?
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -1698,28 +1754,70 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
   
   // ============================================================================
-  // PORTAL MOUNT GUARD - Fix #1: Prevent "Target container is not a DOM element" errors
+  // CONFIG PANEL PORTAL - Enhanced with full styling (2026-02-24)
   // ============================================================================
   useEffect(() => {
-    // Ensure portal root exists for config panels
-    let portalRoot = document.getElementById('config-portal-root');
-    if (!portalRoot) {
-      console.log('[Portal] Creating config-portal-root element');
-      portalRoot = document.createElement('div');
-      portalRoot.id = 'config-portal-root';
-      portalRoot.style.cssText = 'position: fixed; top: 0; right: 0; z-index: 9999; pointer-events: none;';
-      document.body.appendChild(portalRoot);
+    // Ensure portal exists with complete styling
+    let portal = document.getElementById('config-portal');
+    if (!portal) {
+      console.log('[Portal] Creating config-portal element with full styling');
+      portal = document.createElement('div');
+      portal.id = 'config-portal';
+      portal.style.cssText = `
+        position: fixed;
+        right: 0;
+        top: 0;
+        width: min(450px, 100vw);
+        height: 100vh;
+        overflow-y: auto;
+        background: #fff;
+        z-index: 1000;
+        box-shadow: -4px 0 12px rgba(0,0,0,0.1);
+        pointer-events: auto;
+      `;
+      document.body.appendChild(portal);
     }
     
     return () => {
       // Cleanup on unmount (only if empty)
-      const portal = document.getElementById('config-portal-root');
+      const portal = document.getElementById('config-portal');
       if (portal && portal.childNodes.length === 0) {
-        console.log('[Portal] Removing empty config-portal-root element');
+        console.log('[Portal] Removing empty config-portal element');
         document.body.removeChild(portal);
       }
     };
   }, []); // Run once on mount
+  
+  // ============================================================================
+  // PORTAL MOUNT GUARD - Re-create if missing when panel opens
+  // ============================================================================
+  const [portalKey, setPortalKey] = useState(Date.now());
+  
+  useEffect(() => {
+    if (selectedNode !== null) {
+      const portal = document.getElementById('config-portal');
+      if (!portal) {
+        console.warn('[Portal] Portal missing when panel opened - recreating');
+        const newPortal = document.createElement('div');
+        newPortal.id = 'config-portal';
+        newPortal.style.cssText = `
+          position: fixed;
+          right: 0;
+          top: 0;
+          width: min(450px, 100vw);
+          height: 100vh;
+          overflow-y: auto;
+          background: #fff;
+          z-index: 1000;
+          box-shadow: -4px 0 12px rgba(0,0,0,0.1);
+          pointer-events: auto;
+        `;
+        document.body.appendChild(newPortal);
+        setPortalKey(Date.now()); // Force re-render
+        console.log('[Portal] Portal mounted');
+      }
+    }
+  }, [selectedNode]);
   
   // ============================================================================
   // Container State Restoration (Phase 4 Batch 5)
@@ -6221,32 +6319,24 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* Configuration Panel with Shadow State (Phase 2) - Portal Rendered */}
       {/* 🔧 2026-02-24: Use dedicated portal root for reliable rendering */}
       {selectedNode !== null && (() => {
-        const portalRoot = document.getElementById('config-portal-root');
+        const portal = document.getElementById('config-portal');
         
-        if (!portalRoot) {
-          console.error('[UnifiedFlowEditor] ❌ Portal root NOT found - panel will not render');
+        if (!portal) {
+          console.error('[UnifiedFlowEditor] ❌ Portal NOT found - panel will not render');
           return null;
         }
         
         console.log('[UnifiedFlowEditor] ✅ Rendering config panel:', {
           nodeId: selectedNode.id,
           nodeType: selectedNode.type,
-          portalExists: true
+          portalExists: true,
+          portalKey
         });
         
         return createPortal(
-          <RightSidebar 
-            $isOpen={true}
-            key={`config-panel-${selectedNode.id}-${selectedNode.type}`}
-            style={{
-              display: 'flex',
-              opacity: 1,
-              visibility: 'visible',
-              pointerEvents: 'auto'
-            }}
-          >
+          <ConfigPanelErrorBoundary>
             <TabbedConfigPanelWithShadow
-              key={`panel-content-${selectedNode.id}`}
+              key={`panel-content-${selectedNode.id}-${portalKey}`}
               node={selectedNode}
               nodes={nodes}
               edges={edges}
@@ -6266,8 +6356,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                 }
               }}
             />
-          </RightSidebar>,
-          portalRoot // Use dedicated portal root (Fix #1)
+          </ConfigPanelErrorBoundary>,
+          portal
         );
       })()}
       
