@@ -9,6 +9,7 @@ from apps.system import workform_views  # Phase 1: WorkForms Enhancement
 # Create a router for ViewSets
 router = DefaultRouter()
 router.register(r'preferences', views.UserPreferencesViewSet, basename='user-preferences')
+router.register(r'favorites', views.FavoritesViewSet, basename='favorites')
 
 # WorkForms router (Phase 1.4-1.6)
 workforms_router = DefaultRouter()
@@ -34,6 +35,7 @@ urlpatterns = [
     path("feature-flags/", views.FeatureFlagsView.as_view(), name="feature-flags"),
     # Universal Search API (Wave 2: Cockpit Command Center)
     path("search/universal/", views.UniversalSearchView.as_view(), name="universal-search"),
+    path("search/ranked/", views.RankedSearchView.as_view(), name="ranked-search"),  # Phase 2A Smart Rankings
     path("search/recent/", views.RecentItemsView.as_view(), name="recent-items"),
     path("search/operators/", views.SearchOperatorsView.as_view(), name="search-operators"),
     # Entity Graph API (Wave 2: Cockpit Command Center)

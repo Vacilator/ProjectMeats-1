@@ -55,6 +55,13 @@ requests>=2.31.0  # For GitHub API integration in bug reports
 sendgrid>=6.11.0
 django-sendgrid-v5>=1.2.3
 
+# OAuth and Social Auth (Email Integrations)
+django-allauth>=0.61.0  # OAuth for Outlook/Microsoft and Gmail/Google
+msal>=1.28.0  # Microsoft Authentication Library for advanced Outlook features
+google-auth>=2.28.0  # Google auth for Gmail API
+google-auth-oauthlib>=1.2.0  # OAuth helpers for Gmail
+google-api-python-client>=2.120.0  # Gmail API client
+
 # PDF Generation
 reportlab>=4.0.0  # For generating PDF quotes and invoices
 

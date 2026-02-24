@@ -123,7 +123,7 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization'; // Fix test imports
-import { NodeConfigPanelWithShadow } from './ConfigPanel';
+import { NodeConfigPanelWithShadow, TabbedConfigPanelWithShadow } from './ConfigPanel';
 import { getLayoutedElements, alignNodesHorizontally, alignNodesVertically, distributeNodesHorizontally, distributeNodesVertically } from './utils/autoLayout'; // Phase 2: UI/UX
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2: UI/UX
 
@@ -1880,6 +1880,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [isFullscreen]);
   
   // ESC key handler for CSS-based fullscreen exit
+  // 🔧 Portal Container Creation (2026-02-24: Permanent Fix)
+  useEffect(() => {
+    let portalRoot = document.getElementById('config-portal-root');
+    
+    if (!portalRoot) {
+      portalRoot = document.createElement('div');
+      portalRoot.id = 'config-portal-root';
+      portalRoot.style.cssText = 'position: fixed; top: 0; right: 0; bottom: 0; z-index: 10000; pointer-events: none;';
+      document.body.appendChild(portalRoot);
+      console.log('[UnifiedFlowEditor] ✅ Portal root created');
+    }
+    
+    return () => {
+      const root = document.getElementById('config-portal-root');
+      if (root) {
+        document.body.removeChild(root);
+        console.log('[UnifiedFlowEditor] 🧹 Portal root cleaned up');
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullscreen) {
@@ -4745,8 +4766,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setFormReferenceModalOpen(false);
     setContainerModalOpen(false);
     
-    // FORCE CONFIG PANEL OPEN: Set selectedNode to trigger NodeConfigPanelWithShadow
-    // This is the universal config panel that handles ALL node types dynamically
+    // FORCE CONFIG PANEL OPEN: Set selectedNode to trigger TabbedConfigPanelWithShadow
+    // This is the universal config panel that handles ALL node types dynamically with tabbed interface
     setSelectedNode(node);
     setSelectedNodeId(nodeId);
     
@@ -6198,42 +6219,57 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       )}
 
       {/* Configuration Panel with Shadow State (Phase 2) - Portal Rendered */}
-      {/* Force re-render with key on selectedNode.id change */}
-      {selectedNode !== null && createPortal(
-        <RightSidebar 
-          $isOpen={true}
-          key={`config-panel-${selectedNode.id}-${selectedNode.type}`}
-          style={{
-            display: 'flex',
-            opacity: 1,
-            visibility: 'visible',
-            pointerEvents: 'auto'
-          }}
-        >
-          <NodeConfigPanelWithShadow
-            key={`panel-content-${selectedNode.id}`}
-            node={selectedNode}
-            nodes={nodes}
-            edges={edges}
-            setNodes={setNodes}
-            setEdges={setEdges}
-            onClose={() => {
-              console.log('[Config Panel] Closing panel for node:', selectedNode.id);
-              setSelectedNode(null);
+      {/* 🔧 2026-02-24: Use dedicated portal root for reliable rendering */}
+      {selectedNode !== null && (() => {
+        const portalRoot = document.getElementById('config-portal-root');
+        
+        if (!portalRoot) {
+          console.error('[UnifiedFlowEditor] ❌ Portal root NOT found - panel will not render');
+          return null;
+        }
+        
+        console.log('[UnifiedFlowEditor] ✅ Rendering config panel:', {
+          nodeId: selectedNode.id,
+          nodeType: selectedNode.type,
+          portalExists: true
+        });
+        
+        return createPortal(
+          <RightSidebar 
+            $isOpen={true}
+            key={`config-panel-${selectedNode.id}-${selectedNode.type}`}
+            style={{
+              display: 'flex',
+              opacity: 1,
+              visibility: 'visible',
+              pointerEvents: 'auto'
             }}
-            onUpdate={handleNodeUpdate}
-            onTest={handleNodeTest}
-            onSelectNode={(nodeId) => {
-              const node = nodes.find(n => n.id === nodeId);
-              if (node) {
-                console.log('[Config Panel] Switching to node:', nodeId);
-                setSelectedNode(node);
-              }
-            }}
-          />
-        </RightSidebar>,
-        document.getElementById('config-portal-root') || document.body // Fallback to body if portal not ready
-      )}
+          >
+            <TabbedConfigPanelWithShadow
+              key={`panel-content-${selectedNode.id}`}
+              node={selectedNode}
+              nodes={nodes}
+              edges={edges}
+              setNodes={setNodes}
+              setEdges={setEdges}
+              onClose={() => {
+                console.log('[Tabbed Config Panel] Closing panel for node:', selectedNode.id);
+                setSelectedNode(null);
+              }}
+              onUpdate={handleNodeUpdate}
+              onTest={handleNodeTest}
+              onSelectNode={(nodeId) => {
+                const node = nodes.find(n => n.id === nodeId);
+                if (node) {
+                  console.log('[Tabbed Config Panel] Switching to node:', nodeId);
+                  setSelectedNode(node);
+                }
+              }}
+            />
+          </RightSidebar>,
+          portalRoot // Use dedicated portal root (Fix #1)
+        );
+      })()}
       
       {/* Template Selector Modal (Phase 2.5 Integration) */}
       <TemplateSelector

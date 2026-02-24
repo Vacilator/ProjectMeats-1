@@ -19,6 +19,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Star, X, ExternalLink } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
+import { useFavorites } from '../../hooks/useFavorites';
 
 // ============================================================================
 // TypeScript Interfaces

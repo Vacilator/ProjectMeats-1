@@ -20,7 +20,7 @@
  * />
  * ```
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
@@ -29,8 +29,9 @@ import { apiClient } from '../../services/apiService';
 import { 
   Building2, Users, ShoppingCart, Receipt, Package, 
   Truck, User, FileText, Phone, Mail, MapPin, Calendar,
-  ExternalLink, Loader
+  ExternalLink, Loader, ChevronRight, ChevronDown, Network
 } from 'lucide-react';
+import { RelationMindMap } from '../Cockpit/RelationMindMap';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -51,6 +52,20 @@ interface EntityData {
   title?: string;
   order_number?: string;
   [key: string]: any;
+}
+
+interface RelatedEntity {
+  id: number;
+  name: string;
+  type: string;
+  metadata?: any;
+}
+
+interface Relationship {
+  name: string;
+  display_name: string;
+  count: number;
+  recent_items: RelatedEntity[];
 }
 
 // ============================================================================
@@ -216,6 +231,11 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   const [entity, setEntity] = useState<EntityData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRelations, setShowRelations] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'mindmap'>('list'); // New state for view mode
+  const [relationships, setRelationships] = useState<Relationship[]>([]);
+  const [loadingRelations, setLoadingRelations] = useState(false);
+  const [expandedRelations, setExpandedRelations] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
   const config = ENTITY_CONFIG[entityType];
@@ -249,6 +269,76 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   const entityName = entity?.name || entity?.title || entity?.order_number || 'Unknown';
   const listRoute = ENTITY_ROUTES[entityType];
 
+  const handleExploreRelations = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Toggle relations view
+    if (showRelations) {
+      setShowRelations(false);
+      return;
+    }
+
+    // If already loaded, just show them
+    if (relationships.length > 0) {
+      setShowRelations(true);
+      return;
+    }
+
+    // Fetch relationships
+    setLoadingRelations(true);
+    try {
+      console.log('[EntityDetailModal] Fetching relations for:', { entityType, entityId });
+      
+      const response = await apiClient.get(
+        `/entities/${entityType}/${entityId}/relationships/?counts=true`
+      );
+      
+      const relationshipsData = response.data.relationships || [];
+      
+      // Fetch top 5 recent items for each relationship
+      const relationshipsWithItems = await Promise.all(
+        relationshipsData.map(async (rel: any) => {
+          if (rel.count > 0) {
+            try {
+              const itemsResponse = await apiClient.get(
+                `/entities/${entityType}/${entityId}/relationships/${rel.name}/?limit=5`
+              );
+              return {
+                name: rel.name,
+                display_name: rel.display_name || rel.name,
+                count: rel.count,
+                recent_items: itemsResponse.data.items || [],
+              };
+            } catch (err) {
+              console.error(`Failed to fetch ${rel.name}:`, err);
+              return {
+                name: rel.name,
+                display_name: rel.display_name || rel.name,
+                count: rel.count,
+                recent_items: [],
+              };
+            }
+          }
+          return {
+            name: rel.name,
+            display_name: rel.display_name || rel.name,
+            count: rel.count,
+            recent_items: [],
+          };
+        })
+      );
+      
+      setRelationships(relationshipsWithItems.filter(r => r.count > 0));
+      setShowRelations(true);
+    } catch (err: any) {
+      console.error('[EntityDetailModal] Failed to fetch relations:', err);
+      setError(err.response?.data?.detail || 'Failed to load related records');
+    } finally {
+      setLoadingRelations(false);
+    }
+  }, [entityType, entityId, showRelations, relationships.length]);
+
   const handleViewFullDetails = () => {
     console.log('[EntityDetailModal] View Full Details clicked', {
       entityType,
@@ -257,18 +347,8 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
       timestamp: new Date().toISOString()
     });
     
-    // Instead of navigating away, trigger expansion to show related records
-    if (onExpandEntity && entity) {
-      onExpandEntity({
-        id: entity.id,
-        type: entityType as any,
-        name: entityName,
-        subtitle: '',
-        metadata: entity,
-      });
-      onClose();
-    } else if (listRoute) {
-      // Fallback to navigation if onExpandEntity not provided
+    // Navigate to list page
+    if (listRoute) {
       console.log(`[EntityDetailModal] Navigating to: ${listRoute}`);
       onClose();
       navigate(listRoute);
@@ -277,17 +357,53 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
     }
   };
 
+  const toggleRelationExpansion = useCallback((relationName: string) => {
+    setExpandedRelations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(relationName)) {
+        newSet.delete(relationName);
+      } else {
+        newSet.add(relationName);
+      }
+      return newSet;
+    });
+  }, []);
+
   const modalFooter = (
     <FooterContainer>
       <CloseButton onClick={onClose}>Close</CloseButton>
-      <ViewFullButton
-        onClick={handleViewFullDetails}
-        title={onExpandEntity ? 'Explore related records' : (listRoute ? `Navigate to ${config.displayName} list page` : 'Route not configured')}
-        disabled={!onExpandEntity && !listRoute}
-      >
-        <ExternalLink size={16} />
-        {onExpandEntity ? 'Explore Relations' : 'View Full Details'}
-      </ViewFullButton>
+      <FooterButtonGroup>
+        <ViewFullButton
+          onClick={handleExploreRelations}
+          title="Show related records (calls, orders, etc.)"
+          disabled={loadingRelations || !entity}
+        >
+          {loadingRelations ? (
+            <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
+          ) : (
+            showRelations ? <ChevronDown size={16} /> : <ChevronRight size={16} />
+          )}
+          {showRelations ? 'Hide Relations' : 'Explore Relations'}
+        </ViewFullButton>
+        {showRelations && (
+          <SecondaryButton
+            onClick={() => setViewMode(prev => prev === 'list' ? 'mindmap' : 'list')}
+            title={`Switch to ${viewMode === 'list' ? 'mind-map' : 'list'} view`}
+          >
+            <Network size={16} />
+            {viewMode === 'list' ? 'Mind Map' : 'List View'}
+          </SecondaryButton>
+        )}
+        {listRoute && (
+          <SecondaryButton
+            onClick={handleViewFullDetails}
+            title={`Navigate to ${config.displayName} list page`}
+          >
+            <ExternalLink size={16} />
+            View Full Details
+          </SecondaryButton>
+        )}
+      </FooterButtonGroup>
     </FooterContainer>
   );
 
@@ -342,6 +458,93 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
               <NotesLabel>Notes</NotesLabel>
               <NotesText>{entity.notes}</NotesText>
             </NotesSection>
+          )}
+
+          {/* Related Records Section */}
+          {showRelations && (
+            <RelationsSection>
+              <RelationsHeader>
+                Related Records
+                {viewMode === 'mindmap' && (
+                  <ViewModeHint>(Interactive Mind Map - Click nodes to explore)</ViewModeHint>
+                )}
+              </RelationsHeader>
+              {loadingRelations ? (
+                <LoadingContainer>
+                  <Loader size={24} style={{ animation: 'spin 1s linear infinite' }} />
+                  <LoadingText>Loading relationships...</LoadingText>
+                </LoadingContainer>
+              ) : relationships.length === 0 ? (
+                <EmptyState>No related records found</EmptyState>
+              ) : viewMode === 'mindmap' ? (
+                <RelationMindMap
+                  entityType={entityType}
+                  entityId={entityId}
+                  entityName={entityName}
+                  onEntityClick={(type, id, name) => {
+                    console.log('[EntityDetailModal] Mind Map entity clicked:', { type, id, name });
+                    if (onExpandEntity) {
+                      onExpandEntity({
+                        id,
+                        type,
+                        name,
+                        subtitle: '',
+                      });
+                    }
+                  }}
+                  maxDepth={2}
+                />
+              ) : (
+                <RelationsList>
+                  {relationships.map((rel) => (
+                    <RelationItem key={rel.name}>
+                      <RelationHeader onClick={() => toggleRelationExpansion(rel.name)}>
+                        <RelationTitle>
+                          {expandedRelations.has(rel.name) ? (
+                            <ChevronDown size={16} />
+                          ) : (
+                            <ChevronRight size={16} />
+                          )}
+                          {rel.display_name} ({rel.count})
+                        </RelationTitle>
+                      </RelationHeader>
+                      {expandedRelations.has(rel.name) && (
+                        <RelationItems>
+                          {rel.recent_items.slice(0, 5).map((item) => (
+                            <RelationItemCard
+                              key={item.id}
+                              onClick={() => {
+                                console.log('[EntityDetailModal] Opening related item:', item);
+                                // Could open nested modal or navigate
+                                if (onExpandEntity) {
+                                  onExpandEntity({
+                                    id: item.id,
+                                    type: item.type,
+                                    name: item.name,
+                                    subtitle: '',
+                                    metadata: item.metadata,
+                                  });
+                                }
+                              }}
+                            >
+                              <RelationItemName>{item.name}</RelationItemName>
+                              {item.metadata?.created_at && (
+                                <RelationItemMeta>
+                                  {new Date(item.metadata.created_at).toLocaleDateString()}
+                                </RelationItemMeta>
+                              )}
+                            </RelationItemCard>
+                          ))}
+                          {rel.count > 5 && (
+                            <ViewAllLink>View all {rel.count} →</ViewAllLink>
+                          )}
+                        </RelationItems>
+                      )}
+                    </RelationItem>
+                  ))}
+                </RelationsList>
+              )}
+            </RelationsSection>
           )}
         </EntityContent>
       ) : (
@@ -516,5 +719,135 @@ const ViewFullButton = styled.button`
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+`;
+
+const FooterButtonGroup = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const SecondaryButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+    border-color: rgb(var(--color-border-hover));
+  }
+`;
+
+const RelationsSection = styled.div`
+  border-top: 1px solid rgb(var(--color-border));
+  padding-top: 1.5rem;
+  margin-top: 1rem;
+`;
+
+const RelationsHeader = styled.h3`
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0 0 1rem 0;
+`;
+
+const ViewModeHint = styled.span`
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: rgb(var(--color-text-secondary));
+  margin-left: 0.5rem;
+  font-style: italic;
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 2rem 1rem;
+  color: rgb(var(--color-text-secondary));
+  font-size: 0.875rem;
+`;
+
+const RelationsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const RelationItem = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  overflow: hidden;
+`;
+
+const RelationHeader = styled.div`
+  padding: 0.75rem 1rem;
+  background: rgb(var(--color-surface-secondary));
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+  }
+`;
+
+const RelationTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+`;
+
+const RelationItems = styled.div`
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
+const RelationItemCard = styled.div`
+  padding: 0.75rem;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  background: rgb(var(--color-surface));
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const RelationItemName = styled.div`
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+`;
+
+const RelationItemMeta = styled.div`
+  font-size: 0.75rem;
+  color: rgb(var(--color-text-secondary));
+  margin-top: 0.25rem;
+`;
+
+const ViewAllLink = styled.div`
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: rgb(var(--color-primary));
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 0.8;
   }
 `;
