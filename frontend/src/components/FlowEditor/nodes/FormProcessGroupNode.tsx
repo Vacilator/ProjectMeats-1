@@ -374,11 +374,14 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   const { setNodes, setEdges } = useReactFlow();
   const allNodes = useNodes();
   const allEdges = useEdges();
+<<<<<<< HEAD
   
   // Local state for save operations
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+=======
+>>>>>>> 8b120958535edda2867362b84942f14b2def3a69
   
   // Debug logging
   console.log('[FormProcessGroup] Rendered with ID:', id, 'Data:', data);
@@ -534,8 +537,11 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   /**
    * Auto-connect children in sequential order (Phase 3)
    * Creates edges between consecutive child nodes based on Y position
+<<<<<<< HEAD
    * 
    * FIX: Prevents infinite loop by memoizing edge IDs and only updating when needed
+=======
+>>>>>>> 8b120958535edda2867362b84942f14b2def3a69
    */
   useEffect(() => {
     if (!sequentialExecution || childNodes.length < 2) return;
@@ -543,6 +549,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     // Sort children by Y position (top to bottom execution order)
     const sortedChildren = [...childNodes].sort((a, b) => a.position.y - b.position.y);
     
+<<<<<<< HEAD
     // Generate expected edge IDs for this configuration
     const expectedEdgeIds = new Set<string>();
     for (let i = 0; i < sortedChildren.length - 1; i++) {
@@ -569,11 +576,14 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     
     console.log(`[FormProcessGroup] Auto-connect: updating ${expectedEdgeIds.size} edges`);
     
+=======
+>>>>>>> 8b120958535edda2867362b84942f14b2def3a69
     // Create edges between consecutive nodes
     const newEdges: Edge[] = [];
     for (let i = 0; i < sortedChildren.length - 1; i++) {
       const sourceNode = sortedChildren[i];
       const targetNode = sortedChildren[i + 1];
+<<<<<<< HEAD
       const edgeId = `${sourceNode.id}-to-${targetNode.id}`;
       
       newEdges.push({
@@ -596,18 +606,55 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
           fill: 'rgb(var(--color-surface))',
         },
       });
+=======
+      
+      // Check if edge already exists
+      const edgeId = `${sourceNode.id}-to-${targetNode.id}`;
+      const edgeExists = allEdges.some(edge => 
+        edge.source === sourceNode.id && edge.target === targetNode.id
+      );
+      
+      if (!edgeExists) {
+        newEdges.push({
+          id: edgeId,
+          source: sourceNode.id,
+          target: targetNode.id,
+          type: 'smoothstep',
+          animated: true,
+          style: { 
+            stroke: 'rgba(139, 92, 246, 0.6)',
+            strokeWidth: 2,
+          },
+          label: `Step ${i + 1} → ${i + 2}`,
+          labelStyle: {
+            fill: 'rgb(139, 92, 246)',
+            fontWeight: 600,
+            fontSize: 11,
+          },
+          labelBgStyle: {
+            fill: 'rgb(var(--color-surface))',
+          },
+        });
+      }
+>>>>>>> 8b120958535edda2867362b84942f14b2def3a69
     }
     
     if (newEdges.length > 0) {
       setEdges((edges) => {
         // Remove old auto-generated edges between these children
         const filteredEdges = edges.filter(edge => {
+<<<<<<< HEAD
           const isAutoEdge = childIds.has(edge.source) && childIds.has(edge.target);
+=======
+          const isAutoEdge = sortedChildren.some(child => edge.source === child.id) &&
+                             sortedChildren.some(child => edge.target === child.id);
+>>>>>>> 8b120958535edda2867362b84942f14b2def3a69
           return !isAutoEdge;
         });
         return [...filteredEdges, ...newEdges];
       });
     }
+<<<<<<< HEAD
   }, [
     // CRITICAL: Only depend on node count and positions, NOT allEdges
     // Depending on allEdges causes infinite loop: update edges → allEdges changes → useEffect runs → update edges...
@@ -618,6 +665,9 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     JSON.stringify(childNodes.map(c => ({ id: c.id, y: c.position.y }))),
     setEdges
   ]);
+=======
+  }, [childNodes, sequentialExecution, allEdges, setEdges]);
+>>>>>>> 8b120958535edda2867362b84942f14b2def3a69
   
   /**
    * Add new step to this group
