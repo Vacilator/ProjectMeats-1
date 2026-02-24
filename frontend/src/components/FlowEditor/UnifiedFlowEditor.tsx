@@ -1856,6 +1856,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [isFullscreen]);
   
   // ESC key handler for CSS-based fullscreen exit
+  // 🔧 Portal Container Creation (2026-02-24: Permanent Fix)
+  useEffect(() => {
+    let portalRoot = document.getElementById('config-portal-root');
+    
+    if (!portalRoot) {
+      portalRoot = document.createElement('div');
+      portalRoot.id = 'config-portal-root';
+      portalRoot.style.cssText = 'position: fixed; top: 0; right: 0; bottom: 0; z-index: 10000; pointer-events: none;';
+      document.body.appendChild(portalRoot);
+      console.log('[UnifiedFlowEditor] ✅ Portal root created');
+    }
+    
+    return () => {
+      const root = document.getElementById('config-portal-root');
+      if (root) {
+        document.body.removeChild(root);
+        console.log('[UnifiedFlowEditor] 🧹 Portal root cleaned up');
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullscreen) {
@@ -6158,42 +6179,57 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       )}
 
       {/* Configuration Panel with Shadow State (Phase 2) - Portal Rendered */}
-      {/* Force re-render with key on selectedNode.id change */}
-      {selectedNode !== null && createPortal(
-        <RightSidebar 
-          $isOpen={true}
-          key={`config-panel-${selectedNode.id}-${selectedNode.type}`}
-          style={{
-            display: 'flex',
-            opacity: 1,
-            visibility: 'visible',
-            pointerEvents: 'auto'
-          }}
-        >
-          <NodeConfigPanelWithShadow
-            key={`panel-content-${selectedNode.id}`}
-            node={selectedNode}
-            nodes={nodes}
-            edges={edges}
-            setNodes={setNodes}
-            setEdges={setEdges}
-            onClose={() => {
-              console.log('[Config Panel] Closing panel for node:', selectedNode.id);
-              setSelectedNode(null);
+      {/* 🔧 2026-02-24: Use dedicated portal root for reliable rendering */}
+      {selectedNode !== null && (() => {
+        const portalRoot = document.getElementById('config-portal-root');
+        
+        if (!portalRoot) {
+          console.error('[UnifiedFlowEditor] ❌ Portal root NOT found - panel will not render');
+          return null;
+        }
+        
+        console.log('[UnifiedFlowEditor] ✅ Rendering config panel:', {
+          nodeId: selectedNode.id,
+          nodeType: selectedNode.type,
+          portalExists: true
+        });
+        
+        return createPortal(
+          <RightSidebar 
+            $isOpen={true}
+            key={`config-panel-${selectedNode.id}-${selectedNode.type}`}
+            style={{
+              display: 'flex',
+              opacity: 1,
+              visibility: 'visible',
+              pointerEvents: 'auto'
             }}
-            onUpdate={handleNodeUpdate}
-            onTest={handleNodeTest}
-            onSelectNode={(nodeId) => {
-              const node = nodes.find(n => n.id === nodeId);
-              if (node) {
-                console.log('[Config Panel] Switching to node:', nodeId);
-                setSelectedNode(node);
-              }
-            }}
-          />
-        </RightSidebar>,
-        document.body
-      )}
+          >
+            <NodeConfigPanelWithShadow
+              key={`panel-content-${selectedNode.id}`}
+              node={selectedNode}
+              nodes={nodes}
+              edges={edges}
+              setNodes={setNodes}
+              setEdges={setEdges}
+              onClose={() => {
+                console.log('[Config Panel] Closing panel for node:', selectedNode.id);
+                setSelectedNode(null);
+              }}
+              onUpdate={handleNodeUpdate}
+              onTest={handleNodeTest}
+              onSelectNode={(nodeId) => {
+                const node = nodes.find(n => n.id === nodeId);
+                if (node) {
+                  console.log('[Config Panel] Switching to node:', nodeId);
+                  setSelectedNode(node);
+                }
+              }}
+            />
+          </RightSidebar>,
+          portalRoot
+        );
+      })()}
       
       {/* Template Selector Modal (Phase 2.5 Integration) */}
       <TemplateSelector
