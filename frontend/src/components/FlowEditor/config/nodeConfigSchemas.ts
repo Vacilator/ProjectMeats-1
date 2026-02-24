@@ -2662,25 +2662,98 @@ const triggerFormSchema: NodeConfigSchema = {
 
 const conditionSwitchSchema: NodeConfigSchema = {
   nodeType: 'conditionSwitch',
-  displayName: 'Switch Condition',
-  description: 'Multi-way branching logic',
+  displayName: 'Condition (If/Then)',
+  description: 'Branch workflow based on conditional logic with visual rule builder',
   icon: Navigation,
-  version: '1.0.0',
-  tags: ['logic', 'condition'],
+  version: '2.0.0',
+  tags: ['logic', 'condition', 'if', 'branching'],
   contextAware: true,
   sections: [
     {
-      id: 'switch',
-      title: 'Switch Configuration',
+      id: 'condition-rules',
+      title: 'Condition Rules',
       icon: Navigation,
       defaultExpanded: true,
+      description: 'Define conditions using visual rule builder',
       fields: [
         {
-          id: 'variableName',
-          type: 'text',
-          label: 'Variable to Check',
-          placeholder: 'e.g., status',
+          id: 'rules',
+          type: 'ruleBuilder',
+          label: 'If...',
+          helpText: 'Build conditions using AND/OR logic. Supports upstream field selection.',
           required: true,
+          config: {
+            operators: [
+              { value: 'equals', label: 'equals', symbol: '=' },
+              { value: 'notEquals', label: 'does not equal', symbol: '≠' },
+              { value: 'contains', label: 'contains', symbol: '∋' },
+              { value: 'notContains', label: 'does not contain', symbol: '∌' },
+              { value: 'startsWith', label: 'starts with', symbol: '⊳' },
+              { value: 'endsWith', label: 'ends with', symbol: '⊲' },
+              { value: 'greaterThan', label: 'greater than', symbol: '>' },
+              { value: 'lessThan', label: 'less than', symbol: '<' },
+              { value: 'greaterThanOrEqual', label: 'greater than or equal', symbol: '≥' },
+              { value: 'lessThanOrEqual', label: 'less than or equal', symbol: '≤' },
+              { value: 'isEmpty', label: 'is empty', symbol: '∅' },
+              { value: 'isNotEmpty', label: 'is not empty', symbol: '≠∅' },
+              { value: 'isTrue', label: 'is true', symbol: '✓' },
+              { value: 'isFalse', label: 'is false', symbol: '✗' },
+            ],
+            allowGroups: true,
+            allowUpstreamFields: true,
+            defaultLogic: 'AND',
+          }
+        },
+        {
+          id: 'logic',
+          type: 'select',
+          label: 'Logic Type',
+          options: [
+            { value: 'AND', label: 'AND - All conditions must be true' },
+            { value: 'OR', label: 'OR - At least one condition must be true' },
+          ],
+          defaultValue: 'AND',
+          helpText: 'How to combine multiple conditions'
+        },
+        {
+          id: 'description',
+          type: 'textarea',
+          label: 'Description',
+          placeholder: 'Describe what this condition checks...',
+          helpText: 'Optional description for documentation',
+          rows: 2,
+        },
+      ]
+    },
+    {
+      id: 'condition-branches',
+      title: 'Branch Paths',
+      icon: Navigation,
+      defaultExpanded: true,
+      description: 'Configure what happens when condition is true or false',
+      fields: [
+        {
+          id: 'trueBranchLabel',
+          type: 'text',
+          label: 'True Branch Label',
+          placeholder: 'When condition is true',
+          defaultValue: 'True',
+          helpText: 'Label for the true path (shown on edge)'
+        },
+        {
+          id: 'falseBranchLabel',
+          type: 'text',
+          label: 'False Branch Label',
+          placeholder: 'When condition is false',
+          defaultValue: 'False',
+          helpText: 'Label for the false path (shown on edge)'
+        },
+        {
+          id: 'elseBranchEnabled',
+          type: 'checkbox',
+          label: 'Enable Else Branch',
+          defaultValue: true,
+          helpText: 'Allow alternative path when condition is false'
         },
       ]
     }
@@ -2719,37 +2792,210 @@ const conditionFilterSchema: NodeConfigSchema = {
 const actionHTTPSchema: NodeConfigSchema = {
   nodeType: 'actionHTTP',
   displayName: 'HTTP Request',
-  description: 'Make HTTP API call',
+  description: 'Make HTTP API call with full control over headers, body, and authentication',
   icon: Webhook,
-  version: '1.0.0',
-  tags: ['action', 'http'],
+  version: '2.0.0',
+  tags: ['action', 'http', 'webhook', 'api'],
   contextAware: true,
   sections: [
     {
-      id: 'http',
-      title: 'HTTP Configuration',
+      id: 'http-request',
+      title: 'Request Configuration',
       icon: Webhook,
       defaultExpanded: true,
+      description: 'Configure HTTP request details',
       fields: [
         {
           id: 'url',
           type: 'text',
           label: 'URL',
           placeholder: 'https://api.example.com/endpoint',
+          helpText: 'Full URL including protocol. Supports {{variable}} substitution.',
           required: true,
+          validation: [
+            {
+              type: 'required',
+              message: 'URL is required'
+            },
+            {
+              type: 'pattern',
+              value: '^https?://.+',
+              message: 'URL must start with http:// or https://'
+            }
+          ]
         },
         {
           id: 'method',
           type: 'select',
-          label: 'Method',
+          label: 'HTTP Method',
           options: [
-            { value: 'GET', label: 'GET' },
-            { value: 'POST', label: 'POST' },
-            { value: 'PUT', label: 'PUT' },
-            { value: 'DELETE', label: 'DELETE' },
+            { value: 'GET', label: 'GET - Retrieve data' },
+            { value: 'POST', label: 'POST - Create new resource' },
+            { value: 'PUT', label: 'PUT - Update entire resource' },
+            { value: 'PATCH', label: 'PATCH - Update partial resource' },
+            { value: 'DELETE', label: 'DELETE - Remove resource' },
           ],
           defaultValue: 'GET',
           required: true,
+        },
+        {
+          id: 'headers',
+          type: 'keyValue',
+          label: 'Headers',
+          helpText: 'HTTP headers to send with the request',
+          placeholder: { key: 'Header name', value: 'Header value' },
+          defaultValue: [
+            { key: 'Content-Type', value: 'application/json' }
+          ],
+          addButtonText: '+ Add Header',
+        },
+        {
+          id: 'body',
+          type: 'codeEditor',
+          label: 'Request Body',
+          language: 'json',
+          placeholder: '{\n  "key": "value"\n}',
+          helpText: 'Request body for POST/PUT/PATCH. Supports {{variable}} substitution.',
+          showIf: {
+            field: 'method',
+            operator: 'in',
+            value: ['POST', 'PUT', 'PATCH']
+          }
+        },
+        {
+          id: 'timeout',
+          type: 'number',
+          label: 'Timeout (seconds)',
+          defaultValue: 30,
+          min: 1,
+          max: 300,
+          helpText: 'Request timeout in seconds'
+        },
+      ]
+    },
+    {
+      id: 'http-auth',
+      title: 'Authentication',
+      icon: Settings,
+      defaultExpanded: false,
+      description: 'Configure API authentication',
+      fields: [
+        {
+          id: 'authType',
+          type: 'select',
+          label: 'Authentication Type',
+          options: [
+            { value: 'none', label: 'None' },
+            { value: 'bearer', label: 'Bearer Token' },
+            { value: 'basic', label: 'Basic Auth (Username/Password)' },
+            { value: 'apiKey', label: 'API Key' },
+          ],
+          defaultValue: 'none',
+        },
+        {
+          id: 'bearerToken',
+          type: 'text',
+          label: 'Bearer Token',
+          placeholder: 'your-api-token',
+          helpText: 'Token will be sent as "Authorization: Bearer {token}"',
+          showIf: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'bearer'
+          }
+        },
+        {
+          id: 'basicUsername',
+          type: 'text',
+          label: 'Username',
+          placeholder: 'username',
+          showIf: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'basic'
+          }
+        },
+        {
+          id: 'basicPassword',
+          type: 'password',
+          label: 'Password',
+          placeholder: 'password',
+          showIf: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'basic'
+          }
+        },
+        {
+          id: 'apiKeyHeader',
+          type: 'text',
+          label: 'API Key Header Name',
+          placeholder: 'X-API-Key',
+          showIf: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'apiKey'
+          }
+        },
+        {
+          id: 'apiKeyValue',
+          type: 'text',
+          label: 'API Key Value',
+          placeholder: 'your-api-key',
+          showIf: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'apiKey'
+          }
+        },
+      ]
+    },
+    {
+      id: 'http-response',
+      title: 'Response Handling',
+      icon: Database,
+      defaultExpanded: false,
+      description: 'Extract and map response data',
+      fields: [
+        {
+          id: 'responseVariable',
+          type: 'text',
+          label: 'Save Response As',
+          placeholder: 'apiResponse',
+          helpText: 'Variable name to store the response data',
+          defaultValue: 'response',
+        },
+        {
+          id: 'extractFields',
+          type: 'keyValue',
+          label: 'Extract Specific Fields',
+          helpText: 'JSONPath expressions to extract data (e.g., $.data.id)',
+          placeholder: { key: 'Field name', value: 'JSONPath expression' },
+          addButtonText: '+ Add Extraction',
+        },
+        {
+          id: 'errorHandling',
+          type: 'select',
+          label: 'On Error',
+          options: [
+            { value: 'fail', label: 'Fail workflow' },
+            { value: 'continue', label: 'Continue with empty response' },
+            { value: 'retry', label: 'Retry request' },
+          ],
+          defaultValue: 'fail',
+        },
+        {
+          id: 'retryCount',
+          type: 'number',
+          label: 'Retry Count',
+          defaultValue: 3,
+          min: 1,
+          max: 10,
+          showIf: {
+            field: 'errorHandling',
+            operator: 'equals',
+            value: 'retry'
+          }
         },
       ]
     }
@@ -3016,23 +3262,116 @@ const dataMergeSchema: NodeConfigSchema = {
 const dataTransformSchema: NodeConfigSchema = {
   nodeType: 'dataTransform',
   displayName: 'Transform Data',
-  description: 'Transform data structure',
+  description: 'Transform, map, filter, or format data with visual builder',
   icon: Settings,
-  version: '1.0.0',
-  tags: ['data', 'transform'],
+  version: '2.0.0',
+  tags: ['data', 'transform', 'map', 'filter'],
   contextAware: true,
   sections: [
     {
-      id: 'transform',
-      title: 'Transform Configuration',
-      icon: Settings,
+      id: 'transform-input',
+      title: 'Input Configuration',
+      icon: Database,
       defaultExpanded: true,
+      description: 'Select data to transform',
       fields: [
         {
-          id: 'transformScript',
+          id: 'inputSource',
+          type: 'text',
+          label: 'Input Data',
+          placeholder: 'e.g., {{apiResponse.data}} or {{customers}}',
+          helpText: 'Source data to transform. Supports {{variable}} syntax.',
+          required: true,
+        },
+        {
+          id: 'inputType',
+          type: 'select',
+          label: 'Input Type',
+          options: [
+            { value: 'object', label: 'Object - Single item' },
+            { value: 'array', label: 'Array - List of items' },
+          ],
+          defaultValue: 'object',
+        },
+      ]
+    },
+    {
+      id: 'transform-operation',
+      title: 'Transformation',
+      icon: Settings,
+      defaultExpanded: true,
+      description: 'Define how to transform the data',
+      fields: [
+        {
+          id: 'operation',
+          type: 'select',
+          label: 'Operation Type',
+          options: [
+            { value: 'map', label: 'Map - Transform each item' },
+            { value: 'filter', label: 'Filter - Remove items by condition' },
+            { value: 'format', label: 'Format - Change data structure' },
+            { value: 'extract', label: 'Extract - Pull specific fields' },
+            { value: 'custom', label: 'Custom - JavaScript expression' },
+          ],
+          defaultValue: 'map',
+          required: true,
+        },
+        {
+          id: 'mapTemplate',
+          type: 'keyValue',
+          label: 'Field Mapping',
+          helpText: 'Map input fields to output fields',
+          placeholder: { key: 'Output field', value: 'Input field (e.g., {{item.name}})' },
+          addButtonText: '+ Add Mapping',
+          showIf: {
+            field: 'operation',
+            operator: 'equals',
+            value: 'map'
+          }
+        },
+        {
+          id: 'filterCondition',
           type: 'textarea',
-          label: 'Transform Script',
-          placeholder: 'Define transformation logic...',
+          label: 'Filter Expression',
+          placeholder: 'e.g., {{item.status}} == "active"',
+          helpText: 'Items matching this condition will be included',
+          rows: 3,
+          showIf: {
+            field: 'operation',
+            operator: 'equals',
+            value: 'filter'
+          }
+        },
+        {
+          id: 'customScript',
+          type: 'codeEditor',
+          label: 'Custom JavaScript',
+          language: 'javascript',
+          placeholder: '// Transform logic\nreturn data.map(item => ({\n  id: item.id,\n  name: item.name.toUpperCase()\n}));',
+          helpText: 'Full JavaScript control. Input available as "data" variable.',
+          rows: 8,
+          showIf: {
+            field: 'operation',
+            operator: 'equals',
+            value: 'custom'
+          }
+        },
+      ]
+    },
+    {
+      id: 'transform-output',
+      title: 'Output',
+      icon: Database,
+      defaultExpanded: false,
+      description: 'Configure output variable',
+      fields: [
+        {
+          id: 'outputVariable',
+          type: 'text',
+          label: 'Save Result As',
+          placeholder: 'transformedData',
+          defaultValue: 'transformed',
+          helpText: 'Variable name to store the transformation result',
           required: true,
         },
       ]
@@ -3042,34 +3381,189 @@ const dataTransformSchema: NodeConfigSchema = {
 
 // === LOOP NODES ===
 
-const loopForEachSchema: NodeConfigSchema = {
-  nodeType: 'loopForEach',
-  displayName: 'For Each Loop',
-  description: 'Iterate over items',
-  icon: Navigation,
-  version: '1.0.0',
-  tags: ['loop', 'iteration'],
+// Variable Set Node (NEW - Phase 4)
+const setVariableSchema: NodeConfigSchema = {
+  nodeType: 'setVariable',
+  displayName: 'Set Variable',
+  description: 'Create or update a variable with static value, upstream data, or expression',
+  icon: Settings,
+  version: '2.0.0',
+  tags: ['variable', 'data', 'set'],
   contextAware: true,
   sections: [
     {
-      id: 'loop',
+      id: 'variable-config',
+      title: 'Variable Configuration',
+      icon: Settings,
+      defaultExpanded: true,
+      description: 'Define the variable',
+      fields: [
+        {
+          id: 'variableName',
+          type: 'text',
+          label: 'Variable Name',
+          placeholder: 'myVariable',
+          helpText: 'Name to reference this variable (e.g., {{myVariable}})',
+          required: true,
+          validation: [
+            {
+              type: 'pattern',
+              value: '^[a-zA-Z_][a-zA-Z0-9_]*$',
+              message: 'Must be valid variable name (letters, numbers, underscore)'
+            }
+          ]
+        },
+        {
+          id: 'valueType',
+          type: 'select',
+          label: 'Value Type',
+          options: [
+            { value: 'static', label: 'Static Value - Enter manually' },
+            { value: 'upstream', label: 'From Upstream - Select field from previous node' },
+            { value: 'expression', label: 'Expression - Calculate using formula' },
+          ],
+          defaultValue: 'static',
+          required: true,
+        },
+        {
+          id: 'staticValue',
+          type: 'text',
+          label: 'Value',
+          placeholder: 'Enter value...',
+          helpText: 'Static value to assign',
+          showIf: {
+            field: 'valueType',
+            operator: 'equals',
+            value: 'static'
+          }
+        },
+        {
+          id: 'upstreamValue',
+          type: 'text',
+          label: 'Upstream Field',
+          placeholder: 'e.g., {{customer.email}} or {{response.data.id}}',
+          helpText: 'Select field from previous node output',
+          showIf: {
+            field: 'valueType',
+            operator: 'equals',
+            value: 'upstream'
+          }
+        },
+        {
+          id: 'expressionValue',
+          type: 'codeEditor',
+          label: 'Expression',
+          language: 'javascript',
+          placeholder: '// Calculate value\nreturn {{quantity}} * {{price}};',
+          helpText: 'JavaScript expression to calculate value. Return the result.',
+          rows: 4,
+          showIf: {
+            field: 'valueType',
+            operator: 'equals',
+            value: 'expression'
+          }
+        },
+        {
+          id: 'dataType',
+          type: 'select',
+          label: 'Data Type',
+          options: [
+            { value: 'string', label: 'String (text)' },
+            { value: 'number', label: 'Number' },
+            { value: 'boolean', label: 'Boolean (true/false)' },
+            { value: 'object', label: 'Object' },
+            { value: 'array', label: 'Array' },
+            { value: 'auto', label: 'Auto-detect' },
+          ],
+          defaultValue: 'auto',
+          helpText: 'Expected data type (for validation)',
+        },
+      ]
+    },
+    {
+      id: 'variable-scope',
+      title: 'Variable Scope',
+      icon: Settings,
+      defaultExpanded: false,
+      description: 'Control where this variable is accessible',
+      fields: [
+        {
+          id: 'scope',
+          type: 'select',
+          label: 'Scope',
+          options: [
+            { value: 'step', label: 'Step - Only this step and downstream' },
+            { value: 'workflow', label: 'Workflow - Entire workflow execution' },
+            { value: 'global', label: 'Global - All workflows (persistent)' },
+          ],
+          defaultValue: 'workflow',
+          helpText: 'How long and where this variable is available',
+        },
+        {
+          id: 'persistent',
+          type: 'checkbox',
+          label: 'Persist to Database',
+          defaultValue: false,
+          helpText: 'Save variable value to database for future workflow runs',
+          showIf: {
+            field: 'scope',
+            operator: 'equals',
+            value: 'global'
+          }
+        },
+      ]
+    }
+  ]
+};
+
+const loopForEachSchema: NodeConfigSchema = {
+  nodeType: 'loopForEach',
+  displayName: 'Loop (For Each)',
+  description: 'Iterate over array or list with enhanced controls',
+  icon: Navigation,
+  version: '2.0.0',
+  tags: ['loop', 'iteration', 'foreach'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'loop-config',
       title: 'Loop Configuration',
       icon: Navigation,
       defaultExpanded: true,
+      description: 'Configure iteration behavior',
       fields: [
         {
           id: 'arrayVariable',
           type: 'text',
-          label: 'Array Variable',
-          placeholder: 'Variable containing array',
+          label: 'Array to Loop Over',
+          placeholder: 'e.g., {{customers}} or {{response.data.items}}',
+          helpText: 'Array or list variable. Supports {{variable}} syntax.',
           required: true,
         },
         {
           id: 'itemVariable',
           type: 'text',
           label: 'Item Variable Name',
-          placeholder: 'e.g., currentItem',
+          placeholder: 'item',
           defaultValue: 'item',
+          helpText: 'Name to reference each item (e.g., {{item.name}})',
+          required: true,
+        },
+        {
+          id: 'indexVariable',
+          type: 'text',
+          label: 'Index Variable Name (Optional)',
+          placeholder: 'index',
+          helpText: 'Name to reference iteration number (starts at 0)',
+        },
+        {
+          id: 'maxIterations',
+          type: 'number',
+          label: 'Max Iterations',
+          defaultValue: 1000,
+          min: 1,
+          max: 10000,
+          helpText: 'Safety limit to prevent infinite loops',
         },
       ]
     }
@@ -3429,6 +3923,9 @@ const allNewSchemas: NodeConfigSchema[] = [
   dataLookupSchema,
   dataMergeSchema,
   dataTransformSchema,
+  
+  // Variable nodes
+  setVariableSchema,
   
   // Loop nodes
   loopForEachSchema,
