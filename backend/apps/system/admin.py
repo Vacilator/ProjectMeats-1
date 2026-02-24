@@ -700,10 +700,11 @@ class ProductAdmin(admin.ModelAdmin):
     
     def fresh_or_frozen_display(self, obj):
         """Display fresh/frozen with icon."""
+        from django.utils.safestring import mark_safe
         if obj.is_fresh:
-            return format_html('<span style="color: green;">🥬 Fresh</span>')
+            return mark_safe('<span style="color: green;">🥬 Fresh</span>')
         elif obj.is_frozen:
-            return format_html('<span style="color: blue;">❄️ Frozen</span>')
+            return mark_safe('<span style="color: blue;">❄️ Frozen</span>')
         return '—'
     fresh_or_frozen_display.short_description = 'State'
     

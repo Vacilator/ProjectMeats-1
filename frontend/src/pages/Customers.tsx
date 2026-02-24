@@ -70,14 +70,19 @@ const Customers: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
+      const token = localStorage.getItem('access_token') || localStorage.getItem('authToken');
       const response = await fetch('/api/v1/products/', {
         headers: {
-          'Authorization': `Token ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
       if (response.ok) {
         const data = await response.json();
         setProducts(data);
+      } else if (response.status === 401) {
+        console.error('Unauthorized - redirecting to login');
+        window.location.href = '/login';
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -88,23 +93,32 @@ const Customers: React.FC = () => {
     try {
       // Build query string with multiple protein parameters
       const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
+      const token = localStorage.getItem('access_token') || localStorage.getItem('authToken');
       const response = await fetch(`/api/v1/products/?${proteinParams}`, {
         headers: {
-          'Authorization': `Token ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
       if (response.ok) {
         const data = await response.json();
         setProducts(data);
         
-        // Auto-select filtered products
-        const filteredProductIds = data.map((p: any) => p.id);
-        setFormData(prev => ({
-          ...prev,
-          products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
-        }));
-        
-        console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
+        if (data.length === 0) {
+          console.log('No products match selected protein filters');
+        } else {
+          // Auto-select filtered products
+          const filteredProductIds = data.map((p: any) => p.id);
+          setFormData(prev => ({
+            ...prev,
+            products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
+          }));
+          
+          console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
+        }
+      } else if (response.status === 401) {
+        console.error('Unauthorized - redirecting to login');
+        window.location.href = '/login';
       }
     } catch (error) {
       console.error('Error fetching filtered products:', error);
