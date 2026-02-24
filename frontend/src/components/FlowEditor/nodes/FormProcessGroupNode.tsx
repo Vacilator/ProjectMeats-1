@@ -22,12 +22,14 @@
  * @module FormProcessGroupNode
  */
 
-import React, { useCallback, useMemo, useEffect } from 'react';
+import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
-import { ChevronDown, ChevronRight, Plus, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Settings, Save, Check } from 'lucide-react';
 import { autoLayoutChildren, calculateChildYPosition } from './FormProcessChildWrapper';
+import { saveFormProcessGroup } from '../../../services/tenantFormService';
+import toast from 'react-hot-toast';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -73,11 +75,23 @@ export interface FormProcessGroupNodeProps extends NodeProps<FormProcessGroupDat
 // ============================================================================
 
 /**
+ * Global keyframes animation for spinner
+ */
+const spinAnimation = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+
+/**
  * Container wrapper with group styling
  * Adapts size based on expanded/collapsed state
  * Phase 3: Added drop zone indicator
  */
 const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; isDropTarget?: boolean }>`
+  ${spinAnimation}
+  
   min-width: ${props => props.isExpanded ? '600px' : '280px'};
   min-height: ${props => props.isExpanded ? `${Math.max(400, props.stepCount * 120 + 80)}px` : 'auto'};
   max-width: ${props => props.isExpanded ? '1200px' : '320px'};
@@ -191,17 +205,28 @@ const HeaderActions = styled.div`
   align-items: center;
 `;
 
-const IconButton = styled.button`
+const IconButton = styled.button<{ variant?: 'primary' | 'default'; isSaving?: boolean }>`
   padding: 6px;
-  background: transparent;
+  background: ${props => {
+    if (props.variant === 'primary') return 'rgba(139, 92, 246, 0.15)';
+    return 'transparent';
+  }};
   border: none;
   border-radius: var(--radius-sm);
-  color: rgb(var(--color-text-secondary));
-  cursor: pointer;
+  color: ${props => 
+    props.variant === 'primary' 
+      ? 'rgba(139, 92, 246, 0.9)' 
+      : 'rgb(var(--color-text-secondary))'
+  };
+  cursor: ${props => props.isSaving ? 'wait' : 'pointer'};
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   transition: all 0.15s ease;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: ${props => props.isSaving ? 0.6 : 1};
   
   &:hover {
     background: rgba(139, 92, 246, 0.15);
@@ -209,7 +234,12 @@ const IconButton = styled.button`
   }
   
   &:active {
-    transform: scale(0.95);
+    transform: ${props => props.isSaving ? 'none' : 'scale(0.95)'};
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
@@ -345,6 +375,11 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   const allNodes = useNodes();
   const allEdges = useEdges();
   
+  // Local state for save operations
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
   // Debug logging
   console.log('[FormProcessGroup] Rendered with ID:', id, 'Data:', data);
   
@@ -405,6 +440,72 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       })
     );
   }, [id, isExpanded, setNodes]);
+  
+  /**
+   * Save FormProcessGroup as TenantForm to backend
+   * Persists form definition and increments version
+   */
+  const handleSave = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (isSaving) return;
+    
+    // Validate: Must have at least one child step
+    if (childNodes.length === 0) {
+      toast.error('Cannot save: Form must have at least one step');
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      // Find the current node object
+      const currentNode = allNodes.find(n => n.id === id);
+      if (!currentNode) {
+        throw new Error('Node not found');
+      }
+      
+      console.log('[FormProcessGroup] Saving to backend:', id);
+      
+      const result = await saveFormProcessGroup(currentNode, allNodes, allEdges);
+      
+      console.log('[FormProcessGroup] Saved successfully:', result);
+      
+      // Update node data with tenantFormId and version
+      setNodes((nodes) =>
+        nodes.map((node) => {
+          if (node.id === id) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                tenantFormId: result.tenantFormId,
+                version: result.version,
+              },
+            };
+          }
+          return node;
+        })
+      );
+      
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      
+      toast.success(
+        result.created 
+          ? `Form saved successfully (v${result.version})` 
+          : `Form updated to v${result.version}`,
+        { duration: 3000 }
+      );
+      
+    } catch (error: any) {
+      console.error('[FormProcessGroup] Save failed:', error);
+      toast.error(`Save failed: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [id, isSaving, childNodes.length, allNodes, allEdges, setNodes]);
   
   /**
    * Auto-layout children when they change
@@ -602,6 +703,37 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
         </GroupTitle>
         
         <HeaderActions onClick={(e) => e.stopPropagation()}>
+          <IconButton 
+            onClick={handleSave} 
+            title={data.tenantFormId ? `Save (v${data.version || 1})` : 'Save to database'}
+            variant="primary"
+            isSaving={isSaving}
+            disabled={isSaving || childNodes.length === 0}
+          >
+            {isSaving ? (
+              <>
+                <div style={{ 
+                  width: '14px', 
+                  height: '14px', 
+                  border: '2px solid rgba(139, 92, 246, 0.3)',
+                  borderTopColor: 'rgba(139, 92, 246, 0.9)',
+                  borderRadius: '50%',
+                  animation: 'spin 0.6s linear infinite'
+                }} />
+                <span>Saving...</span>
+              </>
+            ) : lastSaved ? (
+              <>
+                <Check size={14} />
+                <span>Saved</span>
+              </>
+            ) : (
+              <>
+                <Save size={14} />
+                <span>Save</span>
+              </>
+            )}
+          </IconButton>
           <IconButton onClick={handleAddStep} title="Add step">
             <Plus size={16} />
           </IconButton>
@@ -650,6 +782,24 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
                 ))}
               {stepCount > 5 && (
                 <StepPreview>+ {stepCount - 5} more steps</StepPreview>
+              )}
+              {/* Version indicator */}
+              {data.tenantFormId && data.version && (
+                <div style={{
+                  marginTop: '8px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  color: 'rgba(139, 92, 246, 0.7)',
+                  textAlign: 'center',
+                  borderTop: '1px solid rgba(139, 92, 246, 0.1)',
+                }}>
+                  Saved: v{data.version} • ID: {data.tenantFormId.slice(0, 8)}...
+                  {lastSaved && (
+                    <span style={{ marginLeft: '4px', opacity: 0.6 }}>
+                      ({new Date(lastSaved).toLocaleTimeString()})
+                    </span>
+                  )}
+                </div>
               )}
             </CollapsedStepList>
           )}
