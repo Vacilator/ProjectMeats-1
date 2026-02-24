@@ -50,12 +50,12 @@ const Suppliers: React.FC = () => {
   // Debug: Log products state changes
   useEffect(() => {
     console.log('[Suppliers] Products state updated:', {
-      count: products.length,
+      count: Array.isArray(products) ? products.length : 0,
       products: products,
-      multiSelectOptions: products.map(p => ({ 
+      multiSelectOptions: Array.isArray(products) ? products.map(p => ({ 
         value: String(p.id), 
         label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}` 
-      }))
+      })) : []
     });
   }, [products]);
 
@@ -94,10 +94,13 @@ const Suppliers: React.FC = () => {
       });
       
       // System products return flat array (not paginated)
-      const productsData = response.data || [];
+      // Ensure we always have an array, even if response is unexpected
+      const productsData = Array.isArray(response.data) ? response.data : [];
       setProducts(productsData);
     } catch (error) {
       console.error('[Suppliers] Error fetching tenant products:', error);
+      // Set empty array on error to prevent map errors
+      setProducts([]);
     }
   };
 
@@ -112,7 +115,8 @@ const Suppliers: React.FC = () => {
       const response = await apiClient.get(fullUrl);
       
       // System products return flat array (not paginated)
-      const data = response.data || [];
+      // Ensure we always have an array, even if response is unexpected
+      const data = Array.isArray(response.data) ? response.data : [];
       
       console.log('[Suppliers] Filtered system products fetched:', {
         count: data?.length || 0,
@@ -133,6 +137,8 @@ const Suppliers: React.FC = () => {
       console.log(`[Suppliers] ✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
     } catch (error) {
       console.error('[Suppliers] Error fetching filtered products:', error);
+      // Set empty array on error to prevent map errors
+      setProducts([]);
     }
   };
 
@@ -376,10 +382,10 @@ const Suppliers: React.FC = () => {
                   <MultiSelect
                     value={formData.products.map(String)}
                     onChange={(values) => setFormData({ ...formData, products: values.map(Number) })}
-                    options={products.map(p => ({ 
+                    options={Array.isArray(products) ? products.map(p => ({ 
                       value: String(p.id), 
                       label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}` 
-                    }))}
+                    })) : []}
                     label="Products"
                     placeholder="Select products to associate (hold Ctrl/Cmd for multiple)"
                   />
