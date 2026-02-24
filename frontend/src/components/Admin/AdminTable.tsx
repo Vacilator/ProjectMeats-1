@@ -251,11 +251,11 @@ export function AdminTable<T extends Record<string, any>>({
                       : row[column.key as keyof T]}
                   </TableCell>
                 ))}
-                {actions && (
+                {actions && Array.isArray(actions) && (
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <ActionsGroup>
                       {actions
-                        ?.filter((action) => !action.hidden || !action.hidden(row))
+                        .filter((action) => !action.hidden?.(row))
                         .map((action, actionIndex) => (
                           <ActionButton
                             key={actionIndex}
