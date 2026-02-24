@@ -17,6 +17,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Settings, Eye, Layers } from 'lucide-react';
 
 import { DynamicConfigPanel } from './DynamicConfigPanel';
+import { VisualFormBuilderPanel } from './VisualFormBuilderPanel';
+import { LiveFormPreview } from './LiveFormPreview';
+import { FormField } from '../../form-builder/types';
 
 // ============================================================================
 // Types
@@ -32,18 +35,20 @@ export interface TabbedConfigPanelProps {
   onDiscard?: () => void;
 }
 
-type TabId = 'general' | 'advanced' | 'preview';
+type TabId = 'general' | 'fields' | 'advanced' | 'preview';
 
 interface Tab {
   id: TabId;
   label: string;
   icon: React.ComponentType<{ size?: number }>;
+  showFor?: string[]; // Optional: only show for specific node types
 }
 
 const TABS: Tab[] = [
   { id: 'general', label: 'General', icon: Settings },
+  { id: 'fields', label: 'Fields', icon: Layers, showFor: ['form', 'Form'] },
   { id: 'advanced', label: 'Advanced', icon: Layers },
-  { id: 'preview', label: 'Preview', icon: Eye },
+  { id: 'preview', label: 'Preview', icon: Eye, showFor: ['form', 'Form'] },
 ];
 
 // ============================================================================
@@ -63,10 +68,14 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
 
   if (!node) return null;
 
-  // Determine if preview tab should be visible (only for form nodes)
-  const showPreview = node.type?.includes('form') || node.type?.includes('Form');
-
-  const visibleTabs = showPreview ? TABS : TABS.filter(t => t.id !== 'preview');
+  // Determine which tabs to show based on node type
+  const isFormNode = node.type?.toLowerCase().includes('form') || 
+                     node.type?.toLowerCase().includes('step');
+  
+  const visibleTabs = TABS.filter(tab => {
+    if (!tab.showFor) return true; // Always show tabs without showFor
+    return isFormNode; // Show form-specific tabs only for form nodes
+  });
 
   return (
     <AnimatePresence>
@@ -132,37 +141,18 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
               </TabPanel>
             )}
 
-            {activeTab === 'logic' && isFormNode && (
+            {activeTab === 'fields' && isFormNode && (
               <TabPanel
-                key="logic"
+                key="fields"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <VisualConditionalBuilder
+                <VisualFormBuilderPanel
                   fields={(node.data?.fields as FormField[]) || []}
-                  rules={(node.data?.rules as FormRule[]) || []}
-                  onChange={(newRules) => {
-                    onUpdateNode(node.id, { rules: newRules });
-                  }}
-                />
-              </TabPanel>
-            )}
-
-            {activeTab === 'logic' && isFormNode && (
-              <TabPanel
-                key="logic"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                <VisualConditionalBuilder
-                  fields={(node.data?.fields as FormField[]) || []}
-                  rules={(node.data?.rules as FormRule[]) || []}
-                  onChange={(newRules) => {
-                    onUpdateNode(node.id, { rules: newRules });
+                  onChange={(newFields) => {
+                    onUpdateNode(node.id, { fields: newFields });
                   }}
                 />
               </TabPanel>
@@ -202,7 +192,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
               </TabPanel>
             )}
 
-            {activeTab === 'preview' && showPreview && (
+            {activeTab === 'preview' && isFormNode && (
               <TabPanel
                 key="preview"
                 initial={{ opacity: 0, y: 10 }}
@@ -210,17 +200,11 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <PreviewSection>
-                  <SectionTitle>Live Preview</SectionTitle>
-                  <InfoText>
-                    Preview how this form will appear to end users
-                  </InfoText>
-                  <PreviewFrame>
-                    <PreviewPlaceholder>
-                      📋 Form preview coming soon
-                    </PreviewPlaceholder>
-                  </PreviewFrame>
-                </PreviewSection>
+                <LiveFormPreview
+                  fields={(node.data?.fields as FormField[]) || []}
+                  title={node.data?.label || node.data?.title || 'Form Preview'}
+                  description={node.data?.description}
+                />
               </TabPanel>
             )}
           </AnimatePresence>
@@ -249,13 +233,20 @@ const PanelContainer = styled(motion.div)`
   top: 0;
   right: 0;
   bottom: 0;
-  width: 480px;
+  width: min(480px, 100vw);
+  max-width: 100vw;
   background: rgb(var(--color-background));
   border-left: 1px solid rgb(var(--color-border));
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   z-index: 10000;
+  overflow: hidden;
+  
+  @media (max-width: 600px) {
+    width: 100vw;
+    border-left: none;
+  }
 `;
 
 const PanelHeader = styled.div`
