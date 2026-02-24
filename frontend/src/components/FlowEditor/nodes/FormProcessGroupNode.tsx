@@ -433,6 +433,8 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   /**
    * Auto-connect children in sequential order (Phase 3)
    * Creates edges between consecutive child nodes based on Y position
+   * 
+   * FIX: Prevents infinite loop by memoizing edge IDs and only updating when needed
    */
   useEffect(() => {
     if (!sequentialExecution || childNodes.length < 2) return;
@@ -440,54 +442,81 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     // Sort children by Y position (top to bottom execution order)
     const sortedChildren = [...childNodes].sort((a, b) => a.position.y - b.position.y);
     
+    // Generate expected edge IDs for this configuration
+    const expectedEdgeIds = new Set<string>();
+    for (let i = 0; i < sortedChildren.length - 1; i++) {
+      const edgeId = `${sortedChildren[i].id}-to-${sortedChildren[i + 1].id}`;
+      expectedEdgeIds.add(edgeId);
+    }
+    
+    // Check current edges to see if update is needed (prevents infinite loop)
+    const childIds = new Set(sortedChildren.map(c => c.id));
+    const currentAutoEdges = allEdges.filter(edge => 
+      childIds.has(edge.source) && childIds.has(edge.target)
+    );
+    const currentEdgeIds = new Set(currentAutoEdges.map(e => e.id));
+    
+    // Only update if the edge configuration changed
+    const needsUpdate = 
+      expectedEdgeIds.size !== currentEdgeIds.size ||
+      [...expectedEdgeIds].some(id => !currentEdgeIds.has(id));
+    
+    if (!needsUpdate) {
+      console.log(`[FormProcessGroup] Auto-connect: edges already correct, skipping update`);
+      return;
+    }
+    
+    console.log(`[FormProcessGroup] Auto-connect: updating ${expectedEdgeIds.size} edges`);
+    
     // Create edges between consecutive nodes
     const newEdges: Edge[] = [];
     for (let i = 0; i < sortedChildren.length - 1; i++) {
       const sourceNode = sortedChildren[i];
       const targetNode = sortedChildren[i + 1];
-      
-      // Check if edge already exists
       const edgeId = `${sourceNode.id}-to-${targetNode.id}`;
-      const edgeExists = allEdges.some(edge => 
-        edge.source === sourceNode.id && edge.target === targetNode.id
-      );
       
-      if (!edgeExists) {
-        newEdges.push({
-          id: edgeId,
-          source: sourceNode.id,
-          target: targetNode.id,
-          type: 'smoothstep',
-          animated: true,
-          style: { 
-            stroke: 'rgba(139, 92, 246, 0.6)',
-            strokeWidth: 2,
-          },
-          label: `Step ${i + 1} → ${i + 2}`,
-          labelStyle: {
-            fill: 'rgb(139, 92, 246)',
-            fontWeight: 600,
-            fontSize: 11,
-          },
-          labelBgStyle: {
-            fill: 'rgb(var(--color-surface))',
-          },
-        });
-      }
+      newEdges.push({
+        id: edgeId,
+        source: sourceNode.id,
+        target: targetNode.id,
+        type: 'smoothstep',
+        animated: true,
+        style: { 
+          stroke: 'rgba(139, 92, 246, 0.6)',
+          strokeWidth: 2,
+        },
+        label: `Step ${i + 1} → ${i + 2}`,
+        labelStyle: {
+          fill: 'rgb(139, 92, 246)',
+          fontWeight: 600,
+          fontSize: 11,
+        },
+        labelBgStyle: {
+          fill: 'rgb(var(--color-surface))',
+        },
+      });
     }
     
     if (newEdges.length > 0) {
       setEdges((edges) => {
         // Remove old auto-generated edges between these children
         const filteredEdges = edges.filter(edge => {
-          const isAutoEdge = sortedChildren.some(child => edge.source === child.id) &&
-                             sortedChildren.some(child => edge.target === child.id);
+          const isAutoEdge = childIds.has(edge.source) && childIds.has(edge.target);
           return !isAutoEdge;
         });
         return [...filteredEdges, ...newEdges];
       });
     }
-  }, [childNodes, sequentialExecution, allEdges, setEdges]);
+  }, [
+    // CRITICAL: Only depend on node count and positions, NOT allEdges
+    // Depending on allEdges causes infinite loop: update edges → allEdges changes → useEffect runs → update edges...
+    childNodes.length,
+    sequentialExecution,
+    // Memoize child positions to detect actual changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(childNodes.map(c => ({ id: c.id, y: c.position.y }))),
+    setEdges
+  ]);
   
   /**
    * Add new step to this group
