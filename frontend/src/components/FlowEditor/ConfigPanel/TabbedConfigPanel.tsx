@@ -122,6 +122,12 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                   onUpdateNode={onUpdateNode}
                   onApply={onApply}
                   onDiscard={onDiscard}
+                  sectionFilter={(section) => {
+                    // Show only basic sections in General tab
+                    // Advanced sections go to Advanced tab
+                    const basicSectionIds = ['basic', 'entity', 'fields', 'appearance', 'behavior'];
+                    return basicSectionIds.includes(section.id);
+                  }}
                 />
               </TabPanel>
             )}
@@ -134,10 +140,24 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <AdvancedSection>
-                  <SectionTitle>Advanced Configuration</SectionTitle>
+                <DynamicConfigPanel
+                  node={node}
+                  nodes={nodes}
+                  edges={edges}
+                  onUpdateNode={onUpdateNode}
+                  onApply={onApply}
+                  onDiscard={onDiscard}
+                  sectionFilter={(section) => {
+                    // Show advanced sections: validation, conditional logic, integration, etc.
+                    const advancedSectionIds = ['advanced', 'validation', 'conditional', 'integration', 'webhooks', 'email', 'notifications'];
+                    return advancedSectionIds.includes(section.id);
+                  }}
+                />
+                {/* Fallback JSON Editor if no advanced sections */}
+                <AdvancedSection style={{ marginTop: '16px' }}>
+                  <SectionTitle>Raw Configuration (JSON)</SectionTitle>
                   <InfoText>
-                    Advanced settings for power users. Changes here may affect workflow behavior.
+                    Direct JSON editor for power users. Changes here override all other settings.
                   </InfoText>
                   <JSONEditor>
                     <pre>{JSON.stringify(node.data, null, 2)}</pre>

@@ -74,6 +74,9 @@ export interface DynamicConfigPanelProps {
   
   /** Callback when Discard is clicked */
   onDiscard?: () => void;
+  
+  /** Optional filter to show only specific sections (for tabbed interface) */
+  sectionFilter?: (section: ConfigSection) => boolean;
 }
 
 // ============================================================================
@@ -89,7 +92,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   edges,
   onUpdateNode,
   onApply,
-  onDiscard
+  onDiscard,
+  sectionFilter
 }) => {
   // ============================================================================
   // NULL SAFETY GUARD - Return early if no node selected
@@ -442,7 +446,9 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       </Header>
       
       <Content>
-        {schema.sections.map(renderSection)}
+        {schema.sections
+          .filter(section => !sectionFilter || sectionFilter(section))
+          .map(renderSection)}
       </Content>
       
       <Footer>
