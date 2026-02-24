@@ -132,6 +132,42 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
               </TabPanel>
             )}
 
+            {activeTab === 'logic' && isFormNode && (
+              <TabPanel
+                key="logic"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <VisualConditionalBuilder
+                  fields={(node.data?.fields as FormField[]) || []}
+                  rules={(node.data?.rules as FormRule[]) || []}
+                  onChange={(newRules) => {
+                    onUpdateNode(node.id, { rules: newRules });
+                  }}
+                />
+              </TabPanel>
+            )}
+
+            {activeTab === 'logic' && isFormNode && (
+              <TabPanel
+                key="logic"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <VisualConditionalBuilder
+                  fields={(node.data?.fields as FormField[]) || []}
+                  rules={(node.data?.rules as FormRule[]) || []}
+                  onChange={(newRules) => {
+                    onUpdateNode(node.id, { rules: newRules });
+                  }}
+                />
+              </TabPanel>
+            )}
+
             {activeTab === 'advanced' && (
               <TabPanel
                 key="advanced"
