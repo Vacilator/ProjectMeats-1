@@ -6280,6 +6280,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             }}
             availableFields={getPreviousStepFields(selectedFormField.id)}
             tenantLists={tenantLists}
+            currentNodeId={selectedFormField.id} // Pass currentNodeId for upstream inheritance
           />
         )}
       </SidePanel>
@@ -6386,6 +6387,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             onClose={() => setEditingField(null)}
             availableFields={selectedFormStep?.data?.fields || []}
             tenantLists={tenantLists}
+            currentNodeId={selectedFormStep?.id} // Pass currentNodeId for upstream inheritance
           />
         )}
       </SidePanel>
