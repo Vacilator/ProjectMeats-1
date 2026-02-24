@@ -123,7 +123,7 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization'; // Fix test imports
-import { NodeConfigPanelWithShadow } from './ConfigPanel';
+import { NodeConfigPanelWithShadow, TabbedConfigPanelWithShadow } from './ConfigPanel';
 import { getLayoutedElements, alignNodesHorizontally, alignNodesVertically, distributeNodesHorizontally, distributeNodesVertically } from './utils/autoLayout'; // Phase 2: UI/UX
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2: UI/UX
 
@@ -4726,8 +4726,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setFormReferenceModalOpen(false);
     setContainerModalOpen(false);
     
-    // FORCE CONFIG PANEL OPEN: Set selectedNode to trigger NodeConfigPanelWithShadow
-    // This is the universal config panel that handles ALL node types dynamically
+    // FORCE CONFIG PANEL OPEN: Set selectedNode to trigger TabbedConfigPanelWithShadow
+    // This is the universal config panel that handles ALL node types dynamically with tabbed interface
     setSelectedNode(node);
     setSelectedNodeId(nodeId);
     
@@ -6205,7 +6205,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               pointerEvents: 'auto'
             }}
           >
-            <NodeConfigPanelWithShadow
+            <TabbedConfigPanelWithShadow
               key={`panel-content-${selectedNode.id}`}
               node={selectedNode}
               nodes={nodes}
@@ -6213,7 +6213,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               setNodes={setNodes}
               setEdges={setEdges}
               onClose={() => {
-                console.log('[Config Panel] Closing panel for node:', selectedNode.id);
+                console.log('[Tabbed Config Panel] Closing panel for node:', selectedNode.id);
                 setSelectedNode(null);
               }}
               onUpdate={handleNodeUpdate}
@@ -6221,7 +6221,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               onSelectNode={(nodeId) => {
                 const node = nodes.find(n => n.id === nodeId);
                 if (node) {
-                  console.log('[Config Panel] Switching to node:', nodeId);
+                  console.log('[Tabbed Config Panel] Switching to node:', nodeId);
                   setSelectedNode(node);
                 }
               }}

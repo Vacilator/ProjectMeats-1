@@ -39,3 +39,5 @@ export type { DynamicConfigPanelProps } from './DynamicConfigPanel';
 // Phase D.3: Tabbed Config Panel (2026-02-24)
 export { TabbedConfigPanel } from './TabbedConfigPanel';
 export type { TabbedConfigPanelProps } from './TabbedConfigPanel';
+export { TabbedConfigPanelWithShadow } from './TabbedConfigPanelWithShadow';
+export type { TabbedConfigPanelWithShadowProps } from './TabbedConfigPanelWithShadow';
