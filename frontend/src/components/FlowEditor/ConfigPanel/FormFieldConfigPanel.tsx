@@ -15,11 +15,14 @@
  * 
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
-import { Eye, EyeOff, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
+import Select from 'react-select';
+import { Eye, EyeOff, AlertCircle, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { ValidationRuleBuilder, ValidationRule } from './ValidationRuleBuilder';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
+import { getUpstreamOutputs, formatInheritanceSyntax, isInheritanceSyntax, parseInheritanceSyntax } from '../../../utils/flowUtils';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -84,6 +87,7 @@ export interface FormFieldConfigPanelProps {
   onClose: () => void;
   availableFields?: Array<{ key: string; label: string; type: string }>;
   tenantLists?: Array<{ id: string; name: string }>;
+  currentNodeId?: string; // Add for upstream data inheritance
 }
 
 // ============================================================================
@@ -464,6 +468,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
   onClose,
   availableFields = [],
   tenantLists = [],
+  currentNodeId, // Add currentNodeId prop
 }) => {
   // Ensure required arrays are always initialized
   const [localField, setLocalField] = useState<FormField>({
@@ -471,12 +476,39 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
     validationRules: field.validationRules || [],
   });
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [inheritanceMode, setInheritanceMode] = useState<'manual' | 'inherit'>('manual');
+
+  // React Flow integration for upstream data inheritance
+  const { getNodes, getEdges } = useReactFlow();
+  
+  // Get upstream outputs for inheritance
+  const upstreamOutputs = useMemo(() => {
+    if (!currentNodeId) return [];
+    return getUpstreamOutputs(getNodes(), getEdges(), currentNodeId);
+  }, [currentNodeId, getNodes, getEdges]);
+
+  // Convert upstream outputs to react-select options
+  const inheritanceOptions = useMemo(() => {
+    return upstreamOutputs.map(output => ({
+      value: formatInheritanceSyntax(output.nodeId, output.fieldName),
+      label: `${output.nodeLabel} → ${output.fieldLabel}`,
+      nodeLabel: output.nodeLabel,
+      fieldLabel: output.fieldLabel,
+      type: output.type,
+      sample: output.sampleValue,
+    }));
+  }, [upstreamOutputs]);
 
   useEffect(() => {
     setLocalField({
       ...field,
       validationRules: field.validationRules || [],
     });
+    
+    // Detect if current default value is inheritance syntax
+    if (field.defaultValue && isInheritanceSyntax(field.defaultValue)) {
+      setInheritanceMode('inherit');
+    }
   }, [field]);
 
   const fieldTypeDef = FIELD_TYPE_DEFINITIONS[localField.type];
@@ -582,16 +614,123 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
               <HelpText>User must provide a value before submitting</HelpText>
             </FormField>
 
+            {/* Smart Data Inheritance - Default Value */}
             {!['checkbox', 'file'].includes(localField.type) && (
               <FormField>
-                <Label>Default Value</Label>
-                <Input
-                  type={localField.type === 'number' ? 'number' : 'text'}
-                  value={localField.defaultValue || ''}
-                  onChange={(e) => handleUpdate({ defaultValue: e.target.value })}
-                  placeholder="Optional default value..."
-                />
-                <HelpText>Value pre-filled when the form loads</HelpText>
+                <Label>
+                  Default Value
+                  {upstreamOutputs.length > 0 && (
+                    <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgb(139, 92, 246)' }}>
+                      <Zap size={12} style={{ verticalAlign: 'middle', marginRight: '2px' }} />
+                      {upstreamOutputs.length} upstream field(s)
+                    </span>
+                  )}
+                </Label>
+                
+                {/* Mode Toggle */}
+                {upstreamOutputs.length > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setInheritanceMode('manual')}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${inheritanceMode === 'manual' ? 'rgb(139, 92, 246)' : 'rgb(var(--color-border))'}`,
+                        background: inheritanceMode === 'manual' ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                        color: inheritanceMode === 'manual' ? 'rgb(139, 92, 246)' : 'rgb(var(--color-text-secondary))',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Manual Value
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInheritanceMode('inherit')}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${inheritanceMode === 'inherit' ? 'rgb(139, 92, 246)' : 'rgb(var(--color-border))'}`,
+                        background: inheritanceMode === 'inherit' ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                        color: inheritanceMode === 'inherit' ? 'rgb(139, 92, 246)' : 'rgb(var(--color-text-secondary))',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Zap size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                      Inherit from Upstream
+                    </button>
+                  </div>
+                )}
+
+                {/* Manual Input Mode */}
+                {(inheritanceMode === 'manual' || upstreamOutputs.length === 0) && (
+                  <Input
+                    type={localField.type === 'number' ? 'number' : 'text'}
+                    value={localField.defaultValue || ''}
+                    onChange={(e) => handleUpdate({ defaultValue: e.target.value })}
+                    placeholder="Optional default value..."
+                  />
+                )}
+
+                {/* Inheritance Mode - Dropdown Selector */}
+                {inheritanceMode === 'inherit' && upstreamOutputs.length > 0 && (
+                  <Select
+                    value={inheritanceOptions.find(opt => opt.value === localField.defaultValue)}
+                    onChange={(selected) => {
+                      if (selected) {
+                        handleUpdate({ defaultValue: selected.value });
+                      }
+                    }}
+                    options={inheritanceOptions}
+                    isClearable
+                    placeholder="Select upstream field to inherit..."
+                    formatOptionLabel={(option: any) => (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: 'rgb(var(--color-text-primary))' }}>
+                          {option.nodeLabel} → {option.fieldLabel}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'rgb(var(--color-text-secondary))' }}>
+                          Type: {option.type} | Sample: {option.sample || 'N/A'}
+                        </div>
+                      </div>
+                    )}
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        minHeight: '42px',
+                        border: '1px solid rgb(var(--color-border))',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: 'none',
+                        '&:hover': {
+                          border: '1px solid rgb(139, 92, 246)',
+                        },
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isFocused ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                        color: 'rgb(var(--color-text-primary))',
+                        cursor: 'pointer',
+                        padding: '12px',
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                        zIndex: 9999,
+                      }),
+                    }}
+                  />
+                )}
+
+                <HelpText>
+                  {inheritanceMode === 'inherit' 
+                    ? 'Value automatically pulled from an upstream node\'s output'
+                    : 'Value pre-filled when the form loads'}
+                </HelpText>
               </FormField>
             )}
           </SectionContent>

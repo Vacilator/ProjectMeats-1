@@ -1698,6 +1698,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
   
   // ============================================================================
+  // PORTAL MOUNT GUARD - Fix #1: Prevent "Target container is not a DOM element" errors
+  // ============================================================================
+  useEffect(() => {
+    // Ensure portal root exists for config panels
+    let portalRoot = document.getElementById('config-portal-root');
+    if (!portalRoot) {
+      console.log('[Portal] Creating config-portal-root element');
+      portalRoot = document.createElement('div');
+      portalRoot.id = 'config-portal-root';
+      portalRoot.style.cssText = 'position: fixed; top: 0; right: 0; z-index: 9999; pointer-events: none;';
+      document.body.appendChild(portalRoot);
+    }
+    
+    return () => {
+      // Cleanup on unmount (only if empty)
+      const portal = document.getElementById('config-portal-root');
+      if (portal && portal.childNodes.length === 0) {
+        console.log('[Portal] Removing empty config-portal-root element');
+        document.body.removeChild(portal);
+      }
+    };
+  }, []); // Run once on mount
+  
+  // ============================================================================
   // Container State Restoration (Phase 4 Batch 5)
   // ============================================================================
   
@@ -3144,12 +3168,21 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // It handles viewport transformation internally - do NOT subtract bounds
       if (!reactFlowInstance?.screenToFlowPosition) {
         console.error('[onDrop] reactFlowInstance not ready');
+        toast.error('Editor not ready. Please try again.');
         return;
       }
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
+      
+      // Fix #2: VALIDATE position before creating node (prevents React Flow normalization errors)
+      if (!position || typeof position.x !== 'number' || typeof position.y !== 'number' || 
+          isNaN(position.x) || isNaN(position.y)) {
+        console.error('[onDrop] Invalid position calculated:', position);
+        toast.error('Failed to add node: Invalid position');
+        return;
+      }
       
       // Snap to grid (15x15)
       position.x = Math.round(position.x / 15) * 15;
@@ -3188,11 +3221,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // Check for nearby node to auto-connect
       const nearby = findNearbyNode(position);
+      
+      // Fix #2: Ensure default dimensions upfront (prevents React Flow dimension errors)
+      const isContainerNode = type === 'formMultiStepContainer' || type === 'formProcessGroup';
+      const defaultDimensions = isContainerNode
+        ? { width: 600, height: 400 } // Larger for containers
+        : undefined; // Let React Flow calculate for regular nodes
 
       const newNode: Node = {
         id: `node-${nodeIdCounter}`,
         type: getReactFlowNodeType(type),
         position,
+        ...(defaultDimensions && { style: defaultDimensions }), // Only set if defined
         data: {
           label: NODE_TYPE_REGISTRY[type]?.name || 'New Node',
           status: 'draft',
@@ -6227,7 +6267,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               }}
             />
           </RightSidebar>,
-          portalRoot
+          portalRoot // Use dedicated portal root (Fix #1)
         );
       })()}
       
@@ -6316,6 +6356,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             }}
             availableFields={getPreviousStepFields(selectedFormField.id)}
             tenantLists={tenantLists}
+            currentNodeId={selectedFormField.id} // Pass currentNodeId for upstream inheritance
           />
         )}
       </SidePanel>
@@ -6422,6 +6463,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             onClose={() => setEditingField(null)}
             availableFields={selectedFormStep?.data?.fields || []}
             tenantLists={tenantLists}
+            currentNodeId={selectedFormStep?.id} // Pass currentNodeId for upstream inheritance
           />
         )}
       </SidePanel>
