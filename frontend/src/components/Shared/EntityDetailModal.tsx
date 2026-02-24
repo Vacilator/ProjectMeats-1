@@ -29,8 +29,9 @@ import { apiClient } from '../../services/apiService';
 import { 
   Building2, Users, ShoppingCart, Receipt, Package, 
   Truck, User, FileText, Phone, Mail, MapPin, Calendar,
-  ExternalLink, Loader, ChevronRight, ChevronDown
+  ExternalLink, Loader, ChevronRight, ChevronDown, Network
 } from 'lucide-react';
+import { RelationMindMap } from '../Cockpit/RelationMindMap';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -231,6 +232,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRelations, setShowRelations] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'mindmap'>('list'); // New state for view mode
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [loadingRelations, setLoadingRelations] = useState(false);
   const [expandedRelations, setExpandedRelations] = useState<Set<string>>(new Set());
@@ -383,6 +385,15 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
           )}
           {showRelations ? 'Hide Relations' : 'Explore Relations'}
         </ViewFullButton>
+        {showRelations && (
+          <SecondaryButton
+            onClick={() => setViewMode(prev => prev === 'list' ? 'mindmap' : 'list')}
+            title={`Switch to ${viewMode === 'list' ? 'mind-map' : 'list'} view`}
+          >
+            <Network size={16} />
+            {viewMode === 'list' ? 'Mind Map' : 'List View'}
+          </SecondaryButton>
+        )}
         {listRoute && (
           <SecondaryButton
             onClick={handleViewFullDetails}
@@ -452,7 +463,12 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
           {/* Related Records Section */}
           {showRelations && (
             <RelationsSection>
-              <RelationsHeader>Related Records</RelationsHeader>
+              <RelationsHeader>
+                Related Records
+                {viewMode === 'mindmap' && (
+                  <ViewModeHint>(Interactive Mind Map - Click nodes to explore)</ViewModeHint>
+                )}
+              </RelationsHeader>
               {loadingRelations ? (
                 <LoadingContainer>
                   <Loader size={24} style={{ animation: 'spin 1s linear infinite' }} />
@@ -460,6 +476,24 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
                 </LoadingContainer>
               ) : relationships.length === 0 ? (
                 <EmptyState>No related records found</EmptyState>
+              ) : viewMode === 'mindmap' ? (
+                <RelationMindMap
+                  entityType={entityType}
+                  entityId={entityId}
+                  entityName={entityName}
+                  onEntityClick={(type, id, name) => {
+                    console.log('[EntityDetailModal] Mind Map entity clicked:', { type, id, name });
+                    if (onExpandEntity) {
+                      onExpandEntity({
+                        id,
+                        type,
+                        name,
+                        subtitle: '',
+                      });
+                    }
+                  }}
+                  maxDepth={2}
+                />
               ) : (
                 <RelationsList>
                   {relationships.map((rel) => (
