@@ -33,6 +33,11 @@ interface SearchResult {
   color: string;
   route: string;
   score: number;
+  labels?: {
+    recency?: string;
+    value?: string;
+    activity?: string;
+  };
 }
 
 interface SearchResponse {
@@ -252,6 +257,46 @@ const ResultType = styled.span`
   background: rgb(var(--color-background));
   color: rgb(var(--color-text-secondary));
   text-transform: capitalize;
+`;
+
+const ResultMeta = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+`;
+
+const ResultScore = styled.span`
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgb(var(--color-primary));
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  background: rgba(var(--color-primary-rgb), 0.1);
+`;
+
+const SmartLabels = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+`;
+
+const SmartLabel = styled.span`
+  font-size: 0.7rem;
+  color: rgb(var(--color-text-tertiary));
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: rgb(var(--color-surface-secondary));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+    color: rgb(var(--color-text-secondary));
+  }
 `;
 
 const Footer = styled.div`
@@ -475,8 +520,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const response = await apiClient.get<SearchResponse>('search/universal/', {
-          params: { q: query, limit: 8 }
+        // Use ranked search API for intelligent results with smart labels
+        const response = await apiClient.get<SearchResponse>('search/ranked/', {
+          params: { 
+            q: query, 
+            limit: 8,
+            date_range: 'all'  // Can be made configurable: 7d, 30d, 90d, all
+          }
         });
         const fetchedResults = response.data.results;
         
@@ -602,8 +652,35 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                       {item.subtitle && (
                         <ResultSubtitle>{item.subtitle}</ResultSubtitle>
                       )}
+                      {/* Smart Labels from Ranking Service */}
+                      {item.labels && (
+                        <SmartLabels>
+                          {item.labels.recency && (
+                            <SmartLabel title={item.labels.recency}>
+                              📅 {item.labels.recency}
+                            </SmartLabel>
+                          )}
+                          {item.labels.value && (
+                            <SmartLabel title={item.labels.value}>
+                              💰 {item.labels.value}
+                            </SmartLabel>
+                          )}
+                          {item.labels.activity && (
+                            <SmartLabel title={item.labels.activity}>
+                              ⚡ {item.labels.activity}
+                            </SmartLabel>
+                          )}
+                        </SmartLabels>
+                      )}
                     </ResultContent>
-                    <ResultType>{item.type.replace('_', ' ')}</ResultType>
+                    <ResultMeta>
+                      <ResultType>{item.type.replace('_', ' ')}</ResultType>
+                      {item.score && item.score > 0 && (
+                        <ResultScore title={`Relevance score: ${item.score}/100`}>
+                          {item.score}
+                        </ResultScore>
+                      )}
+                    </ResultMeta>
                   </ResultItem>
                 ))}
               </ResultSection>
