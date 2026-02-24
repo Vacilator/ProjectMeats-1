@@ -24,7 +24,7 @@
 
 import React, { useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
-import { NodeProps, Node, useReactFlow, useNodes } from '@xyflow/react';
+import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { ChevronDown, ChevronRight, Plus, Settings } from 'lucide-react';
 import { autoLayoutChildren, calculateChildYPosition } from './FormProcessChildWrapper';
@@ -341,8 +341,9 @@ const DropZoneText = styled.div`
  */
 export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props) => {
   const { id, data, selected } = props;
-  const { setNodes } = useReactFlow();
+  const { setNodes, setEdges } = useReactFlow();
   const allNodes = useNodes();
+  const allEdges = useEdges();
   
   // Debug logging
   console.log('[FormProcessGroup] Rendered with ID:', id, 'Data:', data);
@@ -428,6 +429,65 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       })
     );
   }, [childNodes.length, id, isExpanded]); // Only trigger on count/visibility change
+  
+  /**
+   * Auto-connect children in sequential order (Phase 3)
+   * Creates edges between consecutive child nodes based on Y position
+   */
+  useEffect(() => {
+    if (!sequentialExecution || childNodes.length < 2) return;
+    
+    // Sort children by Y position (top to bottom execution order)
+    const sortedChildren = [...childNodes].sort((a, b) => a.position.y - b.position.y);
+    
+    // Create edges between consecutive nodes
+    const newEdges: Edge[] = [];
+    for (let i = 0; i < sortedChildren.length - 1; i++) {
+      const sourceNode = sortedChildren[i];
+      const targetNode = sortedChildren[i + 1];
+      
+      // Check if edge already exists
+      const edgeId = `${sourceNode.id}-to-${targetNode.id}`;
+      const edgeExists = allEdges.some(edge => 
+        edge.source === sourceNode.id && edge.target === targetNode.id
+      );
+      
+      if (!edgeExists) {
+        newEdges.push({
+          id: edgeId,
+          source: sourceNode.id,
+          target: targetNode.id,
+          type: 'smoothstep',
+          animated: true,
+          style: { 
+            stroke: 'rgba(139, 92, 246, 0.6)',
+            strokeWidth: 2,
+          },
+          label: `Step ${i + 1} → ${i + 2}`,
+          labelStyle: {
+            fill: 'rgb(139, 92, 246)',
+            fontWeight: 600,
+            fontSize: 11,
+          },
+          labelBgStyle: {
+            fill: 'rgb(var(--color-surface))',
+          },
+        });
+      }
+    }
+    
+    if (newEdges.length > 0) {
+      setEdges((edges) => {
+        // Remove old auto-generated edges between these children
+        const filteredEdges = edges.filter(edge => {
+          const isAutoEdge = sortedChildren.some(child => edge.source === child.id) &&
+                             sortedChildren.some(child => edge.target === child.id);
+          return !isAutoEdge;
+        });
+        return [...filteredEdges, ...newEdges];
+      });
+    }
+  }, [childNodes, sequentialExecution, allEdges, setEdges]);
   
   /**
    * Add new step to this group
@@ -536,11 +596,29 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
         <>
           {stepCount > 0 && (
             <CollapsedStepList>
-              {childNodes.slice(0, 5).map((child, index) => (
-                <StepPreview key={child.id}>
-                  Step {index + 1}: {(child.data as any).label || 'Untitled'}
-                </StepPreview>
-              ))}
+              {childNodes
+                .sort((a, b) => a.position.y - b.position.y) // Sort by Y position for flow order
+                .slice(0, 5)
+                .map((child, index) => (
+                  <StepPreview key={child.id}>
+                    <span style={{ 
+                      display: 'inline-block',
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      background: 'rgba(139, 92, 246, 0.2)',
+                      color: 'rgb(139, 92, 246)',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      lineHeight: '20px',
+                      textAlign: 'center',
+                      marginRight: '8px',
+                    }}>
+                      {index + 1}
+                    </span>
+                    {(child.data as any).label || 'Untitled'}
+                  </StepPreview>
+                ))}
               {stepCount > 5 && (
                 <StepPreview>+ {stepCount - 5} more steps</StepPreview>
               )}
