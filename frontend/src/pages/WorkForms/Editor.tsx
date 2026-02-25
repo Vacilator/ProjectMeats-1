@@ -16,7 +16,7 @@ import styled from 'styled-components';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Wand2, Eye, Code2, Lock, Undo2, Redo2, Download, Upload } from 'lucide-react';
+import { Wand2, Eye, Code2, Lock, Undo2, Redo2, Download, Upload, Palette, X } from 'lucide-react';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
 import { apiClient } from '../../services/apiService';
@@ -36,6 +36,23 @@ interface EditorModeConfig {
   targetUser: string;
   availableNodeTypes: string[];
   features: string[];
+}
+
+interface ThemePreset {
+  id: string;
+  name: string;
+  description: string;
+  colors: {
+    primary: string;
+    surface: string;
+    background: string;
+    border: string;
+    textPrimary: string;
+    textSecondary: string;
+    success: string;
+    warning: string;
+    error: string;
+  };
 }
 
 // ============================================================================
@@ -248,19 +265,222 @@ const HistoryButton = styled.button<{ $disabled: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: ${props => props.$disabled ? 'transparent' : 'rgb(var(--color-surface))'};
-  color: ${props => props.$disabled ? 'rgb(var(--color-text-tertiary))' : 'rgb(var(--color-text-primary))'};
-  border: none;
+  padding: 6px 10px;
+  background: ${props => props.$disabled ? 'rgb(var(--color-background))' : 'rgb(var(--color-surface))'};
+  border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-sm);
+  color: ${props => props.$disabled ? 'rgba(var(--color-text-secondary), 0.5)' : 'rgb(var(--color-text-primary))'};
   cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
   transition: all 0.15s ease;
-  opacity: ${props => props.$disabled ? 0.4 : 1};
   
   &:hover:not(:disabled) {
-    background: rgb(var(--color-primary));
-    color: white;
+    background: rgb(var(--color-background));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const ThemePanel = styled.div<{ $isOpen: boolean }>`
+  position: fixed;
+  top: 80px;
+  right: ${props => props.$isOpen ? '20px' : '-400px'};
+  width: 360px;
+  max-height: calc(100vh - 100px);
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+`;
+
+const ThemePanelHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+`;
+
+const ThemePanelTitle = styled.h3`
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const CloseButton = styled.button`
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: rgba(var(--color-border), 0.5);
+    color: rgb(var(--color-text-primary));
+  }
+  
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+`;
+
+const ThemePanelContent = styled.div`
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+`;
+
+const ThemeSection = styled.div`
+  margin-bottom: 24px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const SectionTitle = styled.h4`
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const PresetGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+`;
+
+const PresetCard = styled.button<{ $active: boolean }>`
+  padding: 12px;
+  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'rgb(var(--color-background))'};
+  border: 2px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  
+  &:hover {
+    border-color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.5)'};
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+`;
+
+const PresetName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 4px;
+`;
+
+const PresetDescription = styled.div`
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary));
+  line-height: 1.4;
+`;
+
+const PresetColors = styled.div`
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+`;
+
+const ColorDot = styled.div<{ $color: string }>`
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: ${props => props.$color};
+  border: 1px solid rgba(0, 0, 0, 0.1);
+`;
+
+const ColorPicker = styled.div`
+  display: grid;
+  gap: 12px;
+`;
+
+const ColorField = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const ColorLabel = styled.label`
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--color-text-primary));
+  flex: 1;
+`;
+
+const ColorInput = styled.input`
+  width: 60px;
+  height: 36px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 2px;
+  
+  &::-webkit-color-swatch-wrapper {
+    padding: 2px;
+  }
+  
+  &::-webkit-color-swatch {
+    border: none;
+    border-radius: 3px;
+  }
+`;
+
+const ResetButton = styled.button`
+  width: 100%;
+  padding: 10px;
+  background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: rgba(var(--color-border), 0.3);
+  }
+`;
+
+const ThemeButton = styled.button<{ $active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'rgb(var(--color-surface))'};
+  border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-primary))'};
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   }
   
   svg {
@@ -318,6 +538,77 @@ const ModeIndicator = styled.div`
     height: 14px;
   }
 `;
+
+// ============================================================================
+// Theme Presets
+// ============================================================================
+
+const THEME_PRESETS: ThemePreset[] = [
+  {
+    id: 'default',
+    name: 'Default',
+    description: 'Standard light theme',
+    colors: {
+      primary: '#667eea',
+      surface: '#ffffff',
+      background: '#f8fafc',
+      border: '#e2e8f0',
+      textPrimary: '#2c3e50',
+      textSecondary: '#64748b',
+      success: '#22c55e',
+      warning: '#eab308',
+      error: '#ef4444',
+    },
+  },
+  {
+    id: 'dark',
+    name: 'Dark',
+    description: 'Dark mode theme',
+    colors: {
+      primary: '#818cf8',
+      surface: '#1e293b',
+      background: '#0f172a',
+      border: '#334155',
+      textPrimary: '#f1f5f9',
+      textSecondary: '#94a3b8',
+      success: '#22c55e',
+      warning: '#eab308',
+      error: '#ef4444',
+    },
+  },
+  {
+    id: 'high-contrast',
+    name: 'High Contrast',
+    description: 'Maximum contrast for accessibility',
+    colors: {
+      primary: '#0066cc',
+      surface: '#ffffff',
+      background: '#ffffff',
+      border: '#000000',
+      textPrimary: '#000000',
+      textSecondary: '#333333',
+      success: '#008000',
+      warning: '#ff8800',
+      error: '#cc0000',
+    },
+  },
+  {
+    id: 'ocean',
+    name: 'Ocean',
+    description: 'Cool blue tones',
+    colors: {
+      primary: '#0891b2',
+      surface: '#f0fdfa',
+      background: '#ecfeff',
+      border: '#99f6e4',
+      textPrimary: '#134e4a',
+      textSecondary: '#0f766e',
+      success: '#14b8a6',
+      warning: '#f59e0b',
+      error: '#dc2626',
+    },
+  },
+];
 
 // ============================================================================
 // Editor Mode Configuration
@@ -406,6 +697,11 @@ export const WorkFormsEditor: React.FC = () => {
   const [history, setHistory] = useState<Array<{ nodes: Node[]; edges: Edge[] }>>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isUndoRedoing, setIsUndoRedoing] = useState(false); // Prevent recording during undo/redo
+  
+  // Theme State
+  const [isThemePanelOpen, setIsThemePanelOpen] = useState(false);
+  const [activeThemeId, setActiveThemeId] = useState<string>('default');
+  const [customColors, setCustomColors] = useState<ThemePreset['colors']>(THEME_PRESETS[0].colors);
   
   // DEBUG: Log permissions state (MUST be after state declarations)
   useEffect(() => {
@@ -861,6 +1157,52 @@ export const WorkFormsEditor: React.FC = () => {
     input.click();
   }, []);
 
+  // Theme Handlers
+  const handleThemeChange = useCallback((themeId: string) => {
+    const theme = THEME_PRESETS.find(t => t.id === themeId);
+    if (!theme) return;
+    
+    setActiveThemeId(themeId);
+    setCustomColors(theme.colors);
+    applyTheme(theme.colors);
+  }, []);
+
+  const handleCustomColorChange = useCallback((colorKey: keyof ThemePreset['colors'], value: string) => {
+    const newColors = { ...customColors, [colorKey]: value };
+    setCustomColors(newColors);
+    applyTheme(newColors);
+    setActiveThemeId('custom'); // Mark as custom theme
+  }, [customColors]);
+
+  const applyTheme = useCallback((colors: ThemePreset['colors']) => {
+    const root = document.documentElement;
+    
+    // Convert hex to RGB for CSS variables
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result
+        ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`
+        : '0, 0, 0';
+    };
+    
+    root.style.setProperty('--color-primary', hexToRgb(colors.primary));
+    root.style.setProperty('--color-surface', hexToRgb(colors.surface));
+    root.style.setProperty('--color-background', hexToRgb(colors.background));
+    root.style.setProperty('--color-border', hexToRgb(colors.border));
+    root.style.setProperty('--color-text-primary', hexToRgb(colors.textPrimary));
+    root.style.setProperty('--color-text-secondary', hexToRgb(colors.textSecondary));
+  }, []);
+
+  const handleResetTheme = useCallback(() => {
+    handleThemeChange('default');
+  }, [handleThemeChange]);
+
+  // Apply default theme on mount
+  useEffect(() => {
+    const defaultTheme = THEME_PRESETS[0];
+    applyTheme(defaultTheme.colors);
+  }, [applyTheme]);
+
   // Show loading state
   if (id && isLoadingForm) {
     return (
@@ -970,6 +1312,16 @@ export const WorkFormsEditor: React.FC = () => {
             Import
           </ActionButton>
           
+          {/* Theme Toggle */}
+          <ThemeButton 
+            $active={isThemePanelOpen}
+            onClick={() => setIsThemePanelOpen(!isThemePanelOpen)}
+            title="Customize theme"
+          >
+            <Palette />
+            Theme
+          </ThemeButton>
+          
           <ActionButton $variant="secondary">
             Preview
           </ActionButton>
@@ -1010,6 +1362,113 @@ export const WorkFormsEditor: React.FC = () => {
           </div>
         )}
       </EditorWrapper>
+
+      {/* Theme Customization Panel */}
+      <ThemePanel $isOpen={isThemePanelOpen}>
+        <ThemePanelHeader>
+          <ThemePanelTitle>
+            <Palette />
+            Theme Customization
+          </ThemePanelTitle>
+          <CloseButton onClick={() => setIsThemePanelOpen(false)}>
+            <X />
+          </CloseButton>
+        </ThemePanelHeader>
+        
+        <ThemePanelContent>
+          <ThemeSection>
+            <SectionTitle>Presets</SectionTitle>
+            <PresetGrid>
+              {THEME_PRESETS.map((preset) => (
+                <PresetCard
+                  key={preset.id}
+                  $active={activeThemeId === preset.id}
+                  onClick={() => handleThemeChange(preset.id)}
+                >
+                  <PresetName>{preset.name}</PresetName>
+                  <PresetDescription>{preset.description}</PresetDescription>
+                  <PresetColors>
+                    <ColorDot $color={preset.colors.primary} title="Primary" />
+                    <ColorDot $color={preset.colors.surface} title="Surface" />
+                    <ColorDot $color={preset.colors.background} title="Background" />
+                  </PresetColors>
+                </PresetCard>
+              ))}
+            </PresetGrid>
+          </ThemeSection>
+          
+          <ThemeSection>
+            <SectionTitle>Custom Colors</SectionTitle>
+            <ColorPicker>
+              <ColorField>
+                <ColorLabel htmlFor="color-primary">Primary Color</ColorLabel>
+                <ColorInput
+                  id="color-primary"
+                  type="color"
+                  value={customColors.primary}
+                  onChange={(e) => handleCustomColorChange('primary', e.target.value)}
+                />
+              </ColorField>
+              
+              <ColorField>
+                <ColorLabel htmlFor="color-surface">Surface</ColorLabel>
+                <ColorInput
+                  id="color-surface"
+                  type="color"
+                  value={customColors.surface}
+                  onChange={(e) => handleCustomColorChange('surface', e.target.value)}
+                />
+              </ColorField>
+              
+              <ColorField>
+                <ColorLabel htmlFor="color-background">Background</ColorLabel>
+                <ColorInput
+                  id="color-background"
+                  type="color"
+                  value={customColors.background}
+                  onChange={(e) => handleCustomColorChange('background', e.target.value)}
+                />
+              </ColorField>
+              
+              <ColorField>
+                <ColorLabel htmlFor="color-border">Border</ColorLabel>
+                <ColorInput
+                  id="color-border"
+                  type="color"
+                  value={customColors.border}
+                  onChange={(e) => handleCustomColorChange('border', e.target.value)}
+                />
+              </ColorField>
+              
+              <ColorField>
+                <ColorLabel htmlFor="color-text-primary">Text Primary</ColorLabel>
+                <ColorInput
+                  id="color-text-primary"
+                  type="color"
+                  value={customColors.textPrimary}
+                  onChange={(e) => handleCustomColorChange('textPrimary', e.target.value)}
+                />
+              </ColorField>
+              
+              <ColorField>
+                <ColorLabel htmlFor="color-text-secondary">Text Secondary</ColorLabel>
+                <ColorInput
+                  id="color-text-secondary"
+                  type="color"
+                  value={customColors.textSecondary}
+                  onChange={(e) => handleCustomColorChange('textSecondary', e.target.value)}
+                />
+              </ColorField>
+            </ColorPicker>
+          </ThemeSection>
+          
+          <ThemeSection>
+            <ResetButton onClick={handleResetTheme}>
+              Reset to Default Theme
+            </ResetButton>
+          </ThemeSection>
+        </ThemePanelContent>
+      </ThemePanel>
     </PageContainer>
   );
 };
