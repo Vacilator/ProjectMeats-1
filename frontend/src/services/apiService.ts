@@ -17,6 +17,7 @@ import {
   clearTokens,
   isUsingJwt,
 } from './jwtService';
+import { triggerGlobalSessionExpired } from '../contexts/SessionManagerContext';
 
 // API Configuration
 const API_BASE_URL = config.API_BASE_URL;
@@ -181,7 +182,9 @@ apiClient.interceptors.response.use(
         // localStorage.removeItem('tenantId');
         // localStorage.removeItem('tenantName');
         // localStorage.removeItem('tenantSlug');
-        window.location.href = '/login';
+        
+        // Show session expired modal instead of hard redirect
+        triggerGlobalSessionExpired('Your session has expired after multiple authentication attempts.');
         return Promise.reject(error);
       }
       
@@ -222,7 +225,8 @@ apiClient.interceptors.response.use(
           // localStorage.removeItem('tenantId');
           // localStorage.removeItem('tenantName');
           // localStorage.removeItem('tenantSlug');
-          window.location.href = '/login';
+          
+          triggerGlobalSessionExpired('Your session could not be refreshed. Please log in again.');
           return Promise.reject(refreshError);
         } finally {
           // CRITICAL: Always reset isRefreshing flag
@@ -234,7 +238,7 @@ apiClient.interceptors.response.use(
       console.warn('[API] No JWT auth available, redirecting to login');
       clearTokens();
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      triggerGlobalSessionExpired('Your session has expired. Please log in again.');
     }
     
     return Promise.reject(error);
@@ -266,7 +270,7 @@ adminClient.interceptors.response.use(
         console.error('[Admin API] Max retry attempts reached, redirecting to login');
         clearTokens();
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        triggerGlobalSessionExpired('Your session has expired after multiple authentication attempts.');
         return Promise.reject(error);
       }
       
@@ -285,7 +289,7 @@ adminClient.interceptors.response.use(
       console.warn('[Admin API] No JWT auth available, redirecting to login');
       clearTokens();
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      triggerGlobalSessionExpired('Your session has expired. Please log in again.');
     }
     
     return Promise.reject(error);
