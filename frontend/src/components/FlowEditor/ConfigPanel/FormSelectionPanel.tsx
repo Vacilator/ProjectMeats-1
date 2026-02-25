@@ -1,13 +1,14 @@
 /**
  * FormSelectionPanel Component
  * 
- * First panel shown when configuring Form Step or Form Multi-Step Container nodes.
+ * First panel shown when configuring Form or Form Process nodes.
  * Allows user to choose between:
  * - Creating a new form (shows name input)
  * - Using an existing form (shows cascading dropdown)
  * 
  * Phase 2.2 of WF-ENH-2026-Q1
  * Created: 2026-02-06
+ * Updated: 2026-02-25 - Phase 2 Standardization
  */
 
 import React, { useState, useEffect } from 'react';
@@ -271,7 +272,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
 
   const canProceed = mode === 'new' ? newFormName.trim().length > 0 : !!selectedExistingFormId;
 
-  const nodeTypeLabel = nodeType === 'formStep' ? 'Form Step' : 'Multi-Step Form Container';
+  const nodeTypeLabel = nodeType === 'formStep' ? 'Form' : 'Form Process';
 
   return (
     <Container>
@@ -280,7 +281,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
         <Description>
           {nodeType === 'formStep' 
             ? 'Choose whether to create a new form or use an existing one from your library.'
-            : 'Choose whether to create a new multi-step form container or use an existing one.'}
+            : 'Choose whether to create a new form process or use an existing one.'}
         </Description>
       </div>
 
