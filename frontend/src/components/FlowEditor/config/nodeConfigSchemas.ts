@@ -914,6 +914,7 @@ export const outlookEmailSchema: NodeConfigSchema = {
  * - formStepSingleSchema exported as alias for backward compatibility
  */
 export const allSchemas: NodeConfigSchema[] = [
+  // === CORE SCHEMAS (Phase 1-3) ===
   formSchema,  // NEW: Primary form schema (Phase E - 2026-02-19)
   formProcessSchema,
   formProcessGroupSchema,
@@ -931,6 +932,65 @@ export const allSchemas: NodeConfigSchema[] = [
   endSuccessSchema,
   endErrorSchema,
   timerDelaySchema,
+  
+  // === EXTENDED SCHEMAS (Phase 4 - Agent C: Complete Config Coverage) ===
+  // Form nodes
+  formStepSchema,
+  formFieldSchema,
+  formSectionSchema,
+  formReferenceSchema,
+  formSignatureSchema,
+  formFileUploadSchema,
+  formMultiStepContainerSchema,
+  
+  // Trigger nodes
+  triggerManualSchema,
+  triggerScheduleSchema,
+  triggerWebhookSchema,
+  triggerEventSchema,
+  triggerFormSchema,
+  
+  // Logic nodes
+  conditionSwitchSchema,
+  conditionFilterSchema,
+  
+  // Action nodes
+  actionHTTPSchema,
+  actionSMSSchema,
+  actionNotifySchema,
+  actionScriptSchema,
+  actionCreateRecordSchema,
+  actionUpdateRecordSchema,
+  actionDeleteRecordSchema,
+  
+  // Data nodes
+  dataLookupSchema,
+  dataMergeSchema,
+  dataTransformSchema,
+  
+  // Variable nodes
+  setVariableSchema,
+  
+  // Loop nodes
+  loopForEachSchema,
+  loopWhileSchema,
+  
+  // Wait/Pending nodes
+  timerScheduleSchema,
+  pendingApprovalSchema,
+  pendingDocumentSchema,
+  pendingPaymentSchema,
+  pendingResponseSchema,
+  
+  // Document nodes
+  documentMergeSchema,
+  
+  // Utility nodes
+  groupSubflowSchema,
+  noteCommentSchema,
+  
+  // Terminal nodes
+  endCancelSchema,
 ];
 
 // Export formStepSingleSchema as alias for backward compatibility
@@ -3886,75 +3946,12 @@ const endCancelSchema: NodeConfigSchema = {
 };
 
 // ============================================================================
-// REGISTER ALL NEW SCHEMAS
+// SCHEMA REGISTRATION COMPLETE
 // ============================================================================
 
-const allNewSchemas: NodeConfigSchema[] = [
-  // Form nodes
-  formStepSchema,
-  formFieldSchema,
-  formSectionSchema,
-  formReferenceSchema,
-  formSignatureSchema,
-  formFileUploadSchema,
-  formMultiStepContainerSchema,
-  
-  // Trigger nodes
-  triggerManualSchema,
-  triggerScheduleSchema,
-  triggerWebhookSchema,
-  triggerEventSchema,
-  triggerFormSchema,
-  
-  // Logic nodes
-  conditionSwitchSchema,
-  conditionFilterSchema,
-  
-  // Action nodes
-  actionHTTPSchema,
-  actionSMSSchema,
-  actionNotifySchema,
-  actionScriptSchema,
-  actionCreateRecordSchema,
-  actionUpdateRecordSchema,
-  actionDeleteRecordSchema,
-  
-  // Data nodes
-  dataLookupSchema,
-  dataMergeSchema,
-  dataTransformSchema,
-  
-  // Variable nodes
-  setVariableSchema,
-  
-  // Loop nodes
-  loopForEachSchema,
-  loopWhileSchema,
-  
-  // Wait/Pending nodes
-  timerScheduleSchema,
-  pendingApprovalSchema,
-  pendingDocumentSchema,
-  pendingPaymentSchema,
-  pendingResponseSchema,
-  
-  // Document nodes
-  documentMergeSchema,
-  
-  // Utility nodes
-  groupSubflowSchema,
-  noteCommentSchema,
-  
-  // Terminal nodes
-  endCancelSchema,
-];
+// All schemas are now included in the main allSchemas array above
+// and will be initialized automatically via schemaRegistry.initialize(allSchemas)
 
-// Register all new schemas
-allNewSchemas.forEach(schema => {
-  schemaRegistry.register(schema, true); // Allow overwrite
-});
-
-console.log(`[Schema Registry] Registered ${allNewSchemas.length} additional node schemas`);
-console.log('[Schema Registry] Total schemas:', schemaRegistry.getAllNodeTypes().length);
+console.log(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
 
 // Cache bust: 1771875847
