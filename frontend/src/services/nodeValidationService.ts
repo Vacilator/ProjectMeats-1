@@ -9,7 +9,7 @@
  */
 
 import { Node } from '@xyflow/react';
-import { getNodeSchema } from '../config/schemaRegistry';
+import { schemaRegistry } from '../components/FlowEditor/config/schemaRegistry';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -179,10 +179,10 @@ function isFieldVisible(fieldSchema: any, values: Record<string, any>): boolean 
 /**
  * Validate a node's configuration against its schema
  */
-export function validateNode(node: Node): ValidationResult {
-  const schema = getNodeSchema(node.type || '');
+export function validateNode(node: Node, allNodes?: Node[], allEdges?: any[]): ValidationResult {
+  const schema = schemaRegistry.get(node.type || '');
   
-  if (!schema || !schema.fields) {
+  if (!schema || !schema.sections) {
     // No schema or no fields to validate
     return {
       isValid: true,
@@ -199,9 +199,7 @@ export function validateNode(node: Node): ValidationResult {
   const values = node.data?.config || node.data || {};
   
   // Flatten sections into single field array
-  const allFields = schema.sections
-    ? schema.sections.flatMap(section => section.fields || [])
-    : schema.fields || [];
+  const allFields = schema.sections.flatMap(section => section.fields || []);
   
   let totalFields = 0;
   let completedFields = 0;

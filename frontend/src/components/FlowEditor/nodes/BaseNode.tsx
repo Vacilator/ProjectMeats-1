@@ -7,14 +7,16 @@
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-09 - Added edit/delete controls and expand/collapse (Batch 3)
  * Updated: 2026-02-17 - Added badges, icons, pinning (Sprint 1 Task 1.2)
+ * Updated: 2026-02-25 - Agent C Phase 2: Live validation badges (Task polish-live-validation-badges)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position, useReactFlow } from '@xyflow/react';
 import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
 import { NodeBadge, NodeBadgeStatus } from '../components/NodeBadge';
 import { NodeIcon, NodeIconType } from '../components/NodeIcons';
+import { validateNode, getValidationTooltip } from '../../../services/nodeValidationService';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -345,6 +347,43 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   
   // Sprint 1: Drag state
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Agent C Phase 2: Live validation with memoization for performance
+  const { getNodes, getEdges } = useReactFlow();
+  const [validationTooltip, setValidationTooltip] = useState<string | null>(null);
+  
+  const validationResult = useMemo(() => {
+    // Skip validation if explicitly provided errorCount/warningCount (manual override)
+    if (errorCount !== undefined || warningCount !== undefined) {
+      return null;
+    }
+    
+    try {
+      const nodes = getNodes();
+      const edges = getEdges();
+      const currentNode = nodes.find(n => n.id === id);
+      
+      if (!currentNode) return null;
+      
+      return validateNode(currentNode, nodes, edges);
+    } catch (error) {
+      console.error('[BaseNode] Validation error:', error);
+      return null;
+    }
+  }, [id, config, shadowConfig, getNodes, getEdges, errorCount, warningCount]);
+  
+  // Compute validation counts from service if not manually provided
+  const computedErrorCount = errorCount ?? (validationResult?.errors.length || 0);
+  const computedWarningCount = warningCount ?? (validationResult?.warnings.length || 0);
+  
+  // Update tooltip when hovering over validation badge
+  useEffect(() => {
+    if (validationResult && (computedErrorCount > 0 || computedWarningCount > 0)) {
+      setValidationTooltip(getValidationTooltip(validationResult));
+    } else {
+      setValidationTooltip(null);
+    }
+  }, [validationResult, computedErrorCount, computedWarningCount]);
 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
@@ -401,12 +440,21 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     }
   };
   
-  // Sprint 1: Determine badge to show (priority: processing > error > warning > success)
+  // Sprint 1 + Agent C Phase 2: Determine badge to show (priority: processing > error > warning > success)
+  // Now uses computed validation counts from nodeValidationService
   const getBadgeToShow = () => {
     if (badge) return badge; // Explicit badge takes precedence
     if (isProcessing) return { status: 'processing' as NodeBadgeStatus };
-    if (errorCount && errorCount > 0) return { status: 'error' as NodeBadgeStatus, count: errorCount };
-    if (warningCount && warningCount > 0) return { status: 'warning' as NodeBadgeStatus, count: warningCount };
+    if (computedErrorCount > 0) return { 
+      status: 'error' as NodeBadgeStatus, 
+      count: computedErrorCount,
+      message: validationTooltip || undefined 
+    };
+    if (computedWarningCount > 0) return { 
+      status: 'warning' as NodeBadgeStatus, 
+      count: computedWarningCount,
+      message: validationTooltip || undefined
+    };
     if (successCount && successCount > 0) return { status: 'success' as NodeBadgeStatus, count: successCount };
     return null;
   };

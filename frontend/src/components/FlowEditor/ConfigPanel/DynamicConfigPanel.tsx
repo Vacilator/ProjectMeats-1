@@ -282,10 +282,11 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     return Object.values(errors).every(error => !error);
   }, [errors]);
 
-  // Render a single field
+  // Render a single field with smooth visibility transitions (Agent C Phase 2)
   const renderField = (field: ConfigField) => {
-    if (!visibleFields.has(field.id)) return null;
-
+    const isVisible = visibleFields.has(field.id);
+    
+    // Always render but with conditional visibility for smooth transitions
     const value = formData[field.id] ?? field.defaultValue;
     const error = errors[field.id];
 
@@ -299,59 +300,68 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     };
 
     // Route to appropriate renderer based on field type
+    let renderedField = null;
     switch (field.type) {
       case 'text':
       case 'textarea':
       case 'number':
-        return renderTextField(commonProps);
+        renderedField = renderTextField(commonProps);
+        break;
       
       case 'select':
       case 'multiselect':
-        return renderSelectField(commonProps);
+        renderedField = renderSelectField(commonProps);
+        break;
       
       case 'toggle':
-        return renderToggleField(commonProps);
+        renderedField = renderToggleField(commonProps);
+        break;
       
       // Phase E: Dynamic entity type select (replaces old entity-selector usage)
       case 'entity-selector':
         // Use simple select dropdown for entity TYPE selection
-        return renderEntityTypeSelect(commonProps);
+        renderedField = renderEntityTypeSelect(commonProps);
+        break;
       
       // Complex renderers (Phase D.3) - kept for field-level operations
       case 'entity-field-picker':
         // Phase E.3: Cascade field picker - dynamically loads fields based on entityType
-        return renderEntityFieldPicker({
+        renderedField = renderEntityFieldPicker({
           ...commonProps,
           data: { 
             ...formData, 
             _upstreamVariables: upstreamVariables  // Pass upstream variables for inheritance
           }
         });
+        break;
       
       case 'field-mapping':
-        return renderFieldMapping({
+        renderedField = renderFieldMapping({
           ...commonProps,
           data: { 
             ...formData, 
             _upstreamVariables: upstreamVariables  // Pass upstream variables for mapping
           }
         });
+        break;
       
       case 'variable-picker':
-        return renderVariablePicker({
+        renderedField = renderVariablePicker({
           ...commonProps,
           data: { 
             ...formData, 
             _upstreamVariables: upstreamVariables  // Pass upstream variables for suggestions
           }
         });
+        break;
       
       case 'validation-builder':
-        return renderValidationBuilder(commonProps);
+        renderedField = renderValidationBuilder(commonProps);
+        break;
       
       // Button fields (2026-02-21 Comprehensive Enhancements)
       case 'button':
-        return (
+        renderedField = (
           <ButtonFieldContainer key={field.id}>
             <Button
               variant={field.metadata?.variant || 'secondary'}
@@ -377,10 +387,11 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
             </Button>
           </ButtonFieldContainer>
         );
+        break;
       
       // Phase E.3: Nested children
       case 'nested-children':
-        return (
+        renderedField = (
           <NestedChildrenRenderer
             key={field.id}
             field={field}
@@ -389,15 +400,31 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
             error={error}
           />
         );
+        break;
       
       default:
-        return (
+        renderedField = (
           <PlaceholderField key={field.id}>
             <PlaceholderLabel>{field.label}</PlaceholderLabel>
             <PlaceholderHint>Unknown field type: {field.type}</PlaceholderHint>
           </PlaceholderField>
         );
     }
+    
+    // Agent C Phase 2: Wrap in transition container for smooth show/hide
+    return (
+      <FieldTransitionWrapper 
+        key={field.id} 
+        $isVisible={isVisible}
+        style={{
+          maxHeight: isVisible ? '1000px' : '0',
+          marginBottom: isVisible ? '12px' : '0',
+          opacity: isVisible ? 1 : 0
+        }}
+      >
+        {renderedField}
+      </FieldTransitionWrapper>
+    );
   };
 
   // Render a section
@@ -589,6 +616,22 @@ const ErrorBadge = styled.span`
   font-size: 12px;
   color: rgb(var(--color-error));
   font-weight: 500;
+`;
+
+// Agent C Phase 2: Smooth field visibility transitions
+const FieldTransitionWrapper = styled.div<{ $isVisible: boolean }>`
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-property: max-height, opacity, margin-bottom;
+  
+  /* Smooth collapse/expand animation */
+  will-change: max-height, opacity;
+  
+  /* Hide content when collapsed to prevent interaction */
+  ${props => !props.$isVisible && `
+    pointer-events: none;
+    user-select: none;
+  `}
 `;
 
 const SectionDescription = styled.p`
