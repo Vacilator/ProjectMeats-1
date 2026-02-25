@@ -1,23 +1,24 @@
 /**
- * Form Step Configuration Panel
+ * Form Configuration Panel
  * 
- * Configuration panel for form steps (multi-step form containers).
- * Manages step-level settings including visibility, navigation, and validation.
+ * Configuration panel for forms and form processes.
+ * Manages form-level settings including visibility, navigation, and validation.
  * 
  * Features:
- * - Step title and description editing
- * - Conditional visibility for entire step
+ * - Form title and description editing
+ * - Conditional visibility for entire form
  * - Navigation controls (back/skip/auto-advance)
- * - Step-level validation rules
+ * - Form-level validation rules
  * - Field list management (add/edit/delete/reorder)
  * 
  * Phase E.2: Panel Migration - Batch 1 (1 of 3)
- * Migrated to use shared styled components from ConfigPanel/shared
+ * Updated: 2026-02-25 - Phase 2 Standardization
  * 
  * Changes:
  * - Replaced 30+ local styled components with shared components
  * - Massive code reduction expected (40%+)
  * - Maintained exact same functionality
+ * - Updated terminology: "Form Step" → "Form"
  * 
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  * Last Updated: 2026-02-18 - Phase E.2 Panel Migration

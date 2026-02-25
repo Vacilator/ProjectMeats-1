@@ -138,7 +138,7 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     category: 'form',
     icon: '📦',
     color: '#8b5cf6', // purple - distinct from regular form blue
-    description: 'DROP ZONE: Drag form steps and nodes here to create a multi-step flow',
+    description: 'Multi-step form container - drag Form nodes here to create a sequential workflow',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -146,11 +146,11 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   
   formProcessGroup: {
     id: 'formProcessGroup',
-    name: 'Form Process Group',
+    name: 'Form Process',
     category: 'form',
     icon: '📂',
     color: '#a78bfa', // lighter purple - group variant
-    description: 'LABELED CONTAINER: Resizable group with labeled header and vertical auto-layout for child steps',
+    description: 'Advanced form container with labeled header and automatic step sequencing',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -160,11 +160,11 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   // These map to the new node types but are marked as deprecated
   formStep: {
     id: 'formStep',
-    name: 'Form Step (DEPRECATED - use formStepSingle)',
+    name: 'Form Step (Deprecated)',
     category: 'form',
     icon: '📋',
     color: '#9ca3af', // gray - deprecated
-    description: '[DEPRECATED] This node type has been renamed to formStepSingle. Existing workflows will continue to work.',
+    description: '[DEPRECATED] This node type has been renamed to "Form". Existing workflows will continue to work.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
