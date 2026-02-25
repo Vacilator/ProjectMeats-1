@@ -5,6 +5,7 @@ Bundle Two: System → Tenant Workflows & New Data Entities
 Provides REST API endpoints for Forms, Workflows, and Lists.
 """
 
+import logging
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Max, Prefetch, Q
@@ -14,6 +15,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 from .models import (
     FormStatus,
@@ -47,6 +50,7 @@ from .serializers import (
 )
 from .services import FieldRegistry, get_available_entities, get_entity_fields
 from .services.entity_persistence import persist_form_submission
+from .services.form_process_persistence import FormProcessPersistenceService
 
 # =============================================================================
 # ADMIN FORM BUILDER API VIEWS
@@ -1037,6 +1041,52 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
                 "rules": rules_data,
             }
         )
+
+    def perform_create(self, serializer):
+        """
+        Override create to sync FormProcessGroup nodes if flow_data is provided.
+        
+        Agent B: FormProcessGroup Persistence
+        """
+        form = serializer.save(tenant=self.request.tenant, created_by=self.request.user)
+        
+        # Check if flow_data contains FormProcessGroup nodes
+        flow_data = form.flow_data
+        if flow_data and flow_data.get('nodes'):
+            try:
+                service = FormProcessPersistenceService(
+                    tenant=self.request.tenant,
+                    user=self.request.user
+                )
+                result = service.sync_from_workflow(flow_data)
+                
+                if not result['success']:
+                    logger.warning(f"FormProcessGroup sync had errors: {result['errors']}")
+            except Exception as e:
+                logger.error(f"Failed to sync FormProcessGroup nodes: {e}", exc_info=True)
+    
+    def perform_update(self, serializer):
+        """
+        Override update to sync FormProcessGroup nodes if flow_data is provided.
+        
+        Agent B: FormProcessGroup Persistence
+        """
+        form = serializer.save()
+        
+        # Check if flow_data contains FormProcessGroup nodes
+        flow_data = form.flow_data
+        if flow_data and flow_data.get('nodes'):
+            try:
+                service = FormProcessPersistenceService(
+                    tenant=self.request.tenant,
+                    user=self.request.user
+                )
+                result = service.sync_from_workflow(flow_data)
+                
+                if not result['success']:
+                    logger.warning(f"FormProcessGroup sync had errors: {result['errors']}")
+            except Exception as e:
+                logger.error(f"Failed to sync FormProcessGroup nodes: {e}", exc_info=True)
 
 
 class TenantFormEntityViewSet(viewsets.ModelViewSet):
