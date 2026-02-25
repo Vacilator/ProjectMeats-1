@@ -69,6 +69,13 @@ const PageHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const HeaderLeft = styled.div`
@@ -103,6 +110,17 @@ const HeaderRight = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const StatusBadge = styled.span<{ $status: string }>`
@@ -148,6 +166,7 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
       : 'rgb(var(--color-text-primary))'};
   cursor: pointer;
   transition: all 0.15s ease;
+  position: relative;
   
   &:hover {
     opacity: 0.9;
@@ -159,9 +178,19 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
     cursor: not-allowed;
   }
   
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
+  
   svg {
     width: 16px;
     height: 16px;
+  }
+  
+  @media (max-width: 640px) {
+    width: 100%;
+    justify-content: center;
   }
 `;
 
@@ -299,6 +328,16 @@ const ThemePanel = styled.div<{ $isOpen: boolean }>`
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  
+  @media (max-width: 768px) {
+    top: 0;
+    right: ${props => props.$isOpen ? '0' : '-100%'};
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
 `;
 
 const ThemePanelHeader = styled.div`
@@ -496,6 +535,11 @@ const ModeSwitcher = styled.div`
   background: rgb(var(--color-background));
   border-radius: var(--radius-md);
   border: 1px solid rgb(var(--color-border));
+  
+  @media (max-width: 640px) {
+    width: 100%;
+    justify-content: space-around;
+  }
 `;
 
 const ModeButton = styled.button<{ $active: boolean }>`
@@ -1203,6 +1247,20 @@ export const WorkFormsEditor: React.FC = () => {
     applyTheme(defaultTheme.colors);
   }, [applyTheme]);
 
+  // Focus management for theme panel (accessibility)
+  useEffect(() => {
+    if (isThemePanelOpen) {
+      // Auto-focus first interactive element when panel opens
+      const panelElement = document.querySelector('[data-theme-panel]');
+      const firstButton = panelElement?.querySelector('button');
+      if (firstButton) {
+        setTimeout(() => {
+          (firstButton as HTMLElement).focus();
+        }, 100); // Small delay for animation
+      }
+    }
+  }, [isThemePanelOpen]);
+
   // Show loading state
   if (id && isLoadingForm) {
     return (
@@ -1364,14 +1422,17 @@ export const WorkFormsEditor: React.FC = () => {
       </EditorWrapper>
 
       {/* Theme Customization Panel */}
-      <ThemePanel $isOpen={isThemePanelOpen}>
+      <ThemePanel $isOpen={isThemePanelOpen} data-theme-panel role="dialog" aria-label="Theme customization">
         <ThemePanelHeader>
           <ThemePanelTitle>
-            <Palette />
+            <Palette aria-hidden="true" />
             Theme Customization
           </ThemePanelTitle>
-          <CloseButton onClick={() => setIsThemePanelOpen(false)}>
-            <X />
+          <CloseButton 
+            onClick={() => setIsThemePanelOpen(false)}
+            aria-label="Close theme panel"
+          >
+            <X aria-hidden="true" />
           </CloseButton>
         </ThemePanelHeader>
         
