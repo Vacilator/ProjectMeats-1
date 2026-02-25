@@ -159,6 +159,74 @@ const SaveIndicator = styled.div<{ $visible: boolean }>`
   transition: opacity 0.3s ease;
 `;
 
+const UnsavedIndicator = styled.div<{ $visible: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(234, 179, 8, 0.15);
+  color: rgb(234, 179, 8);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  opacity: ${props => props.$visible ? 1 : 0};
+  transition: opacity 0.3s ease;
+  
+  &::before {
+    content: '●';
+    font-size: 16px;
+  }
+`;
+
+const AutoSaveToggle = styled.button<{ $enabled: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: ${props => props.$enabled ? 'rgba(34, 197, 94, 0.1)' : 'rgba(107, 114, 128, 0.1)'};
+  color: ${props => props.$enabled ? 'rgb(34, 197, 94)' : 'rgb(107, 114, 128)'};
+  border: 1px solid ${props => props.$enabled ? 'rgba(34, 197, 94, 0.3)' : 'rgba(107, 114, 128, 0.3)'};
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  &:hover {
+    opacity: 0.8;
+  }
+`;
+
+const SavingIndicator = styled.div<{ $visible: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(var(--color-primary), 0.1);
+  color: rgb(var(--color-primary));
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  opacity: ${props => props.$visible ? 1 : 0};
+  transition: opacity 0.3s ease;
+  
+  &::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgb(var(--color-primary));
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
 const ModeSwitcher = styled.div`
   display: flex;
   gap: 8px;
@@ -289,6 +357,8 @@ export const WorkFormsEditor: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('visual'); // Default to visual mode
   const [isCloneMode, setIsCloneMode] = useState(false); // Track if cloning
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false); // Track unsaved changes
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true); // Auto-save toggle
   
   // DEBUG: Log permissions state (MUST be after state declarations)
   useEffect(() => {
@@ -467,12 +537,66 @@ export const WorkFormsEditor: React.FC = () => {
     
     try {
       await saveMutation.mutateAsync({ nodes, edges });
+      setHasUnsavedChanges(false); // Clear unsaved changes flag
     } catch (error) {
       // Error handled in onError
     } finally {
       setIsSaving(false);
     }
   }, [saveMutation]);
+
+  // Auto-save timer ref
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastNodesRef = useRef<Node[]>(initialNodes);
+  const lastEdgesRef = useRef<Edge[]>(initialEdges);
+
+  // Auto-save effect (debounced)
+  useEffect(() => {
+    return () => {
+      // Cleanup timer on unmount
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Handle node/edge changes (triggers auto-save)
+  const handleFlowChange = useCallback((nodes: Node[], edges: Edge[]) => {
+    // Mark as unsaved if there are changes
+    const nodesChanged = JSON.stringify(nodes) !== JSON.stringify(lastNodesRef.current);
+    const edgesChanged = JSON.stringify(edges) !== JSON.stringify(lastEdgesRef.current);
+    
+    if (nodesChanged || edgesChanged) {
+      setHasUnsavedChanges(true);
+      lastNodesRef.current = nodes;
+      lastEdgesRef.current = edges;
+
+      // Trigger auto-save after 3 seconds of inactivity
+      if (autoSaveEnabled && id) { // Only auto-save for existing forms
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current);
+        }
+        
+        autoSaveTimerRef.current = setTimeout(() => {
+          console.log('[Editor] Auto-saving...');
+          handleSave(nodes, edges);
+        }, 3000); // 3 second debounce
+      }
+    }
+  }, [autoSaveEnabled, id, handleSave]);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   // Publish mutation
   const publishMutation = useMutation({
@@ -561,9 +685,31 @@ export const WorkFormsEditor: React.FC = () => {
             })}
           </ModeSwitcher>
           
+          {/* Auto-save toggle */}
+          {id && (
+            <AutoSaveToggle 
+              $enabled={autoSaveEnabled}
+              onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
+              title={autoSaveEnabled ? 'Auto-save enabled (saves after 3s of inactivity)' : 'Auto-save disabled (manual save only)'}
+            >
+              {autoSaveEnabled ? '✓ Auto-Save' : 'Manual Save'}
+            </AutoSaveToggle>
+          )}
+          
+          {/* Saving indicator */}
+          <SavingIndicator $visible={isSaving}>
+            Saving...
+          </SavingIndicator>
+          
+          {/* Saved indicator */}
           <SaveIndicator $visible={showSavedIndicator}>
             ✓ Saved
           </SaveIndicator>
+          
+          {/* Unsaved changes indicator */}
+          <UnsavedIndicator $visible={hasUnsavedChanges && !isSaving}>
+            Unsaved
+          </UnsavedIndicator>
           
           <StatusBadge $status={status}>
             {status === 'active' ? 'Active' : status === 'draft' ? 'Draft' : 'Inactive'}
@@ -591,6 +737,7 @@ export const WorkFormsEditor: React.FC = () => {
             initialNodes={initialNodes}
             initialEdges={initialEdges}
             onSave={handleSave}
+            onChange={handleFlowChange}
             editorMode={editorMode}
             readOnly={previewMode || !permissions.can_edit}
             allowedNodeCategories={permissions.allowed_node_categories}
