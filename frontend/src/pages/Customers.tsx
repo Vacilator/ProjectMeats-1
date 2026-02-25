@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
-import { apiService, Customer } from '../services/apiService';
+import { apiService, Customer, apiClient } from '../services/apiService';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import { US_STATES } from '../utils/constants/states';
@@ -70,58 +70,42 @@ const Customers: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const token = localStorage.getItem('access_token') || localStorage.getItem('authToken');
-      const response = await fetch('/api/v1/products/', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
-      } else if (response.status === 401) {
-        console.error('Unauthorized - redirecting to login');
-        window.location.href = '/login';
-      }
+      // Use apiClient to automatically include Authorization headers
+      const response = await apiService.apiClient.get('/products/');
+      setProducts(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);
+      // apiClient handles 401 automatically with token refresh
     }
   };
 
   const fetchFilteredProducts = async (proteinTypes: string[]) => {
     try {
-      // Build query string with multiple protein parameters
-      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
-      const token = localStorage.getItem('access_token') || localStorage.getItem('authToken');
-      const response = await fetch(`/api/v1/products/?${proteinParams}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      // Use apiClient with proper params - automatically includes Authorization
+      const response = await apiService.apiClient.get('/products/', {
+        params: {
+          protein: proteinTypes, // axios will serialize array properly
         },
       });
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
+      
+      const data = response.data;
+      setProducts(data);
+      
+      if (data.length === 0) {
+        console.log('No products match selected protein filters');
+      } else {
+        // Auto-select filtered products
+        const filteredProductIds = data.map((p: any) => p.id);
+        setFormData(prev => ({
+          ...prev,
+          products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
+        }));
         
-        if (data.length === 0) {
-          console.log('No products match selected protein filters');
-        } else {
-          // Auto-select filtered products
-          const filteredProductIds = data.map((p: any) => p.id);
-          setFormData(prev => ({
-            ...prev,
-            products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
-          }));
-          
-          console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
-        }
-      } else if (response.status === 401) {
-        console.error('Unauthorized - redirecting to login');
-        window.location.href = '/login';
+        console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
       }
     } catch (error) {
       console.error('Error fetching filtered products:', error);
+      // apiClient handles 401 automatically with token refresh
     }
   };
 
