@@ -161,6 +161,7 @@ interface UnifiedFlowEditorProps {
   initialNodes?: Node[];
   initialEdges?: Edge[];
   onSave?: (nodes: Node[], edges: Edge[]) => void;
+  onChange?: (nodes: Node[], edges: Edge[]) => void; // Track changes for auto-save
   readOnly?: boolean;
   editorMode?: EditorMode;
   allowedNodeCategories?: string[]; // Phase 4.2: Filter nodes by permission
@@ -1690,6 +1691,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   initialNodes = [],
   initialEdges = [],
   onSave,
+  onChange, // Track changes for auto-save
   readOnly = false,
   editorMode = 'visual',
   allowedNodeCategories, // Phase 4.2: Permission-based filtering
@@ -1705,6 +1707,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Selected node state (moved here to fix TDZ - used in useMemo at line ~1917)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  
+  // Trigger onChange when nodes or edges change
+  useEffect(() => {
+    if (onChange && nodes.length > 0) {
+      onChange(nodes, edges);
+    }
+  }, [nodes, edges, onChange]);
   
   // Phase E: Wrap onNodesChange to handle container deletion
   const onNodesChange = useCallback((changes: any[]) => {
