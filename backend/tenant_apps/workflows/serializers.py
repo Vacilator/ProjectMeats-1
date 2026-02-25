@@ -319,7 +319,12 @@ class WorkflowExecutionLogSerializer(serializers.ModelSerializer):
             'actions_executed', 'actions_failed', 'error_message',
             'execution_log', 'triggered_by'
         ]
-        read_only_fields = '__all__'
+        read_only_fields = [
+            'id', 'workflow', 'workflow_name', 'trigger_type', 'trigger_data',
+            'status', 'started_at', 'completed_at', 'duration_ms',
+            'actions_executed', 'actions_failed', 'error_message',
+            'execution_log', 'triggered_by'
+        ]
     
     def get_duration_ms(self, obj):
         if obj.completed_at and obj.started_at:
@@ -375,7 +380,11 @@ class FormSubmissionListSerializer(serializers.ModelSerializer):
             'created_by', 'created_by_name', 'progress',
             'created_at', 'updated_at', 'completed_at'
         ]
-        read_only_fields = '__all__'
+        read_only_fields = [
+            'id', 'form', 'form_name', 'form_icon',
+            'created_by', 'created_by_name', 'progress',
+            'created_at', 'updated_at', 'completed_at'
+        ]
     
     def get_created_by_name(self, obj):
         if obj.created_by:
