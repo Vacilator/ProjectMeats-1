@@ -13,6 +13,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { QuickActionsProvider } from './contexts/QuickActionsContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import { ActionItemsProvider } from './contexts/ActionItemsContext';
+import { SessionManagerProvider } from './contexts/SessionManagerContext';
 import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
 
@@ -203,6 +204,7 @@ const App: React.FC = () => {
                     v7_relativeSplatPath: true,
                   }}
                 >
+                  <SessionManagerProvider>
                   <NavigationProvider>
                     <Routes>
                 <Route path="/login" element={<Login />} />
@@ -331,6 +333,7 @@ const App: React.FC = () => {
             {/* Global floating bug report button - always available */}
             <ReportBugButton variant="floating" />
           </NavigationProvider>
+          </SessionManagerProvider>
         </Router>
               </QuickActionsProvider>
             </ActionItemsProvider>
