@@ -11,12 +11,12 @@
  * Updated: 2026-02-04 - Phase 2.2.1 Added editor mode system
  * Updated: 2026-02-04 - Phase 4.2 Added permission system
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Wand2, Eye, Code2, Lock } from 'lucide-react';
+import { Wand2, Eye, Code2, Lock, Undo2, Redo2 } from 'lucide-react';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
 import { apiClient } from '../../services/apiService';
@@ -227,6 +227,40 @@ const SavingIndicator = styled.div<{ $visible: boolean }>`
   }
 `;
 
+const HistoryControls = styled.div`
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgb(var(--color-background));
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+`;
+
+const HistoryButton = styled.button<{ $disabled: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: ${props => props.$disabled ? 'transparent' : 'rgb(var(--color-surface))'};
+  color: ${props => props.$disabled ? 'rgb(var(--color-text-tertiary))' : 'rgb(var(--color-text-primary))'};
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
+  transition: all 0.15s ease;
+  opacity: ${props => props.$disabled ? 0.4 : 1};
+  
+  &:hover:not(:disabled) {
+    background: rgb(var(--color-primary));
+    color: white;
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
 const ModeSwitcher = styled.div`
   display: flex;
   gap: 8px;
@@ -359,6 +393,11 @@ export const WorkFormsEditor: React.FC = () => {
   const [isCloneMode, setIsCloneMode] = useState(false); // Track if cloning
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false); // Track unsaved changes
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true); // Auto-save toggle
+  
+  // Undo/Redo History State
+  const [history, setHistory] = useState<Array<{ nodes: Node[]; edges: Edge[] }>>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isUndoRedoing, setIsUndoRedoing] = useState(false); // Prevent recording during undo/redo
   
   // DEBUG: Log permissions state (MUST be after state declarations)
   useEffect(() => {
@@ -585,6 +624,109 @@ export const WorkFormsEditor: React.FC = () => {
     }
   }, [autoSaveEnabled, id, handleSave]);
 
+  // Record state in history (for undo/redo)
+  const recordHistory = useCallback((nodes: Node[], edges: Edge[]) => {
+    if (isUndoRedoing) return; // Don't record during undo/redo operations
+    
+    setHistory(prev => {
+      // If we're not at the end of history, remove everything after current index
+      const newHistory = prev.slice(0, historyIndex + 1);
+      
+      // Add new state
+      newHistory.push({ nodes: [...nodes], edges: [...edges] });
+      
+      // Limit history to 50 entries
+      if (newHistory.length > 50) {
+        newHistory.shift();
+        return newHistory;
+      }
+      
+      return newHistory;
+    });
+    
+    setHistoryIndex(prev => {
+      const newIndex = Math.min(prev + 1, 49); // Max 50 entries (0-49)
+      return newIndex;
+    });
+  }, [isUndoRedoing, historyIndex]);
+
+  // Enhanced handleFlowChange that records history
+  const handleFlowChangeWithHistory = useCallback((nodes: Node[], edges: Edge[]) => {
+    // Call original flow change handler (auto-save, etc.)
+    handleFlowChange(nodes, edges);
+    
+    // Record in history
+    recordHistory(nodes, edges);
+  }, [handleFlowChange, recordHistory]);
+
+  // Undo handler
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      setIsUndoRedoing(true);
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      
+      const state = history[newIndex];
+      setInitialNodes(state.nodes);
+      setInitialEdges(state.edges);
+      setHasUnsavedChanges(true);
+      
+      // Reset flag after state updates
+      setTimeout(() => setIsUndoRedoing(false), 100);
+    }
+  }, [historyIndex, history]);
+
+  // Redo handler
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      setIsUndoRedoing(true);
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      
+      const state = history[newIndex];
+      setInitialNodes(state.nodes);
+      setInitialEdges(state.edges);
+      setHasUnsavedChanges(true);
+      
+      // Reset flag after state updates
+      setTimeout(() => setIsUndoRedoing(false), 100);
+    }
+  }, [historyIndex, history]);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z or Cmd+Z (undo)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      
+      // Ctrl+Shift+Z or Cmd+Shift+Z (redo)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        handleRedo();
+      }
+      
+      // Alternative: Ctrl+Y or Cmd+Y (redo)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
+
+  // Initialize history with initial state
+  useEffect(() => {
+    if (isInitialized && initialNodes.length > 0 && history.length === 0) {
+      setHistory([{ nodes: initialNodes, edges: initialEdges }]);
+      setHistoryIndex(0);
+    }
+  }, [isInitialized, initialNodes, initialEdges, history.length]);
+
   // Warn before leaving with unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -685,6 +827,26 @@ export const WorkFormsEditor: React.FC = () => {
             })}
           </ModeSwitcher>
           
+          {/* Undo/Redo Controls */}
+          <HistoryControls>
+            <HistoryButton
+              $disabled={historyIndex <= 0}
+              onClick={handleUndo}
+              disabled={historyIndex <= 0}
+              title={`Undo (Ctrl+Z) - ${historyIndex} actions available`}
+            >
+              <Undo2 />
+            </HistoryButton>
+            <HistoryButton
+              $disabled={historyIndex >= history.length - 1}
+              onClick={handleRedo}
+              disabled={historyIndex >= history.length - 1}
+              title={`Redo (Ctrl+Shift+Z) - ${history.length - historyIndex - 1} actions available`}
+            >
+              <Redo2 />
+            </HistoryButton>
+          </HistoryControls>
+          
           {/* Auto-save toggle */}
           {id && (
             <AutoSaveToggle 
@@ -737,7 +899,7 @@ export const WorkFormsEditor: React.FC = () => {
             initialNodes={initialNodes}
             initialEdges={initialEdges}
             onSave={handleSave}
-            onChange={handleFlowChange}
+            onChange={handleFlowChangeWithHistory}
             editorMode={editorMode}
             readOnly={previewMode || !permissions.can_edit}
             allowedNodeCategories={permissions.allowed_node_categories}
