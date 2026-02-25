@@ -16,7 +16,7 @@ import styled from 'styled-components';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Wand2, Eye, Code2, Lock, Undo2, Redo2 } from 'lucide-react';
+import { Wand2, Eye, Code2, Lock, Undo2, Redo2, Download, Upload } from 'lucide-react';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
 import { apiClient } from '../../services/apiService';
@@ -110,6 +110,9 @@ const StatusBadge = styled.span<{ $status: string }>`
 `;
 
 const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 16px;
   background: ${props => 
     props.$variant === 'primary' 
@@ -137,6 +140,11 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
   }
 `;
 
@@ -779,6 +787,80 @@ export const WorkFormsEditor: React.FC = () => {
     navigate('/workforms/catalog');
   }, [navigate]);
 
+  // Handle template export
+  const handleExportTemplate = useCallback(() => {
+    const template = {
+      name: flowName,
+      description: `Exported on ${new Date().toLocaleDateString()}`,
+      version: '1.0.0',
+      createdAt: new Date().toISOString(),
+      nodes: initialNodes,
+      edges: initialEdges,
+      metadata: {
+        nodeCount: initialNodes.length,
+        edgeCount: initialEdges.length,
+        editorMode: editorMode,
+      }
+    };
+
+    // Create JSON blob and download
+    const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${flowName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_template.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    alert('Template exported successfully!');
+  }, [flowName, initialNodes, initialEdges, editorMode]);
+
+  // Handle template import
+  const handleImportTemplate = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event: any) => {
+        try {
+          const template = JSON.parse(event.target.result);
+          
+          // Validate template structure
+          if (!template.nodes || !template.edges) {
+            throw new Error('Invalid template format: missing nodes or edges');
+          }
+
+          // Apply template
+          setFlowName(template.name || 'Imported Template');
+          setInitialNodes(template.nodes);
+          setInitialEdges(template.edges);
+          setIsInitialized(true);
+          
+          // Clear history and start fresh
+          setHistory([{ nodes: template.nodes, edges: template.edges }]);
+          setHistoryIndex(0);
+          setHasUnsavedChanges(true);
+
+          alert(`Template "${template.name}" imported successfully!`);
+        } catch (error: any) {
+          console.error('Error importing template:', error);
+          alert(`Failed to import template: ${error.message}`);
+        }
+      };
+      
+      reader.readAsText(file);
+    };
+    
+    input.click();
+  }, []);
+
   // Show loading state
   if (id && isLoadingForm) {
     return (
@@ -876,6 +958,17 @@ export const WorkFormsEditor: React.FC = () => {
           <StatusBadge $status={status}>
             {status === 'active' ? 'Active' : status === 'draft' ? 'Draft' : 'Inactive'}
           </StatusBadge>
+          
+          {/* Template Export/Import */}
+          <ActionButton $variant="secondary" onClick={handleExportTemplate} title="Export as template">
+            <Download style={{ width: 16, height: 16 }} />
+            Export
+          </ActionButton>
+          
+          <ActionButton $variant="secondary" onClick={handleImportTemplate} title="Import template">
+            <Upload style={{ width: 16, height: 16 }} />
+            Import
+          </ActionButton>
           
           <ActionButton $variant="secondary">
             Preview
