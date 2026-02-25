@@ -3,12 +3,14 @@
  * 
  * Browse, create, and manage form flows.
  * Phase 4.1.1: Enhanced Catalog with "Create New" flow
+ * Phase 5: Tabbed View ("Logic" vs "Data")
  * 
  * Created: 2026-02-03
- * Updated: 2026-02-04 - Phase 4.1.1 Enhanced Catalog
+ * Updated: 2026-02-25 - Phase 5 Management UI
  * 
  * Features:
  * - Browse existing forms/workflows
+ * - Tabbed view: "Workflows" (Logic) and "Forms" (Data Capture)
  * - Create new from template OR blank canvas
  * - Search and filter
  * - Category organization
@@ -18,7 +20,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
-import { Plus, Search, Grid, List, Filter, Sparkles, FileText, Workflow, Clock, Star, Lock } from 'lucide-react';
+import { Plus, Search, Grid, List, Filter, Sparkles, FileText, Workflow, Clock, Star, Lock, Boxes, Database } from 'lucide-react';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -46,6 +48,7 @@ interface TenantForm {
 
 type ViewMode = 'grid' | 'list';
 type FilterOption = 'all' | 'active' | 'draft' | 'recent' | 'favorites';
+type TabOption = 'workflows' | 'forms';
 
 // ============================================================================
 // Styled Components
@@ -118,6 +121,58 @@ const FilterBar = styled.div`
   align-items: center;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
+`;
+
+const TabsContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid rgb(var(--color-border));
+  margin-bottom: 1.5rem;
+`;
+
+const Tab = styled.button<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: transparent;
+  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  
+  ${props => props.$active && `
+    border-bottom-color: rgb(var(--color-primary));
+  `}
+  
+  &:hover {
+    color: rgb(var(--color-primary));
+    background: rgba(var(--color-primary), 0.05);
+  }
+  
+  svg {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+`;
+
+const TabBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  padding: 0 0.375rem;
+  border-radius: var(--radius-full);
+  background: rgba(var(--color-primary), 0.15);
+  color: rgb(var(--color-primary));
+  font-size: 0.6875rem;
+  font-weight: 600;
 `;
 
 const FilterChip = styled.button<{ $active?: boolean }>`
@@ -324,6 +379,7 @@ const FormsFlowsCatalog: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filter, setFilter] = useState<FilterOption>('all');
+  const [activeTab, setActiveTab] = useState<TabOption>('workflows');
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [previewForm, setPreviewForm] = useState<TenantForm | null>(null);
   
@@ -378,7 +434,7 @@ const FormsFlowsCatalog: React.FC = () => {
     }
   }, [error]);
 
-  // Filter forms based on search and filter
+  // Filter forms based on search, filter, and tab
   const filteredForms = React.useMemo(() => {
     // Safety check: ensure forms is an array
     if (!forms || !Array.isArray(forms)) {
@@ -387,6 +443,22 @@ const FormsFlowsCatalog: React.FC = () => {
     }
     
     let filtered = forms;
+    
+    // Apply tab filter first (Phase 5: Separate Logic vs Data)
+    if (activeTab === 'workflows') {
+      // Workflows: Forms with logic/automation nodes
+      filtered = filtered.filter(form => 
+        form.is_multi_entity === true || 
+        (form.entity_count && form.entity_count > 1)
+      );
+    } else if (activeTab === 'forms') {
+      // Forms: Simple data capture forms (single entity or basic forms)
+      filtered = filtered.filter(form => 
+        form.is_multi_entity === false || 
+        !form.entity_count || 
+        form.entity_count <= 1
+      );
+    }
     
     // Apply search filter
     if (searchQuery) {
@@ -412,7 +484,18 @@ const FormsFlowsCatalog: React.FC = () => {
     }
     
     return filtered;
-  }, [forms, searchQuery, filter]);
+  }, [forms, searchQuery, filter, activeTab]);
+
+  // Count forms by type for tab badges
+  const workflowsCount = React.useMemo(() => {
+    if (!forms || !Array.isArray(forms)) return 0;
+    return forms.filter(f => f.is_multi_entity === true || (f.entity_count && f.entity_count > 1)).length;
+  }, [forms]);
+
+  const formsCount = React.useMemo(() => {
+    if (!forms || !Array.isArray(forms)) return 0;
+    return forms.filter(f => f.is_multi_entity === false || !f.entity_count || f.entity_count <= 1).length;
+  }, [forms]);
 
   // Handle template selection
   const handleTemplateSelect = (template: FlowTemplate) => {
@@ -477,6 +560,26 @@ const FormsFlowsCatalog: React.FC = () => {
           </Button>
         </HeaderActions>
       </Header>
+
+      {/* Phase 5: Tabbed View - Logic vs Data */}
+      <TabsContainer>
+        <Tab
+          $active={activeTab === 'workflows'}
+          onClick={() => setActiveTab('workflows')}
+        >
+          <Workflow size={18} />
+          Workflows (Logic)
+          {workflowsCount > 0 && <TabBadge>{workflowsCount}</TabBadge>}
+        </Tab>
+        <Tab
+          $active={activeTab === 'forms'}
+          onClick={() => setActiveTab('forms')}
+        >
+          <Database size={18} />
+          Forms (Data)
+          {formsCount > 0 && <TabBadge>{formsCount}</TabBadge>}
+        </Tab>
+      </TabsContainer>
 
       <FilterBar>
         <FilterChip
