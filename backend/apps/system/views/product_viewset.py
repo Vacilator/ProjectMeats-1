@@ -64,16 +64,26 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
         """
         Return all active system products.
         
-        Optionally filter by protein types:
-        - ?protein=BEEF&protein=PORK - Multiple protein types
+        Supports cascade filtering by protein types:
+        - ?protein=beef&protein=pork - Multiple protein types (lowercase slugs)
+        - ?protein_type=beef - Single protein type
+        - Case-insensitive matching for backward compatibility
         """
         queryset = super().get_queryset()
         
-        # Protein type filtering (supports multiple values)
+        # Protein type filtering (supports multiple values, case-insensitive)
         protein_types = self.request.query_params.getlist('protein', None)
+        if not protein_types:
+            # Also check for protein_type param (singular)
+            protein_type = self.request.query_params.get('protein_type', None)
+            if protein_type:
+                protein_types = [protein_type]
+        
         if protein_types:
-            queryset = queryset.filter(protein_type__in=protein_types)
-            logger.debug(f"Filtered system products by protein types: {protein_types}")
+            # Normalize to lowercase for consistent filtering
+            protein_types_lower = [pt.lower() for pt in protein_types]
+            queryset = queryset.filter(protein_type__in=protein_types_lower)
+            logger.debug(f"Filtered system products by protein types: {protein_types_lower}")
         
         return queryset
     

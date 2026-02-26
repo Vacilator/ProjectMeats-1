@@ -29,12 +29,12 @@ SYSTEM_CHOICE_LISTS = [
         'description': 'Types of protein products (beef, pork, poultry, etc.)',
         'model_field_path': 'products.product.protein_type',
         'items': [
-            {'value': 'BEEF', 'label': 'Beef', 'order': 1},
-            {'value': 'PORK', 'label': 'Pork', 'order': 2},
-            {'value': 'POULTRY', 'label': 'Poultry', 'order': 3},
-            {'value': 'SEAFOOD', 'label': 'Seafood', 'order': 4},
-            {'value': 'LAMB', 'label': 'Lamb', 'order': 5},
-            {'value': 'OTHER', 'label': 'Other', 'order': 99},
+            {'value': 'beef', 'label': 'Beef', 'order': 1, 'extra_data': {'filter_key': 'beef'}},
+            {'value': 'pork', 'label': 'Pork', 'order': 2, 'extra_data': {'filter_key': 'pork'}},
+            {'value': 'poultry', 'label': 'Poultry', 'order': 3, 'extra_data': {'filter_key': 'poultry'}},
+            {'value': 'seafood', 'label': 'Seafood', 'order': 4, 'extra_data': {'filter_key': 'seafood'}},
+            {'value': 'lamb', 'label': 'Lamb', 'order': 5, 'extra_data': {'filter_key': 'lamb'}},
+            {'value': 'other', 'label': 'Other', 'order': 99, 'extra_data': {'filter_key': 'other'}},
         ]
     },
     {
