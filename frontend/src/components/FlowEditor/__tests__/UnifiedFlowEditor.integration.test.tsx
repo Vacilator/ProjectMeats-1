@@ -6,21 +6,22 @@
 
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import UnifiedFlowEditor from '../UnifiedFlowEditor';
 import { apiClient } from '@/services/apiService';
 
 // Mock apiClient
-jest.mock('@/services/apiService', () => ({
+vi.mock('@/services/apiService', () => ({
   apiClient: {
-    get: jest.fn(),
-    post: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn(),
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
 // Mock React Flow
-jest.mock('@xyflow/react', () => ({
+vi.mock('@xyflow/react', () => ({
   ReactFlow: ({ children, nodes, edges, onNodesChange, onEdgesChange }: any) => (
     <div data-testid="react-flow" data-nodes={nodes?.length || 0} data-edges={edges?.length || 0}>
       {children}
@@ -31,30 +32,30 @@ jest.mock('@xyflow/react', () => ({
   MiniMap: () => <div data-testid="minimap" />,
   Panel: ({ children }: any) => <div data-testid="panel">{children}</div>,
   useReactFlow: () => ({
-    fitView: jest.fn(),
-    setNodes: jest.fn(),
-    setEdges: jest.fn(),
-    getNodes: jest.fn(() => []),
-    getEdges: jest.fn(() => []),
-    screenToFlowPosition: jest.fn((pos) => pos),
+    fitView: vi.fn(),
+    setNodes: vi.fn(),
+    setEdges: vi.fn(),
+    getNodes: vi.fn(() => []),
+    getEdges: vi.fn(() => []),
+    screenToFlowPosition: vi.fn((pos) => pos),
   }),
-  useNodesState: (initial: any) => [initial || [], jest.fn(), jest.fn()],
-  useEdgesState: (initial: any) => [initial || [], jest.fn(), jest.fn()],
-  addEdge: jest.fn((edge, edges) => [...edges, edge]),
+  useNodesState: (initial: any) => [initial || [], vi.fn(), vi.fn()],
+  useEdgesState: (initial: any) => [initial || [], vi.fn(), vi.fn()],
+  addEdge: vi.fn((edge, edges) => [...edges, edge]),
 }));
 
 describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   const mockOnSave = jest.fn();
   
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // Mock API responses
-    (apiClient.get as jest.Mock).mockResolvedValue({ data: [] });
-    (apiClient.post as jest.Mock).mockResolvedValue({ 
+    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] });
+    (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({ 
       data: { id: '123', version: 1 } 
     });
-    (apiClient.put as jest.Mock).mockResolvedValue({ 
+    (apiClient.put as ReturnType<typeof vi.fn>).mockResolvedValue({ 
       data: { id: '123', version: 2 } 
     });
     
@@ -98,7 +99,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
         },
       };
       
-      (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: mockForm });
+      (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: mockForm });
 
       render(
         
@@ -193,7 +194,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
     });
 
     it('should handle save errors gracefully', async () => {
-      (apiClient.post as jest.Mock).mockRejectedValueOnce(
+      (apiClient.post as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
         new Error('Network error')
       );
 
