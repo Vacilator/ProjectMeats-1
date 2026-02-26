@@ -7,6 +7,7 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import UnifiedFlowEditor from '../UnifiedFlowEditor';
 import { apiClient } from '@/services/apiService';
 
@@ -41,6 +42,11 @@ vi.mock('@xyflow/react', () => ({
     Left: 'left',
     Right: 'right',
   },
+  BackgroundVariant: {
+    Lines: 'lines',
+    Dots: 'dots',
+    Cross: 'cross',
+  },
   useReactFlow: () => ({
     fitView: vi.fn(),
     setNodes: vi.fn(),
@@ -58,9 +64,20 @@ vi.mock('@xyflow/react', () => ({
 
 describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   const mockOnSave = vi.fn();
+  let queryClient: QueryClient;
   
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Create fresh QueryClient for each test
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+        },
+      },
+    });
     
     // Mock API responses
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] });
@@ -82,14 +99,22 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
     if (portal) {
       document.body.removeChild(portal);
     }
+    queryClient.clear();
   });
+  
+  // Helper to render with QueryClientProvider
+  const renderWithQuery = (ui: React.ReactElement) => {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        {ui}
+      </QueryClientProvider>
+    );
+  };
 
   describe('1. Editor Initialization', () => {
     it('should render empty editor on load', () => {
-      render(
-        
-          <UnifiedFlowEditor onSave={mockOnSave} />
-        
+      renderWithQuery(
+        <UnifiedFlowEditor onSave={mockOnSave} />
       );
 
       expect(screen.getByTestId('react-flow')).toBeInTheDocument();
@@ -113,7 +138,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       
       (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: mockForm });
 
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor formId="123" onSave={mockOnSave} />
         
@@ -127,7 +152,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
   describe('2. Node Palette & Canvas Interaction', () => {
     it('should show node palette by default', () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -139,7 +164,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
     });
 
     it('should hide portal when no node is selected', () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -181,7 +206,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
     });
 
     it('should update existing form', async () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor formId="123" onSave={mockOnSave} />
         
@@ -210,7 +235,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
         new Error('Network error')
       );
 
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -230,7 +255,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
   describe('4. Undo/Redo Functionality', () => {
     it('should undo and redo node additions', () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -249,7 +274,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
   describe('5. Template Export/Import', () => {
     it('should export workflow as JSON', () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -258,7 +283,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       const exportButton = screen.getByRole('button', { name: /export/i });
       
       // Mock download
-      const createObjectURL = jest.fn();
+      const createObjectURL = vi.fn();
       global.URL.createObjectURL = createObjectURL;
 
       fireEvent.click(exportButton);
@@ -268,7 +293,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
     });
 
     it('should import workflow from JSON', async () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -295,7 +320,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
   describe('6. Read-Only Mode', () => {
     it('should disable editing in read-only mode', () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor readOnly={true} onSave={mockOnSave} />
         
@@ -313,14 +338,14 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('7. Error Boundaries', () => {
     it('should catch and display errors', () => {
       // Mock console.error to suppress error output
-      const consoleError = jest.spyOn(console, 'error').mockImplementation();
+      const consoleError = vi.spyOn(console, 'error').mockImplementation();
 
       // Force an error by passing invalid props
       const BadComponent = () => {
         throw new Error('Test error');
       };
 
-      render(
+      renderWithQuery(
         
           <BadComponent />
         
@@ -335,7 +360,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
   describe('8. Keyboard Shortcuts', () => {
     it('should handle Ctrl+S for save', () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -349,7 +374,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
     });
 
     it('should handle Ctrl+Z for undo', () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -361,7 +386,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
     });
 
     it('should handle Escape to close panels', () => {
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
@@ -388,7 +413,7 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
       const startTime = performance.now();
 
-      render(
+      renderWithQuery(
         
           <UnifiedFlowEditor 
             initialNodes={largeWorkflow.nodes}
