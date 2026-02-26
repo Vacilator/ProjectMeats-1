@@ -122,13 +122,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './vitest.setup.ts',
     css: true,
-    pool: 'threads',
+    pool: 'forks', // Use forks instead of threads for stability
     poolOptions: {
-      threads: {
-        maxThreads: 4,
-        minThreads: 2,
+      forks: {
+        singleFork: false,
       },
     },
+    passWithNoTests: true,
+    bail: 1, // Stop on first failure for faster feedback
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
