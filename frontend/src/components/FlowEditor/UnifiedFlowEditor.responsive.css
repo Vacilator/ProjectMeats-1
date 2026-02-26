@@ -1,0 +1,308 @@
+/**
+ * Responsive Styles for Unified Flow Editor
+ * 
+ * Mobile-first responsive design for workflow editor.
+ * Implements Gap Analysis Phase 1.2 requirements.
+ * 
+ * Breakpoints:
+ * - Mobile: < 600px
+ * - Tablet: 600px - 1024px
+ * - Desktop: > 1024px
+ * 
+ * Created: 2026-02-26 - Gap Analysis Phase 1.2
+ */
+
+/* ============================================================================
+   Mobile Styles (< 600px)
+   ============================================================================ */
+
+@media (max-width: 600px) {
+  /* Node Palette - Full width drawer */
+  .node-palette {
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-height: 60vh !important;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+  }
+
+  .node-palette.visible {
+    transform: translateY(0);
+  }
+
+  /* Config Panel - Full width bottom sheet */
+  .node-config-panel {
+    position: fixed !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-height: 70vh !important;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15) !important;
+  }
+
+  /* Canvas - Full viewport */
+  .react-flow {
+    touch-action: pan-x pan-y !important;
+  }
+
+  .react-flow__pane {
+    cursor: grab !important;
+  }
+
+  .react-flow__pane:active {
+    cursor: grabbing !important;
+  }
+
+  /* Toolbar - Compact horizontal */
+  [data-tour="toolbar"] {
+    flex-wrap: wrap !important;
+    padding: 8px !important;
+    gap: 4px !important;
+  }
+
+  [data-tour="toolbar"] button {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+    min-width: auto !important;
+  }
+
+  [data-tour="toolbar"] button svg {
+    width: 14px !important;
+    height: 14px !important;
+    margin-right: 2px !important;
+  }
+
+  /* Hide text labels on mobile toolbar */
+  [data-tour="toolbar"] button span:not([class*="icon"]) {
+    display: none;
+  }
+
+  /* Node sizes - Smaller on mobile */
+  .react-flow__node {
+    min-width: 140px !important;
+  }
+
+  .react-flow__node-default {
+    font-size: 12px !important;
+    padding: 8px !important;
+  }
+
+  /* Minimap - Smaller */
+  .react-flow__minimap {
+    width: 100px !important;
+    height: 80px !important;
+    bottom: 60px !important;
+  }
+
+  /* Controls - Compact */
+  .react-flow__controls {
+    bottom: 60px !important;
+  }
+
+  .react-flow__controls button {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* Modal overlays - Full screen */
+  [class*="Modal"] {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+  }
+
+  /* Form fields - Full width */
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  textarea,
+  select {
+    width: 100% !important;
+    font-size: 16px !important; /* Prevents iOS zoom */
+  }
+
+  /* Touch targets - Minimum 44x44px */
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+}
+
+/* ============================================================================
+   Tablet Styles (600px - 1024px)
+   ============================================================================ */
+
+@media (min-width: 600px) and (max-width: 1024px) {
+  /* Node Palette - Narrower */
+  .node-palette {
+    width: 200px !important;
+  }
+
+  /* Config Panel - Narrower */
+  .node-config-panel {
+    width: 300px !important;
+  }
+
+  /* Canvas - Adjusted spacing */
+  .react-flow {
+    padding: 48px 16px !important;
+  }
+
+  /* Toolbar - Two rows if needed */
+  [data-tour="toolbar"] {
+    flex-wrap: wrap !important;
+  }
+}
+
+/* ============================================================================
+   Touch Device Optimizations
+   ============================================================================ */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .react-flow__handle {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  /* Prevent text selection during drag */
+  .react-flow__pane {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+
+  /* Smooth scrolling */
+  * {
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Prevent double-tap zoom */
+  * {
+    touch-action: manipulation !important;
+  }
+
+  /* Hover states as active states */
+  button:active,
+  [role="button"]:active {
+    transform: scale(0.98) !important;
+    transition: transform 0.1s ease !important;
+  }
+}
+
+/* ============================================================================
+   Landscape Mobile (< 600px height)
+   ============================================================================ */
+
+@media (max-height: 600px) and (orientation: landscape) {
+  /* Config panel - Smaller max height */
+  .node-config-panel {
+    max-height: 80vh !important;
+  }
+
+  /* Node palette - Smaller max height */
+  .node-palette {
+    max-height: 80vh !important;
+  }
+
+  /* Minimap - Hide on small landscape */
+  .react-flow__minimap {
+    display: none !important;
+  }
+}
+
+/* ============================================================================
+   High DPI Displays
+   ============================================================================ */
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper borders */
+  .react-flow__node,
+  .react-flow__edge-path {
+    shape-rendering: geometricPrecision;
+  }
+
+  /* Crisp text */
+  .react-flow__node-default {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ============================================================================
+   Print Styles (for workflow documentation)
+   ============================================================================ */
+
+@media print {
+  /* Hide UI chrome */
+  .node-palette,
+  .node-config-panel,
+  .react-flow__controls,
+  .react-flow__minimap,
+  [data-tour="toolbar"] {
+    display: none !important;
+  }
+
+  /* Full page canvas */
+  .react-flow {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* High contrast for printing */
+  .react-flow__node {
+    border: 2px solid #000 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .react-flow__edge-path {
+    stroke: #000 !important;
+    stroke-width: 2px !important;
+  }
+}
+
+/* ============================================================================
+   Reduced Motion (Accessibility)
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .node-palette,
+  .node-config-panel {
+    transition: none !important;
+  }
+}
+
+/* ============================================================================
+   Dark Mode Adjustments (if theme supports it)
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  /* Higher contrast in dark mode */
+  .react-flow__node {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  /* Dimmer backgrounds */
+  .node-palette,
+  .node-config-panel {
+    background: rgb(var(--color-surface-dark, var(--color-surface))) !important;
+  }
+}
