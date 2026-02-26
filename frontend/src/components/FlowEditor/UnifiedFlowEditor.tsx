@@ -37,6 +37,12 @@ import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
+import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
+import { 
+  useOnboardingTour, 
+  workflowEditorTourSteps, 
+  tourStyles 
+} from './hooks/useOnboardingTour'; // Gap Analysis Phase 1.1
 import {
   ReactFlow,
   MiniMap,
@@ -2118,6 +2124,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     nodes.find(n => n.id === selectedNodeId) || null,
     [nodes, selectedNodeId]
   );
+  
+  // ============================================================================
+  // Onboarding Tour (Gap Analysis Phase 1.1)
+  // ============================================================================
+  
+  const {
+    run: runTour,
+    stepIndex: tourStepIndex,
+    steps: tourSteps,
+    handleJoyrideCallback: handleTourCallback,
+    startTour,
+    resetTour,
+  } = useOnboardingTour({
+    name: 'workflow-editor',
+    steps: workflowEditorTourSteps,
+    autoStart: true, // Auto-start for first-time users
+  });
   
   // ============================================================================
   // CRITICAL: Forward declarations for handlers used in early useEffects
@@ -5464,7 +5487,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       {/* Node Palette - Visual & Expert Modes Only */}
       {!readOnly && isPaletteVisible && (activeEditorMode === 'visual' || activeEditorMode === 'expert') && (
-        <NodePalette>
+        <NodePalette className="node-palette" data-tour="node-palette">
           <PaletteHeader>
             <PaletteTitle>Add Nodes</PaletteTitle>
             
@@ -5655,7 +5678,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* Toolbar */}
       {!readOnly && (
-        <Toolbar>
+        <Toolbar data-tour="toolbar">
           <ToolbarButton 
             onClick={() => setIsTemplateModalOpen(true)}
             title="Browse Templates"
@@ -6791,6 +6814,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           nodeId={editingNodeId}
         />
       )}
+      
+      {/* Onboarding Tour (Gap Analysis Phase 1.1) */}
+      <Joyride
+        steps={tourSteps}
+        run={runTour}
+        stepIndex={tourStepIndex}
+        callback={handleTourCallback}
+        continuous
+        showProgress
+        showSkipButton
+        styles={tourStyles}
+        locale={{
+          back: 'Back',
+          close: 'Close',
+          last: 'Finish',
+          next: 'Next',
+          skip: 'Skip tour',
+        }}
+      />
     </EditorContainer>
   );
 };
