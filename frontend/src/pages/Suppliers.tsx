@@ -108,7 +108,8 @@ const Suppliers: React.FC = () => {
     try {
       console.log('[Suppliers] Fetching filtered products for protein types:', proteinTypes);
       // Build query string with multiple protein parameters for system products
-      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type.toUpperCase())}`).join('&');
+      // Protein types are now lowercase slugs (beef, pork, poultry) matching system data
+      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type.toLowerCase())}`).join('&');
       const fullUrl = `/system/products/?${proteinParams}`;
       console.log('[Suppliers] Request URL:', fullUrl);
       

@@ -8,9 +8,14 @@ This replaces the tenant_apps/products model with a system-wide approach:
 - Products are defined once, used by all tenants
 - Product deduplication: 235 tenant copies → ~32 unique products
 - FK references updated to point to system.Product
+
+Validation Layer (Phase 3):
+- Enforces protein_type against SystemChoiceList to prevent "Zombie Products"
+- Ensures cascade filtering data contract consistency
 """
 import uuid
 from django.db import models
+from django.core.exceptions import ValidationError
 
 
 class ProductCategoryChoices(models.TextChoices):
@@ -178,6 +183,39 @@ class Product(models.Model):
     
     def __str__(self):
         return f"{self.product_code} - {self.name}"
+    
+    def clean(self):
+        """
+        Validate product data against SystemChoiceList constraints.
+        
+        Prevents "Zombie Products" by ensuring protein_type matches
+        valid SystemChoiceItem values. This maintains data contract
+        consistency for cascade filtering across all tiers.
+        
+        Raises:
+            ValidationError: If protein_type is invalid
+        """
+        from apps.system.validators.product_validators import ProductValidator
+        
+        # Normalize protein_type to lowercase before validation
+        if self.protein_type:
+            self.protein_type = self.protein_type.lower().strip()
+        
+        # Validate against SystemChoiceList
+        ProductValidator.validate_protein_type(self.protein_type)
+        ProductValidator.validate_category(self.category)
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save to ensure validation runs.
+        
+        Django Admin and DRF serializers call full_clean() which triggers clean(),
+        but direct .save() calls do not. We call full_clean() here to ensure
+        validation always runs.
+        """
+        # Run model validation (including clean())
+        self.full_clean()
+        super().save(*args, **kwargs)
     
     @property
     def display_name(self):

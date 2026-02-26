@@ -550,6 +550,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       setIsLoading(true);
       try {
         // Use ranked search API
+        console.log('[CommandPalette] API Request:', {
+          url: 'system/search/ranked/',
+          params: { q: query, date_range: dateRange, limit: 8 },
+        });
+        
         const response = await apiClient.get<SearchResponse>('system/search/ranked/', {
           params: { 
             q: query, 
@@ -557,6 +562,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
             limit: 8 
           }
         });
+        
+        console.log('[CommandPalette] API Response:', {
+          query: response.data.query,
+          total: response.data.total,
+          counts: response.data.counts,
+          resultsCount: response.data.results?.length || 0,
+          results: response.data.results,
+        });
+        
         const fetchedResults = response.data.results;
         
         // Cache the results
@@ -730,7 +744,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
               <EmptyState>
                 No results found for "{query}"
                 <br />
-                <small>Try: supplier:name, po:number, @contact</small>
+                <span style={{ fontSize: '0.875rem', color: 'rgb(var(--color-text-tertiary))' }}>
+                  Try a broader query or check that data exists for your tenant
+                </span>
               </EmptyState>
             )
           ) : (
