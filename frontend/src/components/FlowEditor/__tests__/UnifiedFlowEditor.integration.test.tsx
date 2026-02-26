@@ -31,6 +31,15 @@ vi.mock('@xyflow/react', () => ({
   Controls: () => <div data-testid="controls" />,
   MiniMap: () => <div data-testid="minimap" />,
   Panel: ({ children }: any) => <div data-testid="panel">{children}</div>,
+  Handle: ({ type, position, id }: any) => (
+    <div data-testid={`handle-${type}-${position}`} data-id={id} />
+  ),
+  Position: {
+    Top: 'top',
+    Bottom: 'bottom',
+    Left: 'left',
+    Right: 'right',
+  },
   useReactFlow: () => ({
     fitView: vi.fn(),
     setNodes: vi.fn(),
@@ -42,10 +51,12 @@ vi.mock('@xyflow/react', () => ({
   useNodesState: (initial: any) => [initial || [], vi.fn(), vi.fn()],
   useEdgesState: (initial: any) => [initial || [], vi.fn(), vi.fn()],
   addEdge: vi.fn((edge, edges) => [...edges, edge]),
+  applyNodeChanges: vi.fn((changes, nodes) => nodes),
+  applyEdgeChanges: vi.fn((changes, edges) => edges),
 }));
 
 describe('UnifiedFlowEditor - E2E Integration Tests', () => {
-  const mockOnSave = jest.fn();
+  const mockOnSave = vi.fn();
   
   beforeEach(() => {
     vi.clearAllMocks();
