@@ -180,7 +180,8 @@ function isFieldVisible(fieldSchema: any, values: Record<string, any>): boolean 
  * Validate a node's configuration against its schema
  */
 export function validateNode(node: Node, allNodes?: Node[], allEdges?: any[]): ValidationResult {
-  const schema = schemaRegistry.get(node.type || '');
+  // Use getSchema() instead of get() - schemaRegistry is a class instance, not a Map
+  const schema = schemaRegistry.getSchema(node.type || '');
   
   if (!schema || !schema.sections) {
     // No schema or no fields to validate
