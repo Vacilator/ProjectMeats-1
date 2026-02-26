@@ -32,6 +32,7 @@ import {
   TodaysNumbersWidget,
   ActionItemsWidget,
   CalendarWidget,
+  EmailIntegrationWidget,
 } from '../../components/Widgets';
 import { CommandBar, CockpitTour } from '../../components/Cockpit';
 import { CommandPalette } from '../../components/Navigation/CommandPalette';
@@ -128,12 +129,20 @@ const WIDGET_CATALOG = [
     category: 'information',
     icon: '🔍',
   },
+  { 
+    type: 'EmailIntegrationWidget', 
+    title: 'Email Integrations', 
+    description: 'Manage connected email accounts',
+    category: 'integrations',
+    icon: '📧',
+  },
 ];
 
 const WIDGET_CATEGORIES: Record<string, string> = {
   metrics: '📊 Metrics & KPIs',
   productivity: '✅ Productivity',
   information: '📰 Information',
+  integrations: '🔌 Integrations',
 };
 
 // ============================================================================
@@ -564,6 +573,8 @@ export const CockpitDashboard: React.FC = () => {
       case 'CalendarWidget':
       case 'calendar': // Handle lowercase directly
         return <CalendarWidget />;
+      case 'EmailIntegrationWidget':
+        return <EmailIntegrationWidget />;
       default:
         console.warn(`Unknown widget type: ${widget.type} (normalized: ${normalizedType})`);
         return (
