@@ -2,18 +2,33 @@
 # This file prevents GitHub Copilot from indexing specified directories and files
 # to avoid confusion from outdated or contradictory documentation
 
+# CRITICAL: Archived documentation (REJECTED designs - DO NOT REFERENCE)
+archived/**
+docs/archive/**
+docs/archive/legacy_2025/**
+
 # Implementation history (completed features, not current practices)
 docs/implementation-history/**
 
-# Archived infrastructure and old configs
-archived/**
-
-# Build artifacts and dependencies
+# Build artifacts and dependencies (no AI value)
 node_modules/**
 dist/**
 build/**
 staticfiles/**
 media/**
+frontend/build/**
+backend/staticfiles/**
+backend/media/**
+
+# Python cache and compiled files
+__pycache__/**
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/**
 
 # Virtual environments
 venv/**
@@ -25,24 +40,47 @@ backend/venv/**
 *.db
 *.sqlite3
 
-# Logs
+# Logs (no AI value)
 logs/**
 *.log
+*.log.*
 
 # Temporary files
 tmp/**
 temp/**
 *.tmp
 *.backup
+*.swp
+*.swo
+*~
 
-# Test coverage
+# Test coverage reports
 coverage/**
 htmlcov/**
 .nyc_output/**
+.coverage
+*.cover
 
-# Large data dumps and SQL files
+# Large data dumps and SQL files (performance)
 *.sql
 *.dump
 *.dmp
 data/**
 backups/**
+
+# IDE specific (not project code)
+.vscode/**
+.idea/**
+*.sublime-*
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Git internals
+.git/**
+
+# Package lock files (redundant, npm/pip handles)
+package-lock.json
+poetry.lock
+Pipfile.lock
