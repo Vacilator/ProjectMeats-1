@@ -1,7 +1,7 @@
-/**
- * Security middleware for Django REST Framework.
- * Provides security headers and input validation.
- */
+"""
+Security middleware for Django REST Framework.
+Provides security headers and input validation.
+"""
 
 from django.utils.deprecation import MiddlewareMixin
 from django.http import HttpRequest, HttpResponse
