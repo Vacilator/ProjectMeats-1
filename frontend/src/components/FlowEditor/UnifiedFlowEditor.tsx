@@ -6835,7 +6835,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         }}
       />
     </EditorContainer>
-    </ErrorBoundary>
   );
 };
 
