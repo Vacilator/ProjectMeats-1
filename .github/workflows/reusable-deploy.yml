@@ -437,7 +437,7 @@ jobs:
 
       - name: Run Vitest (CI Mode)
         working-directory: frontend
-        run: npm run test -- --run --reporter=verbose --poolOptions.threads.maxThreads=4
+        run: npm run test -- --run --reporter=verbose
         timeout-minutes: 12
 
   # ==========================================
