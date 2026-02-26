@@ -1782,7 +1782,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         background: #fff;
         z-index: 1000;
         box-shadow: -4px 0 12px rgba(0,0,0,0.1);
-        pointer-events: auto;
+        display: none;
+        pointer-events: none;
       `;
       document.body.appendChild(portal);
     }
@@ -1803,8 +1804,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [portalKey, setPortalKey] = useState(Date.now());
   
   useEffect(() => {
+    const portal = document.getElementById('config-portal');
+    
     if (selectedNode !== null) {
-      const portal = document.getElementById('config-portal');
       if (!portal) {
         console.warn('[Portal] Portal missing when panel opened - recreating');
         const newPortal = document.createElement('div');
@@ -1819,11 +1821,24 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           background: #fff;
           z-index: 1000;
           box-shadow: -4px 0 12px rgba(0,0,0,0.1);
+          display: flex;
           pointer-events: auto;
         `;
         document.body.appendChild(newPortal);
         setPortalKey(Date.now()); // Force re-render
-        console.log('[Portal] Portal mounted');
+        console.log('[Portal] Portal mounted and visible');
+      } else {
+        // Show portal when node is selected
+        portal.style.display = 'flex';
+        portal.style.pointerEvents = 'auto';
+        console.log('[Portal] Portal shown');
+      }
+    } else {
+      // Hide portal when no node is selected
+      if (portal) {
+        portal.style.display = 'none';
+        portal.style.pointerEvents = 'none';
+        console.log('[Portal] Portal hidden');
       }
     }
   }, [selectedNode]);
