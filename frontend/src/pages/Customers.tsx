@@ -71,7 +71,7 @@ const Customers: React.FC = () => {
   const fetchProducts = async () => {
     try {
       // Use apiClient to automatically include Authorization headers
-      const response = await apiService.apiClient.get('/products/');
+      const response = await apiClient.get('/products/');
       setProducts(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);

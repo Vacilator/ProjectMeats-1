@@ -2162,7 +2162,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Ctrl/Cmd + P: Toggle palette
       if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
         e.preventDefault();
-        setIsPaletteOpen(prev => !prev);
+        setIsPaletteVisible(prev => !prev);
       }
       
       // Ctrl/Cmd + D: Toggle debugger
@@ -2183,7 +2183,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if (e.key === 'Escape') {
         setShowValidationDrawer(false);
         setShowDebugger(false);
-        setIsPaletteOpen(false);
+        setIsPaletteVisible(false);
       }
     };
     
