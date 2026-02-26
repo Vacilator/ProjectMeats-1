@@ -83,20 +83,146 @@ class RankedSearchViewSet(viewsets.ViewSet):
         else:
             entity_types = ['customer', 'supplier', 'po', 'so']
         
-        # TODO: Implement actual entity search when models are available
-        # For now, return empty results with proper structure
         results = []
         counts = {}
         
-        logger.info(f"[RankedSearch] Query: '{query}', Range: {date_range}, Tenant: {tenant.id}")
-        logger.info(f"[RankedSearch] EntityRanking service available and ready for integration")
+        logger.info(f"[RankedSearch] Query: '{query}', Range: {date_range}, Tenant: {tenant.id if tenant else 'None'}")
+        
+        # If no query, return empty results
+        if not query:
+            return Response({
+                'query': query,
+                'date_range': date_range,
+                'results': results,
+                'counts': counts,
+                'total': 0,
+            })
+        
+        # Search customers (fuzzy match with icontains)
+        if 'customer' in entity_types:
+            try:
+                from tenant_apps.customers.models import Customer
+                customers = Customer.objects.filter(
+                    Q(name__icontains=query) | 
+                    Q(contact_person__icontains=query) |
+                    Q(email__icontains=query) |
+                    Q(city__icontains=query)
+                )
+                if tenant:
+                    customers = customers.filter(tenant=tenant)
+                
+                customers = customers[:limit]
+                counts['customer'] = customers.count()
+                
+                for customer in customers:
+                    # Calculate simple relevance score (0-100)
+                    name_match = query.lower() in customer.name.lower() if customer.name else False
+                    score = 90 if name_match else 60  # Higher score for name matches
+                    
+                    results.append({
+                        'id': customer.id,
+                        'type': 'customer',
+                        'title': customer.name or 'Unnamed Customer',
+                        'subtitle': f"{customer.city}, {customer.state}" if customer.city and customer.state else customer.email or '',
+                        'icon': '👤',
+                        'color': 'rgb(59, 130, 246)',
+                        'route': f'/customers/{customer.id}',
+                        'score': score,
+                        'labels': [],
+                        'metadata': {
+                            'contact_person': customer.contact_person,
+                            'email': customer.email,
+                        }
+                    })
+                logger.info(f"[RankedSearch] Found {len(customers)} customers")
+            except Exception as e:
+                logger.error(f"[RankedSearch] Customer search failed: {e}")
+        
+        # Search suppliers
+        if 'supplier' in entity_types:
+            try:
+                from tenant_apps.suppliers.models import Supplier
+                suppliers = Supplier.objects.filter(
+                    Q(name__icontains=query) |
+                    Q(contact_person__icontains=query) |
+                    Q(email__icontains=query) |
+                    Q(city__icontains=query)
+                )
+                if tenant:
+                    suppliers = suppliers.filter(tenant=tenant)
+                
+                suppliers = suppliers[:limit]
+                counts['supplier'] = suppliers.count()
+                
+                for supplier in suppliers:
+                    name_match = query.lower() in supplier.name.lower() if supplier.name else False
+                    score = 90 if name_match else 60
+                    
+                    results.append({
+                        'id': supplier.id,
+                        'type': 'supplier',
+                        'title': supplier.name or 'Unnamed Supplier',
+                        'subtitle': f"{supplier.city}, {supplier.state}" if supplier.city and supplier.state else supplier.email or '',
+                        'icon': '🏢',
+                        'color': 'rgb(168, 85, 247)',
+                        'route': f'/suppliers/{supplier.id}',
+                        'score': score,
+                        'labels': [],
+                        'metadata': {
+                            'contact_person': supplier.contact_person,
+                            'email': supplier.email,
+                        }
+                    })
+                logger.info(f"[RankedSearch] Found {len(suppliers)} suppliers")
+            except Exception as e:
+                logger.error(f"[RankedSearch] Supplier search failed: {e}")
+        
+        # Search purchase orders
+        if 'po' in entity_types:
+            try:
+                from tenant_apps.purchase_orders.models import PurchaseOrder
+                pos = PurchaseOrder.objects.filter(
+                    Q(order_number__icontains=query) |
+                    Q(our_purchase_order_num__icontains=query)
+                ).select_related('supplier')
+                if tenant:
+                    pos = pos.filter(tenant=tenant)
+                
+                pos = pos[:limit]
+                counts['po'] = pos.count()
+                
+                for po in pos:
+                    results.append({
+                        'id': po.id,
+                        'type': 'po',
+                        'title': po.order_number or 'No PO Number',
+                        'subtitle': f"Supplier: {po.supplier.name}" if po.supplier else 'No supplier',
+                        'icon': '📄',
+                        'color': 'rgb(34, 197, 94)',
+                        'route': f'/purchase-orders/{po.id}',
+                        'score': 75,
+                        'labels': [f"Status: {po.status}"] if hasattr(po, 'status') else [],
+                        'metadata': {
+                            'our_po_num': po.our_purchase_order_num,
+                            'supplier_name': po.supplier.name if po.supplier else None,
+                        }
+                    })
+                logger.info(f"[RankedSearch] Found {len(pos)} purchase orders")
+            except Exception as e:
+                logger.error(f"[RankedSearch] PO search failed: {e}")
+        
+        # Sort results by score (highest first)
+        results.sort(key=lambda x: x['score'], reverse=True)
+        
+        total = sum(counts.values())
+        
+        logger.info(f"[RankedSearch] Total results: {total}, Counts: {counts}")
         
         return Response({
             'query': query,
             'date_range': date_range,
             'results': results,
             'counts': counts,
-            'total': 0,
-            'message': 'Ranked search foundation ready. Entity integration pending.',
+            'total': total,
         })
 
