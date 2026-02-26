@@ -56,6 +56,7 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import './UnifiedFlowEditor.responsive.css'; // Gap Analysis Phase 1.2
 import { 
   Star, 
   Search as SearchIcon, 
