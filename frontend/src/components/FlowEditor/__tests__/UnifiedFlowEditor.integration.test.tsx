@@ -46,6 +46,10 @@ vi.mock('@xyflow/react', () => ({
     Dots: 'dots',
     Cross: 'cross',
   },
+  MarkerType: {
+    Arrow: 'arrow',
+    ArrowClosed: 'arrowclosed',
+  },
   useReactFlow: () => ({
     fitView: vi.fn(),
     setNodes: vi.fn(),
