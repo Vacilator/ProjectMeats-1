@@ -79,7 +79,7 @@ import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ReportBugButton } from './components/ReportBugButton';
 import CockpitPage from './pages/Cockpit';
-import { NotificationPreferences } from './pages/Settings/index';
+import { NotificationPreferences, TenantSetupWizard } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
 import WorkFormsLayout from './pages/WorkForms';
 import WorkFormsCatalog from './pages/WorkForms/Catalog';
@@ -252,6 +252,7 @@ const App: React.FC = () => {
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/notifications" element={<NotificationPreferences />} />
+                <Route path="settings/setup-wizard" element={<TenantSetupWizard />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
                 
                 {/* Inquiries & Fulfillments */}
