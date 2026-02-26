@@ -254,6 +254,11 @@ class SystemProductSerializer(serializers.ModelSerializer):
     
     System products are the master catalog shared by all tenants.
     Created via: python manage.py seed_system_products
+    
+    Validation Layer (Phase 3):
+    - Enforces protein_type against SystemChoiceList
+    - Prevents "Zombie Products" with invalid categories
+    - Maintains cascade filtering data contract
     """
     category_display = serializers.CharField(source='get_category_display', read_only=True)
     is_frozen = serializers.BooleanField(read_only=True)
@@ -312,7 +317,23 @@ class SystemProductSerializer(serializers.ModelSerializer):
             'is_active',
             'created_at',
             'updated_at',
-        ]  # All fields read-only
+        ]
+    
+    def validate_protein_type(self, value):
+        """
+        Validate protein_type against SystemChoiceList.
+        
+        This provides early validation at the API layer before
+        the model's clean() method runs.
+        """
+        from apps.system.validators.product_validators import validate_protein_type
+        
+        if value:
+            # Normalize and validate
+            normalized_value = value.lower().strip()
+            validate_protein_type(normalized_value)
+            return normalized_value
+        return value  # All fields read-only
 
 
 class TenantProductPreferenceSerializer(serializers.ModelSerializer):
