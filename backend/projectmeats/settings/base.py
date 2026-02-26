@@ -2,13 +2,89 @@
 Base settings for ProjectMeats.
 Common configuration shared across all environments.
 
-Multi-Tenancy Architecture: SHARED SCHEMA ONLY
-==============================================
-ProjectMeats uses a shared-schema multi-tenancy approach:
-- All tenants share the same PostgreSQL schema
-- Tenant isolation is enforced via `tenant_id` foreign keys
-- Custom TenantMiddleware resolves tenant from domain/subdomain/header
-- NO django-tenants schema-based isolation
+================================================================================
+MULTI-TENANCY ARCHITECTURE: SHARED SCHEMA ONLY (ZERO SCHEMA ISOLATION)
+================================================================================
+
+**CRITICAL ARCHITECTURAL DECISION (December 2025):**
+
+ProjectMeats uses a **shared-schema multi-tenancy** approach exclusively:
+
+1. **Single PostgreSQL Schema**
+   - ALL tenants share the SAME PostgreSQL `public` schema
+   - NO separate schemas per tenant
+   - NO schema routing or switching logic
+
+2. **Tenant Isolation Mechanism**
+   - Business models have `tenant` ForeignKey to `apps.tenants.Tenant`
+   - Custom `TenantMiddleware` resolves tenant from request context
+   - ViewSets filter querysets: `queryset.filter(tenant=request.tenant)`
+   - Serializers assign tenant on creation: `serializer.save(tenant=request.tenant)`
+
+3. **Row-Level Security (RLS)**
+   - PostgreSQL RLS policies enforce database-level isolation
+   - Middleware sets `app.current_tenant` session variable before queries
+   - RLS policies use: `current_setting('app.current_tenant')::uuid`
+   - All tenant-aware tables MUST have RLS enabled in migrations
+
+4. **Tenant Resolution Order**
+   - `X-Tenant-ID` header (explicit API selection)
+   - Domain match via `TenantDomain` model lookup
+   - Subdomain matching using `tenant.slug` pattern
+   - Authenticated user's default tenant association
+
+5. **Middleware Stack**
+   The `TenantMiddleware` is positioned EARLY in the middleware chain to ensure
+   `request.tenant` is available for all subsequent processing:
+   
+   ```python
+   MIDDLEWARE = [
+       "corsheaders.middleware.CorsMiddleware",
+       "apps.tenants.middleware.TenantMiddleware",  # ← Sets request.tenant
+       "django.middleware.security.SecurityMiddleware",
+       # ... other middleware
+   ]
+   ```
+
+6. **Why Database-Level Isolation (RLS) Matters**
+   - **Defense in Depth**: Even if application logic fails, database prevents leaks
+   - **Performance**: Query planner optimizes with RLS knowledge
+   - **Audit Trail**: Database logs show RLS policy enforcements
+   - **Compliance**: Required for SOC 2, GDPR, HIPAA multi-tenant architectures
+
+7. **Migration Pattern for RLS**
+   ALL migrations creating tenant-aware tables MUST include:
+   ```python
+   from django.contrib.postgres.operations import RunSQL
+   
+   operations = [
+       migrations.CreateModel(...),
+       RunSQL(
+           sql="ALTER TABLE app_model ENABLE ROW LEVEL SECURITY; "
+               "CREATE POLICY model_tenant_isolation ON app_model "
+               "USING (tenant_id = current_setting('app.current_tenant')::uuid);",
+           reverse_sql="DROP POLICY IF EXISTS model_tenant_isolation ON app_model; "
+                      "ALTER TABLE app_model DISABLE ROW LEVEL SECURITY;"
+       ),
+   ]
+   ```
+
+**⚠️ ABSOLUTE PROHIBITIONS:**
+- ❌ NEVER use or suggest `django-tenants` package
+- ❌ NEVER use schema-based isolation patterns
+- ❌ NEVER use `migrate_schemas`, `migrate --tenant`, or similar commands
+- ❌ NEVER reference `docs/archive/` for current implementation patterns
+
+**✅ REQUIRED PRACTICES:**
+- ✅ ALWAYS use `tenant` ForeignKey on business models
+- ✅ ALWAYS filter by `.filter(tenant=request.tenant)` in ViewSets
+- ✅ ALWAYS use standard `python manage.py migrate` command
+- ✅ ALWAYS include RLS policies in tenant-aware table migrations
+
+**Authority**: This docstring + `docs/architecture/ARCHITECTURE.md`
+**Verification**: `ROW_LEVEL_SECURITY = True` flag (line 78 below)
+
+================================================================================
 """
 
 from pathlib import Path
@@ -24,7 +100,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # for tenant resolution based on domain/subdomain/headers. ALL apps run
 # in a shared PostgreSQL schema with tenant_id foreign keys for isolation.
 
-# Row-level security flag for auditing and future PostgreSQL RLS implementation
+# Row-level security flag for PostgreSQL RLS policy enforcement
 ROW_LEVEL_SECURITY = True
 
 # Common Django apps used across the application

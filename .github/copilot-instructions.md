@@ -2103,6 +2103,310 @@ For detailed secret handling rules, see:
 
 ---
 
+## 🔒 ROW-LEVEL SECURITY (RLS) - MANDATORY FOR ALL TENANT-AWARE TABLES
+
+### CRITICAL REQUIREMENT: PostgreSQL RLS Policies
+
+**⚠️ ENFORCEMENT:** Every migration that creates a tenant-aware table MUST include PostgreSQL Row-Level Security setup using `RunSQL`.
+
+#### Why RLS Matters
+- **Database-Level Isolation**: Enforced by PostgreSQL engine, not application code
+- **Defense in Depth**: Prevents accidental cross-tenant data leaks even if application logic fails
+- **Performance**: Query planner optimizes with RLS knowledge
+- **Middleware Integration**: `TenantMiddleware` sets `app.current_tenant` session variable before queries
+
+#### Required Migration Pattern
+
+```python
+from django.db import migrations, models
+from django.contrib.postgres.operations import RunSQL
+
+class Migration(migrations.Migration):
+    dependencies = [
+        ('your_app', '0001_previous_migration'),
+    ]
+
+    operations = [
+        # 1. Create the table (Django ORM)
+        migrations.CreateModel(
+            name='YourModel',
+            fields=[
+                ('id', models.BigAutoField(primary_key=True)),
+                ('tenant', models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE)),
+                ('name', models.CharField(max_length=255)),
+                # ... other fields
+            ],
+        ),
+        
+        # 2. Enable RLS and create policy (Raw SQL - MANDATORY)
+        RunSQL(
+            # Enable RLS
+            sql="""
+            ALTER TABLE your_app_yourmodel ENABLE ROW LEVEL SECURITY;
+            
+            -- Create policy using app.current_tenant session variable
+            CREATE POLICY yourmodel_tenant_isolation ON your_app_yourmodel
+                USING (tenant_id = current_setting('app.current_tenant')::uuid);
+            """,
+            # Reverse SQL for rollback
+            reverse_sql="""
+            DROP POLICY IF EXISTS yourmodel_tenant_isolation ON your_app_yourmodel;
+            ALTER TABLE your_app_yourmodel DISABLE ROW LEVEL SECURITY;
+            """
+        ),
+    ]
+```
+
+#### RLS Policy Naming Convention
+- Format: `{tablename}_tenant_isolation`
+- Example: `workflows_tenant_isolation`, `customers_tenant_isolation`
+
+#### Verification
+```bash
+# Check if RLS is enabled on tenant-aware tables
+psql -d projectmeats -c "SELECT schemaname, tablename, rowsecurity FROM pg_tables WHERE rowsecurity = true;"
+
+# Verify policies exist
+psql -d projectmeats -c "SELECT schemaname, tablename, policyname FROM pg_policies WHERE policyname LIKE '%tenant_isolation';"
+```
+
+**Authority**: `docs/workforms/MIGRATION_STANDARDS.md`  
+**Setting**: `ROW_LEVEL_SECURITY = True` in `backend/projectmeats/settings/base.py`
+
+---
+
+## 🎯 PRIMARY DEVELOPMENT FOCUS: Phase 7 - Intelligent Workform Editor
+
+### PRIORITY TARGET: Next-Generation Workforms Experience
+
+**🚀 STRATEGIC FOCUS:** All new development should align with Phase 7 objectives unless explicitly directed otherwise.
+
+#### Phase 7 Core Objectives
+
+1. **AI-Powered Field Suggestions**
+   - Context-aware field recommendations based on workflow patterns
+   - Machine learning from existing workflows across tenants
+   - Smart defaults based on industry best practices
+
+2. **Enhanced Drag-and-Drop Experience**
+   - Improved node positioning with smart snapping
+   - Container management with nested workflows
+   - Visual connection indicators and validation
+   - Batch operations (group select, copy, paste)
+
+3. **Real-Time Collaboration** (Future)
+   - Multi-user editing with operational transforms
+   - Presence indicators and cursor tracking
+   - Conflict resolution strategies
+   - Activity history and audit trail
+
+4. **Advanced Node Types**
+   - Conditional branching (if/else logic)
+   - Loop constructs (for-each, while)
+   - Parallel execution paths
+   - Sub-workflow embedding
+
+5. **Performance Optimization**
+   - Sub-100ms render times for complex workflows
+   - Virtualized node lists for 1000+ node graphs
+   - Optimistic UI updates
+   - Incremental auto-save with debouncing
+
+6. **Accessibility & Internationalization**
+   - WCAG 2.1 AAA compliance
+   - Full keyboard navigation
+   - Screen reader support with ARIA labels
+   - Multi-language support
+
+#### Key Files for Phase 7 Development
+
+**Frontend (Primary)**:
+- `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx` - Main editor component
+- `frontend/src/components/FlowEditor/nodes/` - Node type implementations
+- `frontend/src/components/FlowEditor/panels/` - Configuration panels
+- `frontend/src/hooks/useWorkflowEditor.ts` - Editor state management
+
+**Backend (Supporting)**:
+- `backend/tenant_apps/workflows/models.py` - Workflow data models
+- `backend/tenant_apps/workflows/views.py` - API ViewSets
+- `backend/tenant_apps/workflows/serializers.py` - REST serializers
+- `backend/tenant_apps/workflows/services.py` - Business logic
+
+**Shared Types** (If exists):
+- `shared/types/workforms.ts` - TypeScript interfaces shared between frontend/mobile
+
+#### Development Principles for Phase 7
+
+1. **Additive-Only Changes** (CRITICAL)
+   - NEVER break existing workflows (5+ months of production data)
+   - Use deprecation + aliasing for node type evolution
+   - Maintain backward compatibility for ALL schema changes
+   - See `docs/workforms/MIGRATION_STANDARDS.md` for patterns
+
+2. **Multi-Tenant Safety**
+   - All changes must work across ALL tenants simultaneously
+   - No tenant-specific logic without feature flags
+   - Test with multiple tenant datasets
+
+3. **Performance First**
+   - Profile before optimizing
+   - Use React.memo for expensive components
+   - Implement virtualization for large lists
+   - Measure bundle size impact
+
+4. **User Experience**
+   - Progressive enhancement over breaking changes
+   - Clear error messages with recovery paths
+   - Undo/redo for all actions
+   - Keyboard shortcuts for power users
+
+**Authority**: `docs/workforms/MIGRATION_STANDARDS.md` - Additive-Only Rule
+
+---
+
+## 🌐 FRONTEND API SERVICE LAYER - MANDATORY PATTERNS
+
+### REQUIREMENT: Centralized API Services
+
+**⚠️ PROHIBITION:** Direct axios calls are NOT allowed. ALL frontend-to-backend communication MUST use the standardized service layer.
+
+#### Primary Services
+
+**businessApi.ts** - General business logic operations
+```typescript
+// ✅ CORRECT
+import { businessApi } from '@/services/businessApi';
+
+const fetchCustomers = async (tenantId: string) => {
+  return await businessApi.get(`/tenants/${tenantId}/customers/`);
+};
+```
+
+**workformsApi.ts** - Workforms editor-specific operations
+```typescript
+// ✅ CORRECT
+import { workformsApi } from '@/services/workformsApi';
+
+const saveWorkflow = async (workflowId: string, data: WorkflowData) => {
+  return await workformsApi.put(`/workflows/${workflowId}/`, data);
+};
+```
+
+```typescript
+// ❌ WRONG - Direct axios usage
+import axios from 'axios';
+
+const fetchData = async () => {
+  return await axios.get('/api/v1/endpoint/'); // DON'T DO THIS
+};
+```
+
+#### Service Layer Benefits
+- **Type Safety**: Full TypeScript interfaces for requests/responses
+- **Error Handling**: Centralized retry logic, token refresh, error mapping
+- **Testing**: Easy mocking with jest.mock()
+- **Monitoring**: Single point for API metrics and logging
+- **Token Management**: Automatic JWT refresh and storage
+
+**Authority**: `frontend/src/services/` directory structure
+
+---
+
+## 🎨 UI STYLING - MANDATORY THEME TOKENS
+
+### REQUIREMENT: AntD Theme Tokens via theme.ts
+
+**⚠️ PROHIBITION:** Hardcoded colors are NOT allowed. ALL UI components MUST use theme tokens.
+
+```typescript
+// ✅ CORRECT: Use theme tokens or CSS custom properties
+import { theme } from '@/styles/theme';
+
+const Button = styled.button`
+  background: ${theme.colors.primary};
+  color: rgb(var(--color-text-primary));
+  border: 1px solid ${theme.colors.border};
+`;
+```
+
+```typescript
+// ❌ WRONG: Hardcoded colors
+const Button = styled.button`
+  background: #667eea;
+  color: #2c3e50;
+  border: 1px solid #d1d5db;
+`;
+```
+
+#### Standardized Status Colors (RGB format)
+```typescript
+// Success: rgb(34, 197, 94)
+// Warning: rgb(234, 179, 8)
+// Error: rgb(239, 68, 68)
+// Info: rgb(59, 130, 246)
+```
+
+**Authority**: `docs/DESIGN_SYSTEM.md` - Single source of truth for all UI/UX standards
+
+---
+
+## 📋 PULL REQUEST CHECKLIST - MANDATORY VERIFICATION
+
+### Before Creating PR, Verify ALL Items
+
+#### 1. Model Inheritance & Tenant Awareness
+- [ ] All business models inherit from `backend/apps/core/models.py:TenantAwareModel`
+- [ ] ViewSets filter by `tenant=request.tenant` in `get_queryset()`
+- [ ] `perform_create()` assigns `tenant=request.tenant`
+- [ ] No direct ORM queries bypassing tenant filtering
+
+#### 2. Row-Level Security (RLS)
+- [ ] Migration includes `RunSQL` operation for RLS policy (if creating tenant-aware table)
+- [ ] Policy uses `current_setting('app.current_tenant')::uuid` pattern
+- [ ] Reverse SQL provided for migration rollback
+- [ ] Policy named following `{tablename}_tenant_isolation` convention
+
+#### 3. UI Styling & Theme Compliance
+- [ ] All colors use theme tokens from `theme.ts` or CSS custom properties
+- [ ] No hardcoded hex/RGB values in component styles
+- [ ] AntD components use proper theme configuration
+- [ ] Standardized status colors used (success/warning/error/info)
+
+#### 4. API Service Layer
+- [ ] Frontend uses `businessApi` or `workformsApi` (not direct axios)
+- [ ] TypeScript interfaces defined for all API request/response types
+- [ ] Error handling follows service layer patterns
+- [ ] Token refresh logic not bypassed
+
+#### 5. Migration Safety (Additive-Only)
+- [ ] No removed/renamed node types (use deprecation + alias pattern)
+- [ ] No deleted schema fields (mark as deprecated with fallback)
+- [ ] No removed API endpoints (deprecate + redirect for 6 months)
+- [ ] No deleted database fields (mark unused, hide from API)
+- [ ] Migration logic provided for schema evolution
+
+#### 6. Testing Coverage
+- [ ] Unit tests pass (`npm test` for frontend, `python manage.py test` for backend)
+- [ ] E2E tests pass (`npm run test:e2e`) if modifying workflows
+- [ ] Manual testing completed in development environment
+- [ ] Multi-tenant scenarios tested (at least 2 different tenants)
+
+#### 7. Documentation & Code Quality
+- [ ] Code comments for complex business logic
+- [ ] Docstrings for all public Python functions
+- [ ] TSDoc comments for all exported TypeScript functions
+- [ ] README updates if changing setup/deployment process
+
+#### 8. Performance & Accessibility
+- [ ] No performance regressions (bundle size, render times)
+- [ ] Keyboard navigation works for all interactive elements
+- [ ] ARIA labels provided for screen readers
+- [ ] Color contrast meets WCAG 2.1 AA standards
+
+**Authority**: `.github/PULL_REQUEST_TEMPLATE.md` (to be updated with this checklist)
+
+---
+
 ## 🏆 GOLDEN PIPELINE RULES (ENFORCEMENT)
 
 **Authority**: [`docs/GOLDEN_PIPELINE.md`](../docs/GOLDEN_PIPELINE.md) is the definitive reference for all deployment practices.
