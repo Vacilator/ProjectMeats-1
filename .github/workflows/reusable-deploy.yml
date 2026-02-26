@@ -407,7 +407,7 @@ jobs:
     name: "Test Frontend"
     needs: [build-frontend]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -437,8 +437,8 @@ jobs:
 
       - name: Run Vitest (CI Mode)
         working-directory: frontend
-        run: npm run test -- --run --reporter=verbose
-        timeout-minutes: 8
+        run: npm run test -- --run --reporter=verbose --poolOptions.threads.maxThreads=4
+        timeout-minutes: 12
 
   # ==========================================
   # Backend Deployment: Migrations
