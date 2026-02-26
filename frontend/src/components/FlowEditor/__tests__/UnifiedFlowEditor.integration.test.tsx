@@ -41,6 +41,11 @@ vi.mock('@xyflow/react', () => ({
     Left: 'left',
     Right: 'right',
   },
+  BackgroundVariant: {
+    Lines: 'lines',
+    Dots: 'dots',
+    Cross: 'cross',
+  },
   useReactFlow: () => ({
     fitView: vi.fn(),
     setNodes: vi.fn(),
