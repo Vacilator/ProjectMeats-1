@@ -7,7 +7,6 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import UnifiedFlowEditor from '../UnifiedFlowEditor';
-import { WorkflowContextProvider } from '@/contexts/WorkflowContext';
 import { apiClient } from '@/services/apiService';
 
 // Mock apiClient
@@ -75,9 +74,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('1. Editor Initialization', () => {
     it('should render empty editor on load', () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       expect(screen.getByTestId('react-flow')).toBeInTheDocument();
@@ -102,9 +101,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: mockForm });
 
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor formId="123" onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       await waitFor(() => {
@@ -116,9 +115,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('2. Node Palette & Canvas Interaction', () => {
     it('should show node palette by default', () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       // Check for common node types
@@ -128,9 +127,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should hide portal when no node is selected', () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       const portal = document.getElementById('config-portal');
@@ -142,9 +141,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('3. Form Persistence', () => {
     it('should save new form to backend', async () => {
       const { container } = render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       // Find and click save button
@@ -170,9 +169,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should update existing form', async () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor formId="123" onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       const saveButton = screen.getByRole('button', { name: /save/i });
@@ -199,9 +198,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       );
 
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       const saveButton = screen.getByRole('button', { name: /save/i });
@@ -219,9 +218,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('4. Undo/Redo Functionality', () => {
     it('should undo and redo node additions', () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       const undoButton = screen.getByLabelText(/undo/i);
@@ -238,9 +237,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('5. Template Export/Import', () => {
     it('should export workflow as JSON', () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       const exportButton = screen.getByRole('button', { name: /export/i });
@@ -257,9 +256,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should import workflow from JSON', async () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       const importButton = screen.getByRole('button', { name: /import/i });
@@ -284,9 +283,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('6. Read-Only Mode', () => {
     it('should disable editing in read-only mode', () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor readOnly={true} onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       // Save button should not exist
@@ -309,9 +308,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       };
 
       render(
-        <WorkflowContextProvider>
+        
           <BadComponent />
-        </WorkflowContextProvider>
+        
       );
 
       // Error boundary should catch it
@@ -324,9 +323,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   describe('8. Keyboard Shortcuts', () => {
     it('should handle Ctrl+S for save', () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       fireEvent.keyDown(window, { key: 's', ctrlKey: true });
@@ -338,9 +337,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should handle Ctrl+Z for undo', () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
@@ -350,9 +349,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
 
     it('should handle Escape to close panels', () => {
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor onSave={mockOnSave} />
-        </WorkflowContextProvider>
+        
       );
 
       fireEvent.keyDown(window, { key: 'Escape' });
@@ -377,13 +376,13 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       const startTime = performance.now();
 
       render(
-        <WorkflowContextProvider>
+        
           <UnifiedFlowEditor 
             initialNodes={largeWorkflow.nodes}
             initialEdges={largeWorkflow.edges}
             onSave={mockOnSave}
           />
-        </WorkflowContextProvider>
+        
       );
 
       const endTime = performance.now();
