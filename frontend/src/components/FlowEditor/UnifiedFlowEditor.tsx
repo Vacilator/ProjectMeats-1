@@ -56,6 +56,7 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import './UnifiedFlowEditor.accessibility.css'; // WCAG 2.1 compliance
 import { 
   Star, 
   Search as SearchIcon, 
@@ -126,6 +127,7 @@ import { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization'; /
 import { NodeConfigPanelWithShadow, TabbedConfigPanelWithShadow } from './ConfigPanel';
 import { getLayoutedElements, alignNodesHorizontally, alignNodesVertically, distributeNodesHorizontally, distributeNodesVertically } from './utils/autoLayout'; // Phase 2: UI/UX
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2: UI/UX
+import { useKeyboardNavigation, useAriaAnnouncements } from './hooks/useKeyboardNavigation'; // Gap Analysis Phase 1.3: WCAG 2.1
 
 // FormBuilder Context Provider (2026-02-21 Comprehensive Enhancements)
 import { FormBuilderProvider } from '../../contexts/FormBuilderContext';
@@ -2148,8 +2150,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
   
   // ============================================================================
-  // Keyboard Shortcuts (Phase 7)
+  // Keyboard Shortcuts & Accessibility (Phase 7 + Gap Analysis Phase 1.3)
   // ============================================================================
+  
+  // WCAG 2.1: Keyboard navigation for nodes
+  const { announce } = useAriaAnnouncements();
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2159,6 +2164,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         handleSave();
+        announce('Workflow saved', 'polite');
       }
       
       // Ctrl/Cmd + Z: Undo
@@ -2166,24 +2172,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         e.preventDefault();
         // Undo will be handled by React Flow's internal history
         console.log('[Keyboard] Undo requested');
+        announce('Undo last action', 'polite');
       }
       
       // Ctrl/Cmd + Shift + Z: Redo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
         console.log('[Keyboard] Redo requested');
+        announce('Redo last action', 'polite');
       }
       
       // Ctrl/Cmd + P: Toggle palette
       if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
         e.preventDefault();
-        setIsPaletteVisible(prev => !prev);
+        const newState = !isPaletteVisible;
+        setIsPaletteVisible(newState);
+        announce(newState ? 'Node palette opened' : 'Node palette closed', 'polite');
       }
       
       // Ctrl/Cmd + D: Toggle debugger
       if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
         e.preventDefault();
-        setShowDebugger(prev => !prev);
+        const newState = !showDebugger;
+        setShowDebugger(newState);
+        announce(newState ? 'Debugger opened' : 'Debugger closed', 'polite');
       }
       
       // Delete: Delete selected node
@@ -2191,6 +2203,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         if (selectedNodeId) {
           e.preventDefault();
           handleNodeDelete(selectedNodeId);
+          announce('Node deleted', 'assertive');
         }
       }
       
@@ -2199,12 +2212,33 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setShowValidationDrawer(false);
         setShowDebugger(false);
         setIsPaletteVisible(false);
+        announce('Panels closed', 'polite');
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeId, handleNodeDelete, handleSave]);
+  }, [selectedNodeId, handleNodeDelete, handleSave, isPaletteVisible, showDebugger, announce]);
+  
+  // WCAG 2.1: Arrow key navigation between nodes
+  useKeyboardNavigation(nodes, edges, onNodesChange);
+  
+  // Listen for node edit requests from keyboard
+  useEffect(() => {
+    const handleNodeEditRequest = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { nodeId } = customEvent.detail;
+      
+      if (nodeId) {
+        setSelectedNodeId(nodeId);
+        setConfigPanelOpen(true);
+        announce(`Editing node ${nodeId}`, 'polite');
+      }
+    };
+    
+    window.addEventListener('node-edit-requested', handleNodeEditRequest);
+    return () => window.removeEventListener('node-edit-requested', handleNodeEditRequest);
+  }, []);
   
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
@@ -5437,7 +5471,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange]);
 
   return (
-    <EditorContainer $isFullscreen={isFullscreen}>
+    <ErrorBoundary>
+      {/* WCAG 2.1: Skip link for keyboard navigation */}
+      <a href="#main-canvas" className="skip-link">
+        Skip to workflow canvas
+      </a>
+      
+      {/* WCAG 4.1.3: Live region for screen reader announcements */}
+      <div 
+        id="aria-announcer" 
+        className="aria-announcer"
+        aria-live="polite" 
+        aria-atomic="true"
+        role="status"
+      />
+      
+      {/* WCAG 2.4.7: Keyboard navigation hint */}
+      <div className="keyboard-hint">
+        <kbd>↑↓←→</kbd> Navigate nodes | <kbd>Enter</kbd> Edit | <kbd>Delete</kbd> Remove
+      </div>
+      
+      <EditorContainer $isFullscreen={isFullscreen} className="unified-flow-editor">
       {/* Deprecation Banner (Phase 6.1) */}
       {hasDeprecatedNodes && !bannerDismissed && (
         <DeprecationBanner>
@@ -5655,54 +5709,61 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* Toolbar */}
       {!readOnly && (
-        <Toolbar>
+        <Toolbar role="toolbar" aria-label="Workflow editor toolbar" data-tour="toolbar">
           <ToolbarButton 
             onClick={() => setIsTemplateModalOpen(true)}
             title="Browse Templates"
+            aria-label="Browse workflow templates"
             style={{ fontWeight: 600, color: 'rgb(var(--color-primary))' }}
           >
-            <Sparkles size={14} style={{ marginRight: '4px' }} />
+            <Sparkles size={14} style={{ marginRight: '4px' }} aria-hidden="true" />
             Use Template
           </ToolbarButton>
-          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} role="separator" />
           <ToolbarButton 
             onClick={undo} 
             disabled={historyIndex === 0}
             title="Undo (Ctrl+Z)"
+            aria-label="Undo last action"
           >
-            <Undo2 size={14} style={{ marginRight: '4px' }} />
+            <Undo2 size={14} style={{ marginRight: '4px' }} aria-hidden="true" />
             Undo
           </ToolbarButton>
           <ToolbarButton 
             onClick={redo} 
             disabled={historyIndex >= history.length - 1}
             title="Redo (Ctrl+Y)"
+            aria-label="Redo last undone action"
           >
-            <Redo2 size={14} style={{ marginRight: '4px' }} />
+            <Redo2 size={14} style={{ marginRight: '4px' }} aria-hidden="true" />
             Redo
           </ToolbarButton>
           
           {/* Phase 7: Workflow Persistence Buttons */}
-          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} role="separator" />
           <ToolbarButton 
             onClick={handleNewWorkflow} 
             title="New Workflow"
+            aria-label="Create new workflow"
           >
-            <Plus size={14} style={{ marginRight: '4px' }} />
+            <Plus size={14} style={{ marginRight: '4px' }} aria-hidden="true" />
             New
           </ToolbarButton>
           <LoadMenuContainer data-load-menu>
             <ToolbarButton 
               onClick={() => setIsLoadMenuOpen(!isLoadMenuOpen)} 
               title="Load Workflow"
+              aria-label="Load existing workflow"
+              aria-expanded={isLoadMenuOpen}
+              aria-haspopup="true"
               disabled={isLoading}
             >
-              <FolderOpen size={14} style={{ marginRight: '4px' }} />
+              <FolderOpen size={14} style={{ marginRight: '4px' }} aria-hidden="true" />
               Load
-              <ChevronDown size={12} style={{ marginLeft: '4px' }} />
+              <ChevronDown size={12} style={{ marginLeft: '4px' }} aria-hidden="true" />
             </ToolbarButton>
             {isLoadMenuOpen && (
-              <LoadMenuDropdown data-load-menu>
+              <LoadMenuDropdown data-load-menu role="menu">
                 {/* Phase 8.3: Search input */}
                 <LoadMenuHeader>
                   <WorkflowSearchInput
@@ -5879,6 +5940,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* React Flow Canvas - Visual Mode */}
       {activeEditorMode === 'visual' && (
         <ReactFlow
+        id="main-canvas"
+        role="main"
+        aria-label="Workflow canvas"
+        aria-describedby="keyboard-hint"
         nodes={nodesWithHandlers}
         edges={edges}
         onNodesChange={onNodesChange}
