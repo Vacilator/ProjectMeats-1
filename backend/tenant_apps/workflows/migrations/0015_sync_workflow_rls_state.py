@@ -189,17 +189,7 @@ class Migration(migrations.Migration):
                         USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
                 END IF;
 
-                -- WorkflowExecution
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_workflowexecution' 
-                    AND policyname = 'workflowexecution_tenant_isolation'
-                ) THEN
-                    ALTER TABLE workflows_workflowexecution ENABLE ROW LEVEL SECURITY;
-                    ALTER TABLE workflows_workflowexecution FORCE ROW LEVEL SECURITY;
-                    CREATE POLICY workflowexecution_tenant_isolation ON workflows_workflowexecution
-                        USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-                END IF;
+                -- WorkflowExecution (REMOVED - table does not exist; only workflowexecutionlog exists)
 
             END $$;
             """,
@@ -223,7 +213,7 @@ class Migration(migrations.Migration):
                 DROP POLICY IF EXISTS formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent;
                 DROP POLICY IF EXISTS stepassignment_tenant_isolation ON workflows_stepassignment;
                 DROP POLICY IF EXISTS usernotification_tenant_isolation ON workflows_usernotification;
-                DROP POLICY IF EXISTS workflowexecution_tenant_isolation ON workflows_workflowexecution;
+                -- workflowexecution table does not exist (skipped)
 
                 -- Disable RLS
                 ALTER TABLE workflows_tenantlist DISABLE ROW LEVEL SECURITY;
@@ -241,7 +231,7 @@ class Migration(migrations.Migration):
                 ALTER TABLE workflows_formsubmissionevent DISABLE ROW LEVEL SECURITY;
                 ALTER TABLE workflows_stepassignment DISABLE ROW LEVEL SECURITY;
                 ALTER TABLE workflows_usernotification DISABLE ROW LEVEL SECURITY;
-                ALTER TABLE workflows_workflowexecution DISABLE ROW LEVEL SECURITY;
+                -- workflowexecution table does not exist (skipped)
             END $$;
             """
         ),
