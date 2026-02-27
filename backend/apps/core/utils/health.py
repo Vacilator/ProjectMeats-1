@@ -1,0 +1,187 @@
+"""
+Health check utilities for external service dependencies.
+
+Provides lightweight connection testing for Redis, OpenAI, and Sentry
+without triggering actual API calls or consuming quota.
+"""
+
+from django.conf import settings
+from django.core.cache import cache
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def check_redis() -> dict:
+    """
+    Test Redis connection using cache ping.
+    
+    Returns:
+        dict: {
+            'available': bool,
+            'backend': str,
+            'error': str (if unavailable)
+        }
+    """
+    try:
+        # Attempt to set and get a test key
+        cache.set('health_check', '1', timeout=5)
+        value = cache.get('health_check')
+        cache.delete('health_check')
+        
+        backend = settings.CACHES['default']['BACKEND']
+        is_redis = 'redis' in backend.lower()
+        
+        if value == '1':
+            return {
+                'available': True,
+                'backend': backend,
+                'is_redis': is_redis,
+            }
+        else:
+            return {
+                'available': False,
+                'backend': backend,
+                'error': 'Cache write/read mismatch'
+            }
+    except Exception as e:
+        logger.warning(f"Redis health check failed: {e}")
+        return {
+            'available': False,
+            'backend': settings.CACHES['default']['BACKEND'],
+            'error': str(e)
+        }
+
+
+def check_openai() -> dict:
+    """
+    Check OpenAI API key configuration (without making API calls).
+    
+    Returns:
+        dict: {
+            'configured': bool,
+            'api_key_set': bool,
+            'model': str,
+            'note': str
+        }
+    """
+    api_key = getattr(settings, 'OPENAI_API_KEY', None)
+    model = getattr(settings, 'OPENAI_MODEL', 'not-configured')
+    
+    return {
+        'configured': api_key is not None,
+        'api_key_set': bool(api_key),
+        'model': model,
+        'note': 'API key present but not validated' if api_key else 'API key not configured'
+    }
+
+
+def check_sentry() -> dict:
+    """
+    Check Sentry SDK configuration.
+    
+    Returns:
+        dict: {
+            'configured': bool,
+            'enabled': bool,
+            'dsn_set': bool,
+            'environment': str
+        }
+    """
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations import Integration
+        
+        # Check if Sentry is initialized
+        client = sentry_sdk.Hub.current.client
+        is_initialized = client is not None
+        
+        dsn_set = bool(getattr(settings, 'SENTRY_DSN', None))
+        enabled = getattr(settings, 'SENTRY_ENABLED', False)
+        environment = getattr(settings, 'SENTRY_ENVIRONMENT', 'unknown')
+        
+        return {
+            'configured': is_initialized,
+            'enabled': enabled,
+            'dsn_set': dsn_set,
+            'environment': environment,
+            'sdk_installed': True
+        }
+    except ImportError:
+        return {
+            'configured': False,
+            'enabled': False,
+            'dsn_set': False,
+            'environment': 'unknown',
+            'sdk_installed': False,
+            'note': 'sentry-sdk not installed'
+        }
+
+
+def check_microsoft_oauth() -> dict:
+    """
+    Check Microsoft OAuth configuration.
+    
+    Returns:
+        dict: {
+            'configured': bool,
+            'client_id_set': bool,
+            'client_secret_set': bool,
+            'tenant_id_set': bool
+        }
+    """
+    client_id = getattr(settings, 'MICROSOFT_CLIENT_ID', None)
+    client_secret = getattr(settings, 'MICROSOFT_CLIENT_SECRET', None)
+    tenant_id = getattr(settings, 'MICROSOFT_TENANT_ID', None)
+    
+    return {
+        'configured': bool(client_id and client_secret),
+        'client_id_set': bool(client_id),
+        'client_secret_set': bool(client_secret),
+        'tenant_id_set': bool(tenant_id),
+        'tenant_id': tenant_id if tenant_id else 'common'
+    }
+
+
+def check_all_services() -> dict:
+    """
+    Run all health checks and return comprehensive status.
+    
+    Returns:
+        dict: {
+            'redis': dict,
+            'openai': dict,
+            'sentry': dict,
+            'microsoft_oauth': dict,
+            'summary': {
+                'total_services': int,
+                'available': int,
+                'configured': int
+            }
+        }
+    """
+    redis_status = check_redis()
+    openai_status = check_openai()
+    sentry_status = check_sentry()
+    ms_oauth_status = check_microsoft_oauth()
+    
+    # Calculate summary
+    services = [redis_status, openai_status, sentry_status, ms_oauth_status]
+    available_count = sum(1 for s in services if s.get('available', False))
+    configured_count = sum(1 for s in services if s.get('configured', False))
+    
+    return {
+        'redis': redis_status,
+        'openai': openai_status,
+        'sentry': sentry_status,
+        'microsoft_oauth': ms_oauth_status,
+        'summary': {
+            'total_services': len(services),
+            'available': available_count,
+            'configured': configured_count,
+            'ready_for_phase_2': openai_status['configured'],  # AI features
+            'ready_for_phase_3': redis_status['available'],     # Real-time search
+            'ready_for_phase_5': ms_oauth_status['configured'], # Microsoft integration
+            'ready_for_phase_6_4': sentry_status['configured']  # APM monitoring
+        }
+    }

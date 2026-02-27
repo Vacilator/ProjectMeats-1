@@ -471,12 +471,56 @@ LOGGING = {
     },
 }
 
-# Cache Configuration
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+# ==============================================================================
+# Cache Configuration (Redis with Fallback)
+# ==============================================================================
+# REDIS_URL format: redis://[:password]@host:port/db
+# If REDIS_URL is not set, falls back to local memory cache (development)
+
+REDIS_URL = os.environ.get("REDIS_URL")
+
+if REDIS_URL:
+    # Redis cache for production (Phases 3, 8: Real-time search, parallelization)
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": 50,
+                    "retry_on_timeout": True,
+                },
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "SOCKET_TIMEOUT": 5,
+            },
+            "KEY_PREFIX": "pm",
+            "TIMEOUT": 300,  # 5 minutes default
+        }
     }
-}
+else:
+    # Local memory cache (development/testing fallback)
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "projectmeats-cache",
+        }
+    }
+
+# ==============================================================================
+# OpenAI API Configuration
+# ==============================================================================
+# Required for Phase 2: AI-Powered Forms & Workflows
+# - Field suggestions based on context
+# - Natural language query processing
+# - Dynamic workflow generation
+# - Intent recognition
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_ORG_ID = os.environ.get("OPENAI_ORG_ID")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4")
+OPENAI_MAX_TOKENS = int(os.environ.get("OPENAI_MAX_TOKENS", "2000"))
+OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.7"))
 
 # ==============================================================================
 # Email Configuration (SendGrid Web API ONLY - NO SMTP)
