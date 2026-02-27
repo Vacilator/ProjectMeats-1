@@ -523,6 +523,57 @@ OPENAI_MAX_TOKENS = int(os.environ.get("OPENAI_MAX_TOKENS", "2000"))
 OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.7"))
 
 # ==============================================================================
+# Sentry Configuration (Error Tracking & APM)
+# ==============================================================================
+# Phase 6.4: Real-time error tracking, performance monitoring, and alerting
+# Required for production observability and incident response
+
+SENTRY_ENABLED = os.environ.get("SENTRY_ENABLED", "").lower() in ("true", "1", "yes")
+SENTRY_DSN = os.environ.get("SENTRY_DSN")
+SENTRY_ENVIRONMENT = os.environ.get("SENTRY_ENVIRONMENT", "development")
+
+if SENTRY_ENABLED and SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    
+    # Determine sample rate based on environment
+    traces_sample_rate = 1.0  # Default for dev/uat
+    if SENTRY_ENVIRONMENT == "production":
+        traces_sample_rate = 0.1  # 10% sampling in production to reduce costs
+    
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(
+                transaction_style="url",  # Group by URL pattern
+                middleware_spans=True,    # Track middleware performance
+                signals_spans=True,       # Track Django signals
+            ),
+        ],
+        environment=SENTRY_ENVIRONMENT,
+        
+        # Performance Monitoring
+        traces_sample_rate=traces_sample_rate,
+        profiles_sample_rate=0.0,  # Disabled until needed (can enable later)
+        
+        # Error Filtering
+        before_send=lambda event, hint: (
+            # Filter out 404 errors to keep signal-to-noise ratio high
+            None if event.get("exception", {}).get("values", [{}])[0]
+                        .get("type") == "Http404" 
+            else event
+        ),
+        
+        # Release Tracking
+        release=os.environ.get("GIT_COMMIT_SHA", "unknown"),  # Set by CI/CD
+        
+        # Additional Options
+        send_default_pii=False,  # Don't send PII by default (GDPR compliance)
+        attach_stacktrace=True,   # Always include stacktraces
+        max_breadcrumbs=50,       # Keep more breadcrumbs for context
+    )
+
+# ==============================================================================
 # Email Configuration (SendGrid Web API ONLY - NO SMTP)
 # ==============================================================================
 # CRITICAL: This backend uses HTTP/HTTPS exclusively - SMTP is completely disabled
