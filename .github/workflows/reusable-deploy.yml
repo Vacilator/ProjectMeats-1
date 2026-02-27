@@ -418,12 +418,65 @@ jobs:
           exit 0
 
   # ==========================================
+  # Pre-Deployment: Migration Sanity Check
+  # ==========================================
+  
+  check-migrations:
+    name: "Check Migration State"
+    needs: [test-backend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          pip install django==5.1 psycopg2-binary==2.9.10
+      
+      - name: Check for unapplied migrations
+        working-directory: ./backend
+        env:
+          SECRET_KEY: "dummy-key-for-check-only"
+          DB_ENGINE: "django.db.backends.sqlite3"
+          DB_NAME: ":memory:"
+          DJANGO_SETTINGS_MODULE: "projectmeats.settings.development"
+        run: |
+          # Run makemigrations in check mode
+          # This will fail if there are model changes without migrations
+          echo "🔍 Checking for unapplied model changes..."
+          python manage.py makemigrations --check --dry-run || {
+            echo "❌ ERROR: Unapplied model changes detected!"
+            echo "You must run 'python manage.py makemigrations' locally and commit the generated migration files."
+            echo "This prevents 'Split State' deployments where models and migrations are out of sync."
+            exit 1
+          }
+          
+          echo "✅ No unapplied model changes detected"
+          
+          # Show migration plan for audit trail
+          echo ""
+          echo "📋 Current migration plan:"
+          python manage.py showmigrations --plan || echo "⚠️ Could not generate plan (database required)"
+          
+          echo ""
+          echo "✅ Migration sanity check passed"
+
+  # ==========================================
   # Backend Deployment: Migrations
   # ==========================================
   
   migrate:
     name: "Run Database Migrations"
-    needs: [test-backend]
+    needs: [check-migrations]
     runs-on: ubuntu-latest
     environment: ${{ inputs.backend_environment }}
     timeout-minutes: 15
