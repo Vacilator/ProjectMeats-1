@@ -471,12 +471,56 @@ LOGGING = {
     },
 }
 
-# Cache Configuration
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+# ==============================================================================
+# Cache Configuration (Redis with Fallback)
+# ==============================================================================
+# REDIS_URL format: redis://[:password]@host:port/db
+# If REDIS_URL is not set, falls back to local memory cache (development)
+
+REDIS_URL = env("REDIS_URL", default=None)
+
+if REDIS_URL:
+    # Redis cache for production (Phases 3, 8: Real-time search, parallelization)
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": 50,
+                    "retry_on_timeout": True,
+                },
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "SOCKET_TIMEOUT": 5,
+            },
+            "KEY_PREFIX": "pm",
+            "TIMEOUT": 300,  # 5 minutes default
+        }
     }
-}
+else:
+    # Local memory cache (development/testing fallback)
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "projectmeats-cache",
+        }
+    }
+
+# ==============================================================================
+# OpenAI API Configuration
+# ==============================================================================
+# Required for Phase 2: AI-Powered Forms & Workflows
+# - Field suggestions based on context
+# - Natural language query processing
+# - Dynamic workflow generation
+# - Intent recognition
+
+OPENAI_API_KEY = env("OPENAI_API_KEY", default=None)
+OPENAI_ORG_ID = env("OPENAI_ORG_ID", default=None)
+OPENAI_MODEL = env("OPENAI_MODEL", default="gpt-4")
+OPENAI_MAX_TOKENS = env.int("OPENAI_MAX_TOKENS", default=2000)
+OPENAI_TEMPERATURE = env.float("OPENAI_TEMPERATURE", default=0.7)
 
 # ==============================================================================
 # Email Configuration (SendGrid Web API ONLY - NO SMTP)
