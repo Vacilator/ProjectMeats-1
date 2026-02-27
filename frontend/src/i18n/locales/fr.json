@@ -1,0 +1,119 @@
+{
+  "workflowEditor": {
+    "title": "Éditeur de Flux",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "zoom": {
+      "in": "Zoom Avant",
+      "out": "Zoom Arrière",
+      "fit": "Ajuster à l'Écran"
+    },
+    "toolbar": {
+      "select": "Sélectionner",
+      "pan": "Déplacer",
+      "addNode": "Ajouter un Nœud",
+      "delete": "Supprimer",
+      "undo": "Annuler",
+      "redo": "Rétablir"
+    },
+    "nodes": {
+      "start": "Début",
+      "end": "Fin",
+      "action": "Action",
+      "decision": "Décision",
+      "loop": "Boucle",
+      "conditional": "Branche Conditionnelle",
+      "subworkflow": "Sous-Flux"
+    },
+    "properties": {
+      "title": "Propriétés",
+      "name": "Nom",
+      "description": "Description",
+      "type": "Type",
+      "condition": "Condition",
+      "actions": "Actions",
+      "connections": "Connexions"
+    },
+    "validation": {
+      "requiredField": "Ce champ est requis",
+      "invalidName": "Nom invalide",
+      "circularDependency": "Dépendance circulaire détectée",
+      "danglingNode": "Le nœud n'a pas de connexions sortantes",
+      "orphanNode": "Le nœud n'a pas de connexions entrantes",
+      "duplicateName": "Le nom existe déjà"
+    },
+    "notifications": {
+      "saved": "Flux enregistré avec succès",
+      "deleted": "Flux supprimé avec succès",
+      "error": "Une erreur s'est produite",
+      "validationFailed": "La validation a échoué",
+      "connectionCreated": "Connexion créée",
+      "connectionDeleted": "Connexion supprimée",
+      "nodeAdded": "Nœud ajouté",
+      "nodeDeleted": "Nœud supprimé"
+    },
+    "history": {
+      "title": "Historique des Versions",
+      "noHistory": "Aucun historique disponible",
+      "restore": "Restaurer",
+      "compare": "Comparer",
+      "author": "Auteur",
+      "date": "Date",
+      "changes": "Changements"
+    },
+    "entityMapping": {
+      "title": "Mappage d'Entités",
+      "selectEntity": "Sélectionner une Entité",
+      "mapFields": "Mapper les Champs",
+      "formField": "Champ du Formulaire",
+      "entityField": "Champ de l'Entité",
+      "noMapping": "Aucun mappage configuré"
+    },
+    "performance": {
+      "fps": "IPS",
+      "memory": "Mémoire",
+      "nodes": "Nœuds",
+      "connections": "Connexions",
+      "renderTime": "Temps de Rendu"
+    },
+    "accessibility": {
+      "announcements": {
+        "nodeSelected": "Nœud {{name}} sélectionné",
+        "nodeMoved": "Nœud {{name}} déplacé à la position {{x}}, {{y}}",
+        "connectionCreated": "Connexion créée de {{source}} à {{target}}",
+        "connectionDeleted": "Connexion de {{source}} à {{target}} supprimée",
+        "workflowSaved": "Flux enregistré avec succès",
+        "validationError": "Erreur de validation: {{error}}"
+      },
+      "hints": {
+        "navigateNodes": "Utilisez les touches fléchées pour naviguer entre les nœuds",
+        "selectNode": "Appuyez sur Entrée pour sélectionner le nœud ciblé",
+        "deleteNode": "Appuyez sur Suppr pour supprimer le nœud sélectionné",
+        "undo": "Appuyez sur Ctrl+Z pour annuler",
+        "redo": "Appuyez sur Ctrl+Y pour rétablir"
+      }
+    }
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "warning": "Avertissement",
+    "info": "Information",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "sort": "Trier",
+    "export": "Exporter",
+    "import": "Importer",
+    "settings": "Paramètres",
+    "help": "Aide"
+  }
+}
