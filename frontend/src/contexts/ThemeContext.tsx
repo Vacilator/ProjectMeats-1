@@ -3,19 +3,22 @@
  * 
  * NEW: Semantic Design System Implementation
  * - Injects tenant colors into CSS variables at runtime
- * - Manages theme state (light/dark mode) across the application
+ * - Manages theme state (light/dark/high-contrast) across the application
  * - Persists theme preference to localStorage and syncs with backend
  * - Fetches tenant-specific branding (logo, colors) from backend
+ * - Integrates with AntD ConfigProvider for consistent component theming
  * 
  * Components now reference CSS variables (--color-primary) instead of hardcoded colors.
  * This allows the same component to look completely different for each tenant.
  */
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { ConfigProvider } from 'antd';
 import { Theme, themes, lightTheme, darkTheme, injectTenantColors } from '../config/theme';
+import { getThemeConfig, applyCanvasTheme } from '../theme/themeConfig';
 import { getRuntimeConfig } from '../config/runtime';
 import axios from 'axios';
 
-type ThemeName = 'light' | 'dark';
+type ThemeName = 'light' | 'dark' | 'high-contrast';
 
 interface TenantBranding {
   logoUrl: string | null;
@@ -42,7 +45,19 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Initialize theme from localStorage or default to 'dark'
   const [themeName, setThemeName] = useState<ThemeName>(() => {
     const stored = localStorage.getItem('theme');
-    return (stored === 'light' || stored === 'dark') ? stored : 'dark';
+    if (stored === 'light' || stored === 'dark' || stored === 'high-contrast') {
+      return stored;
+    }
+    
+    // Check for high contrast preference
+    const prefersHighContrast = window.matchMedia('(prefers-contrast: more)').matches;
+    if (prefersHighContrast) {
+      return 'high-contrast';
+    }
+    
+    // Check for dark mode preference
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return prefersDark ? 'dark' : 'light';
   });
   
   const [tenantBranding, setTenantBranding] = useState<TenantBranding | null>(null);
@@ -53,6 +68,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Apply theme to document body (now sets data-theme attribute for CSS variable switching)
   useEffect(() => {
     document.body.setAttribute('data-theme', themeName);
+    applyCanvasTheme(themeName);
     // Background and text color are now controlled by CSS variables
     // No need to manually set body styles here
   }, [themeName]);
@@ -171,7 +187,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         );
 
         const backendTheme = response.data.theme;
-        if (backendTheme === 'light' || backendTheme === 'dark') {
+        if (backendTheme === 'light' || backendTheme === 'dark' || backendTheme === 'high-contrast') {
           setThemeName(backendTheme);
           localStorage.setItem('theme', backendTheme);
         }
@@ -184,7 +200,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }, []);
 
   const toggleTheme = () => {
-    const newTheme = themeName === 'light' ? 'dark' : 'light';
+    const modes: ThemeName[] = ['light', 'dark', 'high-contrast'];
+    const currentIndex = modes.indexOf(themeName);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    const newTheme = modes[nextIndex];
     setThemeName(newTheme);
     localStorage.setItem('theme', newTheme);
   };
@@ -202,7 +221,16 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     tenantBranding,
   };
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  // Get AntD theme configuration based on current theme mode
+  const antdTheme = getThemeConfig(themeName);
+
+  return (
+    <ThemeContext.Provider value={value}>
+      <ConfigProvider theme={antdTheme}>
+        {children}
+      </ConfigProvider>
+    </ThemeContext.Provider>
+  );
 };
 
 export const useTheme = (): ThemeContextType => {
