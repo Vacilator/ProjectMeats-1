@@ -139,17 +139,7 @@ class Migration(migrations.Migration):
                         USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
                 END IF;
 
-                -- FormSubmissionValue
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_policies 
-                    WHERE tablename = 'workflows_formsubmissionvalue' 
-                    AND policyname = 'formsubmissionvalue_tenant_isolation'
-                ) THEN
-                    ALTER TABLE workflows_formsubmissionvalue ENABLE ROW LEVEL SECURITY;
-                    ALTER TABLE workflows_formsubmissionvalue FORCE ROW LEVEL SECURITY;
-                    CREATE POLICY formsubmissionvalue_tenant_isolation ON workflows_formsubmissionvalue
-                        USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
-                END IF;
+                -- FormSubmissionValue (REMOVED - table does not exist in current schema)
 
                 -- FormSubmissionFile
                 IF NOT EXISTS (
@@ -228,7 +218,7 @@ class Migration(migrations.Migration):
                 DROP POLICY IF EXISTS tenantworkflowaction_tenant_isolation ON workflows_tenantworkflowaction;
                 DROP POLICY IF EXISTS workflowexecutionlog_tenant_isolation ON workflows_workflowexecutionlog;
                 DROP POLICY IF EXISTS formsubmission_tenant_isolation ON workflows_formsubmission;
-                DROP POLICY IF EXISTS formsubmissionvalue_tenant_isolation ON workflows_formsubmissionvalue;
+                -- formsubmissionvalue table does not exist (skipped)
                 DROP POLICY IF EXISTS formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile;
                 DROP POLICY IF EXISTS formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent;
                 DROP POLICY IF EXISTS stepassignment_tenant_isolation ON workflows_stepassignment;
@@ -246,7 +236,7 @@ class Migration(migrations.Migration):
                 ALTER TABLE workflows_tenantworkflowaction DISABLE ROW LEVEL SECURITY;
                 ALTER TABLE workflows_workflowexecutionlog DISABLE ROW LEVEL SECURITY;
                 ALTER TABLE workflows_formsubmission DISABLE ROW LEVEL SECURITY;
-                ALTER TABLE workflows_formsubmissionvalue DISABLE ROW LEVEL SECURITY;
+                -- formsubmissionvalue table does not exist (skipped)
                 ALTER TABLE workflows_formsubmissionfile DISABLE ROW LEVEL SECURITY;
                 ALTER TABLE workflows_formsubmissionevent DISABLE ROW LEVEL SECURITY;
                 ALTER TABLE workflows_stepassignment DISABLE ROW LEVEL SECURITY;
