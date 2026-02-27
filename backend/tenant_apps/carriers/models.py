@@ -16,24 +16,14 @@ from apps.core.models import (
     CarrierTypeChoices,
     CreditLimitChoices,
     TenantManager,
+    TenantAwareModel,
 )
 from tenant_apps.contacts.models import Contact
 
 
-class Carrier(models.Model):
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="carriers",
-        help_text="Tenant this carrier belongs to"
-    )
-
+class Carrier(TenantAwareModel):
     name = models.CharField(max_length=200)
-    code = models.CharField(max_length=50, unique=True)
+    code = models.CharField(max_length=50)
     carrier_type = models.CharField(
         max_length=20, choices=CarrierTypeChoices.choices, default=CarrierTypeChoices.TRUCK
     )
