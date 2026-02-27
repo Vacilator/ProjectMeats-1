@@ -42,3 +42,10 @@ export type { FormProcessGroupData } from './FormProcessGroupNode';
 
 export { FormProcessChildWrapper } from './FormProcessChildWrapper';
 export type { ChildWrapperProps } from './FormProcessChildWrapper';
+
+// Phase 7.4 Advanced Node Types (2026-02-27)
+export { ParallelPathNode } from './ParallelPathNode';
+export type { ParallelPathNodeData } from './ParallelPathNode';
+
+export { SubWorkflowNode } from './SubWorkflowNode';
+export type { SubWorkflowNodeData } from './SubWorkflowNode';

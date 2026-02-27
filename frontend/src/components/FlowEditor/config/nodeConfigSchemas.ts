@@ -991,6 +991,10 @@ export const allSchemas: NodeConfigSchema[] = [
   
   // Terminal nodes
   endCancelSchema,
+  
+  // Phase 7.4: Advanced Node Types (2026-02-27)
+  parallelPathSchema,
+  subWorkflowSchema,
 ];
 
 // Export formStepSingleSchema as alias for backward compatibility
@@ -3939,6 +3943,174 @@ const endCancelSchema: NodeConfigSchema = {
           type: 'textarea',
           label: 'Cancel Message',
           placeholder: 'Workflow was cancelled because...',
+        },
+      ]
+    }
+  ]
+};
+
+// ============================================================================
+// PHASE 7.4: ADVANCED NODE TYPES (2026-02-27)
+// ============================================================================
+
+/**
+ * Parallel Path Node Schema
+ * 
+ * Enables parallel execution branches for concurrent processing.
+ */
+export const parallelPathSchema: NodeConfigSchema = {
+  nodeType: 'parallelPath',
+  displayName: 'Parallel Paths',
+  description: 'Execute multiple branches concurrently',
+  icon: Zap,
+  version: '1.0.0',
+  tags: ['logic', 'parallel', 'concurrent'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'paths',
+      title: 'Parallel Paths Configuration',
+      icon: Zap,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'pathCount',
+          type: 'number',
+          label: 'Number of Paths',
+          min: 2,
+          max: 10,
+          defaultValue: 2,
+          required: true,
+        },
+        {
+          id: 'waitStrategy',
+          type: 'select',
+          label: 'Wait Strategy',
+          options: [
+            { value: 'all', label: 'Wait for All (AND)' },
+            { value: 'any', label: 'Wait for Any (OR)' },
+            { value: 'none', label: 'Fire & Forget' },
+          ],
+          defaultValue: 'all',
+          required: true,
+        },
+        {
+          id: 'errorStrategy',
+          type: 'select',
+          label: 'Error Handling',
+          options: [
+            { value: 'stop', label: 'Stop All on Error' },
+            { value: 'continue', label: 'Continue Other Paths' },
+          ],
+          defaultValue: 'stop',
+          required: true,
+        },
+        {
+          id: 'timeout',
+          type: 'number',
+          label: 'Timeout (seconds)',
+          min: 0,
+          placeholder: 'No timeout',
+        },
+      ]
+    }
+  ]
+};
+
+/**
+ * Sub-Workflow Node Schema
+ * 
+ * Executes another workflow as a reusable sub-process.
+ */
+export const subWorkflowSchema: NodeConfigSchema = {
+  nodeType: 'subWorkflow',
+  displayName: 'Sub-Workflow',
+  description: 'Execute another workflow as a sub-process',
+  icon: Package,
+  version: '1.0.0',
+  tags: ['logic', 'subflow', 'reusable'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'workflow',
+      title: 'Workflow Selection',
+      icon: Package,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'workflowId',
+          type: 'text',
+          label: 'Workflow ID',
+          placeholder: 'Select workflow...',
+          required: true,
+        },
+        {
+          id: 'workflowName',
+          type: 'text',
+          label: 'Workflow Name',
+          placeholder: 'Display name',
+        },
+        {
+          id: 'version',
+          type: 'text',
+          label: 'Version',
+          placeholder: 'latest',
+        },
+      ]
+    },
+    {
+      id: 'execution',
+      title: 'Execution Options',
+      icon: Settings,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'waitForCompletion',
+          type: 'boolean',
+          label: 'Wait for Completion',
+          defaultValue: true,
+        },
+        {
+          id: 'inheritContext',
+          type: 'boolean',
+          label: 'Inherit Parent Context',
+          defaultValue: false,
+        },
+        {
+          id: 'timeout',
+          type: 'number',
+          label: 'Timeout (seconds)',
+          min: 0,
+          placeholder: 'No timeout',
+        },
+      ]
+    },
+    {
+      id: 'errorHandling',
+      title: 'Error Handling',
+      icon: AlertCircle,
+      defaultExpanded: false,
+      fields: [
+        {
+          id: 'errorHandling',
+          type: 'select',
+          label: 'On Error',
+          options: [
+            { value: 'fail', label: 'Fail Parent Workflow' },
+            { value: 'continue', label: 'Continue Parent Workflow' },
+            { value: 'retry', label: 'Retry Sub-Workflow' },
+          ],
+          defaultValue: 'fail',
+          required: true,
+        },
+        {
+          id: 'retryCount',
+          type: 'number',
+          label: 'Retry Attempts',
+          min: 1,
+          max: 10,
+          defaultValue: 3,
+          visibilityCondition: (data) => data.errorHandling === 'retry',
         },
       ]
     }
