@@ -127,9 +127,10 @@ Closes #
 
 ### Configuration Changes
 <!-- List any required configuration or environment variable changes -->
+**Authority**: `/manifests/env.manifest.json` (Version 5.1 - DO NOT guess secret names)
 - [ ] No configuration changes
-- [ ] Environment variables added/changed (documented below)
-- [ ] Secrets need to be updated
+- [ ] Environment variables added/changed (documented below AND in `/manifests/env.manifest.json`)
+- [ ] Secrets need to be updated in GitHub Environments
 
 ### Deployment Requirements
 - [ ] No special deployment requirements
@@ -205,6 +206,7 @@ Closes #
 
 ### 🔒 Row-Level Security (RLS) - MANDATORY for Database Changes
 **⚠️ CRITICAL: All tenant-aware tables MUST have RLS policies**
+**Authority**: `/manifests/RLS_POLICIES.md` (33 policies across 25 tables)
 - [ ] Model inherits from `backend/apps/core/models.py:TenantAwareModel` (or has `tenant` ForeignKey)
 - [ ] Migration includes `RunSQL` operation for PostgreSQL RLS policy (if creating tenant-aware table)
 - [ ] RLS policy uses `current_setting('app.current_tenant')::uuid` pattern
@@ -214,6 +216,7 @@ Closes #
 - [ ] `perform_create()` assigns `tenant=request.tenant`
 - [ ] No direct ORM queries bypass tenant filtering
 - [ ] Tested RLS enforcement with `psql` queries
+- [ ] Updated `/manifests/RLS_POLICIES.md` with new policy details (if applicable)
 
 ### 🎨 UI Styling Standards (for Frontend Changes)
 - [ ] All colors use theme tokens from `theme.ts` or CSS custom properties (`rgb(var(--color-*))`)

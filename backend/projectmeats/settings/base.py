@@ -471,12 +471,132 @@ LOGGING = {
     },
 }
 
-# Cache Configuration
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+# ==============================================================================
+# Cache Configuration (Redis with Fallback)
+# ==============================================================================
+# REDIS_URL format: redis://[:password]@host:port/db
+# If REDIS_URL is not set, falls back to local memory cache (development)
+
+REDIS_URL = os.environ.get("REDIS_URL")
+
+if REDIS_URL:
+    # Redis cache for production (Phases 3, 8: Real-time search, parallelization)
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": 50,
+                    "retry_on_timeout": True,
+                },
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "SOCKET_TIMEOUT": 5,
+            },
+            "KEY_PREFIX": "pm",
+            "TIMEOUT": 300,  # 5 minutes default
+        }
     }
-}
+else:
+    # Local memory cache (development/testing fallback)
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "projectmeats-cache",
+        }
+    }
+
+# ==============================================================================
+# OpenAI API Configuration
+# ==============================================================================
+# Required for Phase 2: AI-Powered Forms & Workflows
+# - Field suggestions based on context
+# - Natural language query processing
+# - Dynamic workflow generation
+# - Intent recognition
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_ORG_ID = os.environ.get("OPENAI_ORG_ID")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4")
+OPENAI_MAX_TOKENS = int(os.environ.get("OPENAI_MAX_TOKENS", "2000"))
+OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.7"))
+
+# ==============================================================================
+# Sentry Configuration (Error Tracking & APM)
+# ==============================================================================
+# Phase 6.4: Real-time error tracking, performance monitoring, and alerting
+# Required for production observability and incident response
+
+SENTRY_ENABLED = os.environ.get("SENTRY_ENABLED", "").lower() in ("true", "1", "yes")
+SENTRY_DSN = os.environ.get("SENTRY_DSN")
+SENTRY_ENVIRONMENT = os.environ.get("SENTRY_ENVIRONMENT", "development")
+
+if SENTRY_ENABLED and SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    
+    # Determine sample rate based on environment
+    traces_sample_rate = 1.0  # Default for dev/uat
+    if SENTRY_ENVIRONMENT == "production":
+        traces_sample_rate = 0.1  # 10% sampling in production to reduce costs
+    
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(
+                transaction_style="url",  # Group by URL pattern
+                middleware_spans=True,    # Track middleware performance
+                signals_spans=True,       # Track Django signals
+            ),
+        ],
+        environment=SENTRY_ENVIRONMENT,
+        
+        # Performance Monitoring
+        traces_sample_rate=traces_sample_rate,
+        profiles_sample_rate=0.0,  # Disabled until needed (can enable later)
+        
+        # Error Filtering
+        before_send=lambda event, hint: (
+            # Filter out 404 errors to keep signal-to-noise ratio high
+            None if event.get("exception", {}).get("values", [{}])[0]
+                        .get("type") == "Http404" 
+            else event
+        ),
+        
+        # Release Tracking
+        release=os.environ.get("GIT_COMMIT_SHA", "unknown"),  # Set by CI/CD
+        
+        # Additional Options
+        send_default_pii=False,  # Don't send PII by default (GDPR compliance)
+        attach_stacktrace=True,   # Always include stacktraces
+        max_breadcrumbs=50,       # Keep more breadcrumbs for context
+    )
+
+# ==============================================================================
+# Microsoft OAuth Configuration (Phase 5)
+# ==============================================================================
+# Required for Outlook/Microsoft 365 integration
+# - Calendar synchronization
+# - Email integration  
+# - Contact synchronization
+# - SSO (Single Sign-On)
+
+MICROSOFT_CLIENT_ID = os.environ.get("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.environ.get("MICROSOFT_CLIENT_SECRET")
+MICROSOFT_TENANT_ID = os.environ.get("MICROSOFT_TENANT_ID", "common")
+MICROSOFT_REDIRECT_URI = os.environ.get(
+    "MICROSOFT_REDIRECT_URI",
+    "https://dev.meatscentral.com/integrations/microsoft/callback/"
+)
+MICROSOFT_AUTHORITY = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}"
+MICROSOFT_SCOPES = [
+    "User.Read",           # Read user profile
+    "Calendars.ReadWrite", # Read/write calendars
+    "Mail.Read",           # Read email
+    "Mail.Send",           # Send email
+    "Contacts.ReadWrite",  # Read/write contacts
+]
 
 # ==============================================================================
 # Email Configuration (SendGrid Web API ONLY - NO SMTP)
