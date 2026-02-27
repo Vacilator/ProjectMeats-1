@@ -5,21 +5,12 @@ Provides internal bug tracking and user feedback.
 """
 from django.contrib.auth.models import User
 from django.db import models
-from apps.core.models import TenantManager
+from apps.core.models import TenantManager, TenantAwareModel
 from apps.tenants.models import Tenant
 
 
-class BugReport(models.Model):
+class BugReport(TenantAwareModel):
     """Bug report submitted by users."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="bug_reports",
-        help_text="Tenant this bugreport belongs to"
-    )
 
     SEVERITY_CHOICES = [
         ("low", "Low"),

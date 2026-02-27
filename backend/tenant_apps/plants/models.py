@@ -5,14 +5,12 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 
 from django.db import models
-from apps.core.models import TenantManager
+from apps.core.models import TenantManager, TenantAwareModel
 from django.contrib.auth.models import User
 from apps.tenants.models import Tenant
 
 
-class Plant(models.Model):
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
+class Plant(TenantAwareModel):
     PLANT_TYPE_CHOICES = [
         ("processing", "Processing Plant"),
         ("distribution", "Distribution Center"),
@@ -20,14 +18,6 @@ class Plant(models.Model):
         ("retail", "Retail Location"),
         ("other", "Other"),
     ]
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="plants",
-        help_text="Tenant this plant belongs to"
-    )
 
     # Parent entity relationship (Phase 4: Contextual Supplier Selection)
     supplier = models.ForeignKey(
