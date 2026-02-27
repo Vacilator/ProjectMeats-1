@@ -1,0 +1,294 @@
+"""
+AI Prompt Engineering Service
+
+Loads golden prompt templates from /manifests/ai_standards and injects
+runtime context for OpenAI API calls.
+
+Usage:
+    from workflows.services.prompter import AIPrompter
+    
+    prompter = AIPrompter()
+    final_prompt = prompter.build_suggestion_prompt(
+        tenant=tenant_obj,
+        current_flow=flow_data,
+        user_request="Add payment processing"
+    )
+"""
+
+import json
+import os
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+
+from django.conf import settings
+
+
+class AIPrompter:
+    """
+    Service for loading AI prompt templates and injecting dynamic context.
+    
+    Templates are stored in /manifests/ai_standards/ and contain:
+    - System role definitions
+    - Response format specifications
+    - Constraint rules
+    - Node type schemas
+    """
+    
+    MANIFEST_DIR = Path(settings.BASE_DIR).parent / "manifests" / "ai_standards"
+    DEFAULT_TEMPLATE = "suggestion_engine_v1.prompt"
+    
+    def __init__(self, template_name: Optional[str] = None):
+        """
+        Initialize prompter with specified template.
+        
+        Args:
+            template_name: Name of prompt template file (defaults to suggestion_engine_v1.prompt)
+        """
+        self.template_name = template_name or self.DEFAULT_TEMPLATE
+        self.template_path = self.MANIFEST_DIR / self.template_name
+        self._template_cache = None
+    
+    def load_template(self) -> str:
+        """
+        Load prompt template from manifests directory.
+        
+        Returns:
+            str: Raw template content
+            
+        Raises:
+            FileNotFoundError: If template doesn't exist
+        """
+        if self._template_cache is None:
+            if not self.template_path.exists():
+                raise FileNotFoundError(
+                    f"AI prompt template not found: {self.template_path}. "
+                    f"Ensure /manifests/ai_standards/{self.template_name} exists."
+                )
+            
+            with open(self.template_path, 'r', encoding='utf-8') as f:
+                self._template_cache = f.read()
+        
+        return self._template_cache
+    
+    def build_suggestion_prompt(
+        self,
+        tenant: Any,
+        current_flow: Dict[str, Any],
+        user_request: str,
+        available_entities: Optional[List[str]] = None
+    ) -> str:
+        """
+        Build complete prompt by combining template with runtime context.
+        
+        Args:
+            tenant: Tenant model instance
+            current_flow: Dictionary with existing workflow nodes
+            user_request: User's natural language request
+            available_entities: List of entity names (Supplier, Customer, etc.)
+            
+        Returns:
+            str: Complete prompt ready for OpenAI API
+        """
+        # Load base template
+        template = self.load_template()
+        
+        # Build context injection
+        context = self._build_context(tenant, current_flow, user_request, available_entities)
+        
+        # Combine template + context
+        full_prompt = f"{template}\n\n---\n\n## CURRENT REQUEST\n\n{json.dumps(context, indent=2)}"
+        
+        return full_prompt
+    
+    def _build_context(
+        self,
+        tenant: Any,
+        current_flow: Dict[str, Any],
+        user_request: str,
+        available_entities: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Build context dictionary to inject into prompt.
+        
+        Args:
+            tenant: Tenant model instance
+            current_flow: Current workflow state
+            user_request: User's request
+            available_entities: Available entity types
+            
+        Returns:
+            dict: Context object with tenant info, flow state, entities
+        """
+        # Extract existing nodes
+        existing_nodes = current_flow.get('nodes', [])
+        last_node = existing_nodes[-1] if existing_nodes else None
+        
+        # Determine tenant industry type from custom_data or default
+        tenant_data = getattr(tenant, 'custom_data', {}) or {}
+        industry_type = tenant_data.get('industry_type', 'wholesale')
+        
+        # Determine primary entities (default to common meat industry entities)
+        if available_entities is None:
+            available_entities = [
+                'Supplier', 'Customer', 'Invoice', 'Product',
+                'Carrier', 'PurchaseOrder', 'ColdStorageEntry'
+            ]
+        
+        context = {
+            "tenant": {
+                "name": tenant.name,
+                "industry_type": industry_type,
+                "primary_entities": available_entities[:3]  # Top 3 for brevity
+            },
+            "current_flow": {
+                "existing_nodes": [
+                    {
+                        "id": node.get('id'),
+                        "type": node.get('type'),
+                        "label": node.get('data', {}).get('label', 'Untitled')
+                    }
+                    for node in existing_nodes
+                ],
+                "last_node_type": last_node.get('type') if last_node else None
+            },
+            "available_entities": available_entities,
+            "user_request": user_request
+        }
+        
+        return context
+    
+    def parse_ai_response(self, raw_response: str) -> Dict[str, Any]:
+        """
+        Parse OpenAI response and validate structure.
+        
+        Args:
+            raw_response: Raw text response from OpenAI
+            
+        Returns:
+            dict: Parsed suggestions with validation
+            
+        Raises:
+            ValueError: If response is not valid JSON or missing required fields
+        """
+        try:
+            data = json.loads(raw_response)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"AI response is not valid JSON: {e}")
+        
+        # Validate required fields
+        if 'suggestions' not in data:
+            raise ValueError("AI response missing 'suggestions' field")
+        
+        if not isinstance(data['suggestions'], list):
+            raise ValueError("'suggestions' must be a list")
+        
+        # Validate each suggestion
+        required_fields = {'type', 'label', 'description', 'reasoning', 'priority'}
+        for idx, suggestion in enumerate(data['suggestions']):
+            missing = required_fields - set(suggestion.keys())
+            if missing:
+                raise ValueError(
+                    f"Suggestion {idx} missing required fields: {missing}"
+                )
+        
+        # Enforce max 3 suggestions constraint
+        if len(data['suggestions']) > 3:
+            data['suggestions'] = data['suggestions'][:3]
+            data['_warning'] = "Trimmed to 3 suggestions (max allowed)"
+        
+        return data
+    
+    def get_fallback_suggestions(
+        self,
+        tenant: Any,
+        current_flow: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate static fallback suggestions when AI is unavailable.
+        
+        Used for graceful degradation when:
+        - OpenAI API key is missing
+        - API is down or rate-limited
+        - Connection errors occur
+        
+        Args:
+            tenant: Tenant model instance
+            current_flow: Current workflow state
+            
+        Returns:
+            dict: Static suggestions based on tenant type
+        """
+        # Get tenant industry type
+        tenant_data = getattr(tenant, 'custom_data', {}) or {}
+        industry_type = tenant_data.get('industry_type', 'wholesale')
+        
+        # Get last node to determine next logical step
+        existing_nodes = current_flow.get('nodes', [])
+        last_node_type = existing_nodes[-1].get('type') if existing_nodes else None
+        
+        # Industry-specific fallback templates
+        if industry_type == 'processor':
+            suggestions = [
+                {
+                    "type": "input",
+                    "label": "Log Temperature",
+                    "description": "Record batch temperature",
+                    "reasoning": "USDA compliance requirement",
+                    "priority": 1
+                },
+                {
+                    "type": "condition",
+                    "label": "Temperature Check",
+                    "description": "If > 40°F trigger alert",
+                    "reasoning": "Critical control point",
+                    "priority": 2
+                }
+            ]
+        elif industry_type == 'distributor':
+            suggestions = [
+                {
+                    "type": "action",
+                    "label": "Update Inventory",
+                    "description": "Sync stock levels",
+                    "reasoning": "Maintain accurate counts",
+                    "priority": 1
+                },
+                {
+                    "type": "action",
+                    "label": "Notify Warehouse",
+                    "description": "Send dispatch email",
+                    "reasoning": "Coordinate logistics",
+                    "priority": 2
+                }
+            ]
+        else:  # wholesale (default)
+            suggestions = [
+                {
+                    "type": "input",
+                    "label": "Enter Invoice Details",
+                    "description": "Line items and totals",
+                    "reasoning": "Required for payment",
+                    "priority": 1
+                },
+                {
+                    "type": "action",
+                    "label": "Calculate Total",
+                    "description": "Sum with tax",
+                    "reasoning": "Generate final amount",
+                    "priority": 2
+                },
+                {
+                    "type": "approval",
+                    "label": "Finance Review",
+                    "description": "Approve payment",
+                    "reasoning": "Policy requirement",
+                    "priority": 3
+                }
+            ]
+        
+        return {
+            "suggestions": suggestions,
+            "confidence": 0.0,  # Static suggestions have no confidence score
+            "mode": "static",  # Indicates fallback mode
+            "alternative_approach": "Enable AI suggestions by configuring OpenAI API key"
+        }
