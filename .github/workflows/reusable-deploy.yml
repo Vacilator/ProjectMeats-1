@@ -446,12 +446,17 @@ jobs:
         working-directory: ./backend
         env:
           SECRET_KEY: "dummy-key-for-check-only"
-          DB_ENGINE: "django.db.backends.sqlite3"
-          DB_NAME: ":memory:"
+          DB_ENGINE: "django.db.backends.postgresql"
+          DB_NAME: "dummy"
+          DB_USER: "dummy"
+          DB_PASSWORD: "dummy"
+          DB_HOST: "localhost"
+          DB_PORT: "5432"
           DJANGO_SETTINGS_MODULE: "projectmeats.settings.development"
         run: |
           # Run makemigrations in check mode
           # This will fail if there are model changes without migrations
+          # NOTE: DB connection not required - Django just needs valid settings
           echo "🔍 Checking for unapplied model changes..."
           python manage.py makemigrations --check --dry-run || {
             echo "❌ ERROR: Unapplied model changes detected!"
