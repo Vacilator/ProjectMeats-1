@@ -2836,3 +2836,90 @@ class WorkFormPermissionsAPIView(APIView):
         permissions = WorkFormPermissionHelper.get_permissions_for_user(user, tenant)
 
         return Response(permissions)
+
+
+# =============================================================================
+# AI WORKFLOW SUGGESTION API (Phase 2.1 Prep)
+# =============================================================================
+
+
+class SuggestNodesView(APIView):
+    """
+    API endpoint for AI-powered workflow node suggestions.
+    
+    Phase 2.1: AI Field Suggestions with graceful degradation.
+    Uses OpenAI to suggest next workflow steps based on context.
+    Falls back to static templates if AI is unavailable.
+    
+    POST /api/v1/workflows/suggest-nodes/
+    
+    Request:
+        {
+            'current_flow': {...},  # Current workflow state
+            'context': {...}        # Additional context
+        }
+    
+    Response:
+        {
+            'suggestions': [{type, label, description, reasoning, priority}],
+            'confidence': float,
+            'mode': 'ai' | 'static'
+        }
+    """
+    
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Generate workflow node suggestions."""
+        from .services.prompter import AIPrompter
+        
+        try:
+            prompter = AIPrompter()
+            tenant = getattr(request, 'tenant', None)
+            
+            if not tenant:
+                return Response(
+                    {"error": "No tenant context available"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            current_flow = request.data.get('current_flow', {})
+            context = request.data.get('context', {})
+            
+            # Try AI-powered suggestions
+            try:
+                import os
+                openai_key = os.environ.get('OPENAI_API_KEY')
+                
+                if not openai_key:
+                    raise ValueError("OpenAI API key not configured")
+                
+                # Build prompt with context
+                prompt = prompter.build_suggestion_prompt(
+                    tenant=tenant,
+                    current_flow=current_flow,
+                    additional_context=context
+                )
+                
+                # TODO: Call OpenAI API when credentials configured
+                # For now, fall back to static suggestions
+                raise NotImplementedError("OpenAI integration pending")
+                
+            except (ValueError, NotImplementedError, ConnectionError, Exception) as e:
+                # Graceful degradation: Return static suggestions
+                logger.info(f"AI suggestions unavailable ({e}), using static fallback")
+                fallback = prompter.get_fallback_suggestions(tenant, current_flow)
+                
+                return Response({
+                    'suggestions': fallback['suggestions'],
+                    'confidence': fallback['confidence'],
+                    'mode': fallback['mode'],
+                    'reason': 'AI unavailable - using static templates'
+                })
+                
+        except Exception as e:
+            logger.error(f"Suggestion generation failed: {e}")
+            return Response(
+                {"error": "Failed to generate suggestions"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
