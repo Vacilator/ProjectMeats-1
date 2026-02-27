@@ -284,6 +284,32 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
   },
   
+  // Phase 7.4: Advanced Node Types (2026-02-27)
+  parallelPath: {
+    id: 'parallelPath',
+    name: 'Parallel Paths',
+    category: 'logic',
+    icon: '⚡',
+    color: '#8b5cf6', // purple
+    description: 'Split execution into parallel branches',
+    maxInputs: 1,
+    maxOutputs: -1, // unlimited (one per path)
+    requiresConfig: true,
+  },
+  
+  subWorkflow: {
+    id: 'subWorkflow',
+    name: 'Sub-Workflow',
+    category: 'logic',
+    icon: '🔗',
+    color: '#6366f1', // indigo
+    description: 'Execute another workflow as a sub-process',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hasErrorRoute: true,
+  },
+  
   // === ACTIONS ===
   actionEmail: {
     id: 'actionEmail',
