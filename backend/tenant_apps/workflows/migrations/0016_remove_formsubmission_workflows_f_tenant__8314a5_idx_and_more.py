@@ -2,7 +2,7 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
-from django.contrib.postgres.operations import RunSQL
+from django.db.migrations.operations.special import RunSQL
 
 
 class Migration(migrations.Migration):
