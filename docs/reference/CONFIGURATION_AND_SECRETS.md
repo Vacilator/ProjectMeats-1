@@ -2,14 +2,14 @@
 
 **Status**: ✅ CURRENT  
 **Category**: Reference  
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-02-27
 
 ---
 
 **Single Source of Truth for ProjectMeats Environments**
 
 > **Authority**: This document describes the authoritative configuration system for ProjectMeats.  
-> **Version**: Manifest v3.3 (December 2025)
+> **Version**: Manifest v3.4 (February 2026) - Environment-Scoped Secrets
 
 ---
 
@@ -80,10 +80,30 @@ This file defines:
 ### Variable Categories
 
 #### 1. Infrastructure Secrets
-Used by **both** backend and frontend deployments for SSH access:
-- `BASTION_HOST` - Droplet IP address
-- `BASTION_USER` - SSH username
-- `BASTION_SSH_PASSWORD` - SSH password (see [Legacy Exceptions](#legacy-exceptions))
+Used by **all environments** for SSH access:
+- `BASTION_HOST` / `DEV_HOST` / `PRODUCTION_HOST` / `STAGING_HOST` - Server IP addresses
+- `BASTION_USER` / `DEV_USER` / `PRODUCTION_USER` / `STAGING_USER` - SSH usernames  
+- `SSH_PASSWORD` - **ENVIRONMENT-SCOPED** secret (same name, different values per environment)
+
+**CRITICAL: SSH Password Pattern**
+ProjectMeats uses GitHub Environments to scope secrets. The `SSH_PASSWORD` secret:
+- Has the **same name** in all 6 environments (dev-backend, dev-frontend, uat2-backend, uat2-frontend, prod2-backend, prod2-frontend)
+- Contains **different values** per environment (dev has one password, uat has another, etc.)
+- Workflows reference `${{ secrets.SSH_PASSWORD }}` and GitHub injects the correct value based on the `environment:` tag
+
+**Example**:
+```yaml
+jobs:
+  deploy-dev:
+    environment: dev-backend  # GitHub injects dev's SSH_PASSWORD
+    steps:
+      - run: sshpass -e ssh ${{ secrets.SSH_PASSWORD }} ...
+  
+  deploy-prod:
+    environment: prod2-backend  # GitHub injects prod's SSH_PASSWORD
+    steps:
+      - run: sshpass -e ssh ${{ secrets.SSH_PASSWORD }} ...
+```
 
 #### 2. Application Secrets (Backend Only)
 Used by Django/Python backend:
