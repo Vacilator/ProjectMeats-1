@@ -13,6 +13,7 @@ from django.contrib.auth.models import User
 from apps.tenants.models import Tenant
 from apps.core.models import (
     AppointmentMethodChoices,
+    TenantAwareModel,
     TenantManager,
     TimestampModel,
 )
@@ -35,24 +36,15 @@ class LocationTypeChoices(models.TextChoices):
     OTHER = 'other', 'Other'
 
 
-class Location(TimestampModel):
+class Location(TenantAwareModel):
     """
     Unified Location model for supplier/customer addresses and plant facilities.
     
     This model consolidates the former Plant model with locations, using
     location_type to distinguish between general locations and plant facilities.
+    
+    Inherits from TenantAwareModel: Provides tenant FK, custom_data JSONB, TenantManager
     """
-
-    # Use the custom TenantManager to support .for_tenant() queries
-    objects = TenantManager()
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="locations",
-        help_text="Tenant this location belongs to"
-    )
 
     # Basic information
     name = models.CharField(

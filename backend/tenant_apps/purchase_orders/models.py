@@ -24,6 +24,7 @@ from apps.core.models import (
     NetOrCatchChoices,
     PackageTypeChoices,
     ProteinTypeChoices,
+    TenantAwareModel,
     TimestampModel,
     WeightUnitChoices,
     TenantManager,
@@ -56,24 +57,14 @@ class LogisticsScenarioChoices(models.TextChoices):
     WE_PICKUP = "we_pickup", "We Pickup (Our Logistics)"
 
 
-class PurchaseOrder(OrderMethodsMixin, TimestampModel):
+class PurchaseOrder(OrderMethodsMixin, TenantAwareModel):
     """
     Purchase Order model for managing purchase orders.
     
-    Inherits from OrderMethodsMixin for shared order behavior:
-    - is_paid, is_complete, has_outstanding_balance properties
-    - calculate_outstanding(), update_payment_status() methods
+    Inherits from:
+    - OrderMethodsMixin: Shared order behavior (is_paid, is_complete, etc.)
+    - TenantAwareModel: Provides tenant FK, custom_data JSONB, TenantManager
     """
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="purchase_orders",
-        help_text="Tenant this purchase order belongs to"
-    )
 
     order_number = models.CharField(max_length=50, help_text="Order number (unique per tenant)")
     supplier = models.ForeignKey(
@@ -418,18 +409,12 @@ class PurchaseOrder(OrderMethodsMixin, TimestampModel):
         super().save(*args, **kwargs)
 
 
-class CarrierPurchaseOrder(TimestampModel):
-    """Carrier Purchase Order model for managing carrier-specific purchase orders."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
+class CarrierPurchaseOrder(TenantAwareModel):
+    """
+    Carrier Purchase Order model for managing carrier-specific purchase orders.
     
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="carrier_purchase_orders",
-        help_text="Tenant this carrier purchase order belongs to"
-    )
+    Inherits from TenantAwareModel: Provides tenant FK, custom_data JSONB, TenantManager
+    """
 
     # Generated timestamp
     date_time_stamp_created = models.DateTimeField(
@@ -637,18 +622,12 @@ class CarrierPurchaseOrder(TimestampModel):
         return f"Carrier PO-{self.our_carrier_po_num or self.id}"
 
 
-class ColdStorageEntry(TimestampModel):
-    """Cold Storage Entry model for tracking boxing and cold storage operations."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="cold_storage_entries",
-        help_text="Tenant this cold storage entry belongs to"
-    )
+class ColdStorageEntry(TenantAwareModel):
+    """
+    Cold Storage Entry model for tracking boxing and cold storage operations.
+    
+    Inherits from TenantAwareModel: Provides tenant FK, custom_data JSONB, TenantManager
+    """
 
     # Generated timestamp
     date_time_stamp_created = models.DateTimeField(
