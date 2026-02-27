@@ -4,6 +4,21 @@
 
 ---
 
+## 🎯 Quick Links (Start Here)
+
+**For All Contributors:**
+- **[ROADMAP.md](ROADMAP.md)** - 📊 High-level project progress (9 phases, 79.1% complete)
+- **[MASTER_PLAN.md](MASTER_PLAN.md)** - 📋 Granular task list & technical debt tracker
+- **[manifests/GOLDEN_FILES.md](manifests/GOLDEN_FILES.md)** - 🗂️ Source of truth registry
+- **[docs/GOLDEN_PIPELINE.md](docs/GOLDEN_PIPELINE.md)** - 🏆 Deployment standards
+
+**For AI Agents:**
+- **ALWAYS** reference `/manifests/GOLDEN_FILES.md` before proposing schema changes
+- Check ROADMAP.md for current priorities and blockers
+- Consult MASTER_PLAN.md for granular task context
+
+---
+
 ## 📚 Documentation
 
 ### Quick Links
