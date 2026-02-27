@@ -50,6 +50,16 @@
 - **docs/ARCHITECTURE.md** - Single source of truth for architecture decisions
 - **Validation scripts** in `.github/scripts/` - Use these to validate changes
 - **Deployment workflows** in `.github/workflows/` - Reference for CI/CD patterns
+- **manifests/GOLDEN_FILES.md** - Registry of authoritative source files
+
+**CRITICAL AI AGENT RULE:**
+- **ALWAYS** reference `/manifests/GOLDEN_FILES.md` before proposing:
+  - Database schema changes
+  - RLS policy modifications
+  - Environment variable additions
+  - CI/CD workflow updates
+- Check ROADMAP.md for current priorities and blockers
+- Consult MASTER_PLAN.md for granular task context
 
 ---
 
