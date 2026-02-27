@@ -574,6 +574,31 @@ if SENTRY_ENABLED and SENTRY_DSN:
     )
 
 # ==============================================================================
+# Microsoft OAuth Configuration (Phase 5)
+# ==============================================================================
+# Required for Outlook/Microsoft 365 integration
+# - Calendar synchronization
+# - Email integration  
+# - Contact synchronization
+# - SSO (Single Sign-On)
+
+MICROSOFT_CLIENT_ID = os.environ.get("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.environ.get("MICROSOFT_CLIENT_SECRET")
+MICROSOFT_TENANT_ID = os.environ.get("MICROSOFT_TENANT_ID", "common")
+MICROSOFT_REDIRECT_URI = os.environ.get(
+    "MICROSOFT_REDIRECT_URI",
+    "https://dev.meatscentral.com/integrations/microsoft/callback/"
+)
+MICROSOFT_AUTHORITY = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}"
+MICROSOFT_SCOPES = [
+    "User.Read",           # Read user profile
+    "Calendars.ReadWrite", # Read/write calendars
+    "Mail.Read",           # Read email
+    "Mail.Send",           # Send email
+    "Contacts.ReadWrite",  # Read/write contacts
+]
+
+# ==============================================================================
 # Email Configuration (SendGrid Web API ONLY - NO SMTP)
 # ==============================================================================
 # CRITICAL: This backend uses HTTP/HTTPS exclusively - SMTP is completely disabled
