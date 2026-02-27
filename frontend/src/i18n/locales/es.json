@@ -1,0 +1,119 @@
+{
+  "workflowEditor": {
+    "title": "Editor de Flujos",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "zoom": {
+      "in": "Acercar",
+      "out": "Alejar",
+      "fit": "Ajustar a la Pantalla"
+    },
+    "toolbar": {
+      "select": "Seleccionar",
+      "pan": "Desplazar",
+      "addNode": "Agregar Nodo",
+      "delete": "Eliminar",
+      "undo": "Deshacer",
+      "redo": "Rehacer"
+    },
+    "nodes": {
+      "start": "Inicio",
+      "end": "Fin",
+      "action": "Acción",
+      "decision": "Decisión",
+      "loop": "Bucle",
+      "conditional": "Rama Condicional",
+      "subworkflow": "Sub-Flujo"
+    },
+    "properties": {
+      "title": "Propiedades",
+      "name": "Nombre",
+      "description": "Descripción",
+      "type": "Tipo",
+      "condition": "Condición",
+      "actions": "Acciones",
+      "connections": "Conexiones"
+    },
+    "validation": {
+      "requiredField": "Este campo es requerido",
+      "invalidName": "Nombre inválido",
+      "circularDependency": "Dependencia circular detectada",
+      "danglingNode": "El nodo no tiene conexiones salientes",
+      "orphanNode": "El nodo no tiene conexiones entrantes",
+      "duplicateName": "El nombre ya existe"
+    },
+    "notifications": {
+      "saved": "Flujo guardado exitosamente",
+      "deleted": "Flujo eliminado exitosamente",
+      "error": "Ocurrió un error",
+      "validationFailed": "Validación fallida",
+      "connectionCreated": "Conexión creada",
+      "connectionDeleted": "Conexión eliminada",
+      "nodeAdded": "Nodo agregado",
+      "nodeDeleted": "Nodo eliminado"
+    },
+    "history": {
+      "title": "Historial de Versiones",
+      "noHistory": "No hay historial disponible",
+      "restore": "Restaurar",
+      "compare": "Comparar",
+      "author": "Autor",
+      "date": "Fecha",
+      "changes": "Cambios"
+    },
+    "entityMapping": {
+      "title": "Mapeo de Entidades",
+      "selectEntity": "Seleccionar Entidad",
+      "mapFields": "Mapear Campos",
+      "formField": "Campo del Formulario",
+      "entityField": "Campo de la Entidad",
+      "noMapping": "No hay mapeo configurado"
+    },
+    "performance": {
+      "fps": "FPS",
+      "memory": "Memoria",
+      "nodes": "Nodos",
+      "connections": "Conexiones",
+      "renderTime": "Tiempo de Renderizado"
+    },
+    "accessibility": {
+      "announcements": {
+        "nodeSelected": "Nodo {{name}} seleccionado",
+        "nodeMoved": "Nodo {{name}} movido a la posición {{x}}, {{y}}",
+        "connectionCreated": "Conexión creada desde {{source}} hasta {{target}}",
+        "connectionDeleted": "Conexión desde {{source}} hasta {{target}} eliminada",
+        "workflowSaved": "Flujo guardado exitosamente",
+        "validationError": "Error de validación: {{error}}"
+      },
+      "hints": {
+        "navigateNodes": "Use las teclas de flecha para navegar entre nodos",
+        "selectNode": "Presione Enter para seleccionar el nodo enfocado",
+        "deleteNode": "Presione Delete para eliminar el nodo seleccionado",
+        "undo": "Presione Ctrl+Z para deshacer",
+        "redo": "Presione Ctrl+Y para rehacer"
+      }
+    }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "info": "Información",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "finish": "Finalizar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "sort": "Ordenar",
+    "export": "Exportar",
+    "import": "Importar",
+    "settings": "Configuración",
+    "help": "Ayuda"
+  }
+}

@@ -6,7 +6,7 @@
  */
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tantml:query';
 import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -16,6 +16,7 @@ import { ActionItemsProvider } from './contexts/ActionItemsContext';
 import { SessionManagerProvider } from './contexts/SessionManagerContext';
 import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
+import './i18n/config'; // Initialize i18n
 
 // Create QueryClient for data fetching (React Query)
 const queryClient = new QueryClient({
