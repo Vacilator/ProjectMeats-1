@@ -205,14 +205,38 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   bottom: ${props => props.$isFullscreen ? '0' : 'auto'};
   z-index: ${props => props.$isFullscreen ? '9990' : 'auto'};
   
+  /* Phase 7.2: Smart Snapping - Connection Line Animation */
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -10;
+    }
+  }
+  
+  /* Phase 7.2: Smart Snapping - Visual Connection Indicators */
+  .react-flow__connection-path {
+    stroke: #667eea !important;
+    stroke-width: 3 !important;
+    stroke-dasharray: 5, 5;
+    animation: dash 0.5s linear infinite;
+    filter: drop-shadow(0 0 4px rgba(102, 126, 234, 0.4));
+  }
+  
+  /* Phase 7.2: Enhanced snap feedback */
+  .react-flow__node.dragging {
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3) !important;
+    transform: scale(1.02);
+    transition: none !important; /* Override smooth animation during drag */
+  }
+  
+  /* Phase 7.2: Grid alignment indicator */
+  .react-flow__node.snapped {
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.5) !important;
+  }
+  
   /* Phase 8.4: Smooth animations for node layout changes */
   .react-flow__node {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
                 opacity 0.2s ease;
-  }
-  
-  .react-flow__node.dragging {
-    transition: none !important;
   }
   
   .react-flow__edge {
@@ -5929,9 +5953,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             color: '#94a3b8',
           },
         }}
+        connectionLineStyle={{
+          stroke: '#667eea',
+          strokeWidth: 3,
+          strokeDasharray: '5,5',
+          animation: 'dash 0.5s linear infinite',
+        }}
+        connectionLineType="smoothstep"
         fitView
         snapToGrid={snapToGrid}
         snapGrid={[gridSize, gridSize]}
+        connectionRadius={20}
       >
         <Background variant={backgroundVariant} gap={20} size={1} />
         {isMinimapVisible && (
