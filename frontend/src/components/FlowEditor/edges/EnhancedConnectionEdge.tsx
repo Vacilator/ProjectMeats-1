@@ -1,0 +1,269 @@
+/**
+ * Enhanced Connection Edge Component
+ * Phase 7.2: Visual Connection Indicators
+ * 
+ * Advanced edge component with visual feedback:
+ * - Animated flow indicators (moving particles)
+ * - Connection validation states (valid/invalid/warning)
+ * - Hover interactions with labels
+ * - Theme-compliant colors
+ * - Smooth transitions
+ * 
+ * Created: 2026-02-27
+ */
+
+import React, { memo } from 'react';
+import {
+  EdgeProps,
+  getBezierPath,
+  EdgeLabelRenderer,
+  BaseEdge,
+} from '@xyflow/react';
+import styled, { keyframes } from 'styled-components';
+import { CheckCircle, AlertCircle, XCircle, Info } from 'lucide-react';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type ConnectionStatus = 'valid' | 'invalid' | 'warning' | 'info' | 'default';
+
+export interface EnhancedEdgeData {
+  /** Connection validation status */
+  status?: ConnectionStatus;
+  /** Label text */
+  label?: string;
+  /** Animated flow indicator */
+  animated?: boolean;
+  /** Show validation icon */
+  showIcon?: boolean;
+}
+
+// ============================================================================
+// Animations
+// ============================================================================
+
+const flowAnimation = keyframes`
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+`;
+
+const pulse = keyframes`
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+`;
+
+// ============================================================================
+// Styled Components
+// ============================================================================
+
+const EdgeLabel = styled.div<{ $status: ConnectionStatus }>`
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: rgba(var(--color-background-primary), 0.95);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: ${(props) => {
+    switch (props.$status) {
+      case 'valid':
+        return 'rgb(34, 197, 94)'; // Success green
+      case 'invalid':
+        return 'rgb(239, 68, 68)'; // Error red
+      case 'warning':
+        return 'rgb(234, 179, 8)'; // Warning yellow
+      case 'info':
+        return 'rgb(59, 130, 246)'; // Info blue
+      default:
+        return 'rgb(var(--color-text-secondary))';
+    }
+  }};
+  border: 1px solid currentColor;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: all;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0;
+  animation: ${pulse} 2s ease-in-out infinite;
+
+  &:hover {
+    opacity: 1;
+    animation: none;
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 0.8;
+  }
+`;
+
+const AnimatedPath = styled.path<{ $animated: boolean }>`
+  stroke-dasharray: ${(props) => (props.$animated ? '8 4' : 'none')};
+  animation: ${(props) => (props.$animated ? flowAnimation : 'none')} 1s linear
+    infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Get edge color based on connection status
+ */
+function getEdgeColor(status: ConnectionStatus): string {
+  switch (status) {
+    case 'valid':
+      return 'rgb(34, 197, 94)'; // Success
+    case 'invalid':
+      return 'rgb(239, 68, 68)'; // Error
+    case 'warning':
+      return 'rgb(234, 179, 8)'; // Warning
+    case 'info':
+      return 'rgb(59, 130, 246)'; // Info
+    default:
+      return 'rgb(var(--color-border))';
+  }
+}
+
+/**
+ * Get validation icon based on status
+ */
+function getStatusIcon(status: ConnectionStatus): React.ReactNode {
+  switch (status) {
+    case 'valid':
+      return <CheckCircle />;
+    case 'invalid':
+      return <XCircle />;
+    case 'warning':
+      return <AlertCircle />;
+    case 'info':
+      return <Info />;
+    default:
+      return null;
+  }
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Enhanced edge component with visual feedback and validation.
+ * Supports animated flow, status indicators, and hover labels.
+ * 
+ * @example
+ * ```typescript
+ * const edge: Edge = {
+ *   id: 'e1-2',
+ *   source: 'node-1',
+ *   target: 'node-2',
+ *   type: 'enhanced',
+ *   data: {
+ *     status: 'valid',
+ *     label: 'On Success',
+ *     animated: true,
+ *     showIcon: true,
+ *   },
+ * };
+ * ```
+ */
+export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = memo(
+  ({
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    data = {},
+    selected,
+  }) => {
+    const {
+      status = 'default',
+      label,
+      animated = false,
+      showIcon = true,
+    } = data;
+
+    // Calculate path
+    const [edgePath, labelX, labelY] = getBezierPath({
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+    });
+
+    const edgeColor = getEdgeColor(status);
+    const strokeWidth = selected ? 3 : status !== 'default' ? 2.5 : 2;
+
+    return (
+      <>
+        {/* Base Edge */}
+        <BaseEdge
+          id={id}
+          path={edgePath}
+          style={{
+            stroke: edgeColor,
+            strokeWidth,
+            transition: 'all 0.2s ease',
+          }}
+        />
+
+        {/* Animated Flow Overlay */}
+        {animated && (
+          <AnimatedPath
+            id={`${id}-animated`}
+            d={edgePath}
+            fill="none"
+            stroke={edgeColor}
+            strokeWidth={strokeWidth}
+            strokeOpacity={0.6}
+            $animated={animated}
+          />
+        )}
+
+        {/* Label with Icon */}
+        {(label || showIcon) && (
+          <EdgeLabelRenderer>
+            <EdgeLabel
+              $status={status}
+              style={{
+                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              }}
+            >
+              {showIcon && getStatusIcon(status)}
+              {label && <span>{label}</span>}
+            </EdgeLabel>
+          </EdgeLabelRenderer>
+        )}
+      </>
+    );
+  }
+);
+
+EnhancedConnectionEdge.displayName = 'EnhancedConnectionEdge';
