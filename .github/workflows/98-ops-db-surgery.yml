@@ -1,0 +1,131 @@
+name: "🔧 Ops: Database Surgery & Maintenance"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - uat
+          - prod
+      type:
+        description: "Operation type"
+        required: true
+        type: choice
+        options:
+          - sql
+          - shell
+      script:
+        description: "SQL query or shell script to execute"
+        required: true
+        type: string
+
+concurrency:
+  group: ops-surgery-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    name: "${{ inputs.type }} on ${{ inputs.environment }}"
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}-backend
+    timeout-minutes: 10
+    
+    steps:
+      - name: Setup SSH
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+      
+      - name: Set Environment Context
+        id: context
+        run: |
+          {
+            if [ "${{ inputs.environment }}" == "prod" ]; then
+              echo "HOST=${{ secrets.PRODUCTION_HOST }}"
+              echo "USER=${{ secrets.PRODUCTION_USER }}"
+              echo "PASS=${{ secrets.SSH_PASSWORD }}"
+            elif [ "${{ inputs.environment }}" == "uat" ]; then
+              echo "HOST=${{ secrets.STAGING_HOST }}"
+              echo "USER=${{ secrets.STAGING_USER }}"
+              echo "PASS=${{ secrets.SSH_PASSWORD }}"
+            else
+              echo "HOST=${{ secrets.DEV_HOST }}"
+              echo "USER=${{ secrets.DEV_USER }}"
+              echo "PASS=${{ secrets.DEV_SSH_PASSWORD }}"
+            fi
+          } >> "$GITHUB_OUTPUT"
+      
+      - name: Execute SQL Surgery
+        if: inputs.type == 'sql'
+        env:
+          SSHPASS: ${{ steps.context.outputs.PASS }}
+          SQL_SCRIPT: ${{ inputs.script }}
+        run: |
+          HOST="${{ steps.context.outputs.HOST }}"
+          USER="${{ steps.context.outputs.USER }}"
+          
+          echo "🔧 SQL Surgery Operation"
+          echo "📍 Target: $USER@$HOST"
+          echo "🌍 Environment: ${{ inputs.environment }}"
+          echo "📝 Query: $SQL_SCRIPT"
+          
+          # Create temporary SQL file
+          echo "$SQL_SCRIPT" > surgery.sql
+          
+          # Transfer SQL file to server
+          sshpass -e scp -o StrictHostKeyChecking=no surgery.sql $USER@$HOST:/tmp/surgery.sql
+          
+          # Execute SQL using psql with credentials from .env
+          sshpass -e ssh -o StrictHostKeyChecking=no $USER@$HOST << 'ENDSSH'
+          set -euo pipefail
+          
+          # Load database credentials from backend .env
+          export $(grep -v '^#' /root/projectmeats/backend/.env | xargs)
+          
+          # Execute SQL with PGPASSWORD
+          export PGPASSWORD="$DB_PASSWORD"
+          
+          echo "🔍 Executing SQL..."
+          psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /tmp/surgery.sql
+          
+          echo "✅ SQL executed successfully"
+          
+          # Cleanup
+          rm -f /tmp/surgery.sql
+          ENDSSH
+          
+          echo "🎉 Surgery complete"
+      
+      - name: Execute Shell Command
+        if: inputs.type == 'shell'
+        env:
+          SSHPASS: ${{ steps.context.outputs.PASS }}
+          SHELL_SCRIPT: ${{ inputs.script }}
+        run: |
+          HOST="${{ steps.context.outputs.HOST }}"
+          USER="${{ steps.context.outputs.USER }}"
+          
+          echo "🔧 Shell Command Operation"
+          echo "📍 Target: $USER@$HOST"
+          echo "🌍 Environment: ${{ inputs.environment }}"
+          echo "📝 Command: $SHELL_SCRIPT"
+          
+          # Execute shell command
+          sshpass -e ssh -o StrictHostKeyChecking=no $USER@$HOST << ENDSSH
+          set -euo pipefail
+          
+          cd /root/projectmeats
+          
+          echo "🔍 Executing command..."
+          $SHELL_SCRIPT
+          
+          echo "✅ Command executed successfully"
+          ENDSSH
+          
+          echo "🎉 Operation complete"
