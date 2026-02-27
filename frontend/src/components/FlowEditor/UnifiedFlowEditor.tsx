@@ -38,6 +38,7 @@ import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
+import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
 import { 
   useOnboardingTour, 
   workflowEditorTourSteps, 
@@ -1745,6 +1746,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       onChange(nodes, edges);
     }
   }, [nodes, edges, onChange]);
+  
+  // Phase 7.5: Performance monitoring - log when node count exceeds thresholds
+  useEffect(() => {
+    const nodeCount = nodes.length;
+    const edgeCount = edges.length;
+    
+    if (nodeCount > 1000) {
+      console.warn(`[Performance] Large workflow detected: ${nodeCount} nodes, ${edgeCount} edges`);
+    } else if (nodeCount > 500) {
+      console.info(`[Performance] Medium workflow: ${nodeCount} nodes, ${edgeCount} edges`);
+    }
+    
+    // Measure performance of large workflows
+    if (nodeCount > 100) {
+      const startTime = performance.now();
+      // Force a re-render measurement on next frame
+      requestAnimationFrame(() => {
+        const renderTime = performance.now() - startTime;
+        if (renderTime > 100) {
+          console.warn(`[Performance] Slow render with ${nodeCount} nodes: ${renderTime.toFixed(2)}ms`);
+        }
+      });
+    }
+  }, [nodes.length, edges.length]);
   
   // Phase E: Wrap onNodesChange to handle container deletion
   const onNodesChange = useCallback((changes: any[]) => {
@@ -5944,6 +5969,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={staticEdgeTypes}
+        // Phase 7.5: Performance optimizations for 1000+ nodes
+        onlyRenderVisibleElements={nodes.length > 100}
+        elevateNodesOnSelect={nodes.length < 200}
+        maxZoom={4}
+        minZoom={0.1}
         defaultEdgeOptions={{ 
           type: 'custom',
           markerEnd: {
