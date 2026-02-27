@@ -84,11 +84,18 @@ jobs:
           sshpass -e ssh -o StrictHostKeyChecking=no $USER@$HOST << 'ENDSSH'
           set -euo pipefail
           
-          # Load database credentials from backend .env (Golden Standard pattern)
-          # This handles quoted values correctly, unlike xargs
-          set -a
-          [ -f /root/projectmeats/backend/.env ] && . /root/projectmeats/backend/.env
-          set +a
+          # Load database credentials from backend .env (Robust parser)
+          # Handles quoted values, comments, and malformed lines
+          while IFS='=' read -r key value; do
+            # Skip empty lines and comments
+            [[ -z "$key" || "$key" =~ ^#.*$ ]] && continue
+            # Remove quotes from value if present
+            value="${value%\"}"
+            value="${value#\"}"
+            value="${value%\'}"
+            value="${value#\'}"
+            export "$key=$value"
+          done < <(grep -v '^#' /root/projectmeats/backend/.env | grep '=' || true)
           
           # Execute SQL with PGPASSWORD
           export PGPASSWORD="$DB_PASSWORD"
