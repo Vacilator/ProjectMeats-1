@@ -55,21 +55,25 @@ jobs:
         if: inputs.type == 'sql'
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
+          SQL_QUERY: ${{ inputs.script }}
         run: |
           echo "🔍 Executing SQL query on ${{ inputs.environment }}..."
           
-          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<-'SURGERY_SQL'
+          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash <<'SURGERY_SQL'
           set -euo pipefail
           
           # Load environment variables
-          export $(grep -v '^#' /root/projectmeats/backend/.env | xargs)
+          cd /root/projectmeats/backend
+          source <(grep -v '^#' .env | sed 's/^/export /')
           
           # Execute SQL query
           echo "Running SQL query..."
-          psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '${{ inputs.script }}'
+          PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<'SQL'
+          ${{ inputs.script }}
+SQL
           
           echo "✅ SQL query executed successfully"
-          SURGERY_SQL
+SURGERY_SQL
       
       - name: Execute shell script
         if: inputs.type == 'shell'
