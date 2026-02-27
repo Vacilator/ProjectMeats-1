@@ -1,0 +1,110 @@
+name: "Ops: Database Surgery"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - uat
+          - prod
+      type:
+        description: "Operation type"
+        required: true
+        type: choice
+        options:
+          - sql
+          - shell
+      script:
+        description: "SQL query or shell script to execute"
+        required: true
+        type: string
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}-backend
+    timeout-minutes: 10
+    
+    steps:
+      - name: Validate inputs
+        run: |
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Type: ${{ inputs.type }}"
+          echo "Script length: $(echo '${{ inputs.script }}' | wc -c) characters"
+          
+          if [ -z "${{ inputs.script }}" ]; then
+            echo "❌ Error: Script cannot be empty"
+            exit 1
+          fi
+      
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+          
+          # Add SSH host to known_hosts
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>&1
+      
+      - name: Execute SQL query
+        if: inputs.type == 'sql'
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          echo "🔍 Executing SQL query on ${{ inputs.environment }}..."
+          
+          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<-'SURGERY_SQL'
+          set -euo pipefail
+          
+          # Load environment variables
+          export $(grep -v '^#' /root/projectmeats/backend/.env | xargs)
+          
+          # Execute SQL query
+          echo "Running SQL query..."
+          psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '${{ inputs.script }}'
+          
+          echo "✅ SQL query executed successfully"
+          SURGERY_SQL
+      
+      - name: Execute shell script
+        if: inputs.type == 'shell'
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          echo "🔍 Executing shell script on ${{ inputs.environment }}..."
+          
+          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<-'SURGERY_SHELL'
+          set -euo pipefail
+          
+          # Navigate to project directory
+          cd /root/projectmeats
+          
+          # Execute shell script
+          echo "Running shell script..."
+          ${{ inputs.script }}
+          
+          echo "✅ Shell script executed successfully"
+          SURGERY_SHELL
+      
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Database Surgery Summary"
+            echo ""
+            echo "- **Environment**: ${{ inputs.environment }}"
+            echo "- **Type**: ${{ inputs.type }}"
+            echo "- **Status**: ${{ job.status }}"
+            echo ""
+            
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "✅ Operation completed successfully"
+            else
+              echo "❌ Operation failed - check logs above"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
