@@ -58,18 +58,31 @@ jobs:
         run: |
           echo "🔍 Executing SQL query on ${{ inputs.environment }}..."
           
-          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<-'SURGERY_SQL'
+          # Create temporary SQL file
+          cat > /tmp/surgery.sql <<'SQLEOF'
+          ${{ inputs.script }}
+SQLEOF
+          
+          # Copy SQL file to server
+          sshpass -e scp -o StrictHostKeyChecking=no /tmp/surgery.sql ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/surgery.sql
+          
+          # Execute SQL on server
+          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash <<'REMOTE'
           set -euo pipefail
           
           # Load environment variables
-          export $(grep -v '^#' /root/projectmeats/backend/.env | xargs)
+          cd /root/projectmeats/backend
+          source <(grep -v '^#' .env | sed 's/^/export /')
           
           # Execute SQL query
           echo "Running SQL query..."
-          psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '${{ inputs.script }}'
+          PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /tmp/surgery.sql
+          
+          # Cleanup
+          rm -f /tmp/surgery.sql
           
           echo "✅ SQL query executed successfully"
-          SURGERY_SQL
+REMOTE
       
       - name: Execute shell script
         if: inputs.type == 'shell'
