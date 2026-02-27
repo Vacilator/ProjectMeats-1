@@ -7,14 +7,12 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 from decimal import Decimal
 from django.db import models
-from apps.tenants.models import Tenant
 from apps.core.models import (
     AccountingPaymentTermsChoices,
     EdibleInedibleChoices,
     ProteinTypeChoices,
-    TimestampModel,
+    TenantAwareModel,
     WeightUnitChoices,
-    TenantManager,
 )
 
 
@@ -36,17 +34,8 @@ class PaymentStatus(models.TextChoices):
     PAID = "paid", "Paid"
 
 
-class Invoice(TimestampModel):
+class Invoice(TenantAwareModel):
     """Invoice model for customer invoices."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="invoices",
-        help_text="Tenant this invoice belongs to"
-    )
 
     # Invoice identification
     invoice_number = models.CharField(
@@ -260,7 +249,7 @@ class ClaimStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
-class Claim(TimestampModel):
+class Claim(TenantAwareModel):
     """
     Claim model for tracking disputes and financial claims.
     
@@ -268,16 +257,6 @@ class Claim(TimestampModel):
     - Payables: Claims against suppliers (we owe them, they filed a claim)
     - Receivables: Claims against customers (they owe us, we filed a claim)
     """
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="claims",
-        help_text="Tenant this claim belongs to"
-    )
     
     # Claim identification
     claim_number = models.CharField(
@@ -432,23 +411,13 @@ class PaymentMethod(models.TextChoices):
     OTHER = "other", "Other"
 
 
-class PaymentTransaction(TimestampModel):
+class PaymentTransaction(TenantAwareModel):
     """
     Payment Transaction model for tracking payments against orders and invoices.
     
     This model records all payment transactions, whether they are payments made
     to suppliers (purchase orders) or payments received from customers (sales orders/invoices).
     """
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="payment_transactions",
-        help_text="Tenant this payment belongs to"
-    )
     
     # Related entities (polymorphic - can link to PO, SO, or Invoice)
     purchase_order = models.ForeignKey(

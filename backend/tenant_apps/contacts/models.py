@@ -6,22 +6,11 @@ Defines contact entities and related business logic.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 from django.db import models
-from apps.tenants.models import Tenant
-from apps.core.models import ContactTypeChoices, StatusChoices, TimestampModel, TenantManager
+from apps.core.models import ContactTypeChoices, StatusChoices, TenantAwareModel
 
 
-class Contact(TimestampModel):
+class Contact(TenantAwareModel):
     """Contact model for managing contact information."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="contacts",
-        help_text="Tenant this contact belongs to"
-    )
     
     # Parent entity relationships (optional - contact can belong to supplier or customer)
     supplier = models.ForeignKey(
