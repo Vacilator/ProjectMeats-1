@@ -477,7 +477,7 @@ LOGGING = {
 # REDIS_URL format: redis://[:password]@host:port/db
 # If REDIS_URL is not set, falls back to local memory cache (development)
 
-REDIS_URL = env("REDIS_URL", default=None)
+REDIS_URL = os.environ.get("REDIS_URL")
 
 if REDIS_URL:
     # Redis cache for production (Phases 3, 8: Real-time search, parallelization)
@@ -516,11 +516,11 @@ else:
 # - Dynamic workflow generation
 # - Intent recognition
 
-OPENAI_API_KEY = env("OPENAI_API_KEY", default=None)
-OPENAI_ORG_ID = env("OPENAI_ORG_ID", default=None)
-OPENAI_MODEL = env("OPENAI_MODEL", default="gpt-4")
-OPENAI_MAX_TOKENS = env.int("OPENAI_MAX_TOKENS", default=2000)
-OPENAI_TEMPERATURE = env.float("OPENAI_TEMPERATURE", default=0.7)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_ORG_ID = os.environ.get("OPENAI_ORG_ID")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4")
+OPENAI_MAX_TOKENS = int(os.environ.get("OPENAI_MAX_TOKENS", "2000"))
+OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.7"))
 
 # ==============================================================================
 # Email Configuration (SendGrid Web API ONLY - NO SMTP)
