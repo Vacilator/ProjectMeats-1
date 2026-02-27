@@ -11,7 +11,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
 from apps.tenants.models import Tenant
-from apps.core.models import TimestampModel, TenantManager
+from apps.core.models import TimestampModel, TenantManager, TenantAwareModel
 
 
 class EntityTypeChoices(models.TextChoices):
@@ -29,7 +29,7 @@ class EntityTypeChoices(models.TextChoices):
     FULFILLMENT = "fulfillment", "Fulfillment"
 
 
-class ActivityLog(TimestampModel):
+class ActivityLog(TenantAwareModel):
     """
     Activity Log model for tracking notes and history across all entities.
     
@@ -41,16 +41,6 @@ class ActivityLog(TimestampModel):
         - Order Notes: Track order-specific communications
         - Contact History: Record all interactions with contacts
     """
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="activity_logs",
-        help_text="Tenant this activity log belongs to"
-    )
     
     # Entity tracking (Generic Foreign Key for flexibility - optional)
     content_type = models.ForeignKey(
@@ -124,23 +114,13 @@ class ActivityLog(TimestampModel):
         return f"{self.entity_type} #{self.entity_id} - {self.title or 'Note'}"
 
 
-class ScheduledCall(TimestampModel):
+class ScheduledCall(TenantAwareModel):
     """
     Scheduled Call model for Cockpit Calendar/Scheduler functionality.
     
     Supports the "Call Slotting" feature where users can schedule follow-up calls
     with suppliers, customers, or other contacts.
     """
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="scheduled_calls",
-        help_text="Tenant this scheduled call belongs to"
-    )
     
     # Related entity (what/who is this call about?)
     entity_type = models.CharField(

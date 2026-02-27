@@ -12,7 +12,7 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from apps.tenants.models import Tenant
 
-from apps.core.models import OwnedModel, StatusModel, TenantManager
+from apps.core.models import OwnedModel, StatusModel, TenantAwareModel, TenantManager
 
 
 class ChatSessionStatusChoices(models.TextChoices):
@@ -122,19 +122,10 @@ class ChatMessage(OwnedModel):
         return f"{self.get_message_type_display()}: {preview}"
 
 
-class AIConfiguration(models.Model):
+class AIConfiguration(TenantAwareModel):
     """Configuration settings for AI providers and models."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="ai_configurations",
-        help_text="Tenant this aiconfiguration belongs to"
-    )
-
-    name = models.CharField(max_length=100, unique=True)
+    
+    name = models.CharField(max_length=100)
     provider = models.CharField(max_length=50, default="openai")
     model_name = models.CharField(max_length=100, default="gpt-4o-mini")
     is_active = models.BooleanField(default=True)
