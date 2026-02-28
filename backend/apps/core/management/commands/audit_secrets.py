@@ -40,10 +40,9 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS('\n=== Secret Audit Report ===\n'))
         
-        # Load manifest (repository root structure)
-        # BASE_DIR is /app, manifest is in /app/manifests/
-        project_root = Path(settings.BASE_DIR).parent
-        manifest_path = project_root / 'manifests' / 'env.manifest.json'
+        # Load manifest (Docker container structure)
+        # BASE_DIR is /app, manifest is at /app/manifests/env.manifest.json
+        manifest_path = Path(settings.BASE_DIR) / 'manifests' / 'env.manifest.json'
         
         if not manifest_path.exists():
             self.stdout.write(self.style.ERROR(f'❌ Manifest not found: {manifest_path}'))
