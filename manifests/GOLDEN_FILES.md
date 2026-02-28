@@ -13,8 +13,11 @@ Index of all authoritative sources for AI agents and developers
 ### `RLS_POLICIES.md`
 PostgreSQL Row-Level Security policy registry (33 policies across 25 tables)
 
-### `TECHNICAL_DEBT.md`
-Tracking for models requiring RLS hardening (8/24 complete - all HIGH priority done)
+### `ai_standards/`
+AI prompt engineering standards and templates for consistent AI behavior
+
+### `ai_standards/suggestion_engine_v1.prompt`
+Golden template for workflow suggestion engine with meat industry context
 
 ## Golden File Registry
 
@@ -25,7 +28,24 @@ Tracking for models requiring RLS hardening (8/24 complete - all HIGH priority d
 | **RLS Policies** | `/manifests/RLS_POLICIES.md` | Audit log |
 | **CI/CD Standards** | `.github/workflows/reusable-deploy.yml` | Template |
 | **Architecture** | `docs/ARCHITECTURE.md` | Design doc |
-| **Phase Roadmap** | `.github/MASTER_PLAN.md` | Progress |
+| **Phase Roadmap** | `ROADMAP.md` + `MASTER_PLAN.md` | Progress |
+| **AI Prompts** | `/manifests/ai_standards/` | Templates |
+
+## Environment Structure (6-Lane System)
+
+ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
+
+| Environment | Backend Lane | Frontend Lane | Purpose |
+|-------------|--------------|---------------|---------|
+| **Development** | `dev-backend` | `dev-frontend` | Active development, CI/CD testing |
+| **UAT** | `uat-backend` | `uat-frontend` | Staging, pre-production validation |
+| **Production** | `production-backend` | `production-frontend` | Live system, customer-facing |
+
+**Key Principles**:
+- Each lane has isolated GitHub Environment Secrets
+- Secrets follow explicit mappings in `env.manifest.json`
+- No shared secrets except `SSH_PASSWORD` (UAT/Prod only)
+- All lanes accessible via `.github/workflows/98-ops-db-surgery.yml`
 
 ## AI Agent Protocol
 
