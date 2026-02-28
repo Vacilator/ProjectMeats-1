@@ -17,6 +17,8 @@
  * - Edit, clone, delete actions
  */
 import React, { useState } from 'react';
+import { logger } from '@/utils/logger';
+
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
@@ -388,9 +390,9 @@ const FormsFlowsCatalog: React.FC = () => {
 
   // Debug: Log when previewForm changes
   React.useEffect(() => {
-    console.log('[Catalog] previewForm state changed:', previewForm);
+    logger.debug('[Catalog] previewForm state changed:', previewForm);
     if (previewForm) {
-      console.log('[Catalog] Modal should now be visible for form:', previewForm.name);
+      logger.debug('[Catalog] Modal should now be visible for form:', previewForm.name);
     }
   }, [previewForm]);
 
@@ -400,28 +402,28 @@ const FormsFlowsCatalog: React.FC = () => {
     queryFn: async () => {
       try {
         const response = await apiClient.get('/workflows/forms/');
-        console.log('[Catalog] API Response:', response.data);
+        logger.debug('[Catalog] API Response:', response.data);
         
         // Handle both paginated and non-paginated responses
         const data = response.data;
         
         // If paginated response with results array
         if (data && typeof data === 'object' && 'results' in data) {
-          console.log('[Catalog] Returning paginated results:', data.results?.length || 0);
+          logger.debug('[Catalog] Returning paginated results:', data.results?.length || 0);
           return Array.isArray(data.results) ? data.results : [];
         }
         
         // If direct array response
         if (Array.isArray(data)) {
-          console.log('[Catalog] Returning direct array:', data.length);
+          logger.debug('[Catalog] Returning direct array:', data.length);
           return data;
         }
         
         // Fallback to empty array
-        console.warn('[Catalog] Unexpected API response format:', data);
+        logger.warn('[Catalog] Unexpected API response format:', data);
         return [];
       } catch (error) {
-        console.error('[Catalog] Error fetching forms:', error);
+        logger.error('[Catalog] Error fetching forms:', error);
         return [];
       }
     },
@@ -430,7 +432,7 @@ const FormsFlowsCatalog: React.FC = () => {
   // Log error if query failed
   React.useEffect(() => {
     if (error) {
-      console.error('[Catalog] Query error:', error);
+      logger.error('[Catalog] Query error:', error);
     }
   }, [error]);
 
@@ -438,7 +440,7 @@ const FormsFlowsCatalog: React.FC = () => {
   const filteredForms = React.useMemo(() => {
     // Safety check: ensure forms is an array
     if (!forms || !Array.isArray(forms)) {
-      console.warn('[Catalog] Forms is not an array:', forms, 'isLoading:', isLoading);
+      logger.warn('[Catalog] Forms is not an array:', forms, 'isLoading:', isLoading);
       return [];
     }
     
@@ -511,18 +513,18 @@ const FormsFlowsCatalog: React.FC = () => {
 
   // Handle edit form (now opens preview modal)
   const handleEditForm = (formId: string) => {
-    console.log('[Catalog] handleEditForm called with formId:', formId);
-    console.log('[Catalog] Current forms array:', forms);
-    console.log('[Catalog] Looking for form with id:', formId);
+    logger.debug('[Catalog] handleEditForm called with formId:', formId);
+    logger.debug('[Catalog] Current forms array:', forms);
+    logger.debug('[Catalog] Looking for form with id:', formId);
     
     const form = forms?.find(f => f.id === formId);
-    console.log('[Catalog] Found form:', form);
+    logger.debug('[Catalog] Found form:', form);
     
     if (form) {
-      console.log('[Catalog] Setting previewForm state to:', form);
+      logger.debug('[Catalog] Setting previewForm state to:', form);
       setPreviewForm(form);
     } else {
-      console.error('[Catalog] Form not found for id:', formId);
+      logger.error('[Catalog] Form not found for id:', formId);
     }
   };
 
@@ -693,7 +695,7 @@ const FormsFlowsCatalog: React.FC = () => {
             <FormCard key={form.id}>
               <CardContent
                 onClick={(e) => {
-                  console.log('[Catalog] CardContent (List) CLICKED!', form.id, e);
+                  logger.debug('[Catalog] CardContent (List) CLICKED!', form.id, e);
                   handleEditForm(form.id);
                 }}
                 style={{ cursor: 'pointer' }}
@@ -739,14 +741,14 @@ const FormsFlowsCatalog: React.FC = () => {
         <FormPreviewModal
           form={previewForm}
           onClose={() => {
-            console.log('[Catalog] Closing preview modal');
+            logger.debug('[Catalog] Closing preview modal');
             setPreviewForm(null);
           }}
         />
       )}
       
       {/* Debug: Show preview state */}
-      {console.log('[Catalog] Current previewForm state:', previewForm)}
+      {logger.debug('[Catalog] Current previewForm state:', previewForm)}
     </Container>
   );
 };

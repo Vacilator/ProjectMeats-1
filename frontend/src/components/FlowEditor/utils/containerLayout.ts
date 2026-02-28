@@ -10,6 +10,8 @@
  */
 
 import { Node, Edge } from '@xyflow/react';
+import { logger } from '@/utils/logger';
+
 
 // ============================================================================
 // Layout Constants (Phase 3.1)
@@ -66,13 +68,13 @@ export function calculateContainerLayout(
   allNodes: Node[],
   allEdges: Edge[]
 ): LayoutResult {
-  console.log(`[Layout] Calculating layout for container ${containerId}`);
+  logger.debug(`[Layout] Calculating layout for container ${containerId}`);
   
   // Filter child nodes (using parentId - React Flow v11+)
   const childNodes = allNodes.filter(node => node.parentId === containerId);
   
   if (childNodes.length === 0) {
-    console.log(`[Layout] No child nodes found for container ${containerId}`);
+    logger.debug(`[Layout] No child nodes found for container ${containerId}`);
     return {
       nodes: allNodes,
       containerWidth: 400,  // Default container size
@@ -88,7 +90,7 @@ export function calculateContainerLayout(
     node.type !== 'formMultiStepContainer' // Don't layout nested containers
   );
   
-  console.log(`[Layout] Found \${formSteps.length} form steps, \${actionNodes.length} action nodes`);
+  logger.debug(`[Layout] Found \${formSteps.length} form steps, \${actionNodes.length} action nodes`);
   
   // Sort form steps by current x-position to preserve rough order
   formSteps.sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
@@ -100,7 +102,7 @@ export function calculateContainerLayout(
       y: LAYOUT_CONSTANTS.STEP_Y,
     };
     
-    console.log(`[Layout] Form step \${step.id} positioned at (\${newPosition.x}, \${newPosition.y})`);
+    logger.debug(`[Layout] Form step \${step.id} positioned at (\${newPosition.x}, \${newPosition.y})`);
     
     return {
       ...step,
@@ -130,7 +132,7 @@ export function calculateContainerLayout(
            (actionIndex * LAYOUT_CONSTANTS.ACTION_SPACING_Y),
       };
       
-      console.log(`[Layout] Action \${action.id} positioned below step \${connectedStep.id} at (\${newPosition.x}, \${newPosition.y})`);
+      logger.debug(`[Layout] Action \${action.id} positioned below step \${connectedStep.id} at (\${newPosition.x}, \${newPosition.y})`);
       
       return {
         ...action,
@@ -144,7 +146,7 @@ export function calculateContainerLayout(
         y: LAYOUT_CONSTANTS.STEP_Y,
       };
       
-      console.log(`[Layout] Orphaned action \${action.id} positioned at end (\${newPosition.x}, \${newPosition.y})`);
+      logger.debug(`[Layout] Orphaned action \${action.id} positioned at end (\${newPosition.x}, \${newPosition.y})`);
       
       return {
         ...action,
@@ -169,7 +171,7 @@ export function calculateContainerLayout(
   const containerWidth = maxX + LAYOUT_CONSTANTS.CONTAINER_PADDING_X;
   const containerHeight = maxY + LAYOUT_CONSTANTS.CONTAINER_PADDING_Y;
   
-  console.log(`[Layout] Calculated container dimensions: \${containerWidth}x\${containerHeight}`);
+  logger.debug(`[Layout] Calculated container dimensions: \${containerWidth}x\${containerHeight}`);
   
   // Merge updated child nodes back into all nodes
   const updatedAllNodes = allNodes.map(node => {
@@ -254,7 +256,7 @@ export function autoConnectSequentialSteps(
   allNodes: Node[],
   allEdges: Edge[]
 ): ConnectionResult {
-  console.log(`[AutoConnect] Creating sequential connections for container ${containerId}`);
+  logger.debug(`[AutoConnect] Creating sequential connections for container ${containerId}`);
   
   // Filter child nodes (using parentId - React Flow v11+)
   const childNodes = allNodes.filter(node => node.parentId === containerId);
@@ -264,10 +266,10 @@ export function autoConnectSequentialSteps(
     .filter(node => node.type === 'formStep' || node.type === 'formReference')
     .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
   
-  console.log(`[AutoConnect] Found ${formSteps.length} form steps to connect`);
+  logger.debug(`[AutoConnect] Found ${formSteps.length} form steps to connect`);
   
   if (formSteps.length < 2) {
-    console.log(`[AutoConnect] Not enough form steps to create connections`);
+    logger.debug(`[AutoConnect] Not enough form steps to create connections`);
     return { edges: allEdges };
   }
   
@@ -283,7 +285,7 @@ export function autoConnectSequentialSteps(
     return sourceNode?.parentId !== containerId || targetNode?.parentId !== containerId;
   });
   
-  console.log(`[AutoConnect] Removed ${allEdges.length - nonAutoEdges.length} old auto-edges`);
+  logger.debug(`[AutoConnect] Removed ${allEdges.length - nonAutoEdges.length} old auto-edges`);
   
   // Create sequential edges between form steps
   const newAutoEdges: Edge[] = [];
@@ -300,7 +302,7 @@ export function autoConnectSequentialSteps(
     );
     
     if (manualEdgeExists) {
-      console.log(`[AutoConnect] Skipping ${edgeId} - manual edge exists`);
+      logger.debug(`[AutoConnect] Skipping ${edgeId} - manual edge exists`);
       continue;
     }
     
@@ -315,10 +317,10 @@ export function autoConnectSequentialSteps(
       },
     });
     
-    console.log(`[AutoConnect] Created edge: ${sourceStep.id} → ${targetStep.id}`);
+    logger.debug(`[AutoConnect] Created edge: ${sourceStep.id} → ${targetStep.id}`);
   }
   
-  console.log(`[AutoConnect] Created ${newAutoEdges.length} sequential edges`);
+  logger.debug(`[AutoConnect] Created ${newAutoEdges.length} sequential edges`);
   
   return {
     edges: [...nonAutoEdges, ...newAutoEdges],

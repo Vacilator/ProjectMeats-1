@@ -8,6 +8,8 @@
  * - Added badge rendering support for action item counts
  */
 import React, { useState, useEffect } from 'react';
+import { logger } from '@/utils/logger';
+
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import styled, { css } from 'styled-components';
 import { NavigationItem } from '../../config/navigation';
@@ -194,7 +196,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('[NavigationMenu] Parent item clicked:', {
+              logger.debug('[NavigationMenu] Parent item clicked:', {
                 path: item.path,
                 label: item.label,
                 active,
@@ -202,10 +204,10 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
                 timestamp: new Date().toISOString()
               });
               if (item.path) {
-                console.log('[NavigationMenu] Navigating to:', item.path);
+                logger.debug('[NavigationMenu] Navigating to:', item.path);
                 navigate(item.path);
               } else {
-                console.warn('[NavigationMenu] No path defined for:', item.label);
+                logger.warn('[NavigationMenu] No path defined for:', item.label);
               }
             }}
             $theme={theme}
@@ -220,7 +222,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             <ExpandButton 
               onClick={(e) => {
                 // Prevent navigation for chevron click, only toggle accordion
-                console.log('[NavigationMenu] ExpandButton clicked:', {
+                logger.debug('[NavigationMenu] ExpandButton clicked:', {
                   label: item.label,
                   isExpanded: isItemExpanded,
                   timestamp: new Date().toISOString()
@@ -244,7 +246,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
     return (
       <AccordionHeader
         onClick={(e) => {
-          console.log('[NavigationMenu] AccordionHeader clicked (no path):', {
+          logger.debug('[NavigationMenu] AccordionHeader clicked (no path):', {
             label: item.label,
             isExpanded: isItemExpanded,
             timestamp: new Date().toISOString()
