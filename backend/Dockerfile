@@ -71,8 +71,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY backend/ ./
 
 # Copy environment manifest for audit_secrets command
-RUN mkdir -p /app/config
-COPY config/env.manifest.json /app/config/env.manifest.json
+RUN mkdir -p /app/manifests
+COPY manifests/env.manifest.json /app/manifests/env.manifest.json
 
 RUN mkdir -p /app/staticfiles /app/media
 
