@@ -86,9 +86,6 @@ export class ErrorBoundary extends Component<Props, State> {
       this.props.onError(error, errorInfo);
     }
   }
-    //   });
-    // }
-  }
 
   componentDidUpdate(prevProps: Props): void {
     // Reset error state if resetKeys change
