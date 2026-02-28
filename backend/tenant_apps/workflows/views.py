@@ -8,7 +8,7 @@ Provides REST API endpoints for Forms, Workflows, and Lists.
 import logging
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Count, Max, Prefetch, Q
+from django.db.models import Avg, Count, F, Max, Prefetch, Q
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -1296,6 +1296,242 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
 
         serializer = self.get_serializer(workflows, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def analytics(self, request, pk=None):
+        """
+        Get comprehensive analytics for a workflow.
+        
+        Query params:
+        - timeframe: '7d', '30d', '90d' (default: 30d)
+        - start_date: ISO 8601 datetime
+        - end_date: ISO 8601 datetime
+        """
+        from datetime import timedelta
+        from django.db.models import Avg, Count, Q
+        from django.db.models.functions import TruncDate, TruncHour
+        from django.utils import timezone
+        
+        workflow = self.get_object()
+        
+        # Parse date range
+        timeframe = request.query_params.get('timeframe', '30d')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if start_date and end_date:
+            from dateutil import parser
+            start = parser.isoparse(start_date)
+            end = parser.isoparse(end_date)
+        else:
+            days_map = {'7d': 7, '30d': 30, '90d': 90}
+            days = days_map.get(timeframe, 30)
+            end = timezone.now()
+            start = end - timedelta(days=days)
+        
+        # Base queryset
+        logs = WorkflowExecutionLog.objects.filter(
+            workflow=workflow,
+            started_at__gte=start,
+            started_at__lte=end
+        )
+        
+        # Aggregate metrics
+        total_executions = logs.count()
+        successful = logs.filter(status='success').count()
+        failed = logs.filter(status='failed').count()
+        avg_duration = logs.filter(
+            completed_at__isnull=False
+        ).aggregate(
+            avg_duration=Avg(
+                (F('completed_at') - F('started_at'))
+            )
+        )['avg_duration']
+        
+        # Convert avg_duration to seconds
+        avg_duration_seconds = 0
+        if avg_duration:
+            avg_duration_seconds = avg_duration.total_seconds()
+        
+        # Success rate
+        success_rate = (successful / total_executions * 100) if total_executions > 0 else 0
+        
+        # Executions by day
+        executions_by_day = logs.annotate(
+            date=TruncDate('started_at')
+        ).values('date').annotate(
+            count=Count('id'),
+            successful=Count('id', filter=Q(status='success')),
+            failed=Count('id', filter=Q(status='failed'))
+        ).order_by('date')
+        
+        # Executions by hour
+        executions_by_hour = logs.annotate(
+            hour=TruncHour('started_at')
+        ).values('hour').annotate(
+            count=Count('id')
+        ).order_by('hour')[:24]
+        
+        # Action performance (mock data for now - would need action-level tracking)
+        action_performance = []
+        for action in workflow.actions.all()[:10]:
+            action_performance.append({
+                'action_type': action.action_type,
+                'count': total_executions,  # Would track per-action
+                'avg_duration': avg_duration_seconds / workflow.actions.count() if workflow.actions.exists() else 0,
+                'success_rate': success_rate
+            })
+        
+        # Error breakdown
+        error_breakdown = logs.filter(
+            status='failed'
+        ).values('error_message').annotate(
+            count=Count('id')
+        ).order_by('-count')[:5]
+        
+        total_errors = sum(e['count'] for e in error_breakdown)
+        for error in error_breakdown:
+            error['error_type'] = error.pop('error_message') or 'Unknown Error'
+            error['percentage'] = (error['count'] / total_errors * 100) if total_errors > 0 else 0
+        
+        return Response({
+            'total_executions': total_executions,
+            'successful_executions': successful,
+            'failed_executions': failed,
+            'avg_duration_seconds': avg_duration_seconds,
+            'success_rate': success_rate,
+            'executions_by_day': list(executions_by_day),
+            'executions_by_hour': [
+                {'hour': h['hour'].hour, 'count': h['count']}
+                for h in executions_by_hour
+            ],
+            'action_performance': action_performance,
+            'error_breakdown': list(error_breakdown)
+        })
+    
+    @action(detail=True, methods=["post"])
+    def export_template(self, request, pk=None):
+        """
+        Export workflow as a reusable template.
+        
+        Returns JSON template that can be imported by other tenants.
+        """
+        import json
+        
+        workflow = self.get_object()
+        
+        # Build template structure
+        template = {
+            'name': workflow.name,
+            'description': workflow.description,
+            'trigger_type': workflow.trigger_type,
+            'entity_type': workflow.entity_type,
+            'nodes': [],
+            'edges': [],
+            'variables': workflow.variables or {},
+            'metadata': {
+                'exported_at': timezone.now().isoformat(),
+                'version': '1.0',
+                'author': request.user.email if request.user else 'system'
+            }
+        }
+        
+        # Add conditions
+        for condition in workflow.conditions.all():
+            template['nodes'].append({
+                'id': f'condition-{condition.id}',
+                'type': 'condition',
+                'data': {
+                    'field': condition.field,
+                    'operator': condition.operator,
+                    'value': condition.value,
+                    'logic': condition.logic
+                }
+            })
+        
+        # Add actions
+        for action in workflow.actions.all():
+            template['nodes'].append({
+                'id': f'action-{action.id}',
+                'type': action.action_type,
+                'data': {
+                    'config': action.config,
+                    'order': action.order
+                }
+            })
+        
+        return Response(template)
+    
+    @action(detail=False, methods=["post"])
+    def import_template(self, request):
+        """
+        Import a workflow from a template.
+        
+        Expected JSON body:
+        {
+            "template": {...},  # Template from export_template
+            "name": "My Workflow",  # Optional override
+            "activate": false  # Whether to activate immediately
+        }
+        """
+        import json
+        
+        template = request.data.get('template')
+        name_override = request.data.get('name')
+        activate = request.data.get('activate', False)
+        
+        if not template:
+            return Response(
+                {'error': 'Template is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create workflow
+        workflow_data = {
+            'name': name_override or template.get('name', 'Imported Workflow'),
+            'description': template.get('description', ''),
+            'trigger_type': template.get('trigger_type'),
+            'entity_type': template.get('entity_type'),
+            'variables': template.get('variables', {}),
+            'status': WorkflowStatus.ACTIVE if activate else WorkflowStatus.DRAFT,
+            'tenant': request.tenant
+        }
+        
+        with transaction.atomic():
+            workflow = TenantWorkflow.objects.create(**workflow_data)
+            
+            # Import nodes
+            node_mapping = {}  # Map template IDs to new IDs
+            
+            for node in template.get('nodes', []):
+                node_type = node.get('type')
+                node_data = node.get('data', {})
+                
+                if node_type == 'condition':
+                    condition = TenantWorkflowCondition.objects.create(
+                        workflow=workflow,
+                        field=node_data.get('field'),
+                        operator=node_data.get('operator'),
+                        value=node_data.get('value'),
+                        logic=node_data.get('logic', 'AND')
+                    )
+                    node_mapping[node['id']] = f'condition-{condition.id}'
+                    
+                elif node_type in ['email', 'webhook', 'update_record', 'create_record']:
+                    action = TenantWorkflowAction.objects.create(
+                        workflow=workflow,
+                        action_type=node_type,
+                        config=node_data.get('config', {}),
+                        order=node_data.get('order', 0)
+                    )
+                    node_mapping[node['id']] = f'action-{action.id}'
+        
+        serializer = self.get_serializer(workflow)
+        return Response({
+            'workflow': serializer.data,
+            'node_mapping': node_mapping,
+            'message': 'Workflow imported successfully'
+        }, status=status.HTTP_201_CREATED)
 
 
 class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
@@ -2872,6 +3108,9 @@ class SuggestNodesView(APIView):
     def post(self, request):
         """Generate workflow node suggestions."""
         from .services.prompter import AIPrompter
+        from django.core.cache import cache
+        import hashlib
+        import json
         
         try:
             prompter = AIPrompter()
@@ -2886,9 +3125,26 @@ class SuggestNodesView(APIView):
             current_flow = request.data.get('current_flow', {})
             context = request.data.get('context', {})
             
+            # Generate cache key based on flow state + context
+            cache_input = json.dumps({
+                'tenant_id': str(tenant.id),
+                'flow': current_flow,
+                'context': context
+            }, sort_keys=True)
+            cache_key = f"ai_suggestions_{hashlib.md5(cache_input.encode()).hexdigest()}"
+            
+            # Check Redis cache (10 minute TTL)
+            cached_result = cache.get(cache_key)
+            if cached_result:
+                logger.debug(f"Returning cached AI suggestions for tenant {tenant.id}")
+                cached_result['cached'] = True
+                return Response(cached_result)
+            
             # Try AI-powered suggestions
             try:
                 import os
+                from openai import OpenAI
+                
                 openai_key = os.environ.get('OPENAI_API_KEY')
                 
                 if not openai_key:
@@ -2901,12 +3157,45 @@ class SuggestNodesView(APIView):
                     additional_context=context
                 )
                 
-                # TODO: Call OpenAI API when credentials configured
-                # For now, fall back to static suggestions
-                raise NotImplementedError("OpenAI integration pending")
+                # Call OpenAI API
+                client = OpenAI(api_key=openai_key)
                 
-            except (ValueError, NotImplementedError, ConnectionError, Exception) as e:
-                # Graceful degradation: Return static suggestions
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",  # Fast, cost-effective model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a workflow automation expert. Suggest the next logical steps in a workflow."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.7,
+                    max_tokens=500,
+                    response_format={"type": "json_object"}
+                )
+                
+                # Parse AI response
+                ai_result = json.loads(response.choices[0].message.content)
+                
+                result = {
+                    'suggestions': ai_result.get('suggestions', []),
+                    'confidence': ai_result.get('confidence', 0.8),
+                    'mode': 'ai',
+                    'reasoning': ai_result.get('reasoning', ''),
+                    'cached': False
+                }
+                
+                # Cache for 10 minutes
+                cache.set(cache_key, result, 600)
+                
+                logger.info(f"AI suggestions generated for tenant {tenant.id}")
+                return Response(result)
+                
+            except (ValueError, ImportError) as e:
+                # Service not configured - graceful degradation
                 logger.info(f"AI suggestions unavailable ({e}), using static fallback")
                 fallback = prompter.get_fallback_suggestions(tenant, current_flow)
                 
@@ -2914,7 +3203,21 @@ class SuggestNodesView(APIView):
                     'suggestions': fallback['suggestions'],
                     'confidence': fallback['confidence'],
                     'mode': fallback['mode'],
-                    'reason': 'AI unavailable - using static templates'
+                    'reason': 'AI unavailable - using static templates',
+                    'cached': False
+                })
+            
+            except Exception as e:
+                # AI call failed - graceful degradation
+                logger.warning(f"AI call failed ({e}), using static fallback")
+                fallback = prompter.get_fallback_suggestions(tenant, current_flow)
+                
+                return Response({
+                    'suggestions': fallback['suggestions'],
+                    'confidence': fallback['confidence'],
+                    'mode': fallback['mode'],
+                    'reason': f'AI error: {str(e)[:100]}',
+                    'cached': False
                 })
                 
         except Exception as e:

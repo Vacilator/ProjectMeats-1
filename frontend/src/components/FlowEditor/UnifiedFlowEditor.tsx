@@ -1674,7 +1674,7 @@ class ConfigPanelErrorBoundary extends React.Component<
   }
   
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[Config Panel] Error caught:', error, errorInfo);
+    logger.error('[Config Panel] Error caught:', error, errorInfo);
   }
   
   render() {
@@ -1753,7 +1753,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const edgeCount = edges.length;
     
     if (nodeCount > 1000) {
-      console.warn(`[Performance] Large workflow detected: ${nodeCount} nodes, ${edgeCount} edges`);
+      logger.warn(`[Performance] Large workflow detected: ${nodeCount} nodes, ${edgeCount} edges`);
     } else if (nodeCount > 500) {
       console.info(`[Performance] Medium workflow: ${nodeCount} nodes, ${edgeCount} edges`);
     }
@@ -1765,7 +1765,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       requestAnimationFrame(() => {
         const renderTime = performance.now() - startTime;
         if (renderTime > 100) {
-          console.warn(`[Performance] Slow render with ${nodeCount} nodes: ${renderTime.toFixed(2)}ms`);
+          logger.warn(`[Performance] Slow render with ${nodeCount} nodes: ${renderTime.toFixed(2)}ms`);
         }
       });
     }
@@ -1797,7 +1797,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                   }
                 : n.position;
               
-              console.log(`[Container] Unparenting node ${n.id} from deleted container`);
+              logger.debug(`[Container] Unparenting node ${n.id} from deleted container`);
               return {
                 ...n,
                 position: absolutePosition,
@@ -1825,7 +1825,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Ensure portal exists with complete styling
     let portal = document.getElementById('config-portal');
     if (!portal) {
-      console.log('[Portal] Creating config-portal element with full styling');
+      logger.debug('[Portal] Creating config-portal element with full styling');
       portal = document.createElement('div');
       portal.id = 'config-portal';
       portal.style.cssText = `
@@ -1848,7 +1848,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Cleanup on unmount (only if empty)
       const portal = document.getElementById('config-portal');
       if (portal && portal.childNodes.length === 0) {
-        console.log('[Portal] Removing empty config-portal element');
+        logger.debug('[Portal] Removing empty config-portal element');
         document.body.removeChild(portal);
       }
     };
@@ -1864,7 +1864,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     if (selectedNode !== null) {
       if (!portal) {
-        console.warn('[Portal] Portal missing when panel opened - recreating');
+        logger.warn('[Portal] Portal missing when panel opened - recreating');
         const newPortal = document.createElement('div');
         newPortal.id = 'config-portal';
         newPortal.style.cssText = `
@@ -1882,19 +1882,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         `;
         document.body.appendChild(newPortal);
         setPortalKey(Date.now()); // Force re-render
-        console.log('[Portal] Portal mounted and visible');
+        logger.debug('[Portal] Portal mounted and visible');
       } else {
         // Show portal when node is selected
         portal.style.display = 'flex';
         portal.style.pointerEvents = 'auto';
-        console.log('[Portal] Portal shown');
+        logger.debug('[Portal] Portal shown');
       }
     } else {
       // Hide portal when no node is selected
       if (portal) {
         portal.style.display = 'none';
         portal.style.pointerEvents = 'none';
-        console.log('[Portal] Portal hidden');
+        logger.debug('[Portal] Portal hidden');
       }
     }
   }, [selectedNode]);
@@ -1923,7 +1923,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       );
       
       if (orphanedNodes.length > 0) {
-        console.warn(
+        logger.warn(
           `[Container Restore] Found ${orphanedNodes.length} orphaned nodes (referencing missing containers)`,
           orphanedNodes.map(n => n.id)
         );
@@ -1933,7 +1933,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           if (n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)) {
             const cleanedData = { ...n.data };
             delete cleanedData.containerNodeId;
-            console.log(`[Container Restore] Cleaned orphaned node ${n.id}`);
+            logger.debug(`[Container Restore] Cleaned orphaned node ${n.id}`);
             return { ...n, data: cleanedData };
           }
           return n;
@@ -1941,7 +1941,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       if (containerNodes.length > 0) {
-        console.log(`[Container Restore] Found ${containerNodes.length} containers, rebuilding statistics...`);
+        logger.debug(`[Container Restore] Found ${containerNodes.length} containers, rebuilding statistics...`);
         
         // Rebuild statistics for each container
         containerNodes.forEach(container => {
@@ -1983,7 +1983,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             return n;
           }));
           
-          console.log(`[Container Restore] Container ${container.id}: ${childNodes.length} nodes`);
+          logger.debug(`[Container Restore] Container ${container.id}: ${childNodes.length} nodes`);
         });
       }
     }
@@ -2006,7 +2006,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const uniqueTypes = [...new Set(foundDeprecated.map(n => n.type))];
       setHasDeprecatedNodes(true);
       setDeprecatedNodeTypes(uniqueTypes as string[]);
-      console.log('[Phase 6] Deprecated nodes detected:', uniqueTypes, foundDeprecated.length);
+      logger.debug('[Phase 6] Deprecated nodes detected:', uniqueTypes, foundDeprecated.length);
     } else {
       setHasDeprecatedNodes(false);
       setDeprecatedNodeTypes([]);
@@ -2067,14 +2067,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       portalRoot.id = 'config-portal-root';
       portalRoot.style.cssText = 'position: fixed; top: 0; right: 0; bottom: 0; z-index: 10000; pointer-events: none;';
       document.body.appendChild(portalRoot);
-      console.log('[UnifiedFlowEditor] ✅ Portal root created');
+      logger.debug('[UnifiedFlowEditor] ✅ Portal root created');
     }
     
     return () => {
       const root = document.getElementById('config-portal-root');
       if (root) {
         document.body.removeChild(root);
-        console.log('[UnifiedFlowEditor] 🧹 Portal root cleaned up');
+        logger.debug('[UnifiedFlowEditor] 🧹 Portal root cleaned up');
       }
     };
   }, []);
@@ -2205,7 +2205,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     if (handleSaveRef.current) {
       handleSaveRef.current();
     } else {
-      console.warn('[FlowEditor] handleSave called before initialization');
+      logger.warn('[FlowEditor] handleSave called before initialization');
     }
   }, []);
   
@@ -2216,7 +2216,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     if (handleNodeDeleteRef.current) {
       await handleNodeDeleteRef.current(nodeId);
     } else {
-      console.warn('[FlowEditor] handleNodeDelete called before initialization');
+      logger.warn('[FlowEditor] handleNodeDelete called before initialization');
     }
   }, []);
   
@@ -2238,13 +2238,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         // Undo will be handled by React Flow's internal history
-        console.log('[Keyboard] Undo requested');
+        logger.debug('[Keyboard] Undo requested');
       }
       
       // Ctrl/Cmd + Shift + Z: Redo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
-        console.log('[Keyboard] Redo requested');
+        logger.debug('[Keyboard] Redo requested');
       }
       
       // Ctrl/Cmd + P: Toggle palette
@@ -2283,13 +2283,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const availableNodeTypes = useMemo(() => {
     let filteredNodes = Object.values(NODE_TYPE_REGISTRY);
     
-    console.log('[NodePalette] Total nodes in registry:', filteredNodes.length);
-    console.log('[NodePalette] Editor mode:', activeEditorMode);
-    console.log('[NodePalette] Allowed categories:', allowedNodeCategories);
+    logger.debug('[NodePalette] Total nodes in registry:', filteredNodes.length);
+    logger.debug('[NodePalette] Editor mode:', activeEditorMode);
+    logger.debug('[NodePalette] Allowed categories:', allowedNodeCategories);
     
     // Step 0: Filter out hidden/deprecated nodes (Phase 6)
     filteredNodes = filteredNodes.filter(nodeType => !nodeType.hidden);
-    console.log('[NodePalette] After hidden filtering:', filteredNodes.length);
+    logger.debug('[NodePalette] After hidden filtering:', filteredNodes.length);
     
     // Step 1: Filter by editor mode
     if (activeEditorMode === 'wizard') {
@@ -2305,18 +2305,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
     // Expert mode: All nodes (no filtering by mode)
     
-    console.log('[NodePalette] After mode filtering:', filteredNodes.length);
+    logger.debug('[NodePalette] After mode filtering:', filteredNodes.length);
     
     // Step 2: Filter by permission categories (if restricted)
     if (allowedNodeCategories && allowedNodeCategories.length > 0) {
       filteredNodes = filteredNodes.filter(nodeType => 
         allowedNodeCategories.includes(nodeType.category)
       );
-      console.log('[NodePalette] After permission filtering:', filteredNodes.length);
+      logger.debug('[NodePalette] After permission filtering:', filteredNodes.length);
     }
     
-    console.log('[NodePalette] Final available nodes:', filteredNodes.length);
-    console.log('[NodePalette] Available node IDs:', filteredNodes.map(n => n.id));
+    logger.debug('[NodePalette] Final available nodes:', filteredNodes.length);
+    logger.debug('[NodePalette] Available node IDs:', filteredNodes.map(n => n.id));
     
     return filteredNodes;
   }, [activeEditorMode, allowedNodeCategories]);
@@ -2543,7 +2543,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setNodes(simpleContactTemplate.nodes);
         setEdges(simpleContactTemplate.edges);
         
-        console.log('[Wizard Mode] Auto-loaded Simple Contact Form template');
+        logger.debug('[Wizard Mode] Auto-loaded Simple Contact Form template');
       }
     }
   }, [activeEditorMode, nodes.length, setNodes, setEdges]);
@@ -2791,7 +2791,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setCollapsedCategories(new Set(JSON.parse(storedCollapsed)));
       }
     } catch (e) {
-      console.error('Failed to load editor preferences:', e);
+      logger.error('Failed to load editor preferences:', e);
     }
   }, []);
 
@@ -2990,31 +2990,31 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Phase 6.1: Container isolation validation (HIGHEST PRIORITY)
       // Block connections from child node to external node
       if (sourceNode.parentNode && !targetNode.parentNode) {
-        console.warn('[Connection] ❌ Cannot connect child node to external node (container isolation)');
+        logger.warn('[Connection] ❌ Cannot connect child node to external node (container isolation)');
         // TODO: Show user-friendly error toast
         return;
       }
       
       // Block connections from external node to child node
       if (!sourceNode.parentNode && targetNode.parentNode) {
-        console.warn('[Connection] ❌ Cannot connect external node to child node (container isolation)');
+        logger.warn('[Connection] ❌ Cannot connect external node to child node (container isolation)');
         // TODO: Show user-friendly error toast
         return;
       }
       
       // Block connections between nodes in different containers
       if (sourceNode.parentNode && targetNode.parentNode && sourceNode.parentNode !== targetNode.parentNode) {
-        console.warn('[Connection] ❌ Cannot connect nodes from different containers');
+        logger.warn('[Connection] ❌ Cannot connect nodes from different containers');
         // TODO: Show user-friendly error toast
         return;
       }
       
-      console.log('[Connection] ✅ Container isolation check passed');
+      logger.debug('[Connection] ✅ Container isolation check passed');
       
       // Type-aware validation
       const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
       if (!typeCheck.valid) {
-        console.warn(`Invalid connection: ${typeCheck.reason}`);
+        logger.warn(`Invalid connection: ${typeCheck.reason}`);
         // TODO: Show toast notification to user
         return;
       }
@@ -3024,7 +3024,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const { maxOutputs: sourceMaxOutputs } = getNodeMaxConnections(sourceNode);
       if (sourceMaxOutputs !== -1 && sourceOutputs.length >= sourceMaxOutputs) {
         const label = sourceNode.data?.label || `Node ${sourceNode.id}`;
-        console.warn(`Node ${label} has reached max outputs (${sourceMaxOutputs})`);
+        logger.warn(`Node ${label} has reached max outputs (${sourceMaxOutputs})`);
         return;
       }
       
@@ -3033,7 +3033,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const { maxInputs: targetMaxInputs } = getNodeMaxConnections(targetNode);
       if (targetMaxInputs !== -1 && targetInputs.length >= targetMaxInputs) {
         const label = targetNode.data?.label || `Node ${targetNode.id}`;
-        console.warn(`Node ${label} has reached max inputs (${targetMaxInputs})`);
+        logger.warn(`Node ${label} has reached max inputs (${targetMaxInputs})`);
         return;
       }
       
@@ -3052,13 +3052,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if (node.type === 'formMultiStepContainer' && node.data.tenantFormId) {
         try {
           const result = await workformsApi.decrementFormUsage(node.data.tenantFormId);
-          console.log(`[Ghost Cleanup] ✅ Decremented usage for container: ${result.usage_count} remaining`);
+          logger.debug(`[Ghost Cleanup] ✅ Decremented usage for container: ${result.usage_count} remaining`);
           
           if (result.can_delete) {
-            console.log('[Ghost Cleanup] 🗑️ Form is now orphaned (usage_count=0). Will be cleaned up by background task.');
+            logger.debug('[Ghost Cleanup] 🗑️ Form is now orphaned (usage_count=0). Will be cleaned up by background task.');
           }
         } catch (error) {
-          console.error('[Ghost Cleanup] ❌ Failed to decrement usage:', error);
+          logger.error('[Ghost Cleanup] ❌ Failed to decrement usage:', error);
         }
       }
     }
@@ -3136,8 +3136,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Enhanced logging added for debugging container detection issues
    */
   const findContainerAtPosition = useCallback((position: { x: number; y: number }) => {
-    console.log('[Container] =================================');
-    console.log('[Container] Looking for containers at position:', position);
+    logger.debug('[Container] =================================');
+    logger.debug('[Container] Looking for containers at position:', position);
     
     // Get all container nodes (support both formMultiStepContainer and formProcessGroup)
     const containerNodes = nodes.filter(node => 
@@ -3146,11 +3146,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       node.type === 'formProcess'
     );
     
-    console.log('[Container] Total nodes on canvas:', nodes.length);
-    console.log('[Container] Container nodes found:', containerNodes.length);
+    logger.debug('[Container] Total nodes on canvas:', nodes.length);
+    logger.debug('[Container] Container nodes found:', containerNodes.length);
     
     if (containerNodes.length === 0) {
-      console.log('[Container] ❌ No containers on canvas');
+      logger.debug('[Container] ❌ No containers on canvas');
       return null;
     }
     
@@ -3177,7 +3177,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         bottom: container.position.y + containerHeight, // Use actual dimensions
       };
       
-      console.log(`[Container] Checking ${container.id}:`, {
+      logger.debug(`[Container] Checking ${container.id}:`, {
         type: container.type,
         position: container.position,
         dimensions: { width: containerWidth, height: containerHeight },
@@ -3192,14 +3192,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         position.y >= bounds.top &&
         position.y <= bounds.bottom
       ) {
-        console.log(`[Container] ✅ Found matching container: ${container.id}`);
+        logger.debug(`[Container] ✅ Found matching container: ${container.id}`);
         return container;
       } else {
-        console.log(`[Container] ❌ Position outside ${container.id} bounds`);
+        logger.debug(`[Container] ❌ Position outside ${container.id} bounds`);
       }
     }
     
-    console.log('[Container] ❌ No container matched at position');
+    logger.debug('[Container] ❌ No container matched at position');
     return null;
   }, [nodes]);
   
@@ -3215,7 +3215,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     const reactFlowBounds = reactFlowWrapper.getBoundingClientRect();
     
-    console.log('[DEBUG] Drag coordinates:', {
+    logger.debug('[DEBUG] Drag coordinates:', {
       clientX: event.clientX,
       clientY: event.clientY,
       boundsLeft: reactFlowBounds.left,
@@ -3227,7 +3227,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // FIX: screenToFlowPosition expects ABSOLUTE screen coordinates
     // It handles viewport transformation internally - do NOT subtract bounds
     if (!reactFlowInstance?.screenToFlowPosition) {
-      console.error('[onDragOver] reactFlowInstance not ready');
+      logger.error('[onDragOver] reactFlowInstance not ready');
       return;
     }
     const flowPosition = reactFlowInstance.screenToFlowPosition({
@@ -3235,7 +3235,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       y: event.clientY,
     });
     
-    console.log('[DEBUG] Flow position after transform:', flowPosition);
+    logger.debug('[DEBUG] Flow position after transform:', flowPosition);
     
     // Snap to alignment
     const snappedPosition = {
@@ -3243,7 +3243,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       y: Math.round(flowPosition.y / 15) * 15,
     };
     
-    console.log('[DEBUG] Snapped position:', snappedPosition);
+    logger.debug('[DEBUG] Snapped position:', snappedPosition);
     
     // Detect alignment guides
     const guides = detectAlignment(snappedPosition);
@@ -3334,14 +3334,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
-      console.log('🎯 [onDrop] DROP EVENT FIRED - Single ReactFlow');
+      logger.debug('🎯 [onDrop] DROP EVENT FIRED - Single ReactFlow');
       event.preventDefault();
 
       const type = event.dataTransfer.getData('application/reactflow-nodetype');
-      console.log('🎯 [onDrop] Node type:', type);
+      logger.debug('🎯 [onDrop] Node type:', type);
       
       if (!type) {
-        console.error('[onDrop] No node type found in dataTransfer');
+        logger.error('[onDrop] No node type found in dataTransfer');
         return;
       }
       
@@ -3355,14 +3355,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // currentTarget can be the wrong element causing coordinate offset
       const reactFlowWrapper = document.querySelector('.react-flow') as HTMLElement;
       if (!reactFlowWrapper) {
-        console.error('[onDrop] Could not find React Flow wrapper');
+        logger.error('[onDrop] Could not find React Flow wrapper');
         return;
       }
       
       // FIX: screenToFlowPosition expects ABSOLUTE screen coordinates
       // It handles viewport transformation internally - do NOT subtract bounds
       if (!reactFlowInstance?.screenToFlowPosition) {
-        console.error('[onDrop] reactFlowInstance not ready');
+        logger.error('[onDrop] reactFlowInstance not ready');
         toast.error('Editor not ready. Please try again.');
         return;
       }
@@ -3374,7 +3374,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Fix #2: VALIDATE position before creating node (prevents React Flow normalization errors)
       if (!position || typeof position.x !== 'number' || typeof position.y !== 'number' || 
           isNaN(position.x) || isNaN(position.y)) {
-        console.error('[onDrop] Invalid position calculated:', position);
+        logger.error('[onDrop] Invalid position calculated:', position);
         toast.error('Failed to add node: Invalid position');
         return;
       }
@@ -3387,11 +3387,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const targetContainer = findContainerAtPosition(position);
       
       if (targetContainer) {
-        console.log(`[Container] ✅ Detected drop into container ${targetContainer.id}`);
+        logger.debug(`[Container] ✅ Detected drop into container ${targetContainer.id}`);
         
         // Phase 1.3: Ensure container is expanded
         if (!targetContainer.data.isExpanded) {
-          console.log(`[Container] Expanding collapsed container ${targetContainer.id}`);
+          logger.debug(`[Container] Expanding collapsed container ${targetContainer.id}`);
           setNodes((nds) =>
             nds.map((n) => {
               if (n.id === targetContainer.id) {
@@ -3407,11 +3407,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             })
           );
         } else {
-          console.log(`[Container] Container ${targetContainer.id} already expanded`);
+          logger.debug(`[Container] Container ${targetContainer.id} already expanded`);
         }
       } else {
-        console.log(`[Container] No container detected at position`, position);
-        console.log(`[Container] Node will be added to main canvas`);
+        logger.debug(`[Container] No container detected at position`, position);
+        logger.debug(`[Container] Node will be added to main canvas`);
       }
       
       // Check for nearby node to auto-connect
@@ -3446,7 +3446,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           isExpanded: true, // Default to expanded so children are visible
           // Removed childNodes/childEdges - children queried via parentId
           onEnterContainer: (containerId: string) => {
-            console.log(`[Container] onEnterContainer callback triggered for ${containerId}`);
+            logger.debug(`[Container] onEnterContainer callback triggered for ${containerId}`);
             // This will be handled by the parent editor
           },
         };
@@ -3469,7 +3469,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // Phase 1.4: If dropping into a container, set parent-child relationship
       if (targetContainer) {
-        console.log(`[Container] Setting up parent-child relationship with container ${targetContainer.id}`);
+        logger.debug(`[Container] Setting up parent-child relationship with container ${targetContainer.id}`);
         
         // Phase 1.4: Don't allow containers to be nested
         const isContainerType = type === 'formMultiStepContainer' || 
@@ -3477,10 +3477,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                                type === 'formProcess';
         
         if (isContainerType) {
-          console.log(`[Container] ❌ Cannot nest containers - node type ${type} will be added to main canvas`);
+          logger.debug(`[Container] ❌ Cannot nest containers - node type ${type} will be added to main canvas`);
           // Fall through to main canvas drop - don't allow nested containers
         } else {
-          console.log(`[Container] Adding node ${newNode.id} as child of container ${targetContainer.id}`);
+          logger.debug(`[Container] Adding node ${newNode.id} as child of container ${targetContainer.id}`);
           
           // Phase 1.4: Set up React Flow native parent-child relationship
           
@@ -3490,7 +3490,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             y: position.y - targetContainer.position.y,
           };
           
-          console.log(`[Container] Position - Absolute: (${position.x}, ${position.y}), Relative: (${relativePosition.x}, ${relativePosition.y})`);
+          logger.debug(`[Container] Position - Absolute: (${position.x}, ${position.y}), Relative: (${relativePosition.x}, ${relativePosition.y})`);
           
           newNode.position = relativePosition;
           
@@ -3508,7 +3508,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           const isParentExpanded = targetContainer.data?.isExpanded ?? true;
           newNode.hidden = !isParentExpanded; // Hidden when collapsed, visible when expanded
           
-          console.log(`[Container] ✅ Node configured:`, {
+          logger.debug(`[Container] ✅ Node configured:`, {
             nodeId: newNode.id,
             parentId: newNode.parentId,
             relativePosition: newNode.position,
@@ -3522,7 +3522,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           // React Flow requirement: "Parent nodes must be in front of their child nodes"
           // Find parent index and insert child right after it
           const parentIndex = nodes.findIndex((n) => n.id === targetContainer.id);
-          console.log(`[Container] Inserting node at index ${parentIndex + 1} (after parent)`);
+          logger.debug(`[Container] Inserting node at index ${parentIndex + 1} (after parent)`);
           
           const updatedNodes = [
             ...nodes.slice(0, parentIndex + 1),
@@ -3534,14 +3534,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setNodeIdCounter((prev) => prev + 1);
           
           // Phase 3.3: Trigger auto-layout for container
-          console.log(`[Container] Triggering auto-layout for container ${targetContainer.id}`);
+          logger.debug(`[Container] Triggering auto-layout for container ${targetContainer.id}`);
           const layoutResult = calculateContainerLayout(
             targetContainer.id,
             updatedNodes,
             edges
           );
           
-          console.log(`[Layout] Result:`, {
+          logger.debug(`[Layout] Result:`, {
             containerWidth: layoutResult.containerWidth,
             containerHeight: layoutResult.containerHeight,
             childrenCount: layoutResult.nodes.filter(n => n.parentId === targetContainer.id).length,
@@ -3629,7 +3629,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
-    console.log('🔵 [onDragOver] Event received');
+    logger.debug('🔵 [onDragOver] Event received');
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   }, []);
@@ -3669,7 +3669,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       x: node.position.x,
       y: node.position.y,
     };
-    console.log(`[DragStart] Tracking node ${node.id} at position (${node.position.x}, ${node.position.y})`);
+    logger.debug(`[DragStart] Tracking node ${node.id} at position (${node.position.x}, ${node.position.y})`);
   }, [handleCloseMenu]);
   
   /**
@@ -3690,18 +3690,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         const deltaY = Math.abs(node.position.y - dragStart.y);
         
         if (deltaX < SIGNIFICANT_MOVEMENT_THRESHOLD && deltaY < SIGNIFICANT_MOVEMENT_THRESHOLD) {
-          console.log(`[DragStop] Skipping re-layout - movement too small (deltaX: ${deltaX}, deltaY: ${deltaY})`);
+          logger.debug(`[DragStop] Skipping re-layout - movement too small (deltaX: ${deltaX}, deltaY: ${deltaY})`);
           dragStartPositionRef.current = null;
           return; // Don't trigger layout for minor adjustments
         }
         
-        console.log(`[DragStop] Significant movement detected (deltaX: ${deltaX}, deltaY: ${deltaY})`);
+        logger.debug(`[DragStop] Significant movement detected (deltaX: ${deltaX}, deltaY: ${deltaY})`);
       }
       
       const container = nodes.find(n => n.id === node.parentId);
       
       if (container) {
-        console.log(`[DragStop] Triggering re-layout for container ${container.id} after node ${node.id} dragged`);
+        logger.debug(`[DragStop] Triggering re-layout for container ${container.id} after node ${node.id} dragged`);
         
         // Re-calculate layout (reorders nodes based on new x-position)
         const layoutResult = calculateContainerLayout(container.id, nodes, edges);
@@ -3734,7 +3734,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         const connectionResult = autoConnectSequentialSteps(container.id, layoutResult.nodes, edges);
         setEdges(connectionResult.edges);
         
-        console.log(`[DragStop] ✅ Re-layout and re-connection complete`);
+        logger.debug(`[DragStop] ✅ Re-layout and re-connection complete`);
       }
     }
     
@@ -3762,7 +3762,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                            node.type === 'formProcess';
     
     if (isContainerNode && newParentId) {
-      console.log('[Container] Cannot nest containers inside containers');
+      logger.debug('[Container] Cannot nest containers inside containers');
       return;
     }
     
@@ -3783,14 +3783,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                 };
                 updatedNode.parentId = newParentId;
                 updatedNode.extent = 'parent';
-                console.log(`[Container] Node ${node.id} added to container ${newParentId}`);
+                logger.debug(`[Container] Node ${node.id} added to container ${newParentId}`);
               }
             } else if (currentParentId) {
               // Node is being removed from container
               updatedNode.position = absolutePosition;
               delete updatedNode.parentNode;
               delete updatedNode.extent;
-              console.log(`[Container] Node ${node.id} removed from container`);
+              logger.debug(`[Container] Node ${node.id} removed from container`);
             }
             
             return updatedNode;
@@ -3899,7 +3899,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
     
     setHasUnsavedChanges(true);
-    console.log(`[Align] Distributed ${selectedNodes.length} nodes horizontally`);
+    logger.debug(`[Align] Distributed ${selectedNodes.length} nodes horizontally`);
   }, [nodes, setNodes]);
   
   /**
@@ -3933,7 +3933,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
     
     setHasUnsavedChanges(true);
-    console.log(`[Align] Distributed ${selectedNodes.length} nodes vertically`);
+    logger.debug(`[Align] Distributed ${selectedNodes.length} nodes vertically`);
   }, [nodes, setNodes]);
   
   /**
@@ -3958,7 +3958,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
     
     setHasUnsavedChanges(true);
-    console.log(`[Align] Aligned ${selectedNodes.length} nodes to left (x=${minX})`);
+    logger.debug(`[Align] Aligned ${selectedNodes.length} nodes to left (x=${minX})`);
   }, [nodes, setNodes]);
   
   /**
@@ -3983,7 +3983,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
     
     setHasUnsavedChanges(true);
-    console.log(`[Align] Aligned ${selectedNodes.length} nodes to right (x=${maxX})`);
+    logger.debug(`[Align] Aligned ${selectedNodes.length} nodes to right (x=${maxX})`);
   }, [nodes, setNodes]);
   
   /**
@@ -4008,7 +4008,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
     
     setHasUnsavedChanges(true);
-    console.log(`[Align] Aligned ${selectedNodes.length} nodes to top (y=${minY})`);
+    logger.debug(`[Align] Aligned ${selectedNodes.length} nodes to top (y=${minY})`);
   }, [nodes, setNodes]);
   
   /**
@@ -4033,7 +4033,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
     
     setHasUnsavedChanges(true);
-    console.log(`[Align] Aligned ${selectedNodes.length} nodes to bottom (y=${maxY})`);
+    logger.debug(`[Align] Aligned ${selectedNodes.length} nodes to bottom (y=${maxY})`);
   }, [nodes, setNodes]);
   
   /**
@@ -4058,7 +4058,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
     
     setHasUnsavedChanges(true);
-    console.log(`[Align] Aligned ${selectedNodes.length} nodes to center X (x=${avgX.toFixed(0)})`);
+    logger.debug(`[Align] Aligned ${selectedNodes.length} nodes to center X (x=${avgX.toFixed(0)})`);
   }, [nodes, setNodes]);
   
   /**
@@ -4083,7 +4083,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
     
     setHasUnsavedChanges(true);
-    console.log(`[Align] Aligned ${selectedNodes.length} nodes to center Y (y=${avgY.toFixed(0)})`);
+    logger.debug(`[Align] Aligned ${selectedNodes.length} nodes to center Y (y=${avgY.toFixed(0)})`);
   }, [nodes, setNodes]);
 
   // ============================================================================
@@ -4091,11 +4091,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const handleSaveImpl = useCallback(() => {
-    console.log('[FlowEditor] Quick save triggered');
+    logger.debug('[FlowEditor] Quick save triggered');
     
     // SAFETY: Validate state before save
     if (!nodes || !edges) {
-      console.error('[FlowEditor] Cannot save: nodes or edges undefined');
+      logger.error('[FlowEditor] Cannot save: nodes or edges undefined');
       toast.error('Cannot save workflow: Invalid state');
       return;
     }
@@ -4108,22 +4108,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
         const nodesInContainers = nodes.filter(n => n.parentNode); // Phase E: Using React Flow parentNode
         
-        console.log('[Save] Workflow saved with container state:');
-        console.log(`  - ${containerNodes.length} container(s)`);
-        console.log(`  - ${nodesInContainers.length} node(s) in containers`);
+        logger.debug('[Save] Workflow saved with container state:');
+        logger.debug(`  - ${containerNodes.length} container(s)`);
+        logger.debug(`  - ${nodesInContainers.length} node(s) in containers`);
         
         if (containerNodes.length > 0) {
           containerNodes.forEach(container => {
             const childNodes = nodes.filter(n => n.parentId === container.id); // Phase E: Using parentNode
-            console.log(`  - Container ${container.id}: ${childNodes.length} nodes`);
+            logger.debug(`  - Container ${container.id}: ${childNodes.length} nodes`);
           });
         }
         
         onSave(nodes, edges);
-        console.log('Flow saved successfully!');
+        logger.debug('Flow saved successfully!');
         setHasUnsavedChanges(false);
       } catch (error) {
-        console.error('[FlowEditor] Save failed:', error);
+        logger.error('[FlowEditor] Save failed:', error);
         toast.error('Failed to save workflow');
       }
     }
@@ -4197,7 +4197,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Show validation errors
       const errorMessage = 'Validation failed:\n' + validation.errors.join('\n');
       toast.error(errorMessage, { duration: 5000 });
-      console.warn('⚠️ Validation errors:', validation.errors);
+      logger.warn('⚠️ Validation errors:', validation.errors);
       return;
     }
     
@@ -4229,7 +4229,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       setHasUnsavedChanges(false);
-      console.log('✅ Workflow saved:', savedWorkflow.name);
+      logger.debug('✅ Workflow saved:', savedWorkflow.name);
       
       // Show success toast
       toast.success(
@@ -4237,7 +4237,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         { id: loadingToast }
       );
     } catch (error) {
-      console.error('❌ Failed to save workflow:', error);
+      logger.error('❌ Failed to save workflow:', error);
       
       // Show error toast
       toast.error(
@@ -4430,7 +4430,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Close load menu
       setIsLoadMenuOpen(false);
       
-      console.log('✅ Workflow loaded:', loadedWorkflow.name);
+      logger.debug('✅ Workflow loaded:', loadedWorkflow.name);
       
       // Show success toast
       toast.success(
@@ -4438,7 +4438,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         { id: loadingToast }
       );
     } catch (error) {
-      console.error('❌ Failed to load workflow:', error);
+      logger.error('❌ Failed to load workflow:', error);
       
       // Show error toast
       toast.error(
@@ -4461,7 +4461,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           setWorkflowList(workflows);
         })
         .catch(error => {
-          console.error('❌ Failed to fetch workflow list:', error);
+          logger.error('❌ Failed to fetch workflow list:', error);
           setWorkflowList([]);
           toast.error('Failed to load workflow list');
         });
@@ -4513,7 +4513,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       toast.success(`Workflow "${workflowToDelete.name}" deleted successfully`);
     } catch (error) {
-      console.error('❌ Failed to delete workflow:', error);
+      logger.error('❌ Failed to delete workflow:', error);
       toast.error(`Failed to delete workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsDeleting(false);
@@ -4839,13 +4839,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * - formSection → formStep with section styling
    */
   const handleMigrateDeprecatedNodes = useCallback(() => {
-    console.log('[Phase 6] Starting migration of deprecated nodes...');
+    logger.debug('[Phase 6] Starting migration of deprecated nodes...');
     
     const DEPRECATED_TYPES = ['formField', 'formSection'];
     const nodesToMigrate = nodes.filter(node => DEPRECATED_TYPES.includes(node.type || ''));
     
     if (nodesToMigrate.length === 0) {
-      console.log('[Phase 6] No deprecated nodes to migrate');
+      logger.debug('[Phase 6] No deprecated nodes to migrate');
       return;
     }
     
@@ -4854,7 +4854,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return node; // Keep non-deprecated nodes as-is
       }
       
-      console.log(`[Phase 6] Migrating ${node.type} node:`, node.id);
+      logger.debug(`[Phase 6] Migrating ${node.type} node:`, node.id);
       
       // Convert to formStep
       if (node.type === 'formField') {
@@ -4896,7 +4896,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setNodes(newNodes);
     setBannerDismissed(true);
     
-    console.log(`[Phase 6] Migration complete: ${nodesToMigrate.length} nodes migrated`);
+    logger.debug(`[Phase 6] Migration complete: ${nodesToMigrate.length} nodes migrated`);
     
     // Show success message
     alert(`Successfully migrated ${nodesToMigrate.length} deprecated node(s) to modern format!\n\nPlease review the migrated nodes and save your workflow.`);
@@ -4912,7 +4912,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const selectedNodes = params.nodes || [];
     if (selectedNodes.length === 1) {
       const node = selectedNodes[0];
-      console.log('[Selection] Node selected (border highlight only):', node.type, node.id);
+      logger.debug('[Selection] Node selected (border highlight only):', node.type, node.id);
       
       // Track selected node ID for keyboard shortcuts and debugging
       setSelectedNodeId(node.id);
@@ -4923,7 +4923,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // User must explicitly click Edit button to open configuration.
       
     } else {
-      console.log('[Selection] Cleared selection');
+      logger.debug('[Selection] Cleared selection');
       // Clear all selections when nothing selected
       setSelectedNodeId(null);
       setSelectedNode(null);
@@ -4950,7 +4950,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     
-    console.log('✏️ [EDIT BUTTON] Opening config panel for:', node.type, nodeId);
+    logger.debug('✏️ [EDIT BUTTON] Opening config panel for:', node.type, nodeId);
     
     // Close all legacy modals first
     setFormStepModalOpen(false);
@@ -4968,7 +4968,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     // Force re-render by adding a key change if needed
     // The portal will remount with the new node
-    console.log('[handleNodeEdit] Config panel state updated:', {
+    logger.debug('[handleNodeEdit] Config panel state updated:', {
       nodeId,
       nodeType: node.type,
       selectedNodeSet: true,
@@ -4979,43 +4979,43 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // These are backup modals - primary config is via DynamicConfigPanel
     switch (node.type) {
       case 'formStep':
-        console.log('✏️ [EDIT BUTTON] Setting FormStep data');
+        logger.debug('✏️ [EDIT BUTTON] Setting FormStep data');
         setSelectedFormStep(node);
         break;
       
       case 'formMultiStepContainer':
-        console.log('✏️ [EDIT BUTTON] Opening Container modal');
+        logger.debug('✏️ [EDIT BUTTON] Opening Container modal');
         setSelectedContainer(node);
         setContainerModalOpen(true);
         break;
         
       case 'formReference':
-        console.log('✏️ [EDIT BUTTON] Setting FormReference data');
+        logger.debug('✏️ [EDIT BUTTON] Setting FormReference data');
         setSelectedFormReference(node);
         break;
         
       case 'formField':
-        console.log('✏️ [EDIT BUTTON] Setting FormField data');
+        logger.debug('✏️ [EDIT BUTTON] Setting FormField data');
         setSelectedFormField(node);
         break;
         
       case 'formSection':
       case 'section':
-        console.log('✏️ [EDIT BUTTON] Setting Section data');
+        logger.debug('✏️ [EDIT BUTTON] Setting Section data');
         setSelectedSection(node);
         break;
         
       case 'formFileUpload':
       case 'document':
       case 'upload':
-        console.log('✏️ [EDIT BUTTON] Setting Document data');
+        logger.debug('✏️ [EDIT BUTTON] Setting Document data');
         setSelectedDocument(node);
         break;
         
       case 'action':
         const actionType = node.data.actionType;
         if (actionType === 'createRecord') {
-          console.log('✏️ [EDIT BUTTON] Opening CreateRecord modal');
+          logger.debug('✏️ [EDIT BUTTON] Opening CreateRecord modal');
           setSelectedCreateRecord(node);
           setCreateRecordModalOpen(true);
         } else {
@@ -5024,7 +5024,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         break;
         
       default:
-        console.log('✏️ [EDIT BUTTON] Using DynamicConfigPanel for:', node.type);
+        logger.debug('✏️ [EDIT BUTTON] Using DynamicConfigPanel for:', node.type);
         // selectedNode already set at the beginning of this function
         break;
     }
@@ -5033,7 +5033,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Debug: Log modal state changes to diagnose visibility issues
   useEffect(() => {
     if (selectedNode) {
-      console.log('[Modal State] Config panel SHOULD be visible:', {
+      logger.debug('[Modal State] Config panel SHOULD be visible:', {
         nodeId: selectedNode.id,
         nodeType: selectedNode.type,
         hasData: !!selectedNode.data,
@@ -5045,13 +5045,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setTimeout(() => {
         const portalElement = document.querySelector('[class*="RightSidebar"]');
         if (portalElement) {
-          console.log('[Modal State] ✅ Portal element found in DOM');
+          logger.debug('[Modal State] ✅ Portal element found in DOM');
         } else {
-          console.error('[Modal State] ❌ Portal element NOT found in DOM - render issue!');
+          logger.error('[Modal State] ❌ Portal element NOT found in DOM - render issue!');
         }
       }, 100);
     } else {
-      console.log('[Modal State] Config panel closed (selectedNode is null)');
+      logger.debug('[Modal State] Config panel closed (selectedNode is null)');
     }
   }, [selectedNode]);
   
@@ -5060,7 +5060,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     event.stopPropagation();
     event.preventDefault();
     
-    console.log('[handleNodeClick] Node clicked, opening config:', {
+    logger.debug('[handleNodeClick] Node clicked, opening config:', {
       nodeType: node.type,
       nodeId: node.id,
       timestamp: new Date().toISOString()
@@ -5095,7 +5095,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           try {
             await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
           } catch (error) {
-            console.error('Failed to decrement form usage count:', error);
+            logger.error('Failed to decrement form usage count:', error);
             // Continue with deletion even if API call fails
           }
         }
@@ -5127,9 +5127,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       setHasUnsavedChanges(true);
       toast.success('Node deleted');
-      console.log('[UnifiedFlowEditor] Node deleted successfully:', nodeId);
+      logger.debug('[UnifiedFlowEditor] Node deleted successfully:', nodeId);
     } catch (error) {
-      console.error('[FlowEditor] Delete failed:', error);
+      logger.error('[FlowEditor] Delete failed:', error);
       toast.error('Failed to delete node');
     }
   }, [nodes, selectedNode, setNodes, setEdges]);
@@ -5139,7 +5139,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Batch 4: Handler to update node title
   const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
-    console.log('[UnifiedFlowEditor] Updating node title:', nodeId, newTitle);
+    logger.debug('[UnifiedFlowEditor] Updating node title:', nodeId, newTitle);
     
     setNodes(nds => 
       nds.map(node => {
@@ -5171,7 +5171,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return node;
       })
     );
-    console.log(`Node ${nodeId} updated:`, newData);
+    logger.debug(`Node ${nodeId} updated:`, newData);
     setHasUnsavedChanges(true);
   }, [setNodes]);
 
@@ -5201,7 +5201,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const handleEntityFormStepSave = useCallback((formData: FormStepData) => {
     if (!selectedFormStep) return;
     
-    console.log('[UnifiedFlowEditor] Saving EntityFormStep:', formData);
+    logger.debug('[UnifiedFlowEditor] Saving EntityFormStep:', formData);
     
     // Update node data with form configuration
     const updatedNodeData = {
@@ -5244,7 +5244,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const handleContainerSave = useCallback((containerData: ContainerData) => {
     if (!selectedContainer) return;
     
-    console.log('[UnifiedFlowEditor] Saving Container:', containerData);
+    logger.debug('[UnifiedFlowEditor] Saving Container:', containerData);
     
     // Update node data with container configuration
     const updatedNodeData = {
@@ -5344,7 +5344,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [selectedFormStep, handleNodeUpdate]);
 
   const handleNodeTest = useCallback((nodeId: string) => {
-    console.log(`Testing node ${nodeId} with sample data...`);
+    logger.debug(`Testing node ${nodeId} with sample data...`);
     // Test runner logic will be implemented in future batch
   }, []);
 
@@ -5353,7 +5353,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const handleTemplateSelect = useCallback((template: FlowTemplate) => {
-    console.log('[Template] Selected:', template.name);
+    logger.debug('[Template] Selected:', template.name);
     
     // Map template nodes to proper React Flow node types with full metadata
     const mappedNodes = template.nodes.map(node => {
@@ -5416,7 +5416,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [setNodes, setEdges, reactFlowInstance]);
 
   const handleStartBlank = useCallback(() => {
-    console.log('[Template] Starting blank canvas');
+    logger.debug('[Template] Starting blank canvas');
     
     // Clear canvas
     setNodes([]);
@@ -6432,11 +6432,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         const portal = document.getElementById('config-portal');
         
         if (!portal) {
-          console.error('[UnifiedFlowEditor] ❌ Portal NOT found - panel will not render');
+          logger.error('[UnifiedFlowEditor] ❌ Portal NOT found - panel will not render');
           return null;
         }
         
-        console.log('[UnifiedFlowEditor] ✅ Rendering config panel:', {
+        logger.debug('[UnifiedFlowEditor] ✅ Rendering config panel:', {
           nodeId: selectedNode.id,
           nodeType: selectedNode.type,
           portalExists: true,
@@ -6453,7 +6453,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               setNodes={setNodes}
               setEdges={setEdges}
               onClose={() => {
-                console.log('[Tabbed Config Panel] Closing panel for node:', selectedNode.id);
+                logger.debug('[Tabbed Config Panel] Closing panel for node:', selectedNode.id);
                 setSelectedNode(null);
               }}
               onUpdate={handleNodeUpdate}
@@ -6461,7 +6461,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               onSelectNode={(nodeId) => {
                 const node = nodes.find(n => n.id === nodeId);
                 if (node) {
-                  console.log('[Tabbed Config Panel] Switching to node:', nodeId);
+                  logger.debug('[Tabbed Config Panel] Switching to node:', nodeId);
                   setSelectedNode(node);
                 }
               }}
@@ -6930,7 +6930,7 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   if (nodeTypeId.startsWith('end')) return 'terminal'; // Map 'endSuccess', 'endError' to terminal
   
   // Log unknown type for debugging
-  console.warn(`Unknown node type: ${nodeTypeId}, defaulting to action`);
+  logger.warn(`Unknown node type: ${nodeTypeId}, defaulting to action`);
   
   // Default to action
   return 'action';
@@ -7045,7 +7045,7 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
 export const UnifiedFlowEditor: React.FC<UnifiedFlowEditorProps> = (props) => {
   // Handler for node data updates from FormBuilder
   const handleNodeDataUpdate = useCallback((nodeId: string, updates: any) => {
-    console.log('[UnifiedFlowEditor] Node data updated from FormBuilder:', { nodeId, updates });
+    logger.debug('[UnifiedFlowEditor] Node data updated from FormBuilder:', { nodeId, updates });
     // This will be called by FormBuilder context when data changes
     // The actual state update happens inside UnifiedFlowEditorInner via setNodes
   }, []);
@@ -7054,7 +7054,7 @@ export const UnifiedFlowEditor: React.FC<UnifiedFlowEditorProps> = (props) => {
     <ErrorBoundary 
       componentName="Workforms Editor"
       onError={(error, errorInfo) => {
-        console.error('[UnifiedFlowEditor] Critical error:', { error, errorInfo });
+        logger.error('[UnifiedFlowEditor] Critical error:', { error, errorInfo });
       }}
     >
       <ReactFlowProvider>

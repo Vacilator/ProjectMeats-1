@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '@/utils/logger';
+
 import { useSearchParams } from 'react-router-dom';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
@@ -49,7 +51,7 @@ const Suppliers: React.FC = () => {
 
   // Debug: Log products state changes
   useEffect(() => {
-    console.log('[Suppliers] Products state updated:', {
+    logger.debug('[Suppliers] Products state updated:', {
       count: Array.isArray(products) ? products.length : 0,
       products: products,
       multiSelectOptions: Array.isArray(products) ? products.map(p => ({ 
@@ -61,12 +63,12 @@ const Suppliers: React.FC = () => {
 
   // Auto-fetch products when preferred_protein_types changes
   useEffect(() => {
-    console.log('[Suppliers] Protein types changed:', formData.preferred_protein_types);
+    logger.debug('[Suppliers] Protein types changed:', formData.preferred_protein_types);
     if (formData.preferred_protein_types && formData.preferred_protein_types.length > 0) {
       fetchFilteredProducts(formData.preferred_protein_types);
     } else {
       // Reset to all products if no protein types selected
-      console.log('[Suppliers] No protein types selected, fetching all products');
+      logger.debug('[Suppliers] No protein types selected, fetching all products');
       fetchProducts();
     }
   }, [formData.preferred_protein_types]);
@@ -77,7 +79,7 @@ const Suppliers: React.FC = () => {
       const data = await apiService.getSuppliers();
       setSuppliers(data);
     } catch (error) {
-      console.error('Error fetching suppliers:', error);
+      logger.error('Error fetching suppliers:', error);
     } finally {
       setLoading(false);
     }
@@ -85,9 +87,9 @@ const Suppliers: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      console.log('[Suppliers] Fetching tenant products from system catalog...');
+      logger.debug('[Suppliers] Fetching tenant products from system catalog...');
       const response = await apiClient.get('/system/products/my-products/');
-      console.log('[Suppliers] Tenant products fetched:', {
+      logger.debug('[Suppliers] Tenant products fetched:', {
         count: response.data?.length || 0,
         sample: response.data?.[0],
         fullResponse: response.data
@@ -98,7 +100,7 @@ const Suppliers: React.FC = () => {
       const productsData = Array.isArray(response.data) ? response.data : [];
       setProducts(productsData);
     } catch (error) {
-      console.error('[Suppliers] Error fetching tenant products:', error);
+      logger.error('[Suppliers] Error fetching tenant products:', error);
       // Set empty array on error to prevent map errors
       setProducts([]);
     }
@@ -106,12 +108,12 @@ const Suppliers: React.FC = () => {
 
   const fetchFilteredProducts = async (proteinTypes: string[]) => {
     try {
-      console.log('[Suppliers] Fetching filtered products for protein types:', proteinTypes);
+      logger.debug('[Suppliers] Fetching filtered products for protein types:', proteinTypes);
       // Build query string with multiple protein parameters for system products
       // Protein types are now lowercase slugs (beef, pork, poultry) matching system data
       const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type.toLowerCase())}`).join('&');
       const fullUrl = `/system/products/?${proteinParams}`;
-      console.log('[Suppliers] Request URL:', fullUrl);
+      logger.debug('[Suppliers] Request URL:', fullUrl);
       
       const response = await apiClient.get(fullUrl);
       
@@ -119,7 +121,7 @@ const Suppliers: React.FC = () => {
       // Ensure we always have an array, even if response is unexpected
       const data = Array.isArray(response.data) ? response.data : [];
       
-      console.log('[Suppliers] Filtered system products fetched:', {
+      logger.debug('[Suppliers] Filtered system products fetched:', {
         count: data?.length || 0,
         proteinTypes,
         sample: data?.[0],
@@ -135,9 +137,9 @@ const Suppliers: React.FC = () => {
         products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
       }));
       
-      console.log(`[Suppliers] ✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
+      logger.debug(`[Suppliers] ✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
     } catch (error) {
-      console.error('[Suppliers] Error fetching filtered products:', error);
+      logger.error('[Suppliers] Error fetching filtered products:', error);
       // Set empty array on error to prevent map errors
       setProducts([]);
     }
@@ -162,7 +164,7 @@ const Suppliers: React.FC = () => {
       
       // Log detailed error information for debugging
       // eslint-disable-next-line no-console
-      console.error('[Suppliers] Error saving supplier:', {
+      logger.error('[Suppliers] Error saving supplier:', {
         message: errorMessage,
         error: err,
         action: editingSupplier ? 'update' : 'create',
@@ -201,7 +203,7 @@ const Suppliers: React.FC = () => {
       } catch (error: unknown) {
         // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
         // This ensures we handle errors safely while maintaining type checking
-        console.error('Error deleting supplier:', error);
+        logger.error('Error deleting supplier:', error);
         const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
         const errorMessage = err?.response?.data?.detail 
           || err?.response?.data?.message 

@@ -12,6 +12,7 @@
  * Updated: 2026-02-04 - Phase 4.2 Added permission system
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { logger } from '@/utils/logger';
 import styled from 'styled-components';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
@@ -749,7 +750,7 @@ export const WorkFormsEditor: React.FC = () => {
   
   // DEBUG: Log permissions state (MUST be after state declarations)
   useEffect(() => {
-    console.log('[Editor DEBUG]', {
+    logger.debug('[Editor DEBUG]', {
       permissionsLoading,
       permissions,
       can_edit: permissions.can_edit,
@@ -763,10 +764,10 @@ export const WorkFormsEditor: React.FC = () => {
   const { data: existingForm, isLoading: isLoadingForm } = useQuery<TenantForm>({
     queryKey: ['tenant-form', id],
     queryFn: async () => {
-      console.log('[Editor] Loading form with ID:', id);
+      logger.debug('[Editor] Loading form with ID:', id);
       const response = await apiClient.get(`/workflows/forms/${id}/`);
-      console.log('[Editor] API Response:', response.data);
-      console.log('[Editor] Flow Data:', response.data?.flow_data);
+      logger.debug('[Editor] API Response:', response.data);
+      logger.debug('[Editor] Flow Data:', response.data?.flow_data);
       return response.data;
     },
     enabled: !!id,
@@ -776,10 +777,10 @@ export const WorkFormsEditor: React.FC = () => {
   const { data: cloneForm, isLoading: isLoadingCloneForm } = useQuery<TenantForm>({
     queryKey: ['tenant-form-clone', cloneId],
     queryFn: async () => {
-      console.log('[Editor] Loading form for cloning with ID:', cloneId);
+      logger.debug('[Editor] Loading form for cloning with ID:', cloneId);
       const response = await apiClient.get(`/workflows/forms/${cloneId}/`);
-      console.log('[Editor] Clone API Response:', response.data);
-      console.log('[Editor] Clone Flow Data:', response.data?.flow_data);
+      logger.debug('[Editor] Clone API Response:', response.data);
+      logger.debug('[Editor] Clone Flow Data:', response.data?.flow_data);
       return response.data;
     },
     enabled: !!cloneId,
@@ -794,7 +795,7 @@ export const WorkFormsEditor: React.FC = () => {
 
   // Initialize editor with template or existing form
   useEffect(() => {
-    console.log('[Editor] Initialization check:', {
+    logger.debug('[Editor] Initialization check:', {
       isInitialized,
       hasCloneForm: !!cloneForm,
       cloneId,
@@ -806,52 +807,52 @@ export const WorkFormsEditor: React.FC = () => {
     });
     
     if (isInitialized) {
-      console.log('[Editor] Already initialized, skipping');
+      logger.debug('[Editor] Already initialized, skipping');
       return;
     }
 
     // Load from cloned form
     if (cloneForm && cloneId) {
-      console.log('[Editor] Setting up CLONE mode:', cloneForm);
+      logger.debug('[Editor] Setting up CLONE mode:', cloneForm);
       setFlowName(`${cloneForm.name} (Copy)`);
       setStatus('draft'); // Always start clones as draft
       setIsCloneMode(true);
       
       if (cloneForm.flow_data) {
-        console.log('[Editor] Setting clone nodes/edges:', {
+        logger.debug('[Editor] Setting clone nodes/edges:', {
           nodes: cloneForm.flow_data.nodes?.length || 0,
           edges: cloneForm.flow_data.edges?.length || 0
         });
         setInitialNodes(cloneForm.flow_data.nodes || []);
         setInitialEdges(cloneForm.flow_data.edges || []);
       } else {
-        console.warn('[Editor] Clone form has NO flow_data!');
+        logger.warn('[Editor] Clone form has NO flow_data!');
       }
       
       setIsInitialized(true);
-      console.log('[Editor] ✅ Initialized in CLONE mode from form:', cloneId);
+      logger.debug('[Editor] ✅ Initialized in CLONE mode from form:', cloneId);
       return;
     }
 
     // Load from existing form
     if (existingForm && id) {
-      console.log('[Editor] Setting up EDIT mode:', existingForm);
+      logger.debug('[Editor] Setting up EDIT mode:', existingForm);
       setFlowName(existingForm.name);
       setStatus(existingForm.status as 'draft' | 'active' | 'inactive');
       
       if (existingForm.flow_data) {
-        console.log('[Editor] Setting existing nodes/edges:', {
+        logger.debug('[Editor] Setting existing nodes/edges:', {
           nodes: existingForm.flow_data.nodes?.length || 0,
           edges: existingForm.flow_data.edges?.length || 0
         });
         setInitialNodes(existingForm.flow_data.nodes || []);
         setInitialEdges(existingForm.flow_data.edges || []);
       } else {
-        console.warn('[Editor] Existing form has NO flow_data!');
+        logger.warn('[Editor] Existing form has NO flow_data!');
       }
       
       setIsInitialized(true);
-      console.log('[Editor] ✅ Initialized in EDIT mode for form:', id);
+      logger.debug('[Editor] ✅ Initialized in EDIT mode for form:', id);
       return;
     }
 
@@ -870,7 +871,7 @@ export const WorkFormsEditor: React.FC = () => {
     // Blank canvas
     if (!id && !templateId && !cloneId) {
       setIsInitialized(true);
-      console.log('[Editor] Initialized with BLANK canvas');
+      logger.debug('[Editor] Initialized with BLANK canvas');
     }
   }, [existingForm, cloneForm, id, cloneId, templateId, isInitialized]);
 
@@ -913,7 +914,7 @@ export const WorkFormsEditor: React.FC = () => {
       }
     },
     onError: (error: any) => {
-      console.error('Error saving flow:', error);
+      logger.error('Error saving flow:', error);
       alert(error.response?.data?.error || 'Failed to save. Please try again.');
     },
   });
@@ -965,7 +966,7 @@ export const WorkFormsEditor: React.FC = () => {
         }
         
         autoSaveTimerRef.current = setTimeout(() => {
-          console.log('[Editor] Auto-saving...');
+          logger.debug('[Editor] Auto-saving...');
           handleSave(nodes, edges);
         }, 3000); // 3 second debounce
       }
@@ -1108,7 +1109,7 @@ export const WorkFormsEditor: React.FC = () => {
       alert('Form published successfully!');
     },
     onError: (error: any) => {
-      console.error('Error publishing flow:', error);
+      logger.error('Error publishing flow:', error);
       alert(error.response?.data?.error || 'Failed to publish. Please try again.');
     },
   });
@@ -1190,7 +1191,7 @@ export const WorkFormsEditor: React.FC = () => {
 
           alert(`Template "${template.name}" imported successfully!`);
         } catch (error: any) {
-          console.error('Error importing template:', error);
+          logger.error('Error importing template:', error);
           alert(`Failed to import template: ${error.message}`);
         }
       };

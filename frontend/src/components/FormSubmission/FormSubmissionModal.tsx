@@ -13,6 +13,8 @@
  * - New field types: rating, slider, signature, richtext
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { logger } from '@/utils/logger';
+
 import { createPortal } from 'react-dom';
 import styled, { css } from 'styled-components';
 import { 
@@ -980,7 +982,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     
     if (Object.keys(initialData).length > 0) {
       setFormData(initialData);
-      console.log('[FormSubmission] Initialized formData:', { 
+      logger.debug('[FormSubmission] Initialized formData:', { 
         stepIds: steps.map(s => s.id),
         submissionDataKeys: Object.keys(submission?.data || {}),
         initialDataKeys: Object.keys(initialData)
@@ -1003,7 +1005,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             const res = await entityOptionsService.getOptions(type);
             setEntityOptions(prev => ({ ...prev, [type]: res.options || [] }));
           } catch (e) { 
-            console.error('Failed to load options for', type, e); 
+            logger.error('Failed to load options for', type, e); 
           }
         }
       }
@@ -1037,7 +1039,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                   setEntityOptions(prev => ({ ...prev, [choiceKey]: choices }));
                 }
               } catch (e) {
-                console.error(`Failed to load static choices for field ${field.key}:`, e);
+                logger.error(`Failed to load static choices for field ${field.key}:`, e);
               }
             }
           }
@@ -1142,7 +1144,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     
     try {
       const result = await formSubmissionService.autoSave(submission.id, stepId, fieldKey, value);
-      console.log('[AutoSave] Success:', { stepId, fieldKey, result });
+      logger.debug('[AutoSave] Success:', { stepId, fieldKey, result });
       setSaveStatus(prev => ({ ...prev, [saveKey]: 'saved' }));
       setLastSaved(new Date());
       hasUnsavedChanges.current = false;
@@ -1155,7 +1157,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       const isCanceled = err?.message?.includes('cancelled') || err?.message?.includes('canceled') || err?.__CANCEL__;
       
       if (!isCanceled) {
-        console.error('[AutoSave] Failed:', { stepId, fieldKey, error: err?.response?.data || err?.message || err });
+        logger.error('[AutoSave] Failed:', { stepId, fieldKey, error: err?.response?.data || err?.message || err });
         setSaveStatus(prev => ({ ...prev, [saveKey]: 'error' }));
         
         // Show user-friendly error for non-network issues
@@ -1239,7 +1241,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
     
     // Get value directly from formData state
     const value = formData[stepId]?.[key];
-    console.log('[handleBlur]', { stepId, key, value, hasUnsavedChanges: hasUnsavedChanges.current });
+    logger.debug('[handleBlur]', { stepId, key, value, hasUnsavedChanges: hasUnsavedChanges.current });
     
     // Find the field to get validation rules
     const step = steps.find(s => s.id === stepId);
@@ -1304,7 +1306,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       return;
     }
     
-    console.log('[SaveAndExit] Saving', fieldsToSave.length, 'fields');
+    logger.debug('[SaveAndExit] Saving', fieldsToSave.length, 'fields');
     
     // Create promises for each field
     fieldsToSave.forEach(({ stepId, fieldKey, value }) => {
@@ -1326,15 +1328,15 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
         // Partial success
         const successCount = results.length - failures.length;
         notify.warning(`Saved ${successCount} of ${results.length} fields. Some fields failed to save.`);
-        console.error('[SaveAndExit] Partial failure:', failures);
+        logger.error('[SaveAndExit] Partial failure:', failures);
         onClose();
       } else {
         // All failed
         notify.error('Failed to save progress. Please try again.');
-        console.error('[SaveAndExit] All saves failed:', failures);
+        logger.error('[SaveAndExit] All saves failed:', failures);
       }
     } catch (err: any) {
-      console.error('[SaveAndExit] Unexpected error:', err);
+      logger.error('[SaveAndExit] Unexpected error:', err);
       notify.error('Failed to save progress');
     }
   }, [formData, submission.id, onClose]);
@@ -2035,7 +2037,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                   context={workflowContext}
                   onComplete={(data) => {
                     // Handle step completion
-                    console.log('[TaskRenderer] Step completed with data:', data);
+                    logger.debug('[TaskRenderer] Step completed with data:', data);
                     if (currentStepIndex < steps.length - 1) {
                       goToNextStep();
                     }
@@ -2216,7 +2218,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
                 const res = await entityOptionsService.getOptions(quickCreateField.entityType);
                 setEntityOptions(prev => ({ ...prev, [quickCreateField.entityType]: res.options || [] }));
               } catch (e) {
-                console.error('Failed to refresh options:', e);
+                logger.error('Failed to refresh options:', e);
               }
               
               setQuickCreateField(null);

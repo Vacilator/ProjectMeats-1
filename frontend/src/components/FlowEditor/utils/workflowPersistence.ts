@@ -12,6 +12,8 @@
  */
 
 import { Node, Edge } from '@xyflow/react';
+import { logger } from '@/utils/logger';
+
 import { apiClient } from '../../../services/apiService';
 
 // ============================================================================
@@ -171,7 +173,7 @@ export const saveWorkflow = async (
   status: 'draft' | 'active' | 'archived' = 'draft'
 ): Promise<LoadWorkflowResponse> => {
   try {
-    console.log('💾 Saving workflow...', { name, nodes: nodes.length, edges: edges.length });
+    logger.debug('💾 Saving workflow...', { name, nodes: nodes.length, edges: edges.length });
     
     // Validate tenant context
     const tenantId = getTenantId();
@@ -196,19 +198,19 @@ export const saveWorkflow = async (
         `/tenant-workforms/${existingWorkflowId}/`,
         payload
       );
-      console.log('✅ Workflow updated:', response.data);
+      logger.debug('✅ Workflow updated:', response.data);
     } else {
       // Create new workflow (POST)
       response = await apiClient.post(
         `/tenant-workforms/`,
         payload
       );
-      console.log('✅ Workflow created:', response.data);
+      logger.debug('✅ Workflow created:', response.data);
     }
     
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error saving workflow:', error);
+    logger.error('❌ Error saving workflow:', error);
     
     // Enhanced error handling with user-friendly messages
     if (error.response?.status === 401) {
@@ -288,7 +290,7 @@ export const loadWorkflow = async (
       
     );
     
-    console.log('✅ Workflow loaded:', response.data);
+    logger.debug('✅ Workflow loaded:', response.data);
     
     // Reconstruct parent-child relationships
     if (response.data.workflow_definition?.nodes) {
@@ -299,7 +301,7 @@ export const loadWorkflow = async (
     
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error loading workflow:', error);
+    logger.error('❌ Error loading workflow:', error);
     
     if (error.response) {
       throw new Error(`Load failed: ${error.response.data?.error || error.response.statusText}`);
@@ -340,10 +342,10 @@ export const listWorkflows = async (
     // Extract results array from pagination wrapper
     const workflows = response.data.results || response.data;
     
-    console.log(`✅ Loaded ${workflows.length} workflows`);
+    logger.debug(`✅ Loaded ${workflows.length} workflows`);
     return workflows;
   } catch (error: any) {
-    console.error('❌ Error listing workflows:', error);
+    logger.error('❌ Error listing workflows:', error);
     
     if (error.response) {
       throw new Error(`List failed: ${error.response.data?.error || error.response.statusText}`);
@@ -368,9 +370,9 @@ export const deleteWorkflow = async (workflowId: string): Promise<void> => {
       `/tenant-workforms/${workflowId}/`,
       
     );
-    console.log('✅ Workflow deleted:', workflowId);
+    logger.debug('✅ Workflow deleted:', workflowId);
   } catch (error: any) {
-    console.error('❌ Error deleting workflow:', error);
+    logger.error('❌ Error deleting workflow:', error);
     
     if (error.response) {
       throw new Error(`Delete failed: ${error.response.data?.error || error.response.statusText}`);
@@ -404,10 +406,10 @@ export const validateWorkflow = async (
       
     );
     
-    console.log('✅ Workflow validation:', response.data);
+    logger.debug('✅ Workflow validation:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error validating workflow:', error);
+    logger.error('❌ Error validating workflow:', error);
     throw error;
   }
 };
@@ -441,7 +443,7 @@ export const listContainers = async (
     
     return response.data.containers || [];
   } catch (error: any) {
-    console.error('❌ Error listing containers:', error);
+    logger.error('❌ Error listing containers:', error);
     throw error;
   }
 };
@@ -474,7 +476,7 @@ export const getContainerDetails = async (
     
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error getting container details:', error);
+    logger.error('❌ Error getting container details:', error);
     throw error;
   }
 };

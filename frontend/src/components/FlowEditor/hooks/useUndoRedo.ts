@@ -21,6 +21,8 @@
  */
 
 import { useCallback, useRef } from 'react';
+import { logger } from '@/utils/logger';
+
 import { Node, Edge } from 'reactflow';
 import useUndo from 'use-undo';
 
@@ -142,7 +144,7 @@ export const useUndoRedo = (
             setUndoState(pendingStateRef.current);
 
             if (debug) {
-              console.log('[useUndoRedo] State snapshot created:', {
+              logger.debug('[useUndoRedo] State snapshot created:', {
                 nodes: pendingStateRef.current.nodes.length,
                 edges: pendingStateRef.current.edges.length,
               });
@@ -164,7 +166,7 @@ export const useUndoRedo = (
       undoAction();
 
       if (debug) {
-        console.log('[useUndoRedo] Undo performed');
+        logger.debug('[useUndoRedo] Undo performed');
       }
     }
   }, [canUndoState, debug, undoAction]);
@@ -177,7 +179,7 @@ export const useUndoRedo = (
       redoAction();
 
       if (debug) {
-        console.log('[useUndoRedo] Redo performed');
+        logger.debug('[useUndoRedo] Redo performed');
       }
     }
   }, [canRedoState, debug, redoAction]);
@@ -190,7 +192,7 @@ export const useUndoRedo = (
       resetAction(newInitialState);
 
       if (debug) {
-        console.log('[useUndoRedo] History reset');
+        logger.debug('[useUndoRedo] History reset');
       }
     },
     [debug, resetAction]
@@ -203,7 +205,7 @@ export const useUndoRedo = (
     resetAction(undoState.present);
 
     if (debug) {
-      console.log('[useUndoRedo] History cleared');
+      logger.debug('[useUndoRedo] History cleared');
     }
   }, [debug, resetAction, undoState.present]);
 

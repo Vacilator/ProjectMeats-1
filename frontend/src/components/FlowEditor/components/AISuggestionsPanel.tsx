@@ -7,11 +7,13 @@
  * Created: 2026-02-26 - Advanced Features
  */
 
-import React, { useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
+import { Skeleton } from 'antd';
 import { AINodeSuggestionService, NodeSuggestion } from '@/services/aiNodeSuggestionService';
-import { Sparkles, Plus, TrendingUp } from 'lucide-react';
+import { Sparkles, Plus, TrendingUp, Zap, AlertCircle } from 'lucide-react';
+import { workformsApi } from '@/services/workformsApi';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -183,6 +185,58 @@ const EmptyState = styled.div`
   }
 `;
 
+const LoadingState = styled.div`
+  padding: 16px;
+`;
+
+const ModeBadge = styled.span<{ $mode: 'ai' | 'static' }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 8px;
+  background: ${props => props.$mode === 'ai' 
+    ? 'rgba(147, 51, 234, 0.1)' 
+    : 'rgba(59, 130, 246, 0.1)'};
+  color: ${props => props.$mode === 'ai' 
+    ? 'rgb(147, 51, 234)' 
+    : 'rgb(59, 130, 246)'};
+  
+  svg {
+    color: inherit;
+  }
+`;
+
+const ErrorState = styled.div`
+  padding: 24px 16px;
+  text-align: center;
+  
+  svg {
+    color: rgb(239, 68, 68);
+    margin-bottom: 8px;
+  }
+  
+  .message {
+    font-size: 12px;
+    color: rgb(var(--color-text-secondary));
+    margin-bottom: 8px;
+  }
+  
+  .retry {
+    font-size: 12px;
+    color: rgb(var(--color-primary));
+    cursor: pointer;
+    text-decoration: underline;
+    
+    &:hover {
+      color: rgb(var(--color-primary-hover));
+    }
+  }
+`;
+
 const AddIcon = styled.div`
   display: flex;
   align-items: center;
@@ -210,13 +264,85 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   onAddNode,
   isVisible = true,
 }) => {
-  // Generate suggestions based on current workflow
-  const suggestions = useMemo(() => {
-    return AINodeSuggestionService.getSuggestions(nodes, edges, selectedNodeId);
+  const [suggestions, setSuggestions] = useState<NodeSuggestion[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'ai' | 'static'>('ai');
+  const [isCached, setIsCached] = useState(false);
+  
+  // Fetch AI suggestions when workflow changes
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (nodes.length === 0) {
+        // Use local AI service for empty workflows
+        const localSuggestions = AINodeSuggestionService.getSuggestions(nodes, edges, selectedNodeId);
+        setSuggestions(localSuggestions);
+        setMode('static');
+        return;
+      }
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Call backend API for AI-powered suggestions
+        const response = await workformsApi.post('/suggest-nodes/', {
+          current_flow: {
+            nodes: nodes.map(n => ({ id: n.id, type: n.type, data: n.data })),
+            edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })),
+            selected_node: selectedNodeId
+          },
+          context: {
+            node_count: nodes.length,
+            edge_count: edges.length,
+            has_selection: !!selectedNodeId
+          }
+        });
+        
+        const { suggestions: apiSuggestions, confidence, mode: responseMode, cached } = response.data;
+        
+        // Convert API suggestions to NodeSuggestion format
+        const formattedSuggestions: NodeSuggestion[] = apiSuggestions.map((s: any) => ({
+          nodeType: s.type || 'basic',
+          label: s.label,
+          description: s.description,
+          reason: s.reasoning || s.reason || 'Recommended based on workflow context',
+          confidence: s.confidence || confidence || 0.7,
+          position: s.position
+        }));
+        
+        setSuggestions(formattedSuggestions);
+        setMode(responseMode);
+        setIsCached(cached || false);
+        setError(null);
+        
+      } catch (err: any) {
+        console.error('Failed to fetch AI suggestions:', err);
+        
+        // Graceful degradation: Use local AI service
+        const fallbackSuggestions = AINodeSuggestionService.getSuggestions(nodes, edges, selectedNodeId);
+        setSuggestions(fallbackSuggestions);
+        setMode('static');
+        setError(err.response?.data?.reason || 'Using static suggestions');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    // Debounce API calls
+    const timeoutId = setTimeout(fetchSuggestions, 500);
+    
+    return () => clearTimeout(timeoutId);
   }, [nodes, edges, selectedNodeId]);
   
   const handleAddNode = (suggestion: NodeSuggestion) => {
     onAddNode(suggestion.nodeType, suggestion.position);
+  };
+  
+  const handleRetry = () => {
+    // Force re-fetch by clearing suggestions
+    setSuggestions([]);
+    setError(null);
   };
   
   const formatConfidence = (confidence: number): string => {
@@ -229,16 +355,41 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         <HeaderTitle>
           <Sparkles size={16} />
           AI Suggestions
+          {mode && (
+            <ModeBadge $mode={mode}>
+              {mode === 'ai' ? <Zap size={10} /> : <AlertCircle size={10} />}
+              {mode === 'ai' ? 'AI' : 'Static'}
+            </ModeBadge>
+          )}
+          {isCached && (
+            <ModeBadge $mode="static">
+              Cached
+            </ModeBadge>
+          )}
         </HeaderTitle>
         <HeaderSubtitle>
-          {suggestions.length > 0 
-            ? 'Intelligent next steps for your workflow'
-            : 'Build your workflow to see suggestions'}
+          {isLoading 
+            ? 'Analyzing workflow...'
+            : suggestions.length > 0 
+              ? 'Intelligent next steps for your workflow'
+              : 'Build your workflow to see suggestions'}
         </HeaderSubtitle>
       </Header>
       
       <SuggestionsList>
-        {suggestions.length === 0 ? (
+        {isLoading ? (
+          <LoadingState>
+            <Skeleton active paragraph={{ rows: 3 }} />
+          </LoadingState>
+        ) : error && suggestions.length === 0 ? (
+          <ErrorState>
+            <AlertCircle size={24} />
+            <div className="message">{error}</div>
+            <div className="retry" onClick={handleRetry}>
+              Retry
+            </div>
+          </ErrorState>
+        ) : suggestions.length === 0 ? (
           <EmptyState>
             <Sparkles size={32} />
             <div className="message">
