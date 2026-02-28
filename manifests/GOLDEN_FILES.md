@@ -47,6 +47,21 @@ ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
 - No shared secrets except `SSH_PASSWORD` (UAT/Prod only)
 - All lanes accessible via `.github/workflows/98-ops-db-surgery.yml`
 
+## Network Routing
+
+**API Routing Standard**: The API is served via the `/api/v1` sub-path on the primary domain. **No separate API subdomains are used.**
+
+**Examples**:
+- Development: `https://dev.meatscentral.com/api/v1/`
+- UAT: `https://uat.meatscentral.com/api/v1/`
+- Production: `https://meatscentral.com/api/v1/`
+
+**Implementation**:
+- Frontend: Nginx proxies `/api/v1/*` to backend container (port 8000)
+- Backend: Django serves all API endpoints under `/api/v1/` prefix
+- OAuth: Redirect URIs use primary domain + `/api/v1/integrations/oauth/callback/`
+- Configuration: `REACT_APP_API_BASE_URL` in `manifests/env.manifest.json`
+
 ## Infrastructure Connectivity (Trinity of Services)
 
 **Diagnostic Tool**: `backend/scripts/infrastructure_diagnostics.py`

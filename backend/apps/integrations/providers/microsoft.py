@@ -15,6 +15,7 @@ from .base import (
     AuthUrlResponse,
     TokenResponse,
 )
+from ..microsoft.utils import get_microsoft_redirect_uri
 
 
 class MicrosoftGraphProvider(EmailProvider):
@@ -57,7 +58,12 @@ class MicrosoftGraphProvider(EmailProvider):
             )
     
     def get_auth_url(self, redirect_uri: str, state: str) -> AuthUrlResponse:
-        """Generate Microsoft OAuth2 authorization URL"""
+        """
+        Generate Microsoft OAuth2 authorization URL.
+        
+        Note: redirect_uri should be constructed using get_microsoft_redirect_uri()
+        to ensure /api/v1 sub-path routing (no api. subdomain prefix).
+        """
         params = {
             "client_id": self.client_id,
             "response_type": "code",
