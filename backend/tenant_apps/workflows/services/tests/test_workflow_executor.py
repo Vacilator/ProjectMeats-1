@@ -6,12 +6,13 @@ from unittest.mock import Mock, patch
 from django.test import TestCase
 from django.utils import timezone
 
-from workflows.models import TenantWorkflow, TenantWorkflowAction, WorkflowExecutionLog
-from workflows.services.workflow_executor import (
+from tenant_apps.workflows.models import TenantWorkflow, TenantWorkflowAction, WorkflowExecutionLog
+from tenant_apps.workflows.services.workflow_executor import (
     WorkflowExecutor,
     WorkflowExecutionError,
     execute_workflow
 )
+from apps.tenants.models import Tenant
 
 
 class WorkflowExecutorTestCase(TestCase):

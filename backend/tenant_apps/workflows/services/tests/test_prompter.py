@@ -6,7 +6,7 @@ import json
 from unittest.mock import Mock
 
 from django.test import TestCase
-from workflows.services.prompter import AIPrompter
+from tenant_apps.workflows.services.prompter import AIPrompter
 
 
 class AIPrompterTestCase(TestCase):
