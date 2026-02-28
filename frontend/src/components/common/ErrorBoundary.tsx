@@ -12,6 +12,7 @@ import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { Result, Button, Typography, Card, Space, Collapse } from 'antd';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { logger } from '../../utils/logger';
+import { captureSentryException } from '../../utils/sentry';
 
 const { Paragraph, Text } = Typography;
 const { Panel } = Collapse;
@@ -70,19 +71,21 @@ export class ErrorBoundary extends Component<Props, State> {
       }
     );
 
+    // Send to Sentry
+    captureSentryException(error, {
+      component: 'ErrorBoundary',
+      metadata: {
+        errorCount: this.state.errorCount + 1,
+        componentStack: errorInfo.componentStack,
+        resetKeys: this.props.resetKeys,
+      }
+    });
+
     // Call custom error handler
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-
-    // TODO: Send to Sentry
-    // if (window.Sentry) {
-    //   window.Sentry.captureException(error, {
-    //     contexts: {
-    //       react: {
-    //         componentStack: errorInfo.componentStack
-    //       }
-    //     }
+  }
     //   });
     // }
   }

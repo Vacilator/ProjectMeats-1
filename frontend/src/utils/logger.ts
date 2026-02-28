@@ -98,7 +98,21 @@ class Logger {
   warn(message: string, context?: LogContext, data?: any): void {
     if (!this.shouldLog('warn')) return;
     this.logToConsole('warn', message, context, data);
-    // TODO: Send to Sentry in production
+    
+    // Send to Sentry in production
+    if (!this.isDevelopment && typeof window !== 'undefined' && (window as any).Sentry) {
+      (window as any).Sentry.captureMessage(message, {
+        level: 'warning',
+        tags: {
+          component: context?.component,
+          tenant: context?.tenant,
+        },
+        extra: {
+          ...context?.metadata,
+          data,
+        },
+      });
+    }
   }
 
   /**
@@ -107,7 +121,34 @@ class Logger {
   error(message: string, context?: LogContext, data?: any): void {
     if (!this.shouldLog('error')) return;
     this.logToConsole('error', message, context, data);
-    // TODO: Send to Sentry in production
+    
+    // Send to Sentry in production
+    if (!this.isDevelopment && typeof window !== 'undefined' && (window as any).Sentry) {
+      if (data instanceof Error) {
+        (window as any).Sentry.captureException(data, {
+          tags: {
+            component: context?.component,
+            tenant: context?.tenant,
+          },
+          extra: {
+            message,
+            ...context?.metadata,
+          },
+        });
+      } else {
+        (window as any).Sentry.captureMessage(message, {
+          level: 'error',
+          tags: {
+            component: context?.component,
+            tenant: context?.tenant,
+          },
+          extra: {
+            ...context?.metadata,
+            data,
+          },
+        });
+      }
+    }
   }
 
   /**

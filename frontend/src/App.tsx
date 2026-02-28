@@ -17,6 +17,10 @@ import { SessionManagerProvider } from './contexts/SessionManagerContext';
 import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
 import './i18n/config'; // Initialize i18n
+import { initSentry } from './utils/sentry'; // Initialize Sentry
+
+// Initialize Sentry for error tracking and performance monitoring
+initSentry();
 
 // Create QueryClient for data fetching (React Query)
 const queryClient = new QueryClient({
