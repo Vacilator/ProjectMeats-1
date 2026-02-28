@@ -47,6 +47,44 @@ ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
 - No shared secrets except `SSH_PASSWORD` (UAT/Prod only)
 - All lanes accessible via `.github/workflows/98-ops-db-surgery.yml`
 
+## Infrastructure Connectivity (Trinity of Services)
+
+**Diagnostic Tool**: `backend/scripts/infrastructure_diagnostics.py`
+
+| Service | Dev Status | UAT Status | Prod Status | Purpose |
+|---------|-----------|-----------|-------------|---------|
+| **Redis** | ⏳ Pending Audit | ⏳ Not Configured | ⏳ Not Configured | Caching, real-time features, AI response caching |
+| **OpenAI** | ⏳ Pending Audit | ⏳ Not Configured | ⏳ Not Configured | AI-powered workflow suggestions, field recommendations |
+| **Sentry** | ⏳ Pending Audit | ⏳ Not Configured | ⏳ Not Configured | Real-time error tracking, APM, performance monitoring |
+
+**Status Definitions**:
+- ✅ **Verified**: Connectivity test passed, service operational
+- ⏳ **Pending Audit**: Credentials configured, awaiting diagnostic run
+- ⚠️ **Degraded**: Service reachable but with issues
+- ❌ **Failed**: Connection failed or credentials invalid
+- 🔒 **Not Configured**: Credentials not yet added to GitHub Secrets
+
+**Run Diagnostics**:
+```bash
+# Via Ops Surgery Workflow (recommended)
+gh workflow run 98-ops-db-surgery.yml \
+  -f environment=dev-backend \
+  -f type=shell \
+  -f script="python scripts/infrastructure_diagnostics.py"
+
+# Locally in Django shell
+cd backend
+python scripts/infrastructure_diagnostics.py
+```
+
+**Verification Criteria**:
+- **Redis**: Successfully stores and retrieves test value with 30s TTL
+- **OpenAI**: API handshake succeeds, model list returned
+- **Sentry**: DSN loaded, test event captured
+
+**Last Audit**: Not yet run  
+**Next Audit**: Scheduled after user configures external services
+
 ## AI Agent Protocol
 
 1. **Check this directory FIRST** before making assumptions
