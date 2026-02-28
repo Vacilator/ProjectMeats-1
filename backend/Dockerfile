@@ -70,6 +70,9 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY backend/ ./
 
+# Copy environment manifest for audit_secrets command
+COPY config/env.manifest.json /app/config/env.manifest.json
+
 RUN mkdir -p /app/staticfiles /app/media
 
 RUN useradd -m appuser && chown -R appuser:appuser /app
