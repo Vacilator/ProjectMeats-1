@@ -78,6 +78,9 @@ import BillingPage from './pages/Admin/Billing';
 import ActivityPage from './pages/Admin/Activity';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
+import { PerformanceOverlay } from './components/common/PerformanceOverlay';
+import { logger } from './utils/logger';
 import { ReportBugButton } from './components/ReportBugButton';
 import CockpitPage from './pages/Cockpit';
 import { NotificationPreferences } from './pages/Settings/index';
@@ -118,7 +121,7 @@ const App: React.FC = () => {
     const isHardRefresh = !sessionStorage.getItem('appInitialized');
     
     if (isHardRefresh) {
-      console.log('[App] Hard refresh detected - clearing React Query cache');
+      logger.debug('[App] Hard refresh detected - clearing React Query cache', { component: 'App' });
       queryClient.clear();
       // Mark app as initialized in session
       sessionStorage.setItem('appInitialized', 'true');
@@ -132,7 +135,7 @@ const App: React.FC = () => {
       const lastTenantId = sessionStorage.getItem('currentTenantId');
       
       if (storedTenantId && lastTenantId && storedTenantId !== lastTenantId) {
-        console.log('[App] Tenant changed - clearing React Query cache');
+        logger.debug('[App] Tenant changed - clearing React Query cache', { component: 'App' });
         queryClient.clear();
         sessionStorage.setItem('currentTenantId', storedTenantId);
       }
@@ -183,7 +186,7 @@ const App: React.FC = () => {
 
       // Log for debugging (only in development)
       if (env === 'development' || env === 'dev') {
-        console.log(`[Environment] ${env} - Favicon: ${faviconPath}`);
+        logger.debug(`[Environment] ${env} - Favicon: ${faviconPath}`, { component: 'App' });
       }
     };
 
@@ -191,7 +194,20 @@ const App: React.FC = () => {
   }, []); // Run once on mount
 
   return (
-    <ErrorBoundary showDetails={false}>
+    <ProductionErrorBoundary
+      onError={(error, errorInfo) => {
+        // Log to our centralized logger
+        logger.error('App-level error caught', {
+          component: 'App',
+          metadata: {
+            componentStack: errorInfo.componentStack
+          }
+        }, {
+          message: error.message,
+          stack: error.stack
+        });
+      }}
+    >
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <AuthProvider>
@@ -331,6 +347,9 @@ const App: React.FC = () => {
             {/* Form Submission Modal - rendered at app level */}
             <FormSubmissionWrapper />
             
+            {/* Performance Monitoring Overlay (dev mode only) */}
+            <PerformanceOverlay />
+            
             {/* Global floating bug report button - always available */}
             <ReportBugButton variant="floating" />
           </NavigationProvider>
@@ -343,7 +362,7 @@ const App: React.FC = () => {
       </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>
-    </ErrorBoundary>
+    </ProductionErrorBoundary>
   );
 };
 

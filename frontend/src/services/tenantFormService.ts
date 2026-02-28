@@ -9,6 +9,8 @@
  */
 
 import { Node, Edge } from '@xyflow/react';
+import { logger } from '@/utils/logger';
+
 import { adminClient } from './apiService';
 import { FormProcessGroupData } from '../components/FlowEditor/nodes/FormProcessGroupNode';
 
@@ -149,7 +151,7 @@ export async function saveFormProcessGroup(
   allNodes: Node[],
   allEdges: Edge[]
 ): Promise<SaveFormResult> {
-  console.log('[TenantFormService] Saving FormProcessGroup:', groupNode.id);
+  logger.debug('[TenantFormService] Saving FormProcessGroup:', groupNode.id);
   
   // Extract child nodes
   const childNodes = getChildNodes(groupNode.id, allNodes);
@@ -192,7 +194,7 @@ export async function saveFormProcessGroup(
     
     if (existingFormId) {
       // Update existing form (increments version automatically)
-      console.log('[TenantFormService] Updating existing form:', existingFormId);
+      logger.debug('[TenantFormService] Updating existing form:', existingFormId);
       response = await adminClient.patch(`/core/tenant-forms/${existingFormId}/`, tenantFormData);
       
       return {
@@ -202,7 +204,7 @@ export async function saveFormProcessGroup(
       };
     } else {
       // Create new form
-      console.log('[TenantFormService] Creating new form');
+      logger.debug('[TenantFormService] Creating new form');
       response = await adminClient.post('/core/tenant-forms/', tenantFormData);
       
       return {
@@ -212,7 +214,7 @@ export async function saveFormProcessGroup(
       };
     }
   } catch (error: any) {
-    console.error('[TenantFormService] Save failed:', error);
+    logger.error('[TenantFormService] Save failed:', error);
     throw new Error(`Failed to save form: ${error.response?.data?.detail || error.message}`);
   }
 }
@@ -224,13 +226,13 @@ export async function saveFormProcessGroup(
  * @returns TenantForm data
  */
 export async function loadTenantForm(tenantFormId: string): Promise<TenantForm> {
-  console.log('[TenantFormService] Loading TenantForm:', tenantFormId);
+  logger.debug('[TenantFormService] Loading TenantForm:', tenantFormId);
   
   try {
     const response = await adminClient.get(`/core/tenant-forms/${tenantFormId}/`);
     return response.data;
   } catch (error: any) {
-    console.error('[TenantFormService] Load failed:', error);
+    logger.error('[TenantFormService] Load failed:', error);
     throw new Error(`Failed to load form: ${error.response?.data?.detail || error.message}`);
   }
 }
@@ -241,12 +243,12 @@ export async function loadTenantForm(tenantFormId: string): Promise<TenantForm> 
  * @param tenantFormId - UUID of the TenantForm
  */
 export async function deleteTenantForm(tenantFormId: string): Promise<void> {
-  console.log('[TenantFormService] Deleting TenantForm:', tenantFormId);
+  logger.debug('[TenantFormService] Deleting TenantForm:', tenantFormId);
   
   try {
     await adminClient.delete(`/core/tenant-forms/${tenantFormId}/`);
   } catch (error: any) {
-    console.error('[TenantFormService] Delete failed:', error);
+    logger.error('[TenantFormService] Delete failed:', error);
     throw new Error(`Failed to delete form: ${error.response?.data?.detail || error.message}`);
   }
 }
@@ -257,13 +259,13 @@ export async function deleteTenantForm(tenantFormId: string): Promise<void> {
  * @returns Array of TenantForms
  */
 export async function listTenantForms(): Promise<TenantForm[]> {
-  console.log('[TenantFormService] Listing TenantForms');
+  logger.debug('[TenantFormService] Listing TenantForms');
   
   try {
     const response = await adminClient.get('/core/tenant-forms/');
     return response.data.results || response.data;
   } catch (error: any) {
-    console.error('[TenantFormService] List failed:', error);
+    logger.error('[TenantFormService] List failed:', error);
     throw new Error(`Failed to list forms: ${error.response?.data?.detail || error.message}`);
   }
 }
@@ -284,7 +286,7 @@ export function autoRepairEdges(
   allNodes: Node[],
   allEdges: Edge[]
 ): Edge[] {
-  console.log('[TenantFormService] Auto-repairing edges after node deletion:', deletedNodeId);
+  logger.debug('[TenantFormService] Auto-repairing edges after node deletion:', deletedNodeId);
   
   // Find edges connected to deleted node
   const incomingEdge = allEdges.find(edge => edge.target === deletedNodeId);
@@ -310,14 +312,14 @@ export function autoRepairEdges(
     };
     
     updatedEdges.push(bridgeEdge);
-    console.log('[TenantFormService] Bridged gap with new edge:', bridgeEdge.id);
+    logger.debug('[TenantFormService] Bridged gap with new edge:', bridgeEdge.id);
   }
   
   // Renumber remaining child nodes
   const remainingChildren = getChildNodes(groupNodeId, allNodes)
     .filter(node => node.id !== deletedNodeId);
   
-  console.log(`[TenantFormService] ${remainingChildren.length} child nodes remaining`);
+  logger.debug(`[TenantFormService] ${remainingChildren.length} child nodes remaining`);
   
   return updatedEdges;
 }

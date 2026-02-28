@@ -11,6 +11,8 @@
  */
 
 import { NodeConfigSchema } from './types';
+import { logger } from '@/utils/logger';
+
 import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Zap, Calendar, Webhook, Clock, FileSignature, Upload, Archive, AlertCircle } from 'lucide-react';
 
 /**
@@ -385,7 +387,7 @@ export const formSchema: NodeConfigSchema = {
           onClick: (nodeId: string, nodeData: any) => {
             // This onClick will be wrapped by DynamicConfigPanel to inject FormBuilderContext
             // See: DynamicConfigPanel.tsx for context injection
-            console.log('[FormBuilder] Button clicked - context injection required');
+            logger.debug('[FormBuilder] Button clicked - context injection required');
             return { nodeId, nodeData, nodeType: 'form' };
           }
         },
@@ -562,7 +564,7 @@ export const formProcessSchema: NodeConfigSchema = {
           onClick: (nodeId: string, nodeData: any) => {
             // This onClick will be wrapped by DynamicConfigPanel to inject FormBuilderContext
             // See: DynamicConfigPanel.tsx for context injection
-            console.log('[FormBuilder] Button clicked - context injection required');
+            logger.debug('[FormBuilder] Button clicked - context injection required');
             return { nodeId, nodeData, nodeType: 'formProcessGroup' };
           }
         },
@@ -1018,7 +1020,7 @@ schemaRegistry.register({
   description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
 }, true); // Allow overwrite
 
-console.log('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
+logger.debug('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
 
 // ============================================================================
 // Phase 2: Trigger Node Schema (Unified Entry Point)
@@ -1342,7 +1344,7 @@ export const triggerSchema: NodeConfigSchema = {
 
 // Register trigger schema
 schemaRegistry.register(triggerSchema);
-console.log('[Schema Registry] Registered triggerSchema');
+logger.debug('[Schema Registry] Registered triggerSchema');
 
 // ============================================================================
 // Phase 2: Document Node Schemas
@@ -1698,7 +1700,7 @@ schemaRegistry.register(documentSignSchema);
 schemaRegistry.register(documentUploadSchema);
 schemaRegistry.register(documentStoreSchema);
 
-console.log('[Schema Registry] Registered document schemas (generate, sign, upload, store)');
+logger.debug('[Schema Registry] Registered document schemas (generate, sign, upload, store)');
 
 // ============================================================================
 // Logic & Control Flow Schemas (2026-02-21 - Quick Wins)
@@ -4124,6 +4126,6 @@ export const subWorkflowSchema: NodeConfigSchema = {
 // All schemas are now included in the main allSchemas array above
 // and will be initialized automatically via schemaRegistry.initialize(allSchemas)
 
-console.log(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
+logger.debug(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
 
 // Cache bust: 1771875847

@@ -23,6 +23,8 @@
  */
 
 import React, { useCallback, useMemo, useEffect, useState } from 'react';
+import { logger } from '@/utils/logger';
+
 import styled from 'styled-components';
 import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
@@ -381,7 +383,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Debug logging
-  console.log('[FormProcessGroup] Rendered with ID:', id, 'Data:', data);
+  logger.debug('[FormProcessGroup] Rendered with ID:', id, 'Data:', data);
   
   // ============================================================================
   // Derived State
@@ -392,7 +394,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
    */
   const childNodes = useMemo(() => {
     const children = allNodes.filter(node => node.parentId === id);
-    console.log('[FormProcessGroup] Children found:', children.length, 'IDs:', children.map(c => c.id));
+    logger.debug('[FormProcessGroup] Children found:', children.length, 'IDs:', children.map(c => c.id));
     return children;
   }, [allNodes, id]);
   
@@ -403,7 +405,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   const isDropTarget = data.isDropTarget ?? false; // Phase 3: Drop zone indicator
   const sequentialExecution = data.sequentialExecution ?? true; // Phase 3: Sequential by default
   
-  console.log(`[FormProcessGroup] ${id} rendered with ${stepCount} steps (expanded: ${isExpanded})`);
+  logger.debug(`[FormProcessGroup] ${id} rendered with ${stepCount} steps (expanded: ${isExpanded})`);
 
   
   // ============================================================================
@@ -466,11 +468,11 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
         throw new Error('Node not found');
       }
       
-      console.log('[FormProcessGroup] Saving to backend:', id);
+      logger.debug('[FormProcessGroup] Saving to backend:', id);
       
       const result = await saveFormProcessGroup(currentNode, allNodes, allEdges);
       
-      console.log('[FormProcessGroup] Saved successfully:', result);
+      logger.debug('[FormProcessGroup] Saved successfully:', result);
       
       // Update node data with tenantFormId and version
       setNodes((nodes) =>
@@ -500,7 +502,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       );
       
     } catch (error: any) {
-      console.error('[FormProcessGroup] Save failed:', error);
+      logger.error('[FormProcessGroup] Save failed:', error);
       toast.error(`Save failed: ${error.message}`);
     } finally {
       setIsSaving(false);
@@ -563,11 +565,11 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       [...expectedEdgeIds].some(id => !currentEdgeIds.has(id));
     
     if (!needsUpdate) {
-      console.log(`[FormProcessGroup] Auto-connect: edges already correct, skipping update`);
+      logger.debug(`[FormProcessGroup] Auto-connect: edges already correct, skipping update`);
       return;
     }
     
-    console.log(`[FormProcessGroup] Auto-connect: updating ${expectedEdgeIds.size} edges`);
+    logger.debug(`[FormProcessGroup] Auto-connect: updating ${expectedEdgeIds.size} edges`);
     
     // Create edges between consecutive nodes
     const newEdges: Edge[] = [];

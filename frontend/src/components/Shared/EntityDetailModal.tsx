@@ -21,6 +21,8 @@
  * ```
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { logger } from '@/utils/logger';
+
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
@@ -251,7 +253,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
         const response = await apiClient.get(`${config.apiPath}/${entityId}/`);
         setEntity(response.data);
       } catch (err: any) {
-        console.error(`Failed to fetch ${entityType}:`, err);
+        logger.error(`Failed to fetch ${entityType}:`, err);
         setError(err.response?.data?.detail || 'Failed to load entity details');
       } finally {
         setIsLoading(false);
@@ -288,7 +290,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
     // Fetch relationships
     setLoadingRelations(true);
     try {
-      console.log('[EntityDetailModal] Fetching relations for:', { entityType, entityId });
+      logger.debug('[EntityDetailModal] Fetching relations for:', { entityType, entityId });
       
       const response = await apiClient.get(
         `/entities/${entityType}/${entityId}/relationships/?counts=true`
@@ -311,7 +313,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
                 recent_items: itemsResponse.data.items || [],
               };
             } catch (err) {
-              console.error(`Failed to fetch ${rel.name}:`, err);
+              logger.error(`Failed to fetch ${rel.name}:`, err);
               return {
                 name: rel.name,
                 display_name: rel.display_name || rel.name,
@@ -332,7 +334,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
       setRelationships(relationshipsWithItems.filter(r => r.count > 0));
       setShowRelations(true);
     } catch (err: any) {
-      console.error('[EntityDetailModal] Failed to fetch relations:', err);
+      logger.error('[EntityDetailModal] Failed to fetch relations:', err);
       setError(err.response?.data?.detail || 'Failed to load related records');
     } finally {
       setLoadingRelations(false);
@@ -340,7 +342,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   }, [entityType, entityId, showRelations, relationships.length]);
 
   const handleViewFullDetails = () => {
-    console.log('[EntityDetailModal] View Full Details clicked', {
+    logger.debug('[EntityDetailModal] View Full Details clicked', {
       entityType,
       listRoute,
       entity,
@@ -349,11 +351,11 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
     
     // Navigate to list page
     if (listRoute) {
-      console.log(`[EntityDetailModal] Navigating to: ${listRoute}`);
+      logger.debug(`[EntityDetailModal] Navigating to: ${listRoute}`);
       onClose();
       navigate(listRoute);
     } else {
-      console.warn(`[EntityDetailModal] No route defined for entity type: ${entityType}`);
+      logger.warn(`[EntityDetailModal] No route defined for entity type: ${entityType}`);
     }
   };
 
@@ -482,7 +484,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
                   entityId={entityId}
                   entityName={entityName}
                   onEntityClick={(type, id, name) => {
-                    console.log('[EntityDetailModal] Mind Map entity clicked:', { type, id, name });
+                    logger.debug('[EntityDetailModal] Mind Map entity clicked:', { type, id, name });
                     if (onExpandEntity) {
                       onExpandEntity({
                         id,
@@ -514,7 +516,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
                             <RelationItemCard
                               key={item.id}
                               onClick={() => {
-                                console.log('[EntityDetailModal] Opening related item:', item);
+                                logger.debug('[EntityDetailModal] Opening related item:', item);
                                 // Could open nested modal or navigate
                                 if (onExpandEntity) {
                                   onExpandEntity({
