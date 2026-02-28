@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import TenantWorkflow, WorkflowExecutionLog
+from .services.workflow_executor import execute_workflow
 
 
 class WorkflowWebhookAPIView(APIView):
@@ -236,21 +237,14 @@ class WebhookReceiverAPIView(APIView):
         )
         
         try:
-            # TODO: Execute workflow actions
-            # For now, just mark as completed
-            execution_log.status = 'completed'
-            execution_log.completed_at = timezone.now()
-            execution_log.save(update_fields=['status', 'completed_at'])
-            
-            # Update workflow stats
-            workflow.last_run_at = timezone.now()
-            workflow.run_count += 1
-            workflow.save(update_fields=['last_run_at', 'run_count'])
+            # Execute workflow actions
+            result = execute_workflow(workflow, request.data, execution_log)
             
             return Response({
                 "message": "Webhook received and workflow executed successfully",
                 "execution_id": str(execution_log.id),
-                "status": "completed"
+                "status": result.get('status', 'completed'),
+                "actions_executed": result.get('actions_executed', 0)
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -323,21 +317,14 @@ class ManualTriggerAPIView(APIView):
         )
         
         try:
-            # TODO: Execute workflow actions
-            # For now, just mark as completed
-            execution_log.status = 'completed'
-            execution_log.completed_at = timezone.now()
-            execution_log.save(update_fields=['status', 'completed_at'])
-            
-            # Update workflow stats
-            workflow.last_run_at = timezone.now()
-            workflow.run_count += 1
-            workflow.save(update_fields=['last_run_at', 'run_count'])
+            # Execute workflow actions
+            result = execute_workflow(workflow, request.data, execution_log)
             
             return Response({
                 "message": "Workflow executed successfully",
                 "execution_id": str(execution_log.id),
-                "status": "completed"
+                "status": result.get('status', 'completed'),
+                "actions_executed": result.get('actions_executed', 0)
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
