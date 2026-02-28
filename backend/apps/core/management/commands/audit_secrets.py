@@ -40,9 +40,10 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS('\n=== Secret Audit Report ===\n'))
         
-        # Load manifest (moved to /manifests during repository consolidation)
-        project_root = Path(settings.BASE_DIR).parent
-        manifest_path = project_root / 'manifests' / 'env.manifest.json'
+        # Load manifest (repository root structure)
+        # BASE_DIR is /app/backend, go up two levels to reach /app
+        project_root = Path(settings.BASE_DIR).parent.parent
+        manifest_path = project_root / 'config' / 'env.manifest.json'
         
         if not manifest_path.exists():
             self.stdout.write(self.style.ERROR(f'❌ Manifest not found: {manifest_path}'))
