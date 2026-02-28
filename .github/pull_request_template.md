@@ -61,10 +61,9 @@ npm run test:e2e
 - [ ] **No database changes** in this PR
 - [ ] I have run `python manage.py makemigrations` locally
 - [ ] All new migration files are committed
-- [ ] Migration is idempotent (can be run multiple times safely)
+- [ ] **✅ Migration Idempotency Checked**: Uses `--fake-initial` safe patterns (MANDATORY)
 - [ ] Migration is reversible (`python manage.py migrate app_name previous_migration`)
 - [ ] I have tested migration on a fresh database
-- [ ] Migration uses `--fake-initial` safe pattern (if applicable)
 - [ ] Migration follows additive-only rule (no removed/renamed fields)
 
 **Migration plan verified:**
@@ -75,6 +74,7 @@ python manage.py migrate --plan
 ### Row-Level Security (RLS) Impact
 
 - [ ] **No RLS changes** in this PR
+- [ ] **✅ RLS Verified**: Checked `manifests/RLS_POLICIES.md` for compliance (MANDATORY for schema changes)
 - [ ] New tenant-aware model created → RLS policy added via `RunSQL`
 - [ ] RLS policy follows naming convention: `{tablename}_tenant_isolation`
 - [ ] Policy uses `current_setting('app.current_tenant')::uuid` pattern
@@ -144,7 +144,7 @@ psql -d projectmeats -c "SELECT tablename, policyname FROM pg_policies WHERE pol
 - [ ] README updated (if setup/deployment changes)
 - [ ] API documentation updated (if endpoints added/modified)
 - [ ] `docs/ARCHITECTURE.md` updated (if architectural changes)
-- [ ] `manifests/GOLDEN_FILES.md` updated (if adding new source of truth)
+- [ ] **✅ Manifest Updated**: Updated `manifests/GOLDEN_FILES.md` or related manifests (MANDATORY for config/schema changes)
 - [ ] Inline code comments added for complex logic
 
 ## ♿ Accessibility

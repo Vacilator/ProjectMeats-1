@@ -3108,6 +3108,9 @@ class SuggestNodesView(APIView):
     def post(self, request):
         """Generate workflow node suggestions."""
         from .services.prompter import AIPrompter
+        from django.core.cache import cache
+        import hashlib
+        import json
         
         try:
             prompter = AIPrompter()
@@ -3122,9 +3125,26 @@ class SuggestNodesView(APIView):
             current_flow = request.data.get('current_flow', {})
             context = request.data.get('context', {})
             
+            # Generate cache key based on flow state + context
+            cache_input = json.dumps({
+                'tenant_id': str(tenant.id),
+                'flow': current_flow,
+                'context': context
+            }, sort_keys=True)
+            cache_key = f"ai_suggestions_{hashlib.md5(cache_input.encode()).hexdigest()}"
+            
+            # Check Redis cache (10 minute TTL)
+            cached_result = cache.get(cache_key)
+            if cached_result:
+                logger.debug(f"Returning cached AI suggestions for tenant {tenant.id}")
+                cached_result['cached'] = True
+                return Response(cached_result)
+            
             # Try AI-powered suggestions
             try:
                 import os
+                from openai import OpenAI
+                
                 openai_key = os.environ.get('OPENAI_API_KEY')
                 
                 if not openai_key:
@@ -3137,12 +3157,45 @@ class SuggestNodesView(APIView):
                     additional_context=context
                 )
                 
-                # TODO: Call OpenAI API when credentials configured
-                # For now, fall back to static suggestions
-                raise NotImplementedError("OpenAI integration pending")
+                # Call OpenAI API
+                client = OpenAI(api_key=openai_key)
                 
-            except (ValueError, NotImplementedError, ConnectionError, Exception) as e:
-                # Graceful degradation: Return static suggestions
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",  # Fast, cost-effective model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a workflow automation expert. Suggest the next logical steps in a workflow."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.7,
+                    max_tokens=500,
+                    response_format={"type": "json_object"}
+                )
+                
+                # Parse AI response
+                ai_result = json.loads(response.choices[0].message.content)
+                
+                result = {
+                    'suggestions': ai_result.get('suggestions', []),
+                    'confidence': ai_result.get('confidence', 0.8),
+                    'mode': 'ai',
+                    'reasoning': ai_result.get('reasoning', ''),
+                    'cached': False
+                }
+                
+                # Cache for 10 minutes
+                cache.set(cache_key, result, 600)
+                
+                logger.info(f"AI suggestions generated for tenant {tenant.id}")
+                return Response(result)
+                
+            except (ValueError, ImportError) as e:
+                # Service not configured - graceful degradation
                 logger.info(f"AI suggestions unavailable ({e}), using static fallback")
                 fallback = prompter.get_fallback_suggestions(tenant, current_flow)
                 
@@ -3150,7 +3203,21 @@ class SuggestNodesView(APIView):
                     'suggestions': fallback['suggestions'],
                     'confidence': fallback['confidence'],
                     'mode': fallback['mode'],
-                    'reason': 'AI unavailable - using static templates'
+                    'reason': 'AI unavailable - using static templates',
+                    'cached': False
+                })
+            
+            except Exception as e:
+                # AI call failed - graceful degradation
+                logger.warning(f"AI call failed ({e}), using static fallback")
+                fallback = prompter.get_fallback_suggestions(tenant, current_flow)
+                
+                return Response({
+                    'suggestions': fallback['suggestions'],
+                    'confidence': fallback['confidence'],
+                    'mode': fallback['mode'],
+                    'reason': f'AI error: {str(e)[:100]}',
+                    'cached': False
                 })
                 
         except Exception as e:
