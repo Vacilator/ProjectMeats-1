@@ -23,12 +23,14 @@
 
 **For Migration Changes:**
 - [ ] **CRITICAL: Before creating a PR, always run `python manage.py makemigrations` locally. If new files are generated, they MUST be committed. The CI pipeline will now fail any PR that has unapplied migrations, detected via the new pre-commit hook.**
+- [ ] **CRITICAL: Before ANY schema change, verify RLS compliance against `manifests/RLS_POLICIES.md`**
 - [ ] Never modify applied migrations
 - [ ] Use minimal dependencies
 - [ ] Add `default=''` to CharField with `blank=True`
 - [ ] Test rollback: `python manage.py migrate <app> <previous>`
 - [ ] Document complex migrations with docstrings
 - [ ] Verify migration plan: `python manage.py migrate --plan`
+- [ ] If creating tenant-aware table, include RLS policy in migration with `RunSQL`
 
 **For Deployment Issues:**
 - [ ] If the deployment fails with "Unapplied migrations detected", the developer MUST run `git pull`, execute `python manage.py makemigrations`, commit the new file(s), and push to re-trigger the pipeline
