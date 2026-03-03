@@ -237,5 +237,8 @@ export const accountsReceivableApi = createEntityAPI<AccountsReceivable>('accoun
 export const plantsApi = createEntityAPI<Plant>('plants');
 export const carriersApi = createEntityAPI<Carrier>('carriers');
 
+// Export named client for consistent imports
+export const businessApi = businessApiClient;
+
 // Export default client
 export default businessApiClient;
