@@ -1736,13 +1736,29 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [nodeIdCounter, setNodeIdCounter] = useState(normalizedInitialNodes.length + 1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
+  // Keep ref to current nodes for stable callbacks
+  const nodesRef = useRef<Node[]>(nodes);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  
   // Selected node state (moved here to fix TDZ - used in useMemo at line ~1917)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   
-  // Trigger onChange when nodes or edges change
+  // Track last notified state to prevent infinite loops
+  const lastNotifiedStateRef = useRef<string>('');
+  
+  // Trigger onChange when nodes or edges change (with infinite loop protection)
   useEffect(() => {
-    if (onChange && nodes.length > 0) {
+    if (!onChange || nodes.length === 0) return;
+    
+    // Serialize current state for comparison
+    const currentState = JSON.stringify({ nodes, edges });
+    
+    // Only call onChange if state actually changed
+    if (currentState !== lastNotifiedStateRef.current) {
+      lastNotifiedStateRef.current = currentState;
       onChange(nodes, edges);
     }
   }, [nodes, edges, onChange]);
@@ -1771,7 +1787,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
   }, [nodes.length, edges.length]);
   
-  // Phase E: Wrap onNodesChange to handle container deletion
+  // Phase E: Wrap onNodesChange to handle container deletion (stable with ref)
   const onNodesChange = useCallback((changes: any[]) => {
     // Check if any containers are being removed
     const removedNodeIds = changes
@@ -1780,7 +1796,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     if (removedNodeIds.length > 0) {
       const removedContainerIds = removedNodeIds.filter(id => 
-        nodes.find(n => n.id === id && n.type === 'formMultiStepContainer')
+        nodesRef.current.find(n => n.id === id && n.type === 'formMultiStepContainer')
       );
       
       if (removedContainerIds.length > 0) {
@@ -1813,7 +1829,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     // Apply the original changes
     onNodesChangeBase(changes);
-  }, [nodes, setNodes, onNodesChangeBase]);
+  }, [setNodes, onNodesChangeBase]);
   
   // React Flow instance for viewport controls
   const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
