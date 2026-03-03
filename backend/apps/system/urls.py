@@ -25,6 +25,7 @@ from apps.system.views import (
     TenantProductPreferenceViewSet,
 )
 from apps.system.views.search_viewset import RankedSearchViewSet
+from apps.system.views.entity_viewset import EntityViewSet
 
 app_name = 'system'
 
@@ -35,7 +36,8 @@ router.register(r'field-schemas', SystemFieldSchemaViewSet, basename='field-sche
 router.register(r'tenant-configs', TenantConfigViewSet, basename='tenant-config')
 router.register(r'config', ConfigResolverView, basename='config')
 router.register(r'audit-logs', ConfigAuditLogViewSet, basename='audit-log')
-router.register(r'entities', EntityIntrospectionViewSet, basename='entity')
+router.register(r'entities-introspect', EntityIntrospectionViewSet, basename='entity-introspect')
+router.register(r'entities', EntityViewSet, basename='entity-graph')
 router.register(r'products', SystemProductViewSet, basename='product')
 router.register(r'product-preferences', TenantProductPreferenceViewSet, basename='product-preference')
 router.register(r'search/ranked', RankedSearchViewSet, basename='ranked-search')

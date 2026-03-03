@@ -360,6 +360,62 @@ const getEntityColor = (type: SearchEntity['type']) => {
   }
 };
 
+/**
+ * Format relationship type to human-readable title
+ */
+const formatRelationshipTitle = (relType: string): string => {
+  const titleMap: Record<string, string> = {
+    'purchase_orders': 'Purchase Orders',
+    'sales_orders': 'Sales Orders',
+    'contacts': 'Contacts',
+    'line_items': 'Line Items',
+    'supplier': 'Supplier',
+    'customer': 'Customer',
+    'products': 'Products',
+  };
+  return titleMap[relType] || relType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+};
+
+/**
+ * Get icon for relationship type
+ */
+const getRelationshipIcon = (relType: string) => {
+  switch (relType) {
+    case 'purchase_orders':
+    case 'sales_orders':
+      return <FileText size={16} />;
+    case 'contacts':
+      return <Users size={16} />;
+    case 'products':
+      return <Package size={16} />;
+    case 'line_items':
+      return <FileText size={16} />;
+    case 'supplier':
+      return <Building2 size={16} />;
+    case 'customer':
+      return <Users size={16} />;
+    default:
+      return <FileText size={16} />;
+  }
+};
+
+/**
+ * Format entity subtitle from metadata
+ */
+const formatEntitySubtitle = (item: any): string => {
+  // Use smart labels if available
+  if (item.metadata?.labels && item.metadata.labels.length > 0) {
+    return item.metadata.labels[0]; // Show first label
+  }
+  
+  // Fallback to common fields
+  if (item.subtitle) return item.subtitle;
+  if (item.status) return item.status;
+  if (item.quantity) return `Qty: ${item.quantity}`;
+  
+  return '';
+};
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -472,82 +528,43 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   }, [searchEntities]);
 
   /**
-   * Load relational chunks for an entity
+   * Load relational chunks for an entity using Entity Graph API
    */
   const loadRelationalChunks = useCallback(async (entity: SearchEntity) => {
     setIsLoading(true);
 
     try {
-      // Fetch related entities based on type
+      console.log('[SmartSearch] Loading relationships for:', entity);
+      
+      // Use unified Entity Graph API
+      const response = await apiClient.get(
+        `/system/entities/${entity.type}/${entity.id}/relationships/`
+      );
+      
+      console.log('[SmartSearch] Entity relationships:', response.data);
+      
       const chunks: RelationalChunk[] = [];
-
-      // Example: For a customer, fetch recent orders, calls, inquiries
-      if (entity.type === 'customer' || entity.type === 'supplier') {
-        // Recent orders
-        const ordersRes = await apiClient.get(`/${entity.type}s/${entity.id}/orders/`, {
-          params: { limit: 5 },
-        });
-        if (ordersRes.data.results?.length) {
-          chunks.push({
-            type: 'orders',
-            title: 'Recent Orders',
-            items: ordersRes.data.results.map((o: any) => ({
-              id: o.id,
-              type: 'order',
-              name: o.order_number || `Order #${o.id}`,
-              subtitle: o.status,
-              metadata: o,
-            })),
-            icon: <FileText size={16} />,
-          });
-        }
-
-        // Recent calls (if available)
-        try {
-          const callsRes = await apiClient.get(`/${entity.type}s/${entity.id}/calls/`, {
-            params: { limit: 5 },
-          });
-          if (callsRes.data.results?.length) {
-            chunks.push({
-              type: 'calls',
-              title: 'Recent Calls',
-              items: callsRes.data.results.map((c: any) => ({
-                id: c.id,
-                type: 'inquiry',
-                name: `Call on ${new Date(c.created_at).toLocaleDateString()}`,
-                subtitle: c.notes,
-                metadata: c,
-              })),
-              icon: <Phone size={16} />,
-            });
-          }
-        } catch (error) {
-          // Calls API may not exist yet
-        }
-
-        // Associates (contacts)
-        try {
-          const contactsRes = await apiClient.get(`/${entity.type}s/${entity.id}/contacts/`, {
-            params: { limit: 5 },
-          });
-          if (contactsRes.data.results?.length) {
-            chunks.push({
-              type: 'associates',
-              title: 'Contacts',
-              items: contactsRes.data.results.map((c: any) => ({
-                id: c.id,
-                type: 'contact',
-                name: c.name || `${c.first_name} ${c.last_name}`,
-                subtitle: c.title || c.email,
-                metadata: c,
-              })),
-              icon: <Users size={16} />,
-            });
-          }
-        } catch (error) {
-          // Contacts API may not exist yet
-        }
-      }
+      const { relationships, counts } = response.data;
+      
+      // Transform API relationships to chunks
+      Object.entries(relationships).forEach(([relType, items]: [string, any]) => {
+        if (!items || items.length === 0) return;
+        
+        const chunk: RelationalChunk = {
+          type: relType as any,
+          title: formatRelationshipTitle(relType),
+          items: items.map((item: any) => ({
+            id: item.id,
+            type: item.type,
+            name: item.title || item.name || `${item.type} #${item.id}`,
+            subtitle: formatEntitySubtitle(item),
+            metadata: item.metadata || {},
+          })),
+          icon: getRelationshipIcon(relType),
+        };
+        
+        chunks.push(chunk);
+      });
 
       setRelationalChunks(chunks);
     } catch (error) {
