@@ -95,7 +95,7 @@ class RateLimitMiddleware(MiddlewareMixin):
         Check rate limit for sensitive endpoints.
         """
         from django.core.cache import cache
-        from django.http import HttpResponseTooManyRequests
+        from django.http import HttpResponse
         
         # Only rate limit specific endpoints
         if request.path not in self.RATE_LIMIT_ENDPOINTS:
@@ -109,8 +109,9 @@ class RateLimitMiddleware(MiddlewareMixin):
         request_count = cache.get(cache_key, 0)
         
         if request_count >= self.RATE_LIMIT:
-            return HttpResponseTooManyRequests(
-                "Rate limit exceeded. Please try again later."
+            return HttpResponse(
+                "Rate limit exceeded. Please try again later.",
+                status=429
             )
         
         # Increment counter
