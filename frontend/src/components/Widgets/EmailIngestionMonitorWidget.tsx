@@ -271,7 +271,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
     if (!tenantId) return;
 
     setSyncing(true);
-    try:
+    try {
       await businessApi.post(`/tenants/${tenantId}/integrations/email/sync/`);
       
       // Refresh logs after 2 seconds
