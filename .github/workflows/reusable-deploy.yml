@@ -93,6 +93,12 @@ on:
       EMAIL_HOST_PASSWORD:
         required: false
         description: "SendGrid SMTP API key (from job environment - dev/uat/prod buckets)"
+      SENTRY_DSN:
+        required: false
+        description: "Sentry DSN for error tracking (from job environment)"
+      SENTRY_ENABLED:
+        required: false
+        description: "Enable/disable Sentry error tracking (from job environment)"
 
 env:
   REGISTRY: registry.digitalocean.com/meatscentral
@@ -752,6 +758,23 @@ jobs:
           
           echo ""
           echo "✓ Migrations completed successfully"
+          
+          echo ""
+          echo "================================"
+          echo "Collecting Static Files"
+          echo "================================"
+          
+          # Run collectstatic to prepare static files
+          docker run --rm \
+            --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e DJANGO_SETTINGS_MODULE="$DJANGO_SETTINGS_MODULE" \
+            -e SECRET_KEY="$DJANGO_SECRET_KEY" \
+            -e DB_ENGINE="django.db.backends.postgresql" \
+            "$FULL_IMAGE" \
+            python manage.py collectstatic --noinput --clear
+          
+          echo "✓ Static files collected"
       
       - name: Setup Superuser
         env:
@@ -868,6 +891,8 @@ jobs:
           	DB_ENGINE=django.db.backends.postgresql
           	SENDGRID_API_KEY=${{ secrets.EMAIL_HOST_PASSWORD }}
           	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
+          	SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          	SENTRY_ENABLED=${{ secrets.SENTRY_ENABLED }}
           	EOF
           
           # Verify SENDGRID_API_KEY is set (show length only for security)

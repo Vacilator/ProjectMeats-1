@@ -90,8 +90,16 @@ class ErrorBoundary extends Component<Props, State> {
       this.props.onError(error, errorInfo);
     }
 
-    // TODO: Send to error tracking service (Sentry, LogRocket, etc.)
-    // Example: Sentry.captureException(error, { extra: errorInfo });
+    // Send to Sentry if configured
+    if (typeof window !== 'undefined' && window.ENV?.SENTRY_DSN) {
+      const Sentry = require('@sentry/react');
+      Sentry.captureException(error, {
+        extra: {
+          componentStack: errorInfo.componentStack,
+          errorCount: this.state.errorCount + 1,
+        },
+      });
+    }
     
     // Optional: Send to backend telemetry endpoint
     this.sendToTelemetry(error, errorInfo);

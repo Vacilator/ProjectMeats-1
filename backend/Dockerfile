@@ -86,20 +86,11 @@ HEALTHCHECK --interval=30s --timeout=5s \
 
 # Start Gunicorn with debug logging, preload, and error handling
 # Use exec form for proper signal handling
-# CRITICAL: setup_superuser, seed_tenants, and collectstatic run on EVERY container start
+# NOTE: Heavy operations (setup_superuser, seed_tenants, collectstatic) moved to migration job
 CMD ["sh", "-c", "set -x && \
     echo \"Starting container at $(date)\" && \
     python manage.py check && \
-    echo \"Django check passed\" && \
-    echo \"Collecting static files...\" && \
-    python manage.py collectstatic --noinput --clear && \
-    echo \"Static files collected\" && \
-    echo \"Setting up superuser...\" && \
-    python manage.py setup_superuser && \
-    echo \"Superuser setup complete\" && \
-    echo \"Seeding test tenants for ${DJANGO_ENV:-development}...\" && \
-    python manage.py seed_tenants --count 3 --env ${DJANGO_ENV:-development} && \
-    echo \"Test tenant seeding complete\" && \
+    echo \"Django check passed - starting Gunicorn\" && \
     exec gunicorn projectmeats.wsgi:application \
       --bind 0.0.0.0:8000 \
       --workers ${GUNICORN_WORKERS:-3} \
