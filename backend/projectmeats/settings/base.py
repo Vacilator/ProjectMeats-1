@@ -174,6 +174,9 @@ MIDDLEWARE = [
     "apps.tenants.middleware.TenantMiddleware",  # Must be after AuthenticationMiddleware to access request.user
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Phase 9: Security Hardening
+    "apps.core.middleware.hardening.SecurityHardeningMiddleware",  # CSP, security headers
+    "apps.core.middleware.hardening.RateLimitMiddleware",  # Rate limiting for auth endpoints
 ]
 
 ROOT_URLCONF = "projectmeats.urls"
