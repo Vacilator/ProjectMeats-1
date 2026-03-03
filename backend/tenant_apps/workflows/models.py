@@ -301,8 +301,7 @@ class TenantFormVersion(TenantAwareModel):
         help_text="Whether this is the current active version"
     )
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    # NOTE: created_on, modified_on, tenant, and custom_data are inherited from TenantAwareModel
     
     class Meta:
         verbose_name = "Form Version"
