@@ -384,6 +384,21 @@ class TenantFormField(TenantAwareModel):
         help_text="Validation rules: min_length, max_length, pattern, min, max, etc."
     )
     
+    # Phase 2.5: Enhanced Inheritance with Type Checking
+    inherit_from_parent = models.BooleanField(
+        default=False,
+        help_text='Inherit validation rules from parent entity field definition'
+    )
+    strict_type_checking = models.BooleanField(
+        default=True,
+        help_text='Enforce strict type validation based on field_type'
+    )
+    computed_validation = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Computed validation rules inherited from entity model'
+    )
+    
     class Meta:
         verbose_name = "Form Field"
         verbose_name_plural = "Form Fields"

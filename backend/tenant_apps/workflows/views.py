@@ -1144,6 +1144,63 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             qs = qs.filter(form_entity_id=entity_id)
 
         return qs.order_by("order")
+    
+    @action(detail=True, methods=['post'], url_path='validate-value')
+    def validate_value(self, request, pk=None):
+        """
+        Validate a value against field's type and validation rules (Phase 2.5).
+        
+        POST /api/v1/form-fields/{field_id}/validate-value/
+        Body: {"value": "test@example.com"}
+        
+        Returns:
+            200: {"valid": true, "errors": []}
+            200: {"valid": false, "errors": ["Error message"]}
+        """
+        from tenant_apps.workflows.services.inheritance import FieldInheritanceService
+        
+        field = self.get_object()
+        value = request.data.get('value')
+        
+        result = FieldInheritanceService.validate_field_value(field, value)
+        return Response(result, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], url_path='sync-validation')
+    def sync_validation(self, request, pk=None):
+        """
+        Sync computed validation from entity model (Phase 2.5).
+        
+        POST /api/v1/form-fields/{field_id}/sync-validation/
+        
+        Returns:
+            200: {"computed_validation": {...}, "message": "Synced"}
+        """
+        from tenant_apps.workflows.services.inheritance import FieldInheritanceService
+        
+        field = self.get_object()
+        FieldInheritanceService.sync_computed_validation(field)
+        
+        return Response({
+            'computed_validation': field.computed_validation,
+            'message': 'Validation rules synced from entity model'
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['get'], url_path='effective-validation')
+    def effective_validation(self, request, pk=None):
+        """
+        Get effective validation rules (computed + manual) (Phase 2.5).
+        
+        GET /api/v1/form-fields/{field_id}/effective-validation/
+        
+        Returns:
+            200: {...validation rules...}
+        """
+        from tenant_apps.workflows.services.inheritance import FieldInheritanceService
+        
+        field = self.get_object()
+        rules = FieldInheritanceService.get_effective_validation(field)
+        
+        return Response(rules, status=status.HTTP_200_OK)
 
 
 class TenantFormRuleViewSet(viewsets.ModelViewSet):
