@@ -1,6 +1,7 @@
 # Generated to fix Phase 2 migration issues
 # - Remove Phase 2.5 fields from TenantFormField (never added to model)
-# - Add missing inherited fields to TenantFormVersion (created_on, modified_on, custom_data)
+# - Rename TenantFormVersion timestamps to match TenantAwareModel inheritance
+# - Add missing custom_data field to TenantFormVersion
 
 from django.db import migrations, models
 import django.db.models.deletion
@@ -28,19 +29,20 @@ class Migration(migrations.Migration):
             name='strict_type_checking',
         ),
         
-        # Add missing inherited fields to TenantFormVersion
-        # (These come from TenantAwareModel -> TimestampModel)
-        migrations.AddField(
+        # Rename timestamp fields to match TenantAwareModel inheritance
+        # This preserves existing data while aligning with TimestampModel
+        migrations.RenameField(
             model_name='tenantformversion',
-            name='created_on',
-            field=models.DateTimeField(auto_now_add=True, default='2026-01-01T00:00:00Z'),
-            preserve_default=False,
+            old_name='created_at',
+            new_name='created_on',
         ),
-        migrations.AddField(
+        migrations.RenameField(
             model_name='tenantformversion',
-            name='modified_on',
-            field=models.DateTimeField(auto_now=True),
+            old_name='updated_at',
+            new_name='modified_on',
         ),
+        
+        # Add missing custom_data field (inherited from TenantAwareModel)
         migrations.AddField(
             model_name='tenantformversion',
             name='custom_data',
@@ -52,15 +54,5 @@ class Migration(migrations.Migration):
             model_name='tenantformversion',
             name='tenant',
             field=models.ForeignKey(help_text='Tenant this entity belongs to', on_delete=django.db.models.deletion.CASCADE, to='tenants.tenant'),
-        ),
-        
-        # Remove incorrectly named fields from migration 0019
-        migrations.RemoveField(
-            model_name='tenantformversion',
-            name='created_at',
-        ),
-        migrations.RemoveField(
-            model_name='tenantformversion',
-            name='updated_at',
         ),
     ]
