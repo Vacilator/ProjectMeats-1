@@ -197,6 +197,12 @@ class TenantForm(TenantAwareModel):
         help_text="Allow this form to be added to user Quick Actions menu"
     )
     
+    # Template Library (Phase 2.2)
+    is_system_template = models.BooleanField(
+        default=False,
+        help_text="True if this is an industry-standard system template"
+    )
+    
     # Audit
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

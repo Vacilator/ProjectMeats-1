@@ -44,13 +44,15 @@ interface TenantForm {
   icon: string;
   entity_count: number;
   is_multi_entity: boolean;
+  is_system_template: boolean;
   created_at: string;
   updated_at: string;
 }
 
 type ViewMode = 'grid' | 'list';
 type FilterOption = 'all' | 'active' | 'draft' | 'recent' | 'favorites';
-type TabOption = 'workflows' | 'forms';
+type TabOption = 'workflows' | 'forms' | 'templates';
+
 
 // ============================================================================
 // Styled Components
@@ -446,20 +448,27 @@ const FormsFlowsCatalog: React.FC = () => {
     
     let filtered = forms;
     
-    // Apply tab filter first (Phase 5: Separate Logic vs Data)
+    // Apply tab filter first (Phase 5: Separate Logic vs Data + Phase 2.2: Templates)
     if (activeTab === 'workflows') {
-      // Workflows: Forms with logic/automation nodes
+      // Workflows: Forms with logic/automation nodes (exclude templates)
       filtered = filtered.filter(form => 
-        form.is_multi_entity === true || 
-        (form.entity_count && form.entity_count > 1)
+        !form.is_system_template && (
+          form.is_multi_entity === true || 
+          (form.entity_count && form.entity_count > 1)
+        )
       );
     } else if (activeTab === 'forms') {
-      // Forms: Simple data capture forms (single entity or basic forms)
+      // Forms: Simple data capture forms (single entity or basic forms, exclude templates)
       filtered = filtered.filter(form => 
-        form.is_multi_entity === false || 
-        !form.entity_count || 
-        form.entity_count <= 1
+        !form.is_system_template && (
+          form.is_multi_entity === false || 
+          !form.entity_count || 
+          form.entity_count <= 1
+        )
       );
+    } else if (activeTab === 'templates') {
+      // Templates: Industry-standard system templates (Phase 2.2)
+      filtered = filtered.filter(form => form.is_system_template === true);
     }
     
     // Apply search filter
@@ -563,7 +572,7 @@ const FormsFlowsCatalog: React.FC = () => {
         </HeaderActions>
       </Header>
 
-      {/* Phase 5: Tabbed View - Logic vs Data */}
+      {/* Phase 5: Tabbed View - Logic vs Data + Templates (Phase 2.2) */}
       <TabsContainer>
         <Tab
           $active={activeTab === 'workflows'}
@@ -580,6 +589,16 @@ const FormsFlowsCatalog: React.FC = () => {
           <Database size={18} />
           Forms (Data)
           {formsCount > 0 && <TabBadge>{formsCount}</TabBadge>}
+        </Tab>
+        <Tab
+          $active={activeTab === 'templates'}
+          onClick={() => setActiveTab('templates')}
+        >
+          <Boxes size={18} />
+          Industry Templates
+          <TabBadge style={{ background: 'rgb(var(--color-success))' }}>
+            {forms.filter(f => f.is_system_template).length}
+          </TabBadge>
         </Tab>
       </TabsContainer>
 
