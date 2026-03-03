@@ -47,9 +47,6 @@ class TenantFormFieldSerializer(serializers.ModelSerializer):
     # Phase 2.3: Cascading field metadata
     cascade_parent_field_key = serializers.SerializerMethodField()
     
-    # Phase 2.5: Effective validation rules
-    effective_validation = serializers.SerializerMethodField()
-    
     class Meta:
         model = TenantFormField
         fields = [
@@ -58,11 +55,9 @@ class TenantFormFieldSerializer(serializers.ModelSerializer):
             'auto_populate_source_step', 'auto_populate_source_field',
             'auto_populate_mode', 'auto_populate_source_step_name',
             'cascade_parent_field', 'cascade_filter_key', 'cascade_enabled',
-            'cascade_parent_field_key',
-            'inherit_from_parent', 'strict_type_checking', 'computed_validation',
-            'effective_validation'
+            'cascade_parent_field_key'
         ]
-        read_only_fields = ['id', 'auto_populate_source_step_name', 'cascade_parent_field_key', 'effective_validation']
+        read_only_fields = ['id', 'auto_populate_source_step_name', 'cascade_parent_field_key']
     
     def get_auto_populate_source_step_name(self, obj):
         if obj.auto_populate_source_step:
@@ -74,13 +69,6 @@ class TenantFormFieldSerializer(serializers.ModelSerializer):
         if obj.cascade_parent_field:
             return obj.cascade_parent_field.field_key
         return None
-    
-    def get_effective_validation(self, obj):
-        """Return merged validation rules (computed + manual)."""
-        return {
-            **obj.computed_validation,
-            **obj.validation_rules
-        }
 
 
 class TenantFormEntitySerializer(serializers.ModelSerializer):
