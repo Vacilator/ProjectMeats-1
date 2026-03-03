@@ -197,6 +197,12 @@ class TenantForm(TenantAwareModel):
         help_text="Allow this form to be added to user Quick Actions menu"
     )
     
+    # Template Library (Phase 2.2)
+    is_system_template = models.BooleanField(
+        default=False,
+        help_text="True if this is an industry-standard system template"
+    )
+    
     # Audit
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -214,6 +220,20 @@ class TenantForm(TenantAwareModel):
         default=dict,
         blank=True,
         help_text="Visual editor flow definition (nodes and edges)"
+    )
+    
+    # Version control fields (Phase 2.4)
+    version_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable version control for this form"
+    )
+    current_version = models.ForeignKey(
+        'TenantFormVersion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='forms_at_this_version',
+        help_text="Current active version of this form"
     )
     
     class Meta:
@@ -235,6 +255,64 @@ class TenantForm(TenantAwareModel):
     def can_be_default(self):
         """Returns True if this form can be set as default (single entity only)."""
         return self.entities.count() == 1
+
+
+class TenantFormVersion(TenantAwareModel):
+    """
+    Version snapshot of a tenant form (Phase 2.4).
+    
+    Stores complete form configuration at a specific point in time,
+    enabling rollback and audit trail of changes.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    form = models.ForeignKey(
+        TenantForm,
+        on_delete=models.CASCADE,
+        related_name='versions',
+        help_text="Form this version belongs to"
+    )
+    
+    version_number = models.PositiveIntegerField(
+        help_text="Sequential version number (1, 2, 3...)"
+    )
+    
+    snapshot_data = models.JSONField(
+        help_text="Complete snapshot of form configuration at this version"
+    )
+    
+    change_summary = models.TextField(
+        blank=True,
+        default='',
+        help_text="Summary of changes made in this version"
+    )
+    
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='form_versions_created',
+        help_text="User who created this version"
+    )
+    
+    is_current = models.BooleanField(
+        default=False,
+        help_text="Whether this is the current active version"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Form Version"
+        verbose_name_plural = "Form Versions"
+        ordering = ['form', '-version_number']
+        unique_together = [['form', 'version_number']]
+    
+    def __str__(self):
+        current = " (Current)" if self.is_current else ""
+        return f"{self.form.name} v{self.version_number}{current}"
 
 
 class TenantFormEntity(TenantAwareModel):
@@ -384,19 +462,24 @@ class TenantFormField(TenantAwareModel):
         help_text="Validation rules: min_length, max_length, pattern, min, max, etc."
     )
     
-    # Phase 2.5: Enhanced Inheritance with Type Checking
-    inherit_from_parent = models.BooleanField(
-        default=False,
-        help_text='Inherit validation rules from parent entity field definition'
-    )
-    strict_type_checking = models.BooleanField(
-        default=True,
-        help_text='Enforce strict type validation based on field_type'
-    )
-    computed_validation = models.JSONField(
-        default=dict,
+    # Cascading field configuration (Phase 2.3: Entity Cascading)
+    cascade_parent_field = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
-        help_text='Computed validation rules inherited from entity model'
+        related_name='cascade_children',
+        help_text="Parent field that controls options for this field (e.g., protein type filters cuts)"
+    )
+    cascade_filter_key = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Field key to filter by in related model (e.g., 'type_of_protein' in Product model)"
+    )
+    cascade_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable cascading filter for this field"
     )
     
     class Meta:
