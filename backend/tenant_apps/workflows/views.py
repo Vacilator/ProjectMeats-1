@@ -1087,6 +1087,148 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
                     logger.warning(f"FormProcessGroup sync had errors: {result['errors']}")
             except Exception as e:
                 logger.error(f"Failed to sync FormProcessGroup nodes: {e}", exc_info=True)
+    
+    @action(detail=True, methods=['post'], url_path='enable-versioning')
+    def enable_versioning(self, request, pk=None):
+        """
+        Enable version control for a form (Phase 2.4).
+        
+        Creates initial version snapshot.
+        
+        POST /api/v1/forms/{form_id}/enable-versioning/
+        
+        Returns:
+            200: {"version_number": 1, "message": "Versioning enabled"}
+            400: {"error": "Versioning already enabled"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        
+        try:
+            version = FormVersionService.enable_versioning(form, user=request.user)
+            return Response({
+                'version_number': version.version_number,
+                'message': 'Versioning enabled successfully'
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], url_path='create-version')
+    def create_version(self, request, pk=None):
+        """
+        Create a new version snapshot (Phase 2.4).
+        
+        POST /api/v1/forms/{form_id}/create-version/
+        Body: {"change_summary": "Added email notification field"}
+        
+        Returns:
+            200: {"version_number": 2, "message": "Version created"}
+            400: {"error": "Versioning not enabled"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        change_summary = request.data.get('change_summary', '')
+        
+        try:
+            version = FormVersionService.create_version(
+                form=form,
+                change_summary=change_summary,
+                user=request.user
+            )
+            return Response({
+                'version_number': version.version_number,
+                'message': 'Version created successfully'
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], url_path='rollback')
+    def rollback(self, request, pk=None):
+        """
+        Rollback form to a previous version (Phase 2.4).
+        
+        POST /api/v1/forms/{form_id}/rollback/
+        Body: {"version_number": 3}
+        
+        Returns:
+            200: {"version_number": 5, "message": "Rolled back to version 3"}
+            400: {"error": "Version not found"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        version_number = request.data.get('version_number')
+        
+        if not version_number:
+            return Response(
+                {'error': 'version_number is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            new_version = FormVersionService.rollback_to_version(
+                form=form,
+                version_number=int(version_number),
+                user=request.user
+            )
+            return Response({
+                'version_number': new_version.version_number,
+                'message': f'Rolled back to version {version_number}'
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'], url_path='version-history')
+    def version_history(self, request, pk=None):
+        """
+        Get version history for a form (Phase 2.4).
+        
+        GET /api/v1/forms/{form_id}/version-history/
+        
+        Returns:
+            200: [{"version_number": 3, "change_summary": "...", ...}, ...]
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        history = FormVersionService.get_version_history(form)
+        
+        return Response(history, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['get'], url_path='compare-versions')
+    def compare_versions(self, request, pk=None):
+        """
+        Compare two versions (Phase 2.4).
+        
+        GET /api/v1/forms/{form_id}/compare-versions/?version_a=1&version_b=3
+        
+        Returns:
+            200: {"name": {"old": "...", "new": "..."}, ...}
+            400: {"error": "Missing parameters"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        version_a = request.query_params.get('version_a')
+        version_b = request.query_params.get('version_b')
+        
+        if not version_a or not version_b:
+            return Response(
+                {'error': 'version_a and version_b are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            diff = FormVersionService.compare_versions(
+                form=form,
+                version_a=int(version_a),
+                version_b=int(version_b)
+            )
+            return Response(diff, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TenantFormEntityViewSet(viewsets.ModelViewSet):
