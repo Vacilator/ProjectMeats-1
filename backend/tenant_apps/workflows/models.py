@@ -384,6 +384,26 @@ class TenantFormField(TenantAwareModel):
         help_text="Validation rules: min_length, max_length, pattern, min, max, etc."
     )
     
+    # Cascading field configuration (Phase 2.3: Entity Cascading)
+    cascade_parent_field = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cascade_children',
+        help_text="Parent field that controls options for this field (e.g., protein type filters cuts)"
+    )
+    cascade_filter_key = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Field key to filter by in related model (e.g., 'type_of_protein' in Product model)"
+    )
+    cascade_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable cascading filter for this field"
+    )
+    
     class Meta:
         verbose_name = "Form Field"
         verbose_name_plural = "Form Fields"

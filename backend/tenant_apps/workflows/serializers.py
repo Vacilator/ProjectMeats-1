@@ -44,19 +44,30 @@ class TenantFormFieldSerializer(serializers.ModelSerializer):
     # Include source step name for display
     auto_populate_source_step_name = serializers.SerializerMethodField()
     
+    # Phase 2.3: Cascading field metadata
+    cascade_parent_field_key = serializers.SerializerMethodField()
+    
     class Meta:
         model = TenantFormField
         fields = [
             'id', 'field_key', 'field_type', 'is_visible', 'is_required', 'order',
-            'custom_label', 'custom_help_text', 'default_value',
+            'custom_label', 'custom_help_text', 'default_value', 'validation_rules',
             'auto_populate_source_step', 'auto_populate_source_field',
-            'auto_populate_mode', 'auto_populate_source_step_name'
+            'auto_populate_mode', 'auto_populate_source_step_name',
+            'cascade_parent_field', 'cascade_filter_key', 'cascade_enabled',
+            'cascade_parent_field_key'
         ]
-        read_only_fields = ['id', 'auto_populate_source_step_name']
+        read_only_fields = ['id', 'auto_populate_source_step_name', 'cascade_parent_field_key']
     
     def get_auto_populate_source_step_name(self, obj):
         if obj.auto_populate_source_step:
             return obj.auto_populate_source_step.step_name or obj.auto_populate_source_step.entity_type
+        return None
+    
+    def get_cascade_parent_field_key(self, obj):
+        """Return parent field's field_key for frontend reference."""
+        if obj.cascade_parent_field:
+            return obj.cascade_parent_field.field_key
         return None
 
 
