@@ -1144,6 +1144,54 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             qs = qs.filter(form_entity_id=entity_id)
 
         return qs.order_by("order")
+    
+    @action(detail=True, methods=['get'], url_path='cascade-options')
+    def cascade_options(self, request, pk=None):
+        """
+        Get cascaded options for a field based on parent field value.
+        
+        Phase 2.3: Entity Cascading
+        
+        Query Parameters:
+            parent_value: Value selected in parent field
+            
+        Example:
+            GET /api/v1/form-fields/{field_id}/cascade-options/?parent_value=Beef
+            
+        Returns:
+            200: [{"value": "...", "label": "..."}, ...]
+            400: {"error": "Missing parent_value parameter"}
+            404: {"error": "Field not found or cascading not enabled"}
+        """
+        from tenant_apps.workflows.services.cascading import CascadingFieldService
+        
+        field = self.get_object()
+        parent_value = request.query_params.get('parent_value')
+        
+        if not parent_value:
+            return Response(
+                {"error": "Missing required parameter: parent_value"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not field.cascade_enabled:
+            return Response(
+                {"error": f"Field {field.field_key} does not have cascading enabled"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            options = CascadingFieldService.get_cascaded_options(
+                field=field,
+                parent_value=parent_value,
+                tenant_id=str(request.tenant.id) if request.tenant else None
+            )
+            return Response(options, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TenantFormRuleViewSet(viewsets.ModelViewSet):
