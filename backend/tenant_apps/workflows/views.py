@@ -1087,6 +1087,148 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
                     logger.warning(f"FormProcessGroup sync had errors: {result['errors']}")
             except Exception as e:
                 logger.error(f"Failed to sync FormProcessGroup nodes: {e}", exc_info=True)
+    
+    @action(detail=True, methods=['post'], url_path='enable-versioning')
+    def enable_versioning(self, request, pk=None):
+        """
+        Enable version control for a form (Phase 2.4).
+        
+        Creates initial version snapshot.
+        
+        POST /api/v1/forms/{form_id}/enable-versioning/
+        
+        Returns:
+            200: {"version_number": 1, "message": "Versioning enabled"}
+            400: {"error": "Versioning already enabled"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        
+        try:
+            version = FormVersionService.enable_versioning(form, user=request.user)
+            return Response({
+                'version_number': version.version_number,
+                'message': 'Versioning enabled successfully'
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], url_path='create-version')
+    def create_version(self, request, pk=None):
+        """
+        Create a new version snapshot (Phase 2.4).
+        
+        POST /api/v1/forms/{form_id}/create-version/
+        Body: {"change_summary": "Added email notification field"}
+        
+        Returns:
+            200: {"version_number": 2, "message": "Version created"}
+            400: {"error": "Versioning not enabled"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        change_summary = request.data.get('change_summary', '')
+        
+        try:
+            version = FormVersionService.create_version(
+                form=form,
+                change_summary=change_summary,
+                user=request.user
+            )
+            return Response({
+                'version_number': version.version_number,
+                'message': 'Version created successfully'
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], url_path='rollback')
+    def rollback(self, request, pk=None):
+        """
+        Rollback form to a previous version (Phase 2.4).
+        
+        POST /api/v1/forms/{form_id}/rollback/
+        Body: {"version_number": 3}
+        
+        Returns:
+            200: {"version_number": 5, "message": "Rolled back to version 3"}
+            400: {"error": "Version not found"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        version_number = request.data.get('version_number')
+        
+        if not version_number:
+            return Response(
+                {'error': 'version_number is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            new_version = FormVersionService.rollback_to_version(
+                form=form,
+                version_number=int(version_number),
+                user=request.user
+            )
+            return Response({
+                'version_number': new_version.version_number,
+                'message': f'Rolled back to version {version_number}'
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'], url_path='version-history')
+    def version_history(self, request, pk=None):
+        """
+        Get version history for a form (Phase 2.4).
+        
+        GET /api/v1/forms/{form_id}/version-history/
+        
+        Returns:
+            200: [{"version_number": 3, "change_summary": "...", ...}, ...]
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        history = FormVersionService.get_version_history(form)
+        
+        return Response(history, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['get'], url_path='compare-versions')
+    def compare_versions(self, request, pk=None):
+        """
+        Compare two versions (Phase 2.4).
+        
+        GET /api/v1/forms/{form_id}/compare-versions/?version_a=1&version_b=3
+        
+        Returns:
+            200: {"name": {"old": "...", "new": "..."}, ...}
+            400: {"error": "Missing parameters"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        version_a = request.query_params.get('version_a')
+        version_b = request.query_params.get('version_b')
+        
+        if not version_a or not version_b:
+            return Response(
+                {'error': 'version_a and version_b are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            diff = FormVersionService.compare_versions(
+                form=form,
+                version_a=int(version_a),
+                version_b=int(version_b)
+            )
+            return Response(diff, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TenantFormEntityViewSet(viewsets.ModelViewSet):
@@ -1145,62 +1287,53 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
 
         return qs.order_by("order")
     
-    @action(detail=True, methods=['post'], url_path='validate-value')
-    def validate_value(self, request, pk=None):
+    @action(detail=True, methods=['get'], url_path='cascade-options')
+    def cascade_options(self, request, pk=None):
         """
-        Validate a value against field's type and validation rules (Phase 2.5).
+        Get cascaded options for a field based on parent field value.
         
-        POST /api/v1/form-fields/{field_id}/validate-value/
-        Body: {"value": "test@example.com"}
+        Phase 2.3: Entity Cascading
         
+        Query Parameters:
+            parent_value: Value selected in parent field
+            
+        Example:
+            GET /api/v1/form-fields/{field_id}/cascade-options/?parent_value=Beef
+            
         Returns:
-            200: {"valid": true, "errors": []}
-            200: {"valid": false, "errors": ["Error message"]}
+            200: [{"value": "...", "label": "..."}, ...]
+            400: {"error": "Missing parent_value parameter"}
+            404: {"error": "Field not found or cascading not enabled"}
         """
-        from tenant_apps.workflows.services.inheritance import FieldInheritanceService
+        from tenant_apps.workflows.services.cascading import CascadingFieldService
         
         field = self.get_object()
-        value = request.data.get('value')
+        parent_value = request.query_params.get('parent_value')
         
-        result = FieldInheritanceService.validate_field_value(field, value)
-        return Response(result, status=status.HTTP_200_OK)
-    
-    @action(detail=True, methods=['post'], url_path='sync-validation')
-    def sync_validation(self, request, pk=None):
-        """
-        Sync computed validation from entity model (Phase 2.5).
+        if not parent_value:
+            return Response(
+                {"error": "Missing required parameter: parent_value"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        POST /api/v1/form-fields/{field_id}/sync-validation/
+        if not field.cascade_enabled:
+            return Response(
+                {"error": f"Field {field.field_key} does not have cascading enabled"},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
-        Returns:
-            200: {"computed_validation": {...}, "message": "Synced"}
-        """
-        from tenant_apps.workflows.services.inheritance import FieldInheritanceService
-        
-        field = self.get_object()
-        FieldInheritanceService.sync_computed_validation(field)
-        
-        return Response({
-            'computed_validation': field.computed_validation,
-            'message': 'Validation rules synced from entity model'
-        }, status=status.HTTP_200_OK)
-    
-    @action(detail=True, methods=['get'], url_path='effective-validation')
-    def effective_validation(self, request, pk=None):
-        """
-        Get effective validation rules (computed + manual) (Phase 2.5).
-        
-        GET /api/v1/form-fields/{field_id}/effective-validation/
-        
-        Returns:
-            200: {...validation rules...}
-        """
-        from tenant_apps.workflows.services.inheritance import FieldInheritanceService
-        
-        field = self.get_object()
-        rules = FieldInheritanceService.get_effective_validation(field)
-        
-        return Response(rules, status=status.HTTP_200_OK)
+        try:
+            options = CascadingFieldService.get_cascaded_options(
+                field=field,
+                parent_value=parent_value,
+                tenant_id=str(request.tenant.id) if request.tenant else None
+            )
+            return Response(options, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TenantFormRuleViewSet(viewsets.ModelViewSet):
