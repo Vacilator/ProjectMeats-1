@@ -48,7 +48,6 @@ import {
   Zap
 } from 'lucide-react';
 import { businessApi } from '../../../services/businessApi';
-import { useTenant } from '../../../contexts/TenantContext';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -101,7 +100,6 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
   workflowId,
   dateRange: initialDateRange
 }) => {
-  const { tenant } = useTenant();
   const [metrics, setMetrics] = useState<WorkflowMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | undefined>(workflowId);
@@ -109,13 +107,21 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
   const [dateRange, setDateRange] = useState<[Date, Date] | undefined>(initialDateRange);
   const [timeframe, setTimeframe] = useState<string>('30d');
 
+  /**
+   * Get current tenant ID from localStorage
+   */
+  const getTenantId = (): string | null => {
+    return localStorage.getItem('tenantId');
+  };
+
   // Fetch available workflows
   useEffect(() => {
     const fetchWorkflows = async () => {
-      if (!tenant?.id) return;
+      const tenantId = getTenantId();
+      if (!tenantId) return;
       
       try {
-        const response = await businessApi.get(`/tenants/${tenant.id}/workflows/`);
+        const response = await businessApi.get(`/tenants/${tenantId}/workflows/`);
         setWorkflows(response.data.results || []);
       } catch (error) {
         console.error('Failed to fetch workflows:', error);
@@ -123,12 +129,13 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
     };
 
     fetchWorkflows();
-  }, [tenant?.id]);
+  }, []);
 
   // Fetch analytics data
   useEffect(() => {
     const fetchMetrics = async () => {
-      if (!tenant?.id || !selectedWorkflowId) {
+      const tenantId = getTenantId();
+      if (!tenantId || !selectedWorkflowId) {
         setLoading(false);
         return;
       }
@@ -145,7 +152,7 @@ export const WorkflowAnalyticsDashboard: React.FC<WorkflowAnalyticsDashboardProp
         }
 
         const response = await businessApi.get(
-          `/tenants/${tenant.id}/workflows/${selectedWorkflowId}/analytics/`,
+          `/tenants/${tenantId}/workflows/${selectedWorkflowId}/analytics/`,
           { params }
         );
         

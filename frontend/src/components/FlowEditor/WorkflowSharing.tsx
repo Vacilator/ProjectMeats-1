@@ -32,7 +32,6 @@ import {
   XCircle
 } from 'lucide-react';
 import { businessApi } from '../../../services/businessApi';
-import { useTenant } from '../../../contexts/TenantContext';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -65,20 +64,27 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
   visible,
   onClose
 }) => {
-  const { tenant } = useTenant();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
   const [exportedTemplate, setExportedTemplate] = useState<WorkflowTemplate | null>(null);
   const [importForm] = Form.useForm();
 
+  /**
+   * Get current tenant ID from localStorage
+   */
+  const getTenantId = (): string | null => {
+    return localStorage.getItem('tenantId');
+  };
+
   // Export workflow as template
   const handleExport = async () => {
-    if (!tenant?.id) return;
+    const tenantId = getTenantId();
+    if (!tenantId) return;
 
     setLoading(true);
     try {
       const response = await businessApi.post(
-        `/tenants/${tenant.id}/workflows/${workflowId}/export_template/`
+        `/tenants/${tenantId}/workflows/${workflowId}/export_template/`
       );
       
       const template = response.data;
@@ -117,7 +123,8 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
 
   // Import template from JSON
   const handleImport = async (values: any) => {
-    if (!tenant?.id) return;
+    const tenantId = getTenantId();
+    if (!tenantId) return;
 
     setLoading(true);
     try {
@@ -130,7 +137,7 @@ export const WorkflowSharing: React.FC<WorkflowSharingProps> = ({
       }
 
       const response = await businessApi.post(
-        `/tenants/${tenant.id}/workflows/import_template/`,
+        `/tenants/${tenantId}/workflows/import_template/`,
         {
           template,
           name: values.name,

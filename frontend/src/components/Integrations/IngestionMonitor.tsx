@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { List, Tag, Button, Space, Typography, Empty, message, Spin } from 'antd';
 import { SyncOutlined, MailOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
-import { useTenant } from '@/contexts/TenantContext';
 
 const { Title, Text } = Typography;
 
@@ -53,21 +52,28 @@ const getStatusTag = (status: EmailLog['status']) => {
  * Shows processing status and allows manual sync trigger.
  */
 export const IngestionMonitor: React.FC = () => {
-  const { tenant } = useTenant();
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   /**
+   * Get current tenant ID from localStorage
+   */
+  const getTenantId = (): string | null => {
+    return localStorage.getItem('tenantId');
+  };
+
+  /**
    * Fetch email logs from API
    */
   const fetchEmailLogs = async () => {
-    if (!tenant) return;
+    const tenantId = getTenantId();
+    if (!tenantId) return;
 
     setLoading(true);
     try {
       const response = await businessApi.get<EmailLogsResponse>(
-        `/tenants/${tenant.id}/integrations/email/logs/?limit=10`
+        `/tenants/${tenantId}/integrations/email/logs/?limit=10`
       );
       setEmails(response.data.emails);
     } catch (error) {
@@ -82,11 +88,12 @@ export const IngestionMonitor: React.FC = () => {
    * Trigger manual email sync
    */
   const handleSyncNow = async () => {
-    if (!tenant) return;
+    const tenantId = getTenantId();
+    if (!tenantId) return;
 
     setSyncing(true);
     try {
-      await businessApi.post(`/tenants/${tenant.id}/integrations/email/sync/`);
+      await businessApi.post(`/tenants/${tenantId}/integrations/email/sync/`);
       message.success('Email sync started. This may take a few moments...');
       
       // Refresh logs after 3 seconds
@@ -101,10 +108,10 @@ export const IngestionMonitor: React.FC = () => {
     }
   };
 
-  // Load email logs on mount and tenant change
+  // Load email logs on mount
   useEffect(() => {
     fetchEmailLogs();
-  }, [tenant]);
+  }, []);
 
   return (
     <div style={{ padding: '16px' }}>

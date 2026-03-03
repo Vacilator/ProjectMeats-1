@@ -11,7 +11,6 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Mail, RefreshCw, CheckCircle, AlertCircle, Clock, Zap } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
-import { useTenant } from '../../contexts/TenantContext';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -233,21 +232,28 @@ const LoadingState = styled(EmptyState)`
 export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetProps> = ({
   onRefresh
 }) => {
-  const { tenant } = useTenant();
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   /**
+   * Get current tenant ID from localStorage
+   */
+  const getTenantId = (): string | null => {
+    return localStorage.getItem('tenantId');
+  };
+
+  /**
    * Fetch email logs from API
    */
   const fetchEmailLogs = async () => {
-    if (!tenant) return;
+    const tenantId = getTenantId();
+    if (!tenantId) return;
 
     setLoading(true);
     try {
       const response = await businessApi.get<EmailLogsResponse>(
-        `/tenants/${tenant.id}/integrations/email/logs/?limit=5`
+        `/tenants/${tenantId}/integrations/email/logs/?limit=5`
       );
       setEmails(response.data.emails);
     } catch (error) {
@@ -261,11 +267,12 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
    * Trigger manual email sync
    */
   const handleSyncNow = async () => {
-    if (!tenant) return;
+    const tenantId = getTenantId();
+    if (!tenantId) return;
 
     setSyncing(true);
-    try {
-      await businessApi.post(`/tenants/${tenant.id}/integrations/email/sync/`);
+    try:
+      await businessApi.post(`/tenants/${tenantId}/integrations/email/sync/`);
       
       // Refresh logs after 2 seconds
       setTimeout(() => {
@@ -278,10 +285,10 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
     }
   };
 
-  // Load email logs on mount and tenant change
+  // Load email logs on mount
   useEffect(() => {
     fetchEmailLogs();
-  }, [tenant]);
+  }, []);
 
   /**
    * Get status icon and label
