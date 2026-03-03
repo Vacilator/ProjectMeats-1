@@ -13,6 +13,10 @@ urlpatterns = [
     path('oauth/status/', views.get_connection_status, name='oauth-status'),
     path('oauth/disconnect/', views.disconnect_provider, name='oauth-disconnect'),
     
+    # Email sync endpoints (Phase 5.5)
+    path('email/sync/', views.sync_emails, name='email-sync'),
+    path('email/logs/', views.get_email_logs, name='email-logs'),
+    
     # Microsoft OAuth (Phase 5)
     path('microsoft/', include('apps.integrations.microsoft.urls', namespace='microsoft')),
 ]

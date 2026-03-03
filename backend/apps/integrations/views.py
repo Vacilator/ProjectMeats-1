@@ -225,3 +225,97 @@ def disconnect_provider(request):
             {"error": "Provider not found"},
             status=status.HTTP_404_NOT_FOUND
         )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def sync_emails(request):
+    """
+    Manually trigger email sync for current tenant.
+    
+    This endpoint allows users to manually sync their inbox instead of
+    waiting for the scheduled 5-minute Celery task.
+    
+    Returns:
+        - emails_fetched: Number of emails retrieved from API
+        - emails_saved: Number of new emails saved to database
+        - errors: List of any errors encountered
+    """
+    if not request.tenant:
+        return Response(
+            {"error": "Tenant not found"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        from apps.integrations.tasks import sync_single_tenant
+        
+        # Trigger async task
+        task = sync_single_tenant.delay(str(request.tenant.id))
+        
+        return Response({
+            "message": "Email sync started",
+            "task_id": task.id,
+            "tenant_id": str(request.tenant.id),
+        }, status=status.HTTP_202_ACCEPTED)
+        
+    except Exception as e:
+        return Response(
+            {"error": f"Failed to start sync: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_email_logs(request):
+    """
+    Get recent email ingestion logs for current tenant.
+    
+    Query params:
+        limit: Number of emails to return (default: 10, max: 50)
+        status: Filter by status (logged, ai_parsing, order_created, failed, ignored)
+    """
+    if not request.tenant:
+        return Response(
+            {"error": "Tenant not found"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Get query params
+    limit = min(int(request.GET.get('limit', 10)), 50)
+    status_filter = request.GET.get('status')
+    
+    # Build queryset
+    from .models import EmailLog
+    queryset = EmailLog.objects.filter(tenant=request.tenant)
+    
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+    
+    # Get recent emails
+    emails = queryset.order_by('-created_at')[:limit]
+    
+    # Serialize
+    email_data = []
+    for email in emails:
+        email_data.append({
+            "id": str(email.id),
+            "message_id": email.message_id,
+            "subject": email.subject,
+            "sender": email.sender,
+            "status": email.status,
+            "provider_type": email.provider.provider_type if email.provider else None,
+            "has_attachments": email.has_attachments,
+            "extracted_data": email.extracted_data,
+            "related_order_id": email.related_order_id,
+            "error_message": email.error_message,
+            "created_at": email.created_at.isoformat(),
+            "processed_at": email.processed_at.isoformat() if email.processed_at else None,
+        })
+    
+    return Response({
+        "emails": email_data,
+        "count": len(email_data),
+    })
+

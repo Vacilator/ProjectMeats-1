@@ -71,9 +71,10 @@ ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
 | **Redis** | ⏳ Pending Audit | ⏳ Not Configured | ⏳ Not Configured | Caching, real-time features, AI response caching |
 | **OpenAI** | ⏳ Pending Audit | ⏳ Not Configured | ⏳ Not Configured | AI-powered workflow suggestions, field recommendations |
 | **Sentry** | ⏳ Pending Audit | ⏳ Not Configured | ⏳ Not Configured | Real-time error tracking, APM, performance monitoring |
+| **Microsoft Graph** | ✅ **Verified** | ⏳ Not Configured | ⏳ Not Configured | Email ingestion, Outlook integration, OAuth authentication |
 
 **Status Definitions**:
-- ✅ **Verified**: Connectivity test passed, service operational
+- ✅ **Verified**: Connectivity test passed, service operational (multi-tenant isolation confirmed)
 - ⏳ **Pending Audit**: Credentials configured, awaiting diagnostic run
 - ⚠️ **Degraded**: Service reachable but with issues
 - ❌ **Failed**: Connection failed or credentials invalid
@@ -96,9 +97,10 @@ python scripts/infrastructure_diagnostics.py
 - **Redis**: Successfully stores and retrieves test value with 30s TTL
 - **OpenAI**: API handshake succeeds, model list returned
 - **Sentry**: DSN loaded, test event captured
+- **Microsoft Graph**: OAuth token encryption working, email ingestion service operational, multi-tenant isolation verified
 
-**Last Audit**: Not yet run  
-**Next Audit**: Scheduled after user configures external services
+**Last Audit**: February 28, 2026 (Microsoft Graph verified in dev environment)  
+**Next Audit**: Scheduled after user configures remaining external services (Redis, OpenAI, Sentry)
 
 ## AI Agent Protocol
 

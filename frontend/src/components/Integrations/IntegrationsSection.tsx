@@ -4,6 +4,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { Plug, Trash2, RefreshCw } from 'lucide-react';
 import { EmailConnection } from './EmailConnection';
+import { IngestionMonitor } from './IngestionMonitor';
 
 interface Connection {
   provider: 'microsoft' | 'google';
@@ -131,6 +132,13 @@ export const IntegrationsSection: React.FC = () => {
           ))}
         </ConnectionsList>
       )}
+      
+      {/* Email Ingestion Monitor - Phase 5.5 */}
+      {microsoftConnection && !microsoftConnection.is_expired && (
+        <MonitorSection>
+          <IngestionMonitor />
+        </MonitorSection>
+      )}
     </Section>
   );
 };
@@ -234,4 +242,10 @@ const DisconnectButton = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
   }
+`;
+
+const MonitorSection = styled.div`
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid rgb(var(--color-border));
 `;

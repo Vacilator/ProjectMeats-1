@@ -68,5 +68,6 @@ reportlab>=4.0.0  # For generating PDF quotes and invoices
 # Asynchronous Task Queue (Phase 5 Part 2)
 celery[redis]>=5.4.0  # Task queue for scheduled workflows and background jobs
 redis>=5.0.0  # Redis as Celery broker and result backend
+django-celery-beat>=2.5.0  # Database-backed periodic task scheduler
 bleach==6.1.0
 sentry-sdk[django]>=2.0.0  # Error tracking and performance monitoring (Phase 6.4)

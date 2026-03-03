@@ -123,6 +123,7 @@ _THIRD_PARTY_APPS = [
     "django_filters",
     "django_modal_actions",  # Modal dialogs for Django Admin actions
     "flags",  # Feature flags for gradual rollout (v2.0 Wave 0)
+    "django_celery_beat",  # Database-backed periodic task scheduler
 ]
 
 # ProjectMeats apps (all in shared schema with tenant_id isolation)
@@ -676,3 +677,41 @@ FLAGS = {
         {'condition': 'boolean', 'value': False},  # Coming in Wave F4
     ],
 }
+
+# ==============================================================================
+# Celery Configuration (Task Queue & Scheduled Jobs)
+# ==============================================================================
+# Celery is used for:
+# - Email polling (every 5 minutes)
+# - Scheduled workflow execution
+# - Background notifications
+# - AI processing jobs
+# ==============================================================================
+
+# Broker and result backend (Redis)
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+# Task serialization
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+
+# Task execution
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes soft limit
+
+# Task result expiration
+CELERY_RESULT_EXPIRES = 3600  # 1 hour
+
+# Worker configuration
+CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+
+# Beat scheduler (for periodic tasks)
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Timezone for scheduled tasks
+CELERY_TIMEZONE = 'UTC'
+CELERY_ENABLE_UTC = True

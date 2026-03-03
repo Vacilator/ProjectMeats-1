@@ -33,6 +33,7 @@ import {
   ActionItemsWidget,
   CalendarWidget,
   EmailIntegrationWidget,
+  EmailIngestionMonitorWidget,
 } from '../../components/Widgets';
 import { CommandBar, CockpitTour } from '../../components/Cockpit';
 import { CommandPalette } from '../../components/Navigation/CommandPalette';
@@ -135,6 +136,13 @@ const WIDGET_CATALOG = [
     description: 'Manage connected email accounts',
     category: 'integrations',
     icon: '📧',
+  },
+  { 
+    type: 'EmailIngestionMonitorWidget', 
+    title: 'Email Ingestion Monitor', 
+    description: 'Track order-related emails and AI processing',
+    category: 'integrations',
+    icon: '📬',
   },
 ];
 
@@ -575,6 +583,8 @@ export const CockpitDashboard: React.FC = () => {
         return <CalendarWidget />;
       case 'EmailIntegrationWidget':
         return <EmailIntegrationWidget />;
+      case 'EmailIngestionMonitorWidget':
+        return <EmailIngestionMonitorWidget />;
       default:
         console.warn(`Unknown widget type: ${widget.type} (normalized: ${normalizedType})`);
         return (
