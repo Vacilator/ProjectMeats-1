@@ -179,15 +179,26 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                     return advancedSectionIds.includes(section.id);
                   }}
                 />
-                {/* Fallback JSON Editor if no advanced sections */}
+                {/* Editable JSON Editor for power users */}
                 <AdvancedSection style={{ marginTop: '16px' }}>
                   <SectionTitle>Raw Configuration (JSON)</SectionTitle>
                   <InfoText>
-                    Direct JSON editor for power users. Changes here override all other settings.
+                    Direct JSON editor for power users. Edit carefully - invalid JSON will be rejected.
                   </InfoText>
-                  <JSONEditor>
-                    <pre>{JSON.stringify(node.data, null, 2)}</pre>
-                  </JSONEditor>
+                  <JSONEditor
+                    value={JSON.stringify(node.data, null, 2)}
+                    onChange={(e) => {
+                      try {
+                        const parsed = JSON.parse(e.target.value);
+                        onUpdateNode(node.id, parsed);
+                      } catch (error) {
+                        // Invalid JSON - don't update
+                        console.warn('[TabbedConfigPanel] Invalid JSON, not updating:', error);
+                      }
+                    }}
+                    placeholder="{ /* Node configuration */ }"
+                    spellCheck={false}
+                  />
                 </AdvancedSection>
               </TabPanel>
             )}
@@ -366,19 +377,24 @@ const InfoText = styled.p`
   line-height: 1.5;
 `;
 
-const JSONEditor = styled.div`
+const JSONEditor = styled.textarea`
   background: rgb(var(--color-background-tertiary));
   border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   padding: 16px;
   font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
   font-size: 12px;
+  line-height: 1.5;
   color: rgb(var(--color-text-primary));
   overflow: auto;
+  min-height: 200px;
   max-height: 400px;
-
-  pre {
-    margin: 0;
+  width: 100%;
+  resize: vertical;
+  
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
   }
 `;
 
