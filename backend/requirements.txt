@@ -33,7 +33,7 @@ factory-boy==3.3.3
 # Code Quality
 black==26.1.0
 flake8==7.3.0
-isort==8.0.0
+isort==8.0.1
 pre-commit==4.5.1
 
 # Feature Flags (Wave 0)
@@ -41,7 +41,7 @@ django-flags==5.2.0
 
 # Production (optional for development)
 gunicorn==25.1.0
-whitenoise==6.11.0
+whitenoise==6.12.0
 
 # Utilities
 python-decouple==3.8
@@ -69,5 +69,5 @@ reportlab>=4.0.0  # For generating PDF quotes and invoices
 celery[redis]>=5.4.0  # Task queue for scheduled workflows and background jobs
 redis>=5.0.0  # Redis as Celery broker and result backend
 django-celery-beat>=2.5.0  # Database-backed periodic task scheduler
-bleach==6.1.0
+bleach==6.3.0
 sentry-sdk[django]>=2.0.0  # Error tracking and performance monitoring (Phase 6.4)
