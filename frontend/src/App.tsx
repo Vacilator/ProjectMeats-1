@@ -220,14 +220,15 @@ const App: React.FC = () => {
               <NotificationsProvider>
                 <ActionItemsProvider>
                   <QuickActionsProvider>
-                <Router
-                  future={{
-                    v7_startTransition: true,
-                    v7_relativeSplatPath: true,
-                  }}
-                >
-                  <SessionManagerProvider>
-                  <NavigationProvider>
+                    <CockpitNavigationProvider>
+                      <Router
+                        future={{
+                          v7_startTransition: true,
+                          v7_relativeSplatPath: true,
+                        }}
+                      >
+                        <SessionManagerProvider>
+                          <NavigationProvider>
                     <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
@@ -357,13 +358,13 @@ const App: React.FC = () => {
             
             {/* Global floating bug report button - always available */}
             <ReportBugButton variant="floating" />
-          </NavigationProvider>
-          </SessionManagerProvider>
-        </Router>
+                          </NavigationProvider>
+                        </SessionManagerProvider>
+                      </Router>
                     </CockpitNavigationProvider>
-              </QuickActionsProvider>
-            </ActionItemsProvider>
-          </NotificationsProvider>
+                  </QuickActionsProvider>
+                </ActionItemsProvider>
+              </NotificationsProvider>
         </ThemeProvider>
       </AuthProvider>
       </ToastProvider>
