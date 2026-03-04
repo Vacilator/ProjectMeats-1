@@ -413,3 +413,96 @@ class EntityViewSet(viewsets.ViewSet):
         except Exception as e:
             # Graceful fallback if labeling fails
             return {"labels": []}
+    
+    @action(detail=True, methods=['get'], url_path='fuzzy-related')
+    def fuzzy_related(self, request, type=None, pk=None):
+        """
+        Discover related entities using fuzzy matching (email domain, tax ID, name).
+        
+        This endpoint finds relationships even when foreign keys are NULL by matching:
+        - Email domains (@company.com)
+        - Tax IDs / Business numbers
+        - Company names / Short names
+        - SKUs / Reference numbers
+        
+        Example: GET /api/v1/system/entities/customer/123/fuzzy-related/
+        
+        Query params:
+        - max_results: Maximum fuzzy matches to return (default: 50)
+        
+        Returns:
+        {
+          "entity": { "id": 123, "type": "customer", "name": "Acme Corp" },
+          "fuzzy_matches": [
+            {
+              "id": "456",
+              "type": "order",
+              "name": "Order #1234",
+              "subtitle": "Email: john@acme.com",
+              "metadata": {
+                "match_type": "email_domain",
+                "domain": "acme.com"
+              },
+              "relevance_score": 0.9
+            },
+            ...
+          ],
+          "total": 15
+        }
+        """
+        from apps.system.services import RelationshipDiscoveryService
+        
+        tenant = request.tenant
+        
+        if type not in self.MODEL_MAP:
+            return Response(
+                {"error": f"Unknown entity type: {type}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get max results from query params
+        max_results = int(request.query_params.get('max_results', 50))
+        
+        # Initialize fuzzy discovery service
+        discovery_service = RelationshipDiscoveryService(tenant)
+        
+        try:
+            # Discover fuzzy relationships
+            fuzzy_matches = discovery_service.discover_related_entities(
+                entity_type=type,
+                entity_id=pk,
+                max_results=max_results
+            )
+            
+            # Get source entity for response
+            app_label, model_name = self.MODEL_MAP[type]
+            Model = apps.get_model(app_label, model_name)
+            
+            if hasattr(Model, 'tenant'):
+                entity = Model.objects.filter(tenant=tenant).get(pk=pk)
+            else:
+                entity = Model.objects.get(pk=pk)
+            
+            return Response({
+                "entity": self._serialize_entity(entity, type),
+                "fuzzy_matches": fuzzy_matches,
+                "total": len(fuzzy_matches)
+            })
+            
+        except ObjectDoesNotExist:
+            return Response(
+                {"error": f"Entity not found: {type} #{pk}"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            # Graceful error handling - return empty results
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Fuzzy discovery failed for {type} #{pk}: {str(e)}', exc_info=True)
+            
+            return Response({
+                "entity": {"id": pk, "type": type},
+                "fuzzy_matches": [],
+                "total": 0,
+                "error": "Fuzzy discovery temporarily unavailable"
+            })

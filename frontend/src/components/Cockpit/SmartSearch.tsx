@@ -575,7 +575,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   }, [searchEntities]);
 
   /**
-   * Load relational chunks for an entity using Entity Graph API
+   * Load relational chunks for an entity using Entity Graph API + Fuzzy Discovery
    */
   const loadRelationalChunks = useCallback(async (entity: SearchEntity) => {
     setIsLoading(true);
@@ -612,6 +612,53 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         
         chunks.push(chunk);
       });
+
+      // FUZZY DISCOVERY: Fetch fuzzy-matched related entities
+      try {
+        const fuzzyResponse = await apiClient.get(
+          `/system/entities/${entity.type}/${entity.id}/fuzzy-related/`,
+          { params: { max_results: 30 } }
+        );
+        
+        console.log('[SmartSearch] Fuzzy matches:', fuzzyResponse.data);
+        
+        if (fuzzyResponse.data.fuzzy_matches && fuzzyResponse.data.fuzzy_matches.length > 0) {
+          // Group fuzzy matches by type
+          const fuzzyByType: Record<string, any[]> = {};
+          
+          fuzzyResponse.data.fuzzy_matches.forEach((match: any) => {
+            if (!fuzzyByType[match.type]) {
+              fuzzyByType[match.type] = [];
+            }
+            fuzzyByType[match.type].push(match);
+          });
+          
+          // Add fuzzy chunks with distinctive styling
+          Object.entries(fuzzyByType).forEach(([matchType, matches]) => {
+            const fuzzyChunk: RelationalChunk = {
+              type: `fuzzy_${matchType}` as any,
+              title: `${formatRelationshipTitle(matchType)} (Fuzzy Matches)`,
+              items: matches.map((match: any) => ({
+                id: match.id,
+                type: match.type,
+                name: match.name,
+                subtitle: match.subtitle || `Match: ${match.metadata?.match_type || 'Unknown'}`,
+                metadata: {
+                  ...match.metadata,
+                  fuzzy: true,
+                  relevance_score: match.relevance_score || 0.5
+                },
+              })),
+              icon: getRelationshipIcon(matchType),
+            };
+            
+            chunks.push(fuzzyChunk);
+          });
+        }
+      } catch (fuzzyError) {
+        // Fuzzy discovery is optional - don't fail if it errors
+        console.warn('[SmartSearch] Fuzzy discovery failed (non-fatal):', fuzzyError);
+      }
 
       setRelationalChunks(chunks);
       

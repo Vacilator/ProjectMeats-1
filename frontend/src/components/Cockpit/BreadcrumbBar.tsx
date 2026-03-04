@@ -106,7 +106,7 @@ export const BreadcrumbBar: React.FC = () => {
           <Separator size={16} />
           <Crumb
             $isLast={index === path.length - 1}
-            onClick={() => !$isLast && goToStep(index)}
+            onClick={() => index !== path.length - 1 && goToStep(index)}
             disabled={index === path.length - 1}
           >
             <CrumbLabel>{step.label}</CrumbLabel>
