@@ -35,7 +35,7 @@ import {
   EmailIntegrationWidget,
   EmailIngestionMonitorWidget,
 } from '../../components/Widgets';
-import { CommandBar, CockpitTour, SmartSearch } from '../../components/Cockpit';
+import { CommandBar, CockpitTour, SmartSearch, BreadcrumbBar } from '../../components/Cockpit';
 import { CommandPalette } from '../../components/Navigation/CommandPalette';
 import { useCommandPalette } from '../../hooks/useCommandPalette';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
@@ -655,15 +655,21 @@ export const CockpitDashboard: React.FC = () => {
       {/* Command Palette Modal - Keep for ⌘K shortcut */}
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
-      {/* NEW: Embedded Search View */}
+      {/* NEW: Embedded Search View with BreadcrumbBar */}
       {isSearchView && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px' }}>
-          <div style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
             <ActionButton onClick={() => setIsSearchView(false)}>
               <ArrowLeft size={16} />
               Back to Widgets
             </ActionButton>
+            
+            {/* Breadcrumb navigation bar */}
+            {navigation.path.length > 0 && (
+              <BreadcrumbBar />
+            )}
           </div>
+          
           <SmartSearch 
             onSelectEntity={(entity) => {
               navigation.addStep({
