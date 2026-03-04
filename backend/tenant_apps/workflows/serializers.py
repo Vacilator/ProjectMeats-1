@@ -690,11 +690,16 @@ class ActionItemSerializer(serializers.Serializer):
 
 
 class ActionItemCountsSerializer(serializers.Serializer):
-    """Serializer for action item counts."""
+    """
+    Serializer for action item counts.
     
-    total = serializers.IntegerField()
-    overdue = serializers.IntegerField()
-    due_today = serializers.IntegerField()
-    due_this_week = serializers.IntegerField()
-    by_priority = serializers.DictField(child=serializers.IntegerField())
-    by_form = serializers.ListField(child=serializers.DictField())
+    All fields are nullable to handle graceful degradation when
+    database queries fail or tables are empty.
+    """
+    
+    total = serializers.IntegerField(required=False, allow_null=True, default=0)
+    overdue = serializers.IntegerField(required=False, allow_null=True, default=0)
+    due_today = serializers.IntegerField(required=False, allow_null=True, default=0)
+    due_this_week = serializers.IntegerField(required=False, allow_null=True, default=0)
+    by_priority = serializers.DictField(child=serializers.IntegerField(), required=False, allow_null=True, default=dict)
+    by_form = serializers.ListField(child=serializers.DictField(), required=False, allow_null=True, default=list)
