@@ -17,7 +17,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { 
   LayoutGrid, Lock, Unlock, Plus, 
-  RotateCcw, X 
+  RotateCcw, X, Search as SearchIcon 
 } from 'lucide-react';
 import { 
   WidgetGrid, 
@@ -35,9 +35,10 @@ import {
   EmailIntegrationWidget,
   EmailIngestionMonitorWidget,
 } from '../../components/Widgets';
-import { CommandBar, CockpitTour } from '../../components/Cockpit';
+import { CommandBar, CockpitTour, SmartSearch } from '../../components/Cockpit';
 import { CommandPalette } from '../../components/Navigation/CommandPalette';
 import { useCommandPalette } from '../../hooks/useCommandPalette';
+import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { apiClient } from '../../services/apiService';
 
 // ============================================================================
@@ -424,9 +425,13 @@ export const CockpitDashboard: React.FC = () => {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [gridWidth, setGridWidth] = useState(1200);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSearchView, setIsSearchView] = useState(false); // NEW: Toggle between widgets and search
   
   // CommandPalette hook for universal search
   const { isOpen: isPaletteOpen, open: openPalette, close: closePalette } = useCommandPalette();
+  
+  // Cockpit navigation context
+  const navigation = useCockpitNavigation();
 
   // Load saved layout from backend API with localStorage fallback
   useEffect(() => {
@@ -608,14 +613,24 @@ export const CockpitDashboard: React.FC = () => {
           {isEditing && <EditBadge>Editing Layout</EditBadge>}
         </ToolbarLeft>
         
-        {/* Universal Search CommandBar - Hidden in edit mode */}
-        {!isEditing && (
+        {/* Universal Search CommandBar - Replaced with inline search toggle */}
+        {!isEditing && !isSearchView && (
           <SearchWrapper>
             <CommandBar 
-              onOpenPalette={openPalette}
-              isPaletteOpen={isPaletteOpen}
+              onOpenPalette={() => setIsSearchView(true)} // NEW: Open inline search instead of modal
+              isPaletteOpen={false}
               placeholder="Search suppliers, customers, orders..."
             />
+          </SearchWrapper>
+        )}
+        
+        {/* Search view toggle button */}
+        {!isEditing && isSearchView && (
+          <SearchWrapper>
+            <ActionButton onClick={() => setIsSearchView(false)}>
+              <X size={16} />
+              Back to Dashboard
+            </ActionButton>
           </SearchWrapper>
         )}
         
@@ -636,10 +651,20 @@ export const CockpitDashboard: React.FC = () => {
               </ActionButton>
             </>
           ) : (
-            <ActionButton onClick={() => setIsEditing(true)}>
-              <Unlock size={16} />
-              Customize
-            </ActionButton>
+            <>
+              {!isSearchView && (
+                <>
+                  <ActionButton onClick={() => setIsSearchView(true)}>
+                    <SearchIcon size={16} />
+                    Search
+                  </ActionButton>
+                  <ActionButton onClick={() => setIsEditing(true)}>
+                    <Unlock size={16} />
+                    Customize
+                  </ActionButton>
+                </>
+              )}
+            </>
           )}
         </ToolbarActions>
       </ToolbarWrapper>
@@ -647,34 +672,53 @@ export const CockpitDashboard: React.FC = () => {
       {/* Guided Tour */}
       <CockpitTour enabled={true} />
       
-      {/* Command Palette Modal */}
+      {/* Command Palette Modal - Keep for ⌘K shortcut */}
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
-      <GridWrapper ref={containerRef} data-tour="search-results">
-        {widgets.length === 0 ? (
-          <EmptyState>
-            <LayoutGrid size={48} />
-            <h3>No widgets configured</h3>
-            <p>Add widgets to build your personalized dashboard</p>
-            <ActionButton $variant="primary" onClick={() => setIsEditing(true)}>
-              <Plus size={16} />
-              Get Started
-            </ActionButton>
-          </EmptyState>
-        ) : (
-          <WidgetGrid
-            widgets={widgets}
-            layout={layout}
-            onLayoutChange={handleLayoutChange}
-            onRemoveWidget={handleRemoveWidget}
-            renderWidget={renderWidget}
-            width={gridWidth}
-            cols={12}
-            rowHeight={100}
-            isEditing={isEditing}
+      {/* NEW: Embedded Search View */}
+      {isSearchView && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <SmartSearch 
+            onSelectEntity={(entity) => {
+              navigation.addStep({
+                id: parseInt(entity.id),
+                type: entity.type,
+                label: entity.name,
+                subtitle: entity.subtitle
+              });
+            }}
           />
-        )}
-      </GridWrapper>
+        </div>
+      )}
+
+      {/* Widget Grid - Only show when not in search view */}
+      {!isSearchView && (
+        <GridWrapper ref={containerRef} data-tour="search-results">
+          {widgets.length === 0 ? (
+            <EmptyState>
+              <LayoutGrid size={48} />
+              <h3>No widgets configured</h3>
+              <p>Add widgets to build your personalized dashboard</p>
+              <ActionButton $variant="primary" onClick={() => setIsEditing(true)}>
+                <Plus size={16} />
+                Get Started
+              </ActionButton>
+            </EmptyState>
+          ) : (
+            <WidgetGrid
+              widgets={widgets}
+              layout={layout}
+              onLayoutChange={handleLayoutChange}
+              onRemoveWidget={handleRemoveWidget}
+              renderWidget={renderWidget}
+              width={gridWidth}
+              cols={12}
+              rowHeight={100}
+              isEditing={isEditing}
+            />
+          )}
+        </GridWrapper>
+      )}
 
       {/* Widget Catalog Modal */}
       <ModalOverlay $isOpen={isCatalogOpen} onClick={() => setIsCatalogOpen(false)}>
