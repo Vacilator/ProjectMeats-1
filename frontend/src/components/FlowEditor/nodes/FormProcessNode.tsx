@@ -67,15 +67,26 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
     ? 'rgba(139, 92, 246, 0.04)' // Subtle purple tint when expanded to show container area
     : 'rgba(var(--color-background-secondary), 0.95)'};
   
-  border: ${props => props.isExpanded 
-    ? '2px dashed rgba(139, 92, 246, 0.4)' // Dashed border for visual grouping
-    : '2px solid rgba(139, 92, 246, 0.6)'};
+  /* FIX: Ensure border always renders, even when collapsed */
+  border-width: 2px;
+  border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
+  border-color: ${props => props.isExpanded 
+    ? 'rgba(139, 92, 246, 0.4)' 
+    : 'rgba(139, 92, 246, 0.6)'};
   
   border-radius: 12px;
   box-shadow: 
     0 4px 12px rgba(0, 0, 0, 0.12),
     0 0 0 4px rgba(139, 92, 246, 0.15);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* FIX: Smooth transition but preserve border */
+  transition: 
+    min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    min-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-style 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
   position: relative;
   overflow: visible; /* Allow child nodes to render inside visually */
   padding: ${props => props.isExpanded ? '0' : '0'}; /* Padding handled by body */

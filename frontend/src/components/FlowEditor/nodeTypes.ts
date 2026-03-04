@@ -144,16 +144,18 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
   },
   
+  // DEPRECATED: FormProcessGroup - Use regular formProcess instead
   formProcessGroup: {
     id: 'formProcessGroup',
-    name: 'Form Process',
+    name: 'Form Process (Multi-Step - Deprecated)',
     category: 'form',
     icon: '📂',
     color: '#a78bfa', // lighter purple - group variant
-    description: 'Advanced form container with labeled header and automatic step sequencing',
+    description: 'DEPRECATED: Use Form Process node instead. This multi-step container has been consolidated.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true, // Hide from node palette
   },
   
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)
