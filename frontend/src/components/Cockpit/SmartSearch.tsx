@@ -416,6 +416,53 @@ const formatEntitySubtitle = (item: any): string => {
   return '';
 };
 
+/**
+ * Get quick actions for an entity type
+ */
+const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
+  const actions: SearchEntity[] = [];
+  
+  switch (entity.type) {
+    case 'customer':
+      actions.push(
+        { id: 'create-invoice', type: 'order', name: 'Create Invoice', subtitle: 'Generate new invoice for this customer', metadata: { action: 'create_invoice', entityId: entity.id } },
+        { id: 'schedule-call', type: 'inquiry', name: 'Schedule Call', subtitle: 'Set up a call reminder', metadata: { action: 'schedule_call', entityId: entity.id } },
+        { id: 'view-history', type: 'order', name: 'View Full History', subtitle: 'See all transactions and interactions', metadata: { action: 'view_history', entityId: entity.id } }
+      );
+      break;
+    
+    case 'supplier':
+      actions.push(
+        { id: 'create-po', type: 'order', name: 'Create Purchase Order', subtitle: 'Start new PO with this supplier', metadata: { action: 'create_po', entityId: entity.id } },
+        { id: 'send-email', type: 'inquiry', name: 'Send Email', subtitle: 'Contact supplier via email', metadata: { action: 'send_email', entityId: entity.id } },
+        { id: 'view-history', type: 'order', name: 'View Purchase History', subtitle: 'See all orders from this supplier', metadata: { action: 'view_history', entityId: entity.id } }
+      );
+      break;
+    
+    case 'product':
+      actions.push(
+        { id: 'adjust-inventory', type: 'product', name: 'Adjust Inventory', subtitle: 'Update stock levels', metadata: { action: 'adjust_inventory', entityId: entity.id } },
+        { id: 'update-pricing', type: 'product', name: 'Update Pricing', subtitle: 'Change product pricing', metadata: { action: 'update_pricing', entityId: entity.id } },
+        { id: 'view-movement', type: 'product', name: 'View Stock Movement', subtitle: 'See inventory history', metadata: { action: 'view_movement', entityId: entity.id } }
+      );
+      break;
+    
+    case 'contact':
+      actions.push(
+        { id: 'send-email', type: 'inquiry', name: 'Send Email', subtitle: 'Contact via email', metadata: { action: 'send_email', entityId: entity.id } },
+        { id: 'schedule-meeting', type: 'inquiry', name: 'Schedule Meeting', subtitle: 'Set up a meeting', metadata: { action: 'schedule_meeting', entityId: entity.id } }
+      );
+      break;
+  }
+  
+  return {
+    type: 'actions' as any,
+    title: 'Quick Actions',
+    items: actions,
+    icon: <TrendingUp size={16} />,
+  };
+};
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -567,6 +614,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       });
 
       setRelationalChunks(chunks);
+      
+      // Add Quick Actions chunk at the end
+      const quickActions = getQuickActionsForEntity(entity);
+      if (quickActions.items.length > 0) {
+        chunks.push(quickActions);
+        setRelationalChunks(chunks);
+      }
     } catch (error) {
       console.error('[SmartSearch] Failed to load relational chunks:', error);
       setRelationalChunks([]);
@@ -615,6 +669,20 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       }
     }
   }, [breadcrumbs, query, loadRelationalChunks, searchEntities]);
+
+  /**
+   * Handle quick action click
+   */
+  const handleQuickAction = useCallback((action: SearchEntity) => {
+    const actionType = action.metadata?.action;
+    const entityId = action.metadata?.entityId;
+    
+    console.log('[SmartSearch] Quick action triggered:', actionType, entityId);
+    
+    // TODO: Implement actual action handlers (create invoice, schedule call, etc.)
+    // For now, just log the action
+    alert(`Quick Action: ${action.name}\nAction: ${actionType}\nEntity ID: ${entityId}`);
+  }, []);
 
   /**
    * Toggle favorite
@@ -746,7 +814,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           {chunk.items.map(item => (
             <ResultCard
               key={item.id}
-              onClick={() => handleSelectEntity(item)}
+              onClick={() => chunk.type === 'actions' ? handleQuickAction(item) : handleSelectEntity(item)}
+              style={chunk.type === 'actions' ? { cursor: 'pointer', borderStyle: 'dashed' } : {}}
             >
               <ResultIcon $color={getEntityColor(item.type)}>
                 {getEntityIcon(item.type)}
@@ -759,13 +828,15 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 )}
               </ResultContent>
 
-              <FavoriteButton
-                $isFavorite={favorites.has(item.id)}
-                onClick={(e) => toggleFavorite(item.id, e)}
-                title={favorites.has(item.id) ? 'Remove from favorites' : 'Add to favorites'}
-              >
-                <Star size={16} />
-              </FavoriteButton>
+              {chunk.type !== 'actions' && (
+                <FavoriteButton
+                  $isFavorite={favorites.has(item.id)}
+                  onClick={(e) => toggleFavorite(item.id, e)}
+                  title={favorites.has(item.id) ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  <Star size={16} />
+                </FavoriteButton>
+              )}
             </ResultCard>
           ))}
         </ResultGrid>
