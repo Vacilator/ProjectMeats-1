@@ -132,30 +132,31 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     hidden: true, // Deprecated - use 'form' instead
   },
   
+  // DEPRECATED: FormProcess (Basic) - Use formProcessGroup instead
   formProcess: {
     id: 'formProcess',
-    name: 'Form Process',
+    name: 'Form Process (Basic - Deprecated)',
     category: 'form',
     icon: '📦',
     color: '#8b5cf6', // purple - distinct from regular form blue
-    description: 'Multi-step form container - drag Form nodes here to create a sequential workflow',
-    maxInputs: 1,
-    maxOutputs: 1,
-    requiresConfig: true,
-  },
-  
-  // DEPRECATED: FormProcessGroup - Use regular formProcess instead
-  formProcessGroup: {
-    id: 'formProcessGroup',
-    name: 'Form Process (Multi-Step - Deprecated)',
-    category: 'form',
-    icon: '📂',
-    color: '#a78bfa', // lighter purple - group variant
-    description: 'DEPRECATED: Use Form Process node instead. This multi-step container has been consolidated.',
+    description: 'DEPRECATED: Use Form Process Group node instead. This basic container has been superseded by the advanced group implementation.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
     hidden: true, // Hide from node palette
+  },
+  
+  // Advanced Form Process with React Flow grouping
+  formProcessGroup: {
+    id: 'formProcessGroup',
+    name: 'Form Process',
+    category: 'form',
+    icon: '📂',
+    color: '#a78bfa', // lighter purple - group variant
+    description: 'Advanced form container with labeled header, automatic step sequencing, and React Flow grouping',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
   },
   
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)

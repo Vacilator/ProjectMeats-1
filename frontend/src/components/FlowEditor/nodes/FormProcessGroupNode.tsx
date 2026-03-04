@@ -105,7 +105,10 @@ const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; isDr
       : 'rgb(var(--color-background-secondary))';
   }};
   
-  border: 2px ${props => props.isExpanded ? 'dashed' : 'solid'} ${props => 
+  /* FIX: Split border shorthand to prevent disappearing during collapse */
+  border-width: 2px;
+  border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
+  border-color: ${props => 
     props.isDropTarget ? 'rgba(139, 92, 246, 0.8)' : 'rgba(139, 92, 246, 0.5)'
   };
   border-radius: 12px;
@@ -117,7 +120,14 @@ const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; isDr
     : '0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(139, 92, 246, 0.1)'
   };
   
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* FIX: Only transition specific properties, not all */
+  transition: 
+    min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    min-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-style 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
   &:hover {
     box-shadow: 
