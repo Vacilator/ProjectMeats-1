@@ -23,6 +23,7 @@ import {
   Users, Building2, Package, TrendingUp, X, Home 
 } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
+import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -472,10 +473,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   onSelectEntity,
   onClose,
 }) => {
+  // Use global navigation context instead of local breadcrumbs
+  const navigation = useCockpitNavigation();
+  
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
-  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([{ id: 'home', label: 'Search' }]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -677,14 +680,16 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   }, []);
 
   /**
-   * Handle entity selection
+   * Handle entity selection - Push to navigation stack
    */
   const handleSelectEntity = useCallback((entity: SearchEntity) => {
-    // Add to breadcrumbs
-    setBreadcrumbs(prev => [
-      ...prev,
-      { id: entity.id, label: entity.name, entity },
-    ]);
+    // Add to navigation stack (replaces breadcrumbs)
+    navigation.addStep({
+      id: parseInt(entity.id),
+      type: entity.type,
+      label: entity.name,
+      subtitle: entity.subtitle,
+    });
 
     // Load relational chunks
     loadRelationalChunks(entity);
@@ -693,29 +698,36 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     if (onSelectEntity) {
       onSelectEntity(entity);
     }
-  }, [loadRelationalChunks, onSelectEntity]);
+  }, [navigation, loadRelationalChunks, onSelectEntity]);
 
   /**
-   * Navigate breadcrumb
+   * Navigate to a specific step in the path
    */
-  const handleBreadcrumbClick = useCallback((index: number) => {
-    const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
-    setBreadcrumbs(newBreadcrumbs);
+  const handleNavigateToStep = useCallback((index: number) => {
+    // Use navigation context to jump to step
+    navigation.goToStep(index);
 
-    // If navigating back to home, show search results
-    if (index === 0) {
+    // If navigating back to root (no steps), show search results
+    if (index === -1 || navigation.path.length === 0) {
       setRelationalChunks([]);
       if (query) {
         searchEntities(query);
       }
     } else {
-      // Load relational chunks for the selected entity
-      const entity = newBreadcrumbs[index].entity;
-      if (entity) {
+      // Load relational chunks for the selected step
+      const step = navigation.path[index];
+      if (step) {
+        // Convert NavigationStep back to SearchEntity format
+        const entity: SearchEntity = {
+          id: step.id.toString(),
+          type: step.type as any,
+          name: step.label,
+          subtitle: step.subtitle,
+        };
         loadRelationalChunks(entity);
       }
     }
-  }, [breadcrumbs, query, loadRelationalChunks, searchEntities]);
+  }, [navigation, query, loadRelationalChunks, searchEntities]);
 
   /**
    * Handle quick action click
@@ -912,17 +924,27 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           )}
         </SearchInputWrapper>
 
-        {breadcrumbs.length > 1 && (
+        {/* Breadcrumbs now use navigation.path from context */}
+        {navigation.path.length > 0 && (
           <Breadcrumbs>
-            {breadcrumbs.map((crumb, index) => (
-              <React.Fragment key={crumb.id}>
-                {index > 0 && <BreadcrumbSeparator size={14} />}
+            {/* Always show "Home" root */}
+            <BreadcrumbItem
+              $isActive={navigation.path.length === 0}
+              onClick={() => handleNavigateToStep(-1)}
+            >
+              <Home size={12} />
+              Search
+            </BreadcrumbItem>
+            
+            {/* Render navigation path */}
+            {navigation.path.map((step, index) => (
+              <React.Fragment key={`${step.type}-${step.id}`}>
+                <BreadcrumbSeparator size={14} />
                 <BreadcrumbItem
-                  $isActive={index === breadcrumbs.length - 1}
-                  onClick={() => handleBreadcrumbClick(index)}
+                  $isActive={index === navigation.path.length - 1}
+                  onClick={() => handleNavigateToStep(index)}
                 >
-                  {index === 0 && <Home size={12} />}
-                  {crumb.label}
+                  {step.label}
                 </BreadcrumbItem>
               </React.Fragment>
             ))}
@@ -938,7 +960,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
             </EmptyIcon>
             <EmptyTitle>Searching...</EmptyTitle>
           </EmptyState>
-        ) : breadcrumbs.length > 1 ? (
+        ) : navigation.path.length > 0 ? (
           renderRelationalChunks()
         ) : (
           renderSearchResults()
