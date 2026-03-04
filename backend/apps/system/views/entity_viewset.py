@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.apps import apps
 from django.core.exceptions import ObjectDoesNotExist
+from apps.system.services.relationship_discovery import RelationshipDiscoveryService
 
 
 class EntityViewSet(viewsets.ViewSet):
@@ -112,6 +113,50 @@ class EntityViewSet(viewsets.ViewSet):
             "relationships": relationships,
             "counts": counts
         })
+    
+    @action(detail=True, methods=['get'], url_path='fuzzy')
+    def fuzzy_relationships(self, request, type=None, pk=None):
+        """
+        Get fuzzy (indirect) relationships and AI recommendations.
+        
+        Returns:
+        {
+          "fuzzy": {
+            "related_by_email_domain": [...],
+            "related_by_tax_id": [...],
+            "nearby_customers": [...]
+          },
+          "recommended": {
+            "products": [
+              { "id": 5, "type": "product", "name": "Ribeye", "reason": "Purchased 12 times, $5,400 total", "score": 5400.0 }
+            ]
+          }
+        }
+        """
+        tenant = request.tenant
+        
+        if type not in self.MODEL_MAP:
+            return Response(
+                {"error": f"Unknown entity type: {type}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            discovery_service = RelationshipDiscoveryService(str(tenant.id))
+            relationships = discovery_service.discover_relationships(
+                entity_type=type,
+                entity_id=int(pk),
+                include_fuzzy=True,
+                include_recommendations=True
+            )
+            
+            return Response(relationships)
+            
+        except Exception as e:
+            return Response(
+                {"error": f"Fuzzy relationship discovery failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     def retrieve(self, request, pk=None, type=None):
         """

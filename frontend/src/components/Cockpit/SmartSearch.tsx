@@ -619,8 +619,58 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       const quickActions = getQuickActionsForEntity(entity);
       if (quickActions.items.length > 0) {
         chunks.push(quickActions);
-        setRelationalChunks(chunks);
       }
+      
+      // Load fuzzy relationships and AI recommendations
+      try {
+        const fuzzyResponse = await apiClient.get(
+          `/system/entities/${entity.type}/${entity.id}/fuzzy/`
+        );
+        
+        const { fuzzy, recommended } = fuzzyResponse.data;
+        
+        // Add fuzzy matches as "Suggested Insights" chunk
+        const fuzzyItems: SearchEntity[] = [];
+        Object.entries(fuzzy).forEach(([matchType, items]: [string, any]) => {
+          if (items && Array.isArray(items) && items.length > 0) {
+            items.forEach((item: any) => {
+              fuzzyItems.push({
+                id: item.id,
+                type: item.type,
+                name: item.name,
+                subtitle: item.match_reason || '',
+                metadata: { matchType },
+              });
+            });
+          }
+        });
+        
+        // Add AI recommendations
+        if (recommended.products && recommended.products.length > 0) {
+          recommended.products.forEach((product: any) => {
+            fuzzyItems.push({
+              id: product.id,
+              type: product.type,
+              name: product.name,
+              subtitle: product.reason,
+              metadata: { score: product.score, isRecommendation: true },
+            });
+          });
+        }
+        
+        if (fuzzyItems.length > 0) {
+          chunks.push({
+            type: 'insights' as any,
+            title: '🔍 Suggested Insights',
+            items: fuzzyItems,
+            icon: 'Lightbulb',
+          });
+        }
+      } catch (error) {
+        console.log('[SmartSearch] Fuzzy relationships not available:', error);
+      }
+      
+      setRelationalChunks(chunks);
     } catch (error) {
       console.error('[SmartSearch] Failed to load relational chunks:', error);
       setRelationalChunks([]);
@@ -649,23 +699,28 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   }, [loadRelationalChunks, onSelectEntity]);
 
   /**
-   * Navigate breadcrumb
+   * Navigate breadcrumb with loading state
    */
   const handleBreadcrumbClick = useCallback((index: number) => {
     const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
     setBreadcrumbs(newBreadcrumbs);
 
+    // Clear relational chunks immediately to prevent ghost data
+    setRelationalChunks([]);
+    
     // If navigating back to home, show search results
     if (index === 0) {
-      setRelationalChunks([]);
       if (query) {
         searchEntities(query);
       }
     } else {
-      // Load relational chunks for the selected entity
+      // Load relational chunks for the selected entity with loading state
       const entity = newBreadcrumbs[index].entity;
       if (entity) {
-        loadRelationalChunks(entity);
+        setIsLoading(true);
+        loadRelationalChunks(entity).finally(() => {
+          // Loading state managed within loadRelationalChunks
+        });
       }
     }
   }, [breadcrumbs, query, loadRelationalChunks, searchEntities]);
