@@ -142,7 +142,7 @@ import { FormBuilderProvider } from '../../contexts/FormBuilderContext';
 // Error Boundary (2026-02-21 Comprehensive Enhancements)
 import { ErrorBoundary } from './ErrorBoundary';
 // NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
-// import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel';
+import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel'; // Phase 7: Re-enabled for Smart Auto-Map
 // import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 // import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 // import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
@@ -6512,6 +6512,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         {selectedFormStep && (
           <FormStepConfigPanel
             step={selectedFormStep.data}
+            nodeId={selectedFormStep.id}
             onChange={(updatedStepData) => {
               handleNodeUpdate(selectedFormStep.id, updatedStepData);
               setFormStepModalOpen(false);

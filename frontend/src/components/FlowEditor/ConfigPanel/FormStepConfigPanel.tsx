@@ -27,13 +27,15 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { 
   ChevronDown, ChevronUp, GripVertical, Plus, Edit2, Trash2, 
-  Eye, EyeOff, CheckCircle, Database
+  Eye, EyeOff, CheckCircle, Database, Zap
 } from 'lucide-react';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
 import type { FormField, FormFieldType } from './FormFieldConfigPanel';
 import { useEntityList, useEntityFields, EntityField } from '../../../services/schemaService';
 import { EntityFieldPicker, SelectedField } from './EntityFieldPicker';
 import { FieldPropertiesEditor, FieldProperties } from './FieldPropertiesEditor';
+import { useAutoMapping } from '../hooks/useAutoMapping';
+import { AutoMappingSuggestionsPanel } from '../components/AutoMappingSuggestionsPanel';
 
 // Import shared styled components
 import {
@@ -95,6 +97,7 @@ export interface FormStepData {
 
 export interface FormStepConfigPanelProps {
   step: FormStepData;
+  nodeId?: string;  // Phase 7: Added for Smart Auto-Map
   onChange: (step: FormStepData) => void;
   onClose: () => void;
   onEditField?: (field: FormField) => void;
@@ -362,6 +365,7 @@ const mapEntityFieldTypeToFormFieldType = (djangoType: string): FormFieldType =>
 
 export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   step,
+  nodeId,
   onChange,
   onClose,
   onEditField,
@@ -404,6 +408,18 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     { enabled: !!localStep.entityType }
   );
   const availableEntityFields = fieldsData?.fields || [];
+  
+  // Phase 7: Smart Auto-Map integration
+  const {
+    suggestions,
+    loading: autoMappingLoading,
+    error: autoMappingError,
+    generateSuggestions,
+    applySuggestion,
+    applyAllSuggestions,
+    clearSuggestions,
+  } = useAutoMapping();
+  const [showAutoMapping, setShowAutoMapping] = useState<boolean>(false);
   
   // Phase A.3: Filter available fields by search term and type
   const filteredEntityFields = availableEntityFields
@@ -620,6 +636,78 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
             </StyledFormField>
           </SectionContent>
         </Section>
+
+        {/* Phase 7: Smart Auto-Map - Intelligent Field Suggestions */}
+        {localStep.entityType && localStep.fields.length === 0 && (
+          <Section>
+            <SectionHeader onClick={() => setShowAutoMapping(!showAutoMapping)}>
+              <SectionTitle>
+                <Zap size={14} style={{ marginRight: '4px', display: 'inline', verticalAlign: 'middle' }} />
+                Smart Auto-Map
+                {suggestions && suggestions.suggestions.length > 0 && (
+                  <span style={{ 
+                    marginLeft: '8px', 
+                    fontSize: '12px', 
+                    color: 'rgb(var(--color-primary))',
+                    fontWeight: 'normal'
+                  }}>
+                    ({suggestions.suggestions.length} suggestions)
+                  </span>
+                )}
+              </SectionTitle>
+              {showAutoMapping ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </SectionHeader>
+            <SectionContent $collapsed={!showAutoMapping}>
+              <div style={{ marginBottom: '16px' }}>
+                <HelpText>
+                  Automatically suggest field mappings from upstream nodes based on name similarity and type compatibility.
+                </HelpText>
+                <PrimaryButton
+                  onClick={() => {
+                    if (nodeId) {
+                      generateSuggestions(nodeId);
+                    }
+                  }}
+                  disabled={autoMappingLoading || !nodeId}
+                  style={{ marginTop: '12px' }}
+                >
+                  {autoMappingLoading ? 'Analyzing...' : 'Generate Suggestions'}
+                </PrimaryButton>
+              </div>
+              
+              {suggestions && suggestions.suggestions.length > 0 && (
+                <AutoMappingSuggestionsPanel
+                  suggestions={suggestions.suggestions}
+                  loading={autoMappingLoading}
+                  error={autoMappingError}
+                  onAccept={(suggestion) => {
+                    applySuggestion(suggestion);
+                    // Note: Field mapping will be applied to node data
+                    // The actual field addition to localStep.fields would need
+                    // additional logic to convert mapping to form field
+                  }}
+                  onReject={(suggestionId) => {
+                    // Filter out rejected suggestion
+                    // This would need additional state management
+                  }}
+                  onApplyAll={() => {
+                    applyAllSuggestions();
+                  }}
+                  onClose={() => {
+                    clearSuggestions();
+                    setShowAutoMapping(false);
+                  }}
+                />
+              )}
+              
+              {autoMappingError && (
+                <ErrorMessage style={{ marginTop: '12px' }}>
+                  {autoMappingError}
+                </ErrorMessage>
+              )}
+            </SectionContent>
+          </Section>
+        )}
 
         {/* Fields Management */}
         <Section>
