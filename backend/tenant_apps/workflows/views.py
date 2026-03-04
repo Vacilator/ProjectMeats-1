@@ -3159,64 +3159,102 @@ class ActionItemCountsAPIView(APIView):
         from datetime import timedelta
 
         from django.utils import timezone
+        import logging
 
+        logger = logging.getLogger(__name__)
         user = request.user
-        now = timezone.now()
-        today = now.date()
-        week_from_now = today + timedelta(days=7)
+        tenant = getattr(request, 'tenant', None)
 
-        counts = {
-            "total": 0,
-            "overdue": 0,
-            "due_today": 0,
-            "due_this_week": 0,
-            "by_priority": defaultdict(int),
-            "by_form": [],
-        }
-        form_counts = defaultdict(int)
+        # Graceful fallback if tenant not available
+        if not tenant:
+            logger.warning('[ActionItemCounts] No tenant found in request')
+            return Response({
+                "total": 0,
+                "overdue": 0,
+                "due_today": 0,
+                "due_this_week": 0,
+                "by_priority": {},
+                "by_form": [],
+            })
 
-        # Get step assignments for user
-        assignments = StepAssignment.objects.filter(assigned_user=user).select_related("form", "step")
+        try:
+            now = timezone.now()
+            today = now.date()
+            week_from_now = today + timedelta(days=7)
 
-        if hasattr(request, "tenant") and request.tenant:
-            assignments = assignments.filter(tenant=request.tenant)
+            counts = {
+                "total": 0,
+                "overdue": 0,
+                "due_today": 0,
+                "due_this_week": 0,
+                "by_priority": defaultdict(int),
+                "by_form": [],
+            }
+            form_counts = defaultdict(int)
 
-        for assignment in assignments:
-            step_submissions = FormStepSubmission.objects.filter(
-                step=assignment.step, status=StepSubmissionStatus.ACTION_NEEDED, submission__status="in_progress"
-            )
+            # Get step assignments for user with explicit tenant filter
+            assignments = StepAssignment.objects.filter(
+                assigned_user=user,
+                tenant=tenant  # EXPLICIT tenant filter
+            ).select_related("form", "step")
 
-            if hasattr(request, "tenant") and request.tenant:
-                step_submissions = step_submissions.filter(submission__tenant=request.tenant)
+            for assignment in assignments:
+                step_submissions = FormStepSubmission.objects.filter(
+                    step=assignment.step, 
+                    status=StepSubmissionStatus.ACTION_NEEDED, 
+                    submission__status="in_progress",
+                    submission__tenant=tenant  # EXPLICIT tenant filter
+                )
 
-            for step_sub in step_submissions:
-                counts["total"] += 1
-                form_counts[assignment.form.name] += 1
+                for step_sub in step_submissions:
+                    counts["total"] += 1
+                    form_counts[assignment.form.name] += 1
 
-                # Calculate due date and priority
-                due_date = None
-                is_overdue = False
-                if assignment.due_days:
-                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                    is_overdue = due_date < now
+                    # Calculate due date and priority
+                    due_date = None
+                    is_overdue = False
+                    if assignment.due_days:
+                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                        is_overdue = due_date < now
 
-                    if is_overdue:
-                        counts["overdue"] += 1
-                    elif due_date.date() == today:
-                        counts["due_today"] += 1
-                    elif due_date.date() <= week_from_now:
-                        counts["due_this_week"] += 1
+                        if is_overdue:
+                            counts["overdue"] += 1
+                        elif due_date.date() == today:
+                            counts["due_today"] += 1
+                        elif due_date.date() <= week_from_now:
+                            counts["due_this_week"] += 1
 
-                priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
-                counts["by_priority"][priority] += 1
+                    priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
+                    counts["by_priority"][priority] += 1
 
-        counts["by_form"] = [
-            {"form_name": name, "count": count} for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
-        ]
-        counts["by_priority"] = dict(counts["by_priority"])
+            counts["by_form"] = [
+                {"form_name": name, "count": count} for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
+            ]
+            counts["by_priority"] = dict(counts["by_priority"])
 
-        serializer = ActionItemCountsSerializer(counts)
-        return Response(serializer.data)
+            serializer = ActionItemCountsSerializer(counts)
+            return Response(serializer.data)
+
+        except Exception as e:
+            # Log error to Sentry if available
+            logger.error(f'[ActionItemCounts] Failed to fetch counts: {str(e)}', exc_info=True)
+            
+            # Send to Sentry if configured
+            try:
+                import sentry_sdk
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass  # Sentry not configured
+            
+            # Return graceful empty response
+            return Response({
+                "total": 0,
+                "overdue": 0,
+                "due_today": 0,
+                "due_this_week": 0,
+                "by_priority": {},
+                "by_form": [],
+            }, status=status.HTTP_200_OK)  # Return 200 with empty data, not 500
 
 
 # =============================================================================
