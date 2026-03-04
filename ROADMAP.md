@@ -324,6 +324,97 @@
 
 ---
 
+## 🔍 Cockpit Enhancement: Advanced Navigation & Discovery
+
+**Status**: In Progress  
+**Last Updated**: March 4, 2026
+
+### Completed Features ✅
+
+#### Phase A: Entity Graph API Foundation (PR #3425)
+- Unified relationship API for dynamic entity discovery
+- Endpoint: `/api/v1/system/entities/{type}/{id}/relationships/`
+- Supports 6 entity types: Customer, Supplier, Product, Contact, PO, SO
+- EntityLabels service for contextual metadata
+- Backend-driven navigation eliminates hardcoded frontend URLs
+
+#### Phase B: Ranked Search Engine (PR #3424)
+- Production-grade RankedSearchViewSet with EntityRanking integration
+- 4-component scoring: Recency (40pts), Relevance (30pts), Value (20pts), Activity (10pts)
+- Multi-entity search: Customer, Supplier, Product, Contact, Invoice
+- Accurate counts (total DB matches, not just top results)
+- Smart labels: "Last contact: 2 days ago", "High-value customer"
+
+#### Phase C: Quick Actions (PR #3426)
+- Context-aware workflow shortcuts based on entity type
+- Customer actions: Create Invoice, Schedule Call, View History, Send Email
+- Supplier actions: Create PO, Request Quote, View Products, Contact Rep
+- Visual distinction: dashed border on action cards
+- Integration with SmartSearch breadcrumb navigation
+
+#### Phase D: Fuzzy Relationships & AI Recommendations (PR #TBD)
+- RelationshipDiscoveryService with 3 discovery strategies:
+  1. **Fuzzy Matching**: Email domain, tax ID, city proximity
+  2. **AI Recommendations**: Top 3 products by transaction history
+  3. **Indirect Links**: Shared attributes across entities
+- New endpoint: `/api/v1/system/entities/{type}/{id}/fuzzy/`
+- Frontend integration: "Suggested Insights" section with 🔍 icon
+- Graceful degradation if fuzzy endpoint unavailable
+
+#### Phase E: Back-Navigation Refresh (PR #TBD)
+- Fixed ghost data on breadcrumb navigation
+- Loading skeleton during entity transitions
+- Immediate state clearing when clicking back
+- Automatic re-fetch of entity relationships
+
+### Architecture Highlights
+
+**Entity Graph Pattern**:
+```
+Customer → [POs, SOs, Contacts] (direct)
+         → [Invoices via email domain, Notes via tax ID] (fuzzy)
+         → [Ribeye, Tenderloin, Brisket] (AI-recommended by purchase history)
+```
+
+**Service Layer**:
+- `EntityRanking`: 0-100 scoring with weighted components
+- `EntityLabels`: Contextual metadata generation
+- `RelationshipDiscoveryService`: Multi-strategy relationship finder
+
+**Frontend Components**:
+- `SmartSearch.tsx`: Main cockpit search with breadcrumb navigation
+- `ResultCard`: Entity display with favorites and quick actions
+- `RelationalChunks`: Grouped relationship results
+
+### Key Files
+
+**Backend**:
+- `backend/apps/system/views/entity_viewset.py` (450+ lines)
+- `backend/apps/system/views/search_viewset.py` (500+ lines)
+- `backend/apps/system/services/ranking_service.py` (300+ lines)
+- `backend/apps/system/services/relationship_discovery.py` (400+ lines)
+
+**Frontend**:
+- `frontend/src/components/Cockpit/SmartSearch.tsx` (1000+ lines)
+- `frontend/src/components/Cockpit/ResultCard.tsx`
+- `frontend/src/components/Cockpit/BreadcrumbBar.tsx`
+
+### Performance
+
+- Entity Graph API: <100ms response for standard relationships
+- Fuzzy discovery: <200ms with caching
+- AI recommendations: Calculated on-demand, cached 5 minutes
+- Frontend rendering: Virtualized for 100+ results
+
+### Next Steps ⏳
+
+- [ ] Embedded navigation (move from modal to main view)
+- [ ] Real-time search updates (WebSocket integration)
+- [ ] Mind-map visualizations (react-flow)
+- [ ] NLP query refinement (OpenAI GPT-4)
+
+---
+
 ## 🔒 Blocked Phases (Awaiting External Dependencies)
 
 ### Phase 5: Integrations ✅ [100% COMPLETE]
