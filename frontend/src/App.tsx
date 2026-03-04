@@ -14,6 +14,7 @@ import { QuickActionsProvider } from './contexts/QuickActionsContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import { ActionItemsProvider } from './contexts/ActionItemsContext';
 import { SessionManagerProvider } from './contexts/SessionManagerContext';
+import { CockpitNavigationProvider } from './contexts/CockpitNavigationContext';
 import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
 import './i18n/config'; // Initialize i18n
@@ -359,6 +360,7 @@ const App: React.FC = () => {
           </NavigationProvider>
           </SessionManagerProvider>
         </Router>
+                    </CockpitNavigationProvider>
               </QuickActionsProvider>
             </ActionItemsProvider>
           </NotificationsProvider>
