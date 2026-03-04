@@ -17,7 +17,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { 
   LayoutGrid, Lock, Unlock, Plus, 
-  RotateCcw, X 
+  RotateCcw, X, ArrowLeft, Search
 } from 'lucide-react';
 import { 
   WidgetGrid, 
@@ -35,9 +35,10 @@ import {
   EmailIntegrationWidget,
   EmailIngestionMonitorWidget,
 } from '../../components/Widgets';
-import { CommandBar, CockpitTour } from '../../components/Cockpit';
+import { CommandBar, CockpitTour, SmartSearch } from '../../components/Cockpit';
 import { CommandPalette } from '../../components/Navigation/CommandPalette';
 import { useCommandPalette } from '../../hooks/useCommandPalette';
+import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { apiClient } from '../../services/apiService';
 
 // ============================================================================
@@ -656,7 +657,13 @@ export const CockpitDashboard: React.FC = () => {
 
       {/* NEW: Embedded Search View */}
       {isSearchView && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <ActionButton onClick={() => setIsSearchView(false)}>
+              <ArrowLeft size={16} />
+              Back to Widgets
+            </ActionButton>
+          </div>
           <SmartSearch 
             onSelectEntity={(entity) => {
               navigation.addStep({
