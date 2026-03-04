@@ -424,9 +424,13 @@ export const CockpitDashboard: React.FC = () => {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [gridWidth, setGridWidth] = useState(1200);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSearchView, setIsSearchView] = useState(false); // NEW: Toggle between widgets and search
   
   // CommandPalette hook for universal search
   const { isOpen: isPaletteOpen, open: openPalette, close: closePalette } = useCommandPalette();
+  
+  // Cockpit navigation context
+  const navigation = useCockpitNavigation();
 
   // Load saved layout from backend API with localStorage fallback
   useEffect(() => {
@@ -647,10 +651,28 @@ export const CockpitDashboard: React.FC = () => {
       {/* Guided Tour */}
       <CockpitTour enabled={true} />
       
-      {/* Command Palette Modal */}
+      {/* Command Palette Modal - Keep for ⌘K shortcut */}
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
-      <GridWrapper ref={containerRef} data-tour="search-results">
+      {/* NEW: Embedded Search View */}
+      {isSearchView && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <SmartSearch 
+            onSelectEntity={(entity) => {
+              navigation.addStep({
+                id: parseInt(entity.id),
+                type: entity.type,
+                label: entity.name,
+                subtitle: entity.subtitle
+              });
+            }}
+          />
+        </div>
+      )}
+
+      {/* Widget Grid - Only show when not in search view */}
+      {!isSearchView && (
+        <GridWrapper ref={containerRef} data-tour="search-results">
         {widgets.length === 0 ? (
           <EmptyState>
             <LayoutGrid size={48} />

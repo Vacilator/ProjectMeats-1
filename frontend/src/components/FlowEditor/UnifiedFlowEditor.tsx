@@ -36,6 +36,7 @@ import Editor from '@monaco-editor/react';
 import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
+import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
 import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
