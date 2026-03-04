@@ -1008,15 +1008,29 @@ jobs:
           }
           echo "✓ Static files collected"
           
-          # Health check
+          # Health check with self-healing retry
           MAX_ATTEMPTS=20
           ATTEMPT=1
+          RETRY_WITH_HEALING=false
+          
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
             HTTP_CODE=$(curl -L -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/health/ || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "✓ Backend health check passed (HTTP $HTTP_CODE)"
               break
             fi
+            
+            # Self-healing logic: On first failure, try clearing cache and retry once
+            if [ $ATTEMPT -eq 10 ] && [ "$RETRY_WITH_HEALING" = "false" ]; then
+              echo "⚠️  Health check failing - attempting self-healing..."
+              echo "Running: docker exec pm-backend python manage.py clear_cache"
+              docker exec pm-backend python manage.py clear_cache || echo "Cache clear failed (command may not exist)"
+              echo "Waiting 10 seconds after cache clear..."
+              sleep 10
+              RETRY_WITH_HEALING=true
+              echo "Retrying health check after self-healing attempt..."
+            fi
+            
             echo "Health check attempt $ATTEMPT/$MAX_ATTEMPTS (HTTP $HTTP_CODE), retrying..."
             sleep 5
             ATTEMPT=$((ATTEMPT + 1))
@@ -1024,7 +1038,8 @@ jobs:
           
           if [ "$HTTP_CODE" != "200" ]; then
             echo "✗ Backend health check failed after $MAX_ATTEMPTS attempts"
-            docker logs pm-backend --tail 50
+            echo "Showing last 100 lines of logs..."
+            docker logs pm-backend --tail 100
             exit 1
           fi
           
