@@ -1828,6 +1828,32 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticated]
 
+    def list(self, request, *args, **kwargs):
+        """
+        List submissions with bulletproof error handling.
+        Returns empty list on any errors to prevent 500 responses.
+        """
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            # Catch any serialization or database errors
+            logger.error(f'[FormSubmission] Failed to list submissions: {str(e)}', exc_info=True)
+            
+            # Send to Sentry if configured
+            try:
+                import sentry_sdk
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass  # Sentry not configured
+            
+            # Return empty list to prevent 500 error
+            return Response({
+                "count": 0,
+                "next": None,
+                "previous": None,
+                "results": []
+            }, status=status.HTTP_200_OK)
+
     def get_serializer_class(self):
         if self.action == "list":
             return FormSubmissionListSerializer
@@ -1857,62 +1883,81 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         return Response(detail_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def get_queryset(self):
-        qs = FormSubmission.objects.filter(tenant=self.request.tenant)
+        """
+        Get submissions with bulletproof error handling.
+        Returns empty queryset on any database/RLS errors to prevent 500 responses.
+        """
+        try:
+            qs = FormSubmission.objects.filter(tenant=self.request.tenant)
 
-        # Non-admin users only see their own submissions
-        if not self.request.user.is_staff:
-            qs = qs.filter(created_by=self.request.user)
+            # Non-admin users only see their own submissions
+            if not self.request.user.is_staff:
+                qs = qs.filter(created_by=self.request.user)
 
-        # Filter by status
-        status_filter = self.request.query_params.get("status")
-        if status_filter:
-            qs = qs.filter(status=status_filter)
+            # Filter by status
+            status_filter = self.request.query_params.get("status")
+            if status_filter:
+                qs = qs.filter(status=status_filter)
 
-        # Filter by form
-        form_id = self.request.query_params.get("form")
-        if form_id:
-            qs = qs.filter(form_id=form_id)
+            # Filter by form
+            form_id = self.request.query_params.get("form")
+            if form_id:
+                qs = qs.filter(form_id=form_id)
 
-        # Filter by assigned_to
-        # Note: This filters submissions where the user has at least one step assignment
-        # in the form definition (via StepAssignment), regardless of the submission's current step.
-        # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
-        assigned_to = self.request.query_params.get("assigned_to")
-        if assigned_to:
-            if assigned_to == "me":
-                # Filter submissions where current user is assigned to at least one step
-                qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
-            elif self.request.user.is_staff:
-                # Admin users can filter by specific user ID
-                try:
-                    user = User.objects.get(id=assigned_to)
-                    qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
-                except (User.DoesNotExist, ValueError) as e:
-                    # Invalid user ID - return empty queryset
-                    # Log for debugging and security monitoring
+            # Filter by assigned_to
+            # Note: This filters submissions where the user has at least one step assignment
+            # in the form definition (via StepAssignment), regardless of the submission's current step.
+            # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
+            assigned_to = self.request.query_params.get("assigned_to")
+            if assigned_to:
+                if assigned_to == "me":
+                    # Filter submissions where current user is assigned to at least one step
+                    qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
+                elif self.request.user.is_staff:
+                    # Admin users can filter by specific user ID
+                    try:
+                        user = User.objects.get(id=assigned_to)
+                        qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
+                    except (User.DoesNotExist, ValueError) as e:
+                        # Invalid user ID - return empty queryset
+                        # Log for debugging and security monitoring
+                        import logging
+
+                        logger = logging.getLogger(__name__)
+                        logger.warning(
+                            f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
+                            extra={"user": self.request.user.username, "assigned_to": assigned_to},
+                        )
+                        qs = qs.none()
+                else:
+                    # Non-admin users can only use assigned_to=me
+                    # Return empty queryset to prevent user ID enumeration
                     import logging
 
                     logger = logging.getLogger(__name__)
                     logger.warning(
-                        f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
+                        f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
                         extra={"user": self.request.user.username, "assigned_to": assigned_to},
                     )
                     qs = qs.none()
-            else:
-                # Non-admin users can only use assigned_to=me
-                # Return empty queryset to prevent user ID enumeration
-                import logging
 
-                logger = logging.getLogger(__name__)
-                logger.warning(
-                    f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
-                    extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                )
-                qs = qs.none()
-
-        return qs.select_related("form", "created_by", "current_step").prefetch_related(
-            "step_submissions__step", "step_submissions__completed_by"
-        )
+            return qs.select_related("form", "created_by", "current_step").prefetch_related(
+                "step_submissions__step", "step_submissions__completed_by"
+            )
+            
+        except Exception as e:
+            # Catch any database errors (RLS failures, missing tables, connection issues)
+            logger.error(f'[FormSubmission] Failed to fetch queryset: {str(e)}', exc_info=True)
+            
+            # Send to Sentry if configured
+            try:
+                import sentry_sdk
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass  # Sentry not configured
+            
+            # Return empty queryset to prevent 500 error
+            return FormSubmission.objects.none()
 
     @action(detail=True, methods=["post"])
     def auto_save(self, request, pk=None):
