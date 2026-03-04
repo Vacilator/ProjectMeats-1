@@ -697,6 +697,7 @@ export const CockpitDashboard: React.FC = () => {
           />
         )}
       </GridWrapper>
+      )}
 
       {/* Widget Catalog Modal */}
       <ModalOverlay $isOpen={isCatalogOpen} onClick={() => setIsCatalogOpen(false)}>
