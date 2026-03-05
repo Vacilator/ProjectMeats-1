@@ -425,7 +425,6 @@ export const CockpitDashboard: React.FC = () => {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [gridWidth, setGridWidth] = useState(1200);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSearchView, setIsSearchView] = useState(false); // NEW: Toggle between widgets and search
   
   // CommandPalette hook for universal search
   const { isOpen: isPaletteOpen, open: openPalette, close: closePalette } = useCommandPalette();
@@ -655,37 +654,29 @@ export const CockpitDashboard: React.FC = () => {
       {/* Command Palette Modal - Keep for ⌘K shortcut */}
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
-      {/* NEW: Embedded Search View with BreadcrumbBar */}
-      {isSearchView && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <ActionButton onClick={() => setIsSearchView(false)}>
-              <ArrowLeft size={16} />
-              Back to Widgets
-            </ActionButton>
-            
-            {/* Breadcrumb navigation bar */}
-            {navigation.path.length > 0 && (
-              <BreadcrumbBar />
-            )}
+      {/* EMBEDDED SEARCH - Always Visible */}
+      <div style={{ padding: '16px 16px 0 16px' }}>
+        {/* Breadcrumb navigation bar */}
+        {navigation.path.length > 0 && (
+          <div style={{ marginBottom: '12px' }}>
+            <BreadcrumbBar />
           </div>
-          
-          <SmartSearch 
-            onSelectEntity={(entity) => {
-              navigation.addStep({
-                id: parseInt(entity.id),
-                type: entity.type,
-                label: entity.name,
-                subtitle: entity.subtitle
-              });
-            }}
-          />
-        </div>
-      )}
+        )}
+        
+        <SmartSearch 
+          onSelectEntity={(entity) => {
+            navigation.addStep({
+              id: parseInt(entity.id),
+              type: entity.type,
+              label: entity.name,
+              subtitle: entity.subtitle
+            });
+          }}
+        />
+      </div>
 
-      {/* Widget Grid - Only show when not in search view */}
-      {!isSearchView && (
-        <GridWrapper ref={containerRef} data-tour="search-results">
+      {/* Widget Grid - Always show */}
+      <GridWrapper ref={containerRef} data-tour="search-results">
         {widgets.length === 0 ? (
           <EmptyState>
             <LayoutGrid size={48} />
@@ -710,7 +701,6 @@ export const CockpitDashboard: React.FC = () => {
           />
         )}
       </GridWrapper>
-      )}
 
       {/* Widget Catalog Modal */}
       <ModalOverlay $isOpen={isCatalogOpen} onClick={() => setIsCatalogOpen(false)}>
