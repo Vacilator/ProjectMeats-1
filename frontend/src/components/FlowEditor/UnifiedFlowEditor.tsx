@@ -36,6 +36,7 @@ import Editor from '@monaco-editor/react';
 import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
+import * as Sentry from '@sentry/react'; // Error tracking
 import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
@@ -3008,21 +3009,47 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Block connections from child node to external node
       if (sourceNode.parentNode && !targetNode.parentNode) {
         logger.warn('[Connection] ❌ Cannot connect child node to external node (container isolation)');
-        // TODO: Show user-friendly error toast
+        toast.error('Cannot connect nodes across container boundaries', {
+          duration: 4000,
+          icon: '🚫',
+        });
+        Sentry.captureMessage('Container isolation: child → external blocked', {
+          level: 'info',
+          extra: { sourceNode: sourceNode.id, targetNode: targetNode.id },
+        });
         return;
       }
       
       // Block connections from external node to child node
       if (!sourceNode.parentNode && targetNode.parentNode) {
         logger.warn('[Connection] ❌ Cannot connect external node to child node (container isolation)');
-        // TODO: Show user-friendly error toast
+        toast.error('Cannot connect nodes across container boundaries', {
+          duration: 4000,
+          icon: '🚫',
+        });
+        Sentry.captureMessage('Container isolation: external → child blocked', {
+          level: 'info',
+          extra: { sourceNode: sourceNode.id, targetNode: targetNode.id },
+        });
         return;
       }
       
       // Block connections between nodes in different containers
       if (sourceNode.parentNode && targetNode.parentNode && sourceNode.parentNode !== targetNode.parentNode) {
         logger.warn('[Connection] ❌ Cannot connect nodes from different containers');
-        // TODO: Show user-friendly error toast
+        toast.error('Cannot connect nodes between different containers', {
+          duration: 4000,
+          icon: '🚫',
+        });
+        Sentry.captureMessage('Container isolation: different containers blocked', {
+          level: 'info',
+          extra: { 
+            sourceNode: sourceNode.id, 
+            targetNode: targetNode.id,
+            sourceContainer: sourceNode.parentNode,
+            targetContainer: targetNode.parentNode,
+          },
+        });
         return;
       }
       
@@ -3032,7 +3059,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
       if (!typeCheck.valid) {
         logger.warn(`Invalid connection: ${typeCheck.reason}`);
-        // TODO: Show toast notification to user
+        toast.error(`Invalid connection: ${typeCheck.reason}`, {
+          duration: 5000,
+          icon: '⚠️',
+        });
+        Sentry.captureMessage('Invalid connection type', {
+          level: 'info',
+          extra: { 
+            sourceType: sourceNode.type, 
+            targetType: targetNode.type,
+            reason: typeCheck.reason,
+          },
+        });
         return;
       }
       
