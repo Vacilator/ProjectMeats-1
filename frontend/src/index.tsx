@@ -9,6 +9,7 @@ import './utils/searchDiagnostic';
 
 // Initialize Sentry if DSN is configured
 if (window.ENV?.SENTRY_DSN && window.ENV?.SENTRY_ENABLED !== 'false') {
+  console.log('[Sentry] Initializing with DSN:', window.ENV.SENTRY_DSN.substring(0, 20) + '...');
   Sentry.init({
     dsn: window.ENV.SENTRY_DSN,
     environment: window.ENV.ENVIRONMENT || 'development',
@@ -25,6 +26,9 @@ if (window.ENV?.SENTRY_DSN && window.ENV?.SENTRY_ENABLED !== 'false') {
     replaysSessionSampleRate: 0.1, // Sample 10% of sessions
     replaysOnErrorSampleRate: 1.0, // Sample 100% of sessions with errors
   });
+  console.log('[Sentry] Initialized successfully');
+} else {
+  console.log('[Sentry] Not initialized - DSN:', !!window.ENV?.SENTRY_DSN, 'Enabled:', window.ENV?.SENTRY_ENABLED);
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);

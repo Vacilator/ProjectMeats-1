@@ -1921,9 +1921,6 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
                     except (User.DoesNotExist, ValueError) as e:
                         # Invalid user ID - return empty queryset
                         # Log for debugging and security monitoring
-                        import logging
-
-                        logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
                             extra={"user": self.request.user.username, "assigned_to": assigned_to},
@@ -1932,9 +1929,6 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
                 else:
                     # Non-admin users can only use assigned_to=me
                     # Return empty queryset to prevent user ID enumeration
-                    import logging
-
-                    logger = logging.getLogger(__name__)
                     logger.warning(
                         f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
                         extra={"user": self.request.user.username, "assigned_to": assigned_to},
@@ -2280,10 +2274,6 @@ class QuickActionsAPIView(APIView):
 
     def put(self, request):
         """Update user's quick actions."""
-        import logging
-
-        logger = logging.getLogger(__name__)
-
         try:
             logger.info(f"Quick actions update request: {request.data}")
             logger.info(
@@ -2361,9 +2351,6 @@ class QuickActionsAPIView(APIView):
 
             return Response({"success": True, "items": serializable_items})
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.exception(f"Error updating quick actions: {e}")
             return Response(
                 {"error": f"Failed to update quick actions: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -2456,9 +2443,6 @@ class EntityOptionsAPIView(APIView):
                 }
             )
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.exception(f"Error fetching entity options: {e}")
             return Response(
                 {"error": f"Failed to fetch options: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -2602,9 +2586,6 @@ class QuickCreateEntityAPIView(APIView):
             )
 
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.exception(f"Error quick-creating entity: {e}")
             return Response({"error": f"Failed to create {entity_type}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -3204,9 +3185,6 @@ class ActionItemCountsAPIView(APIView):
         from datetime import timedelta
 
         from django.utils import timezone
-        import logging
-
-        logger = logging.getLogger(__name__)
         user = request.user
         tenant = getattr(request, 'tenant', None)
 
