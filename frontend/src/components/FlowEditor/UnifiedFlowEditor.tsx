@@ -1677,6 +1677,15 @@ class ConfigPanelErrorBoundary extends React.Component<
   
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error('[Config Panel] Error caught:', error, errorInfo);
+    
+    // Send to Sentry for monitoring
+    Sentry.captureException(error, {
+      extra: {
+        context: 'ConfigPanelErrorBoundary',
+        componentStack: errorInfo.componentStack,
+        errorMessage: error.message,
+      },
+    });
   }
   
   render() {

@@ -73,6 +73,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       error,
       errorInfo,
     });
+    
+    // Send to Sentry for production monitoring
+    if (typeof window !== 'undefined' && window.ENV?.SENTRY_DSN) {
+      const Sentry = require('@sentry/react');
+      Sentry.captureException(error, {
+        extra: {
+          componentName,
+          componentStack: errorInfo.componentStack,
+          context: 'FlowEditor.ErrorBoundary',
+        },
+      });
+    }
 
     // Call custom error handler if provided
     if (onError) {
