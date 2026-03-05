@@ -2972,11 +2972,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const sourceNode = nodes.find(n => n.id === connection.source);
     const targetNode = nodes.find(n => n.id === connection.target);
     
-    if (!sourceNode || !targetNode) return false;
+    if (!sourceNode || !targetNode) {
+      toast.error('Cannot connect: one or both nodes not found', {
+        duration: 2500,
+        icon: '❌',
+      });
+      return false;
+    }
     
     // Type-aware validation
     const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
     if (!typeCheck.valid) {
+      // This already shows a toast in the earlier code (lines 3009-3063)
       return false;
     }
     
@@ -2984,6 +2991,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const sourceOutputs = edges.filter(e => e.source === connection.source);
     const { maxOutputs: sourceMaxOutputs } = getNodeMaxConnections(sourceNode);
     if (sourceMaxOutputs !== -1 && sourceOutputs.length >= sourceMaxOutputs) {
+      const sourceLabel = sourceNode.data?.label || 'Source node';
+      toast.error(`${sourceLabel} has reached its maximum of ${sourceMaxOutputs} output connection${sourceMaxOutputs > 1 ? 's' : ''}`, {
+        duration: 3000,
+        icon: '⚠️',
+      });
       return false;
     }
     
@@ -2991,6 +3003,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const targetInputs = edges.filter(e => e.target === connection.target);
     const { maxInputs: targetMaxInputs } = getNodeMaxConnections(targetNode);
     if (targetMaxInputs !== -1 && targetInputs.length >= targetMaxInputs) {
+      const targetLabel = targetNode.data?.label || 'Target node';
+      toast.error(`${targetLabel} has reached its maximum of ${targetMaxInputs} input connection${targetMaxInputs > 1 ? 's' : ''}`, {
+        duration: 3000,
+        icon: '⚠️',
+      });
       return false;
     }
     
