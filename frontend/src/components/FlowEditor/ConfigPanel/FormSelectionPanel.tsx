@@ -13,6 +13,8 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
+import * as Sentry from '@sentry/react';
 import workformsApi, { TenantForm } from '../../../services/workformsApi';
 import {
   Label,
@@ -226,6 +228,13 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
       setExistingForms(forms);
     } catch (err: any) {
       console.error('[FormSelectionPanel] Failed to load forms:', err);
+      toast.error('Failed to load forms. Please refresh and try again.', {
+        duration: 4000,
+        icon: '⚠️',
+      });
+      Sentry.captureException(err, {
+        extra: { context: 'FormSelectionPanel.loadForms', filterType },
+      });
       setError(err.message || 'Failed to load forms');
     } finally {
       setLoading(false);
