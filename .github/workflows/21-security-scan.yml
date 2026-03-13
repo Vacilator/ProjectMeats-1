@@ -203,15 +203,17 @@ jobs:
       
       - name: Display summary
         run: |
-          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Python security audit completed" >> $GITHUB_STEP_SUMMARY
-          echo "✅ JavaScript security audit completed" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -f bandit-report/bandit-report.json ]; then
-            echo "📊 Bandit report available" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ -f npm-audit-report/npm-audit.json ]; then
-            echo "📊 npm audit report available" >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "## Security Scan Summary"
+            echo ""
+            echo "✅ Python security audit completed"
+            echo "✅ JavaScript security audit completed"
+
+            if [ -f bandit-report/bandit-report.json ]; then
+              echo "📊 Bandit report available"
+            fi
+
+            if [ -f npm-audit-report/npm-audit.json ]; then
+              echo "📊 npm audit report available"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
