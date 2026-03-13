@@ -23,3 +23,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-13 — Verification follow-up — Commit: f8458630 (PR: #3448)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3448
   - Fix workflow executor verification tests (safe numeric coercion for equals + correct patch target).
+
+- 2026-03-13 — CI security scan fix — Commit: 07473351 (PR: #3449)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3449
+  - Restore Secret Detection Scan reliability (gitleaks CLI, no org license dependency) and remove hardcoded superuser password defaults.
