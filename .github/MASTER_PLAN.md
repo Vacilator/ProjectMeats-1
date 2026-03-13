@@ -19,3 +19,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Backend: relationship discovery returns contacts/recent orders/related products; RLS middleware sets+resets both `app.current_tenant` + `app.current_tenant_id`.
   - Workflows: migrations/models aligned for tenant/RLS stability (MyTasks/workflow executions).
   - FlowEditor: entity-first Form config, Smart Auto-Map suggestions, removed raw JSON editor, deprecated multi-step container edit path (migrates to `formProcessGroup`), collapsed group shadow fix.
+
+- 2026-03-13 — Verification follow-up — Commit: f8458630 (PR: #3448)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3448
+  - Fix workflow executor verification tests (safe numeric coercion for equals + correct patch target).
