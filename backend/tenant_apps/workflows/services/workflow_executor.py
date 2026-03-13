@@ -156,9 +156,28 @@ class WorkflowExecutor:
         compare_value = condition.value
         operator = condition.operator
         
-        # Type coercion
-        if isinstance(field_value, str) and compare_value.isdigit():
-            compare_value = int(compare_value)
+        # Type coercion (keep string equality stable; coerce only when useful)
+        def _maybe_coerce_numeric_pair(a: Any, b: Any) -> tuple[Any, Any]:
+            # If both are digit strings, compare numerically (covers common form-input cases)
+            if isinstance(a, str) and isinstance(b, str) and a.isdigit() and b.isdigit():
+                return int(a), int(b)
+
+            # If one side is numeric and the other is a numeric string, coerce the string
+            if isinstance(a, (int, float)) and isinstance(b, str):
+                s = b.strip()
+                if s.replace('.', '', 1).isdigit():
+                    return a, float(s) if '.' in s else int(s)
+
+            if isinstance(b, (int, float)) and isinstance(a, str):
+                s = a.strip()
+                if s.replace('.', '', 1).isdigit():
+                    return (float(s) if '.' in s else int(s)), b
+
+            return a, b
+
+        # Only coerce for equality/ordering operations
+        if operator in {'equals', 'not_equals', 'greater_than', 'less_than'}:
+            field_value, compare_value = _maybe_coerce_numeric_pair(field_value, compare_value)
         
         # Evaluate operator
         operators = {

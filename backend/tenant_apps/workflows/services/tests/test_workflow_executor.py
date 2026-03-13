@@ -104,7 +104,7 @@ class WorkflowExecutorTestCase(TestCase):
         
         self.assertEqual(executor.context['variables']['total_amount'], 1500)
     
-    @patch('workflows.services.workflow_executor.WorkflowExecutionLog')
+    @patch('tenant_apps.workflows.services.workflow_executor.WorkflowExecutionLog')
     def test_execute_workflow_success(self, mock_log_class):
         mock_log = Mock()
         mock_log_class.objects.create.return_value = mock_log
