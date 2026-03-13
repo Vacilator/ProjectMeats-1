@@ -12,8 +12,9 @@ def backfill_tenant_for_formstepsubmission(apps, schema_editor):
     # Use raw SQL for efficiency with large datasets
     schema_editor.execute("""
         UPDATE workflows_formstepsubmission fss
-        SET tenant_id = fs.tenant_id
+        SET tenant_id = tf.tenant_id
         FROM workflows_formsubmission fs
+        JOIN workflows_tenantform tf ON tf.id = fs.form_id
         WHERE fss.submission_id = fs.id
         AND fss.tenant_id IS NULL;
     """)
