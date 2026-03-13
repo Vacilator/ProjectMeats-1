@@ -27,3 +27,15 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-13 — CI security scan fix — Commit: 07473351 (PR: #3449)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3449
   - Restore Secret Detection Scan reliability (gitleaks CLI, no org license dependency) and remove hardcoded superuser password defaults.
+
+- 2026-03-13 — Deployment migration hardening — Commit: 595f729f (PR: #3451)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3451
+  - Make `tenant_apps.workflows` migration `0022` idempotent to prevent `DuplicateColumn` failures during redeploy.
+
+- 2026-03-13 — Deployment backfill correction — Commit: d7766aa0 (PR: #3452)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3452
+  - Fix `0022` tenant backfill to derive tenant via `workflows_tenantform` join (avoids missing-column errors on existing DBs).
+
+- 2026-03-13 — Deployment workflow resilience — Commit: 60473ebb (PR: #3453)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3453
+  - Fix frontend deploy to tolerate unset `SENTRY_*` variables under `set -u` by using safe defaults in runtime config generation.
