@@ -150,7 +150,12 @@ class Migration(migrations.Migration):
                     ALTER TABLE workflows_formsubmissionfile ENABLE ROW LEVEL SECURITY;
                     ALTER TABLE workflows_formsubmissionfile FORCE ROW LEVEL SECURITY;
                     CREATE POLICY formsubmissionfile_tenant_isolation ON workflows_formsubmissionfile
-                        USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
+                        USING (
+                            submission_id IN (
+                                SELECT id FROM workflows_formsubmission
+                                WHERE tenant_id = current_setting('app.current_tenant', true)::uuid
+                            )
+                        );
                 END IF;
 
                 -- FormSubmissionEvent
@@ -162,7 +167,12 @@ class Migration(migrations.Migration):
                     ALTER TABLE workflows_formsubmissionevent ENABLE ROW LEVEL SECURITY;
                     ALTER TABLE workflows_formsubmissionevent FORCE ROW LEVEL SECURITY;
                     CREATE POLICY formsubmissionevent_tenant_isolation ON workflows_formsubmissionevent
-                        USING (tenant_id = current_setting('app.current_tenant', true)::uuid);
+                        USING (
+                            submission_id IN (
+                                SELECT id FROM workflows_formsubmission
+                                WHERE tenant_id = current_setting('app.current_tenant', true)::uuid
+                            )
+                        );
                 END IF;
 
                 -- StepAssignment

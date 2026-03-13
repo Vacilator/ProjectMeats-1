@@ -216,6 +216,8 @@ export const FormNode = React.memo<NodeProps<FormStepNodeData>>((props) => {
   };
   
   const { stepTitle, fields = [] } = data;
+  const title = stepTitle || (data as any).name || (data as any).displayTitle;
+  const entityType = (data as any).entityType || (data as any).targetEntity;
   const fieldCount = fields.length;
   const requiredCount = fields.filter(f => f.required).length;
 
@@ -227,13 +229,26 @@ export const FormNode = React.memo<NodeProps<FormStepNodeData>>((props) => {
       nodeType={nodeType}
     >
       <div>
-        {stepTitle && (
+        {title && (
           <div style={{ 
             fontWeight: 600, 
-            marginBottom: 8,
+            marginBottom: 6,
             color: 'rgb(var(--color-text-primary))',
           }}>
-            {stepTitle}
+            {title}
+          </div>
+        )}
+
+        {entityType && (
+          <div style={{
+            marginBottom: 8,
+            fontSize: 11,
+            color: 'rgb(var(--color-text-secondary))',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            Entity: {String(entityType)}
           </div>
         )}
         

@@ -120,7 +120,13 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunSQL(
-            sql="UPDATE workflows_tenantformfield SET tenant_id = (SELECT tenant_id FROM workflows_tenantform WHERE workflows_tenantform.id = workflows_tenantformfield.form_id) WHERE tenant_id IS NULL;",
+            sql=(
+                "UPDATE workflows_tenantformfield tff "
+                "SET tenant_id = tf.tenant_id "
+                "FROM workflows_tenantformentity tfe "
+                "JOIN workflows_tenantform tf ON tf.id = tfe.form_id "
+                "WHERE tff.form_entity_id = tfe.id AND tff.tenant_id IS NULL;"
+            ),
             reverse_sql=migrations.RunSQL.noop
         ),
         migrations.AlterField(

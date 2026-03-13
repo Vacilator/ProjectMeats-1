@@ -35,7 +35,7 @@ import {
   Truck, User, FileText, Phone, Loader, ChevronRight, 
   Plus, X 
 } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 
 // ============================================================================
@@ -48,7 +48,7 @@ interface RelationMindMapProps {
   entityId: number | string;
   entityName: string;
   /** Callback when a related entity is clicked */
-  onEntityClick?: (type: string, id: number, name: string) => void;
+  onEntityClick?: (type: string, id: string, name: string) => void;
   /** Max depth of expansion */
   maxDepth?: number;
 }
@@ -56,7 +56,7 @@ interface RelationMindMapProps {
 interface MindMapNode {
   id: string;
   entityType: string;
-  entityId: number;
+  entityId: string;
   name: string;
   count?: number;
   relationName?: string;
@@ -64,16 +64,6 @@ interface MindMapNode {
   expanded: boolean;
 }
 
-interface RelationshipData {
-  name: string;
-  display_name: string;
-  count: number;
-  recent_items: Array<{
-    id: number;
-    name: string;
-    type: string;
-  }>;
-}
 
 // ============================================================================
 // Icon Mapping
@@ -316,7 +306,7 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
     const rootNode: MindMapNode = {
       id: `${entityType}-${entityId}`,
       entityType,
-      entityId: Number(entityId),
+      entityId: String(entityId),
       name: entityName,
       depth: 0,
       expanded: false,
@@ -382,43 +372,23 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
     
     setLoading(true);
     try {
-      // Fetch relationships
-      const response = await apiClient.get(
-        `/entities/${node.entityType}/${node.entityId}/relationships/?counts=true`
+      // Fetch relationships (system entity graph supports UUID products)
+      const response = await businessApi.get(
+        `/system/entities/${node.entityType}/${node.entityId}/relationships/`
       );
-      
-      const relationships: RelationshipData[] = response.data.relationships || [];
-      
-      // Fetch top 5 items for each relationship
-      const relationsWithItems = await Promise.all(
-        relationships.map(async (rel) => {
-          if (rel.count > 0) {
-            try {
-              const itemsResponse = await apiClient.get(
-                `/entities/${node.entityType}/${node.entityId}/relationships/${rel.name}/?limit=5`
-              );
-              return {
-                ...rel,
-                recent_items: itemsResponse.data.items || [],
-              };
-            } catch (err) {
-              return rel;
-            }
-          }
-          return rel;
-        })
-      );
-      
-      // Create child nodes
-      const childNodes: MindMapNode[] = relationsWithItems
-        .filter(rel => rel.count > 0)
-        .flatMap(rel => 
-          rel.recent_items.map(item => ({
-            id: `${item.type}-${item.id}-from-${node.id}`,
-            entityType: item.type,
-            entityId: item.id,
-            name: item.name,
-            relationName: rel.display_name,
+
+      const relationships = response.data?.relationships ?? {};
+
+      // Create child nodes (take up to 5 items per relationship)
+      const childNodes: MindMapNode[] = Object.entries(relationships)
+        .filter(([, items]) => Array.isArray(items) && items.length > 0)
+        .flatMap(([relType, items]) =>
+          (items as any[]).slice(0, 5).map((item: any) => ({
+            id: `${String(item.type)}-${String(item.id)}-from-${node.id}`,
+            entityType: String(item.type ?? 'unknown'),
+            entityId: String(item.id ?? ''),
+            name: String(item.title || item.name || `${item.type} #${item.id}`),
+            relationName: relType,
             depth: node.depth + 1,
             expanded: false,
             count: undefined,

@@ -1,10 +1,30 @@
 # ProjectMeats Master Plan - Phase Tracking & Technical Debt
 
 **Status**: 🔄 LIVING DOCUMENT  
-**Last Updated**: March 3, 2026 17:45 UTC  
+**Last Updated**: March 13, 2026  
 **Current Focus**: Phase 7 Intelligent Workform Editor (~90% complete) + **All Infrastructure VERIFIED** ✅  
 **Overall Progress**: 88.6% (62/70 todos) - **0 Blocked** 🎉  
 **Infrastructure Status**: Phase 2, 3, 5, 8 fully operational in dev
+
+---
+
+## 🔧 Phase 7 Stabilization + Cockpit Navigation (Active)
+
+**Scope**: Stabilize Phase 7 (Intelligent Workform Editor) and fix Cockpit continuous browsing + relations.
+
+**Objectives**:
+- Cockpit: Continuous Search navigation path + breadcrumb jumping; related-entity panels return contacts, recent orders, related products.
+- MyTasks: Remove “Failed to load workflows” by fixing workflow execution API stability and tenant/RLS correctness.
+- FlowEditor: Entity-first Form nodes, Smart Auto-Map inheritance suggestions, remove redundant multi-step container from palette, fix collapsed group node rendering, and remove raw JSON from standard config.
+
+**Implementation Notes (High Level)**:
+- RLS session-variable setup must be compatible with existing policies (`app.current_tenant` vs `app.current_tenant_id`) and must persist across ORM queries.
+- Workflow submissions must remain tenant-safe; FormSubmission tenant field must match DB/migrations.
+- Config UX: DynamicConfigPanel remains canonical; raw JSON editor is removed from standard user flow.
+
+**Planned Touchpoints**:
+- Backend: `apps/tenants/middleware.py`, `apps/core/services/entity_graph.py`, `apps/core/services/universal_search.py`, `tenant_apps/workflows/models.py`, `tenant_apps/workflows/views.py`
+- Frontend: `components/Cockpit/SmartSearch.tsx`, `pages/Cockpit/CockpitDashboard.tsx`, `pages/MyTasks/MyTasks.tsx`, `services/schemaService.ts`, `FlowEditor/*`
 
 ---
 

@@ -13,50 +13,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # ======================================
-        # CRITICAL: Drop RLS policies FIRST before removing tenant fields
-        # The tenant_id column is referenced by RLS policies, so we must
-        # drop the policies before dropping the column.
-        # ======================================
-        RunSQL(
-            sql="""
-            -- Drop RLS policies for formsubmission
-            DROP POLICY IF EXISTS workflows_formsubmission_tenant_isolation ON workflows_formsubmission;
-            DROP POLICY IF EXISTS formsubmission_tenant_isolation ON workflows_formsubmission;
-            
-            -- Drop RLS policies for stepassignment  
-            DROP POLICY IF EXISTS workflows_stepassignment_tenant_isolation ON workflows_stepassignment;
-            DROP POLICY IF EXISTS stepassignment_tenant_isolation ON workflows_stepassignment;
-            
-            -- Drop RLS policies for usernotification
-            DROP POLICY IF EXISTS workflows_usernotification_tenant_isolation ON workflows_usernotification;
-            DROP POLICY IF EXISTS usernotification_tenant_isolation ON workflows_usernotification;
-            """,
-            reverse_sql="""
-            -- Recreate RLS policies if rolling back
-            CREATE POLICY workflows_formsubmission_tenant_isolation ON workflows_formsubmission
-                USING (tenant_id = current_setting('app.current_tenant')::uuid);
-                
-            CREATE POLICY workflows_stepassignment_tenant_isolation ON workflows_stepassignment
-                USING (tenant_id = current_setting('app.current_tenant')::uuid);
-                
-            CREATE POLICY workflows_usernotification_tenant_isolation ON workflows_usernotification
-                USING (tenant_id = current_setting('app.current_tenant')::uuid);
-            """
-        ),
-        # Now safe to remove indexes and fields
-        migrations.RemoveIndex(
-            model_name="formsubmission",
-            name="workflows_f_tenant__8314a5_idx",
-        ),
-        migrations.RemoveIndex(
-            model_name="stepassignment",
-            name="workflows_s_tenant__3c0364_idx",
-        ),
-        migrations.RemoveIndex(
-            model_name="usernotification",
-            name="workflows_u_tenant__b2d0bd_idx",
-        ),
+        # NOTE: This migration originally attempted to drop RLS policies and remove tenant fields.
+        # That breaks fresh installs and violates our tenant isolation guarantees.
+        # We keep only the non-destructive metadata/field alterations below.
+
         migrations.AlterField(
             model_name="tenantform",
             name="custom_data",
@@ -147,16 +107,5 @@ class Migration(migrations.Migration):
                 blank=True, default=dict, help_text="Extensible schema data for dynamic fields defined in Blueprints."
             ),
         ),
-        migrations.RemoveField(
-            model_name="formsubmission",
-            name="tenant",
-        ),
-        migrations.RemoveField(
-            model_name="stepassignment",
-            name="tenant",
-        ),
-        migrations.RemoveField(
-            model_name="usernotification",
-            name="tenant",
-        ),
+
     ]

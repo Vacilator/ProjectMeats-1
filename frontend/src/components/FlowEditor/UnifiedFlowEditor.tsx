@@ -36,6 +36,7 @@ import Editor from '@monaco-editor/react';
 import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
+import * as Sentry from '@sentry/react'; // Error tracking
 import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
@@ -1676,6 +1677,15 @@ class ConfigPanelErrorBoundary extends React.Component<
   
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error('[Config Panel] Error caught:', error, errorInfo);
+    
+    // Send to Sentry for monitoring
+    Sentry.captureException(error, {
+      extra: {
+        context: 'ConfigPanelErrorBoundary',
+        componentStack: errorInfo.componentStack,
+        errorMessage: error.message,
+      },
+    });
   }
   
   render() {
@@ -2971,11 +2981,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const sourceNode = nodes.find(n => n.id === connection.source);
     const targetNode = nodes.find(n => n.id === connection.target);
     
-    if (!sourceNode || !targetNode) return false;
+    if (!sourceNode || !targetNode) {
+      toast.error('Cannot connect: one or both nodes not found', {
+        duration: 2500,
+        icon: '❌',
+      });
+      return false;
+    }
     
     // Type-aware validation
     const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
     if (!typeCheck.valid) {
+      // This already shows a toast in the earlier code (lines 3009-3063)
       return false;
     }
     
@@ -2983,6 +3000,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const sourceOutputs = edges.filter(e => e.source === connection.source);
     const { maxOutputs: sourceMaxOutputs } = getNodeMaxConnections(sourceNode);
     if (sourceMaxOutputs !== -1 && sourceOutputs.length >= sourceMaxOutputs) {
+      const sourceLabel = sourceNode.data?.label || 'Source node';
+      toast.error(`${sourceLabel} has reached its maximum of ${sourceMaxOutputs} output connection${sourceMaxOutputs > 1 ? 's' : ''}`, {
+        duration: 3000,
+        icon: '⚠️',
+      });
       return false;
     }
     
@@ -2990,6 +3012,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const targetInputs = edges.filter(e => e.target === connection.target);
     const { maxInputs: targetMaxInputs } = getNodeMaxConnections(targetNode);
     if (targetMaxInputs !== -1 && targetInputs.length >= targetMaxInputs) {
+      const targetLabel = targetNode.data?.label || 'Target node';
+      toast.error(`${targetLabel} has reached its maximum of ${targetMaxInputs} input connection${targetMaxInputs > 1 ? 's' : ''}`, {
+        duration: 3000,
+        icon: '⚠️',
+      });
       return false;
     }
     
@@ -3008,21 +3035,47 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Block connections from child node to external node
       if (sourceNode.parentNode && !targetNode.parentNode) {
         logger.warn('[Connection] ❌ Cannot connect child node to external node (container isolation)');
-        // TODO: Show user-friendly error toast
+        toast.error('Cannot connect nodes across container boundaries', {
+          duration: 4000,
+          icon: '🚫',
+        });
+        Sentry.captureMessage('Container isolation: child → external blocked', {
+          level: 'info',
+          extra: { sourceNode: sourceNode.id, targetNode: targetNode.id },
+        });
         return;
       }
       
       // Block connections from external node to child node
       if (!sourceNode.parentNode && targetNode.parentNode) {
         logger.warn('[Connection] ❌ Cannot connect external node to child node (container isolation)');
-        // TODO: Show user-friendly error toast
+        toast.error('Cannot connect nodes across container boundaries', {
+          duration: 4000,
+          icon: '🚫',
+        });
+        Sentry.captureMessage('Container isolation: external → child blocked', {
+          level: 'info',
+          extra: { sourceNode: sourceNode.id, targetNode: targetNode.id },
+        });
         return;
       }
       
       // Block connections between nodes in different containers
       if (sourceNode.parentNode && targetNode.parentNode && sourceNode.parentNode !== targetNode.parentNode) {
         logger.warn('[Connection] ❌ Cannot connect nodes from different containers');
-        // TODO: Show user-friendly error toast
+        toast.error('Cannot connect nodes between different containers', {
+          duration: 4000,
+          icon: '🚫',
+        });
+        Sentry.captureMessage('Container isolation: different containers blocked', {
+          level: 'info',
+          extra: { 
+            sourceNode: sourceNode.id, 
+            targetNode: targetNode.id,
+            sourceContainer: sourceNode.parentNode,
+            targetContainer: targetNode.parentNode,
+          },
+        });
         return;
       }
       
@@ -3032,7 +3085,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
       if (!typeCheck.valid) {
         logger.warn(`Invalid connection: ${typeCheck.reason}`);
-        // TODO: Show toast notification to user
+        toast.error(`Invalid connection: ${typeCheck.reason}`, {
+          duration: 5000,
+          icon: '⚠️',
+        });
+        Sentry.captureMessage('Invalid connection type', {
+          level: 'info',
+          extra: { 
+            sourceType: sourceNode.type, 
+            targetType: targetNode.type,
+            reason: typeCheck.reason,
+          },
+        });
         return;
       }
       
@@ -5000,11 +5064,26 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setSelectedFormStep(node);
         break;
       
-      case 'formMultiStepContainer':
-        logger.debug('✏️ [EDIT BUTTON] Opening Container modal');
-        setSelectedContainer(node);
-        setContainerModalOpen(true);
+      case 'formMultiStepContainer': {
+        // Phase 7 Stabilization: this node type is deprecated.
+        // Migrate in-memory to the canonical Form Process Group node.
+        logger.debug('✏️ [EDIT BUTTON] Migrating legacy container to formProcessGroup');
+
+        const migratedNode = {
+          ...node,
+          type: 'formProcessGroup',
+          data: {
+            ...(node.data || {}),
+            // Ensure group semantics are enabled
+            isGroup: true,
+          },
+        };
+
+        setNodes((nds) => nds.map((n) => (n.id === node.id ? migratedNode : n)));
+        setSelectedNode(migratedNode);
+        // Do NOT open legacy modal
         break;
+      }
         
       case 'formReference':
         logger.debug('✏️ [EDIT BUTTON] Setting FormReference data');

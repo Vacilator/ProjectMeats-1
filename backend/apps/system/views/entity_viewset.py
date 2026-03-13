@@ -29,7 +29,8 @@ class EntityViewSet(viewsets.ViewSet):
     MODEL_MAP = {
         'customer': ('customers', 'Customer'),
         'supplier': ('suppliers', 'Supplier'),
-        'product': ('products', 'Product'),
+        # Products are system-wide (tenantless) after the Phase 3 deduplication.
+        'product': ('system', 'Product'),
         'contact': ('contacts', 'Contact'),
         'purchase_order': ('purchase_orders', 'PurchaseOrder'),
         'sales_order': ('sales_orders', 'SalesOrder'),
@@ -103,9 +104,13 @@ class EntityViewSet(viewsets.ViewSet):
         
         for rel_type in requested_types:
             rel_data = self._get_relationship_data(entity, type, rel_type, tenant)
-            if rel_data:
-                relationships[rel_type] = rel_data['items']
-                counts[rel_type] = rel_data['count']
+            if rel_data is None:
+                relationships[rel_type] = []
+                counts[rel_type] = 0
+                continue
+
+            relationships[rel_type] = rel_data.get('items', [])
+            counts[rel_type] = rel_data.get('count', 0)
         
         return Response({
             "entity": self._serialize_entity(entity, type),
@@ -153,12 +158,14 @@ class EntityViewSet(viewsets.ViewSet):
     def _get_default_relationships(self, entity_type):
         """Return default relationship types for each entity."""
         defaults = {
-            'customer': ['purchase_orders', 'sales_orders', 'contacts'],
-            'supplier': ['purchase_orders', 'contacts'],
+            # Cockpit UX defaults (continuous browsing): emphasize the three primary panels.
+            'customer': ['contacts', 'recent_orders', 'related_products'],
+            'supplier': ['contacts', 'recent_orders', 'related_products'],
             'product': ['purchase_orders', 'sales_orders'],
-            'purchase_order': ['line_items', 'supplier'],
-            'sales_order': ['line_items', 'customer'],
-            'contact': ['customer', 'supplier']
+            # Keep lightweight, reliable relationships for order-like entities.
+            'purchase_order': ['supplier', 'product', 'sales_order'],
+            'sales_order': ['customer', 'supplier', 'product', 'contact'],
+            'contact': ['customer', 'supplier'],
         }
         return defaults.get(entity_type, [])
     
@@ -169,157 +176,246 @@ class EntityViewSet(viewsets.ViewSet):
         """
         # Customer relationships
         if entity_type == 'customer':
-            if rel_type == 'purchase_orders':
-                return self._get_purchase_orders_for_customer(entity, tenant)
-            elif rel_type == 'sales_orders':
-                return self._get_sales_orders_for_customer(entity, tenant)
-            elif rel_type == 'contacts':
+            if rel_type == 'contacts':
                 return self._get_contacts_for_customer(entity, tenant)
-        
+            if rel_type in ('sales_orders', 'recent_orders'):
+                return self._get_sales_orders_for_customer(entity, tenant)
+            if rel_type in ('related_products', 'products'):
+                return self._get_related_products_for_customer(entity, tenant)
+            # Legacy key (PurchaseOrder has no customer FK in current schema)
+            if rel_type == 'purchase_orders':
+                return {"count": 0, "items": []}
+
         # Supplier relationships
         if entity_type == 'supplier':
+            if rel_type == 'contacts':
+                return self._get_contacts_for_supplier(entity, tenant)
             if rel_type == 'purchase_orders':
                 return self._get_purchase_orders_for_supplier(entity, tenant)
-            elif rel_type == 'contacts':
-                return self._get_contacts_for_supplier(entity, tenant)
-        
+            if rel_type == 'sales_orders':
+                return self._get_sales_orders_for_supplier(entity, tenant)
+            if rel_type == 'recent_orders':
+                return self._get_recent_orders_for_supplier(entity, tenant)
+            if rel_type in ('related_products', 'products'):
+                return self._get_related_products_for_supplier(entity, tenant)
+
         # Product relationships
         if entity_type == 'product':
             if rel_type == 'purchase_orders':
                 return self._get_purchase_orders_for_product(entity, tenant)
-            elif rel_type == 'sales_orders':
+            if rel_type == 'sales_orders':
                 return self._get_sales_orders_for_product(entity, tenant)
-        
+
         # Purchase Order relationships
         if entity_type == 'purchase_order':
-            if rel_type == 'line_items':
-                return self._get_line_items_for_po(entity, tenant)
-            elif rel_type == 'supplier':
+            if rel_type == 'supplier':
                 return self._get_supplier_for_po(entity, tenant)
-        
+            if rel_type == 'product':
+                return self._get_product_for_po(entity)
+            if rel_type == 'sales_order':
+                return self._get_sales_order_for_po(entity, tenant)
+
         # Sales Order relationships
         if entity_type == 'sales_order':
-            if rel_type == 'line_items':
-                return self._get_line_items_for_so(entity, tenant)
-            elif rel_type == 'customer':
+            if rel_type == 'customer':
                 return self._get_customer_for_so(entity, tenant)
-        
+            if rel_type == 'supplier':
+                return self._get_supplier_for_so(entity, tenant)
+            if rel_type == 'product':
+                return self._get_product_for_so(entity)
+            if rel_type == 'contact':
+                return self._get_contact_for_so(entity, tenant)
+
+        # Contact relationships
+        if entity_type == 'contact':
+            if rel_type == 'customer':
+                return self._get_customer_for_contact(entity, tenant)
+            if rel_type == 'supplier':
+                return self._get_supplier_for_contact(entity, tenant)
+
         return None
     
+    def _order_queryset_recent_first(self, qs):
+        """Order a queryset by the most reliable "recent" timestamp available."""
+        model = getattr(qs, 'model', None)
+        if not model:
+            return qs
+
+        candidates = [
+            'created_at',
+            'updated_at',
+            'date_time_stamp',
+            'date_time_stamp_created',
+        ]
+        field_names = {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
+        for name in candidates:
+            if name in field_names:
+                return qs.order_by(f'-{name}')
+        return qs
+
     def _get_purchase_orders_for_customer(self, customer, tenant):
-        """Get purchase orders for a customer."""
-        try:
-            PurchaseOrder = apps.get_model('purchase_orders', 'PurchaseOrder')
-            qs = PurchaseOrder.objects.filter(tenant=tenant, customer=customer).order_by('-created_on')
-            return {
-                "count": qs.count(),
-                "items": [self._serialize_entity(po, 'purchase_order') for po in qs[:10]]
-            }
-        except LookupError:
-            return None
-    
+        """Legacy relationship (no longer modeled): PurchaseOrder has no customer FK."""
+        return {"count": 0, "items": []}
+
     def _get_sales_orders_for_customer(self, customer, tenant):
         """Get sales orders for a customer."""
         try:
             SalesOrder = apps.get_model('sales_orders', 'SalesOrder')
-            qs = SalesOrder.objects.filter(tenant=tenant, customer=customer).order_by('-created_on')
+            qs = SalesOrder.objects.filter(tenant=tenant, customer=customer)
+            qs = self._order_queryset_recent_first(qs)
             return {
                 "count": qs.count(),
-                "items": [self._serialize_entity(so, 'sales_order') for so in qs[:10]]
+                "items": [self._serialize_entity(so, 'sales_order') for so in qs[:10]],
             }
         except LookupError:
             return None
-    
+
+    def _get_sales_orders_for_supplier(self, supplier, tenant):
+        """Get sales orders for a supplier."""
+        try:
+            SalesOrder = apps.get_model('sales_orders', 'SalesOrder')
+            qs = SalesOrder.objects.filter(tenant=tenant, supplier=supplier)
+            qs = self._order_queryset_recent_first(qs)
+            return {
+                "count": qs.count(),
+                "items": [self._serialize_entity(so, 'sales_order') for so in qs[:10]],
+            }
+        except LookupError:
+            return None
+
     def _get_contacts_for_customer(self, customer, tenant):
         """Get contacts for a customer."""
         try:
             Contact = apps.get_model('contacts', 'Contact')
             qs = Contact.objects.filter(tenant=tenant, customer=customer)
+            qs = qs.order_by('last_name', 'first_name')
             return {
                 "count": qs.count(),
-                "items": [self._serialize_entity(contact, 'contact') for contact in qs[:10]]
+                "items": [self._serialize_entity(contact, 'contact') for contact in qs[:10]],
             }
         except LookupError:
             return None
-    
+
     def _get_purchase_orders_for_supplier(self, supplier, tenant):
         """Get purchase orders for a supplier."""
         try:
             PurchaseOrder = apps.get_model('purchase_orders', 'PurchaseOrder')
-            qs = PurchaseOrder.objects.filter(tenant=tenant, supplier=supplier).order_by('-created_on')
+            qs = PurchaseOrder.objects.filter(tenant=tenant, supplier=supplier)
+            qs = self._order_queryset_recent_first(qs)
             return {
                 "count": qs.count(),
-                "items": [self._serialize_entity(po, 'purchase_order') for po in qs[:10]]
+                "items": [self._serialize_entity(po, 'purchase_order') for po in qs[:10]],
             }
         except LookupError:
             return None
-    
+
+    def _get_recent_orders_for_supplier(self, supplier, tenant):
+        """Get recent orders for a supplier (purchase orders + sales orders)."""
+        purchase = self._get_purchase_orders_for_supplier(supplier, tenant) or {"count": 0, "items": []}
+        sales = self._get_sales_orders_for_supplier(supplier, tenant) or {"count": 0, "items": []}
+
+        def to_epoch(value):
+            if not value:
+                return 0.0
+            try:
+                return float(value.timestamp())
+            except Exception:
+                return 0.0
+
+        combined = list(purchase.get('items', [])) + list(sales.get('items', []))
+        combined.sort(
+            key=lambda item: to_epoch(item.get('updated_at') or item.get('created_at')),
+            reverse=True,
+        )
+
+        return {
+            "count": int(purchase.get('count', 0)) + int(sales.get('count', 0)),
+            "items": combined[:10],
+        }
+
     def _get_contacts_for_supplier(self, supplier, tenant):
         """Get contacts for a supplier."""
         try:
             Contact = apps.get_model('contacts', 'Contact')
             qs = Contact.objects.filter(tenant=tenant, supplier=supplier)
+            qs = qs.order_by('last_name', 'first_name')
             return {
                 "count": qs.count(),
-                "items": [self._serialize_entity(contact, 'contact') for contact in qs[:10]]
+                "items": [self._serialize_entity(contact, 'contact') for contact in qs[:10]],
             }
         except LookupError:
             return None
-    
+
     def _get_purchase_orders_for_product(self, product, tenant):
-        """Get purchase orders containing this product."""
+        """Get purchase orders for a given system Product."""
         try:
             PurchaseOrder = apps.get_model('purchase_orders', 'PurchaseOrder')
-            LineItem = apps.get_model('purchase_orders', 'LineItem')
-            
-            # Get POs that have line items with this product
-            po_ids = LineItem.objects.filter(product=product).values_list('purchase_order_id', flat=True).distinct()
-            qs = PurchaseOrder.objects.filter(tenant=tenant, id__in=po_ids).order_by('-created_on')
-            
+            qs = PurchaseOrder.objects.filter(tenant=tenant, product=product)
+            qs = self._order_queryset_recent_first(qs)
             return {
                 "count": qs.count(),
-                "items": [self._serialize_entity(po, 'purchase_order') for po in qs[:10]]
+                "items": [self._serialize_entity(po, 'purchase_order') for po in qs[:10]],
             }
         except LookupError:
             return None
-    
+
     def _get_sales_orders_for_product(self, product, tenant):
-        """Get sales orders containing this product."""
+        """Get sales orders for a given system Product."""
         try:
             SalesOrder = apps.get_model('sales_orders', 'SalesOrder')
-            LineItem = apps.get_model('sales_orders', 'LineItem')
-            
-            # Get SOs that have line items with this product
-            so_ids = LineItem.objects.filter(product=product).values_list('sales_order_id', flat=True).distinct()
-            qs = SalesOrder.objects.filter(tenant=tenant, id__in=so_ids).order_by('-created_on')
-            
+            qs = SalesOrder.objects.filter(tenant=tenant, product=product)
+            qs = self._order_queryset_recent_first(qs)
             return {
                 "count": qs.count(),
-                "items": [self._serialize_entity(so, 'sales_order') for so in qs[:10]]
+                "items": [self._serialize_entity(so, 'sales_order') for so in qs[:10]],
             }
         except LookupError:
             return None
-    
-    def _get_line_items_for_po(self, purchase_order, tenant):
-        """Get line items for a purchase order."""
+
+    def _get_related_products_for_customer(self, customer, tenant):
+        """Get products commonly associated with a customer via recent SalesOrders."""
         try:
-            LineItem = apps.get_model('purchase_orders', 'LineItem')
-            qs = LineItem.objects.filter(purchase_order=purchase_order)
+            SalesOrder = apps.get_model('sales_orders', 'SalesOrder')
+            Product = apps.get_model('system', 'Product')
+
+            product_ids = (
+                SalesOrder.objects.filter(tenant=tenant, customer=customer)
+                .exclude(product_id__isnull=True)
+                .values_list('product_id', flat=True)
+                .distinct()
+            )
+            qs = Product.objects.filter(id__in=list(product_ids))
             return {
                 "count": qs.count(),
-                "items": [self._serialize_line_item(li, 'purchase_order_line') for li in qs[:20]]
+                "items": [self._serialize_entity(p, 'product') for p in qs[:25]],
             }
         except LookupError:
             return None
-    
-    def _get_line_items_for_so(self, sales_order, tenant):
-        """Get line items for a sales order."""
+
+    def _get_related_products_for_supplier(self, supplier, tenant):
+        """Get products commonly associated with a supplier via PurchaseOrders and SalesOrders."""
         try:
-            LineItem = apps.get_model('sales_orders', 'LineItem')
-            qs = LineItem.objects.filter(sales_order=sales_order)
+            PurchaseOrder = apps.get_model('purchase_orders', 'PurchaseOrder')
+            SalesOrder = apps.get_model('sales_orders', 'SalesOrder')
+            Product = apps.get_model('system', 'Product')
+
+            po_product_ids = (
+                PurchaseOrder.objects.filter(tenant=tenant, supplier=supplier)
+                .exclude(product_id__isnull=True)
+                .values_list('product_id', flat=True)
+                .distinct()
+            )
+            so_product_ids = (
+                SalesOrder.objects.filter(tenant=tenant, supplier=supplier)
+                .exclude(product_id__isnull=True)
+                .values_list('product_id', flat=True)
+                .distinct()
+            )
+            product_ids = set(list(po_product_ids) + list(so_product_ids))
+            qs = Product.objects.filter(id__in=list(product_ids))
             return {
                 "count": qs.count(),
-                "items": [self._serialize_line_item(li, 'sales_order_line') for li in qs[:20]]
+                "items": [self._serialize_entity(p, 'product') for p in qs[:25]],
             }
         except LookupError:
             return None
@@ -338,7 +434,70 @@ class EntityViewSet(viewsets.ViewSet):
         if hasattr(sales_order, 'customer') and sales_order.customer:
             return {
                 "count": 1,
-                "items": [self._serialize_entity(sales_order.customer, 'customer')]
+                "items": [self._serialize_entity(sales_order.customer, 'customer')],
+            }
+        return None
+
+    def _get_supplier_for_so(self, sales_order, tenant):
+        """Get supplier for a sales order."""
+        if hasattr(sales_order, 'supplier') and sales_order.supplier:
+            return {
+                "count": 1,
+                "items": [self._serialize_entity(sales_order.supplier, 'supplier')],
+            }
+        return None
+
+    def _get_product_for_so(self, sales_order):
+        """Get product for a sales order (system Product)."""
+        if hasattr(sales_order, 'product') and sales_order.product:
+            return {
+                "count": 1,
+                "items": [self._serialize_entity(sales_order.product, 'product')],
+            }
+        return None
+
+    def _get_contact_for_so(self, sales_order, tenant):
+        """Get primary contact for a sales order."""
+        if hasattr(sales_order, 'contact') and sales_order.contact:
+            return {
+                "count": 1,
+                "items": [self._serialize_entity(sales_order.contact, 'contact')],
+            }
+        return None
+
+    def _get_product_for_po(self, purchase_order):
+        """Get product for a purchase order (system Product)."""
+        if hasattr(purchase_order, 'product') and purchase_order.product:
+            return {
+                "count": 1,
+                "items": [self._serialize_entity(purchase_order.product, 'product')],
+            }
+        return None
+
+    def _get_sales_order_for_po(self, purchase_order, tenant):
+        """Get linked sales order for a purchase order if present."""
+        if hasattr(purchase_order, 'sales_order') and purchase_order.sales_order:
+            return {
+                "count": 1,
+                "items": [self._serialize_entity(purchase_order.sales_order, 'sales_order')],
+            }
+        return None
+
+    def _get_customer_for_contact(self, contact, tenant):
+        """Get customer associated to a contact (if any)."""
+        if hasattr(contact, 'customer') and contact.customer:
+            return {
+                "count": 1,
+                "items": [self._serialize_entity(contact.customer, 'customer')],
+            }
+        return None
+
+    def _get_supplier_for_contact(self, contact, tenant):
+        """Get supplier associated to a contact (if any)."""
+        if hasattr(contact, 'supplier') and contact.supplier:
+            return {
+                "count": 1,
+                "items": [self._serialize_entity(contact.supplier, 'supplier')],
             }
         return None
     
@@ -350,7 +509,30 @@ class EntityViewSet(viewsets.ViewSet):
         }
         
         # Add type-specific fields
-        if hasattr(entity, 'name'):
+        if entity_type == 'contact':
+            first = getattr(entity, 'first_name', '') or ''
+            last = getattr(entity, 'last_name', '') or ''
+            full_name = (f"{first} {last}").strip()
+            base['title'] = full_name or getattr(entity, 'email', None) or f"Contact {entity.pk}"
+        elif entity_type == 'purchase_order':
+            base['title'] = (
+                getattr(entity, 'order_number', None)
+                or getattr(entity, 'our_purchase_order_num', None)
+                or f"Purchase Order {entity.pk}"
+            )
+        elif entity_type == 'sales_order':
+            base['title'] = (
+                getattr(entity, 'our_sales_order_num', None)
+                or getattr(entity, 'delivery_po_num', None)
+                or f"Sales Order {entity.pk}"
+            )
+        elif entity_type == 'product':
+            base['title'] = (
+                getattr(entity, 'name', None)
+                or getattr(entity, 'product_code', None)
+                or f"Product {entity.pk}"
+            )
+        elif hasattr(entity, 'name'):
             base['title'] = entity.name
         elif hasattr(entity, 'title'):
             base['title'] = entity.title

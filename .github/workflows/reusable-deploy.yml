@@ -1124,7 +1124,9 @@ jobs:
           cat > /opt/pm/frontend/env/env-config.js << ENVJS
           window.ENV = {
             API_BASE_URL: "${API_BASE_URL}",
-            ENVIRONMENT: "${ENVIRONMENT}"
+            ENVIRONMENT: "${ENVIRONMENT}",
+            SENTRY_DSN: "${SENTRY_DSN}",
+            SENTRY_ENABLED: "${SENTRY_ENABLED}"
           };
           ENVJS
           

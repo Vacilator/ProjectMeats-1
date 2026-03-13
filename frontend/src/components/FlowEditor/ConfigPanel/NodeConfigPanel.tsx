@@ -17,6 +17,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
+import * as Sentry from '@sentry/react';
 import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2, Edit2, Check, GripVertical, Download } from 'lucide-react';
 import { Node, Edge } from '@xyflow/react';
 import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
@@ -499,6 +501,13 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         })
         .catch(error => {
           console.error('Failed to fetch forms:', error);
+          toast.error('Failed to load forms. Please refresh and try again.', {
+            duration: 4000,
+            icon: '⚠️',
+          });
+          Sentry.captureException(error, {
+            extra: { context: 'NodeConfigPanel.fetchForms', triggerType: formData.triggerType },
+          });
           setAvailableForms([]);
         })
         .finally(() => {
@@ -522,6 +531,13 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         })
         .catch(error => {
           console.error('Failed to fetch form fields:', error);
+          toast.error('Failed to load form fields. Please try selecting the form again.', {
+            duration: 4000,
+            icon: '⚠️',
+          });
+          Sentry.captureException(error, {
+            extra: { context: 'NodeConfigPanel.fetchFormFields', formId },
+          });
           setAvailableFormFields([]);
         })
         .finally(() => {
@@ -788,6 +804,12 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                   handleFieldChange('entityType', e.target.value);
                 } catch (error) {
                   console.error('[NodeConfigPanel] Error changing entity type:', error);
+                  toast.error('Failed to change entity type. Please try again.', {
+                    duration: 3000,
+                  });
+                  Sentry.captureException(error, {
+                    extra: { context: 'NodeConfigPanel.changeEntityType', value: e.target.value },
+                  });
                 }
               }}
             >
