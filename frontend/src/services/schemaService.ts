@@ -9,7 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { logger } from '@/utils/logger';
 
-import { apiClient } from './apiService';
+import { businessApi } from './businessApi';
 
 export interface EntityType {
   id: string;
@@ -49,7 +49,7 @@ export interface EntityFieldsResponse {
  */
 export const getEntityTypes = async (): Promise<EntityType[]> => {
   try {
-    const response = await apiClient.get<{ count: number; results: EntityType[] }>(
+    const response = await businessApi.get<{ count: number; results: EntityType[] }>(
       'system/entities/'
     );
     return response.data.results;
@@ -75,7 +75,7 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
     
     logger.debug('[SchemaService] Fetch URL:', url);
     
-    const response = await apiClient.get<EntityFieldsResponse>(url);
+    const response = await businessApi.get<EntityFieldsResponse>(url);
     
     // Normalize field data (backend uses field_type/is_required, frontend uses type/required)
     const normalizedFields = (response.data.fields || []).map(field => ({
@@ -104,8 +104,9 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
  * @param entityId - Entity identifier
  */
 export const getEntityDisplayFields = async (entityId: string): Promise<string[]> => {
-  const response = await apiClient.get<{ entity_id: string; display_fields: string[] }>(
-    `system/entities/${entityId}/display-fields/`
+  const encodedEntityId = encodeURIComponent(entityId);
+  const response = await businessApi.get<{ entity_id: string; display_fields: string[] }>(
+    `system/entities/${encodedEntityId}/display-fields/`
   );
   return response.data.display_fields;
 };

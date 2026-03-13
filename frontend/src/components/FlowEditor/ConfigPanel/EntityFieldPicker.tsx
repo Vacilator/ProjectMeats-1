@@ -55,16 +55,22 @@ export interface SelectedField extends EntityField {
 interface EntityFieldPickerProps {
   /** Currently selected fields */
   selectedFields: SelectedField[];
-  
+
   /** Callback when fields change */
   onFieldsChange: (fields: SelectedField[]) => void;
-  
-  /** Initial entity type (optional) */
+
+  /** Initial entity type (optional, uncontrolled mode) */
   initialEntityType?: string;
-  
-  /** Callback when entity type changes */
+
+  /** Controlled entity type (preferred when embedded in a larger config panel) */
+  entityType?: string;
+
+  /** When true, the entity selector UI is hidden and entityType must be provided */
+  hideEntitySelector?: boolean;
+
+  /** Callback when entity type changes (uncontrolled mode only) */
   onEntityTypeChange?: (entityType: string) => void;
-  
+
   /** Enable multi-select mode with checkboxes (default: false) */
   multiSelectMode?: boolean;
 }
@@ -292,10 +298,12 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   selectedFields,
   onFieldsChange,
   initialEntityType,
+  entityType,
+  hideEntitySelector = false,
   onEntityTypeChange,
   multiSelectMode = false,
 }) => {
-  const [selectedEntityType, setSelectedEntityType] = useState<string>(initialEntityType || '');
+  const [selectedEntityType, setSelectedEntityType] = useState<string>(entityType || initialEntityType || '');
   const [searchTerm, setSearchTerm] = useState('');
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
   const [fieldTypeFilter, setFieldTypeFilter] = useState<string>('all');
@@ -304,9 +312,12 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
 
   // Use React Query hooks from schemaService
   const { data: entities = [], isLoading: entitiesLoading, error: entitiesError, refetch: refetchEntities } = useEntityList();
+
+  const effectiveEntityType = entityType || selectedEntityType;
+
   const { data: fieldsData, isLoading: fieldsLoading, error: fieldsError, refetch: refetchFields } = useEntityFields(
-    selectedEntityType,
-    { enabled: !!selectedEntityType }
+    effectiveEntityType,
+    { enabled: !!effectiveEntityType }
   );
   
   // Timeout detection for fields loading
@@ -345,12 +356,20 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     new Set(availableFields.map(f => f.type.toLowerCase()))
   ).sort();
 
-  // Auto-select first entity if no initial type
+  // Keep internal state in sync when used as a controlled component
   useEffect(() => {
+    if (entityType) {
+      setSelectedEntityType(entityType);
+    }
+  }, [entityType]);
+
+  // Auto-select first entity in uncontrolled mode
+  useEffect(() => {
+    if (hideEntitySelector || entityType) return;
     if (!initialEntityType && entities.length > 0 && !selectedEntityType) {
       setSelectedEntityType(entities[0].id);
     }
-  }, [entities, initialEntityType, selectedEntityType]);
+  }, [entities, entityType, hideEntitySelector, initialEntityType, selectedEntityType]);
 
   const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const entityType = e.target.value;
@@ -500,37 +519,48 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   return (
     <Container>
       {/* Entity Selection */}
-      <Section>
-        <SectionTitle>Select Entity</SectionTitle>
-        <EntitySelector>
-          <Label htmlFor="entity-select">Entity Type *</Label>
-          <Select
-            id="entity-select"
-            value={selectedEntityType}
-            onChange={handleEntityChange}
-          >
-            <option value="">-- Select entity --</option>
-            {entities.map(entity => (
-              <option key={entity.id} value={entity.id}>
-                {entity.label_plural} {selectedEntityType === entity.id && availableFields.length > 0 ? `(${availableFields.length} fields)` : ''}
-              </option>
-            ))}
-          </Select>
-          {selectedEntityType && fieldsLoading && (
-            <LoadingText style={{ padding: '8px 0', textAlign: 'left', fontSize: '12px' }}>
-              Loading fields for {entities.find(e => e.id === selectedEntityType)?.label_plural}...
-            </LoadingText>
-          )}
-          {selectedEntityType && !fieldsLoading && availableFields.length === 0 && !fieldsError && (
-            <ErrorText style={{ marginTop: '8px', fontSize: '12px' }}>
-              No fields found for this entity. This may indicate a backend configuration issue.
-            </ErrorText>
-          )}
-        </EntitySelector>
-      </Section>
+      {!hideEntitySelector && !entityType && (
+        <Section>
+          <SectionTitle>Select Entity</SectionTitle>
+          <EntitySelector>
+            <Label htmlFor="entity-select">Entity Type *</Label>
+            <Select
+              id="entity-select"
+              value={selectedEntityType}
+              onChange={handleEntityChange}
+            >
+              <option value="">-- Select entity --</option>
+              {entities.map(entity => (
+                <option key={entity.id} value={entity.id}>
+                  {entity.label_plural} {selectedEntityType === entity.id && availableFields.length > 0 ? `(${availableFields.length} fields)` : ''}
+                </option>
+              ))}
+            </Select>
+            {selectedEntityType && fieldsLoading && (
+              <LoadingText style={{ padding: '8px 0', textAlign: 'left', fontSize: '12px' }}>
+                Loading fields for {entities.find(e => e.id === selectedEntityType)?.label_plural}...
+              </LoadingText>
+            )}
+            {selectedEntityType && !fieldsLoading && availableFields.length === 0 && !fieldsError && (
+              <ErrorText style={{ marginTop: '8px', fontSize: '12px' }}>
+                No fields found for this entity. This may indicate a backend configuration issue.
+              </ErrorText>
+            )}
+          </EntitySelector>
+        </Section>
+      )}
+
+      {hideEntitySelector && !effectiveEntityType && (
+        <Section>
+          <SectionTitle>Entity</SectionTitle>
+          <EmptyState>
+            ℹ️ Select an entity type first to see available fields
+          </EmptyState>
+        </Section>
+      )}
 
       {/* Available Fields */}
-      {selectedEntityType && (
+      {effectiveEntityType && (
         <Section>
           <SectionTitle>Available Fields</SectionTitle>
           <Input

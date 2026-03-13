@@ -877,6 +877,13 @@ class FormSubmission(models.Model):
         related_name='submissions',
         help_text="The form being submitted"
     )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='form_submissions',
+        help_text='Tenant this submission belongs to'
+    )
     
     # Status tracking
     status = models.CharField(
@@ -932,6 +939,7 @@ class FormSubmission(models.Model):
         verbose_name_plural = "Form Submissions"
         ordering = ['-updated_at']
         indexes = [
+            models.Index(fields=['tenant', 'status'], name='workflows_f_tenant__8314a5_idx'),
             models.Index(fields=['created_by', 'status']),
             models.Index(fields=['form', 'status']),
         ]
@@ -972,6 +980,14 @@ class FormStepSubmission(models.Model):
         related_name='step_submissions',
         help_text="Parent form submission"
     )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='form_step_submissions',
+        help_text='Tenant owning this step submission'
+    )
+
     step = models.ForeignKey(
         TenantFormEntity,
         on_delete=models.CASCADE,
@@ -1018,6 +1034,9 @@ class FormStepSubmission(models.Model):
         verbose_name_plural = "Step Submissions"
         ordering = ['submission', 'step__order']
         unique_together = [['submission', 'step']]
+        indexes = [
+            models.Index(fields=['tenant', 'status'], name='fss_tenant_status_idx'),
+        ]
     
     def __str__(self):
         return f"{self.submission.form.name} - {self.step.step_name} ({self.status})"
@@ -1307,6 +1326,13 @@ class StepAssignment(models.Model):
         related_name='assignments',
         help_text="The step being assigned"
     )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='step_assignments',
+        help_text='Tenant this assignment belongs to'
+    )
     
     # Assignment type and target
     assignment_type = models.CharField(
@@ -1371,6 +1397,7 @@ class StepAssignment(models.Model):
         ordering = ['form', 'step__order']
         unique_together = [['form', 'step', 'assigned_user'], ['form', 'step', 'assigned_role']]
         indexes = [
+            models.Index(fields=['tenant', 'form'], name='workflows_s_tenant__3c0364_idx'),
             models.Index(fields=['assigned_user', 'assignment_type']),
             models.Index(fields=['assigned_role']),
         ]
@@ -1434,6 +1461,13 @@ class UserNotification(models.Model):
         on_delete=models.CASCADE,
         related_name='notifications',
         help_text="User to receive this notification"
+    )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        help_text='Tenant this notification belongs to'
     )
     
     # Notification content
@@ -1512,6 +1546,7 @@ class UserNotification(models.Model):
         indexes = [
             models.Index(fields=['user', 'is_read', '-created_at']),
             models.Index(fields=['user', 'notification_type', '-created_at']),
+            models.Index(fields=['tenant', '-created_at'], name='workflows_u_tenant__b2d0bd_idx'),
             models.Index(fields=['entity_type', 'entity_id']),
             models.Index(fields=['expires_at']),
         ]

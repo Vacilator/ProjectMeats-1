@@ -179,27 +179,6 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                     return advancedSectionIds.includes(section.id);
                   }}
                 />
-                {/* Editable JSON Editor for power users */}
-                <AdvancedSection style={{ marginTop: '16px' }}>
-                  <SectionTitle>Raw Configuration (JSON)</SectionTitle>
-                  <InfoText>
-                    Direct JSON editor for power users. Edit carefully - invalid JSON will be rejected.
-                  </InfoText>
-                  <JSONEditor
-                    value={JSON.stringify(node.data, null, 2)}
-                    onChange={(e) => {
-                      try {
-                        const parsed = JSON.parse(e.target.value);
-                        onUpdateNode(node.id, parsed);
-                      } catch (error) {
-                        // Invalid JSON - don't update
-                        console.warn('[TabbedConfigPanel] Invalid JSON, not updating:', error);
-                      }
-                    }}
-                    placeholder="{ /* Node configuration */ }"
-                    spellCheck={false}
-                  />
-                </AdvancedSection>
               </TabPanel>
             )}
 
@@ -351,51 +330,10 @@ const TabPanel = styled(motion.div)`
   padding: 20px;
 `;
 
-const AdvancedSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`;
-
 const PreviewSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
-`;
-
-const SectionTitle = styled.h3`
-  font-size: 14px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  margin: 0;
-`;
-
-const InfoText = styled.p`
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-  margin: 0;
-  line-height: 1.5;
-`;
-
-const JSONEditor = styled.textarea`
-  background: rgb(var(--color-background-tertiary));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 8px;
-  padding: 16px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  color: rgb(var(--color-text-primary));
-  overflow: auto;
-  min-height: 200px;
-  max-height: 400px;
-  width: 100%;
-  resize: vertical;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-  }
 `;
 
 const PreviewFrame = styled.div`

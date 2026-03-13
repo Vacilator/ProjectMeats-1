@@ -3,68 +3,14 @@
  *
  * Handles communication with business entities (suppliers, customers, etc.)
  */
-import axios from 'axios';
-import { config } from '../config/runtime';
-
-// API Configuration
-const API_BASE_URL = config.API_BASE_URL;
-// Check for development mode (Vite or legacy)
-const IS_DEVELOPMENT = typeof import.meta !== 'undefined'
-  ? import.meta.env?.MODE === 'development'
-  : typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
-
-const businessApiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // Allow cookies for authentication
-  xsrfCookieName: 'csrftoken', // Django's CSRF cookie name
-  xsrfHeaderName: 'X-CSRFToken', // Django's expected CSRF header
-});
-
-// Request interceptor for authentication
-businessApiClient.interceptors.request.use(
-  (config) => {
-    // Add authentication token if available
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    // In development, if no token is present, the backend will allow unauthenticated access
-    // This is configured in the backend's SupplierViewSet.get_authenticators() method
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor for error handling
-businessApiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle authentication errors
-      // In development, log the error but don't redirect to allow testing without login
-      if (IS_DEVELOPMENT) {
-        console.warn('Authentication required but not provided. This is allowed in development mode.');
-      } else {
-        localStorage.removeItem('authToken');
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+import { apiClient as businessApiClient } from './apiService';
 
 // Generic API request helper
 async function apiRequest<T>(
   endpoint: string,
   options: { method?: string; data?: unknown } = {}
 ): Promise<T> {
-  const response = await businessApiClient.request({
+  const response = await businessApiClient.request<T>({
     url: endpoint,
     method: options.method || 'GET',
     data: options.data,

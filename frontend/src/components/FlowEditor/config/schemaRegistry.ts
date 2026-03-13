@@ -135,22 +135,7 @@ class ConfigSchemaRegistry {
             },
           ],
         },
-        {
-          id: 'advanced',
-          title: 'Advanced',
-          collapsed: true,
-          fields: [
-            {
-              id: 'customData',
-              label: 'Custom Configuration (JSON)',
-              type: 'textarea',
-              placeholder: '{"key": "value"}',
-              helpText: 'Advanced: Edit node data as JSON',
-              defaultValue: '{}',
-              required: false,
-            },
-          ],
-        },
+
       ],
     };
   }

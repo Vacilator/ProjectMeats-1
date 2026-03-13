@@ -18,11 +18,11 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { 
-  Search, ChevronRight, Star, Clock, Phone, FileText, 
-  Users, Building2, Package, TrendingUp, X, Home 
+import {
+  Search, Star, Clock, Phone, FileText,
+  Users, Building2, Package, TrendingUp, X
 } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 
 // ============================================================================
@@ -31,24 +31,21 @@ import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 
 export interface SearchEntity {
   id: string;
-  type: 'customer' | 'supplier' | 'contact' | 'product' | 'order' | 'inquiry';
+  type: string;
   name: string;
   subtitle?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface RelationalChunk {
-  type: 'calls' | 'orders' | 'inquiries' | 'associates' | 'products';
+  type: string;
   title: string;
   items: SearchEntity[];
   icon: React.ReactNode;
 }
 
-export interface BreadcrumbItem {
-  id: string;
-  label: string;
-  entity?: SearchEntity;
-}
+// NOTE: Breadcrumb UI is owned by CockpitDashboard via <BreadcrumbBar />.
+// SmartSearch reacts to navigation path changes to implement continuous browsing.
 
 export interface SmartSearchProps {
   /** Initial search query */
@@ -127,51 +124,6 @@ const ClearButton = styled.button`
   }
 `;
 
-const Breadcrumbs = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: rgb(var(--color-background-secondary));
-  border-radius: 6px;
-  font-size: 13px;
-  overflow-x: auto;
-  white-space: nowrap;
-
-  &::-webkit-scrollbar {
-    height: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgb(var(--color-border));
-    border-radius: 2px;
-  }
-`;
-
-const BreadcrumbItem = styled.button<{ $isActive?: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${props => props.$isActive ? 'white' : 'rgb(var(--color-text-secondary))'};
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 13px;
-
-  &:hover {
-    background: ${props => props.$isActive ? 'rgb(var(--color-primary-hover))' : 'rgb(var(--color-background-tertiary))'};
-    color: ${props => props.$isActive ? 'white' : 'rgb(var(--color-text-primary))'};
-  }
-`;
-
-const BreadcrumbSeparator = styled(ChevronRight)`
-  color: rgb(var(--color-text-tertiary));
-  flex-shrink: 0;
-`;
 
 const ContentArea = styled.div`
   flex: 1;
@@ -519,7 +471,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       console.log('[SmartSearch] Searching for:', searchQuery);
       
       // Call universal search API (correct endpoint)
-      const response = await apiClient.get('/search/universal/', {
+      const response = await businessApi.get('/search/universal/', {
         params: { q: searchQuery, limit: 5 },
       });
 
@@ -531,16 +483,16 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       
       if (response.data.results && Array.isArray(response.data.results)) {
         response.data.results.forEach((item: any) => {
-          const type = item.type;
+          const type = String(item.type ?? 'unknown');
           if (!grouped[type]) {
             grouped[type] = [];
           }
           grouped[type].push({
-            id: item.id,
+            id: String(item.id ?? ''),
             type,
             name: item.title || item.name || 'Unnamed',
             subtitle: item.subtitle || '',
-            metadata: item.metadata || {},
+            metadata: (item.metadata ?? {}) as Record<string, unknown>,
           });
         });
       }
@@ -587,14 +539,14 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       console.log('[SmartSearch] Loading relationships for:', entity);
       
       // Use unified Entity Graph API
-      const response = await apiClient.get(
+      const response = await businessApi.get(
         `/system/entities/${entity.type}/${entity.id}/relationships/`
       );
       
       console.log('[SmartSearch] Entity relationships:', response.data);
       
       const chunks: RelationalChunk[] = [];
-      const { relationships, counts } = response.data;
+      const { relationships } = response.data;
       
       // Transform API relationships to chunks
       Object.entries(relationships).forEach(([relType, items]: [string, any]) => {
@@ -604,11 +556,11 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           type: relType as any,
           title: formatRelationshipTitle(relType),
           items: items.map((item: any) => ({
-            id: item.id,
-            type: item.type,
+            id: String(item.id ?? ''),
+            type: String(item.type ?? 'unknown'),
             name: item.title || item.name || `${item.type} #${item.id}`,
             subtitle: formatEntitySubtitle(item),
-            metadata: item.metadata || {},
+            metadata: (item.metadata ?? {}) as Record<string, unknown>,
           })),
           icon: getRelationshipIcon(relType),
         };
@@ -618,7 +570,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
       // FUZZY DISCOVERY: Fetch fuzzy-matched related entities
       try {
-        const fuzzyResponse = await apiClient.get(
+        const fuzzyResponse = await businessApi.get(
           `/system/entities/${entity.type}/${entity.id}/fuzzy-related/`,
           { params: { max_results: 30 } }
         );
@@ -639,22 +591,22 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           // Add fuzzy chunks with distinctive styling
           Object.entries(fuzzyByType).forEach(([matchType, matches]) => {
             const fuzzyChunk: RelationalChunk = {
-              type: `fuzzy_${matchType}` as any,
+              type: `fuzzy_${matchType}`,
               title: `${formatRelationshipTitle(matchType)} (Fuzzy Matches)`,
-              items: matches.map((match: any) => ({
-                id: match.id,
-                type: match.type,
+              items: (matches as any[]).map((match: any) => ({
+                id: String(match.id ?? ''),
+                type: String(match.type ?? 'unknown'),
                 name: match.name,
                 subtitle: match.subtitle || `Match: ${match.metadata?.match_type || 'Unknown'}`,
                 metadata: {
-                  ...match.metadata,
+                  ...(match.metadata ?? {}),
                   fuzzy: true,
-                  relevance_score: match.relevance_score || 0.5
-                },
+                  relevance_score: match.relevance_score || 0.5,
+                } as Record<string, unknown>,
               })),
               icon: getRelationshipIcon(matchType),
             };
-            
+
             chunks.push(fuzzyChunk);
           });
         }
@@ -663,14 +615,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         console.warn('[SmartSearch] Fuzzy discovery failed (non-fatal):', fuzzyError);
       }
 
-      setRelationalChunks(chunks);
-      
       // Add Quick Actions chunk at the end
       const quickActions = getQuickActionsForEntity(entity);
       if (quickActions.items.length > 0) {
         chunks.push(quickActions);
-        setRelationalChunks(chunks);
       }
+
+      setRelationalChunks(chunks);
     } catch (error) {
       console.error('[SmartSearch] Failed to load relational chunks:', error);
       setRelationalChunks([]);
@@ -680,54 +631,22 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   }, []);
 
   /**
-   * Handle entity selection - Push to navigation stack
+   * Handle entity selection - push into the global navigation path.
+   * Relational chunks are loaded by the navigation-path effect.
    */
   const handleSelectEntity = useCallback((entity: SearchEntity) => {
-    // Add to navigation stack (replaces breadcrumbs)
     navigation.addStep({
-      id: parseInt(entity.id),
+      id: entity.id,
       type: entity.type,
       label: entity.name,
       subtitle: entity.subtitle,
     });
 
-    // Load relational chunks
-    loadRelationalChunks(entity);
-
-    // Callback
     if (onSelectEntity) {
       onSelectEntity(entity);
     }
-  }, [navigation, loadRelationalChunks, onSelectEntity]);
+  }, [navigation, onSelectEntity]);
 
-  /**
-   * Navigate to a specific step in the path
-   */
-  const handleNavigateToStep = useCallback((index: number) => {
-    // Use navigation context to jump to step
-    navigation.goToStep(index);
-
-    // If navigating back to root (no steps), show search results
-    if (index === -1 || navigation.path.length === 0) {
-      setRelationalChunks([]);
-      if (query) {
-        searchEntities(query);
-      }
-    } else {
-      // Load relational chunks for the selected step
-      const step = navigation.path[index];
-      if (step) {
-        // Convert NavigationStep back to SearchEntity format
-        const entity: SearchEntity = {
-          id: step.id.toString(),
-          type: step.type as any,
-          name: step.label,
-          subtitle: step.subtitle,
-        };
-        loadRelationalChunks(entity);
-      }
-    }
-  }, [navigation, query, loadRelationalChunks, searchEntities]);
 
   /**
    * Handle quick action click
@@ -768,8 +687,24 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setQuery('');
     setResults({});
     setRelationalChunks([]);
-    setBreadcrumbs([{ id: 'home', label: 'Search' }]);
-  }, []);
+    navigation.clearPath();
+  }, [navigation]);
+
+  // Continuous browsing: whenever the breadcrumb path changes, load the active entity's relations.
+  useEffect(() => {
+    const active = navigation.path[navigation.path.length - 1];
+    if (!active) {
+      setRelationalChunks([]);
+      return;
+    }
+
+    loadRelationalChunks({
+      id: active.id,
+      type: active.type,
+      name: active.label,
+      subtitle: active.subtitle,
+    });
+  }, [navigation.path, loadRelationalChunks]);
 
   /**
    * Render search results (top-5 per type)
@@ -924,32 +859,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           )}
         </SearchInputWrapper>
 
-        {/* Breadcrumbs now use navigation.path from context */}
-        {navigation.path.length > 0 && (
-          <Breadcrumbs>
-            {/* Always show "Home" root */}
-            <BreadcrumbItem
-              $isActive={navigation.path.length === 0}
-              onClick={() => handleNavigateToStep(-1)}
-            >
-              <Home size={12} />
-              Search
-            </BreadcrumbItem>
-            
-            {/* Render navigation path */}
-            {navigation.path.map((step, index) => (
-              <React.Fragment key={`${step.type}-${step.id}`}>
-                <BreadcrumbSeparator size={14} />
-                <BreadcrumbItem
-                  $isActive={index === navigation.path.length - 1}
-                  onClick={() => handleNavigateToStep(index)}
-                >
-                  {step.label}
-                </BreadcrumbItem>
-              </React.Fragment>
-            ))}
-          </Breadcrumbs>
-        )}
+
       </SearchHeader>
 
       <ContentArea>

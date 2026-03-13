@@ -17,6 +17,10 @@ import { Node, Edge } from '@xyflow/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { debounce } from 'lodash';
 
+// Smart Auto-Map (Phase 7 stabilization)
+import { AutoMappingService, FieldMappingSuggestion } from '../utils/autoMappingService';
+import { AutoMappingSuggestionsPanel } from '../components/AutoMappingSuggestionsPanel';
+
 // Phase E.3: Data inheritance hook
 import { useUpstreamVariables } from '../hooks/useUpstreamVariables';
 
@@ -246,6 +250,63 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     });
   };
 
+  // Smart Auto-Map suggestions (based on upstream nodes)
+  const [rejectedSuggestionIds, setRejectedSuggestionIds] = useState<Set<string>>(new Set());
+
+  const nodesForAutoMap = useMemo(() => {
+    // Use the local (possibly edited) formData for the target node when generating suggestions
+    return nodes.map(n => (n.id === node.id ? { ...n, data: formData } : n));
+  }, [nodes, node.id, formData]);
+
+  const autoMap = useMemo(() => {
+    try {
+      return AutoMappingService.suggestMappings(
+        nodesForAutoMap as any,
+        edges as any,
+        node.id
+      );
+    } catch (e) {
+      console.warn('[DynamicConfigPanel] Auto-mapping suggestion generation failed:', e);
+      return { targetNodeId: node.id, suggestions: [], timestamp: Date.now() };
+    }
+  }, [nodesForAutoMap, edges, node.id]);
+
+  const visibleAutoMapSuggestions = useMemo(() => {
+    return (autoMap.suggestions || []).filter(s => !rejectedSuggestionIds.has(s.id));
+  }, [autoMap.suggestions, rejectedSuggestionIds]);
+
+  const handleAcceptAutoMap = (suggestion: FieldMappingSuggestion) => {
+    if (!node?.id) return;
+
+    const updatedNode = AutoMappingService.applySuggestion(
+      ({ ...node, data: formData } as any),
+      suggestion
+    );
+
+    setFormData(updatedNode.data || {});
+    onUpdateNode(node.id, updatedNode.data || {});
+  };
+
+  const handleRejectAutoMap = (suggestionId: string) => {
+    setRejectedSuggestionIds(prev => {
+      const next = new Set(prev);
+      next.add(suggestionId);
+      return next;
+    });
+  };
+
+  const handleApplyAllAutoMap = () => {
+    if (!node?.id) return;
+
+    const updatedNode = AutoMappingService.applyAutoSuggestions(
+      ({ ...node, data: formData } as any),
+      autoMap
+    );
+
+    setFormData(updatedNode.data || {});
+    onUpdateNode(node.id, updatedNode.data || {});
+  };
+
   // Handle Apply button
   const handleApply = () => {
     if (!node?.id) {
@@ -473,6 +534,15 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       </Header>
       
       <Content>
+        {visibleAutoMapSuggestions.length > 0 && (
+          <AutoMappingSuggestionsPanel
+            suggestions={visibleAutoMapSuggestions}
+            onAccept={handleAcceptAutoMap}
+            onReject={handleRejectAutoMap}
+            onApplyAll={handleApplyAllAutoMap}
+          />
+        )}
+
         {schema.sections
           .filter(section => !sectionFilter || sectionFilter(section))
           .map(renderSection)}

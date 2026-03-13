@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 import django.db.models.deletion
-from django.contrib.postgres.operations import RunSQL
+
 
 
 def backfill_tenant_for_formstepsubmission(apps, schema_editor):
@@ -59,31 +59,12 @@ class Migration(migrations.Migration):
             ),
         ),
         
-        # Step 2: Add tenant field to StepAssignment (nullable for backfill)
-        migrations.AddField(
-            model_name='stepassignment',
-            name='tenant',
-            field=models.ForeignKey(
-                null=True,
-                blank=True,
-                on_delete=models.CASCADE,
-                related_name='step_assignments',
-                to='tenants.tenant',
-                help_text='Tenant owning this step assignment'
-            ),
-        ),
-        
-        # Step 3: Backfill tenant values from parent relationships
+        # Step 2: Backfill tenant values from parent relationships
         migrations.RunPython(
             backfill_tenant_for_formstepsubmission,
             reverse_code=migrations.RunPython.noop,
         ),
-        migrations.RunPython(
-            backfill_tenant_for_stepassignment,
-            reverse_code=migrations.RunPython.noop,
-        ),
-        
-        # Step 4: Make tenant required (after backfill)
+        # Step 3: Make tenant required (after backfill)
         migrations.AlterField(
             model_name='formstepsubmission',
             name='tenant',
@@ -94,29 +75,13 @@ class Migration(migrations.Migration):
                 help_text='Tenant owning this step submission'
             ),
         ),
-        migrations.AlterField(
-            model_name='stepassignment',
-            name='tenant',
-            field=models.ForeignKey(
-                on_delete=models.CASCADE,
-                related_name='step_assignments',
-                to='tenants.tenant',
-                help_text='Tenant owning this step assignment'
-            ),
-        ),
-        
-        # Step 5: Add database indexes for performance
+        # Step 4: Add database indexes for performance
         migrations.AddIndex(
             model_name='formstepsubmission',
             index=models.Index(fields=['tenant', 'status'], name='fss_tenant_status_idx'),
         ),
-        migrations.AddIndex(
-            model_name='stepassignment',
-            index=models.Index(fields=['tenant', 'form'], name='sa_tenant_form_idx'),
-        ),
-        
-        # Step 6: Enable Row-Level Security (RLS) for tenant isolation
-        RunSQL(
+        # Step 5: Enable Row-Level Security (RLS) for tenant isolation
+        migrations.RunSQL(
             sql="""
             -- Enable RLS on FormStepSubmission
             ALTER TABLE workflows_formstepsubmission ENABLE ROW LEVEL SECURITY;
@@ -124,18 +89,11 @@ class Migration(migrations.Migration):
             CREATE POLICY formstepsubmission_tenant_isolation ON workflows_formstepsubmission
                 USING (tenant_id = current_setting('app.current_tenant')::uuid);
             
-            -- Enable RLS on StepAssignment
-            ALTER TABLE workflows_stepassignment ENABLE ROW LEVEL SECURITY;
-            
-            CREATE POLICY stepassignment_tenant_isolation ON workflows_stepassignment
-                USING (tenant_id = current_setting('app.current_tenant')::uuid);
             """,
             reverse_sql="""
             DROP POLICY IF EXISTS formstepsubmission_tenant_isolation ON workflows_formstepsubmission;
             ALTER TABLE workflows_formstepsubmission DISABLE ROW LEVEL SECURITY;
             
-            DROP POLICY IF EXISTS stepassignment_tenant_isolation ON workflows_stepassignment;
-            ALTER TABLE workflows_stepassignment DISABLE ROW LEVEL SECURITY;
             """
         ),
     ]

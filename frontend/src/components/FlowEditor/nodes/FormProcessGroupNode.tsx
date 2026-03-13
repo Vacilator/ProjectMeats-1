@@ -115,10 +115,12 @@ const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; isDr
   overflow: ${props => props.isExpanded ? 'visible' : 'hidden'};
   position: relative;
   
-  box-shadow: ${props => props.isDropTarget
-    ? '0 8px 24px rgba(139, 92, 246, 0.3), 0 0 0 6px rgba(139, 92, 246, 0.2)'
-    : '0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(139, 92, 246, 0.1)'
-  };
+  box-shadow: ${props => {
+    if (!props.isExpanded) return 'none';
+    return props.isDropTarget
+      ? '0 8px 24px rgba(139, 92, 246, 0.3), 0 0 0 6px rgba(139, 92, 246, 0.2)'
+      : '0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(139, 92, 246, 0.1)';
+  }};
   
   /* FIX: Only transition specific properties, not all */
   transition: 
@@ -130,9 +132,10 @@ const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; isDr
     box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
   &:hover {
-    box-shadow: 
-      0 6px 16px rgba(0, 0, 0, 0.15),
-      0 0 0 4px rgba(139, 92, 246, 0.2);
+    box-shadow: ${props => {
+      if (!props.isExpanded) return 'none';
+      return '0 6px 16px rgba(0, 0, 0, 0.15), 0 0 0 4px rgba(139, 92, 246, 0.2)';
+    }};
   }
   
   /* Group label indicator */

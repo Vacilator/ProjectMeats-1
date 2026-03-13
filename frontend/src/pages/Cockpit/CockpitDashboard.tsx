@@ -663,16 +663,7 @@ export const CockpitDashboard: React.FC = () => {
           </div>
         )}
         
-        <SmartSearch 
-          onSelectEntity={(entity) => {
-            navigation.addStep({
-              id: parseInt(entity.id),
-              type: entity.type,
-              label: entity.name,
-              subtitle: entity.subtitle
-            });
-          }}
-        />
+        <SmartSearch />
       </div>
 
       {/* Widget Grid - Always show */}

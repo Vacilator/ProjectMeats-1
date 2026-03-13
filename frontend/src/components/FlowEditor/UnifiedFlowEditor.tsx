@@ -5064,11 +5064,26 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setSelectedFormStep(node);
         break;
       
-      case 'formMultiStepContainer':
-        logger.debug('✏️ [EDIT BUTTON] Opening Container modal');
-        setSelectedContainer(node);
-        setContainerModalOpen(true);
+      case 'formMultiStepContainer': {
+        // Phase 7 Stabilization: this node type is deprecated.
+        // Migrate in-memory to the canonical Form Process Group node.
+        logger.debug('✏️ [EDIT BUTTON] Migrating legacy container to formProcessGroup');
+
+        const migratedNode = {
+          ...node,
+          type: 'formProcessGroup',
+          data: {
+            ...(node.data || {}),
+            // Ensure group semantics are enabled
+            isGroup: true,
+          },
+        };
+
+        setNodes((nds) => nds.map((n) => (n.id === node.id ? migratedNode : n)));
+        setSelectedNode(migratedNode);
+        // Do NOT open legacy modal
         break;
+      }
         
       case 'formReference':
         logger.debug('✏️ [EDIT BUTTON] Setting FormReference data');

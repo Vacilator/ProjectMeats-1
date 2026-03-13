@@ -68,9 +68,10 @@ SEARCHABLE_ENTITIES = {
         'related_display': 'customer__name',
     },
     'product': {
-        'app': 'products',
+        # Products are system-wide (tenantless) after Phase 3 deduplication.
+        'app': 'system',
         'model': 'Product',
-        'search_fields': ['product_code', 'description_of_product_item', 'type_of_protein'],
+        'search_fields': ['product_code', 'name', 'description', 'protein_type'],
         'display_field': 'product_code',
         'icon': 'Package',
         'color': '#ec4899',  # pink
@@ -228,9 +229,11 @@ class UniversalSearchService:
             query_filter = self._build_query_filter(search_text, config['search_fields'])
             
             # Execute with tenant filter
-            queryset = Model.objects.filter(
-                tenant=self.tenant
-            ).filter(query_filter)[:limit]
+            # Execute with tenant filter when applicable
+            base_qs = Model.objects.all()
+            if hasattr(Model, 'tenant'):
+                base_qs = base_qs.filter(tenant=self.tenant)
+            queryset = base_qs.filter(query_filter)[:limit]
             
             # Format results
             results = []

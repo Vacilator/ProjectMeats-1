@@ -14,7 +14,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 // ============================================================================
 
 export interface NavigationStep {
-  id: number;
+  id: string;
   type: string;
   label: string;
   subtitle?: string;
@@ -61,7 +61,17 @@ export const CockpitNavigationProvider: React.FC<{ children: React.ReactNode }> 
     try {
       const stored = sessionStorage.getItem('cockpit_recent_paths');
       if (stored) {
-        setRecentPaths(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        // Backward-compatible: older sessions may have numeric IDs.
+        const normalized: NavigationStep[][] = Array.isArray(parsed)
+          ? parsed.map((p: any[]) =>
+              (Array.isArray(p) ? p : []).map((s: any) => ({
+                ...s,
+                id: String(s?.id ?? ''),
+              }))
+            )
+          : [];
+        setRecentPaths(normalized);
       }
     } catch (error) {
       console.error('[CockpitNavigation] Failed to load recent paths:', error);
