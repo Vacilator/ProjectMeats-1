@@ -12,6 +12,7 @@ Security Features:
 """
 import os
 import logging
+import secrets
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model, authenticate
 
@@ -79,7 +80,7 @@ class Command(BaseCommand):
             if is_test_context:
                 username = username if 'username' in locals() else 'testadmin'
                 email = email if 'email' in locals() else 'testadmin@example.com'
-                password = password if 'password' in locals() else 'testpass123'
+                password = password if 'password' in locals() else secrets.token_urlsafe(24)
                 logger.warning(f'Using test defaults due to error: username={username}, email={email}')
             else:
                 raise
@@ -93,8 +94,8 @@ class Command(BaseCommand):
                 email = f'{username}@example.com'
                 logger.warning(f'Test context: using default email={email}')
             if not password:
-                password = 'testpass123'
-                logger.warning(f'Test context: using default password (hidden)')
+                password = secrets.token_urlsafe(24)
+                logger.warning('Test context: generated password (hidden)')
         
         # Validate required fields (strict for UAT/prod, lenient for dev and tests)
         is_production_env = django_env in ['staging', 'uat', 'production'] and not is_test_context
@@ -131,9 +132,18 @@ class Command(BaseCommand):
                 raise ValueError(
                     f'Superuser password environment variable must be set in {django_env} environment'
                 )
+            if is_test_context:
+                logger.warning(error_msg + ' (test context: generating password)')
+                password = secrets.token_urlsafe(24)
             else:
-                logger.warning(error_msg + ' (non-production, continuing with defaults)')
-                password = 'defaultpass123'
+                logger.warning(error_msg + ' (non-production, generating password for local use)')
+                password = secrets.token_urlsafe(24)
+                self.stdout.write(
+                    self.style.WARNING(
+                        '⚠️  No superuser password env var set; generated a one-time password for this run. '
+                        'Set DJANGO_SUPERUSER_PASSWORD (or environment-specific SUPERUSER_PASSWORD) to make it deterministic.'
+                    )
+                )
         
         # Try to get or create superuser
         # First, try to find by username
