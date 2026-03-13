@@ -13,4 +13,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 > Fill in as PRs are opened/merged.
 
-- TBD — Phase 7 Stabilization + Cockpit Navigation — Started 2026-03-13
+- 2026-03-13 — Phase 7 Stabilization + Cockpit Navigation — Commit: 6144c189 (PR: TBD)
+  - Cockpit: navigation-path driven continuous browsing + breadcrumb jumping; UUID-safe relationships endpoint.
+  - Backend: relationship discovery returns contacts/recent orders/related products; RLS middleware sets+resets both `app.current_tenant` + `app.current_tenant_id`.
+  - Workflows: migrations/models aligned for tenant/RLS stability (MyTasks/workflow executions).
+  - FlowEditor: entity-first Form config, Smart Auto-Map suggestions, removed raw JSON editor, deprecated multi-step container edit path (migrates to `formProcessGroup`), collapsed group shadow fix.
