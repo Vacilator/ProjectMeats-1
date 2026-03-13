@@ -130,16 +130,39 @@ jobs:
   secret-scan:
     name: "Secret Detection Scan"
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Full history for better detection
-      
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          GITLEAKS_VERSION="8.18.4"
+          curl -sSL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp
+          sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run gitleaks
+        run: |
+          set -euo pipefail
+          gitleaks detect \
+            --source . \
+            --no-git \
+            --redact \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --exit-code 1
+
+      - name: Upload gitleaks results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
   
   sbom-generation:
     name: "Generate SBOM"
@@ -180,15 +203,17 @@ jobs:
       
       - name: Display summary
         run: |
-          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Python security audit completed" >> $GITHUB_STEP_SUMMARY
-          echo "✅ JavaScript security audit completed" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -f bandit-report/bandit-report.json ]; then
-            echo "📊 Bandit report available" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ -f npm-audit-report/npm-audit.json ]; then
-            echo "📊 npm audit report available" >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "## Security Scan Summary"
+            echo ""
+            echo "✅ Python security audit completed"
+            echo "✅ JavaScript security audit completed"
+
+            if [ -f bandit-report/bandit-report.json ]; then
+              echo "📊 Bandit report available"
+            fi
+
+            if [ -f npm-audit-report/npm-audit.json ]; then
+              echo "📊 npm audit report available"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
