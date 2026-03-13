@@ -1125,8 +1125,8 @@ jobs:
           window.ENV = {
             API_BASE_URL: "${API_BASE_URL}",
             ENVIRONMENT: "${ENVIRONMENT}",
-            SENTRY_DSN: "${SENTRY_DSN}",
-            SENTRY_ENABLED: "${SENTRY_ENABLED}"
+            SENTRY_DSN: "${SENTRY_DSN:-}",
+            SENTRY_ENABLED: "${SENTRY_ENABLED:-false}"
           };
           ENVJS
           
