@@ -67,6 +67,8 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `purchase_orders_carrierpurchaseorder` | ✅ | `0004_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
 | `purchase_orders_coldstorageentry` | ✅ | `0004_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
 | `locations_location` | ✅ | `0003_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
+| `locations_locationassociatedproduct` | ✅ | `0008_locationassociatedproduct_and_more` | Mar 15, 2026 18:21 UTC |
+| `plants_plantassociatedproduct` | ✅ | `0008_plantassociatedproduct_plant_associated_products_and_more` | Mar 15, 2026 18:21 UTC |
 
 **Deployment**: [Run #22493063831](https://github.com/Meats-Central/ProjectMeats/actions/runs/22493063831)  
 **PR**: [#3310](https://github.com/Meats-Central/ProjectMeats/pull/3310)
