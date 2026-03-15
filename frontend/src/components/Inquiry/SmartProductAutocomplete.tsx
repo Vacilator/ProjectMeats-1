@@ -14,7 +14,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 import { Product } from '../../types';
 import { Search as SearchIcon, Star, Package, DollarSign, X } from 'lucide-react';
 
@@ -35,10 +35,13 @@ interface SmartProductAutocompleteProps {
 interface SearchResult {
   id: string;
   product_code: string;
-  description_of_product_item: string;
+  name?: string;
+  description?: string;
+  description_of_product_item?: string;
+  protein_type?: string;
   type_of_protein?: string;
   avg_price?: number;
-  is_active: boolean;
+  is_active?: boolean;
   is_suggested?: boolean;
 }
 
@@ -316,7 +319,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
   
   const fetchProductById = async (productId: string) => {
     try {
-      const response = await apiClient.get(`products/${productId}/`);
+      const response = await businessApi.get(`system/products/${productId}/`);
       setSelectedProduct(response.data);
       setSearchTerm(response.data.product_code);
     } catch (err) {
@@ -337,7 +340,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
         setLoading(true);
         
         // Use Cockpit search endpoint for unified search
-        const response = await apiClient.get('system/search/', {
+        const response = await businessApi.get('system/search/', {
           params: {
             query: query,
             types: 'product',
@@ -500,11 +503,11 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
                   )}
                 </ResultHeader>
                 <ProductDescription>
-                  {product.description_of_product_item}
+                  {product.description_of_product_item ?? product.description ?? product.name ?? ''}
                 </ProductDescription>
                 <ProductMeta>
-                  {product.type_of_protein && (
-                    <span>🥩 {product.type_of_protein}</span>
+                  {(product.type_of_protein ?? product.protein_type) && (
+                    <span>🥩 {product.type_of_protein ?? product.protein_type}</span>
                   )}
                 </ProductMeta>
               </ResultItem>
@@ -536,11 +539,11 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
                     )}
                   </ResultHeader>
                   <ProductDescription>
-                    {product.description_of_product_item}
+                    {product.description_of_product_item ?? product.description ?? product.name ?? ''}
                   </ProductDescription>
                   <ProductMeta>
-                    {product.type_of_protein && (
-                      <span>🥩 {product.type_of_protein}</span>
+                    {(product.type_of_protein ?? product.protein_type) && (
+                      <span>🥩 {product.type_of_protein ?? product.protein_type}</span>
                     )}
                   </ProductMeta>
                 </ResultItem>

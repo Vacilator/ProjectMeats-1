@@ -6,7 +6,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
+import { businessApi } from '../../services/businessApi';
 import { InquiryTemplate, InquiryEntityType } from '../../types';
 
 // ============================================================================
@@ -332,7 +332,7 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
   // Load products list
   useEffect(() => {
     if (isOpen) {
-      axios.get('/api/v1/products/', { params: { page_size: 500 } })
+      businessApi.get('system/products/', { params: { page_size: 500, is_active: true } })
         .then(res => {
           const data = res.data.results || res.data;
           setAvailableProducts(data);
@@ -431,9 +431,9 @@ export const InquiryTemplateModal: React.FC<InquiryTemplateModalProps> = ({
       
       let response;
       if (isEditing && template) {
-        response = await axios.put(`/api/v1/inquiry-templates/${template.id}/`, payload);
+        response = await businessApi.put(`inquiry-templates/${template.id}/`, payload);
       } else {
-        response = await axios.post('/api/v1/inquiry-templates/', payload);
+        response = await businessApi.post('inquiry-templates/', payload);
       }
       
       onSave(response.data);

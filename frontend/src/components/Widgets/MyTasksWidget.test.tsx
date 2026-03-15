@@ -7,6 +7,15 @@ import { MemoryRouter } from 'react-router-dom';
 import { MyTasksWidget } from './MyTasksWidget';
 import * as NotificationsContext from '../../contexts/NotificationsContext';
 
+vi.mock('../../contexts/CockpitPinnedToolsContext', () => ({
+  useCockpitPinnedTools: () => ({
+    pinned: [],
+    pinWidget: vi.fn(),
+    unpin: vi.fn(),
+    isWidgetPinned: vi.fn(() => false),
+  }),
+}));
+
 // Mock useNavigate
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {

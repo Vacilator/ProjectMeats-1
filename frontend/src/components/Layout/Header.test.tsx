@@ -158,7 +158,7 @@ describe('Header', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /global search/i })).toBeInTheDocument();
     });
 
     it('renders quick actions button', () => {
@@ -220,46 +220,43 @@ describe('Header', () => {
         </MemoryRouter>
       );
 
-      const searchInput = screen.getByPlaceholderText('Search...');
+      const searchInput = screen.getByRole('textbox', { name: /global search/i });
       fireEvent.change(searchInput, { target: { value: 'test query' } });
 
       expect(searchInput).toHaveValue('test query');
     });
 
     it('handles search form submission', () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      
       render(
         <MemoryRouter>
           <Header />
         </MemoryRouter>
       );
 
-      const searchInput = screen.getByPlaceholderText('Search...');
+      const searchInput = screen.getByRole('textbox', { name: /global search/i });
       fireEvent.change(searchInput, { target: { value: 'test query' } });
-      
+
+      // onChange triggers a debounced navigation; we only want to assert the explicit submit behavior.
+      mockNavigate.mockClear();
+
       const form = searchInput.closest('form')!;
       fireEvent.submit(form);
 
-      expect(consoleSpy).toHaveBeenCalledWith('Search query:', 'test query');
-      consoleSpy.mockRestore();
+      expect(mockNavigate).toHaveBeenCalledWith('/cockpit?q=test%20query');
     });
 
     it('does not submit empty search', () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      
       render(
         <MemoryRouter>
           <Header />
         </MemoryRouter>
       );
 
-      const searchInput = screen.getByPlaceholderText('Search...');
+      const searchInput = screen.getByRole('textbox', { name: /global search/i });
       const form = searchInput.closest('form')!;
       fireEvent.submit(form);
 
-      expect(consoleSpy).not.toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
 
     it('search input has accessible label', () => {
