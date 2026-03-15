@@ -115,6 +115,7 @@ _DJANGO_CORE_APPS = [
 
 # Third-party apps
 _THIRD_PARTY_APPS = [
+    "channels",  # Phase 7.3: WebSocket foundation (ASGI)
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_simplejwt.token_blacklist",  # JWT token blacklist (Wave S1)
@@ -198,6 +199,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "projectmeats.wsgi.application"
+ASGI_APPLICATION = "projectmeats.asgi.application"
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -482,6 +484,7 @@ LOGGING = {
 # If REDIS_URL is not set, falls back to local memory cache (development)
 
 REDIS_URL = os.environ.get("REDIS_URL")
+VALKEY_URL = os.environ.get("VALKEY_URL")
 
 if REDIS_URL:
     # Redis cache for production (Phases 3, 8: Real-time search, parallelization)
@@ -508,6 +511,31 @@ else:
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "projectmeats-cache",
+        }
+    }
+
+# ==============================================================================
+# Channels / WebSockets (Phase 7.3)
+# ==============================================================================
+# Use Redis-backed channel layer when available; otherwise fall back to in-memory.
+# IMPORTANT: Channel layer isolation is enforced at the application layer (tenant-scoped
+# groups). Any database access from consumers must still respect RLS.
+
+_CHANNEL_REDIS_URL = REDIS_URL or VALKEY_URL
+if _CHANNEL_REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [_CHANNEL_REDIS_URL],
+                "prefix": "pm",
+            },
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
         }
     }
 

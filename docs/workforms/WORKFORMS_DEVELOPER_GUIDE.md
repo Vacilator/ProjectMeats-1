@@ -62,6 +62,26 @@ frontend/src/components/
 - **TypeScript**: Type safety
 - **React Query**: Server state management
 
+### Real-Time Collaboration (Phase 7.3)
+
+ProjectMeats uses **Django Channels** to support WebSocket-based collaboration.
+
+**WebSocket path convention**:
+- `/ws/workflows/<workflow_id>/collab/?tenant_id=<tenant_uuid>`
+
+**Requirements**:
+- `tenant_id` is mandatory in the query string to prevent cross-tenant broadcast leakage.
+- The backend joins a **tenant-scoped group** for the workflow session.
+
+**Current message plumbing (scaffold)**:
+- Client → Server: `{ "type": "ping" }` → `{ "type": "pong" }`
+- Any other JSON payload is broadcast to the tenant+workflow group as `collab.message`.
+
+Authority:
+- `backend/projectmeats/asgi.py`
+- `backend/tenant_apps/workflows/routing.py`
+- `backend/tenant_apps/workflows/consumers.py`
+
 ---
 
 ## Component Structure
