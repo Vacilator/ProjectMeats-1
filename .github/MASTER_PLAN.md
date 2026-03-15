@@ -390,3 +390,24 @@ Deliverables:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-70081699956e5478a7bc00f971824614b3d37438`
   - container: `pm-backend`
+
+
+---
+
+### 2026-03-15 — Core: regression tests for Cockpit relationship discovery (PR #3510)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3510
+
+**Status:** MERGED → `development` (squash commit: `e1e642c82fcb0842c71129e4b1840284b3c72c53`)
+
+Deliverables:
+- Backend: add regression coverage for `EntityGraphService` relationship discovery (contacts / recent_orders / related_products) including tenant scoping and RLS session variable setup in tests.
+- Backend: fix `tenant_apps.workflows.signals.trigger_event_workflows()` to filter active workflows using `status=WorkflowStatus.ACTIVE` (removes invalid `is_active` filter).
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23115033468 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-e1e642c82fcb0842c71129e4b1840284b3c72c53`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-e1e642c82fcb0842c71129e4b1840284b3c72c53`
+  - container: `pm-backend`
