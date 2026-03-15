@@ -32,7 +32,6 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
-import Editor from '@monaco-editor/react';
 import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
@@ -78,7 +77,7 @@ import {
   ZoomOut, 
   Wand2, 
   Eye, 
-  Code2, 
+ 
   Download, 
   Upload, 
   CheckCircle, 
@@ -165,7 +164,7 @@ import { DataMappingPanel } from './ConfigPanel/DataMappingPanel'; // Phase 1: H
 // TypeScript Interfaces
 // ============================================================================
 
-export type EditorMode = 'wizard' | 'visual' | 'expert';
+export type EditorMode = 'wizard' | 'visual' | 'expert'; // 'expert' is deprecated (JSON editor removed)
 
 interface UnifiedFlowEditorProps {
   initialNodes?: Node[];
@@ -2056,8 +2055,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // If passed as prop, it overrides the internal state (controlled component)
   const [internalEditorMode, setInternalEditorMode] = useState<EditorMode>(() => {
     try {
-      const stored = localStorage.getItem('flow_editor_mode');
-      return (stored as EditorMode) || 'visual';
+      const stored = (localStorage.getItem('flow_editor_mode') as EditorMode | null) || 'visual';
+      // Phase 7 hardening: retire Expert Mode (JSON editor) but tolerate stored values.
+      return stored === 'expert' ? 'visual' : stored;
     } catch {
       return 'visual';
     }
@@ -2065,11 +2065,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Use prop if provided, otherwise use internal state
   const activeEditorMode = editorMode !== undefined ? editorMode : internalEditorMode;
+  const normalizedEditorMode: EditorMode = activeEditorMode === 'expert' ? 'visual' : activeEditorMode;
   
   // Persist mode preference only if not controlled by prop
   useEffect(() => {
     if (editorMode === undefined) {
-      localStorage.setItem('flow_editor_mode', internalEditorMode);
+      // Never persist deprecated Expert Mode
+      localStorage.setItem('flow_editor_mode', internalEditorMode === 'expert' ? 'visual' : internalEditorMode);
     }
   }, [internalEditorMode, editorMode]);
   
@@ -2343,7 +2345,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         !['customCode', 'apiRequest', 'subflow'].includes(nodeType.id)
       );
     }
-    // Expert mode: All nodes (no filtering by mode)
+    // Visual mode: filter nodes by allowed categories
     
     logger.debug('[NodePalette] After mode filtering:', filteredNodes.length);
     
@@ -2497,12 +2499,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const dropSucceededRef = useRef(false);
   
   // ============================================================================
-  // Expert Mode State (Phase 2.2 Batch 2)
+  // Expert Mode (Deprecated)
   // ============================================================================
-  
-  const [jsonCode, setJsonCode] = useState('');
-  const [jsonError, setJsonError] = useState<string | null>(null);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  // Legacy JSON editor removed in Phase 7 hardening.
+  // Raw JSON escape hatch remains available via TabbedConfigPanel → Advanced → Developer Mode.
   
   // ============================================================================
   // Template Selector State (Phase 2.5 Integration)
@@ -2588,133 +2588,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
   }, [activeEditorMode, nodes.length, setNodes, setEdges]);
 
-  // Sync nodes/edges to JSON when entering Expert Mode or when data changes
-  useEffect(() => {
-    if (activeEditorMode === 'expert') {
-      const flowData = {
-        nodes,
-        edges,
-        metadata: {
-          version: '1.0',
-          created: new Date().toISOString(),
-          lastModified: lastSyncTime?.toISOString() || new Date().toISOString(),
-        }
-      };
-      setJsonCode(JSON.stringify(flowData, null, 2));
-    }
-  }, [activeEditorMode, nodes, edges, lastSyncTime]);
-  
-  // Validate and apply JSON changes
-  const handleJsonChange = useCallback((value: string | undefined) => {
-    if (!value) return;
-    
-    setJsonCode(value);
-    
-    try {
-      const parsed = JSON.parse(value);
-      
-      // Validate structure
-      if (!parsed.nodes || !Array.isArray(parsed.nodes)) {
-        throw new Error('Invalid format: "nodes" array is required');
-      }
-      if (!parsed.edges || !Array.isArray(parsed.edges)) {
-        throw new Error('Invalid format: "edges" array is required');
-      }
-      
-      // Clear error if valid
-      setJsonError(null);
-    } catch (err) {
-      setJsonError(err instanceof Error ? err.message : 'Invalid JSON');
-    }
-  }, []);
-  
-  // Apply JSON to visual mode
-  const applyJsonToVisual = useCallback(() => {
-    try {
-      const parsed = JSON.parse(jsonCode);
-      
-      if (!parsed.nodes || !Array.isArray(parsed.nodes)) {
-        throw new Error('Invalid format: "nodes" array is required');
-      }
-      if (!parsed.edges || !Array.isArray(parsed.edges)) {
-        throw new Error('Invalid format: "edges" array is required');
-      }
-      
-      // CRITICAL: Sort nodes to ensure parent-before-child ordering
-      const sortedNodes = sortNodesTopologically(parsed.nodes);
-      setNodes(sortedNodes);
-      setEdges(parsed.edges);
-      setLastSyncTime(new Date());
-      setJsonError(null);
-      
-      // Switch to visual mode to see changes
-      setInternalEditorMode('visual');
-    } catch (err) {
-      setJsonError(err instanceof Error ? err.message : 'Failed to apply JSON');
-    }
-  }, [jsonCode, setNodes, setEdges]);
-  
-  // Export flow as JSON file
-  const exportJson = useCallback(() => {
-    const flowData = {
-      nodes,
-      edges,
-      metadata: {
-        version: '1.0',
-        exported: new Date().toISOString(),
-      }
-    };
-    
-    const blob = new Blob([JSON.stringify(flowData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `workflow-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [nodes, edges]);
-  
-  // Import JSON file
-  const importJson = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const content = event.target?.result as string;
-          const parsed = JSON.parse(content);
-          
-          if (!parsed.nodes || !parsed.edges) {
-            throw new Error('Invalid workflow file format');
-          }
-          
-          // CRITICAL: Sort nodes to ensure parent-before-child ordering
-          const sortedNodes = sortNodesTopologically(parsed.nodes);
-          setNodes(sortedNodes);
-          setEdges(parsed.edges);
-          setLastSyncTime(new Date());
-          setJsonError(null);
-          setInternalEditorMode('visual');
-        } catch (err) {
-          setJsonError(err instanceof Error ? err.message : 'Failed to import file');
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  }, [setNodes, setEdges]);
-  
-  // Copy JSON to clipboard
-  const copyJsonToClipboard = useCallback(() => {
-    navigator.clipboard.writeText(jsonCode);
-  }, [jsonCode]);
+  // Expert Mode JSON editor removed (Phase 7 hardening).
 
   // ============================================================================
   // Wizard Mode Functions (Phase 2.2 Batch 3)
@@ -5646,8 +5520,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </DeprecationBanner>
       )}
       
-      {/* Node Palette - Visual & Expert Modes Only */}
-      {!readOnly && isPaletteVisible && (activeEditorMode === 'visual' || activeEditorMode === 'expert') && (
+      {/* Node Palette - Visual Mode */}
+      {!readOnly && isPaletteVisible && normalizedEditorMode === 'visual' && (
         <NodePalette className="node-palette" data-tour="node-palette">
           <PaletteHeader>
             <PaletteTitle>Add Nodes</PaletteTitle>
@@ -6034,7 +5908,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {editorMode === undefined && (
         <ModeSelectorContainer>
           <ModeButton
-            $active={activeEditorMode === 'wizard'}
+            $active={normalizedEditorMode === 'wizard'}
             onClick={() => setInternalEditorMode('wizard')}
             title="Wizard Mode - Guided step-by-step creation"
           >
@@ -6042,26 +5916,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             Wizard
           </ModeButton>
           <ModeButton
-            $active={activeEditorMode === 'visual'}
+            $active={normalizedEditorMode === 'visual'}
             onClick={() => setInternalEditorMode('visual')}
             title="Visual Mode - Drag-and-drop canvas"
           >
             <Eye />
             Visual
           </ModeButton>
-          <ModeButton
-            $active={activeEditorMode === 'expert'}
-            onClick={() => setInternalEditorMode('expert')}
-            title="Expert Mode - JSON code editor"
-          >
-            <Code2 />
-            Expert
-          </ModeButton>
         </ModeSelectorContainer>
       )}
 
       {/* React Flow Canvas - Visual Mode */}
-      {activeEditorMode === 'visual' && (
+      {normalizedEditorMode === 'visual' && (
         <ReactFlow
         nodes={nodesWithHandlers}
         edges={edges}
@@ -6256,7 +6122,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       
       {/* Wizard Mode - Typeform-inspired (Phase 2.2 Batch 3) */}
-      {activeEditorMode === 'wizard' && (
+      {normalizedEditorMode === 'wizard' && (
         <WizardContainer>
           <WizardCard>
             {/* Progress Indicator */}
@@ -6452,74 +6318,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </WizardContainer>
       )}
       
-      {/* Expert Mode - JSON Editor (Phase 2.2 Batch 2) */}
-      {activeEditorMode === 'expert' && (
-        <ExpertModeContainer>
-          <ExpertModeToolbar>
-            <ToolbarSection>
-              <ExpertToolbarButton onClick={applyJsonToVisual} disabled={!!jsonError}>
-                <CheckCircle />
-                Apply to Visual
-              </ExpertToolbarButton>
-              <ExpertToolbarButton onClick={exportJson}>
-                <Download />
-                Export
-              </ExpertToolbarButton>
-              <ExpertToolbarButton onClick={importJson}>
-                <Upload />
-                Import
-              </ExpertToolbarButton>
-              <ExpertToolbarButton onClick={copyJsonToClipboard}>
-                <Copy />
-                Copy
-              </ExpertToolbarButton>
-            </ToolbarSection>
-            <ToolbarSection>
-              {lastSyncTime && (
-                <span style={{ fontSize: '12px', color: 'rgb(var(--color-text-tertiary))' }}>
-                  Last sync: {lastSyncTime.toLocaleTimeString()}
-                </span>
-              )}
-            </ToolbarSection>
-          </ExpertModeToolbar>
-          
-          {jsonError && (
-            <StatusMessage $type="error">
-              <AlertCircle style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
-              {jsonError}
-            </StatusMessage>
-          )}
-          
-          {!jsonError && lastSyncTime && (
-            <StatusMessage $type="success">
-              <CheckCircle style={{ width: '14px', height: '14px', display: 'inline', marginRight: '6px' }} />
-              Valid JSON - Ready to apply
-            </StatusMessage>
-          )}
-          
-          <EditorWrapper>
-            <Editor
-              height="100%"
-              defaultLanguage="json"
-              value={jsonCode}
-              onChange={handleJsonChange}
-              theme="vs-dark"
-              options={{
-                minimap: { enabled: true },
-                fontSize: 13,
-                lineNumbers: 'on',
-                rulers: [80, 120],
-                wordWrap: 'on',
-                formatOnPaste: true,
-                formatOnType: true,
-                automaticLayout: true,
-                scrollBeyondLastLine: false,
-                tabSize: 2,
-              }}
-            />
-          </EditorWrapper>
-        </ExpertModeContainer>
-      )}
 
       {/* Drag Ghost Preview */}
       {isDragging && dragPosition && dragNodeType && (
