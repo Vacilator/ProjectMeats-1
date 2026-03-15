@@ -16,8 +16,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { 
-  LayoutGrid, Lock, Unlock, Plus, 
-  RotateCcw, X, ArrowLeft, Search
+  LayoutGrid, Lock, Unlock, Plus,
+  RotateCcw, X
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { 
@@ -39,6 +39,7 @@ import {
 import { CockpitTour, SmartSearch, BreadcrumbBar } from '../../components/Cockpit';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { businessApi } from '../../services/businessApi';
+import { useCockpitPinnedTools } from '../../contexts/CockpitPinnedToolsContext';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -70,13 +71,14 @@ const DEFAULT_WIDGETS: WidgetConfig[] = [
 
 // Default layout configuration
 const DEFAULT_LAYOUT: WidgetLayout[] = [
-  { i: 'todays-numbers', x: 0, y: 0, w: 6, h: 4 },
-  { i: 'my-tasks', x: 6, y: 0, w: 6, h: 4 },
-  { i: 'quick-stats', x: 0, y: 4, w: 4, h: 3 },
-  { i: 'quick-actions', x: 4, y: 4, w: 4, h: 3 },
-  { i: 'recent-activity', x: 8, y: 4, w: 4, h: 3 },
-  { i: 'upcoming-calls', x: 0, y: 7, w: 6, h: 3 },
-  { i: 'entity-explorer', x: 6, y: 7, w: 6, h: 3 },
+  // Wider defaults to reduce horizontal overflow and improve scanability
+  { i: 'todays-numbers', x: 0, y: 0, w: 8, h: 4 },
+  { i: 'my-tasks', x: 8, y: 0, w: 4, h: 4 },
+  { i: 'quick-stats', x: 0, y: 4, w: 6, h: 3 },
+  { i: 'quick-actions', x: 6, y: 4, w: 6, h: 3 },
+  { i: 'recent-activity', x: 0, y: 7, w: 6, h: 3 },
+  { i: 'upcoming-calls', x: 6, y: 7, w: 6, h: 3 },
+  { i: 'entity-explorer', x: 0, y: 10, w: 12, h: 3 },
 ];
 
 // Widget catalog for adding new widgets - organized by category
@@ -421,6 +423,7 @@ export const CockpitDashboard: React.FC = () => {
   
   // Cockpit navigation context
   const navigation = useCockpitNavigation();
+  const pinnedTools = useCockpitPinnedTools();
 
   // Load saved layout from backend API with localStorage fallback
   useEffect(() => {
@@ -547,6 +550,13 @@ export const CockpitDashboard: React.FC = () => {
     setLayout(prev => prev.filter(l => l.i !== widgetId));
   }, []);
 
+  // Pin widget into the tools bar (and remove from grid)
+  const handlePinWidget = useCallback((widget: WidgetConfig) => {
+    pinnedTools.pinWidget(widget);
+    setWidgets(prev => prev.filter(w => w.id !== widget.id));
+    setLayout(prev => prev.filter(l => l.i !== widget.id));
+  }, [pinnedTools]);
+
   // Render widget based on type
   const renderWidget = useCallback((widget: WidgetConfig) => {
     // Handle both old format (widget id as type) and new format (widget type)
@@ -644,32 +654,35 @@ export const CockpitDashboard: React.FC = () => {
         <SmartSearch query={cockpitQuery} />
       </div>
 
-      {/* Widget Grid - Always show */}
-      <GridWrapper ref={containerRef} data-tour="search-results">
-        {widgets.length === 0 ? (
-          <EmptyState>
-            <LayoutGrid size={48} />
-            <h3>No widgets configured</h3>
-            <p>Add widgets to build your personalized dashboard</p>
-            <ActionButton $variant="primary" onClick={() => setIsEditing(true)}>
-              <Plus size={16} />
-              Get Started
-            </ActionButton>
-          </EmptyState>
-        ) : (
-          <WidgetGrid
-            widgets={widgets}
-            layout={layout}
-            onLayoutChange={handleLayoutChange}
-            onRemoveWidget={handleRemoveWidget}
-            renderWidget={renderWidget}
-            width={gridWidth}
-            cols={12}
-            rowHeight={100}
-            isEditing={isEditing}
-          />
-        )}
-      </GridWrapper>
+      {/* Widget Grid (hidden when a record is active) */}
+      {navigation.path.length === 0 && (
+        <GridWrapper ref={containerRef} data-tour="search-results">
+          {widgets.length === 0 ? (
+            <EmptyState>
+              <LayoutGrid size={48} />
+              <h3>No widgets configured</h3>
+              <p>Add widgets to build your personalized dashboard</p>
+              <ActionButton $variant="primary" onClick={() => setIsEditing(true)}>
+                <Plus size={16} />
+                Get Started
+              </ActionButton>
+            </EmptyState>
+          ) : (
+            <WidgetGrid
+              widgets={widgets}
+              layout={layout}
+              onLayoutChange={handleLayoutChange}
+              onRemoveWidget={handleRemoveWidget}
+              onPinWidget={handlePinWidget}
+              renderWidget={renderWidget}
+              width={gridWidth}
+              cols={12}
+              rowHeight={100}
+              isEditing={isEditing}
+            />
+          )}
+        </GridWrapper>
+      )}
 
       {/* Widget Catalog Modal */}
       <ModalOverlay $isOpen={isCatalogOpen} onClick={() => setIsCatalogOpen(false)}>

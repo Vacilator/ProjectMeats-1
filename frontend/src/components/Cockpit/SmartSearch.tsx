@@ -16,15 +16,16 @@
  * @module SmartSearch
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import {
-  Search, Star, Clock, Phone, FileText,
+  Search, Star, Clock, FileText,
   Users, Building2, Package, TrendingUp, X
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
+import { EntityProfileHeader } from './EntityProfileHeader';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -435,6 +436,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   onSelectEntity,
   onClose,
 }) => {
+
   // Use global navigation context instead of local breadcrumbs
   const navigation = useCockpitNavigation();
   
@@ -709,23 +711,33 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setResults({});
     setRelationalChunks([]);
     navigation.clearPath();
-  }, [controlledQuery, navigation, onQueryChange]);
+    onClose?.();
+  }, [controlledQuery, navigation, onQueryChange, onClose]);
+
+  const activeStep = navigation.path[navigation.path.length - 1];
+
+  const handleNavigateToEntity = useCallback((nextType: string, nextId: string, label: string) => {
+    navigation.addStep({
+      id: nextId,
+      type: nextType,
+      label,
+    });
+  }, [navigation]);
 
   // Continuous browsing: whenever the breadcrumb path changes, load the active entity's relations.
   useEffect(() => {
-    const active = navigation.path[navigation.path.length - 1];
-    if (!active) {
+    if (!activeStep) {
       setRelationalChunks([]);
       return;
     }
 
     loadRelationalChunks({
-      id: active.id,
-      type: active.type,
-      name: active.label,
-      subtitle: active.subtitle,
+      id: activeStep.id,
+      type: activeStep.type,
+      name: activeStep.label,
+      subtitle: activeStep.subtitle,
     });
-  }, [navigation.path, loadRelationalChunks]);
+  }, [activeStep, loadRelationalChunks]);
 
   /**
    * Render search results (top-5 per type)
@@ -884,14 +896,22 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       )}
 
       <ContentArea>
+        {activeStep && (
+          <EntityProfileHeader
+            entityType={activeStep.type}
+            entityId={String(activeStep.id)}
+            onNavigateToEntity={handleNavigateToEntity}
+          />
+        )}
+
         {isLoading ? (
           <EmptyState>
             <EmptyIcon>
               <Search size={48} />
             </EmptyIcon>
-            <EmptyTitle>Searching...</EmptyTitle>
+            <EmptyTitle>{activeStep ? 'Loading record context…' : 'Searching…'}</EmptyTitle>
           </EmptyState>
-        ) : navigation.path.length > 0 ? (
+        ) : activeStep ? (
           renderRelationalChunks()
         ) : (
           renderSearchResults()

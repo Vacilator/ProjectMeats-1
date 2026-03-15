@@ -57,7 +57,7 @@ urlpatterns = [
     ),
     path(
         'entities/<str:type>/<str:pk>/',
-        EntityViewSet.as_view({'get': 'retrieve'}),
+        EntityViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update'}),
         name='entity-detail',
     ),
 

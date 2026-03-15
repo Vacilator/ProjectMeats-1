@@ -15,6 +15,7 @@ import { NotificationsProvider } from './contexts/NotificationsContext';
 import { ActionItemsProvider } from './contexts/ActionItemsContext';
 import { SessionManagerProvider } from './contexts/SessionManagerContext';
 import { CockpitNavigationProvider } from './contexts/CockpitNavigationContext';
+import { CockpitPinnedToolsProvider } from './contexts/CockpitPinnedToolsContext';
 import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
 import './i18n/config'; // Initialize i18n
@@ -221,12 +222,13 @@ const App: React.FC = () => {
                 <ActionItemsProvider>
                   <QuickActionsProvider>
                     <CockpitNavigationProvider>
-                      <Router
-                        future={{
-                          v7_startTransition: true,
-                          v7_relativeSplatPath: true,
-                        }}
-                      >
+                      <CockpitPinnedToolsProvider>
+                        <Router
+                          future={{
+                            v7_startTransition: true,
+                            v7_relativeSplatPath: true,
+                          }}
+                        >
                         <SessionManagerProvider>
                           <NavigationProvider>
                     <Routes>
@@ -361,6 +363,7 @@ const App: React.FC = () => {
                           </NavigationProvider>
                         </SessionManagerProvider>
                       </Router>
+                    </CockpitPinnedToolsProvider>
                     </CockpitNavigationProvider>
                   </QuickActionsProvider>
                 </ActionItemsProvider>
