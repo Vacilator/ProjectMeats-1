@@ -37,6 +37,11 @@ export const navigation: NavigationItem[] = [
         path: '/cockpit',
       },
       {
+        label: 'Process Monitor',
+        icon: '🧭',
+        path: '/cockpit/process-monitor',
+      },
+      {
         label: 'Calls',
         icon: '📞',
         path: '/calls',
