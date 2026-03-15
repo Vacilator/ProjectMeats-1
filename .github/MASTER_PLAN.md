@@ -368,3 +368,25 @@ Deliverables:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-0fed7c29b9082c4b8ac7a7431863930ebc789741`
   - container: `pm-backend`
+
+
+---
+
+### 2026-03-15 — FlowEditor: retire Expert JSON editor + lazy-load Monaco (PR #3508)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3508
+
+**Status:** MERGED → `development` (squash commit: `70081699956e5478a7bc00f971824614b3d37438`)
+
+Deliverables:
+- Retired deprecated Expert Mode JSON editor in `UnifiedFlowEditor` (structured schema-driven config remains; JSON escape hatch stays behind Advanced → Developer Mode).
+- Lazy-load Monaco in `NodeDebuggerPanel` so Monaco stays out of the main bundle.
+- Normalizes stored `flow_editor_mode=expert` to `visual`.
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23114799212 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-70081699956e5478a7bc00f971824614b3d37438`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-70081699956e5478a7bc00f971824614b3d37438`
+  - container: `pm-backend`
