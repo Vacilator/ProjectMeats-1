@@ -80,6 +80,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Return empty results when tenant context is missing (prevents RLS `current_setting()` errors).
   - Always tenant-filter assignments/submissions; catch DB/RLS exceptions and return 200.
 
+- 2026-03-15 — System API: Cockpit typed relationships URL fix — Commit: 6574c740 (PR: #3470)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3470
+  - Add explicit typed routes for entity detail + relationships: `/api/v1/system/entities/<type>/<id>/...` (keeps router endpoints intact).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
