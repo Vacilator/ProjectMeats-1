@@ -56,7 +56,7 @@ export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactEle
   }
   
   const handleFieldsChange = (fields: SelectedField[]) => {
-    onChange(fields);
+    onChange(field.id, fields);
   };
   
   // Note: EntityFieldPicker handles entityType changes internally,
@@ -66,7 +66,6 @@ export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactEle
       <EntityFieldPicker
         selectedFields={selectedFields}
         onFieldsChange={handleFieldsChange}
-        upstreamVariables={data?._upstreamVariables || []}
         entityType={entityType}
         hideEntitySelector
         multiSelectMode={field.options?.multiSelect ?? true}
@@ -94,7 +93,7 @@ export function renderEntitySelector(props: FieldRenderProps): React.ReactElemen
   const entityType = props.data?.entityType as string | undefined;
   
   const handleFieldsChange = (fields: SelectedField[]) => {
-    onChange(fields);
+    onChange(field.id, fields);
   };
   
   const handleEntityTypeChange = (newEntityType: string) => {
@@ -144,7 +143,7 @@ export function renderFieldMapping(props: FieldRenderProps): React.ReactElement 
   }
   
   const handleMappingsChange = (newMappings: Record<string, any>) => {
-    onChange(newMappings);
+    onChange(field.id, newMappings);
   };
   
   return (
@@ -174,7 +173,7 @@ export function renderVariablePicker(props: FieldRenderProps): React.ReactElemen
   const selectedVariable = value as string | undefined;
   
   const handleVariableSelect = (variablePath: string) => {
-    onChange(variablePath);
+    onChange(field.id, variablePath);
   };
   
   return (
@@ -204,7 +203,7 @@ export function renderValidationBuilder(props: FieldRenderProps): React.ReactEle
   const rules = (value as any[]) || [];
 
   const handleRulesChange = (newRules: any[]) => {
-    onChange(newRules);
+    onChange(field.id, newRules);
   };
 
   return (
