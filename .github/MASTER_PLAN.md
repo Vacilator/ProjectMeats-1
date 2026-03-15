@@ -121,6 +121,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Prevent page-load crashes by making schema validation ordering-independent (two-pass field ID collection), tolerating non-array `field.validation`, and relaxing label requirement for `info`/`button` fields.
   - Verified: GitHub Actions run 23110537337 succeeded (dev deploy green).
 
+- 2026-03-15 — Hotfix: restore Cockpit search input + dynamic select schema warnings — Commit: 84962d5a (PR: #3486)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3486
+  - CockpitDashboard: show SmartSearch input (no more hideInput leading to non-actionable "no results" state).
+  - schemaRegistry: treat empty/missing select options as warning (supports dynamic option loading like document templates).
+  - Verified: GitHub Actions run 23110718199 succeeded (dev deploy green).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
