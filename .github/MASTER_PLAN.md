@@ -150,6 +150,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Header: add stable search input id (global-search-input) for focus.
   - Verified: GitHub Actions run 23112192365 succeeded (dev deploy green).
 
+- 2026-03-15 — FlowEditor: fix entity field cascade + blank sections — Commit: fe595364 (PR: #3493)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3493
+  - Fix complex config renderers to call `onChange(value)` (not `onChange(field.id, value)`), restoring EntityFieldPicker cascade/selection and other complex controls.
+  - DynamicConfigPanel: pass `onFieldChange` through renderer props; show a non-empty empty-state for sections with no currently unlocked fields.
+  - Verified: GitHub Actions run 23112462806 succeeded (dev deploy green).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
