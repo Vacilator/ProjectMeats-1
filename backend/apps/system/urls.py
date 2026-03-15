@@ -36,13 +36,24 @@ router.register(r'field-schemas', SystemFieldSchemaViewSet, basename='field-sche
 router.register(r'tenant-configs', TenantConfigViewSet, basename='tenant-config')
 router.register(r'config', ConfigResolverView, basename='config')
 router.register(r'audit-logs', ConfigAuditLogViewSet, basename='audit-log')
-router.register(r'entities-introspect', EntityIntrospectionViewSet, basename='entity-introspect')
-router.register(r'entities', EntityViewSet, basename='entity-graph')
+# IMPORTANT:
+# - `/api/v1/system/entities/` is reserved for Schema Bridge entity introspection (FlowEditor, admin-form builder parity).
+# - Cockpit record/relationship APIs use typed routes: `/api/v1/system/entities/<type>/<id>/...` (see custom paths below).
+#
+# Keep an alias at `entities-introspect` for backward compatibility, but the canonical path is `entities`.
+router.register(r'entities', EntityIntrospectionViewSet, basename='entity-introspect')
+router.register(r'entities-introspect', EntityIntrospectionViewSet, basename='entity-introspect-alias')
 router.register(r'products', SystemProductViewSet, basename='product')
 router.register(r'product-preferences', TenantProductPreferenceViewSet, basename='product-preference')
 router.register(r'search/ranked', RankedSearchViewSet, basename='ranked-search')
 
 urlpatterns = [
+    # IMPORTANT: include router first so Schema Bridge routes work:
+    # - /api/v1/system/entities/<entity_id>/fields/
+    # - /api/v1/system/entities/<entity_id>/display-fields/
+    # (These would otherwise be captured by the typed Cockpit routes below.)
+    path('', include(router.urls)),
+
     # Cockpit Entity Graph (typed URLs)
     # The DefaultRouter only supports /entities/<pk>/..., but Cockpit uses /entities/<type>/<id>/...
     path(
@@ -60,6 +71,4 @@ urlpatterns = [
         EntityViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update'}),
         name='entity-detail',
     ),
-
-    path('', include(router.urls)),
 ]
