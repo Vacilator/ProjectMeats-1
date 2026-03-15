@@ -305,3 +305,24 @@ The PR F section above remains as the original plan snapshot. Execution is now c
 
 Verification:
 - PR #3499 deployed to `development` via Actions run https://github.com/Meats-Central/ProjectMeats/actions/runs/23113180951.
+
+---
+
+### 2026-03-15 — FlowEditor: Hybrid Form config pivot (PR #3502)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3502
+
+**Status:** MERGED → `development` (squash commit: `8527cfca2bd43455c88b220a60a5b13ec3a03f5e`)
+
+Deliverables:
+- FlowEditor: schemaRegistry initialization is now **zero-crash** (per-schema try/catch) so one malformed schema cannot blank the entire config engine.
+- FlowEditor: specialized Form node config (`FormNodeConfig`) bypasses DynamicConfigPanel for `node.type === 'form'` to make entityType → fields cascading deterministic.
+- Strict compliance: Form schema data is fetched via the existing schemaService/BusinessApi path (no direct axios).
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23113655842 (conclusion: success)
+- Frontend deploy evidence:
+  - `docker pull registry.digitalocean.com/meatscentral/projectmeats-frontend:development-8527cfca2bd43455c88b220a60a5b13ec3a03f5e`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `docker pull registry.digitalocean.com/meatscentral/projectmeats-backend:development-8527cfca2bd43455c88b220a60a5b13ec3a03f5e`
+  - container: `pm-backend`
