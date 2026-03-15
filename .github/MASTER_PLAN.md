@@ -529,3 +529,25 @@ Deliverables:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-72354f4dea69e1fdd889693912fd3a7cc8b2bd9c`
   - container: `pm-backend`
+
+
+---
+
+### 2026-03-15 — Phase 8.0: legacy `/api/v1/products/` alias (PR #3523)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3523
+
+**Status:** MERGED → `development` (squash commit: `337dfcbd5a53682cc0a8bf5b0f46ad9bf12178ee`)
+
+Deliverables:
+- Deprecate legacy `/api/v1/products/` (tenant-level products) and serve it as a read-only alias to the three-tier system catalog.
+- Backward-compatible payload: return legacy field names mapped from `system.Product` (visibility rules identical to `/api/v1/system/products/`).
+- Add explicit response headers pointing clients to the canonical endpoint.
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23117243420 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-337dfcbd5a53682cc0a8bf5b0f46ad9bf12178ee`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-337dfcbd5a53682cc0a8bf5b0f46ad9bf12178ee`
+  - container: `pm-backend`
