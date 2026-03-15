@@ -55,7 +55,7 @@ export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactEle
   }
   
   const handleFieldsChange = (fields: SelectedField[]) => {
-    onChange(field.id, fields);
+    onChange(fields);
   };
   
   // Note: EntityFieldPicker handles entityType changes internally,
@@ -93,7 +93,7 @@ export function renderEntitySelector(props: FieldRenderProps): React.ReactElemen
   const entityType = props.data?.entityType as string | undefined;
   
   const handleFieldsChange = (fields: SelectedField[]) => {
-    onChange(field.id, fields);
+    onChange(fields);
   };
   
   const handleEntityTypeChange = (newEntityType: string) => {
@@ -143,7 +143,7 @@ export function renderFieldMapping(props: FieldRenderProps): React.ReactElement 
   }
   
   const handleMappingsChange = (newMappings: Record<string, any>) => {
-    onChange(field.id, newMappings);
+    onChange(newMappings);
   };
   
   return (
@@ -173,7 +173,7 @@ export function renderVariablePicker(props: FieldRenderProps): React.ReactElemen
   const selectedVariable = value as string | undefined;
   
   const handleVariableSelect = (variablePath: string) => {
-    onChange(field.id, variablePath);
+    onChange(variablePath);
   };
   
   return (
@@ -204,7 +204,7 @@ export function renderValidationBuilder(props: FieldRenderProps): React.ReactEle
   const rules = (value as any[]) || [];
 
   const handleRulesChange = (newRules: any[]) => {
-    onChange(field.id, newRules);
+    onChange(newRules);
   };
 
   return (

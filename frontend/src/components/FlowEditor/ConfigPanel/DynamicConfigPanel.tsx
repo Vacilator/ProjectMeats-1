@@ -356,6 +356,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       field,
       value,
       onChange: (newValue: any) => handleFieldChange(field.id, newValue),
+      onFieldChange: (fieldId: string, newValue: any) => handleFieldChange(fieldId, newValue),
       error,
       disabled: field.disabled || false,
       allValues: formData
@@ -547,7 +548,6 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
     // Check if any fields in this section are visible
     const visibleFieldsInSection = section.fields.filter(f => visibleFields.has(f.id));
-    if (visibleFieldsInSection.length === 0) return null;
 
     const isCollapsed = collapsedSections.has(section.id);
     const isCollapsible = section.collapsible ?? false;
@@ -569,7 +569,13 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
             {section.description && (
               <SectionDescription>{section.description}</SectionDescription>
             )}
-            {section.fields.map(renderField)}
+            {visibleFieldsInSection.length === 0 ? (
+              <SectionEmptyState>
+                No configuration fields are available yet. Adjust earlier selections to unlock additional options.
+              </SectionEmptyState>
+            ) : (
+              section.fields.map(renderField)
+            )}
           </SectionContentWrapper>
         )}
       </Section>
@@ -774,6 +780,17 @@ const SectionDescription = styled.p`
 
 const SectionContentWrapper = styled.div`
   padding-top: 12px;
+  min-height: 52px;
+`;
+
+const SectionEmptyState = styled.div`
+  padding: 12px;
+  border: 1px dashed rgb(var(--color-border));
+  border-radius: 8px;
+  color: rgb(var(--color-text-secondary));
+  font-size: 13px;
+  line-height: 1.5;
+  background: rgb(var(--color-surface));
 `;
 
 const PlaceholderField = styled.div`
