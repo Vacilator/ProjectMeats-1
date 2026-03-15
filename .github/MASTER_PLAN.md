@@ -96,6 +96,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Backend: non-admin users can list submissions via assigned_to=me (do not pre-filter by created_by).
   - Frontend: workflowExecutionService uses businessApi + defensive list parsing to avoid map() crashes.
 
+- 2026-03-15 — Workflows: runtime cascadeFrom prefill — Commit: 352c5eaa (PR: #3476)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3476
+  - Add `ExecutionFormStep` runtime renderer for `formStep` nodes.
+  - Fix `WorkflowExecutionModal` context wiring + hydrate context from `execution.data` for resume.
+  - Prefill fields from FlowEditor `cascadeFrom` templates (only fills missing/untouched values).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
