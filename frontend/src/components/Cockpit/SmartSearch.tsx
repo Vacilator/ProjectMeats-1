@@ -22,6 +22,7 @@ import {
   Search, Star, Clock, Phone, FileText,
   Users, Building2, Package, TrendingUp, X
 } from 'lucide-react';
+import debounce from 'lodash/debounce';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 
@@ -48,8 +49,14 @@ export interface RelationalChunk {
 // SmartSearch reacts to navigation path changes to implement continuous browsing.
 
 export interface SmartSearchProps {
-  /** Initial search query */
+  /** Initial search query (uncontrolled mode) */
   initialQuery?: string;
+  /** Controlled query (preferred for global header-driven search) */
+  query?: string;
+  /** Callback when query changes (controlled mode only) */
+  onQueryChange?: (query: string) => void;
+  /** When true, hides the internal search input (used when Header owns the search input) */
+  hideInput?: boolean;
   /** Callback when entity is selected */
   onSelectEntity?: (entity: SearchEntity) => void;
   /** Callback when search closes */
@@ -422,18 +429,21 @@ const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
 
 export const SmartSearch: React.FC<SmartSearchProps> = ({
   initialQuery = '',
+  query: controlledQuery,
+  onQueryChange,
+  hideInput = false,
   onSelectEntity,
   onClose,
 }) => {
   // Use global navigation context instead of local breadcrumbs
   const navigation = useCockpitNavigation();
   
-  const [query, setQuery] = useState(initialQuery);
+  const [internalQuery, setInternalQuery] = useState(initialQuery);
+  const query = controlledQuery ?? internalQuery;
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Load favorites from localStorage
@@ -517,17 +527,23 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    */
   const handleQueryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newQuery = e.target.value;
-    setQuery(newQuery);
 
-    // Debounce search
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
+    if (controlledQuery !== undefined) {
+      onQueryChange?.(newQuery);
+      return;
     }
 
-    searchTimeoutRef.current = setTimeout(() => {
-      searchEntities(newQuery);
-    }, 300);
-  }, [searchEntities]);
+    setInternalQuery(newQuery);
+  }, [controlledQuery, onQueryChange]);
+
+  const debouncedSearch = useMemo(() => debounce((q: string) => {
+    searchEntities(q);
+  }, 300), [searchEntities]);
+
+  useEffect(() => {
+    debouncedSearch(query);
+    return () => debouncedSearch.cancel();
+  }, [debouncedSearch, query]);
 
   /**
    * Load relational chunks for an entity using Entity Graph API + Fuzzy Discovery
@@ -684,11 +700,16 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Clear search
    */
   const handleClear = useCallback(() => {
-    setQuery('');
+    if (controlledQuery !== undefined) {
+      onQueryChange?.('');
+    } else {
+      setInternalQuery('');
+    }
+
     setResults({});
     setRelationalChunks([]);
     navigation.clearPath();
-  }, [navigation]);
+  }, [controlledQuery, navigation, onQueryChange]);
 
   // Continuous browsing: whenever the breadcrumb path changes, load the active entity's relations.
   useEffect(() => {
@@ -840,27 +861,27 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
   return (
     <Container>
-      <SearchHeader>
-        <SearchInputWrapper>
-          <SearchIcon>
-            <Search size={18} />
-          </SearchIcon>
-          <SearchInput
-            type="text"
-            placeholder="Search customers, suppliers, orders..."
-            value={query}
-            onChange={handleQueryChange}
-            autoFocus
-          />
-          {query && (
-            <ClearButton onClick={handleClear} title="Clear search">
-              <X size={18} />
-            </ClearButton>
-          )}
-        </SearchInputWrapper>
-
-
-      </SearchHeader>
+      {!hideInput && (
+        <SearchHeader>
+          <SearchInputWrapper>
+            <SearchIcon>
+              <Search size={18} />
+            </SearchIcon>
+            <SearchInput
+              type="text"
+              placeholder="Search customers, suppliers, orders..."
+              value={query}
+              onChange={handleQueryChange}
+              autoFocus
+            />
+            {query && (
+              <ClearButton onClick={handleClear} title="Clear search">
+                <X size={18} />
+              </ClearButton>
+            )}
+          </SearchInputWrapper>
+        </SearchHeader>
+      )}
 
       <ContentArea>
         {isLoading ? (

@@ -19,6 +19,7 @@ import {
   LayoutGrid, Lock, Unlock, Plus, 
   RotateCcw, X, ArrowLeft, Search
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   WidgetGrid, 
   WidgetConfig, 
@@ -35,11 +36,9 @@ import {
   EmailIntegrationWidget,
   EmailIngestionMonitorWidget,
 } from '../../components/Widgets';
-import { CommandBar, CockpitTour, SmartSearch, BreadcrumbBar } from '../../components/Cockpit';
-import { CommandPalette } from '../../components/Navigation/CommandPalette';
-import { useCommandPalette } from '../../hooks/useCommandPalette';
+import { CockpitTour, SmartSearch, BreadcrumbBar } from '../../components/Cockpit';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -182,16 +181,6 @@ const ToolbarLeft = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-`;
-
-const SearchWrapper = styled.div`
-  flex: 1;
-  max-width: 500px;
-  margin: 0 24px;
-  
-  @media (max-width: 768px) {
-    display: none;
-  }
 `;
 
 const ToolbarActions = styled.div`
@@ -426,8 +415,9 @@ export const CockpitDashboard: React.FC = () => {
   const [gridWidth, setGridWidth] = useState(1200);
   const [isSaving, setIsSaving] = useState(false);
   
-  // CommandPalette hook for universal search
-  const { isOpen: isPaletteOpen, open: openPalette, close: closePalette } = useCommandPalette();
+  // Header owns global Ctrl+K search. Cockpit reads query from URL.
+  const [searchParams] = useSearchParams();
+  const cockpitQuery = searchParams.get('q') ?? '';
   
   // Cockpit navigation context
   const navigation = useCockpitNavigation();
@@ -437,7 +427,7 @@ export const CockpitDashboard: React.FC = () => {
     const loadLayout = async () => {
       try {
         // Try backend API first
-        const response = await apiClient.get('cockpit/workspace-layout/');
+        const response = await businessApi.get('cockpit/workspace-layout/');
         const saved = response.data;
         if (saved.version === LAYOUT_VERSION) {
           setWidgets(saved.widgets);
@@ -500,7 +490,7 @@ export const CockpitDashboard: React.FC = () => {
     // Also save to backend API
     try {
       setIsSaving(true);
-      await apiClient.put('cockpit/workspace-layout/', data);
+      await businessApi.put('cockpit/workspace-layout/', data);
     } catch (err) {
       console.error('Failed to save cockpit layout to API:', err);
     } finally {
@@ -527,7 +517,7 @@ export const CockpitDashboard: React.FC = () => {
     
     // Also delete from backend (silently handle 404 as expected)
     try {
-      await apiClient.delete('cockpit/workspace-layout/');
+      await businessApi.delete('cockpit/workspace-layout/');
     } catch (err) {
       // Silently ignore 404 (expected when no saved layout exists)
       // Only log other errors
@@ -611,18 +601,8 @@ export const CockpitDashboard: React.FC = () => {
         <ToolbarLeft>
           {isEditing && <EditBadge>Editing Layout</EditBadge>}
         </ToolbarLeft>
-        
-        {/* Universal Search CommandBar - Hidden in edit mode */}
-        {!isEditing && (
-          <SearchWrapper>
-            <CommandBar 
-              onOpenPalette={openPalette}
-              isPaletteOpen={isPaletteOpen}
-              placeholder="Search suppliers, customers, orders..."
-            />
-          </SearchWrapper>
-        )}
-        
+
+        {/* Global search input lives in Header (Ctrl+K anywhere) */}
         <ToolbarActions>
           {isEditing ? (
             <>
@@ -651,8 +631,6 @@ export const CockpitDashboard: React.FC = () => {
       {/* Guided Tour */}
       <CockpitTour enabled={true} />
       
-      {/* Command Palette Modal - Keep for ⌘K shortcut */}
-      <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
       {/* EMBEDDED SEARCH - Always Visible */}
       <div style={{ padding: '16px 16px 0 16px' }}>
@@ -663,7 +641,7 @@ export const CockpitDashboard: React.FC = () => {
           </div>
         )}
         
-        <SmartSearch />
+        <SmartSearch query={cockpitQuery} hideInput />
       </div>
 
       {/* Widget Grid - Always show */}
