@@ -90,6 +90,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Add placeholder `/api/v1/calendar/events/` endpoint (returns empty results while Phase 5 calendar integration is blocked).
   - CalendarWidget uses `businessApi` for events fetch.
 
+
+- 2026-03-15 — Workflows: MyTasks execution loading fix — Commit: 775b2b53 (PR: #3474)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3474
+  - Backend: non-admin users can list submissions via assigned_to=me (do not pre-filter by created_by).
+  - Frontend: workflowExecutionService uses businessApi + defensive list parsing to avoid map() crashes.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
