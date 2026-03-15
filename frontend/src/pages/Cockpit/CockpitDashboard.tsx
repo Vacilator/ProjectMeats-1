@@ -651,7 +651,7 @@ export const CockpitDashboard: React.FC = () => {
           </div>
         )}
         
-        <SmartSearch query={cockpitQuery} />
+        <SmartSearch query={cockpitQuery} hideInput={true} />
       </div>
 
       {/* Widget Grid (hidden when a record is active) */}
