@@ -75,6 +75,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - CockpitDashboard becomes a results view driven by URL `?q=` (SmartSearch controlled query + hideInput).
   - SmartSearch now debounces via `lodash/debounce` (no setTimeout).
 
+- 2026-03-15 — Workflows: ActionItems 500 hardening — Commit: 2b5f2346 (PR: #3468)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3468
+  - Return empty results when tenant context is missing (prevents RLS `current_setting()` errors).
+  - Always tenant-filter assignments/submissions; catch DB/RLS exceptions and return 200.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
