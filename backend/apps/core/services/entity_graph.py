@@ -43,11 +43,13 @@ ENTITY_RELATIONSHIPS = {
                 'entity_type': 'purchase_order',
             },
             'contacts': {
+                # Contacts are associated via Supplier.contacts M2M in the primary UI,
+                # but we also support legacy Contact.supplier FK.
+                'computed': 'supplier_contacts',
                 'related_model': ('contacts', 'Contact'),
-                'field': 'supplier',
-                'reverse': True,
                 'label': 'Contacts',
                 'direction': 'outgoing',
+                'entity_type': 'contact',
             },
             'plants': {
                 'related_model': ('plants', 'Plant'),
@@ -85,11 +87,13 @@ ENTITY_RELATIONSHIPS = {
                 'entity_type': 'sales_order',
             },
             'contacts': {
+                # Contacts are associated via Customer.contacts M2M in the primary UI,
+                # but we also support legacy Contact.customer FK.
+                'computed': 'customer_contacts',
                 'related_model': ('contacts', 'Contact'),
-                'field': 'customer',
-                'reverse': True,
                 'label': 'Contacts',
                 'direction': 'outgoing',
+                'entity_type': 'contact',
             },
             'invoices': {
                 'related_model': ('invoices', 'Invoice'),
@@ -313,6 +317,10 @@ class EntityGraphService:
             return self._get_related_products_for_supplier(obj)
         if computed == 'customer_related_products':
             return self._get_related_products_for_customer(obj)
+        if computed == 'supplier_contacts':
+            return self._get_related_contacts_for_supplier(obj)
+        if computed == 'customer_contacts':
+            return self._get_related_contacts_for_customer(obj)
         logger.warning(f"Unknown computed relationship: {computed}")
         Product = self._get_model(('system', 'Product'))
         return Product.objects.none() if Product else []
@@ -320,30 +328,110 @@ class EntityGraphService:
     def _get_related_products_for_supplier(self, supplier):
         Product = self._get_model(('system', 'Product'))
         PurchaseOrder = self._get_model(('purchase_orders', 'PurchaseOrder'))
-        if not Product or not PurchaseOrder:
-            return Product.objects.none() if Product else []
+        if not Product:
+            return []
 
-        product_ids = (
-            PurchaseOrder.objects.filter(tenant=self.tenant, supplier=supplier)
-            .exclude(product__isnull=True)
-            .values_list('product_id', flat=True)
-            .distinct()
-        )
-        return Product.objects.filter(id__in=product_ids)
+        qs = Product.objects.none()
+
+        # 1) Direct M2M association (preferred, matches Supplier UI)
+        try:
+            supplier_products = getattr(supplier, 'products', None)
+            if supplier_products is not None:
+                qs = qs | supplier_products.all()
+        except Exception as e:
+            logger.debug(f"supplier.products M2M lookup failed: {e}")
+
+        # 2) Order-derived association (fallback / extra signal)
+        if PurchaseOrder:
+            try:
+                product_ids = (
+                    PurchaseOrder.objects.filter(tenant=self.tenant, supplier=supplier)
+                    .exclude(product__isnull=True)
+                    .values_list('product_id', flat=True)
+                    .distinct()
+                )
+                qs = qs | Product.objects.filter(id__in=product_ids)
+            except Exception as e:
+                logger.warning(f"Failed to compute supplier related products from orders: {e}")
+
+        return qs.distinct()
+
+    def _get_related_contacts_for_supplier(self, supplier):
+        Contact = self._get_model(('contacts', 'Contact'))
+        if not Contact:
+            return []
+
+        qs = Contact.objects.none()
+
+        # 1) Direct M2M association (preferred, matches Supplier UI)
+        try:
+            supplier_contacts = getattr(supplier, 'contacts', None)
+            if supplier_contacts is not None:
+                qs = qs | supplier_contacts.all()
+        except Exception as e:
+            logger.debug(f"supplier.contacts M2M lookup failed: {e}")
+
+        # 2) Legacy FK association (Contact.supplier)
+        try:
+            qs = qs | Contact.objects.filter(tenant=self.tenant, supplier=supplier)
+        except Exception as e:
+            logger.debug(f"Contact.supplier FK lookup failed: {e}")
+
+        return qs.filter(tenant=self.tenant).distinct()
+
+    def _get_related_contacts_for_customer(self, customer):
+        Contact = self._get_model(('contacts', 'Contact'))
+        if not Contact:
+            return []
+
+        qs = Contact.objects.none()
+
+        # 1) Direct M2M association (preferred, matches Customer UI)
+        try:
+            customer_contacts = getattr(customer, 'contacts', None)
+            if customer_contacts is not None:
+                qs = qs | customer_contacts.all()
+        except Exception as e:
+            logger.debug(f"customer.contacts M2M lookup failed: {e}")
+
+        # 2) Legacy FK association (Contact.customer)
+        try:
+            qs = qs | Contact.objects.filter(tenant=self.tenant, customer=customer)
+        except Exception as e:
+            logger.debug(f"Contact.customer FK lookup failed: {e}")
+
+        return qs.filter(tenant=self.tenant).distinct()
 
     def _get_related_products_for_customer(self, customer):
         Product = self._get_model(('system', 'Product'))
         SalesOrder = self._get_model(('sales_orders', 'SalesOrder'))
-        if not Product or not SalesOrder:
-            return Product.objects.none() if Product else []
+        if not Product:
+            return []
 
-        product_ids = (
-            SalesOrder.objects.filter(tenant=self.tenant, customer=customer)
-            .exclude(product__isnull=True)
-            .values_list('product_id', flat=True)
-            .distinct()
-        )
-        return Product.objects.filter(id__in=product_ids)
+        qs = Product.objects.none()
+
+        # 1) Direct M2M association (preferred, matches Customer UI)
+        try:
+            customer_products = getattr(customer, 'products', None)
+            if customer_products is not None:
+                qs = qs | customer_products.all()
+        except Exception as e:
+            logger.debug(f"customer.products M2M lookup failed: {e}")
+
+        # 2) Order-derived association (fallback / extra signal)
+        if SalesOrder:
+            try:
+                product_ids = (
+                    SalesOrder.objects.filter(tenant=self.tenant, customer=customer)
+                    .exclude(product__isnull=True)
+                    .values_list('product_id', flat=True)
+                    .distinct()
+                )
+                qs = qs | Product.objects.filter(id__in=product_ids)
+            except Exception as e:
+                logger.warning(f"Failed to compute customer related products from orders: {e}")
+
+        return qs.distinct()
     
     def get_entity(self, entity_type: str, entity_id: int) -> Optional[Dict[str, Any]]:
         """
@@ -412,62 +500,75 @@ class EntityGraphService:
             relationships: List[Dict[str, Any]] = []
             
             for rel_name, rel_config in config.get('relationships', {}).items():
-                RelatedModel = self._get_model(rel_config.get('related_model')) if rel_config.get('related_model') else None
-                if rel_config.get('computed'):
-                    related_qs = self._get_computed_relationship_qs(rel_config['computed'], obj)
-                    related_type = (
-                        rel_config.get('entity_type')
-                        or ('product' if rel_name == 'related_products' else rel_name.rstrip('s'))
-                    )
-                else:
-                    if not RelatedModel:
-                        continue
-                    # Get related objects
-                    if rel_config.get('reverse'):
-                        # Reverse relationship (e.g., supplier.purchase_orders)
-                        filter_kwargs = {rel_config['field']: obj}
-                        if hasattr(RelatedModel, 'tenant'):
-                            filter_kwargs['tenant'] = self.tenant
-                        related_qs = RelatedModel.objects.filter(**filter_kwargs)
-                    else:
-                        # Forward relationship (e.g., purchase_order.supplier)
-                        related_obj = getattr(obj, rel_config['field'], None)
-                        if related_obj:
-                            rel_base_qs = RelatedModel.objects.all()
-                            if hasattr(RelatedModel, 'tenant'):
-                                rel_base_qs = rel_base_qs.filter(tenant=self.tenant)
-                            related_qs = rel_base_qs.filter(id=related_obj.id)
-                        else:
-                            related_qs = RelatedModel.objects.none()
-                    related_type = rel_config.get('entity_type') or rel_name.rstrip('s')
-
-                # Prefer "recent-first" ordering when possible.
                 try:
-                    related_qs = self._order_queryset_recent_first(related_qs)
-                except Exception:
-                    pass
+                    RelatedModel = (
+                        self._get_model(rel_config.get('related_model')) if rel_config.get('related_model') else None
+                    )
+                    if rel_config.get('computed'):
+                        related_qs = self._get_computed_relationship_qs(rel_config['computed'], obj)
+                        related_type = (
+                            rel_config.get('entity_type')
+                            or ('product' if rel_name == 'related_products' else rel_name.rstrip('s'))
+                        )
+                    else:
+                        if not RelatedModel:
+                            continue
+                        # Get related objects
+                        if rel_config.get('reverse'):
+                            # Reverse relationship (e.g., supplier.purchase_orders)
+                            filter_kwargs = {rel_config['field']: obj}
+                            if hasattr(RelatedModel, 'tenant'):
+                                filter_kwargs['tenant'] = self.tenant
+                            related_qs = RelatedModel.objects.filter(**filter_kwargs)
+                        else:
+                            # Forward relationship (e.g., purchase_order.supplier)
+                            related_obj = getattr(obj, rel_config['field'], None)
+                            if related_obj:
+                                rel_base_qs = RelatedModel.objects.all()
+                                if hasattr(RelatedModel, 'tenant'):
+                                    rel_base_qs = rel_base_qs.filter(tenant=self.tenant)
+                                related_qs = rel_base_qs.filter(id=related_obj.id)
+                            else:
+                                related_qs = RelatedModel.objects.none()
+                        related_type = rel_config.get('entity_type') or rel_name.rstrip('s')
 
-                count = related_qs.count() if include_counts else None
+                    # Prefer "recent-first" ordering when possible.
+                    try:
+                        related_qs = self._order_queryset_recent_first(related_qs)
+                    except Exception:
+                        pass
 
-                # Get sample items (first 3)
-                samples: List[Dict[str, Any]] = []
-                visuals = ENTITY_VISUALS.get(related_type, {})
-                for related_obj in related_qs[:3]:
-                    samples.append({
-                        'id': related_obj.id,
-                        'name': self._get_display_name(related_obj, related_type),
-                        'icon': visuals.get('icon', 'File'),
-                        'color': visuals.get('color', '#6b7280'),
-                    })
-                
-                relationships.append({
-                    'name': rel_name,
-                    'label': rel_config['label'],
-                    'direction': rel_config['direction'],
-                    'count': count,
-                    'samples': samples,
-                    'entity_type': related_type,
-                })
+                    count = related_qs.count() if include_counts else None
+
+                    # Get sample items (first 3)
+                    samples: List[Dict[str, Any]] = []
+                    visuals = ENTITY_VISUALS.get(related_type, {})
+                    for related_obj in related_qs[:3]:
+                        samples.append(
+                            {
+                                'id': related_obj.id,
+                                'name': self._get_display_name(related_obj, related_type),
+                                'icon': visuals.get('icon', 'File'),
+                                'color': visuals.get('color', '#6b7280'),
+                            }
+                        )
+
+                    relationships.append(
+                        {
+                            'name': rel_name,
+                            'label': rel_config['label'],
+                            'direction': rel_config['direction'],
+                            'count': count,
+                            'samples': samples,
+                            'entity_type': related_type,
+                        }
+                    )
+                except Exception as e:
+                    # Never let a single misconfigured relationship wipe the entire panel.
+                    logger.warning(
+                        f"Error computing relationship '{rel_name}' for {entity_type}/{entity_id}: {e}"
+                    )
+                    continue
             
             return relationships
             
