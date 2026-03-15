@@ -111,6 +111,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Fix Sentry v10 integration usage (React Router v7 tracing + replay integration) and make colorthief loading bundler-safe.
   - Verified: GitHub Actions run 23110092071 succeeded (dev deploy green).
 
+- 2026-03-15 — Hotfix: prevent dev blank load (nodeConfigSchemas TDZ) — Commit: bf382917 (PR: #3482)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3482
+  - Fix TDZ crash in `nodeConfigSchemas.ts` by defining `allSchemas` and initializing `schemaRegistry` at end-of-module.
+  - Verified: GitHub Actions run 23110337287 succeeded (dev deploy green).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
