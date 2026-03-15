@@ -28,7 +28,7 @@ import styled from 'styled-components';
 import { AlertCircle } from 'lucide-react';
 import { WorkflowContext } from './hooks/useWorkflowContext';
 import { getCardDefinition, detectCardType, InteractionCardDefinition } from './InteractionCardRegistry';
-import FormStep from './FormStep';
+import ExecutionFormStep from './ExecutionFormStep';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -200,8 +200,8 @@ export const TaskRenderer: React.FC<TaskRendererProps> = ({
     return (
       <RendererContainer>
         <TaskErrorBoundary>
-          <FormStep
-            step={node.data}
+          <ExecutionFormStep
+            node={node}
             context={context}
             onComplete={onComplete}
             readOnly={readOnly}
