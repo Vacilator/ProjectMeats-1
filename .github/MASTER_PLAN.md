@@ -116,6 +116,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Fix TDZ crash in `nodeConfigSchemas.ts` by defining `allSchemas` and initializing `schemaRegistry` at end-of-module.
   - Verified: GitHub Actions run 23110337287 succeeded (dev deploy green).
 
+- 2026-03-15 — Hotfix: schemaRegistry validator hardening — Commit: 944cecca (PR: #3484)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3484
+  - Prevent page-load crashes by making schema validation ordering-independent (two-pass field ID collection), tolerating non-array `field.validation`, and relaxing label requirement for `info`/`button` fields.
+  - Verified: GitHub Actions run 23110537337 succeeded (dev deploy green).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
