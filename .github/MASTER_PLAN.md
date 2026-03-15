@@ -84,6 +84,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3470
   - Add explicit typed routes for entity detail + relationships: `/api/v1/system/entities/<type>/<id>/...` (keeps router endpoints intact).
 
+- 2026-03-15 — Cockpit: fix remaining 404s (calendar + fuzzy-related) — Commit: dab20712 (PR: #3472)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3472
+  - Add typed `/api/v1/system/entities/<type>/<id>/fuzzy-related/` to match SmartSearch.
+  - Add placeholder `/api/v1/calendar/events/` endpoint (returns empty results while Phase 5 calendar integration is blocked).
+  - CalendarWidget uses `businessApi` for events fetch.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
