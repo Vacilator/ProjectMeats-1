@@ -83,7 +83,6 @@ import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
 import ActivityPage from './pages/Admin/Activity';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
-import ErrorBoundary from './components/ErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { PerformanceOverlay } from './components/common/PerformanceOverlay';
 import { logger } from './utils/logger';

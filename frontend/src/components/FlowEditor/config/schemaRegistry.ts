@@ -26,19 +26,25 @@ class ConfigSchemaRegistry {
       return;
     }
 
-    schemas.forEach(schema => {
-      const validation = this.validateSchema(schema);
-      if (!validation.valid) {
-        console.error(`Invalid schema for ${schema.nodeType}:`, validation.errors);
-        return;
-      }
+    // Zero-crash standard: one broken schema must never take down the registry.
+    for (const schema of schemas) {
+      try {
+        const validation = this.validateSchema(schema);
+        if (!validation.valid) {
+          console.error(`Invalid schema for ${schema.nodeType}:`, validation.errors);
+          continue;
+        }
 
-      if (validation.warnings && validation.warnings.length > 0) {
-        console.warn(`Warnings for schema ${schema.nodeType}:`, validation.warnings);
-      }
+        if (validation.warnings && validation.warnings.length > 0) {
+          console.warn(`Warnings for schema ${schema.nodeType}:`, validation.warnings);
+        }
 
-      this.schemas.set(schema.nodeType, schema);
-    });
+        this.schemas.set(schema.nodeType, schema);
+      } catch (error) {
+        console.error(`[Schema Registry] Failed to register schema for ${schema?.nodeType || 'unknown'}:`, error);
+        continue;
+      }
+    }
 
     this.initialized = true;
     console.log(`ConfigSchemaRegistry initialized with ${this.schemas.size} schemas`);
