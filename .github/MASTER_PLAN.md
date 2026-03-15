@@ -127,6 +127,29 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - schemaRegistry: treat empty/missing select options as warning (supports dynamic option loading like document templates).
   - Verified: GitHub Actions run 23110718199 succeeded (dev deploy green).
 
+- 2026-03-15 — Cockpit: record pivot + pinned tools — Commit: 8c2f6996 (PR: #3488)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3488
+  - Cockpit: record-centric pivot (selected record swaps view to profile + relations) while preserving continuous-browsing breadcrumb.
+  - Cockpit: PinnedToolsBar under Header + widget pin-to-tools UX.
+  - Backend: expand typed entity detail payload and add gated PATCH for inline editing.
+  - Verified: GitHub Actions run 23111772995 succeeded (dev deploy green).
+
+- 2026-03-15 — Cockpit: single global search input — Commit: e787f0df (PR: #3489)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3489
+  - CockpitDashboard: SmartSearch now runs header-driven (`hideInput=true`); Header search is the sole input (Ctrl/⌘K).
+  - Verified: GitHub Actions run 23111883098 succeeded (dev deploy green).
+
+- 2026-03-15 — FlowEditor: schema validation normalization — Commit: d0b23c47 (PR: #3490)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3490
+  - Convert remaining object-shaped validation blocks in nodeConfigSchemas.ts to array-based ValidationRule[] entries.
+  - Verified: GitHub Actions run 23112116822 succeeded (dev deploy green).
+
+- 2026-03-15 — Cockpit: header-driven search UX — Commit: 35a83144 (PR: #3491)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3491
+  - CockpitDashboard: do not show "No results" when there is no query; show a clear prompt + Focus Search affordance.
+  - Header: add stable search input id (global-search-input) for focus.
+  - Verified: GitHub Actions run 23112192365 succeeded (dev deploy green).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
