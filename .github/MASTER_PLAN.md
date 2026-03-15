@@ -45,10 +45,14 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - FlowEditor: schema-driven config UX standards, Smart Auto-Map banner, Developer Mode JSON fallback; Vitest reliability hardening.
   - Governance: update GOLDEN_FILES registry and execution log.
 
-- 2026-03-15 — Phase 7.3 WebSockets foundation — Commit: cd7749f6 (PR: #3456)
+- 2026-03-15 — Phase 7.3 WebSockets foundation — Commit: dd3ae119 (PR: #3456)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3456
   - Backend: Django Channels + ASGI ProtocolTypeRouter; tenant-scoped workflow collaboration WebSocket scaffold.
   - Docs: WorkForms developer guide includes WebSocket path convention for real-time editing.
+
+- 2026-03-15 — Phase 8.1 Universal Search caching — Commit: 925279a4 (PR: #3457)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3457
+  - Backend: tenant-safe cache for UniversalSearchService results (short TTL), plus hardened entity lookup response and tenant fallback.
 
 ---
 
@@ -83,7 +87,7 @@ Status: Completed as part of PR A (#3455).
 ### PR C — Phase 7.3: Real-Time Collaboration foundation (Backend)
 **Branch:** `feat/phase7-3-channels-foundation`
 
-**Status:** PR OPEN — https://github.com/Meats-Central/ProjectMeats/pull/3456
+**Status:** MERGED — https://github.com/Meats-Central/ProjectMeats/pull/3456 (squash commit: `dd3ae119`)
 
 Deliverables:
 - Implement **Channels-ready ASGI routing** and WebSocket path conventions:
@@ -91,6 +95,10 @@ Deliverables:
 - Use existing `REDIS_URL`/`VALKEY_URL` for channel layer (no new secret names; manifest remains source of truth).
 
 ### PR D — Phase 8.1: Tenant-safe caching for Universal Search (Backend)
+**Branch:** `feat/phase8-1-universal-search-cache`
+
+**Status:** PR OPEN — https://github.com/Meats-Central/ProjectMeats/pull/3457
+
 Deliverables:
 - Decorator-based caching for `UniversalSearchService.search()` using Redis.
 - Cache keys include **tenant id** (and query params) to preserve strict RLS/tenant isolation.

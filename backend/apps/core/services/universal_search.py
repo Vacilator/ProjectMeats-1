@@ -18,6 +18,7 @@ from django.db.models.functions import Concat
 from django.core.cache import cache
 from django.contrib.auth.models import User
 
+from apps.core.caching import CacheService
 from apps.tenants.models import Tenant
 
 logger = logging.getLogger(__name__)
@@ -287,25 +288,24 @@ class UniversalSearchService:
         return str(value) if value else None
     
     def search(
-        self, 
-        query: str, 
+        self,
+        query: str,
         limit_per_type: int = 5,
-        entity_types: Optional[List[str]] = None
+        entity_types: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
-        """
-        Execute universal search across all or specified entity types.
-        
-        Args:
-            query: Search query (may include operators)
-            limit_per_type: Max results per entity type
-            entity_types: List of entity types to search (None = all)
-            
+        """Execute universal search across all or specified entity types.
+
+        Caching (Phase 8.1):
+        - Results are cached per-tenant to preserve strict isolation.
+        - Keys include tenant_id + normalized query + selected entity types.
+        - TTL is intentionally short to keep results fresh.
+
         Returns:
             {
                 'query': original query,
                 'results': [list of result objects],
                 'counts': {entity_type: count},
-                'total': total count
+                'total': total count,
             }
         """
         if not query or len(query.strip()) < 2:
@@ -315,10 +315,10 @@ class UniversalSearchService:
                 'counts': {},
                 'total': 0,
             }
-        
+
         # Parse for operators
         search_text, operator_type = self._parse_query(query)
-        
+
         # Determine which types to search
         if operator_type:
             types_to_search = [operator_type]
@@ -326,27 +326,44 @@ class UniversalSearchService:
             types_to_search = entity_types
         else:
             types_to_search = list(SEARCHABLE_ENTITIES.keys())
-        
-        # Execute searches
-        all_results = []
-        counts = {}
-        
-        for entity_type in types_to_search:
-            results = self._search_entity(entity_type, search_text, limit_per_type)
-            all_results.extend(results)
-            counts[entity_type] = len(results)
-        
-        # Sort by score (can enhance with relevance ranking)
-        all_results.sort(key=lambda x: x.get('score', 0), reverse=True)
-        
-        return {
-            'query': query,
-            'search_text': search_text,
-            'operator': operator_type,
-            'results': all_results,
-            'counts': counts,
-            'total': len(all_results),
-        }
+
+        # Normalize for cache key stability
+        normalized_query = " ".join(search_text.strip().lower().split())
+        normalized_types = ",".join(sorted([t.strip() for t in types_to_search if t and t.strip()]))
+
+        cache_key = CacheService.generate_cache_key(
+            "universal_search",
+            tenant_id=str(self.tenant.id),
+            q=normalized_query,
+            operator=operator_type or "",
+            types=normalized_types,
+            limit=limit_per_type,
+        )
+
+        def _compute() -> Dict[str, Any]:
+            # Execute searches
+            all_results: list[dict[str, Any]] = []
+            counts: dict[str, int] = {}
+
+            for entity_type in types_to_search:
+                results = self._search_entity(entity_type, normalized_query, limit_per_type)
+                all_results.extend(results)
+                counts[entity_type] = len(results)
+
+            # Sort by score (can enhance with relevance ranking)
+            all_results.sort(key=lambda x: x.get("score", 0), reverse=True)
+
+            return {
+                "query": query,
+                "search_text": search_text,
+                "operator": operator_type,
+                "results": all_results,
+                "counts": counts,
+                "total": len(all_results),
+            }
+
+        # Short TTL keeps search results fresh while protecting the database.
+        return CacheService.cache_query_result(cache_key, _compute, ttl=60)
     
     def get_recent_items(self, user: User, limit: int = 10) -> List[Dict[str, Any]]:
         """
