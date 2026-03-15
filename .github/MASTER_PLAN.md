@@ -64,6 +64,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - FlowEditor: ensure schemaRegistry is initialized (no fallback schemas for trigger/formStep), restoring entity-first configuration.
   - FlowEditor: Developer Mode JSON editor uses Monaco (fallback to textarea).
 
+- 2026-03-15 — FlowEditor: cascading relation fields — Commit: TBD (PR: #3462)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3462
+  - EntityFieldPicker: relation fields (FK/M2M/1-1) can select an upstream variable template to cascade/auto-populate (`cascadeFrom`).
+  - DynamicConfigPanel: entity-field-picker renderer passes upstream variables into EntityFieldPicker.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
