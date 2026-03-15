@@ -435,3 +435,27 @@ Deliverables:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-7d4d4445f51caa46460034c2635ac92f6dfe8dfa`
   - container: `pm-backend`
+
+
+---
+
+### 2026-03-15 — Phase 8.0: System products in Inquiry UI (PR #3515)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3515
+
+**Status:** MERGED → `development` (squash commit: `2746f0363017aea6419b87b8afe43fa3141e78f1`)
+
+Deliverables:
+- Inquiry: product dropdown + suggested products now use `/api/v1/system/products/` (Three-Tier-aware) via `businessApi`.
+- Protein cascade: uses `?protein=` query params (normalized to lowercase slugs).
+- SmartProductAutocomplete: loads selected product via system products endpoint; renders both legacy + system product fields for backward compatibility.
+- Hooks: `useCustomerProducts` no longer creates its own axios client; uses `businessApi` consistently.
+- Stability: `useCockpitPinnedTools()` now safely falls back to a no-op context when provider isn't mounted (prevents isolated widget renders/tests from crashing).
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23116224426 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-2746f0363017aea6419b87b8afe43fa3141e78f1`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-2746f0363017aea6419b87b8afe43fa3141e78f1`
+  - container: `pm-backend`
