@@ -3095,6 +3095,10 @@ class ActionItemsAPIView(APIView):
     API endpoint for action items (tasks assigned to user).
 
     GET /api/v1/workflows/action-items/
+
+    Safety:
+    - If tenant context is missing (RLS session variable not set), return empty results (200) instead of 500.
+    - Always filter by tenant to avoid cross-tenant leakage and RLS surprises.
     """
 
     permission_classes = [IsAuthenticated]
@@ -3106,68 +3110,84 @@ class ActionItemsAPIView(APIView):
         from django.utils import timezone
 
         user = request.user
-        now = timezone.now()
-        today = now.date()
-        week_from_now = today + timedelta(days=7)
+        tenant = getattr(request, "tenant", None)
 
-        action_items = []
+        # Graceful fallback if tenant not available (prevents RLS current_setting() errors)
+        if not tenant:
+            logger.warning("[ActionItems] No tenant found in request")
+            return Response([])
 
-        # Get step assignments for user
-        assignments = StepAssignment.objects.filter(assigned_user=user).select_related("form", "step", "tenant")
+        try:
+            now = timezone.now()
 
-        # Filter by tenant if available
-        if hasattr(request, "tenant") and request.tenant:
-            assignments = assignments.filter(tenant=request.tenant)
+            action_items = []
 
-        # Find submissions that have this user's assigned steps in action_needed status
-        for assignment in assignments:
-            # Find step submissions in action_needed status
-            step_submissions = FormStepSubmission.objects.filter(
-                step=assignment.step, status=StepSubmissionStatus.ACTION_NEEDED, submission__status="in_progress"
-            ).select_related("submission", "submission__form")
+            # Get step assignments for user (explicit tenant filter)
+            assignments = StepAssignment.objects.filter(
+                assigned_user=user,
+                tenant=tenant,
+            ).select_related("form", "step")
 
-            # Filter by tenant
-            if hasattr(request, "tenant") and request.tenant:
-                step_submissions = step_submissions.filter(submission__tenant=request.tenant)
+            # Find submissions that have this user's assigned steps in action_needed status
+            for assignment in assignments:
+                # Find step submissions in action_needed status
+                step_submissions = FormStepSubmission.objects.filter(
+                    step=assignment.step,
+                    status=StepSubmissionStatus.ACTION_NEEDED,
+                    submission__status="in_progress",
+                    submission__tenant=tenant,
+                ).select_related("submission", "submission__form")
 
-            for step_sub in step_submissions:
-                # Calculate due date
-                due_date = None
-                is_overdue = False
-                if assignment.due_days:
-                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                    is_overdue = due_date < now
+                for step_sub in step_submissions:
+                    # Calculate due date
+                    due_date = None
+                    is_overdue = False
+                    if assignment.due_days:
+                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                        is_overdue = due_date < now
 
-                action_items.append(
-                    {
-                        "id": step_sub.id,
-                        "type": "form_step",
-                        "title": f"{assignment.form.name}: {assignment.step.step_name or assignment.step.entity_type}",
-                        "description": assignment.form.description or "",
-                        "form_name": assignment.form.name,
-                        "step_name": assignment.step.step_name or assignment.step.entity_type,
-                        "submission_id": step_sub.submission_id,
-                        "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
-                        "status": step_sub.status,
-                        "due_date": due_date,
-                        "is_overdue": is_overdue,
-                        "assigned_at": step_sub.created_at,
-                        "entity_type": assignment.step.entity_type,
-                        "entity_id": step_sub.id,
-                    }
+                    action_items.append(
+                        {
+                            "id": step_sub.id,
+                            "type": "form_step",
+                            "title": f"{assignment.form.name}: {assignment.step.step_name or assignment.step.entity_type}",
+                            "description": assignment.form.description or "",
+                            "form_name": assignment.form.name,
+                            "step_name": assignment.step.step_name or assignment.step.entity_type,
+                            "submission_id": step_sub.submission_id,
+                            "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
+                            "status": step_sub.status,
+                            "due_date": due_date,
+                            "is_overdue": is_overdue,
+                            "assigned_at": step_sub.created_at,
+                            "entity_type": assignment.step.entity_type,
+                            "entity_id": step_sub.id,
+                        }
+                    )
+
+            # Sort by priority and due date
+            action_items.sort(
+                key=lambda x: (
+                    {"urgent": 0, "high": 1, "normal": 2, "low": 3}.get(x["priority"], 2),
+                    x["due_date"] or now + timedelta(days=365),
+                    x["assigned_at"],
                 )
-
-        # Sort by priority and due date
-        action_items.sort(
-            key=lambda x: (
-                {"urgent": 0, "high": 1, "normal": 2, "low": 3}.get(x["priority"], 2),
-                x["due_date"] or now + timedelta(days=365),
-                x["assigned_at"],
             )
-        )
 
-        serializer = ActionItemSerializer(action_items, many=True)
-        return Response(serializer.data)
+            serializer = ActionItemSerializer(action_items, many=True)
+            return Response(serializer.data)
+
+        except Exception as e:
+            logger.error(f"[ActionItems] Failed to fetch action items: {str(e)}", exc_info=True)
+            try:
+                import sentry_sdk
+
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass
+
+            # Return 200 with empty data, not 500
+            return Response([], status=status.HTTP_200_OK)
 
 
 class ActionItemCountsAPIView(APIView):
