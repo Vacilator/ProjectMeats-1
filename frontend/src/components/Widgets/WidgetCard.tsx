@@ -14,7 +14,9 @@
  */
 import React, { ReactNode } from 'react';
 import styled from 'styled-components';
-import { RefreshCw, MoreVertical } from 'lucide-react';
+import { Pin, RefreshCw } from 'lucide-react';
+import { useCockpitPinnedTools } from '../../contexts/CockpitPinnedToolsContext';
+import { useWidgetInstance } from './WidgetInstanceContext';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -179,6 +181,11 @@ export const WidgetCard: React.FC<WidgetCardProps> = ({
   badge,
   badgeVariant = 'default',
 }) => {
+  const widgetInstance = useWidgetInstance();
+  const pinnedTools = useCockpitPinnedTools();
+
+  const isPinned = widgetInstance?.widget ? pinnedTools.isWidgetPinned(widgetInstance.widget.id) : false;
+
   return (
     <CardContainer className={className}>
       <CardHeader>
@@ -188,6 +195,16 @@ export const WidgetCard: React.FC<WidgetCardProps> = ({
           {badge && <HeaderBadge $variant={badgeVariant}>{badge}</HeaderBadge>}
         </HeaderLeft>
         <HeaderActions>
+          {widgetInstance?.onPinWidget && widgetInstance.widget && (
+            <IconButton
+              onClick={() => widgetInstance.onPinWidget?.(widgetInstance.widget)}
+              title={isPinned ? 'Pinned' : 'Pin to tools'}
+              aria-label={isPinned ? 'Pinned' : 'Pin to tools'}
+              disabled={isPinned}
+            >
+              <Pin size={14} />
+            </IconButton>
+          )}
           {actions}
           {onRefresh && (
             <IconButton onClick={onRefresh} disabled={loading} title="Refresh">
