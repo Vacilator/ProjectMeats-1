@@ -19,16 +19,10 @@ export interface CockpitPinnedToolsContextType {
 
 const CockpitPinnedToolsContext = createContext<CockpitPinnedToolsContextType | undefined>(undefined);
 
-const FALLBACK_CTX: CockpitPinnedToolsContextType = {
-  pinned: [],
-  pinWidget: () => {},
-  unpin: () => {},
-  isWidgetPinned: () => false,
-};
-
 export const useCockpitPinnedTools = () => {
   const ctx = useContext(CockpitPinnedToolsContext);
-  return ctx ?? FALLBACK_CTX;
+  if (!ctx) throw new Error('useCockpitPinnedTools must be used within CockpitPinnedToolsProvider');
+  return ctx;
 };
 
 const getStorageKey = () => {
