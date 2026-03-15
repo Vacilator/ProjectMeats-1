@@ -459,3 +459,27 @@ Deliverables:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-2746f0363017aea6419b87b8afe43fa3141e78f1`
   - container: `pm-backend`
+
+
+---
+
+### 2026-03-15 — Phase 8.0: Product affinity for plants/locations (PR #3517)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3517
+
+**Status:** MERGED → `development` (squash commit: `fbe74d6acd6e1d1f16772a0f84c0485694fdcd64`)
+
+Deliverables:
+- Locations: add `associated_products` (Known Products Purchased) via tenant-aware through model `LocationAssociatedProduct`.
+- Plants: add `associated_products` (Known Products Sold) via tenant-aware through model `PlantAssociatedProduct`.
+- Security: migrations enable + force RLS and create `{table}_tenant_isolation` policies for new link tables.
+- API: serializers expose `associated_products` (minimal system product fields) and location list includes `associated_products_count`.
+- Governance: update `manifests/RLS_POLICIES.md` registry.
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23116483753 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-fbe74d6acd6e1d1f16772a0f84c0485694fdcd64`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-fbe74d6acd6e1d1f16772a0f84c0485694fdcd64`
+  - container: `pm-backend`
