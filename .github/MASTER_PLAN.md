@@ -156,6 +156,13 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - DynamicConfigPanel: pass `onFieldChange` through renderer props; show a non-empty empty-state for sections with no currently unlocked fields.
   - Verified: GitHub Actions run 23112462806 succeeded (dev deploy green).
 
+- 2026-03-15 — Cockpit: Process Monitor (WorkForms monitoring) — Commit: 336fdc8f (PR: #3495)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3495
+  - Cockpit: add `/cockpit/process-monitor` page listing active FormSubmissions with current step, assignee, elapsed time, and SLA due state.
+  - Backend: add `/api/v1/workflows/form-submissions/process-monitor/` endpoint (tenant-safe; supports assigned_to/status/form filters).
+  - Detail pivot: clicking a row opens a read-only UnifiedFlowEditor view and highlights the active step node when it can be identified from flow_data.
+  - Verified: GitHub Actions run 23112710137 succeeded (dev deploy green). Deployed tags: `development-336fdc8f8274d6b0b4742b6f881aee4ae2e87014` (pm-frontend + pm-backend).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
