@@ -5,7 +5,7 @@
  * Phase 5: Frontend Dashboard Integration
  */
 
-import { apiClient } from './apiService';
+import { businessApi } from './businessApi';
 import {
   WorkflowExecution,
   WorkflowExecutionListResponse,
@@ -29,10 +29,15 @@ export class WorkflowExecutionService {
     page?: number;
     page_size?: number;
   }): Promise<WorkflowExecutionListResponse> {
-    const response = await apiClient.get(this.baseUrl, { params });
-    
-    // Transform FormSubmission to WorkflowExecution format
-    const results = (response.data.results || response.data || []).map(this.transformToExecution);
+    const response = await businessApi.get(this.baseUrl, { params });
+
+    const rawResults = Array.isArray(response.data?.results)
+      ? response.data.results
+      : Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    const results = rawResults.map(this.transformToExecution);
     
     return {
       count: response.data.count || results.length,
@@ -46,7 +51,7 @@ export class WorkflowExecutionService {
    * Get a single workflow execution by ID
    */
   async getExecution(id: string): Promise<WorkflowExecution> {
-    const response = await apiClient.get(`${this.baseUrl}${id}/`);
+    const response = await businessApi.get(`${this.baseUrl}${id}/`);
     return this.transformToExecution(response.data);
   }
 
@@ -54,7 +59,7 @@ export class WorkflowExecutionService {
    * Get audit trail for a workflow execution
    */
   async getAuditTrail(id: string): Promise<WorkflowAuditTrailResponse> {
-    const response = await apiClient.get(`${this.baseUrl}${id}/history/`);
+    const response = await businessApi.get(`${this.baseUrl}${id}/history/`);
     
     const execution = this.transformToExecution(response.data.submission);
     const auditTrail = (response.data.history || []).map((entry: any) => ({
@@ -87,7 +92,7 @@ export class WorkflowExecutionService {
    * Resume a workflow execution
    */
   async resumeExecution(id: string, payload?: ResumeWorkflowPayload): Promise<WorkflowExecution> {
-    const response = await apiClient.post(`${this.baseUrl}${id}/resume/`, payload);
+    const response = await businessApi.post(`${this.baseUrl}${id}/resume/`, payload);
     return this.transformToExecution(response.data);
   }
 
@@ -95,7 +100,7 @@ export class WorkflowExecutionService {
    * Cancel a workflow execution
    */
   async cancelExecution(id: string, payload?: CancelWorkflowPayload): Promise<WorkflowExecution> {
-    const response = await apiClient.post(`${this.baseUrl}${id}/cancel/`, payload);
+    const response = await businessApi.post(`${this.baseUrl}${id}/cancel/`, payload);
     return this.transformToExecution(response.data);
   }
 

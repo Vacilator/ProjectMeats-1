@@ -1890,8 +1890,35 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         try:
             qs = FormSubmission.objects.filter(tenant=self.request.tenant)
 
-            # Non-admin users only see their own submissions
-            if not self.request.user.is_staff:
+            # Filter by assigned_to (apply before non-admin created_by restriction)
+            # Note: This filters submissions where the user has at least one step assignment
+            # in the form definition (via StepAssignment), regardless of the submission's current step.
+            # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
+            assigned_to = self.request.query_params.get("assigned_to")
+            if assigned_to:
+                if assigned_to == "me":
+                    qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
+                elif self.request.user.is_staff:
+                    try:
+                        user = User.objects.get(id=assigned_to)
+                        qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
+                    except (User.DoesNotExist, ValueError) as e:
+                        logger.warning(
+                            f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
+                            extra={"user": self.request.user.username, "assigned_to": assigned_to},
+                        )
+                        qs = qs.none()
+                else:
+                    logger.warning(
+                        f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
+                        extra={"user": self.request.user.username, "assigned_to": assigned_to},
+                    )
+                    qs = qs.none()
+
+            # Non-admin users only see their own submissions unless explicitly filtering by assigned_to=me.
+            # This enables MyTasks to show in-progress workflows assigned to the user even if they
+            # were initiated by someone else.
+            if not self.request.user.is_staff and assigned_to != "me":
                 qs = qs.filter(created_by=self.request.user)
 
             # Filter by status
@@ -1903,37 +1930,6 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             form_id = self.request.query_params.get("form")
             if form_id:
                 qs = qs.filter(form_id=form_id)
-
-            # Filter by assigned_to
-            # Note: This filters submissions where the user has at least one step assignment
-            # in the form definition (via StepAssignment), regardless of the submission's current step.
-            # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
-            assigned_to = self.request.query_params.get("assigned_to")
-            if assigned_to:
-                if assigned_to == "me":
-                    # Filter submissions where current user is assigned to at least one step
-                    qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
-                elif self.request.user.is_staff:
-                    # Admin users can filter by specific user ID
-                    try:
-                        user = User.objects.get(id=assigned_to)
-                        qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
-                    except (User.DoesNotExist, ValueError) as e:
-                        # Invalid user ID - return empty queryset
-                        # Log for debugging and security monitoring
-                        logger.warning(
-                            f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
-                            extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                        )
-                        qs = qs.none()
-                else:
-                    # Non-admin users can only use assigned_to=me
-                    # Return empty queryset to prevent user ID enumeration
-                    logger.warning(
-                        f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
-                        extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                    )
-                    qs = qs.none()
 
             return qs.select_related("form", "created_by", "current_step").prefetch_related(
                 "step_submissions__step", "step_submissions__completed_by"
