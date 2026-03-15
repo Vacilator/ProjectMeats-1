@@ -5,10 +5,12 @@
  * This edits the node's `data` object only (not id/type).
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
 import { Button } from './shared/StyledComponents';
+
+const MonacoEditor = React.lazy(() => import('@monaco-editor/react'));
 
 function stripUnsafeKeys(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -81,15 +83,40 @@ export const DeveloperJsonEditor: React.FC<DeveloperJsonEditorProps> = ({ value,
         </Button>
       </HeaderRow>
 
-      <Editor
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          // best-effort live validation
-          tryParse();
-        }}
-        spellCheck={false}
-      />
+      <Suspense
+        fallback={
+          <PlainTextarea
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              tryParse();
+            }}
+            spellCheck={false}
+          />
+        }
+      >
+        <MonacoEditor
+          height="260px"
+          defaultLanguage="json"
+          value={text}
+          onChange={(value) => {
+            const next = value ?? '';
+            setText(next);
+            tryParse();
+          }}
+          theme="vs-dark"
+          options={{
+            minimap: { enabled: false },
+            fontSize: 12,
+            lineNumbers: 'on',
+            wordWrap: 'on',
+            scrollBeyondLastLine: false,
+            formatOnPaste: true,
+            formatOnType: true,
+            automaticLayout: true,
+          }}
+        />
+      </Suspense>
 
       {parseError && <ErrorText>Invalid JSON: {parseError}</ErrorText>}
     </Container>
@@ -129,7 +156,7 @@ const Subtitle = styled.div`
   margin-top: 4px;
 `;
 
-const Editor = styled.textarea`
+const PlainTextarea = styled.textarea`
   width: 100%;
   min-height: 220px;
   resize: vertical;
