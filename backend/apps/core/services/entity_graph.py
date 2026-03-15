@@ -287,19 +287,6 @@ class EntityGraphService:
 
         return str(obj)
 
-    def _empty_queryset(self):
-        """
-        Provide a safe empty queryset for fallbacks so downstream consumers can
-        rely on count/slicing without type errors.
-        """
-        Product = self._get_model(('system', 'Product'))
-        if Product:
-            return Product.objects.none()
-        Contact = self._get_model(('contacts', 'Contact'))
-        if Contact:
-            return Contact.objects.none()
-        return []
-
     def _order_queryset_recent_first(self, qs):
         """Order a queryset by the most reliable "recent" timestamp available."""
         model = getattr(qs, 'model', None)
@@ -335,13 +322,14 @@ class EntityGraphService:
         if computed == 'customer_contacts':
             return self._get_related_contacts_for_customer(obj)
         logger.warning(f"Unknown computed relationship: {computed}")
-        return self._empty_queryset()
+        Product = self._get_model(('system', 'Product'))
+        return Product.objects.none() if Product else []
 
     def _get_related_products_for_supplier(self, supplier):
         Product = self._get_model(('system', 'Product'))
         PurchaseOrder = self._get_model(('purchase_orders', 'PurchaseOrder'))
         if not Product:
-            return self._empty_queryset()
+            return []
 
         qs = Product.objects.none()
 
@@ -371,7 +359,7 @@ class EntityGraphService:
     def _get_related_contacts_for_supplier(self, supplier):
         Contact = self._get_model(('contacts', 'Contact'))
         if not Contact:
-            return self._empty_queryset()
+            return []
 
         qs = Contact.objects.none()
 
@@ -394,7 +382,7 @@ class EntityGraphService:
     def _get_related_contacts_for_customer(self, customer):
         Contact = self._get_model(('contacts', 'Contact'))
         if not Contact:
-            return self._empty_queryset()
+            return []
 
         qs = Contact.objects.none()
 
@@ -418,7 +406,7 @@ class EntityGraphService:
         Product = self._get_model(('system', 'Product'))
         SalesOrder = self._get_model(('sales_orders', 'SalesOrder'))
         if not Product:
-            return self._empty_queryset()
+            return []
 
         qs = Product.objects.none()
 
@@ -550,26 +538,15 @@ class EntityGraphService:
                     except Exception:
                         pass
 
-                    if include_counts:
-                        try:
-                            count = related_qs.count()
-                        except Exception:
-                            count = len(list(related_qs)) if related_qs is not None else 0
-                    else:
-                        count = None
+                    count = related_qs.count() if include_counts else None
 
                     # Get sample items (first 3)
                     samples: List[Dict[str, Any]] = []
                     visuals = ENTITY_VISUALS.get(related_type, {})
-                    try:
-                        iterable = related_qs[:3]
-                    except Exception:
-                        iterable = list(related_qs)[:3] if related_qs is not None else []
-
-                    for related_obj in iterable:
+                    for related_obj in related_qs[:3]:
                         samples.append(
                             {
-                                'id': getattr(related_obj, 'id', None),
+                                'id': related_obj.id,
                                 'name': self._get_display_name(related_obj, related_type),
                                 'icon': visuals.get('icon', 'File'),
                                 'color': visuals.get('color', '#6b7280'),
@@ -662,22 +639,13 @@ class EntityGraphService:
             except Exception:
                 pass
 
-            try:
-                total = related_qs.count()
-            except Exception:
-                total = len(list(related_qs)) if related_qs is not None else 0
-
+            total = related_qs.count()
             items: List[Dict[str, Any]] = []
             visuals = ENTITY_VISUALS.get(related_type, {})
             
-            try:
-                iterable = related_qs[offset:offset + limit]
-            except Exception:
-                iterable = list(related_qs)[offset:offset + limit] if related_qs is not None else []
-
-            for related_obj in iterable:
+            for related_obj in related_qs[offset:offset + limit]:
                 items.append({
-                    'id': getattr(related_obj, 'id', None),
+                    'id': related_obj.id,
                     'type': related_type,
                     'name': self._get_display_name(related_obj, related_type),
                     'icon': visuals.get('icon', 'File'),
