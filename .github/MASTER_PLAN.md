@@ -131,3 +131,36 @@ Execution rules:
 - New branch per PR → PR → merge to `development`.
 - No direct axios usage in frontend; BusinessApi/workformsApi only.
 - Maintain PostgreSQL RLS parity and tenant isolation in all backend changes.
+
+---
+
+## Emergency Restoration Addendum (Priority Queue)
+
+**Priority ordering:**
+1. Node configuration stability (DONE — PR #3455, #3460, #3462)
+2. Emergency UI/UX + API restoration (NEXT)
+
+### PR F — Emergency UI/UX + API restoration (Frontend + Backend)
+**Status:** PLANNED (second item after node configuration fixes)
+
+Problem summary (from console logs / diagnostics):
+- Portal rendering race + schema fallback were the top blockers. These are now addressed by:
+  - Portal stability: PR #3460
+  - Schema registry bootstrap + legacy aliasing: PR #3460 / PR #3455
+- Remaining regressions to eradicate:
+  - **Global Search UX**: move Cockpit-local search into `Header.tsx` with Ctrl+K global listener.
+  - **API routing / RLS disconnects**: fix 500 on `/api/v1/action-items/` and 404s on `/api/v1/calendar/events/` + entity `/relationships/` routing.
+
+Deliverables:
+- Frontend:
+  - Remove CockpitDashboard search button/input and relocate to `frontend/src/components/Layout/Header.tsx`.
+  - Ensure global search drives Cockpit navigation (“Never Leave the Screen”).
+- Backend:
+  - Fix ActionItems endpoints stability (`backend/tenant_apps/workflows/views.py`): null-safe fields + tenant/RLS-safe query patterns.
+  - Verify entity relationships endpoints are registered under `/api/v1/` and accept snake_case entity names.
+  - Register/fix `/api/v1/calendar/events/` endpoint (or align frontend to the correct URL).
+
+Verification (manual):
+- Ctrl+K from any page opens search.
+- Searching “Purchase Order” navigates back to Cockpit details without full reload.
+- Action Items endpoints return 200 for an authenticated tenant.
