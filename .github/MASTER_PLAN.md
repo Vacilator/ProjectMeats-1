@@ -411,3 +411,27 @@ Deliverables:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-e1e642c82fcb0842c71129e4b1840284b3c72c53`
   - container: `pm-backend`
+
+
+---
+
+### 2026-03-15 — Phase 8.0: Three-tier products backend + deploy seed fix (PR #3513)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3513
+
+**Status:** MERGED → `development` (squash commit: `7d4d4445f51caa46460034c2635ac92f6dfe8dfa`)
+
+Deliverables:
+- Backend: introduce Three-Tier product visibility (`Product.is_system`, `TenantProductPreference.is_custom`) with centralized `visible_products_qs()` helper.
+- System products: visible-by-default unless tenant hides via `TenantProductPreference(is_active=False)`.
+- Tenant custom products: visible only to owning tenant via active preference row (`is_custom=True`).
+- UniversalSearchService: product search now uses the same tenant visibility rules.
+- Deployment workflow: replace removed per-tenant `seed_products` with idempotent `seed_system_products` (golden list seeding).
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23115421302 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-7d4d4445f51caa46460034c2635ac92f6dfe8dfa`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-7d4d4445f51caa46460034c2635ac92f6dfe8dfa`
+  - container: `pm-backend`
