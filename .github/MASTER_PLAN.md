@@ -508,3 +508,24 @@ Impact:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-53728dbf8d91d090e6a2298aee912e4668dcca4f`
   - container: `pm-backend`
+
+
+---
+
+### 2026-03-15 — DevEx: fix `apps.system` test discovery (PR #3521)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3521
+
+**Status:** MERGED → `development` (squash commit: `72354f4dea69e1fdd889693912fd3a7cc8b2bd9c`)
+
+Deliverables:
+- Fix `python backend/manage.py test apps.system` discovery by removing the `tests.py` vs `tests/` package collision.
+- Move model tests into `backend/apps/system/tests/test_models.py` and align assertions with `Product.save()` calling `full_clean()`.
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23117053656 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-72354f4dea69e1fdd889693912fd3a7cc8b2bd9c`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-72354f4dea69e1fdd889693912fd3a7cc8b2bd9c`
+  - container: `pm-backend`
