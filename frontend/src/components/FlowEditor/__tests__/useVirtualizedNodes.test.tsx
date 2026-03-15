@@ -251,10 +251,12 @@ describe('useVirtualizedNodes', () => {
         vi.advanceTimersByTime(150);
       });
 
-      // Should update after debounce
-      await waitFor(() => {
-        expect(result.current.visibleNodes.length).not.toBe(initialCount);
+      // Flush debounce timer + react updates
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
       });
+
+      expect(result.current.visibleNodes.length).not.toBe(initialCount);
     });
   });
 
@@ -319,20 +321,45 @@ describe('usePerformanceMetrics', () => {
   });
 
   it('should calculate FPS from frame times', async () => {
-    const { result } = renderHook(() => usePerformanceMetrics());
+    const originalRAF = globalThis.requestAnimationFrame;
+    const originalCAF = globalThis.cancelAnimationFrame;
 
-    // Simulate 30fps (33.33ms per frame)
+    let rafCallback: FrameRequestCallback | null = null;
+
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafCallback = cb;
+      return 1;
+    });
+
+    vi.stubGlobal('cancelAnimationFrame', () => {
+      rafCallback = null;
+    });
+
+    const { result, unmount } = renderHook(() => usePerformanceMetrics());
+
+    // Flush React effects so the hook schedules its first rAF
+    await act(async () => {});
+    expect(rafCallback).not.toBeNull();
+
+    // Simulate ~30fps (33.33ms per frame)
     act(() => {
       for (let i = 0; i < 60; i++) {
         currentTime += 33.33;
-        vi.advanceTimersByTime(16); // Trigger rAF
+        rafCallback?.(currentTime);
       }
     });
 
-    await waitFor(() => {
-      expect(result.current.fps).toBeGreaterThan(25);
-      expect(result.current.fps).toBeLessThan(35);
-    });
+    // Flush state updates from rAF callbacks
+    await act(async () => {});
+
+    expect(result.current.fps).toBeGreaterThan(25);
+    expect(result.current.fps).toBeLessThan(35);
+
+    unmount();
+
+    // Restore globals without nuking unrelated stubs (e.g. matchMedia)
+    if (originalRAF) vi.stubGlobal('requestAnimationFrame', originalRAF);
+    if (originalCAF) vi.stubGlobal('cancelAnimationFrame', originalCAF);
   });
 
   it('should record average render times', () => {
@@ -406,15 +433,17 @@ describe('useOptimisticUpdate', () => {
 
     expect(saveFunction).not.toHaveBeenCalled();
 
-    // Advance past debounce period
-    act(() => {
+    // Advance past debounce period and flush the async save
+    await act(async () => {
       vi.advanceTimersByTime(600);
+      await vi.runOnlyPendingTimersAsync();
     });
 
-    await waitFor(() => {
-      expect(saveFunction).toHaveBeenCalledWith({ value: 'updated' });
-      expect(result.current.remoteData).toEqual({ value: 'saved' });
-    });
+    expect(saveFunction).toHaveBeenCalledWith({ value: 'updated' });
+
+    // Flush promise resolution / state updates
+    await act(async () => {});
+    expect(result.current.remoteData).toEqual({ value: 'saved' });
   });
 
   it('should cancel previous save on rapid updates', async () => {
@@ -450,16 +479,15 @@ describe('useOptimisticUpdate', () => {
       result.current.updateLocal({ value: 'update3' });
     });
 
-    // Advance past final debounce
-    act(() => {
+    // Advance past final debounce and flush the async save
+    await act(async () => {
       vi.advanceTimersByTime(600);
+      await vi.runOnlyPendingTimersAsync();
     });
 
-    await waitFor(() => {
-      // Should only save once with final value
-      expect(saveFunction).toHaveBeenCalledTimes(1);
-      expect(saveFunction).toHaveBeenCalledWith({ value: 'update3' });
-    });
+    // Should only save once with final value
+    expect(saveFunction).toHaveBeenCalledTimes(1);
+    expect(saveFunction).toHaveBeenCalledWith({ value: 'update3' });
   });
 
   it('should force immediate save', async () => {
@@ -505,15 +533,17 @@ describe('useOptimisticUpdate', () => {
       result.current.updateLocal({ value: 'updated' });
     });
 
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(150);
+      await vi.runOnlyPendingTimersAsync();
     });
 
-    await waitFor(() => {
-      expect(result.current.hasConflict).toBe(true);
-      expect(onConflict).toHaveBeenCalled();
-      expect(result.current.localData).toHaveProperty('resolved', true);
-    });
+    // Flush promise resolution / state updates
+    await act(async () => {});
+
+    expect(result.current.hasConflict).toBe(true);
+    expect(onConflict).toHaveBeenCalled();
+    expect(result.current.localData).toHaveProperty('resolved', true);
   });
 
   it('should set isSaving flag during save', async () => {
@@ -536,21 +566,19 @@ describe('useOptimisticUpdate', () => {
       result.current.updateLocal({ value: 'updated' });
     });
 
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(150);
+      await vi.runOnlyPendingTimersAsync();
     });
 
-    await waitFor(() => {
-      expect(result.current.isSaving).toBe(true);
-    });
+    expect(result.current.isSaving).toBe(true);
 
     // Resolve save
-    act(() => {
+    await act(async () => {
       resolveSave!({ value: 'saved' });
     });
 
-    await waitFor(() => {
-      expect(result.current.isSaving).toBe(false);
-    });
+    await act(async () => {});
+    expect(result.current.isSaving).toBe(false);
   });
 });

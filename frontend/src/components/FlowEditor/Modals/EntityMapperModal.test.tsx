@@ -49,6 +49,16 @@ describe('EntityMapperModal', () => {
     (businessApi.get as any).mockResolvedValue({ data: mockFormFields });
   });
 
+  const openEntityTypeDropdown = () => {
+    // AntD Select doesn't expose a real "placeholder" attribute; the placeholder is rendered as text.
+    const placeholder = screen.getByText('Select entity type to map to');
+    const selectRoot = placeholder.closest('.ant-select');
+    if (!selectRoot) throw new Error('Entity type Select root not found');
+
+    const selector = selectRoot.querySelector('.ant-select-selector') ?? selectRoot;
+    fireEvent.mouseDown(selector as HTMLElement);
+  };
+
   describe('Rendering', () => {
     it('renders modal when open', () => {
       render(
@@ -73,7 +83,7 @@ describe('EntityMapperModal', () => {
         />
       );
 
-      expect(container.querySelector('.ant-modal')).not.toBeVisible();
+      expect(container.querySelector('.ant-modal')).toBeNull();
     });
 
     it('displays entity type selector', () => {
@@ -142,8 +152,7 @@ describe('EntityMapperModal', () => {
       );
 
       // Find and click the entity type selector
-      const selector = screen.getByPlaceholderText('Select entity type to map to');
-      fireEvent.mouseDown(selector);
+      openEntityTypeDropdown();
 
       await waitFor(() => {
         expect(screen.getByText('Supplier')).toBeInTheDocument();
@@ -179,8 +188,7 @@ describe('EntityMapperModal', () => {
       );
 
       // Select entity type first
-      const entitySelector = screen.getByPlaceholderText('Select entity type to map to');
-      fireEvent.mouseDown(entitySelector);
+      openEntityTypeDropdown();
 
       await waitFor(() => {
         const supplierOption = screen.getByText('Supplier');
@@ -193,7 +201,7 @@ describe('EntityMapperModal', () => {
 
       // Verify table shows mapping row
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Select form field')).toBeInTheDocument();
+        expect(screen.getByText('Select form field')).toBeInTheDocument();
       });
     });
 
@@ -207,8 +215,9 @@ describe('EntityMapperModal', () => {
         />
       );
 
-      const addButton = screen.getByText('Add Mapping');
-      expect(addButton).toBeDisabled();
+      const addButtonEl = screen.getByText('Add Mapping').closest('button');
+      expect(addButtonEl).toBeTruthy();
+      expect(addButtonEl).toBeDisabled();
     });
   });
 
@@ -225,7 +234,7 @@ describe('EntityMapperModal', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Select form field')).toBeInTheDocument();
+        expect(screen.getByText('Select form field')).toBeInTheDocument();
       });
     });
 
@@ -241,8 +250,7 @@ describe('EntityMapperModal', () => {
       );
 
       // Need to select entity type first for attributes to be available
-      const entitySelector = screen.getByPlaceholderText('Select entity type to map to');
-      fireEvent.mouseDown(entitySelector);
+      openEntityTypeDropdown();
     });
   });
 
@@ -283,8 +291,7 @@ describe('EntityMapperModal', () => {
       );
 
       // Select entity type
-      const entitySelector = screen.getByPlaceholderText('Select entity type to map to');
-      fireEvent.mouseDown(entitySelector);
+      openEntityTypeDropdown();
 
       await waitFor(() => {
         const supplierOption = screen.getByText('Supplier');
@@ -326,8 +333,9 @@ describe('EntityMapperModal', () => {
         />
       );
 
-      const saveButton = screen.getByText('Save Mapping');
-      expect(saveButton).toBeDisabled();
+      const saveButtonEl = screen.getByText('Save Mapping').closest('button');
+      expect(saveButtonEl).toBeTruthy();
+      expect(saveButtonEl).toBeDisabled();
     });
   });
 
@@ -343,8 +351,7 @@ describe('EntityMapperModal', () => {
       );
 
       // Select entity type
-      const entitySelector = screen.getByPlaceholderText('Select entity type to map to');
-      fireEvent.mouseDown(entitySelector);
+      openEntityTypeDropdown();
 
       await waitFor(() => {
         const supplierOption = screen.getByText('Supplier');
@@ -378,8 +385,7 @@ describe('EntityMapperModal', () => {
       );
 
       // Select entity type
-      const entitySelector = screen.getByPlaceholderText('Select entity type to map to');
-      fireEvent.mouseDown(entitySelector);
+      openEntityTypeDropdown();
 
       await waitFor(() => {
         const supplierOption = screen.getByText('Supplier');
@@ -407,8 +413,7 @@ describe('EntityMapperModal', () => {
       );
 
       // Select entity type and attempt save
-      const entitySelector = screen.getByPlaceholderText('Select entity type to map to');
-      fireEvent.mouseDown(entitySelector);
+      openEntityTypeDropdown();
 
       await waitFor(() => {
         expect(screen.getByText('Supplier')).toBeInTheDocument();

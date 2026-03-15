@@ -23,6 +23,7 @@ import { AutoMappingSuggestionsPanel } from '../components/AutoMappingSuggestion
 
 // Phase E.3: Data inheritance hook
 import { useUpstreamVariables } from '../hooks/useUpstreamVariables';
+import ConditionBuilder, { type ConditionRule } from './ConditionBuilder';
 
 // FormBuilder Context (2026-02-21 Comprehensive Enhancements)
 import { useFormBuilderContext } from '../../../contexts/FormBuilderContext';
@@ -366,7 +367,11 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'text':
       case 'textarea':
       case 'number':
-        renderedField = renderTextField(commonProps);
+      case 'email':
+      case 'password':
+      case 'codeEditor':
+      case 'code-editor':
+        renderedField = renderTextField(commonProps as any);
         break;
       
       case 'select':
@@ -419,13 +424,58 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       case 'validation-builder':
         renderedField = renderValidationBuilder(commonProps);
         break;
+
+      case 'info':
+        renderedField = (
+          <InfoBox key={field.id}>
+            {(field as any).content || field.helpText || ''}
+          </InfoBox>
+        );
+        break;
+
+      case 'checkbox':
+      case 'boolean':
+        renderedField = renderToggleField(commonProps as any);
+        break;
+
+      case 'ruleBuilder':
+      case 'conditionBuilder': {
+        const rules = (value as ConditionRule[]) || [];
+        const logicRaw = (formData as any).logic as string | undefined;
+        const logic = logicRaw?.toLowerCase() === 'or' ? 'or' : 'and';
+
+        const availableFields = (upstreamVariables || []).map(v => ({
+          key: v.template,
+          label: `${v.nodeName}: ${v.fieldLabel}`,
+          type: v.fieldType,
+        }));
+
+        renderedField = (
+          <div key={field.id}>
+            <ConditionBuilder
+              conditions={rules}
+              logic={logic}
+              onChange={(newRules, newLogic) => {
+                handleFieldChange(field.id, newRules);
+                // Keep the schema's separate logic field in sync if present
+                if ((schema.sections || []).some(s => s.fields?.some(f => f.id === 'logic'))) {
+                  handleFieldChange('logic', newLogic.toUpperCase());
+                }
+              }}
+              availableFields={availableFields}
+            />
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+          </div>
+        );
+        break;
+      }
       
       // Button fields (2026-02-21 Comprehensive Enhancements)
       case 'button':
         renderedField = (
           <ButtonFieldContainer key={field.id}>
             <Button
-              variant={field.metadata?.variant || 'secondary'}
+              $variant={(field as any).metadata?.variant || 'secondary'}
               fullWidth
               onClick={() => {
                 if (!node) {
@@ -535,6 +585,18 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       
       <Content>
         {visibleAutoMapSuggestions.length > 0 && (
+          <AutoMapBanner>
+            <AutoMapBannerText>
+              <AutoMapBannerTitle>Smart suggestions available</AutoMapBannerTitle>
+              <AutoMapBannerSubtitle>{visibleAutoMapSuggestions.length} suggested mapping(s) detected from upstream variables</AutoMapBannerSubtitle>
+            </AutoMapBannerText>
+            <Button $variant="primary" onClick={handleApplyAllAutoMap}>
+              Apply suggested mappings
+            </Button>
+          </AutoMapBanner>
+        )}
+
+        {visibleAutoMapSuggestions.length > 0 && (
           <AutoMappingSuggestionsPanel
             suggestions={visibleAutoMapSuggestions}
             onAccept={handleAcceptAutoMap}
@@ -554,10 +616,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           {!isValid && <ErrorBadge>{Object.keys(errors).filter(k => errors[k]).length} errors</ErrorBadge>}
         </FooterInfo>
         <FooterActions>
-          <Button variant="secondary" onClick={handleDiscard} disabled={!hasChanges}>
+          <Button $variant="secondary" onClick={handleDiscard} disabled={!hasChanges}>
             Discard
           </Button>
-          <Button variant="primary" onClick={handleApply} disabled={!hasChanges || !isValid}>
+          <Button $variant="primary" onClick={handleApply} disabled={!hasChanges || !isValid}>
             Apply
           </Button>
         </FooterActions>
@@ -719,6 +781,44 @@ const PlaceholderField = styled.div`
   border: 1px dashed rgb(var(--color-border));
   border-radius: 6px;
   margin-bottom: 12px;
+`;
+
+
+const InfoBox = styled.div`
+  padding: 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  background: rgba(var(--color-primary), 0.06);
+  color: rgb(var(--color-text-primary));
+  font-size: 13px;
+  line-height: 1.5;
+`;
+
+const AutoMapBanner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--color-primary), 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(var(--color-primary), 0.08);
+  margin-bottom: 12px;
+`;
+
+const AutoMapBannerTitle = styled.div`
+  font-weight: 700;
+  font-size: 13px;
+`;
+
+const AutoMapBannerSubtitle = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  margin-top: 2px;
+`;
+
+const AutoMapBannerText = styled.div`
+  min-width: 0;
 `;
 
 const PlaceholderLabel = styled.div`

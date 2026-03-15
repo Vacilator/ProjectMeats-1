@@ -209,7 +209,7 @@ export function useContainerManagement(): ContainerManagementResult {
       });
 
       // Add container node
-      setNodes([...updatedNodes, containerNode]);
+      setNodes(() => [...updatedNodes, containerNode]);
 
       return containerNode;
     },

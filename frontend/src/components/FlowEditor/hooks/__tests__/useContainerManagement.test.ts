@@ -12,23 +12,27 @@
  * Created: 2026-02-27
  */
 
+import { beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { ReactFlowProvider, Node } from '@xyflow/react';
 import { useContainerManagement } from '../useContainerManagement';
 
 // Mock React Flow hooks
-const mockGetNodes = jest.fn<Node[], []>();
-const mockSetNodes = jest.fn();
-const mockGetEdges = jest.fn();
+const mockGetNodes = vi.fn<Node[], []>();
+const mockSetNodes = vi.fn();
+const mockGetEdges = vi.fn();
 
-jest.mock('@xyflow/react', () => ({
-  ...jest.requireActual('@xyflow/react'),
-  useReactFlow: () => ({
-    getNodes: mockGetNodes,
-    setNodes: mockSetNodes,
-    getEdges: mockGetEdges,
-  }),
-}));
+vi.mock('@xyflow/react', async () => {
+  const actual = await vi.importActual<any>('@xyflow/react');
+  return {
+    ...actual,
+    useReactFlow: () => ({
+      getNodes: mockGetNodes,
+      setNodes: mockSetNodes,
+      getEdges: mockGetEdges,
+    }),
+  };
+});
 
 // Test data
 const createTestNode = (id: string, x: number, y: number, selected = false): Node => ({
@@ -60,7 +64,7 @@ const createContainerNode = (
 
 describe('useContainerManagement', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   // ============================================================================

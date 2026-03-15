@@ -199,15 +199,19 @@ export function renderVariablePicker(props: FieldRenderProps): React.ReactElemen
  */
 export function renderValidationBuilder(props: FieldRenderProps): React.ReactElement {
   const { field, value, onChange, error } = props;
-  
-  // Placeholder implementation - actual ValidationRuleBuilder component to be created
+
+  const rules = (value as any[]) || [];
+
+  const handleRulesChange = (newRules: any[]) => {
+    onChange(field.id, newRules);
+  };
+
   return (
     <FieldContainer>
-      <EmptyState>
-        ⚠️ Validation builder not yet implemented
-        <br />
-        Current value: {JSON.stringify(value)}
-      </EmptyState>
+      <ValidationRuleBuilder
+        rules={rules}
+        onChange={handleRulesChange}
+      />
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </FieldContainer>
   );

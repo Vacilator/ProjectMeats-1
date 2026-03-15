@@ -50,13 +50,17 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
     
     // Check for high contrast preference
-    const prefersHighContrast = window.matchMedia('(prefers-contrast: more)').matches;
+    const prefersHighContrast = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-contrast: more)').matches
+      : false;
     if (prefersHighContrast) {
       return 'high-contrast';
     }
     
     // Check for dark mode preference
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const prefersDark = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : true;
     return prefersDark ? 'dark' : 'light';
   });
   
@@ -200,10 +204,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }, []);
 
   const toggleTheme = () => {
-    const modes: ThemeName[] = ['light', 'dark', 'high-contrast'];
-    const currentIndex = modes.indexOf(themeName);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    const newTheme = modes[nextIndex];
+    // Quick toggle between the two common modes.
+    // High-contrast is opt-in via explicit selection (setTheme) or user preference.
+    const newTheme: ThemeName = themeName === 'light' ? 'dark' : 'light';
     setThemeName(newTheme);
     localStorage.setItem('theme', newTheme);
   };

@@ -12,7 +12,7 @@
  * Created: 2026-02-27
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Node, Edge, useReactFlow } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -98,6 +98,21 @@ export function useBatchOperations(
 
   const { getNodes, setNodes, getEdges, setEdges } = useReactFlow();
   const clipboardRef = useRef<ClipboardData | null>(null);
+  const [clipboardCount, setClipboardCount] = useState(0);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as ClipboardData;
+      if (parsed?.nodes?.length) {
+        clipboardRef.current = parsed;
+        setClipboardCount(parsed.nodes.length);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   /**
    * Get currently selected nodes
@@ -133,7 +148,8 @@ export function useBatchOperations(
     };
 
     clipboardRef.current = clipboardData;
-    
+    setClipboardCount(selectedNodes.length);
+
     // Also store in localStorage for cross-session clipboard
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(clipboardData));
@@ -179,6 +195,7 @@ export function useBatchOperations(
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
           clipboardRef.current = JSON.parse(stored);
+          setClipboardCount(clipboardRef.current?.nodes?.length ?? 0);
           pasteSelection(); // Recursive call with restored data
           return;
         }
@@ -456,6 +473,6 @@ export function useBatchOperations(
     alignVertical,
     distributeHorizontally,
     distributeVertically,
-    clipboardCount: clipboardRef.current?.nodes.length ?? 0,
+    clipboardCount,
   };
 }

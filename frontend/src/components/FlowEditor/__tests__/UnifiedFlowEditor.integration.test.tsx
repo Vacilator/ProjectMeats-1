@@ -9,16 +9,53 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import UnifiedFlowEditor from '../UnifiedFlowEditor';
-import { apiClient } from '@/services/apiService';
 
-// Mock apiClient
-vi.mock('@/services/apiService', () => ({
+// UnifiedFlowEditor imports apiService via a relative specifier.
+// Mock BOTH the relative and alias specifiers to ensure the real axios client never loads in tests.
+const apiServiceMock = vi.hoisted(() => ({
   apiClient: {
     get: vi.fn(),
     post: vi.fn(),
     put: vi.fn(),
     delete: vi.fn(),
+    patch: vi.fn(),
   },
+  adminClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    patch: vi.fn(),
+  },
+}));
+
+vi.mock('../../services/apiService', () => apiServiceMock);
+vi.mock('@/services/apiService', () => apiServiceMock);
+
+const { apiClient } = apiServiceMock;
+
+// Mock heavy/side-effect deps used by UnifiedFlowEditor
+vi.mock('@monaco-editor/react', () => ({
+  default: () => <div data-testid="monaco-editor" />,
+}));
+
+vi.mock('react-hot-toast', () => ({
+  default: {
+    success: vi.fn(),
+    error: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  },
+  Toaster: () => null,
+}));
+
+vi.mock('@sentry/react', () => ({
+  captureException: vi.fn(),
+  withScope: (fn: any) => fn({ setTag: vi.fn(), setContext: vi.fn() }),
+}));
+
+vi.mock('react-joyride', () => ({
+  default: () => null,
 }));
 
 // Mock React Flow
