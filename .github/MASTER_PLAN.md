@@ -163,6 +163,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Detail pivot: clicking a row opens a read-only UnifiedFlowEditor view and highlights the active step node when it can be identified from flow_data.
   - Verified: GitHub Actions run 23112710137 succeeded (dev deploy green). Deployed tags: `development-336fdc8f8274d6b0b4742b6f881aee4ae2e87014` (pm-frontend + pm-backend).
 
+- 2026-03-15 — FlowEditor: validation normalization hardening — Commit: 5b9e5f34 (PR: #3497)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3497
+  - schemaRegistry: wrap single-object `field.validation` into an array (backward compatible) to prevent `.forEach` crashes.
+  - LiveFormPreview: normalize `field.validation` to an array before iterating.
+  - Verified: GitHub Actions run 23112951974 succeeded (dev deploy green). Deployed tags: `development-5b9e5f34da6f80c51f807483caa3910de6d339d9` (pm-frontend + pm-backend).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
