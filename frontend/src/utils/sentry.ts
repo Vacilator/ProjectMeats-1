@@ -12,7 +12,13 @@
  */
 
 import * as Sentry from '@sentry/react';
-import { BrowserTracing } from '@sentry/tracing';
+import { useEffect } from 'react';
+import {
+  createRoutesFromChildren,
+  matchRoutes,
+  useLocation,
+  useNavigationType,
+} from 'react-router-dom';
 
 interface SentryConfig {
   dsn?: string;
@@ -55,15 +61,17 @@ export const initSentry = (config?: SentryConfig): void => {
     
     // Integrations
     integrations: [
-      new BrowserTracing({
-        // Track all route changes
-        routingInstrumentation: Sentry.reactRouterV6Instrumentation(
-          // Will be configured with React Router if available
-          // @ts-ignore
-          window.history,
-        ),
+      // React Router v7 tracing integration (Sentry v10)
+      Sentry.reactRouterV7BrowserTracingIntegration({
+        useEffect,
+        useLocation,
+        useNavigationType,
+        createRoutesFromChildren,
+        matchRoutes,
       }),
-      new Sentry.Replay({
+
+      // Session Replay (Sentry v10)
+      Sentry.replayIntegration({
         maskAllText: true, // Privacy: mask all text content
         blockAllMedia: true, // Privacy: block media elements
       }),
@@ -178,14 +186,10 @@ export const addSentryBreadcrumb = (
 /**
  * Start a performance transaction
  */
-export const startSentryTransaction = (
-  name: string,
-  op: string
-): Sentry.Transaction | undefined => {
-  return Sentry.startTransaction({
-    name,
-    op,
-  });
+export const startSentryTransaction = (name: string, op: string) => {
+  // Sentry v10 no longer exposes startTransaction; spans cover this use-case.
+  if (!Sentry.getClient()) return undefined;
+  return Sentry.startInactiveSpan({ name, op });
 };
 
 /**
