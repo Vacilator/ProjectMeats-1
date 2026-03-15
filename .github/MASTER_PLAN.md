@@ -264,3 +264,25 @@ Verification (manual):
 - Ctrl+K from any page opens search.
 - Searching “Purchase Order” navigates back to Cockpit details without full reload.
 - Action Items endpoints return 200 for an authenticated tenant.
+
+---
+
+### 2026-03-15 — Cockpit relationships regression fix (PR #3499)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3499
+
+**Status:** MERGED → `development` (squash commit: `adbec5b774eb226fbfd3faa13877038d3b90c350`)
+
+Deliverables:
+- Fix Cockpit relationship discovery returning zero related entities.
+- “Associated contacts”: union **M2M** (`Supplier.contacts` / `Customer.contacts`) with legacy FK (`Contact.supplier` / `Contact.customer`) for backward compatibility.
+- “Related products”: union direct M2M products with order-derived products.
+- Per-relationship error isolation so one failing relationship does not zero the entire relationships payload.
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23113180951 (conclusion: success)
+- Frontend deploy evidence:
+  - `docker pull registry.digitalocean.com/meatscentral/projectmeats-frontend:development-adbec5b774eb226fbfd3faa13877038d3b90c350`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `docker pull registry.digitalocean.com/meatscentral/projectmeats-backend:development-adbec5b774eb226fbfd3faa13877038d3b90c350`
+  - container: `pm-backend`
