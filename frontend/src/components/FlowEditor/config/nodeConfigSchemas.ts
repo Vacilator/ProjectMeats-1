@@ -11,6 +11,7 @@
  */
 
 import { NodeConfigSchema } from './types';
+import { schemaRegistry } from './schemaRegistry';
 import { logger } from '@/utils/logger';
 
 import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Zap, Calendar, Webhook, Clock, FileSignature, Upload, Archive, AlertCircle } from 'lucide-react';
@@ -905,119 +906,8 @@ export const outlookEmailSchema: NodeConfigSchema = {
 };
 
 // ============================================================================
-// Export all schemas
+// Schema registration happens at the end of this module
 // ============================================================================
-
-/**
- * All registered node configuration schemas
- * 
- * Phase E Update (2026-02-19):
- * - Updated to use 'formSchema' as primary schema
- * - formStepSingleSchema exported as alias for backward compatibility
- */
-export const allSchemas: NodeConfigSchema[] = [
-  // === CORE SCHEMAS (Phase 1-3) ===
-  formSchema,  // NEW: Primary form schema (Phase E - 2026-02-19)
-  formProcessSchema,
-  formProcessGroupSchema,
-  createRecordSchema,
-  outlookEmailSchema,
-  // Phase 2: Trigger and Document schemas (2026-02-21)
-  // NOTE: These are registered later in this module. They are intentionally
-  // excluded from this early list to avoid TDZ (const-before-init) issues.
-  // Phase 3: Logic & Control Flow schemas (2026-02-21 - Quick Wins)
-  conditionIfSchema,
-  actionEmailSchema,
-  endSuccessSchema,
-  endErrorSchema,
-  timerDelaySchema,
-  
-  // === EXTENDED SCHEMAS (Phase 4 - Agent C: Complete Config Coverage) ===
-  // Form nodes
-  formStepSchema,
-  formFieldSchema,
-  formSectionSchema,
-  formReferenceSchema,
-  formSignatureSchema,
-  formFileUploadSchema,
-  formMultiStepContainerSchema,
-  
-  // Trigger nodes
-  triggerManualSchema,
-  triggerScheduleSchema,
-  triggerWebhookSchema,
-  triggerEventSchema,
-  triggerFormSchema,
-  
-  // Logic nodes
-  conditionSwitchSchema,
-  conditionFilterSchema,
-  
-  // Action nodes
-  actionHTTPSchema,
-  actionSMSSchema,
-  actionNotifySchema,
-  actionScriptSchema,
-  actionCreateRecordSchema,
-  actionUpdateRecordSchema,
-  actionDeleteRecordSchema,
-  
-  // Data nodes
-  dataLookupSchema,
-  dataMergeSchema,
-  dataTransformSchema,
-  
-  // Variable nodes
-  setVariableSchema,
-  
-  // Loop nodes
-  loopForEachSchema,
-  loopWhileSchema,
-  
-  // Wait/Pending nodes
-  timerScheduleSchema,
-  pendingApprovalSchema,
-  pendingDocumentSchema,
-  pendingPaymentSchema,
-  pendingResponseSchema,
-  
-  // Document nodes
-  documentMergeSchema,
-  
-  // Utility nodes
-  groupSubflowSchema,
-  noteCommentSchema,
-  
-  // Terminal nodes
-  endCancelSchema,
-  
-  // Phase 7.4: Advanced Node Types (2026-02-27)
-  parallelPathSchema,
-  subWorkflowSchema,
-];
-
-// Export formStepSingleSchema as alias for backward compatibility
-export const formStepSingleSchema = formSchema;
-
-// ============================================================================
-// Auto-initialize registry
-// ============================================================================
-
-import { schemaRegistry } from './schemaRegistry';
-
-// Initialize registry with CORE schemas first
-schemaRegistry.initialize(allSchemas);
-
-// Phase E Fix (2026-02-19): Register backward compatibility aliases
-// formStepSingle nodes should use the same schema as 'form' nodes
-schemaRegistry.register({
-  ...formSchema,
-  nodeType: 'formStepSingle',
-  displayName: 'Form (Legacy)',
-  description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
-}, true); // Allow overwrite
-
-logger.debug('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
 
 // ============================================================================
 // Phase 2: Trigger Node Schema (Unified Entry Point)
@@ -1339,9 +1229,6 @@ export const triggerSchema: NodeConfigSchema = {
   ]
 };
 
-// Register trigger schema
-schemaRegistry.register(triggerSchema);
-logger.debug('[Schema Registry] Registered triggerSchema');
 
 // ============================================================================
 // Phase 2: Document Node Schemas
@@ -1691,13 +1578,6 @@ export const documentStoreSchema: NodeConfigSchema = {
   ]
 };
 
-// Register document schemas
-schemaRegistry.register(documentGenerateSchema);
-schemaRegistry.register(documentSignSchema);
-schemaRegistry.register(documentUploadSchema);
-schemaRegistry.register(documentStoreSchema);
-
-logger.debug('[Schema Registry] Registered document schemas (generate, sign, upload, store)');
 
 // ============================================================================
 // Logic & Control Flow Schemas (2026-02-21 - Quick Wins)
@@ -4173,9 +4053,110 @@ export const subWorkflowSchema: NodeConfigSchema = {
 // SCHEMA REGISTRATION COMPLETE
 // ============================================================================
 
-// All schemas are now included in the main allSchemas array above
-// and will be initialized automatically via schemaRegistry.initialize(allSchemas)
+/**
+ * All registered node configuration schemas.
+ *
+ * IMPORTANT: This must be defined AFTER all schema consts in this module to avoid
+ * TDZ (const-before-init) runtime crashes that blank the app on load.
+ */
+export const allSchemas: NodeConfigSchema[] = [
+  // === CORE SCHEMAS (Phase 1-3) ===
+  formSchema,
+  formProcessSchema,
+  formProcessGroupSchema,
+  createRecordSchema,
+  outlookEmailSchema,
+
+  // === PHASE 2: Trigger + Documents (registered in-file) ===
+  triggerSchema,
+  documentGenerateSchema,
+  documentSignSchema,
+  documentUploadSchema,
+  documentStoreSchema,
+
+  // === PHASE 3: Logic & Control Flow ===
+  conditionIfSchema,
+  actionEmailSchema,
+  endSuccessSchema,
+  endErrorSchema,
+  timerDelaySchema,
+
+  // === EXTENDED SCHEMAS (Phase 4 - Complete Coverage) ===
+  // Form nodes
+  formStepSchema,
+  formFieldSchema,
+  formSectionSchema,
+  formReferenceSchema,
+  formSignatureSchema,
+  formFileUploadSchema,
+  formMultiStepContainerSchema,
+
+  // Trigger nodes
+  triggerManualSchema,
+  triggerScheduleSchema,
+  triggerWebhookSchema,
+  triggerEventSchema,
+  triggerFormSchema,
+
+  // Logic nodes
+  conditionSwitchSchema,
+  conditionFilterSchema,
+
+  // Action nodes
+  actionHTTPSchema,
+  actionSMSSchema,
+  actionNotifySchema,
+  actionScriptSchema,
+  actionCreateRecordSchema,
+  actionUpdateRecordSchema,
+  actionDeleteRecordSchema,
+
+  // Data nodes
+  dataLookupSchema,
+  dataMergeSchema,
+  dataTransformSchema,
+
+  // Variable nodes
+  setVariableSchema,
+
+  // Loop nodes
+  loopForEachSchema,
+  loopWhileSchema,
+
+  // Wait/Pending nodes
+  timerScheduleSchema,
+  pendingApprovalSchema,
+  pendingDocumentSchema,
+  pendingPaymentSchema,
+  pendingResponseSchema,
+
+  // Document nodes
+  documentMergeSchema,
+
+  // Utility nodes
+  groupSubflowSchema,
+  noteCommentSchema,
+
+  // Terminal nodes
+  endCancelSchema,
+
+  // Phase 7.4: Advanced Node Types
+  parallelPathSchema,
+  subWorkflowSchema,
+];
+
+// Backward compatibility: formStepSingle uses the same schema as 'form'
+export const formStepSingleSchema = formSchema;
+
+schemaRegistry.initialize(allSchemas);
+
+schemaRegistry.register({
+  ...formSchema,
+  nodeType: 'formStepSingle',
+  displayName: 'Form (Legacy)',
+  description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
+}, true);
 
 logger.debug(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
 
-// Cache bust: 1771875847
+// Cache bust: 1773577392
