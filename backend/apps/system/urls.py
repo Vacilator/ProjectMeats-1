@@ -43,5 +43,18 @@ router.register(r'product-preferences', TenantProductPreferenceViewSet, basename
 router.register(r'search/ranked', RankedSearchViewSet, basename='ranked-search')
 
 urlpatterns = [
+    # Cockpit Entity Graph (typed URLs)
+    # The DefaultRouter only supports /entities/<pk>/..., but Cockpit uses /entities/<type>/<id>/...
+    path(
+        'entities/<str:type>/<str:pk>/relationships/',
+        EntityViewSet.as_view({'get': 'relationships'}),
+        name='entity-relationships',
+    ),
+    path(
+        'entities/<str:type>/<str:pk>/',
+        EntityViewSet.as_view({'get': 'retrieve'}),
+        name='entity-detail',
+    ),
+
     path('', include(router.urls)),
 ]
