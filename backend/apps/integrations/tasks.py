@@ -4,7 +4,11 @@ Celery tasks for email integrations.
 Background tasks for periodic email syncing and order ingestion.
 """
 import logging
-from celery import shared_task
+import random
+
+from celery import group, shared_task
+
+from apps.integrations.models import ExternalAuthProvider
 from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
 logger = logging.getLogger(__name__)
@@ -14,45 +18,92 @@ logger = logging.getLogger(__name__)
     name='integrations.sync_tenant_emails',
     bind=True,
     max_retries=3,
+    soft_time_limit=60,  # orchestrator should be fast
+    time_limit=90,
+)
+def sync_tenant_emails(self):
+    """Orchestrate email polling across tenants (Phase 8.3 fan-out).
+
+    This task runs every 5 minutes via Celery Beat.
+
+    Previous behavior: sequential polling across all providers.
+    New behavior: enqueue one task per active provider so work can run in parallel
+    across Celery workers.
+
+    Returns:
+        dict: dispatch metadata (provider count + group id)
+    """
+    try:
+        provider_ids = list(
+            ExternalAuthProvider.objects.filter(
+                provider_type='microsoft',
+                is_active=True,
+            ).values_list('id', flat=True)
+        )
+
+        if not provider_ids:
+            logger.info('No active Microsoft providers found; skipping email sync dispatch')
+            return {
+                'success': True,
+                'providers_dispatched': 0,
+                'group_id': None,
+            }
+
+        # Jitter dispatch slightly to avoid stampedes against Graph API.
+        tasks = [
+            sync_email_provider_inbox.s(pid).set(countdown=random.randint(0, 15))
+            for pid in provider_ids
+        ]
+        job = group(tasks)
+        async_result = job.apply_async(expires=240)  # if beat lags, drop stale work
+
+        logger.info(
+            'Dispatched email sync fan-out: %s providers (group=%s)',
+            len(provider_ids),
+            async_result.id,
+        )
+
+        return {
+            'success': True,
+            'providers_dispatched': len(provider_ids),
+            'group_id': async_result.id,
+        }
+
+    except Exception as e:
+        logger.error('Email sync dispatch failed: %s', str(e), exc_info=True)
+        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+
+
+@shared_task(
+    name='integrations.sync_email_provider_inbox',
+    bind=True,
+    max_retries=3,
     soft_time_limit=300,  # 5 minutes
     time_limit=360,  # 6 minutes hard limit
 )
-def sync_tenant_emails(self):
-    """
-    Poll all tenant inboxes for new order-related emails.
-    
-    This task runs every 5 minutes via Celery Beat.
-    It iterates through all active tenants with Microsoft OAuth connections
-    and fetches new emails containing order keywords or attachments.
-    
-    Multi-tenant safe: Each tenant's emails are isolated and linked to their tenant ID.
-    
-    Returns:
-        dict: Statistics about the sync operation
-            - tenants_processed: Number of tenants checked
-            - total_emails_fetched: Total emails retrieved
-            - total_emails_saved: Total new emails saved
-            - total_errors: Number of errors encountered
-    """
+def sync_email_provider_inbox(self, provider_id: int):
+    """Poll inbox for a single ExternalAuthProvider (tenant-scoped)."""
     try:
-        logger.info("Starting scheduled email sync for all tenants")
-        
         service = EmailIngestionService()
-        stats = service.poll_all_tenants()
-        
+        stats = service.poll_provider_by_id(provider_id)
+
         logger.info(
-            f"Email sync completed: {stats['tenants_processed']} tenants, "
-            f"{stats['total_emails_saved']}/{stats['total_emails_fetched']} new emails"
+            'Email sync provider complete: provider_id=%s tenant=%s saved=%s fetched=%s errors=%s',
+            provider_id,
+            stats.get('tenant_id'),
+            stats.get('emails_saved'),
+            stats.get('emails_fetched'),
+            stats.get('errors'),
         )
-        
+
         return {
             'success': True,
+            'provider_id': provider_id,
             'stats': stats,
         }
-        
+
     except Exception as e:
-        logger.error(f"Email sync task failed: {str(e)}", exc_info=True)
-        # Retry with exponential backoff
+        logger.error('Provider sync failed provider_id=%s: %s', provider_id, str(e), exc_info=True)
         raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
 
 
@@ -62,37 +113,33 @@ def sync_tenant_emails(self):
     max_retries=2,
 )
 def sync_single_tenant(self, tenant_id: str):
-    """
-    Manually trigger email sync for a specific tenant.
-    
+    """Manually trigger email sync for a specific tenant.
+
     Used by the frontend "Sync Now" button or for debugging.
-    
-    Args:
-        tenant_id: UUID of the tenant to sync
-        
-    Returns:
-        dict: Statistics for this tenant's sync operation
+
+    Note: This intentionally runs a single-tenant sync synchronously inside the task.
+    The high-volume optimization is handled by sync_tenant_emails fan-out.
     """
     try:
-        logger.info(f"Manual sync triggered for tenant {tenant_id}")
-        
+        logger.info('Manual sync triggered for tenant %s', tenant_id)
+
         service = EmailIngestionService()
         stats = service.poll_tenant_by_id(tenant_id)
-        
+
         logger.info(
-            f"Manual sync completed for tenant {tenant_id}: "
-            f"{stats['emails_saved']}/{stats['emails_fetched']} new emails"
+            'Manual sync completed for tenant %s: saved=%s fetched=%s errors=%s',
+            tenant_id,
+            stats.get('emails_saved'),
+            stats.get('emails_fetched'),
+            stats.get('errors'),
         )
-        
+
         return {
             'success': True,
             'tenant_id': tenant_id,
             'stats': stats,
         }
-        
+
     except Exception as e:
-        logger.error(
-            f"Manual sync failed for tenant {tenant_id}: {str(e)}",
-            exc_info=True
-        )
+        logger.error('Manual sync failed for tenant %s: %s', tenant_id, str(e), exc_info=True)
         raise self.retry(exc=e, countdown=30)
