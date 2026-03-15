@@ -197,7 +197,7 @@ def trigger_event_workflows(sender, instance, created=False, **kwargs):
         created: True if this is a new record
         **kwargs: Additional signal data
     """
-    from .models import TenantWorkflow, TriggerType
+    from .models import TenantWorkflow, TriggerType, WorkflowStatus
     from .tasks import execute_event_workflow
     
     # Determine entity type from model
@@ -217,7 +217,7 @@ def trigger_event_workflows(sender, instance, created=False, **kwargs):
         workflows = TenantWorkflow.objects.filter(
             tenant=instance.tenant,
             trigger_type=TriggerType.EVENT,
-            is_active=True,
+            status=WorkflowStatus.ACTIVE,
             trigger_config__entity_type=entity_type,
         ).select_related('tenant')
         
