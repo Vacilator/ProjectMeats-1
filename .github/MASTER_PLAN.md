@@ -40,6 +40,16 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3453
   - Fix frontend deploy to tolerate unset `SENTRY_*` variables under `set -u` by using safe defaults in runtime config generation.
 
+- 2026-03-15 — FlowEditor config standards shipped — Commit: f3edd946 (PR: #3455)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3455
+  - FlowEditor: schema-driven config UX standards, Smart Auto-Map banner, Developer Mode JSON fallback; Vitest reliability hardening.
+  - Governance: update GOLDEN_FILES registry and execution log.
+
+- 2026-03-15 — Phase 7.3 WebSockets foundation — Commit: cd7749f6 (PR: #3456)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3456
+  - Backend: Django Channels + ASGI ProtocolTypeRouter; tenant-scoped workflow collaboration WebSocket scaffold.
+  - Docs: WorkForms developer guide includes WebSocket path convention for real-time editing.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
@@ -49,7 +59,8 @@ This section consolidates the current work queue into a single execution plan. W
 ### PR A — FlowEditor “Once and For All” Config UX (Frontend)
 **Branch:** `fix/floweditor-config-standards`
 
-**Status:** READY — implementation complete; unit test suite verified (Vitest). NOTE: `UnifiedFlowEditor.integration.test.tsx` is temporarily quarantined from Vitest collection due to a deterministic hang under JSDOM.
+**Status:** MERGED — https://github.com/Meats-Central/ProjectMeats/pull/3455 (merge commit: `f3edd946`)
+Unit tests verified via Vitest. NOTE: `src/components/FlowEditor/__tests__/UnifiedFlowEditor.integration.test.tsx` is temporarily quarantined from Vitest collection due to a deterministic hang under JSDOM.
 
 Deliverables:
 - **Entity-first config parity for legacy `formStep`** (schema-driven): add `entityType` + `entity-field-picker` so older workflows remain editable.
@@ -67,19 +78,17 @@ Verification (repo scripts):
 - `npm test` (if present)
 
 ### PR B — Governance: Golden Files + Phase 7 progress
-Deliverables:
-- Update `manifests/GOLDEN_FILES.md`:
-  - FlowEditor config authority: `DynamicConfigPanel.tsx`, `nodeConfigSchemas.ts`, `schemaService.ts`, `autoMappingService.ts`
-  - Cockpit continuous browsing authority: `SmartSearch.tsx`, `CockpitNavigationContext.tsx`
-- Update `.github/MASTER_PLAN.md`:
-  - append PR references + commit SHAs for PR A/B
-  - set Phase 7 progress to **95%** with explicit note of the config UX milestone
+Status: Completed as part of PR A (#3455).
 
 ### PR C — Phase 7.3: Real-Time Collaboration foundation (Backend)
+**Branch:** `feat/phase7-3-channels-foundation`
+
+**Status:** PR OPEN — https://github.com/Meats-Central/ProjectMeats/pull/3456
+
 Deliverables:
 - Implement **Channels-ready ASGI routing** and WebSocket path conventions:
-  - `/ws/workflows/<workflow_id>/collab/`
-- Use existing `REDIS_URL` for channel layer (no new secret names; manifest remains source of truth).
+  - `/ws/workflows/<workflow_id>/collab/?tenant_id=<tenant_uuid>`
+- Use existing `REDIS_URL`/`VALKEY_URL` for channel layer (no new secret names; manifest remains source of truth).
 
 ### PR D — Phase 8.1: Tenant-safe caching for Universal Search (Backend)
 Deliverables:

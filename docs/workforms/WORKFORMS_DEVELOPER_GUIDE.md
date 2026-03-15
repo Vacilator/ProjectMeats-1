@@ -62,29 +62,6 @@ frontend/src/components/
 - **TypeScript**: Type safety
 - **React Query**: Server state management
 
-### FlowEditor Portals + Schema Bootstrapping (Critical)
-
-The FlowEditor configuration panel is rendered via a **React Portal** and depends on a schema registry that must be initialized at runtime.
-
-**Portal containers (Vite)**:
-- `frontend/index.html` must contain:
-  - `#config-portal-root`
-  - `#config-portal`
-
-The editor will style/show/hide `#config-portal` when a node is selected. If these containers are missing, the config panel can fail to mount and you will see console errors.
-
-**Schema registry bootstrapping**:
-- `schemaRegistry` must be imported from `frontend/src/components/FlowEditor/config/index.ts` (not directly from `schemaRegistry.ts`).
-- Importing the config index ensures `nodeConfigSchemas.ts` executes and registers schemas.
-
-Symptoms of missing bootstrap:
-- `[Schema Registry] No schema found for node type: trigger/formStep, using fallback`
-
-Authority:
-- `frontend/src/components/FlowEditor/config/index.ts`
-- `frontend/src/components/FlowEditor/config/nodeConfigSchemas.ts`
-- `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`
-
 ### Real-Time Collaboration (Phase 7.3)
 
 ProjectMeats uses **Django Channels** to support WebSocket-based collaboration.
