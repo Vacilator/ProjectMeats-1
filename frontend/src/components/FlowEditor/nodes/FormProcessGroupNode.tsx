@@ -436,8 +436,18 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       nodes.map((node) => {
         if (node.id === id) {
           const newExpanded = !isExpanded;
+          const expandedHeight = Math.max(400, stepCount * 120 + 80);
+
           return {
             ...node,
+            // IMPORTANT: React Flow can cache measured node width/height.
+            // When collapsing, explicitly shrink the wrapper so the expanded outline/shadow
+            // doesn't remain visible at the old dimensions.
+            style: {
+              ...(node.style || {}),
+              width: newExpanded ? 600 : 280,
+              height: newExpanded ? expandedHeight : undefined,
+            },
             data: {
               ...node.data,
               isExpanded: newExpanded,
