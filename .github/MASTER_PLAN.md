@@ -69,6 +69,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - EntityFieldPicker: relation fields (FK/M2M/1-1) can select an upstream variable template to cascade/auto-populate (`cascadeFrom`).
   - DynamicConfigPanel: entity-field-picker renderer passes upstream variables into EntityFieldPicker.
 
+- 2026-03-15 — Cockpit: global search in header (Ctrl+K) — Commit: TBD (PR: #3466)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3466
+  - Move Cockpit search input to `Header.tsx` with global Ctrl/⌘K focus.
+  - CockpitDashboard becomes a results view driven by URL `?q=` (SmartSearch controlled query + hideInput).
+  - SmartSearch now debounces via `lodash/debounce` (no setTimeout).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
