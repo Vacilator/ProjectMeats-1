@@ -1,5 +1,14 @@
 from rest_framework import serializers
+
+from apps.system.models import Product as SystemProduct
+
 from tenant_apps.plants.models import Plant
+
+
+class SystemProductMinimalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SystemProduct
+        fields = ['id', 'product_code', 'name', 'description', 'protein_type']
 
 
 class PlantSerializer(serializers.ModelSerializer):
@@ -10,6 +19,18 @@ class PlantSerializer(serializers.ModelSerializer):
         source="supplier.name", read_only=True
     )
 
+    associated_products = serializers.SerializerMethodField()
+
+    def get_associated_products(self, obj):
+        request = self.context.get('request')
+        tenant = getattr(request, 'tenant', None) if request else None
+        if not tenant:
+            return []
+
+        links = obj.associated_product_links.filter(tenant=tenant).select_related('product')
+        products = [link.product for link in links]
+        return SystemProductMinimalSerializer(products, many=True).data
+
     class Meta:
         model = Plant
         fields = [
@@ -19,6 +40,7 @@ class PlantSerializer(serializers.ModelSerializer):
             "plant_type",
             "supplier",
             "supplier_name",
+            "associated_products",
             "address",
             "city",
             "state",

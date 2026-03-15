@@ -29,6 +29,16 @@ class Plant(TenantAwareModel):
         help_text="Supplier that owns/operates this plant"
     )
 
+    # Known products (Three-Tier Product Strategy)
+    associated_products = models.ManyToManyField(
+        'system.Product',
+        through='PlantAssociatedProduct',
+        related_name='sold_by_plants',
+        blank=True,
+        verbose_name='Known Products Sold',
+        help_text='Products commonly sold/produced by this plant',
+    )
+
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50, unique=True)
     plant_est_num = models.CharField(
@@ -69,3 +79,32 @@ class Plant(TenantAwareModel):
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+
+class PlantAssociatedProduct(TenantAwareModel):
+    """Tenant-safe link table for Plant ↔ system.Product affinity."""
+
+    plant = models.ForeignKey(
+        Plant,
+        on_delete=models.CASCADE,
+        related_name='associated_product_links',
+    )
+    product = models.ForeignKey(
+        'system.Product',
+        on_delete=models.CASCADE,
+        related_name='plant_affinity_links',
+    )
+
+    class Meta:
+        verbose_name = 'Plant Known Product'
+        verbose_name_plural = 'Plant Known Products'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'plant', 'product'],
+                name='unique_plant_product_affinity_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'plant']),
+            models.Index(fields=['tenant', 'product']),
+        ]
