@@ -326,3 +326,24 @@ Deliverables:
 - Backend deploy evidence:
   - `docker pull registry.digitalocean.com/meatscentral/projectmeats-backend:development-8527cfca2bd43455c88b220a60a5b13ec3a03f5e`
   - container: `pm-backend`
+
+---
+
+### 2026-03-15 — FlowEditor: Standardize Form Process group + collapse artifact fix (PR #3504)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3504
+
+**Status:** MERGED → `development` (squash commit: `0fed7c29b9082c4b8ac7a7431863930ebc789741`)
+
+Deliverables:
+- Form Process containers: legacy node types (`formProcess`, `formMultiStepContainer`) are canonicalized to `formProcessGroup` at load-time to standardize behavior.
+- Config: Form Process config uses the structured `FormProcessConfigPanel` for `formProcessGroup` (and legacy types for safety).
+- UI bugfix: `FormProcessGroupNode` now forces React Flow to re-measure internals on expand/collapse and after auto-layout so collapsed nodes do not retain the expanded outline/shadow bounds.
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23114408796 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-0fed7c29b9082c4b8ac7a7431863930ebc789741`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-0fed7c29b9082c4b8ac7a7431863930ebc789741`
+  - container: `pm-backend`
