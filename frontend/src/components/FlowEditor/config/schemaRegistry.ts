@@ -312,13 +312,13 @@ class ConfigSchemaRegistry {
           );
         }
 
-        // Normalize validation rules to an array to avoid runtime crashes
-        const validationRules = Array.isArray(field.validation) ? field.validation : [];
+        // Normalize validation rules to an array to avoid runtime crashes.
+        // Backward compatible: if a single object is provided, wrap it.
         if (field.validation && !Array.isArray(field.validation)) {
-          warnings.push(
-            `${fieldPrefix}: validation should be an array; ignoring non-array value`
-          );
+          warnings.push(`${fieldPrefix}: validation should be an array; wrapping single object`);
+          (field as any).validation = [field.validation as any];
         }
+        const validationRules = Array.isArray(field.validation) ? field.validation : [];
 
         // Validate validation rules
         validationRules.forEach((rule, ruleIndex) => {
