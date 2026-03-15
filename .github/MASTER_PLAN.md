@@ -483,3 +483,28 @@ Deliverables:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-fbe74d6acd6e1d1f16772a0f84c0485694fdcd64`
   - container: `pm-backend`
+
+
+---
+
+### 2026-03-15 — Phase 8.0: FlowEditor schema bridge supports affinity fields (PR #3519)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3519
+
+**Status:** MERGED → `development` (squash commit: `53728dbf8d91d090e6a2298aee912e4668dcca4f`)
+
+Deliverables:
+- Backend: reserve `/api/v1/system/entities/` for Schema Bridge entity introspection (entity list + `{entity_id}/fields/`).
+- Backend: allow dotted entity IDs (e.g., `tenant_apps.locations.location`) via `lookup_value_regex`, unblocking FlowEditor field pickers.
+- Backward compatibility: keep `/api/v1/system/entities-introspect/` as an alias.
+
+Impact:
+- FlowEditor Form node field picker can now select Plant/Location affinity field `associated_products`.
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23116732409 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-53728dbf8d91d090e6a2298aee912e4668dcca4f`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-53728dbf8d91d090e6a2298aee912e4668dcca4f`
+  - container: `pm-backend`
