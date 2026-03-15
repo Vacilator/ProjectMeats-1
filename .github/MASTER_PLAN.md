@@ -106,6 +106,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3478
   - Explicitly shrink/grow the React Flow node wrapper on expand/collapse so the expanded outline/shadow does not linger when collapsed.
 
+- 2026-03-15 — Dev deploy unblock: frontend build fixes — Commit: 884c9918 (PR: #3480)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3480
+  - Fix Sentry v10 integration usage (React Router v7 tracing + replay integration) and make colorthief loading bundler-safe.
+  - Verified: GitHub Actions run 23110092071 succeeded (dev deploy green).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
