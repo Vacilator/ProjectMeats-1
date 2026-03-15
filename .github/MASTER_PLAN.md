@@ -332,6 +332,27 @@ Deliverables:
 ### 2026-03-15 — FlowEditor: Standardize Form Process group + collapse artifact fix (PR #3504)
 **PR:** https://github.com/Meats-Central/ProjectMeats/pull/3504
 
+### 2026-03-15 — FlowEditor: hide legacy NodeConfigPanel export (PR #3506)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3506
+
+**Status:** MERGED → `development` (squash commit: `3eee002d3a7261c8b8f4f42259f2b45266bed86c`)
+
+Deliverables:
+- Hardening: stop exporting legacy `NodeConfigPanel` from the FlowEditor ConfigPanel barrel so the standard config flow stays schema-driven/structured (raw JSON remains behind explicit Developer Mode in the tabbed panel).
+
+**Verified deploy proof (immutable tags):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/23114580593 (conclusion: success)
+- Frontend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-frontend:development-3eee002d3a7261c8b8f4f42259f2b45266bed86c`
+  - container: `pm-frontend`
+- Backend deploy evidence:
+  - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-3eee002d3a7261c8b8f4f42259f2b45266bed86c`
+  - container: `pm-backend`
+
+
+### 2026-03-15 — FlowEditor: Standardize Form Process group + collapse artifact fix (PR #3504)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3504
+
 **Status:** MERGED → `development` (squash commit: `0fed7c29b9082c4b8ac7a7431863930ebc789741`)
 
 Deliverables:
