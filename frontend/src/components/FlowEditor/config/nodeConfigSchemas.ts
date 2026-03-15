@@ -923,11 +923,8 @@ export const allSchemas: NodeConfigSchema[] = [
   createRecordSchema,
   outlookEmailSchema,
   // Phase 2: Trigger and Document schemas (2026-02-21)
-  triggerSchema,
-  documentGenerateSchema,
-  documentSignSchema,
-  documentUploadSchema,
-  documentStoreSchema,
+  // NOTE: These are registered later in this module. They are intentionally
+  // excluded from this early list to avoid TDZ (const-before-init) issues.
   // Phase 3: Logic & Control Flow schemas (2026-02-21 - Quick Wins)
   conditionIfSchema,
   actionEmailSchema,

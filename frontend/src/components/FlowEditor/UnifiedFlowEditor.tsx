@@ -1849,34 +1849,41 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // CONFIG PANEL PORTAL - Enhanced with full styling (2026-02-24)
   // ============================================================================
   useEffect(() => {
-    // Ensure portal exists with complete styling
+    // Ensure portal exists with complete styling.
+    // Portal containers are expected to exist statically in frontend/index.html.
     let portal = document.getElementById('config-portal');
+    let created = false;
+
     if (!portal) {
-      logger.debug('[Portal] Creating config-portal element with full styling');
+      logger.warn('[Portal] Missing #config-portal - creating dynamically as fallback');
       portal = document.createElement('div');
       portal.id = 'config-portal';
-      portal.style.cssText = `
-        position: fixed;
-        right: 0;
-        top: 0;
-        width: min(450px, 100vw);
-        height: 100vh;
-        overflow-y: auto;
-        background: #fff;
-        z-index: 1000;
-        box-shadow: -4px 0 12px rgba(0,0,0,0.1);
-        display: none;
-        pointer-events: none;
-      `;
       document.body.appendChild(portal);
+      created = true;
     }
-    
+
+    portal.style.cssText = `
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: min(450px, 100vw);
+      height: 100vh;
+      overflow-y: auto;
+      background: #fff;
+      z-index: 1000;
+      box-shadow: -4px 0 12px rgba(0,0,0,0.1);
+      display: none;
+      pointer-events: none;
+    `;
+
     return () => {
-      // Cleanup on unmount (only if empty)
-      const portal = document.getElementById('config-portal');
-      if (portal && portal.childNodes.length === 0) {
-        logger.debug('[Portal] Removing empty config-portal element');
-        document.body.removeChild(portal);
+      // Cleanup only if we created it dynamically.
+      if (created) {
+        const el = document.getElementById('config-portal');
+        if (el) {
+          document.body.removeChild(el);
+          logger.debug('[Portal] Removed dynamically-created config-portal element');
+        }
       }
     };
   }, []); // Run once on mount
@@ -2088,20 +2095,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // 🔧 Portal Container Creation (2026-02-24: Permanent Fix)
   useEffect(() => {
     let portalRoot = document.getElementById('config-portal-root');
-    
+    let created = false;
+
     if (!portalRoot) {
       portalRoot = document.createElement('div');
       portalRoot.id = 'config-portal-root';
-      portalRoot.style.cssText = 'position: fixed; top: 0; right: 0; bottom: 0; z-index: 10000; pointer-events: none;';
       document.body.appendChild(portalRoot);
-      logger.debug('[UnifiedFlowEditor] ✅ Portal root created');
+      created = true;
+      logger.warn('[UnifiedFlowEditor] Missing #config-portal-root - created dynamically');
     }
-    
+
+    portalRoot.style.cssText = 'position: fixed; top: 0; right: 0; bottom: 0; z-index: 10000; pointer-events: none;';
+
     return () => {
-      const root = document.getElementById('config-portal-root');
-      if (root) {
-        document.body.removeChild(root);
-        logger.debug('[UnifiedFlowEditor] 🧹 Portal root cleaned up');
+      if (created) {
+        const root = document.getElementById('config-portal-root');
+        if (root) {
+          document.body.removeChild(root);
+          logger.debug('[UnifiedFlowEditor] 🧹 Removed dynamically-created portal root');
+        }
       }
     };
   }, []);
@@ -5137,13 +5149,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         timestamp: new Date().toISOString()
       });
       
-      // Force check that DOM element exists
+      // Force check that portal container exists
       setTimeout(() => {
-        const portalElement = document.querySelector('[class*="RightSidebar"]');
-        if (portalElement) {
-          logger.debug('[Modal State] ✅ Portal element found in DOM');
+        const portal = document.getElementById('config-portal');
+        const hasChildren = !!portal && portal.childNodes.length > 0;
+
+        if (portal) {
+          logger.debug('[Modal State] ✅ Portal container present', { hasChildren });
         } else {
-          logger.error('[Modal State] ❌ Portal element NOT found in DOM - render issue!');
+          logger.error('[Modal State] ❌ Missing #config-portal in DOM - config panel cannot render');
         }
       }, 100);
     } else {

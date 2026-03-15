@@ -29,7 +29,7 @@ import ConditionBuilder, { type ConditionRule } from './ConditionBuilder';
 import { useFormBuilderContext } from '../../../contexts/FormBuilderContext';
 
 // Configuration engine imports
-import { schemaRegistry } from '../config/schemaRegistry';
+import { schemaRegistry } from '../config';
 import { NodeConfigSchema, ConfigSection, ConfigField } from '../config/types';
 import { evaluateCondition } from '../config/conditionalLogic';
 import { validateField } from '../config/validationEngine';

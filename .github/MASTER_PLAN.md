@@ -58,6 +58,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3458
   - Backend: Celery fan-out for email ingestion (provider-scoped tasks) with jittered dispatch.
 
+- 2026-03-15 — Entity-First UI Restoration (Portal + Schema Bootstrap) — Commit: TBD (PR: #3460)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3460
+  - FlowEditor: add static portal containers to Vite index.html, harden portal lifecycle, and fix portal diagnostics.
+  - FlowEditor: ensure schemaRegistry is initialized (no fallback schemas for trigger/formStep), restoring entity-first configuration.
+  - FlowEditor: Developer Mode JSON editor uses Monaco (fallback to textarea).
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
