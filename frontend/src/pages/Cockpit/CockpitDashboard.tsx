@@ -16,9 +16,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { 
-  LayoutGrid, Lock, Unlock, Plus, 
-  RotateCcw, X, ArrowLeft, Search
+  LayoutGrid, Lock, Unlock, Plus,
+  RotateCcw, X
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   WidgetGrid, 
   WidgetConfig, 
@@ -35,11 +36,10 @@ import {
   EmailIntegrationWidget,
   EmailIngestionMonitorWidget,
 } from '../../components/Widgets';
-import { CommandBar, CockpitTour, SmartSearch, BreadcrumbBar } from '../../components/Cockpit';
-import { CommandPalette } from '../../components/Navigation/CommandPalette';
-import { useCommandPalette } from '../../hooks/useCommandPalette';
+import { CockpitTour, SmartSearch, BreadcrumbBar } from '../../components/Cockpit';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
+import { useCockpitPinnedTools } from '../../contexts/CockpitPinnedToolsContext';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -71,13 +71,14 @@ const DEFAULT_WIDGETS: WidgetConfig[] = [
 
 // Default layout configuration
 const DEFAULT_LAYOUT: WidgetLayout[] = [
-  { i: 'todays-numbers', x: 0, y: 0, w: 6, h: 4 },
-  { i: 'my-tasks', x: 6, y: 0, w: 6, h: 4 },
-  { i: 'quick-stats', x: 0, y: 4, w: 4, h: 3 },
-  { i: 'quick-actions', x: 4, y: 4, w: 4, h: 3 },
-  { i: 'recent-activity', x: 8, y: 4, w: 4, h: 3 },
-  { i: 'upcoming-calls', x: 0, y: 7, w: 6, h: 3 },
-  { i: 'entity-explorer', x: 6, y: 7, w: 6, h: 3 },
+  // Wider defaults to reduce horizontal overflow and improve scanability
+  { i: 'todays-numbers', x: 0, y: 0, w: 8, h: 4 },
+  { i: 'my-tasks', x: 8, y: 0, w: 4, h: 4 },
+  { i: 'quick-stats', x: 0, y: 4, w: 6, h: 3 },
+  { i: 'quick-actions', x: 6, y: 4, w: 6, h: 3 },
+  { i: 'recent-activity', x: 0, y: 7, w: 6, h: 3 },
+  { i: 'upcoming-calls', x: 6, y: 7, w: 6, h: 3 },
+  { i: 'entity-explorer', x: 0, y: 10, w: 12, h: 3 },
 ];
 
 // Widget catalog for adding new widgets - organized by category
@@ -178,20 +179,46 @@ const ToolbarWrapper = styled.div`
   }
 `;
 
+const SearchHint = styled.div`
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg, 12px);
+  background: rgb(var(--color-surface));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+`;
+
+const SearchHintTitle = styled.div`
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+`;
+
+const SearchHintMessage = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+
+  kbd {
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid rgb(var(--color-border));
+    background: rgb(var(--color-background));
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 12px;
+  }
+`;
+
 const ToolbarLeft = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-`;
-
-const SearchWrapper = styled.div`
-  flex: 1;
-  max-width: 500px;
-  margin: 0 24px;
-  
-  @media (max-width: 768px) {
-    display: none;
-  }
 `;
 
 const ToolbarActions = styled.div`
@@ -426,18 +453,20 @@ export const CockpitDashboard: React.FC = () => {
   const [gridWidth, setGridWidth] = useState(1200);
   const [isSaving, setIsSaving] = useState(false);
   
-  // CommandPalette hook for universal search
-  const { isOpen: isPaletteOpen, open: openPalette, close: closePalette } = useCommandPalette();
+  // Header owns global Ctrl+K search. Cockpit reads query from URL.
+  const [searchParams] = useSearchParams();
+  const cockpitQuery = searchParams.get('q') ?? '';
   
   // Cockpit navigation context
   const navigation = useCockpitNavigation();
+  const pinnedTools = useCockpitPinnedTools();
 
   // Load saved layout from backend API with localStorage fallback
   useEffect(() => {
     const loadLayout = async () => {
       try {
         // Try backend API first
-        const response = await apiClient.get('cockpit/workspace-layout/');
+        const response = await businessApi.get('cockpit/workspace-layout/');
         const saved = response.data;
         if (saved.version === LAYOUT_VERSION) {
           setWidgets(saved.widgets);
@@ -500,7 +529,7 @@ export const CockpitDashboard: React.FC = () => {
     // Also save to backend API
     try {
       setIsSaving(true);
-      await apiClient.put('cockpit/workspace-layout/', data);
+      await businessApi.put('cockpit/workspace-layout/', data);
     } catch (err) {
       console.error('Failed to save cockpit layout to API:', err);
     } finally {
@@ -527,7 +556,7 @@ export const CockpitDashboard: React.FC = () => {
     
     // Also delete from backend (silently handle 404 as expected)
     try {
-      await apiClient.delete('cockpit/workspace-layout/');
+      await businessApi.delete('cockpit/workspace-layout/');
     } catch (err) {
       // Silently ignore 404 (expected when no saved layout exists)
       // Only log other errors
@@ -556,6 +585,13 @@ export const CockpitDashboard: React.FC = () => {
     setWidgets(prev => prev.filter(w => w.id !== widgetId));
     setLayout(prev => prev.filter(l => l.i !== widgetId));
   }, []);
+
+  // Pin widget into the tools bar (and remove from grid)
+  const handlePinWidget = useCallback((widget: WidgetConfig) => {
+    pinnedTools.pinWidget(widget);
+    setWidgets(prev => prev.filter(w => w.id !== widget.id));
+    setLayout(prev => prev.filter(l => l.i !== widget.id));
+  }, [pinnedTools]);
 
   // Render widget based on type
   const renderWidget = useCallback((widget: WidgetConfig) => {
@@ -604,6 +640,10 @@ export const CockpitDashboard: React.FC = () => {
     }
   }, []);
 
+  const trimmedCockpitQuery = cockpitQuery.trim();
+  const hasSearchQuery = trimmedCockpitQuery.length >= 2;
+  const showSearchView = hasSearchQuery || navigation.path.length > 0;
+
   return (
     <Container>
       {/* Toolbar for search and edit mode */}
@@ -611,18 +651,8 @@ export const CockpitDashboard: React.FC = () => {
         <ToolbarLeft>
           {isEditing && <EditBadge>Editing Layout</EditBadge>}
         </ToolbarLeft>
-        
-        {/* Universal Search CommandBar - Hidden in edit mode */}
-        {!isEditing && (
-          <SearchWrapper>
-            <CommandBar 
-              onOpenPalette={openPalette}
-              isPaletteOpen={isPaletteOpen}
-              placeholder="Search suppliers, customers, orders..."
-            />
-          </SearchWrapper>
-        )}
-        
+
+        {/* Global search input lives in Header (Ctrl+K anywhere) */}
         <ToolbarActions>
           {isEditing ? (
             <>
@@ -650,48 +680,62 @@ export const CockpitDashboard: React.FC = () => {
       
       {/* Guided Tour */}
       <CockpitTour enabled={true} />
-      
-      {/* Command Palette Modal - Keep for ⌘K shortcut */}
-      <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
 
-      {/* EMBEDDED SEARCH - Always Visible */}
-      <div style={{ padding: '16px 16px 0 16px' }}>
-        {/* Breadcrumb navigation bar */}
-        {navigation.path.length > 0 && (
-          <div style={{ marginBottom: '12px' }}>
-            <BreadcrumbBar />
-          </div>
-        )}
-        
-        <SmartSearch />
-      </div>
+      {/* Search / Record Pivot area (header-driven) */}
+      {showSearchView ? (
+        <div style={{ padding: '16px 16px 0 16px' }}>
+          {/* Breadcrumb navigation bar */}
+          {navigation.path.length > 0 && (
+            <div style={{ marginBottom: '12px' }}>
+              <BreadcrumbBar />
+            </div>
+          )}
 
-      {/* Widget Grid - Always show */}
-      <GridWrapper ref={containerRef} data-tour="search-results">
-        {widgets.length === 0 ? (
-          <EmptyState>
-            <LayoutGrid size={48} />
-            <h3>No widgets configured</h3>
-            <p>Add widgets to build your personalized dashboard</p>
-            <ActionButton $variant="primary" onClick={() => setIsEditing(true)}>
-              <Plus size={16} />
-              Get Started
-            </ActionButton>
-          </EmptyState>
-        ) : (
-          <WidgetGrid
-            widgets={widgets}
-            layout={layout}
-            onLayoutChange={handleLayoutChange}
-            onRemoveWidget={handleRemoveWidget}
-            renderWidget={renderWidget}
-            width={gridWidth}
-            cols={12}
-            rowHeight={100}
-            isEditing={isEditing}
-          />
-        )}
-      </GridWrapper>
+          <SmartSearch query={trimmedCockpitQuery} hideInput={true} />
+        </div>
+      ) : (
+        <SearchHint>
+          <SearchHintTitle>Cockpit search is in the header</SearchHintTitle>
+          <SearchHintMessage>
+            Type at least 2 characters above (or press <kbd>Ctrl</kbd>+<kbd>K</kbd>) to start continuous browsing.
+          </SearchHintMessage>
+          <ActionButton
+            onClick={() => (document.getElementById('global-search-input') as HTMLInputElement | null)?.focus()}
+          >
+            Focus Search
+          </ActionButton>
+        </SearchHint>
+      )}
+
+      {/* Widget Grid (hidden when a record is active) */}
+      {navigation.path.length === 0 && (
+        <GridWrapper ref={containerRef} data-tour="search-results">
+          {widgets.length === 0 ? (
+            <EmptyState>
+              <LayoutGrid size={48} />
+              <h3>No widgets configured</h3>
+              <p>Add widgets to build your personalized dashboard</p>
+              <ActionButton $variant="primary" onClick={() => setIsEditing(true)}>
+                <Plus size={16} />
+                Get Started
+              </ActionButton>
+            </EmptyState>
+          ) : (
+            <WidgetGrid
+              widgets={widgets}
+              layout={layout}
+              onLayoutChange={handleLayoutChange}
+              onRemoveWidget={handleRemoveWidget}
+              onPinWidget={handlePinWidget}
+              renderWidget={renderWidget}
+              width={gridWidth}
+              cols={12}
+              rowHeight={100}
+              isEditing={isEditing}
+            />
+          )}
+        </GridWrapper>
+      )}
 
       {/* Widget Catalog Modal */}
       <ModalOverlay $isOpen={isCatalogOpen} onClick={() => setIsCatalogOpen(false)}>

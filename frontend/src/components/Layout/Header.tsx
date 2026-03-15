@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import ProfileDropdown from '../ProfileDropdown';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Theme } from '../../config/theme';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import QuickActionsEditor from '../QuickActions/QuickActionsEditor';
@@ -10,6 +10,7 @@ import { Icon } from '../ui';
 import TenantSelector from './TenantSelector';
 import { authService } from '../../services/authService';
 import { NotificationBell } from '../Notifications';
+import debounce from 'lodash/debounce';
 
 interface HeaderProps {
   // No props needed currently
@@ -35,8 +36,10 @@ const SearchIcon: React.FC = () => (
 const Header: React.FC<HeaderProps> = () => {
   const { theme, themeName, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showFormsSubmenu, setShowFormsSubmenu] = useState(false);
   const quickMenuRef = useRef<HTMLDivElement>(null);
@@ -83,6 +86,20 @@ const Header: React.FC<HeaderProps> = () => {
     };
   }, [showQuickMenu]);
 
+  // Global Ctrl+K / ⌘K focuses search input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleQuickMenuClick = (path: string) => {
     navigate(path);
     setShowQuickMenu(false);
@@ -95,11 +112,35 @@ const Header: React.FC<HeaderProps> = () => {
     }
   };
 
+  const navigateToCockpitSearch = React.useMemo(
+    () => debounce((rawQuery: string) => {
+      const q = rawQuery.trim();
+
+      // Clear cockpit search if we're already there
+      if (!q) {
+        if (location.pathname.startsWith('/cockpit')) {
+          navigate('/cockpit', { replace: true });
+        }
+        return;
+      }
+
+      // Don't navigate for 1-character noise
+      if (q.length < 2) return;
+
+      navigate(`/cockpit?q=${encodeURIComponent(q)}`, { replace: true });
+    }, 250),
+    [location.pathname, navigate]
+  );
+
+  useEffect(() => {
+    return () => navigateToCockpitSearch.cancel();
+  }, [navigateToCockpitSearch]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      console.log('Search query:', searchQuery);
-    }
+    const q = searchQuery.trim();
+    if (!q) return;
+    navigate(`/cockpit?q=${encodeURIComponent(q)}`);
   };
   
   const handleEditClick = (e: React.MouseEvent) => {
@@ -125,12 +166,18 @@ const Header: React.FC<HeaderProps> = () => {
             <SearchIcon />
           </SearchIconWrapper>
           <SearchInput
+            id="global-search-input"
+            ref={searchInputRef}
             type="text"
-            placeholder="Search..."
+            placeholder="Search suppliers, customers, orders…"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSearchQuery(v);
+              navigateToCockpitSearch(v);
+            }}
             $theme={theme}
-            aria-label="Global search"
+            aria-label="Global search (Ctrl+K)"
           />
         </SearchInputWrapper>
       </SearchForm>

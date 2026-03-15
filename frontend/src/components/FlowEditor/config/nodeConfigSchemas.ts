@@ -11,6 +11,7 @@
  */
 
 import { NodeConfigSchema } from './types';
+import { schemaRegistry } from './schemaRegistry';
 import { logger } from '@/utils/logger';
 
 import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Zap, Calendar, Webhook, Clock, FileSignature, Upload, Archive, AlertCircle } from 'lucide-react';
@@ -342,6 +343,13 @@ export const formSchema: NodeConfigSchema = {
           defaultValue: 'Submit'
         },
         {
+          id: 'showCancelButton',
+          type: 'toggle',
+          label: 'Show Cancel Button',
+          helpText: 'Display a cancel button alongside submit',
+          defaultValue: false
+        },
+        {
           id: 'cancelButtonText',
           type: 'text',
           label: 'Cancel Button Text',
@@ -352,13 +360,6 @@ export const formSchema: NodeConfigSchema = {
             operator: 'equals',
             value: true
           }
-        },
-        {
-          id: 'showCancelButton',
-          type: 'toggle',
-          label: 'Show Cancel Button',
-          helpText: 'Display a cancel button alongside submit',
-          defaultValue: false
         }
       ]
     },
@@ -394,6 +395,7 @@ export const formSchema: NodeConfigSchema = {
         {
           id: '_formBuilderInfo',
           type: 'info',
+          label: 'Information',
           content: 'The Form Builder provides a visual interface to configure fields, add validation rules, set up conditional logic, and define field mappings from upstream nodes.'
         }
       ]
@@ -472,11 +474,11 @@ export const formProcessSchema: NodeConfigSchema = {
           placeholder: 'e.g., Customer Onboarding Form',
           helpText: 'Display name for this form process',
           defaultValue: 'New Form Process',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          validation: [
+            { type: 'required', message: 'Container Name is required' },
+            { type: 'minLength', value: 3, message: 'Container Name must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Container Name must be at most 100 characters' },
+          ]
         },
         {
           id: 'containerDescription',
@@ -485,9 +487,9 @@ export const formProcessSchema: NodeConfigSchema = {
           placeholder: 'Brief description of this form process...',
           helpText: 'Optional description to explain the purpose of this form',
           rows: 3,
-          validation: {
-            maxLength: 500
-          }
+          validation: [
+            { type: 'maxLength', value: 500, message: 'Description must be at most 500 characters' },
+          ]
         }
       ]
     },
@@ -571,6 +573,7 @@ export const formProcessSchema: NodeConfigSchema = {
         {
           id: '_formBuilderInfo',
           type: 'info',
+          label: 'Information',
           content: 'The Form Builder allows you to visually manage all form steps within this container, set up navigation flow, and configure data mappings between steps.'
         }
       ]
@@ -617,11 +620,11 @@ export const formProcessGroupSchema: NodeConfigSchema = {
           placeholder: 'e.g., Customer Information Section',
           helpText: 'Display name for this form group',
           defaultValue: 'New Form Group',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          validation: [
+            { type: 'required', message: 'Group Name is required' },
+            { type: 'minLength', value: 3, message: 'Group Name must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Group Name must be at most 100 characters' },
+          ]
         },
         {
           id: 'containerDescription',
@@ -630,9 +633,9 @@ export const formProcessGroupSchema: NodeConfigSchema = {
           placeholder: 'Brief description of this form group...',
           helpText: 'Optional description to explain the purpose',
           rows: 3,
-          validation: {
-            maxLength: 500
-          }
+          validation: [
+            { type: 'maxLength', value: 500, message: 'Description must be at most 500 characters' },
+          ]
         },
         {
           id: 'isExpanded',
@@ -717,11 +720,11 @@ export const createRecordSchema: NodeConfigSchema = {
           placeholder: 'e.g., Create Customer',
           helpText: 'Display name for this action',
           defaultValue: 'Create Record',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          validation: [
+            { type: 'required', message: 'Action Label is required' },
+            { type: 'minLength', value: 3, message: 'Action Label must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Action Label must be at most 100 characters' },
+          ]
         },
         {
           id: 'description',
@@ -730,9 +733,9 @@ export const createRecordSchema: NodeConfigSchema = {
           placeholder: 'Optional description...',
           helpText: 'Brief explanation of what this action does',
           rows: 2,
-          validation: {
-            maxLength: 300
-          }
+          validation: [
+            { type: 'maxLength', value: 300, message: 'Description must be at most 300 characters' },
+          ]
         },
         {
           id: 'entity',
@@ -740,9 +743,9 @@ export const createRecordSchema: NodeConfigSchema = {
           label: 'Target Entity',
           placeholder: 'Select entity to create...',
           helpText: 'Choose which entity type to create a record for',
-          validation: {
-            required: true
-          }
+          validation: [
+            { type: 'required', message: 'Target Entity is required' },
+          ]
         }
       ]
     },
@@ -768,18 +771,17 @@ export const createRecordSchema: NodeConfigSchema = {
           helpText: 'Map values from upstream nodes to target entity fields',
           entityFieldId: 'entity',
           showAutoSuggest: true,
-          validation: {
-            custom: (value: any) => {
-              if (!value || value.length === 0) {
-                return { valid: false, message: 'At least one field mapping is required' };
-              }
-              const hasMissingMappings = value.some((m: any) => !m.targetField || !m.sourceExpression);
-              if (hasMissingMappings) {
-                return { valid: false, message: 'All mappings must have both target field and source value' };
-              }
-              return { valid: true };
+          validation: [
+            {
+              type: 'custom',
+              message: 'Invalid field mappings',
+              validator: (value: any) => {
+                if (!value || value.length === 0) return false;
+                const hasMissing = value.some((m: any) => !m.targetField || !m.sourceExpression);
+                return !hasMissing;
+              },
             }
-          }
+          ]
         }
       ]
     }
@@ -823,11 +825,11 @@ export const outlookEmailSchema: NodeConfigSchema = {
           placeholder: 'e.g., Send Welcome Email',
           helpText: 'Display name for this email action',
           defaultValue: 'Send Email',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          validation: [
+            { type: 'required', message: 'Node Label is required' },
+            { type: 'minLength', value: 3, message: 'Node Label must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Node Label must be at most 100 characters' },
+          ]
         },
         {
           id: 'to',
@@ -835,11 +837,10 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'To',
           placeholder: 'recipient@example.com',
           helpText: 'Email recipient(s). Separate multiple with commas or use variable picker.',
-          validation: {
-            required: true,
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter valid email address(es)'
-          }
+          validation: [
+            { type: 'required', message: 'To is required' },
+            { type: 'pattern', value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter valid email address(es)' },
+          ]
         },
         {
           id: 'cc',
@@ -847,10 +848,9 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'CC',
           placeholder: 'cc@example.com',
           helpText: 'Carbon copy recipients (optional)',
-          validation: {
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter valid email address(es)'
-          }
+          validation: [
+            { type: 'pattern', value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter valid email address(es)' },
+          ]
         },
         {
           id: 'bcc',
@@ -858,10 +858,9 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'BCC',
           placeholder: 'bcc@example.com',
           helpText: 'Blind carbon copy recipients (optional)',
-          validation: {
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter valid email address(es)'
-          }
+          validation: [
+            { type: 'pattern', value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter valid email address(es)' },
+          ]
         },
         {
           id: 'subject',
@@ -869,11 +868,11 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'Subject',
           placeholder: 'e.g., Welcome to {{customer.name}}',
           helpText: 'Email subject line. Use {{variable}} for dynamic content.',
-          validation: {
-            required: true,
-            minLength: 1,
-            maxLength: 200
-          }
+          validation: [
+            { type: 'required', message: 'Subject is required' },
+            { type: 'minLength', value: 1, message: 'Subject must not be empty' },
+            { type: 'maxLength', value: 200, message: 'Subject must be at most 200 characters' },
+          ]
         },
         {
           id: 'body',
@@ -882,10 +881,10 @@ export const outlookEmailSchema: NodeConfigSchema = {
           placeholder: 'Email content...\n\nUse {{variable}} for dynamic values.',
           helpText: 'Email body content. Supports plain text and variables.',
           rows: 10,
-          validation: {
-            required: true,
-            minLength: 1
-          }
+          validation: [
+            { type: 'required', message: 'Body is required' },
+            { type: 'minLength', value: 1, message: 'Body must not be empty' },
+          ]
         },
         {
           id: 'importance',
@@ -905,122 +904,8 @@ export const outlookEmailSchema: NodeConfigSchema = {
 };
 
 // ============================================================================
-// Export all schemas
+// Schema registration happens at the end of this module
 // ============================================================================
-
-/**
- * All registered node configuration schemas
- * 
- * Phase E Update (2026-02-19):
- * - Updated to use 'formSchema' as primary schema
- * - formStepSingleSchema exported as alias for backward compatibility
- */
-export const allSchemas: NodeConfigSchema[] = [
-  // === CORE SCHEMAS (Phase 1-3) ===
-  formSchema,  // NEW: Primary form schema (Phase E - 2026-02-19)
-  formProcessSchema,
-  formProcessGroupSchema,
-  createRecordSchema,
-  outlookEmailSchema,
-  // Phase 2: Trigger and Document schemas (2026-02-21)
-  triggerSchema,
-  documentGenerateSchema,
-  documentSignSchema,
-  documentUploadSchema,
-  documentStoreSchema,
-  // Phase 3: Logic & Control Flow schemas (2026-02-21 - Quick Wins)
-  conditionIfSchema,
-  actionEmailSchema,
-  endSuccessSchema,
-  endErrorSchema,
-  timerDelaySchema,
-  
-  // === EXTENDED SCHEMAS (Phase 4 - Agent C: Complete Config Coverage) ===
-  // Form nodes
-  formStepSchema,
-  formFieldSchema,
-  formSectionSchema,
-  formReferenceSchema,
-  formSignatureSchema,
-  formFileUploadSchema,
-  formMultiStepContainerSchema,
-  
-  // Trigger nodes
-  triggerManualSchema,
-  triggerScheduleSchema,
-  triggerWebhookSchema,
-  triggerEventSchema,
-  triggerFormSchema,
-  
-  // Logic nodes
-  conditionSwitchSchema,
-  conditionFilterSchema,
-  
-  // Action nodes
-  actionHTTPSchema,
-  actionSMSSchema,
-  actionNotifySchema,
-  actionScriptSchema,
-  actionCreateRecordSchema,
-  actionUpdateRecordSchema,
-  actionDeleteRecordSchema,
-  
-  // Data nodes
-  dataLookupSchema,
-  dataMergeSchema,
-  dataTransformSchema,
-  
-  // Variable nodes
-  setVariableSchema,
-  
-  // Loop nodes
-  loopForEachSchema,
-  loopWhileSchema,
-  
-  // Wait/Pending nodes
-  timerScheduleSchema,
-  pendingApprovalSchema,
-  pendingDocumentSchema,
-  pendingPaymentSchema,
-  pendingResponseSchema,
-  
-  // Document nodes
-  documentMergeSchema,
-  
-  // Utility nodes
-  groupSubflowSchema,
-  noteCommentSchema,
-  
-  // Terminal nodes
-  endCancelSchema,
-  
-  // Phase 7.4: Advanced Node Types (2026-02-27)
-  parallelPathSchema,
-  subWorkflowSchema,
-];
-
-// Export formStepSingleSchema as alias for backward compatibility
-export const formStepSingleSchema = formSchema;
-
-// ============================================================================
-// Auto-initialize registry
-// ============================================================================
-
-import { schemaRegistry } from './schemaRegistry';
-
-// Initialize registry with CORE schemas first
-schemaRegistry.initialize(allSchemas);
-
-// Phase E Fix (2026-02-19): Register backward compatibility aliases
-// formStepSingle nodes should use the same schema as 'form' nodes
-schemaRegistry.register({
-  ...formSchema,
-  nodeType: 'formStepSingle',
-  displayName: 'Form (Legacy)',
-  description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
-}, true); // Allow overwrite
-
-logger.debug('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
 
 // ============================================================================
 // Phase 2: Trigger Node Schema (Unified Entry Point)
@@ -1342,9 +1227,6 @@ export const triggerSchema: NodeConfigSchema = {
   ]
 };
 
-// Register trigger schema
-schemaRegistry.register(triggerSchema);
-logger.debug('[Schema Registry] Registered triggerSchema');
 
 // ============================================================================
 // Phase 2: Document Node Schemas
@@ -1694,13 +1576,6 @@ export const documentStoreSchema: NodeConfigSchema = {
   ]
 };
 
-// Register document schemas
-schemaRegistry.register(documentGenerateSchema);
-schemaRegistry.register(documentSignSchema);
-schemaRegistry.register(documentUploadSchema);
-schemaRegistry.register(documentStoreSchema);
-
-logger.debug('[Schema Registry] Registered document schemas (generate, sign, upload, store)');
 
 // ============================================================================
 // Logic & Control Flow Schemas (2026-02-21 - Quick Wins)
@@ -2090,9 +1965,9 @@ export const timerDelaySchema: NodeConfigSchema = {
 const formStepSchema: NodeConfigSchema = {
   nodeType: 'formStep',
   displayName: 'Form Step (Deprecated)',
-  description: '[DEPRECATED] Use "Form" node instead. This schema is provided for backward compatibility only.',
+  description: '[DEPRECATED] Use "Form" node instead. This schema keeps legacy workflows editable.',
   icon: FileText,
-  version: '1.0.0',
+  version: '1.1.0',
   tags: ['form', 'deprecated'],
   contextAware: true,
   sections: [
@@ -2106,7 +1981,8 @@ const formStepSchema: NodeConfigSchema = {
         {
           id: '_migrationWarning',
           type: 'info',
-          content: '⚠️ **This node type is deprecated.** Please use the "Form" node instead for new workflows. Existing "formStep" nodes will continue to work but will not receive new features.',
+          label: 'Notice',
+          content: '⚠️ **Deprecated node type.** Please use the "Form" node instead for new workflows. Existing "formStep" nodes will continue to work, but improvements will focus on the new node types.',
         }
       ]
     },
@@ -2134,6 +2010,58 @@ const formStepSchema: NodeConfigSchema = {
           placeholder: 'Describe this form step...',
           helpText: 'Optional description for documentation'
         },
+      ]
+    },
+    {
+      id: 'entity',
+      title: 'Entity Configuration',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Select the entity type this step will create or edit',
+      fields: [
+        {
+          id: 'entityType',
+          type: 'entity-selector',
+          label: 'Entity Type',
+          placeholder: 'Select an entity...',
+          helpText: 'Choose the data model this step interacts with',
+          required: true,
+          validation: [
+            { type: 'required', message: 'Entity type is required' }
+          ]
+        },
+      ]
+    },
+    {
+      id: 'fields',
+      title: 'Form Fields',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Select which fields appear in this step',
+      conditional: {
+        field: 'entityType',
+        operator: 'isNotEmpty'
+      },
+      fields: [
+        {
+          id: 'fields',
+          type: 'entity-field-picker',
+          label: 'Fields',
+          helpText: 'Select fields from the entity to include in your form step.',
+          defaultValue: []
+        },
+        {
+          id: 'fieldLayout',
+          type: 'select',
+          label: 'Field Layout',
+          helpText: 'How should fields be arranged visually?',
+          defaultValue: 'single-column',
+          options: [
+            { value: 'single-column', label: 'Single Column' },
+            { value: 'two-column', label: 'Two Columns' },
+            { value: 'auto', label: 'Auto' }
+          ]
+        }
       ]
     }
   ]
@@ -4123,9 +4051,110 @@ export const subWorkflowSchema: NodeConfigSchema = {
 // SCHEMA REGISTRATION COMPLETE
 // ============================================================================
 
-// All schemas are now included in the main allSchemas array above
-// and will be initialized automatically via schemaRegistry.initialize(allSchemas)
+/**
+ * All registered node configuration schemas.
+ *
+ * IMPORTANT: This must be defined AFTER all schema consts in this module to avoid
+ * TDZ (const-before-init) runtime crashes that blank the app on load.
+ */
+export const allSchemas: NodeConfigSchema[] = [
+  // === CORE SCHEMAS (Phase 1-3) ===
+  formSchema,
+  formProcessSchema,
+  formProcessGroupSchema,
+  createRecordSchema,
+  outlookEmailSchema,
+
+  // === PHASE 2: Trigger + Documents (registered in-file) ===
+  triggerSchema,
+  documentGenerateSchema,
+  documentSignSchema,
+  documentUploadSchema,
+  documentStoreSchema,
+
+  // === PHASE 3: Logic & Control Flow ===
+  conditionIfSchema,
+  actionEmailSchema,
+  endSuccessSchema,
+  endErrorSchema,
+  timerDelaySchema,
+
+  // === EXTENDED SCHEMAS (Phase 4 - Complete Coverage) ===
+  // Form nodes
+  formStepSchema,
+  formFieldSchema,
+  formSectionSchema,
+  formReferenceSchema,
+  formSignatureSchema,
+  formFileUploadSchema,
+  formMultiStepContainerSchema,
+
+  // Trigger nodes
+  triggerManualSchema,
+  triggerScheduleSchema,
+  triggerWebhookSchema,
+  triggerEventSchema,
+  triggerFormSchema,
+
+  // Logic nodes
+  conditionSwitchSchema,
+  conditionFilterSchema,
+
+  // Action nodes
+  actionHTTPSchema,
+  actionSMSSchema,
+  actionNotifySchema,
+  actionScriptSchema,
+  actionCreateRecordSchema,
+  actionUpdateRecordSchema,
+  actionDeleteRecordSchema,
+
+  // Data nodes
+  dataLookupSchema,
+  dataMergeSchema,
+  dataTransformSchema,
+
+  // Variable nodes
+  setVariableSchema,
+
+  // Loop nodes
+  loopForEachSchema,
+  loopWhileSchema,
+
+  // Wait/Pending nodes
+  timerScheduleSchema,
+  pendingApprovalSchema,
+  pendingDocumentSchema,
+  pendingPaymentSchema,
+  pendingResponseSchema,
+
+  // Document nodes
+  documentMergeSchema,
+
+  // Utility nodes
+  groupSubflowSchema,
+  noteCommentSchema,
+
+  // Terminal nodes
+  endCancelSchema,
+
+  // Phase 7.4: Advanced Node Types
+  parallelPathSchema,
+  subWorkflowSchema,
+];
+
+// Backward compatibility: formStepSingle uses the same schema as 'form'
+export const formStepSingleSchema = formSchema;
+
+schemaRegistry.initialize(allSchemas);
+
+schemaRegistry.register({
+  ...formSchema,
+  nodeType: 'formStepSingle',
+  displayName: 'Form (Legacy)',
+  description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
+}, true);
 
 logger.debug(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
 
-// Cache bust: 1771875847
+// Cache bust: 1773577392

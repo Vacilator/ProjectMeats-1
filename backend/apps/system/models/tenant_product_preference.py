@@ -103,6 +103,13 @@ class TenantProductPreference(models.Model):
         default=True,
         help_text="Whether this product is active for this tenant",
     )
+
+    # Three-tier product strategy
+    # Marks that the tenant created/owns this product (product.is_system=False).
+    is_custom = models.BooleanField(
+        default=False,
+        help_text="Whether this preference row represents a tenant-owned custom product",
+    )
     is_favorite = models.BooleanField(
         default=False,
         help_text="Quick-access favorite product",

@@ -9,7 +9,7 @@
  */
 
 import { Node } from '@xyflow/react';
-import { schemaRegistry } from '../components/FlowEditor/config/schemaRegistry';
+import { schemaRegistry } from '../components/FlowEditor/config';
 
 // ============================================================================
 // TypeScript Interfaces

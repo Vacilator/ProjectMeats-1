@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './WidgetCard';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '@/services/businessApi';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -293,7 +293,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({
         const startDate = new Date(year, month, 1);
         const endDate = new Date(year, month + 1, 0);
         
-        const response = await apiClient.get('/calendar/events/', {
+        const response = await businessApi.get('/calendar/events/', {
           params: {
             start_date: startDate.toISOString(),
             end_date: endDate.toISOString(),

@@ -233,12 +233,49 @@ class EmailIngestionService:
         )
         self.stats['emails_saved'] += 1
     
-    def poll_tenant_by_id(self, tenant_id: int) -> Dict[str, int]:
+    def poll_provider_by_id(self, provider_id: int) -> Dict[str, int]:
+        """Poll inbox for a specific ExternalAuthProvider.
+
+        This is the unit of work used by the Phase 8.3 Celery fan-out.
+        """
+        provider = (
+            ExternalAuthProvider.objects.select_related('tenant')
+            .filter(id=provider_id, is_active=True)
+            .first()
+        )
+        if not provider:
+            logger.error('No active provider found for id=%s', provider_id)
+            return {'error': 'Provider not found or inactive'}
+
+        try:
+            self._poll_tenant_inbox(provider)
+            self.stats['tenants_processed'] = 1
+
+            # Backward compatible aliases
+            return {
+                **self.stats,
+                'tenant_id': str(provider.tenant_id),
+                'provider_id': provider_id,
+                'total_emails_fetched': self.stats.get('emails_fetched', 0),
+                'total_emails_saved': self.stats.get('emails_saved', 0),
+                'total_errors': self.stats.get('errors', 0),
+            }
+        except Exception as e:
+            logger.error('Provider polling failed provider_id=%s: %s', provider_id, str(e), exc_info=True)
+            self.stats['errors'] += 1
+            return {
+                **self.stats,
+                'tenant_id': str(provider.tenant_id),
+                'provider_id': provider_id,
+                'error': str(e),
+            }
+
+    def poll_tenant_by_id(self, tenant_id: str) -> Dict[str, int]:
         """
         Poll inbox for a specific tenant (manual sync).
         
         Args:
-            tenant_id: Tenant ID to poll
+            tenant_id: Tenant UUID to poll
             
         Returns:
             Dict with statistics

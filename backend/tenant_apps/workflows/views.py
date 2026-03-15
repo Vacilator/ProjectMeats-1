@@ -6,6 +6,8 @@ Provides REST API endpoints for Forms, Workflows, and Lists.
 """
 
 import logging
+from datetime import timedelta
+
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Avg, Count, F, Max, Prefetch, Q
@@ -1890,8 +1892,35 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         try:
             qs = FormSubmission.objects.filter(tenant=self.request.tenant)
 
-            # Non-admin users only see their own submissions
-            if not self.request.user.is_staff:
+            # Filter by assigned_to (apply before non-admin created_by restriction)
+            # Note: This filters submissions where the user has at least one step assignment
+            # in the form definition (via StepAssignment), regardless of the submission's current step.
+            # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
+            assigned_to = self.request.query_params.get("assigned_to")
+            if assigned_to:
+                if assigned_to == "me":
+                    qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
+                elif self.request.user.is_staff:
+                    try:
+                        user = User.objects.get(id=assigned_to)
+                        qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
+                    except (User.DoesNotExist, ValueError) as e:
+                        logger.warning(
+                            f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
+                            extra={"user": self.request.user.username, "assigned_to": assigned_to},
+                        )
+                        qs = qs.none()
+                else:
+                    logger.warning(
+                        f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
+                        extra={"user": self.request.user.username, "assigned_to": assigned_to},
+                    )
+                    qs = qs.none()
+
+            # Non-admin users only see their own submissions unless explicitly filtering by assigned_to=me.
+            # This enables MyTasks to show in-progress workflows assigned to the user even if they
+            # were initiated by someone else.
+            if not self.request.user.is_staff and assigned_to != "me":
                 qs = qs.filter(created_by=self.request.user)
 
             # Filter by status
@@ -1904,54 +1933,147 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
             if form_id:
                 qs = qs.filter(form_id=form_id)
 
-            # Filter by assigned_to
-            # Note: This filters submissions where the user has at least one step assignment
-            # in the form definition (via StepAssignment), regardless of the submission's current step.
-            # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
-            assigned_to = self.request.query_params.get("assigned_to")
-            if assigned_to:
-                if assigned_to == "me":
-                    # Filter submissions where current user is assigned to at least one step
-                    qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
-                elif self.request.user.is_staff:
-                    # Admin users can filter by specific user ID
-                    try:
-                        user = User.objects.get(id=assigned_to)
-                        qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
-                    except (User.DoesNotExist, ValueError) as e:
-                        # Invalid user ID - return empty queryset
-                        # Log for debugging and security monitoring
-                        logger.warning(
-                            f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
-                            extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                        )
-                        qs = qs.none()
-                else:
-                    # Non-admin users can only use assigned_to=me
-                    # Return empty queryset to prevent user ID enumeration
-                    logger.warning(
-                        f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
-                        extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                    )
-                    qs = qs.none()
-
             return qs.select_related("form", "created_by", "current_step").prefetch_related(
                 "step_submissions__step", "step_submissions__completed_by"
             )
-            
+
         except Exception as e:
             # Catch any database errors (RLS failures, missing tables, connection issues)
             logger.error(f'[FormSubmission] Failed to fetch queryset: {str(e)}', exc_info=True)
-            
+
             # Send to Sentry if configured
             try:
                 import sentry_sdk
                 sentry_sdk.capture_exception(e)
             except ImportError:
                 pass  # Sentry not configured
-            
+
             # Return empty queryset to prevent 500 error
             return FormSubmission.objects.none()
+
+    @action(detail=False, methods=["get"], url_path="process-monitor")
+    def process_monitor(self, request):
+        """Process monitoring list view for Cockpit.
+
+        Returns submission rows enriched with current-step assignee + SLA + elapsed time.
+
+        Query params:
+        - assigned_to=me (supported; reuses get_queryset filtering)
+        - status, form (supported; reuses get_queryset filtering)
+        """
+        qs = self.get_queryset().order_by("-updated_at")
+
+        page = self.paginate_queryset(qs)
+        submissions = page if page is not None else qs
+
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            # No tenant context -> no data
+            results = []
+            if page is not None:
+                return self.get_paginated_response(results)
+            return Response({"count": 0, "results": results})
+
+        # Collect keys for batch StepAssignment lookup
+        form_ids = {s.form_id for s in submissions}
+        step_ids = {s.current_step_id for s in submissions if s.current_step_id}
+
+        assignments_by_key = {}
+        if form_ids and step_ids:
+            assignments = (
+                StepAssignment.objects.filter(tenant=tenant, form_id__in=form_ids, step_id__in=step_ids)
+                .select_related("assigned_user", "step", "form")
+                .order_by("id")
+            )
+
+            for a in assignments:
+                key = (a.form_id, a.step_id)
+                current = assignments_by_key.get(key)
+
+                # Prefer a concrete user assignment over role/team.
+                if not current or (not current.get("assigned_user_id") and a.assigned_user_id):
+                    assignments_by_key[key] = {
+                        "assignment_type": a.assignment_type,
+                        "assigned_user_id": a.assigned_user_id,
+                        "assigned_user_name": (
+                            a.assigned_user.get_full_name() or a.assigned_user.username
+                            if a.assigned_user
+                            else None
+                        ),
+                        "assigned_role": a.assigned_role,
+                        "due_days": a.due_days,
+                    }
+
+        now = timezone.now()
+        results = []
+
+        for s in submissions:
+            step_sub = None
+            if s.current_step_id:
+                # step_submissions are prefetched; match in memory.
+                for ss in getattr(s, "step_submissions", []).all():
+                    if ss.step_id == s.current_step_id:
+                        step_sub = ss
+                        break
+
+            assignment = None
+            if s.current_step_id:
+                assignment = assignments_by_key.get((s.form_id, s.current_step_id))
+
+            last_activity_at = step_sub.updated_at if step_sub else s.updated_at
+            time_in_step_seconds = None
+            if last_activity_at:
+                time_in_step_seconds = int((now - last_activity_at).total_seconds())
+
+            due_at = None
+            is_overdue = False
+            due_days = assignment.get("due_days") if assignment else None
+            if due_days is not None and last_activity_at:
+                due_at_dt = last_activity_at + timedelta(days=due_days)
+                due_at = due_at_dt.isoformat()
+                is_overdue = now > due_at_dt
+
+            assigned_to_display = None
+            if assignment:
+                if assignment.get("assigned_user_name"):
+                    assigned_to_display = assignment["assigned_user_name"]
+                elif assignment.get("assigned_role"):
+                    assigned_to_display = assignment["assigned_role"]
+
+            results.append(
+                {
+                    "id": str(s.id),
+                    "form_id": str(s.form_id),
+                    "form_name": getattr(s.form, "name", None),
+                    "status": s.status,
+                    "created_by": s.created_by_id,
+                    "created_by_name": (
+                        s.created_by.get_full_name() or s.created_by.username
+                        if s.created_by
+                        else None
+                    ),
+                    "created_at": s.created_at.isoformat() if s.created_at else None,
+                    "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+                    "current_step_id": str(s.current_step_id) if s.current_step_id else None,
+                    "current_step_name": (
+                        s.current_step.step_name if s.current_step else None
+                    ),
+                    "current_step_order": (s.current_step.order if s.current_step else None),
+                    "current_step_entity_type": (s.current_step.entity_type if s.current_step else None),
+                    "current_step_status": (step_sub.status if step_sub else None),
+                    "current_step_updated_at": (last_activity_at.isoformat() if last_activity_at else None),
+                    "assigned_to": assignment,
+                    "assigned_to_display": assigned_to_display,
+                    "due_days": due_days,
+                    "due_at": due_at,
+                    "is_overdue": is_overdue,
+                    "time_in_current_step_seconds": time_in_step_seconds,
+                }
+            )
+
+        if page is not None:
+            return self.get_paginated_response(results)
+        return Response({"count": len(results), "results": results})
 
     @action(detail=True, methods=["post"])
     def auto_save(self, request, pk=None):
@@ -3095,6 +3217,10 @@ class ActionItemsAPIView(APIView):
     API endpoint for action items (tasks assigned to user).
 
     GET /api/v1/workflows/action-items/
+
+    Safety:
+    - If tenant context is missing (RLS session variable not set), return empty results (200) instead of 500.
+    - Always filter by tenant to avoid cross-tenant leakage and RLS surprises.
     """
 
     permission_classes = [IsAuthenticated]
@@ -3106,68 +3232,84 @@ class ActionItemsAPIView(APIView):
         from django.utils import timezone
 
         user = request.user
-        now = timezone.now()
-        today = now.date()
-        week_from_now = today + timedelta(days=7)
+        tenant = getattr(request, "tenant", None)
 
-        action_items = []
+        # Graceful fallback if tenant not available (prevents RLS current_setting() errors)
+        if not tenant:
+            logger.warning("[ActionItems] No tenant found in request")
+            return Response([])
 
-        # Get step assignments for user
-        assignments = StepAssignment.objects.filter(assigned_user=user).select_related("form", "step", "tenant")
+        try:
+            now = timezone.now()
 
-        # Filter by tenant if available
-        if hasattr(request, "tenant") and request.tenant:
-            assignments = assignments.filter(tenant=request.tenant)
+            action_items = []
 
-        # Find submissions that have this user's assigned steps in action_needed status
-        for assignment in assignments:
-            # Find step submissions in action_needed status
-            step_submissions = FormStepSubmission.objects.filter(
-                step=assignment.step, status=StepSubmissionStatus.ACTION_NEEDED, submission__status="in_progress"
-            ).select_related("submission", "submission__form")
+            # Get step assignments for user (explicit tenant filter)
+            assignments = StepAssignment.objects.filter(
+                assigned_user=user,
+                tenant=tenant,
+            ).select_related("form", "step")
 
-            # Filter by tenant
-            if hasattr(request, "tenant") and request.tenant:
-                step_submissions = step_submissions.filter(submission__tenant=request.tenant)
+            # Find submissions that have this user's assigned steps in action_needed status
+            for assignment in assignments:
+                # Find step submissions in action_needed status
+                step_submissions = FormStepSubmission.objects.filter(
+                    step=assignment.step,
+                    status=StepSubmissionStatus.ACTION_NEEDED,
+                    submission__status="in_progress",
+                    submission__tenant=tenant,
+                ).select_related("submission", "submission__form")
 
-            for step_sub in step_submissions:
-                # Calculate due date
-                due_date = None
-                is_overdue = False
-                if assignment.due_days:
-                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                    is_overdue = due_date < now
+                for step_sub in step_submissions:
+                    # Calculate due date
+                    due_date = None
+                    is_overdue = False
+                    if assignment.due_days:
+                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                        is_overdue = due_date < now
 
-                action_items.append(
-                    {
-                        "id": step_sub.id,
-                        "type": "form_step",
-                        "title": f"{assignment.form.name}: {assignment.step.step_name or assignment.step.entity_type}",
-                        "description": assignment.form.description or "",
-                        "form_name": assignment.form.name,
-                        "step_name": assignment.step.step_name or assignment.step.entity_type,
-                        "submission_id": step_sub.submission_id,
-                        "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
-                        "status": step_sub.status,
-                        "due_date": due_date,
-                        "is_overdue": is_overdue,
-                        "assigned_at": step_sub.created_at,
-                        "entity_type": assignment.step.entity_type,
-                        "entity_id": step_sub.id,
-                    }
+                    action_items.append(
+                        {
+                            "id": step_sub.id,
+                            "type": "form_step",
+                            "title": f"{assignment.form.name}: {assignment.step.step_name or assignment.step.entity_type}",
+                            "description": assignment.form.description or "",
+                            "form_name": assignment.form.name,
+                            "step_name": assignment.step.step_name or assignment.step.entity_type,
+                            "submission_id": step_sub.submission_id,
+                            "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
+                            "status": step_sub.status,
+                            "due_date": due_date,
+                            "is_overdue": is_overdue,
+                            "assigned_at": step_sub.created_at,
+                            "entity_type": assignment.step.entity_type,
+                            "entity_id": step_sub.id,
+                        }
+                    )
+
+            # Sort by priority and due date
+            action_items.sort(
+                key=lambda x: (
+                    {"urgent": 0, "high": 1, "normal": 2, "low": 3}.get(x["priority"], 2),
+                    x["due_date"] or now + timedelta(days=365),
+                    x["assigned_at"],
                 )
-
-        # Sort by priority and due date
-        action_items.sort(
-            key=lambda x: (
-                {"urgent": 0, "high": 1, "normal": 2, "low": 3}.get(x["priority"], 2),
-                x["due_date"] or now + timedelta(days=365),
-                x["assigned_at"],
             )
-        )
 
-        serializer = ActionItemSerializer(action_items, many=True)
-        return Response(serializer.data)
+            serializer = ActionItemSerializer(action_items, many=True)
+            return Response(serializer.data)
+
+        except Exception as e:
+            logger.error(f"[ActionItems] Failed to fetch action items: {str(e)}", exc_info=True)
+            try:
+                import sentry_sdk
+
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass
+
+            # Return 200 with empty data, not 500
+            return Response([], status=status.HTTP_200_OK)
 
 
 class ActionItemCountsAPIView(APIView):

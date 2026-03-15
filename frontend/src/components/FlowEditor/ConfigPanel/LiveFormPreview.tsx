@@ -387,7 +387,11 @@ const getValidationHints = (field: FormField): React.ReactNode[] => {
     );
   }
   
-  field.validation.forEach((rule, idx) => {
+  const validationRules: ValidationRule[] = Array.isArray((field as any).validation)
+    ? (field as any).validation
+    : ((field as any).validation ? [(field as any).validation] : []);
+
+  validationRules.forEach((rule, idx) => {
     if (rule.type === 'minLength') {
       hints.push(
         <ValidationHint key={`min-${idx}`} type="info">

@@ -24,7 +24,7 @@ export interface FieldMatch {
  * Type compatibility matrix
  */
 const TYPE_COMPATIBILITY: Record<string, string[]> = {
-  'text': ['textarea', 'email', 'url', 'phone', 'number', 'date'],
+  'text': ['textarea', 'email', 'url', 'phone'],
   'textarea': ['text'],
   'number': ['text'],
   'email': ['text'],
@@ -55,8 +55,22 @@ export function areTypesCompatible(sourceType: string, targetType: string): bool
  * Removes common prefixes/suffixes and converts to lowercase
  */
 export function normalizeFieldName(fieldName: string): string {
-  let normalized = fieldName.toLowerCase();
-  
+  const original = fieldName
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase();
+  let normalized = original;
+
+  const normalizeToName =
+    (original.startsWith('customer_') || original.startsWith('user_')) && original.endsWith('_name');
+
+  // Remove common suffixes first
+  const suffixes = ['_id', '_name', '_number', '_code', '_value'];
+  for (const suffix of suffixes) {
+    if (normalized.endsWith(suffix)) {
+      normalized = normalized.substring(0, normalized.length - suffix.length);
+    }
+  }
+
   // Remove common prefixes
   const prefixes = ['customer_', 'product_', 'order_', 'user_', 'item_'];
   for (const prefix of prefixes) {
@@ -64,15 +78,11 @@ export function normalizeFieldName(fieldName: string): string {
       normalized = normalized.substring(prefix.length);
     }
   }
-  
-  // Remove common suffixes
-  const suffixes = ['_id', '_name', '_number', '_code', '_value'];
-  for (const suffix of suffixes) {
-    if (normalized.endsWith(suffix)) {
-      normalized = normalized.substring(0, normalized.length - suffix.length);
-    }
+
+  if (normalizeToName) {
+    return 'name';
   }
-  
+
   return normalized;
 }
 
@@ -125,8 +135,16 @@ export function calculateNameSimilarity(sourceName: string, targetName: string):
     return 0.9;
   }
   
-  // Substring match
-  if (source.includes(target) || target.includes(source)) {
+  // Substring match (token-boundary only)
+  // Treat as a strong match only when the match occurs on a boundary (e.g. email_address -> email),
+  // not when it's an internal substring (e.g. email -> mail).
+  const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const isTokenMatch = (haystack: string, needle: string) => {
+    const re = new RegExp(`(^|[_-])${escapeRegExp(needle)}($|[_-])`);
+    return re.test(haystack);
+  };
+
+  if (isTokenMatch(source, target) || isTokenMatch(target, source)) {
     return 0.7;
   }
   

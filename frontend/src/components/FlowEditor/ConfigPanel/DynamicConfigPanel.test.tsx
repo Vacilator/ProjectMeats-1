@@ -14,7 +14,7 @@ import type { Node, Edge } from '@xyflow/react';
 import { FormBuilderProvider } from '../../../contexts/FormBuilderContext';
 
 // Mock the schema registry
-vi.mock('../config/schemaRegistry', () => ({
+vi.mock('../config', () => ({
   schemaRegistry: {
     getSchema: vi.fn((type: string) => {
       if (type === 'form') {

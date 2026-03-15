@@ -7,12 +7,16 @@ Tenants customize via TenantProductPreference (display names, pricing, availabil
 This replaces tenant_apps.products.views.ProductViewSet.
 """
 import logging
+
+from django.db.models import Prefetch
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
+
 from apps.system.models import Product, TenantProductPreference
+from apps.system.services.product_visibility import visible_products_qs
 
 logger = logging.getLogger(__name__)
 
@@ -61,30 +65,47 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
         return SystemProductSerializer
     
     def get_queryset(self):
-        """
-        Return all active system products.
-        
-        Supports cascade filtering by protein types:
+        """Return products visible to the current tenant.
+
+        Three-tier strategy:
+        - System products (golden list) are visible by default.
+        - Tenants can hide/override via TenantProductPreference.
+        - Tenant custom products are represented as system.Product rows with
+          is_system=False and are visible only to the owning tenant.
+
+        Cascade filtering (protein → product):
         - ?protein=beef&protein=pork - Multiple protein types (lowercase slugs)
         - ?protein_type=beef - Single protein type
         - Case-insensitive matching for backward compatibility
         """
-        queryset = super().get_queryset()
-        
+
+        # Base queryset is active products; visibility rules are applied next.
+        queryset = Product.objects.all()
+
+        tenant = getattr(self.request, "tenant", None)
+        queryset = visible_products_qs(tenant=tenant, qs=queryset)
+
+        # Prefetch tenant preference rows for serializer/UI overlays.
+        if tenant:
+            queryset = queryset.prefetch_related(
+                Prefetch(
+                    "tenant_preferences",
+                    queryset=TenantProductPreference.objects.filter(tenant=tenant),
+                )
+            )
+
         # Protein type filtering (supports multiple values, case-insensitive)
-        protein_types = self.request.query_params.getlist('protein', None)
+        protein_types = self.request.query_params.getlist("protein", None)
         if not protein_types:
-            # Also check for protein_type param (singular)
-            protein_type = self.request.query_params.get('protein_type', None)
+            protein_type = self.request.query_params.get("protein_type", None)
             if protein_type:
                 protein_types = [protein_type]
-        
+
         if protein_types:
-            # Normalize to lowercase for consistent filtering
             protein_types_lower = [pt.lower() for pt in protein_types]
             queryset = queryset.filter(protein_type__in=protein_types_lower)
-            logger.debug(f"Filtered system products by protein types: {protein_types_lower}")
-        
+            logger.debug(f"Filtered products by protein types: {protein_types_lower}")
+
         return queryset
     
     @action(detail=False, methods=['get'], url_path='my-products')

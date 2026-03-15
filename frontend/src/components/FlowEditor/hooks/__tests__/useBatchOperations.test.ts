@@ -14,25 +14,29 @@
  * Created: 2026-02-27
  */
 
+import { beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { ReactFlowProvider, Node, Edge } from '@xyflow/react';
 import { useBatchOperations } from '../useBatchOperations';
 
 // Mock React Flow hooks
-const mockGetNodes = jest.fn<Node[], []>();
-const mockSetNodes = jest.fn();
-const mockGetEdges = jest.fn<Edge[], []>();
-const mockSetEdges = jest.fn();
+const mockGetNodes = vi.fn<Node[], []>();
+const mockSetNodes = vi.fn();
+const mockGetEdges = vi.fn<Edge[], []>();
+const mockSetEdges = vi.fn();
 
-jest.mock('@xyflow/react', () => ({
-  ...jest.requireActual('@xyflow/react'),
-  useReactFlow: () => ({
-    getNodes: mockGetNodes,
-    setNodes: mockSetNodes,
-    getEdges: mockGetEdges,
-    setEdges: mockSetEdges,
-  }),
-}));
+vi.mock('@xyflow/react', async () => {
+  const actual = await vi.importActual<any>('@xyflow/react');
+  return {
+    ...actual,
+    useReactFlow: () => ({
+      getNodes: mockGetNodes,
+      setNodes: mockSetNodes,
+      getEdges: mockGetEdges,
+      setEdges: mockSetEdges,
+    }),
+  };
+});
 
 // Mock localStorage
 const localStorageMock: { [key: string]: string } = {};
@@ -71,7 +75,7 @@ const createTestEdge = (id: string, source: string, target: string): Edge => ({
 
 describe('useBatchOperations', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
   });
 
@@ -91,7 +95,7 @@ describe('useBatchOperations', () => {
       mockGetNodes.mockReturnValue(nodes);
       mockGetEdges.mockReturnValue(edges);
 
-      const onCopy = jest.fn();
+      const onCopy = vi.fn();
       const { result } = renderHook(() => useBatchOperations({ onCopy }), {
         wrapper: ReactFlowProvider,
       });
@@ -142,7 +146,7 @@ describe('useBatchOperations', () => {
       mockGetNodes.mockReturnValue(nodes);
       mockGetEdges.mockReturnValue(edges);
 
-      const onDelete = jest.fn();
+      const onDelete = vi.fn();
       const { result } = renderHook(() => useBatchOperations({ onDelete }), {
         wrapper: ReactFlowProvider,
       });

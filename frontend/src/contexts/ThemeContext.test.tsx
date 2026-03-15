@@ -53,11 +53,27 @@ const TestConsumer: React.FC = () => {
 
 describe('ThemeContext', () => {
   let originalBody: HTMLElement;
+  let originalMatchMedia: typeof window.matchMedia | undefined;
   let localStorageMock: { [key: string]: string };
 
   beforeEach(() => {
     // Clear mocks
     vi.clearAllMocks();
+
+    // Ensure matchMedia exists for theme preference checks
+    originalMatchMedia = window.matchMedia;
+    // Default: no special preferences
+    window.matchMedia = ((query: string) => ({
+      // Default test environment prefers dark, but not high-contrast/reduced-motion
+      matches: query.includes('(prefers-color-scheme: dark)'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as any;
     
     // Mock localStorage
     localStorageMock = {};
@@ -79,6 +95,9 @@ describe('ThemeContext', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    if (originalMatchMedia) {
+      window.matchMedia = originalMatchMedia;
+    }
     document.body.removeAttribute('data-theme');
   });
 

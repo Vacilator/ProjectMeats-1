@@ -23,8 +23,9 @@ import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2, Edit2, Check, Gri
 import { Node, Edge } from '@xyflow/react';
 import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
-import axios from 'axios';
+import EntityFieldPicker, { type SelectedField } from './EntityFieldPicker';
 import { listTenantForms, getFormFields } from '../../../services/workformsApi';
+import { COMMON_ENTITY_TYPES } from '../../../services/schemaService';
 import {
   Panel,
   PanelHeader,
@@ -791,66 +792,36 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
       <>
         <FormSection>
           <SectionTitle>Entity Configuration</SectionTitle>
-          
+
           <FormField>
             <Label>
-              Entity Type
-              <HelpIcon size={14} title="Select which business object this form creates or updates" />
+              Entity + Fields
+              <HelpIcon size={14} title="Select entity and choose fields (mirrors Django Admin builder)" />
             </Label>
-            <Select
-              value={entityType}
-              onChange={(e) => {
-                try {
-                  handleFieldChange('entityType', e.target.value);
-                } catch (error) {
-                  console.error('[NodeConfigPanel] Error changing entity type:', error);
-                  toast.error('Failed to change entity type. Please try again.', {
-                    duration: 3000,
-                  });
-                  Sentry.captureException(error, {
-                    extra: { context: 'NodeConfigPanel.changeEntityType', value: e.target.value },
-                  });
-                }
+
+            <EntityFieldPicker
+              selectedFields={((fields as any[]) || []).map((f: any, idx: number) => ({
+                ...f,
+                fieldId: f.fieldId || f.name || f.id || `${idx}`
+              })) as SelectedField[]}
+              onFieldsChange={(newFields: SelectedField[]) => {
+                handleFieldChange('fields', newFields);
+                handleFieldChange('selectedFields', newFields.map(f => f.name));
               }}
-            >
-              <option value="">Select entity type...</option>
-              <option value="supplier">Supplier</option>
-              <option value="customer">Customer</option>
-              <option value="contact">Contact</option>
-              <option value="carrier">Carrier</option>
-              <option value="product">Product</option>
-              <option value="purchase_order">Purchase Order</option>
-              <option value="sales_order">Sales Order</option>
-              <option value="invoice">Invoice</option>
-              <option value="inquiry">Inquiry</option>
-              <option value="fulfillment">Fulfillment</option>
-            </Select>
+              initialEntityType={(() => {
+                if (!entityType) return '';
+                if (String(entityType).includes('.')) return entityType;
+                const match = COMMON_ENTITY_TYPES.find(e => e.model === entityType || e.id.endsWith(`.${entityType}`));
+                return match?.id || entityType;
+              })()}
+              onEntityTypeChange={(newEntityType) => handleFieldChange('entityType', newEntityType)}
+              multiSelectMode
+            />
+
             <HelpText>
-              Choose the type of record this form will create or modify
+              Selecting an entity loads its schema via BusinessApi (system entity introspection) and lets you pick fields.
             </HelpText>
           </FormField>
-
-          {entityType && (
-            <FormField>
-              <Label>
-                Load Entity Fields
-                <HelpIcon size={14} title="Automatically add fields based on the selected entity schema" />
-              </Label>
-              <Button 
-                $variant="secondary" 
-                onClick={() => {
-                  // Placeholder: In production, fetch from API
-                  alert(`Would fetch fields for entity type: ${entityTypeDisplay}\n\nAPI endpoint: /api/admin/entities/${entityType}/fields/`);
-                }}
-              >
-                <Download size={16} />
-                Load Schema Fields
-              </Button>
-              <HelpText>
-                Import standard fields from the {entityTypeDisplay} entity
-              </HelpText>
-            </FormField>
-          )}
         </FormSection>
 
         <FormSection>

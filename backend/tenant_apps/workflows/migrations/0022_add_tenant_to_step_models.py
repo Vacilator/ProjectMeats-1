@@ -12,8 +12,9 @@ def backfill_tenant_for_formstepsubmission(apps, schema_editor):
     # Use raw SQL for efficiency with large datasets
     schema_editor.execute("""
         UPDATE workflows_formstepsubmission fss
-        SET tenant_id = fs.tenant_id
+        SET tenant_id = tf.tenant_id
         FROM workflows_formsubmission fs
+        JOIN workflows_tenantform tf ON tf.id = fs.form_id
         WHERE fss.submission_id = fs.id
         AND fss.tenant_id IS NULL;
     """)
@@ -45,55 +46,142 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Step 1: Add tenant field to FormStepSubmission (nullable for backfill)
-        migrations.AddField(
-            model_name='formstepsubmission',
-            name='tenant',
-            field=models.ForeignKey(
-                null=True,
-                blank=True,
-                on_delete=models.CASCADE,
-                related_name='form_step_submissions',
-                to='tenants.tenant',
-                help_text='Tenant owning this step submission'
-            ),
+        # Step 1: Ensure tenant_id exists (idempotent) and reflect it in Django state.
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1
+                            FROM information_schema.columns
+                            WHERE table_name = 'workflows_formstepsubmission'
+                              AND column_name = 'tenant_id'
+                        ) THEN
+                            ALTER TABLE workflows_formstepsubmission ADD COLUMN tenant_id uuid NULL;
+                        END IF;
+                    END $$;
+                    """,
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1
+                            FROM pg_constraint c
+                            JOIN pg_class t ON t.oid = c.conrelid
+                            WHERE t.relname = 'workflows_formstepsubmission'
+                              AND c.conname = 'workflows_formstepsubmission_tenant_id_fkey'
+                        ) THEN
+                            ALTER TABLE workflows_formstepsubmission
+                                ADD CONSTRAINT workflows_formstepsubmission_tenant_id_fkey
+                                FOREIGN KEY (tenant_id)
+                                REFERENCES tenants_tenant(id)
+                                ON DELETE CASCADE;
+                        END IF;
+                    END $$;
+                    """,
+                    reverse_sql="""
+                    ALTER TABLE workflows_formstepsubmission
+                        DROP CONSTRAINT IF EXISTS workflows_formstepsubmission_tenant_id_fkey;
+                    """,
+                ),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='formstepsubmission',
+                    name='tenant',
+                    field=models.ForeignKey(
+                        null=True,
+                        blank=True,
+                        on_delete=models.CASCADE,
+                        related_name='form_step_submissions',
+                        to='tenants.tenant',
+                        help_text='Tenant owning this step submission',
+                    ),
+                ),
+            ],
         ),
-        
+
         # Step 2: Backfill tenant values from parent relationships
         migrations.RunPython(
             backfill_tenant_for_formstepsubmission,
             reverse_code=migrations.RunPython.noop,
         ),
+
         # Step 3: Make tenant required (after backfill)
-        migrations.AlterField(
-            model_name='formstepsubmission',
-            name='tenant',
-            field=models.ForeignKey(
-                on_delete=models.CASCADE,
-                related_name='form_step_submissions',
-                to='tenants.tenant',
-                help_text='Tenant owning this step submission'
-            ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    ALTER TABLE workflows_formstepsubmission
+                        ALTER COLUMN tenant_id SET NOT NULL;
+                    """,
+                    reverse_sql="""
+                    ALTER TABLE workflows_formstepsubmission
+                        ALTER COLUMN tenant_id DROP NOT NULL;
+                    """,
+                ),
+            ],
+            state_operations=[
+                migrations.AlterField(
+                    model_name='formstepsubmission',
+                    name='tenant',
+                    field=models.ForeignKey(
+                        on_delete=models.CASCADE,
+                        related_name='form_step_submissions',
+                        to='tenants.tenant',
+                        help_text='Tenant owning this step submission',
+                    ),
+                ),
+            ],
         ),
-        # Step 4: Add database indexes for performance
-        migrations.AddIndex(
-            model_name='formstepsubmission',
-            index=models.Index(fields=['tenant', 'status'], name='fss_tenant_status_idx'),
+
+        # Step 4: Add database indexes for performance (idempotent)
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    CREATE INDEX IF NOT EXISTS fss_tenant_status_idx
+                        ON workflows_formstepsubmission (tenant_id, status);
+                    """,
+                    reverse_sql="""
+                    DROP INDEX IF EXISTS fss_tenant_status_idx;
+                    """,
+                ),
+            ],
+            state_operations=[
+                migrations.AddIndex(
+                    model_name='formstepsubmission',
+                    index=models.Index(fields=['tenant', 'status'], name='fss_tenant_status_idx'),
+                ),
+            ],
         ),
-        # Step 5: Enable Row-Level Security (RLS) for tenant isolation
+
+        # Step 5: Enable Row-Level Security (RLS) for tenant isolation (idempotent)
         migrations.RunSQL(
             sql="""
-            -- Enable RLS on FormStepSubmission
             ALTER TABLE workflows_formstepsubmission ENABLE ROW LEVEL SECURITY;
-            
-            CREATE POLICY formstepsubmission_tenant_isolation ON workflows_formstepsubmission
-                USING (tenant_id = current_setting('app.current_tenant')::uuid);
-            
+
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_policies
+                    WHERE tablename = 'workflows_formstepsubmission'
+                      AND policyname = 'formstepsubmission_tenant_isolation'
+                ) THEN
+                    CREATE POLICY formstepsubmission_tenant_isolation ON workflows_formstepsubmission
+                        USING (tenant_id = current_setting('app.current_tenant')::uuid);
+                END IF;
+            END $$;
             """,
             reverse_sql="""
             DROP POLICY IF EXISTS formstepsubmission_tenant_isolation ON workflows_formstepsubmission;
             ALTER TABLE workflows_formstepsubmission DISABLE ROW LEVEL SECURITY;
-            
-            """
+            """,
         ),
     ]

@@ -29,6 +29,12 @@ Golden template for workflow suggestion engine with meat industry context
 | **CI/CD Standards** | `.github/workflows/reusable-deploy.yml` | Template |
 | **Architecture** | `docs/ARCHITECTURE.md` | Design doc |
 | **Phase Roadmap** | `ROADMAP.md` + `MASTER_PLAN.md` | Progress |
+| **Cockpit Continuous Browsing** | `frontend/src/components/Cockpit/SmartSearch.tsx` | Continuous search UX + navigation path updates |
+| **Cockpit Navigation State** | `frontend/src/contexts/CockpitNavigationContext.tsx` | Breadcrumb/path source of truth |
+| **FlowEditor Config Renderer** | `frontend/src/components/FlowEditor/ConfigPanel/DynamicConfigPanel.tsx` | Schema-driven node config UI (standard path) |
+| **FlowEditor Config Schemas** | `frontend/src/components/FlowEditor/config/nodeConfigSchemas.ts` | Declarative config definitions per node type |
+| **FlowEditor Config Types** | `frontend/src/components/FlowEditor/config/types.ts` | Schema field type system contract |
+| **Smart Auto-Map** | `frontend/src/components/FlowEditor/utils/autoMappingService.ts` | Upstream variable inference + mapping suggestions |
 | **AI Prompts** | `/manifests/ai_standards/` | Templates |
 
 ## Environment Structure (6-Lane System)

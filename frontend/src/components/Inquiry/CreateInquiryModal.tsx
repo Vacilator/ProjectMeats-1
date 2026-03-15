@@ -11,12 +11,11 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
-import { 
-  Inquiry, 
-  InquirySource, 
+import { businessApi } from '../../services/businessApi';
+import {
+  Inquiry,
+  InquirySource,
   InquiryEntityType,
-  Product 
 } from '../../types';
 
 // ============================================================================
@@ -47,6 +46,17 @@ interface ContactOption {
   phone?: string;
   position?: string;
   company?: string;
+}
+
+interface ProductOption {
+  id: string;
+  product_code: string;
+  name?: string;
+  description?: string;
+  description_of_product_item?: string;
+  protein_type?: string;
+  type_of_protein?: string;
+  is_active?: boolean;
 }
 
 interface ProductLineItem {
@@ -476,8 +486,8 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
   // Options
   const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
   const [contactOptions, setContactOptions] = useState<ContactOption[]>([]);
-  const [productOptions, setProductOptions] = useState<Product[]>([]);
-  const [suggestedProducts, setSuggestedProducts] = useState<Product[]>([]);  // Products based on customer preferences
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
+  const [suggestedProducts, setSuggestedProducts] = useState<ProductOption[]>([]);  // Products based on customer preferences
   const [selectedContact, setSelectedContact] = useState<ContactOption | null>(null);
   
   // Loading states
@@ -538,7 +548,7 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
 
   const loadCallData = async (callId: string) => {
     try {
-      const response = await apiClient.get(`inquiries/from-call/${callId}/`);
+      const response = await businessApi.get(`inquiries/from-call/${callId}/`);
       const data = response.data;
       
       if (data.entity_type) setEntityType(data.entity_type);
@@ -563,7 +573,7 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
     setLoadingEntities(true);
     try {
       const endpoint = type === 'supplier' ? 'suppliers/' : 'customers/';
-      const response = await apiClient.get(endpoint);
+      const response = await businessApi.get(endpoint);
       const data = response.data.results || response.data;
       
       setEntityOptions(data.map((item: any) => ({
@@ -581,7 +591,9 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
   const fetchContacts = async (type: InquiryEntityType, id: string) => {
     setLoadingContacts(true);
     try {
-      const response = await apiClient.get(`contacts/?entity_type=${type}&entity_id=${id}`);
+      const response = await businessApi.get('contacts/', {
+        params: { entity_type: type, entity_id: id },
+      });
       const data = response.data.results || response.data;
       
       setContactOptions(data.map((item: any) => ({
@@ -603,9 +615,11 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
   const fetchProducts = async () => {
     setLoadingProducts(true);
     try {
-      const response = await apiClient.get('products/?is_active=true&page_size=500');
+      const response = await businessApi.get('system/products/', {
+        params: { is_active: true, page_size: 500 },
+      });
       const data = response.data.results || response.data;
-      setProductOptions(data);
+      setProductOptions(data as ProductOption[]);
     } catch (err) {
       console.error('Failed to fetch products:', err);
       setProductOptions([]);
@@ -623,7 +637,7 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
     
     try {
       // First, get customer's preferred protein types
-      const customerResponse = await apiClient.get(`customers/${customerId}/`);
+      const customerResponse = await businessApi.get(`customers/${customerId}/`);
       const customer = customerResponse.data;
       const preferredTypes = customer.preferred_protein_types || [];
       
@@ -633,10 +647,19 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
       }
       
       // Fetch products matching those protein types
-      const proteinParams = preferredTypes.map((t: string) => `type_of_protein=${encodeURIComponent(t)}`).join('&');
-      const productsResponse = await apiClient.get(`products/?is_active=true&${proteinParams}`);
+      const normalizedProteins = preferredTypes
+        .map((t: string) => String(t).toLowerCase().trim())
+        .filter(Boolean);
+
+      const productsResponse = await businessApi.get('system/products/', {
+        params: {
+          is_active: true,
+          protein: normalizedProteins,
+          page_size: 500,
+        },
+      });
       const data = productsResponse.data.results || productsResponse.data;
-      setSuggestedProducts(data);
+      setSuggestedProducts(data as ProductOption[]);
     } catch (err) {
       console.error('Failed to fetch suggested products:', err);
       setSuggestedProducts([]);
@@ -678,7 +701,7 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
     updateProductLine(tempId, {
       product: productId,
       productCode: product?.product_code,
-      productDescription: product?.description_of_product_item,
+      productDescription: product?.description_of_product_item ?? product?.description ?? product?.name,
     });
   };
 
@@ -756,7 +779,7 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
         })),
       };
 
-      const response = await apiClient.post('inquiries/', payload);
+      const response = await businessApi.post('inquiries/', payload);
       
       resetForm();
       onSuccess(response.data);
@@ -955,7 +978,7 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
                           <optgroup label="📌 Suggested (Based on Customer Preferences)">
                             {suggestedProducts.map(product => (
                               <option key={`suggested-${product.id}`} value={product.id}>
-                                ⭐ {product.product_code} - {product.description_of_product_item}
+                                ⭐ {product.product_code} - {product.description_of_product_item ?? product.description ?? product.name ?? ''}
                               </option>
                             ))}
                           </optgroup>
@@ -966,7 +989,7 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
                             .filter(p => !suggestedProducts.some(s => s.id === p.id))
                             .map(product => (
                               <option key={product.id} value={product.id}>
-                                {product.product_code} - {product.description_of_product_item}
+                                {product.product_code} - {product.description_of_product_item ?? product.description ?? product.name ?? ''}
                               </option>
                             ))}
                         </optgroup>
@@ -1033,7 +1056,7 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
                         tempId: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                         product: product.id.toString(),
                         productCode: product.product_code,
-                        productDescription: product.description_of_product_item,
+                        productDescription: product.description_of_product_item ?? product.description ?? product.name,
                         quantity: 1,
                         desired_uom: 'LBS',
                         actual_uom: 'LBS',

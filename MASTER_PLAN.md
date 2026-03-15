@@ -331,6 +331,7 @@
 **Target Start**: Q2 2026 (April) - **Infrastructure Ready**
 
 ### Planned Deliverables
+- [ ] 8.0: Three-Tier Product Strategy (Golden List + Tenant Preferences + Tenant Custom Products)
 - [ ] 8.1: Redis Query Result Caching
 - [ ] 8.2: CDN Integration for Static Assets
 - [ ] 8.3: Parallel Task Execution (Celery workers)

@@ -25,7 +25,7 @@ class EntityRegistryTestCase(TestCase):
         self.tenant = Tenant.objects.create(
             name='Test Tenant',
             slug='test-tenant',
-            schema_name='public'
+            schema_name='test_tenant'
         )
         
         # Create user
@@ -95,7 +95,7 @@ class EntityRegistryTestCase(TestCase):
         tenant2 = Tenant.objects.create(
             name='Another Tenant',
             slug='another-tenant',
-            schema_name='public'
+            schema_name='another_tenant'
         )
         
         # Create user for second tenant
@@ -241,7 +241,7 @@ class EntityLookupTestCase(TestCase):
         self.tenant = Tenant.objects.create(
             name='Test Tenant',
             slug='test-tenant',
-            schema_name='public'
+            schema_name='test_tenant_lookup'
         )
         
         # Create user

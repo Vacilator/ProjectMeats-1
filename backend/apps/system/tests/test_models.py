@@ -37,24 +37,29 @@ class ProductModelTest(TestCase):
         self.assertEqual(str(self.product), 'BEEF-RIBEYE-001 - Choice Ribeye Steak')
     
     def test_product_unique_code(self):
-        """Test that product_code must be unique."""
-        from django.db import IntegrityError
-        with self.assertRaises(IntegrityError):
+        """Test that product_code must be unique.
+
+        Note: Product.save() calls full_clean(), so duplicates raise ValidationError
+        (not IntegrityError).
+        """
+        from django.core.exceptions import ValidationError
+
+        with self.assertRaises(ValidationError):
             Product.objects.create(
                 product_code='BEEF-RIBEYE-001',  # Duplicate
                 name='Another Ribeye',
             )
-    
+
     def test_display_name_with_name(self):
         """Test display_name returns name when available."""
         self.assertEqual(self.product.display_name, 'Choice Ribeye Steak')
-    
+
     def test_display_name_without_name(self):
-        """Test display_name returns product_code when name is empty."""
-        product = Product.objects.create(
-            product_code='PORK-001',
-            name='',
-        )
+        """Test display_name falls back to product_code when name is falsy.
+
+        We validate the property behavior without persisting an invalid blank name.
+        """
+        product = Product(product_code='PORK-001', name='')
         self.assertEqual(product.display_name, 'PORK-001')
     
     def test_is_fresh_property(self):

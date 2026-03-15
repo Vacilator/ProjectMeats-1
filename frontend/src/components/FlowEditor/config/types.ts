@@ -28,13 +28,38 @@ export type FieldType =
   | 'datetime'          // Date + time picker
   | 'color'             // Color picker
   | 'entity-selector'   // Entity type selector (Customer, Product, etc.)
+  | 'entity-field-picker' // Select fields from an entity schema (checkbox + ordering)
   | 'field-mapping'     // Visual field mapper (drag-and-drop)
   | 'variable-picker'   // Variable picker from upstream nodes
   | 'validation-builder' // Validation rule builder
+  | 'ruleBuilder'       // Visual condition/rule builder
+  | 'button'            // Action button
+  | 'info'              // Informational content block
   | 'nested-children'   // Array of child configurations (Phase E.3)
   | 'code-editor'       // Code editor (JSON, JavaScript)
   | 'file-upload'       // File upload
-  | 'custom';           // Custom component
+  | 'custom'            // Custom component
+
+  // Legacy aliases still present in schemas (normalize over time)
+  | 'boolean'
+  | 'checkbox'
+  | 'email'
+  | 'password'
+  | 'codeEditor'
+  | 'conditionBuilder'
+  | 'entityType'
+  | 'fieldMapping'
+  | 'formReference'
+  | 'keyValue'
+  | 'max'
+  | 'maxLength'
+  | 'min'
+  | 'minLength'
+  | 'multiSelect'
+  | 'pattern'
+  | 'required'
+  | 'validation-builder'
+  | 'variablePicker';
 
 // ============================================================================
 // Conditional Logic
@@ -224,6 +249,18 @@ export interface ConfigField {
   
   /** Additional props passed to field renderer */
   props?: Record<string, any>;
+
+  /** Informational content (for type='info') */
+  content?: string;
+
+  /** Row hint for textarea-like inputs */
+  rows?: number;
+
+  /** Arbitrary metadata (used by buttons and integration hooks) */
+  metadata?: Record<string, any>;
+
+  /** Additional configuration for complex components (e.g., ruleBuilder) */
+  config?: Record<string, any>;
 }
 
 // ============================================================================

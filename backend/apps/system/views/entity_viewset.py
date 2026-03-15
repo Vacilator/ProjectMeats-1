@@ -11,20 +11,22 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from django.apps import apps
 from django.core.exceptions import ObjectDoesNotExist
 
 
 class EntityViewSet(viewsets.ViewSet):
-    """
-    Unified entity relationship API for the Cockpit.
-    
+    """Unified entity relationship API for the Cockpit.
+
     Endpoints:
     - GET /api/v1/system/entities/{type}/{id}/relationships/ - Get related entities
-    - GET /api/v1/system/entities/{type}/{id}/ - Get single entity details
+    - GET /api/v1/system/entities/{type}/{id}/ - Get single entity details (record profile payload)
+    - PATCH /api/v1/system/entities/{type}/{id}/ - Update a single field (inline editing)
     """
+
     permission_classes = [IsAuthenticated]
-    
+
     # Map entity types to (app_label, model_name)
     MODEL_MAP = {
         'customer': ('customers', 'Customer'),
@@ -119,41 +121,143 @@ class EntityViewSet(viewsets.ViewSet):
         })
     
     def retrieve(self, request, pk=None, type=None):
+        """Get single entity details for record-centric Cockpit UI."""
+        try:
+            entity, entity_type, Model = self._get_entity_or_404(request, type=type, pk=pk)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except LookupError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except ObjectDoesNotExist:
+            return Response({'error': 'Entity not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        can_edit = bool(getattr(request.user, 'is_staff', False) or getattr(request.user, 'is_superuser', False))
+        return Response(self._serialize_entity_detail(entity, entity_type, can_edit=can_edit))
+
+    def partial_update(self, request, pk=None, type=None):
+        """Inline editing endpoint used by Cockpit EntityProfileHeader.
+
+        Payload (minimal): {"field": "name", "value": "Acme"}
         """
-        Get single entity details.
-        
-        Example: GET /api/v1/system/entities/customer/123/
-        """
+        if not (getattr(request.user, 'is_staff', False) or getattr(request.user, 'is_superuser', False)):
+            raise PermissionDenied('You do not have permission to edit records')
+
+        try:
+            entity, entity_type, Model = self._get_entity_or_404(request, type=type, pk=pk)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except LookupError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except ObjectDoesNotExist:
+            return Response({'error': 'Entity not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        field_name = str(request.data.get('field') or '').strip()
+        if not field_name:
+            return Response({'error': 'Missing field'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Block known-dangerous or non-editable fields
+        blocked = {
+            'id', 'pk', 'tenant', 'tenant_id', 'custom_data',
+            'created_at', 'updated_at', 'created_on', 'updated_on',
+        }
+        if field_name in blocked:
+            return Response({'error': f'Field not editable: {field_name}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Only allow direct model fields (no reverse relations / m2m)
+        model_fields = {f.name: f for f in Model._meta.get_fields() if getattr(f, 'concrete', False) and not getattr(f, 'many_to_many', False)}
+        if field_name not in model_fields:
+            return Response({'error': f'Unknown field: {field_name}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        field = model_fields[field_name]
+        raw_value = request.data.get('value', None)
+
+        try:
+            if getattr(field, 'is_relation', False) and getattr(field, 'many_to_one', False):
+                # FK: accept id or null
+                if raw_value in ('', None):
+                    setattr(entity, field.attname, None)
+                else:
+                    setattr(entity, field.attname, field.target_field.to_python(raw_value))
+            else:
+                setattr(entity, field.name, field.to_python(raw_value))
+
+            entity.save(update_fields=[field_name])
+        except Exception as exc:
+            return Response({'error': f'Failed to update {field_name}: {exc}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(self._serialize_entity_detail(entity, entity_type, can_edit=True))
+
+    def _get_entity_or_404(self, request, *, type, pk):
         tenant = request.tenant
-        
+
         if type not in self.MODEL_MAP:
-            return Response(
-                {"error": f"Unknown entity type: {type}"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            raise ValueError(f'Unknown entity type: {type}')
+
         app_label, model_name = self.MODEL_MAP[type]
-        
         try:
             Model = apps.get_model(app_label, model_name)
-        except LookupError:
-            return Response(
-                {"error": f"Model not found: {app_label}.{model_name}"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        try:
-            if hasattr(Model, 'tenant'):
-                entity = Model.objects.filter(tenant=tenant).get(pk=pk)
+        except LookupError as exc:
+            raise LookupError(f'Model not found: {app_label}.{model_name}') from exc
+
+        if hasattr(Model, 'tenant'):
+            entity = Model.objects.filter(tenant=tenant).get(pk=pk)
+        else:
+            entity = Model.objects.get(pk=pk)
+
+        return entity, type, Model
+
+    def _entity_type_for_model(self, model):
+        """Best-effort mapping from Django model to Cockpit entity type string."""
+        if not model:
+            return None
+        for entity_type, (app_label, model_name) in self.MODEL_MAP.items():
+            if model._meta.app_label == app_label and model.__name__ == model_name:
+                return entity_type
+        return None
+
+    def _serialize_entity_detail(self, entity, entity_type, *, can_edit=False):
+        """Serialize an entity for record profile display.
+
+        Returns base identity + a safe 'fields' dict with scalar values and FK references.
+        """
+        base = self._serialize_entity(entity, entity_type)
+        Model = entity.__class__
+
+        blocked = {
+            'tenant', 'custom_data',
+        }
+        fields_payload = {}
+        for field in Model._meta.get_fields():
+            # Only include forward concrete fields
+            if not getattr(field, 'concrete', False) or getattr(field, 'many_to_many', False):
+                continue
+            if field.name in blocked:
+                continue
+
+            if getattr(field, 'is_relation', False) and getattr(field, 'many_to_one', False):
+                fk_id = getattr(entity, field.attname, None)
+                if fk_id is None:
+                    fields_payload[field.name] = None
+                    continue
+
+                rel_obj = getattr(entity, field.name, None)
+                rel_type = self._entity_type_for_model(getattr(rel_obj, '__class__', None))
+                rel_title = None
+                if rel_obj is not None:
+                    # Reuse minimal serializer to produce a stable title
+                    rel_title = self._serialize_entity(rel_obj, rel_type or field.related_model.__name__.lower()).get('title')
+
+                fields_payload[field.name] = {
+                    'id': fk_id,
+                    'type': rel_type,
+                    'title': rel_title,
+                }
             else:
-                entity = Model.objects.get(pk=pk)
-        except ObjectDoesNotExist:
-            return Response(
-                {"error": f"{model_name} not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        return Response(self._serialize_entity(entity, type))
+                fields_payload[field.name] = getattr(entity, field.name, None)
+
+        base['fields'] = fields_payload
+        base['can_edit'] = bool(can_edit)
+        return base
     
     def _get_default_relationships(self, entity_type):
         """Return default relationship types for each entity."""

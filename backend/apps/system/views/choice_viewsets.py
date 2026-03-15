@@ -444,16 +444,19 @@ class ConfigAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class EntityIntrospectionViewSet(viewsets.ViewSet):
-    """
-    ViewSet for entity introspection and field metadata.
-    
-    Phase 3: Schema Bridge
+    """ViewSet for entity introspection and field metadata.
+
+    Phase 3: Schema Bridge.
     Provides entity types and field definitions from Django models.
-    
-    GET /api/v1/system/entities/ - List all business entities
-    GET /api/v1/system/entities/{entity_id}/fields/ - Get fields for entity
-    GET /api/v1/system/entities/{entity_id}/display-fields/ - Get display fields
+
+    Note: entity IDs are dotted strings (e.g., `tenant_apps.locations.location`). DRF routers
+    default to `lookup_value_regex = [^/.]+`, which would truncate at dots and break
+    `/api/v1/system/entities/<entity_id>/fields/`.
     """
+
+    # Allow dots in the entity id URL segment (DRF DefaultRouter uses this regex)
+    lookup_value_regex = r'[^/]+'
+
     permission_classes = [permissions.IsAuthenticated]
     
     def list(self, request):

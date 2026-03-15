@@ -26,19 +26,25 @@ class ConfigSchemaRegistry {
       return;
     }
 
-    schemas.forEach(schema => {
-      const validation = this.validateSchema(schema);
-      if (!validation.valid) {
-        console.error(`Invalid schema for ${schema.nodeType}:`, validation.errors);
-        return;
-      }
+    // Zero-crash standard: one broken schema must never take down the registry.
+    for (const schema of schemas) {
+      try {
+        const validation = this.validateSchema(schema);
+        if (!validation.valid) {
+          console.error(`Invalid schema for ${schema.nodeType}:`, validation.errors);
+          continue;
+        }
 
-      if (validation.warnings && validation.warnings.length > 0) {
-        console.warn(`Warnings for schema ${schema.nodeType}:`, validation.warnings);
-      }
+        if (validation.warnings && validation.warnings.length > 0) {
+          console.warn(`Warnings for schema ${schema.nodeType}:`, validation.warnings);
+        }
 
-      this.schemas.set(schema.nodeType, schema);
-    });
+        this.schemas.set(schema.nodeType, schema);
+      } catch (error) {
+        console.error(`[Schema Registry] Failed to register schema for ${schema?.nodeType || 'unknown'}:`, error);
+        continue;
+      }
+    }
 
     this.initialized = true;
     console.log(`ConfigSchemaRegistry initialized with ${this.schemas.size} schemas`);
@@ -244,51 +250,55 @@ class ConfigSchemaRegistry {
       return { valid: false, errors, warnings };
     }
 
-    // Track all field IDs for duplicate detection
+    // Track all field IDs for duplicate detection + dependency validation
     const fieldIds = new Set<string>();
 
-    // Validate each section
+    // First pass: collect ALL field IDs (ordering must not matter)
     schema.sections.forEach((section, sectionIndex) => {
       const sectionPrefix = `Section ${sectionIndex + 1} (${section.id || 'unnamed'})`;
 
       // Check required section fields
-      if (!section.id) {
-        errors.push(`${sectionPrefix}: missing id`);
-      }
-      if (!section.title) {
-        errors.push(`${sectionPrefix}: missing title`);
-      }
+      if (!section.id) errors.push(`${sectionPrefix}: missing id`);
+      if (!section.title) errors.push(`${sectionPrefix}: missing title`);
       if (!section.fields || section.fields.length === 0) {
         errors.push(`${sectionPrefix}: must have at least one field`);
         return;
       }
 
-      // Validate each field
+      section.fields.forEach((field, fieldIndex) => {
+        const fieldPrefix = `${sectionPrefix}, Field ${fieldIndex + 1} (${field.id || 'unnamed'})`;
+        if (!field.id) {
+          errors.push(`${fieldPrefix}: missing id`);
+          return;
+        }
+        if (fieldIds.has(field.id)) {
+          errors.push(`${fieldPrefix}: duplicate field id '${field.id}'`);
+        }
+        fieldIds.add(field.id);
+      });
+    });
+
+    // Second pass: validate fields using the complete fieldId set
+    schema.sections.forEach((section, sectionIndex) => {
+      const sectionPrefix = `Section ${sectionIndex + 1} (${section.id || 'unnamed'})`;
+      if (!section.fields || section.fields.length === 0) return;
+
       section.fields.forEach((field, fieldIndex) => {
         const fieldPrefix = `${sectionPrefix}, Field ${fieldIndex + 1} (${field.id || 'unnamed'})`;
 
-        // Check required field properties
-        if (!field.id) {
-          errors.push(`${fieldPrefix}: missing id`);
-        } else {
-          // Check for duplicate field IDs
-          if (fieldIds.has(field.id)) {
-            errors.push(`${fieldPrefix}: duplicate field id '${field.id}'`);
-          }
-          fieldIds.add(field.id);
-        }
+        if (!field.type) errors.push(`${fieldPrefix}: missing type`);
 
-        if (!field.type) {
-          errors.push(`${fieldPrefix}: missing type`);
-        }
-        if (!field.label) {
+        // Labels are required for most field types, but not for info/button blocks
+        if (!field.label && field.type !== 'info' && field.type !== 'button') {
           errors.push(`${fieldPrefix}: missing label`);
         }
 
         // Validate field type specific requirements
         if (field.type === 'select' || field.type === 'multiselect') {
           if (!field.options || field.options.length === 0) {
-            errors.push(`${fieldPrefix}: type '${field.type}' requires options array`);
+            // Many select fields are populated dynamically (e.g., template pickers).
+            // Treat missing/empty options as a warning to avoid blocking app load.
+            warnings.push(`${fieldPrefix}: type '${field.type}' has no options; expected dynamic population`);
           }
         }
 
@@ -297,7 +307,7 @@ class ConfigSchemaRegistry {
         }
 
         // Validate conditional rules
-        if (field.conditional) {
+        if (field.conditional && field.id) {
           const conditionalErrors = this.validateConditionalRule(
             field.conditional,
             fieldIds,
@@ -308,29 +318,31 @@ class ConfigSchemaRegistry {
           );
         }
 
-        // Validate validation rules
-        if (field.validation) {
-          field.validation.forEach((rule, ruleIndex) => {
-            if (!rule.type) {
-              errors.push(
-                `${fieldPrefix}: validation rule ${ruleIndex + 1} missing type`
-              );
-            }
-            if (!rule.message) {
-              errors.push(
-                `${fieldPrefix}: validation rule ${ruleIndex + 1} missing message`
-              );
-            }
-            if (rule.type === 'custom' && !rule.validator) {
-              errors.push(
-                `${fieldPrefix}: validation rule ${ruleIndex + 1} type 'custom' requires validator function`
-              );
-            }
-          });
+        // Normalize validation rules to an array to avoid runtime crashes.
+        // Backward compatible: if a single object is provided, wrap it.
+        if (field.validation && !Array.isArray(field.validation)) {
+          warnings.push(`${fieldPrefix}: validation should be an array; wrapping single object`);
+          (field as any).validation = [field.validation as any];
         }
+        const validationRules = Array.isArray(field.validation) ? field.validation : [];
+
+        // Validate validation rules
+        validationRules.forEach((rule, ruleIndex) => {
+          if (!rule.type) {
+            errors.push(`${fieldPrefix}: validation rule ${ruleIndex + 1} missing type`);
+          }
+          if (!rule.message) {
+            errors.push(`${fieldPrefix}: validation rule ${ruleIndex + 1} missing message`);
+          }
+          if (rule.type === 'custom' && !rule.validator) {
+            errors.push(
+              `${fieldPrefix}: validation rule ${ruleIndex + 1} type 'custom' requires validator function`
+            );
+          }
+        });
 
         // Warnings for best practices
-        if (field.required && !field.validation?.some(r => r.type === 'required')) {
+        if (field.required && !validationRules.some(r => r.type === 'required')) {
           warnings.push(
             `${fieldPrefix}: field is marked required but has no 'required' validation rule`
           );

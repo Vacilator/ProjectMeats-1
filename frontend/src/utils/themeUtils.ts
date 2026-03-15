@@ -3,12 +3,22 @@
  * Note: colorthief types are not available, using 'any' sparingly
  */
 
-// @ts-ignore - colorthief doesn't have TypeScript definitions
-import ColorThief from 'colorthief';
+let cachedColorThiefCtor: any | null = null;
+
+const getColorThiefCtor = async (): Promise<any> => {
+  if (cachedColorThiefCtor) return cachedColorThiefCtor;
+
+  // colorthief export shape varies across versions and bundlers.
+  // Use dynamic import to avoid Rollup static export checks.
+  const mod: any = await import('colorthief');
+  cachedColorThiefCtor = mod?.default ?? mod?.ColorThief ?? mod;
+  return cachedColorThiefCtor;
+};
 
 export const extractBrandColors = async (logoUrl: string): Promise<number[] | null> => {
   try {
-    const colorThief: any = new ColorThief();
+    const ColorThiefCtor = await getColorThiefCtor();
+    const colorThief: any = new ColorThiefCtor();
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     

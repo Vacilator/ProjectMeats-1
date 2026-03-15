@@ -135,6 +135,17 @@ class Location(TenantAwareModel):
         help_text="Associated customer"
     )
 
+    # Known products (Three-Tier Product Strategy)
+    # Tenant-safe affinity stored via through model (TenantAwareModel + RLS)
+    associated_products = models.ManyToManyField(
+        'system.Product',
+        through='LocationAssociatedProduct',
+        related_name='purchased_by_locations',
+        blank=True,
+        verbose_name='Known Products Purchased',
+        help_text='Products commonly purchased/handled at this location',
+    )
+
     # =========================================================================
     # Plant-specific fields (from merged plants app)
     # These fields are only used when location_type starts with 'plant_'
@@ -210,4 +221,33 @@ class Location(TenantAwareModel):
             (choice.value, choice.label)
             for choice in LocationTypeChoices
             if choice.value.startswith('plant_')
+        ]
+
+
+class LocationAssociatedProduct(TenantAwareModel):
+    """Tenant-safe link table for Location ↔ system.Product affinity."""
+
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name='associated_product_links',
+    )
+    product = models.ForeignKey(
+        'system.Product',
+        on_delete=models.CASCADE,
+        related_name='location_affinity_links',
+    )
+
+    class Meta:
+        verbose_name = 'Location Known Product'
+        verbose_name_plural = 'Location Known Products'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'location', 'product'],
+                name='unique_location_product_affinity_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'location']),
+            models.Index(fields=['tenant', 'product']),
         ]

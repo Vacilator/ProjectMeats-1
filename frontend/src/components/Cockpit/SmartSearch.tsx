@@ -16,14 +16,16 @@
  * @module SmartSearch
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import {
-  Search, Star, Clock, Phone, FileText,
+  Search, Star, Clock, FileText,
   Users, Building2, Package, TrendingUp, X
 } from 'lucide-react';
+import debounce from 'lodash/debounce';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
+import { EntityProfileHeader } from './EntityProfileHeader';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -48,8 +50,14 @@ export interface RelationalChunk {
 // SmartSearch reacts to navigation path changes to implement continuous browsing.
 
 export interface SmartSearchProps {
-  /** Initial search query */
+  /** Initial search query (uncontrolled mode) */
   initialQuery?: string;
+  /** Controlled query (preferred for global header-driven search) */
+  query?: string;
+  /** Callback when query changes (controlled mode only) */
+  onQueryChange?: (query: string) => void;
+  /** When true, hides the internal search input (used when Header owns the search input) */
+  hideInput?: boolean;
   /** Callback when entity is selected */
   onSelectEntity?: (entity: SearchEntity) => void;
   /** Callback when search closes */
@@ -124,6 +132,20 @@ const ClearButton = styled.button`
   }
 `;
 
+const FocusSearchButton = styled.button`
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-primary));
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.92;
+  }
+`;
 
 const ContentArea = styled.div`
   flex: 1;
@@ -422,18 +444,22 @@ const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
 
 export const SmartSearch: React.FC<SmartSearchProps> = ({
   initialQuery = '',
+  query: controlledQuery,
+  onQueryChange,
+  hideInput = false,
   onSelectEntity,
   onClose,
 }) => {
+
   // Use global navigation context instead of local breadcrumbs
   const navigation = useCockpitNavigation();
   
-  const [query, setQuery] = useState(initialQuery);
+  const [internalQuery, setInternalQuery] = useState(initialQuery);
+  const query = controlledQuery ?? internalQuery;
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Load favorites from localStorage
@@ -517,17 +543,23 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    */
   const handleQueryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newQuery = e.target.value;
-    setQuery(newQuery);
 
-    // Debounce search
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
+    if (controlledQuery !== undefined) {
+      onQueryChange?.(newQuery);
+      return;
     }
 
-    searchTimeoutRef.current = setTimeout(() => {
-      searchEntities(newQuery);
-    }, 300);
-  }, [searchEntities]);
+    setInternalQuery(newQuery);
+  }, [controlledQuery, onQueryChange]);
+
+  const debouncedSearch = useMemo(() => debounce((q: string) => {
+    searchEntities(q);
+  }, 300), [searchEntities]);
+
+  useEffect(() => {
+    debouncedSearch(query);
+    return () => debouncedSearch.cancel();
+  }, [debouncedSearch, query]);
 
   /**
    * Load relational chunks for an entity using Entity Graph API + Fuzzy Discovery
@@ -684,33 +716,72 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Clear search
    */
   const handleClear = useCallback(() => {
-    setQuery('');
+    if (controlledQuery !== undefined) {
+      onQueryChange?.('');
+    } else {
+      setInternalQuery('');
+    }
+
     setResults({});
     setRelationalChunks([]);
     navigation.clearPath();
+    onClose?.();
+  }, [controlledQuery, navigation, onQueryChange, onClose]);
+
+  const activeStep = navigation.path[navigation.path.length - 1];
+
+  const handleNavigateToEntity = useCallback((nextType: string, nextId: string, label: string) => {
+    navigation.addStep({
+      id: nextId,
+      type: nextType,
+      label,
+    });
   }, [navigation]);
 
   // Continuous browsing: whenever the breadcrumb path changes, load the active entity's relations.
   useEffect(() => {
-    const active = navigation.path[navigation.path.length - 1];
-    if (!active) {
+    if (!activeStep) {
       setRelationalChunks([]);
       return;
     }
 
     loadRelationalChunks({
-      id: active.id,
-      type: active.type,
-      name: active.label,
-      subtitle: active.subtitle,
+      id: activeStep.id,
+      type: activeStep.type,
+      name: activeStep.label,
+      subtitle: activeStep.subtitle,
     });
-  }, [navigation.path, loadRelationalChunks]);
+  }, [activeStep, loadRelationalChunks]);
 
   /**
    * Render search results (top-5 per type)
    */
   const renderSearchResults = () => {
+    const q = query.trim();
     const types = Object.keys(results);
+
+    if (q.length < 2) {
+      return (
+        <EmptyState>
+          <EmptyIcon>
+            <Search size={48} />
+          </EmptyIcon>
+          <EmptyTitle>Search the Cockpit</EmptyTitle>
+          <EmptyMessage>
+            Use the global search bar above (Ctrl+K) and type at least 2 characters.
+          </EmptyMessage>
+          {hideInput && (
+            <div style={{ marginTop: '12px' }}>
+              <FocusSearchButton
+                onClick={() => (document.getElementById('global-search-input') as HTMLInputElement | null)?.focus()}
+              >
+                Focus Search
+              </FocusSearchButton>
+            </div>
+          )}
+        </EmptyState>
+      );
+    }
 
     if (types.length === 0) {
       return (
@@ -840,37 +911,45 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
   return (
     <Container>
-      <SearchHeader>
-        <SearchInputWrapper>
-          <SearchIcon>
-            <Search size={18} />
-          </SearchIcon>
-          <SearchInput
-            type="text"
-            placeholder="Search customers, suppliers, orders..."
-            value={query}
-            onChange={handleQueryChange}
-            autoFocus
-          />
-          {query && (
-            <ClearButton onClick={handleClear} title="Clear search">
-              <X size={18} />
-            </ClearButton>
-          )}
-        </SearchInputWrapper>
-
-
-      </SearchHeader>
+      {!hideInput && (
+        <SearchHeader>
+          <SearchInputWrapper>
+            <SearchIcon>
+              <Search size={18} />
+            </SearchIcon>
+            <SearchInput
+              type="text"
+              placeholder="Search customers, suppliers, orders..."
+              value={query}
+              onChange={handleQueryChange}
+              autoFocus
+            />
+            {query && (
+              <ClearButton onClick={handleClear} title="Clear search">
+                <X size={18} />
+              </ClearButton>
+            )}
+          </SearchInputWrapper>
+        </SearchHeader>
+      )}
 
       <ContentArea>
+        {activeStep && (
+          <EntityProfileHeader
+            entityType={activeStep.type}
+            entityId={String(activeStep.id)}
+            onNavigateToEntity={handleNavigateToEntity}
+          />
+        )}
+
         {isLoading ? (
           <EmptyState>
             <EmptyIcon>
               <Search size={48} />
             </EmptyIcon>
-            <EmptyTitle>Searching...</EmptyTitle>
+            <EmptyTitle>{activeStep ? 'Loading record context…' : 'Searching…'}</EmptyTitle>
           </EmptyState>
-        ) : navigation.path.length > 0 ? (
+        ) : activeStep ? (
           renderRelationalChunks()
         ) : (
           renderSearchResults()

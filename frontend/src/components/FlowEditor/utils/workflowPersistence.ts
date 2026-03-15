@@ -87,30 +87,34 @@ const getTenantId = (): string | null => {
  * Scans nodes for tenantFormId references in:
  * - formStep nodes
  * - formReference nodes
- * - formMultiStepContainer nodes
+ * - formMultiStepContainer nodes (legacy)
+ * - formProcessGroup nodes (canonical)
  */
 export const extractFormReferences = (nodes: Node[]): string[] => {
   const formIds = new Set<string>();
-  
+
   for (const node of nodes) {
     const nodeData = node.data as any;
-    
-    // Form Step node
+
+    // Form Step node (legacy)
     if (node.type === 'formStep' && nodeData.tenantFormId) {
       formIds.add(nodeData.tenantFormId);
     }
-    
+
     // Form Reference node
     if (node.type === 'formReference' && nodeData.tenantFormId) {
       formIds.add(nodeData.tenantFormId);
     }
-    
-    // Form Multi-Step Container
-    if (node.type === 'formMultiStepContainer' && nodeData.tenantFormId) {
+
+    // Form containers
+    if (
+      (node.type === 'formMultiStepContainer' || node.type === 'formProcessGroup') &&
+      nodeData.tenantFormId
+    ) {
       formIds.add(nodeData.tenantFormId);
     }
   }
-  
+
   return Array.from(formIds);
 };
 

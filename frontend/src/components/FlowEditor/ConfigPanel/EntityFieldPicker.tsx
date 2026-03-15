@@ -17,7 +17,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { useEntityList, useEntityFields, EntityType, EntityField } from '../../../services/schemaService';
-import workformsApi from '../../../services/workformsApi';
+import type { UpstreamVariable } from '../hooks/useUpstreamVariables';
 import {
   Section,
   SectionTitle,
@@ -50,6 +50,8 @@ export interface SelectedField extends EntityField {
   customLabel?: string;
   /** Whether field is checked in multi-select mode */
   checked?: boolean;
+  /** Optional cascade source (for relation fields) - upstream variable template to auto-populate */
+  cascadeFrom?: string;
 }
 
 interface EntityFieldPickerProps {
@@ -58,6 +60,9 @@ interface EntityFieldPickerProps {
 
   /** Callback when fields change */
   onFieldsChange: (fields: SelectedField[]) => void;
+
+  /** Optional upstream variables for cascade/autopopulate selection */
+  upstreamVariables?: UpstreamVariable[];
 
   /** Initial entity type (optional, uncontrolled mode) */
   initialEntityType?: string;
@@ -223,6 +228,22 @@ const RemoveButton = styled.button`
   }
 `;
 
+const CascadeRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+`;
+
+const CascadeLabel = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const CascadeSelect = styled(Select)`
+  width: 100%;
+`;
+
 const DragHandle = styled.div`
   display: flex;
   align-items: center;
@@ -297,6 +318,7 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
 export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   selectedFields,
   onFieldsChange,
+  upstreamVariables = [],
   initialEntityType,
   entityType,
   hideEntitySelector = false,
@@ -453,6 +475,23 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   const handleRemoveField = (fieldId: string) => {
     onFieldsChange(selectedFields.filter(f => f.fieldId !== fieldId));
   };
+
+  const handleUpdateSelectedField = (fieldId: string, updates: Partial<SelectedField>) => {
+    onFieldsChange(selectedFields.map(f => (f.fieldId === fieldId ? { ...f, ...updates } : f)));
+  };
+
+  const isRelationField = (field: SelectedField) => {
+    const t = String(field.type || '').toLowerCase();
+    return t.includes('foreign_key') || t.includes('many_to_many') || t.includes('one_to_one');
+  };
+
+  const upstreamVariableOptions = upstreamVariables
+    .slice()
+    .sort((a, b) => (a.nodeName + a.fieldLabel).localeCompare(b.nodeName + b.fieldLabel))
+    .map(v => ({
+      value: v.template,
+      label: `${v.nodeName} → ${v.fieldLabel}`,
+    }));
 
   const handleDragStart = (fieldId: string) => {
     setDraggedFieldId(fieldId);
@@ -763,11 +802,34 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
               >
                 <DragHandle>⋮⋮</DragHandle>
                 <FieldInfo>
-                  <FieldName>{field.label}</FieldName>
+                  <FieldName>{field.customLabel || field.label}</FieldName>
                   <FieldMeta>
                     <FieldBadge variant="type">{field.type}</FieldBadge>
                     {field.required && <FieldBadge variant="required">required</FieldBadge>}
                   </FieldMeta>
+
+                  {isRelationField(field) && upstreamVariableOptions.length > 0 && (
+                    <CascadeRow>
+                      <CascadeLabel>
+                        Cascade / auto-populate from upstream (optional)
+                      </CascadeLabel>
+                      <CascadeSelect
+                        value={field.cascadeFrom || ''}
+                        onChange={(e) =>
+                          handleUpdateSelectedField(field.fieldId, {
+                            cascadeFrom: e.target.value || undefined,
+                          })
+                        }
+                      >
+                        <option value="">— None —</option>
+                        {upstreamVariableOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </CascadeSelect>
+                    </CascadeRow>
+                  )}
                 </FieldInfo>
                 <RemoveButton onClick={() => handleRemoveField(field.fieldId)}>
                   Remove

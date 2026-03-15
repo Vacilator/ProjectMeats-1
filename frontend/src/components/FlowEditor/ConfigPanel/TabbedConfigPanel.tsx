@@ -19,6 +19,7 @@ import { X, Settings, Eye, Layers } from 'lucide-react';
 import { DynamicConfigPanel } from './DynamicConfigPanel';
 import { VisualFormBuilderPanel } from './VisualFormBuilderPanel';
 import { LiveFormPreview } from './LiveFormPreview';
+import DeveloperJsonEditor from './DeveloperJsonEditor';
 import { FormField } from '../../form-builder/types';
 
 // ============================================================================
@@ -65,6 +66,13 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
   onDiscard,
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>('general');
+  const [developerMode, setDeveloperMode] = useState(() => {
+    try {
+      return window.localStorage.getItem('pm.floweditor.devMode') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   if (!node) return null;
 
@@ -166,6 +174,33 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
+                <DevToolsRow>
+                  <DevToolsLabel>
+                    <input
+                      type="checkbox"
+                      checked={developerMode}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        setDeveloperMode(enabled);
+                        try {
+                          window.localStorage.setItem('pm.floweditor.devMode', String(enabled));
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                    />
+                    Developer Mode
+                  </DevToolsLabel>
+                  <DevToolsHint>Shows a raw JSON escape hatch for node.data</DevToolsHint>
+                </DevToolsRow>
+
+                {developerMode && (
+                  <DeveloperJsonEditor
+                    value={node.data}
+                    onApply={(newData) => onUpdateNode(node.id, newData)}
+                  />
+                )}
+
                 <DynamicConfigPanel
                   node={node}
                   nodes={nodes}
@@ -391,4 +426,35 @@ const FooterButton = styled.button<{ variant: 'primary' | 'secondary' }>`
       color: rgb(var(--color-text-primary));
     }
   `}
+`;
+
+
+const DevToolsRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  background: rgba(var(--color-primary), 0.04);
+`;
+
+const DevToolsLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+
+  input {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const DevToolsHint = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
 `;

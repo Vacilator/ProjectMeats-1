@@ -20,6 +20,7 @@ import { Node, Edge } from '@xyflow/react';
 import { AlertCircle, X } from 'lucide-react';
 import { DynamicConfigPanel } from './DynamicConfigPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
+import { FormNodeConfig } from './nodes/FormNodeConfig';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
 import {
   PrimaryButton,
@@ -289,8 +290,10 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
 
       {/* Inner Panel Content */}
       <PanelContent>
-        {node?.type === 'formMultiStepContainer' ? (
-          /* Form Process Container - Special Panel */
+        {node?.type === 'formProcessGroup' ||
+        node?.type === 'formMultiStepContainer' ||
+        node?.type === 'formProcess' ? (
+          /* Form Process (canonical group) - Structured config panel */
           <FormProcessConfigPanel
             node={virtualNode!}
             nodes={nodes}
@@ -301,9 +304,17 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
             onAddStep={handleAddStep}
             onReorderSteps={handleReorderSteps}
           />
+        ) : node?.type === 'form' ? (
+          /* Hybrid config: specialized Form node panel (entity cascade must be resilient) */
+          <FormNodeConfig
+            node={virtualNode!}
+            nodes={nodes}
+            edges={edges}
+            onUpdateNode={handleShadowUpdate}
+          />
         ) : (
           /* PHASE D/E: Dynamic Schema-Driven Config Panel (replaces hardcoded NodeConfigPanel) */
-          <ErrorBoundary 
+          <ErrorBoundary
             componentName="Configuration Panel"
             onError={(error) => {
               console.error('[NodeConfigPanelWithShadow] DynamicConfigPanel error:', error);
