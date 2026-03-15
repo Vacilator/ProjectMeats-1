@@ -174,9 +174,6 @@ export function useVirtualizedNodes<T extends Node = Node>(
   // State for debounced viewport
   const [debouncedViewport, setDebouncedViewport] = useState<Viewport>(viewport);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Performance tracking
-  const [lastCalculationTime, setLastCalculationTime] = useState(0);
 
   // Debounce viewport updates to prevent excessive recalculations
   useEffect(() => {
@@ -194,16 +191,14 @@ export function useVirtualizedNodes<T extends Node = Node>(
       }
     };
   }, [viewport, debounceMs]);
-
-  // Calculate visible nodes with performance tracking
-  const visibleNodes = useMemo(() => {
+  // Calculate visible nodes with performance tracking (pure computation; no setState inside render)
+  const { visibleNodes, lastCalculationTime } = useMemo(() => {
     const startTime = performance.now();
 
     // If virtualization is disabled or below threshold, return all nodes
     if (!enabled || nodes.length < threshold) {
       const calcTime = performance.now() - startTime;
-      setLastCalculationTime(calcTime);
-      return nodes;
+      return { visibleNodes: nodes, lastCalculationTime: calcTime };
     }
 
     // Filter nodes based on viewport intersection
@@ -212,9 +207,7 @@ export function useVirtualizedNodes<T extends Node = Node>(
     );
 
     const calcTime = performance.now() - startTime;
-    setLastCalculationTime(calcTime);
-
-    return filtered;
+    return { visibleNodes: filtered, lastCalculationTime: calcTime };
   }, [nodes, debouncedViewport, bufferPx, threshold, enabled]);
 
   // Calculate metrics
@@ -265,8 +258,7 @@ export function usePerformanceMetrics() {
     let animationFrameId: number;
     
     // Track FPS via requestAnimationFrame
-    const measureFrame = () => {
-      const now = performance.now();
+    const measureFrame = (now: number) => {
       const delta = now - lastFrameTimeRef.current;
       lastFrameTimeRef.current = now;
 
@@ -277,8 +269,12 @@ export function usePerformanceMetrics() {
 
       // Calculate average FPS from last 60 frames
       const avgDelta = frameTimesRef.current.reduce((a, b) => a + b, 0) / frameTimesRef.current.length;
-      const currentFps = Math.round(1000 / avgDelta);
-      setFps(currentFps);
+
+      // Guard against zero/negative deltas (can happen in tests or edge timing cases)
+      if (avgDelta > 0) {
+        const currentFps = Math.round(1000 / avgDelta);
+        setFps(currentFps);
+      }
 
       animationFrameId = requestAnimationFrame(measureFrame);
     };
@@ -294,7 +290,9 @@ export function usePerformanceMetrics() {
     }, 1000);
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      if (typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(animationFrameId);
+      }
       clearInterval(memoryInterval);
     };
   }, []);

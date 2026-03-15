@@ -2090,9 +2090,9 @@ export const timerDelaySchema: NodeConfigSchema = {
 const formStepSchema: NodeConfigSchema = {
   nodeType: 'formStep',
   displayName: 'Form Step (Deprecated)',
-  description: '[DEPRECATED] Use "Form" node instead. This schema is provided for backward compatibility only.',
+  description: '[DEPRECATED] Use "Form" node instead. This schema keeps legacy workflows editable.',
   icon: FileText,
-  version: '1.0.0',
+  version: '1.1.0',
   tags: ['form', 'deprecated'],
   contextAware: true,
   sections: [
@@ -2106,7 +2106,8 @@ const formStepSchema: NodeConfigSchema = {
         {
           id: '_migrationWarning',
           type: 'info',
-          content: '⚠️ **This node type is deprecated.** Please use the "Form" node instead for new workflows. Existing "formStep" nodes will continue to work but will not receive new features.',
+          label: 'Notice',
+          content: '⚠️ **Deprecated node type.** Please use the "Form" node instead for new workflows. Existing "formStep" nodes will continue to work, but improvements will focus on the new node types.',
         }
       ]
     },
@@ -2134,6 +2135,58 @@ const formStepSchema: NodeConfigSchema = {
           placeholder: 'Describe this form step...',
           helpText: 'Optional description for documentation'
         },
+      ]
+    },
+    {
+      id: 'entity',
+      title: 'Entity Configuration',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Select the entity type this step will create or edit',
+      fields: [
+        {
+          id: 'entityType',
+          type: 'entity-selector',
+          label: 'Entity Type',
+          placeholder: 'Select an entity...',
+          helpText: 'Choose the data model this step interacts with',
+          required: true,
+          validation: [
+            { type: 'required', message: 'Entity type is required' }
+          ]
+        },
+      ]
+    },
+    {
+      id: 'fields',
+      title: 'Form Fields',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Select which fields appear in this step',
+      conditional: {
+        field: 'entityType',
+        operator: 'isNotEmpty'
+      },
+      fields: [
+        {
+          id: 'fields',
+          type: 'entity-field-picker',
+          label: 'Fields',
+          helpText: 'Select fields from the entity to include in your form step.',
+          defaultValue: []
+        },
+        {
+          id: 'fieldLayout',
+          type: 'select',
+          label: 'Field Layout',
+          helpText: 'How should fields be arranged visually?',
+          defaultValue: 'single-column',
+          options: [
+            { value: 'single-column', label: 'Single Column' },
+            { value: 'two-column', label: 'Two Columns' },
+            { value: 'auto', label: 'Auto' }
+          ]
+        }
       ]
     }
   ]

@@ -39,3 +39,60 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-13 — Deployment workflow resilience — Commit: 60473ebb (PR: #3453)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3453
   - Fix frontend deploy to tolerate unset `SENTRY_*` variables under `set -u` by using safe defaults in runtime config generation.
+
+---
+
+## Consolidated Execution Plan (2026-03-13)
+
+This section consolidates the current work queue into a single execution plan. Work will be delivered as a **sequence of PRs**, each merged into `development`.
+
+### PR A — FlowEditor “Once and For All” Config UX (Frontend)
+**Branch:** `fix/floweditor-config-standards`
+
+**Status:** PR OPEN — https://github.com/Meats-Central/ProjectMeats/pull/3455
+Unit tests verified via Vitest. NOTE: `src/components/FlowEditor/__tests__/UnifiedFlowEditor.integration.test.tsx` is temporarily quarantined from Vitest collection due to a deterministic hang under JSDOM.
+
+Deliverables:
+- **Entity-first config parity for legacy `formStep`** (schema-driven): add `entityType` + `entity-field-picker` so older workflows remain editable.
+- **DynamicConfigPanel renderer completeness for critical node UIs**:
+  - `info` blocks render (no more “Unknown field type” placeholders)
+  - `ruleBuilder`/`conditionBuilder` renders via `ConditionBuilder` (visual rules)
+  - `validation-builder` is wired to `ValidationRuleBuilder`
+  - common legacy aliases supported (`checkbox`, `boolean`, `email`, `password`, `codeEditor`)
+- **Smart Auto-Map surfaced**: top-of-panel banner with one-click “Apply suggested mappings”.
+- **JSON fallback restored**: Advanced tab adds a persisted **Developer Mode** toggle with safe raw JSON editor for `node.data`.
+- **Standards enforcement**: legacy `NodeConfigPanel` no longer imports `axios` and uses schema bridge (`EntityFieldPicker` → BusinessApi via schemaService).
+
+Verification (repo scripts):
+- `npm run type-check` (or equivalent)
+- `npm test` (if present)
+
+### PR B — Governance: Golden Files + Phase 7 progress
+Deliverables:
+- Update `manifests/GOLDEN_FILES.md`:
+  - FlowEditor config authority: `DynamicConfigPanel.tsx`, `nodeConfigSchemas.ts`, `schemaService.ts`, `autoMappingService.ts`
+  - Cockpit continuous browsing authority: `SmartSearch.tsx`, `CockpitNavigationContext.tsx`
+- Update `.github/MASTER_PLAN.md`:
+  - append PR references + commit SHAs for PR A/B
+  - set Phase 7 progress to **95%** with explicit note of the config UX milestone
+
+### PR C — Phase 7.3: Real-Time Collaboration foundation (Backend)
+Deliverables:
+- Implement **Channels-ready ASGI routing** and WebSocket path conventions:
+  - `/ws/workflows/<workflow_id>/collab/`
+- Use existing `REDIS_URL` for channel layer (no new secret names; manifest remains source of truth).
+
+### PR D — Phase 8.1: Tenant-safe caching for Universal Search (Backend)
+Deliverables:
+- Decorator-based caching for `UniversalSearchService.search()` using Redis.
+- Cache keys include **tenant id** (and query params) to preserve strict RLS/tenant isolation.
+
+### PR E — Phase 8.3: Email ingestion fan-out (Backend)
+Deliverables:
+- Convert sequential provider polling into Celery fan-out (task per provider/tenant).
+- Add backoff/retry and keep provider rate-limits safe.
+
+Execution rules:
+- New branch per PR → PR → merge to `development`.
+- No direct axios usage in frontend; BusinessApi/workformsApi only.
+- Maintain PostgreSQL RLS parity and tenant isolation in all backend changes.
