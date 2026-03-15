@@ -290,7 +290,9 @@ class ConfigSchemaRegistry {
         // Validate field type specific requirements
         if (field.type === 'select' || field.type === 'multiselect') {
           if (!field.options || field.options.length === 0) {
-            errors.push(`${fieldPrefix}: type '${field.type}' requires options array`);
+            // Many select fields are populated dynamically (e.g., template pickers).
+            // Treat missing/empty options as a warning to avoid blocking app load.
+            warnings.push(`${fieldPrefix}: type '${field.type}' has no options; expected dynamic population`);
           }
         }
 
