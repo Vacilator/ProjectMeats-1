@@ -15,6 +15,15 @@ import userEvent from '@testing-library/user-event';
 import { WidgetCard } from './WidgetCard';
 import { Activity } from 'lucide-react';
 
+vi.mock('../../contexts/CockpitPinnedToolsContext', () => ({
+  useCockpitPinnedTools: () => ({
+    pinned: [],
+    pinWidget: vi.fn(),
+    unpin: vi.fn(),
+    isWidgetPinned: vi.fn(() => false),
+  }),
+}));
+
 describe('WidgetCard', () => {
   describe('Basic Rendering', () => {
     it('should render title', () => {
