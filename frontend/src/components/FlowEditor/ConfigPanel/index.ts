@@ -3,7 +3,8 @@
  * 
  * Export all configuration panel components
  */
-export { NodeConfigPanel } from './NodeConfigPanel';
+// NOTE: NodeConfigPanel is legacy and intentionally not exported to prevent regressions.
+// Use TabbedConfigPanelWithShadow / NodeConfigPanelWithShadow (schema-driven) instead.
 export { NodeConfigPanelWithShadow } from './NodeConfigPanelWithShadow'; // Phase 2
 export { FormStepConfigPanel } from './FormStepConfigPanel';
 export { FormFieldConfigPanel } from './FormFieldConfigPanel';
@@ -22,7 +23,6 @@ export { EntityFieldPicker } from './EntityFieldPicker';
 export { FieldConfigurationPanel } from './FieldConfigurationPanel';
 export { FieldPropertiesEditor } from './FieldPropertiesEditor'; // Phase C.1.2
 
-export type { NodeConfigPanelProps } from './NodeConfigPanel';
 export type { NodeConfigPanelWithShadowProps } from './NodeConfigPanelWithShadow'; // Phase 2
 export type { FormSelectionPanelProps } from './FormSelectionPanel';
 export type { EntityFieldPickerProps, SelectedField } from './EntityFieldPicker';
