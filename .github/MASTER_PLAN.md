@@ -50,9 +50,13 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Backend: Django Channels + ASGI ProtocolTypeRouter; tenant-scoped workflow collaboration WebSocket scaffold.
   - Docs: WorkForms developer guide includes WebSocket path convention for real-time editing.
 
-- 2026-03-15 — Phase 8.1 Universal Search caching — Commit: 925279a4 (PR: #3457)
+- 2026-03-15 — Phase 8.1 Universal Search caching — Commit: fc197e4b (PR: #3457)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3457
   - Backend: tenant-safe cache for UniversalSearchService results (short TTL), plus hardened entity lookup response and tenant fallback.
+
+- 2026-03-15 — Phase 8.3 Email ingestion fan-out — Commit: d71673d6 (PR: #3458)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3458
+  - Backend: Celery fan-out for email ingestion (provider-scoped tasks) with jittered dispatch.
 
 ---
 
@@ -97,13 +101,17 @@ Deliverables:
 ### PR D — Phase 8.1: Tenant-safe caching for Universal Search (Backend)
 **Branch:** `feat/phase8-1-universal-search-cache`
 
-**Status:** PR OPEN — https://github.com/Meats-Central/ProjectMeats/pull/3457
+**Status:** MERGED — https://github.com/Meats-Central/ProjectMeats/pull/3457 (squash commit: `fc197e4b`)
 
 Deliverables:
 - Decorator-based caching for `UniversalSearchService.search()` using Redis.
 - Cache keys include **tenant id** (and query params) to preserve strict RLS/tenant isolation.
 
 ### PR E — Phase 8.3: Email ingestion fan-out (Backend)
+**Branch:** `feat/phase8-3-email-ingestion-fanout`
+
+**Status:** PR OPEN — https://github.com/Meats-Central/ProjectMeats/pull/3458
+
 Deliverables:
 - Convert sequential provider polling into Celery fan-out (task per provider/tenant).
 - Add backoff/retry and keep provider rate-limits safe.
