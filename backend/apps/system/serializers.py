@@ -289,6 +289,7 @@ class SystemProductSerializer(serializers.ModelSerializer):
             'net_or_catch',
             'tested_product',
             'is_active',
+            'is_system',
             'created_at',
             'updated_at',
         ]
@@ -315,6 +316,7 @@ class SystemProductSerializer(serializers.ModelSerializer):
             'net_or_catch',
             'tested_product',
             'is_active',
+            'is_system',
             'created_at',
             'updated_at',
         ]
@@ -368,6 +370,7 @@ class TenantProductPreferenceSerializer(serializers.ModelSerializer):
             'preferred_supplier',
             'supplier_item_number',
             'is_active',
+            'is_custom',
             'is_favorite',
             'sort_order',
             'created_at',

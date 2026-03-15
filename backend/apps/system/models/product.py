@@ -158,6 +158,14 @@ class Product(models.Model):
         default=True,
         help_text="Whether this product is active and available",
     )
+
+    # Three-tier product strategy
+    # - is_system=True: part of the system-wide golden list
+    # - is_system=False: tenant custom product (visibility controlled by TenantProductPreference)
+    is_system = models.BooleanField(
+        default=True,
+        help_text="Whether this product is part of the system-wide golden list",
+    )
     
     # Audit fields
     created_at = models.DateTimeField(auto_now_add=True)

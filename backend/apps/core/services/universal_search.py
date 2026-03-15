@@ -229,11 +229,18 @@ class UniversalSearchService:
             # Build query
             query_filter = self._build_query_filter(search_text, config['search_fields'])
             
-            # Execute with tenant filter
-            # Execute with tenant filter when applicable
+            # Execute with tenant filter when applicable.
             base_qs = Model.objects.all()
             if hasattr(Model, 'tenant'):
                 base_qs = base_qs.filter(tenant=self.tenant)
+
+            # Product visibility follows the Three-Tier Product Strategy:
+            # system products (visible by default, can be hidden) + tenant custom products.
+            if entity_type == 'product':
+                from apps.system.services.product_visibility import visible_products_qs
+
+                base_qs = visible_products_qs(tenant=self.tenant, qs=base_qs)
+
             queryset = base_qs.filter(query_filter)[:limit]
             
             # Format results

@@ -24,7 +24,7 @@ from tenant_apps.suppliers.models import Supplier
 from tenant_apps.customers.models import Customer
 from tenant_apps.locations.models import Location
 from tenant_apps.carriers.models import Carrier
-from tenant_apps.products.models import Product
+from apps.system.models import Product
 from tenant_apps.purchase_orders.models import PurchaseOrder
 from tenant_apps.sales_orders.models import SalesOrder
 from tenant_apps.invoices.models import Invoice, Claim
@@ -202,32 +202,16 @@ class Command(BaseCommand):
         self.stdout.write(f'  ✓ Created {count} contacts')
 
     def seed_products(self, tenant, count=8):
-        """Seed product data."""
-        self.stdout.write('🥩 Seeding Products...')
-        
-        products = [
-            ('80/20 Beef Trim', 'Beef', 'fresh', 'combo'),
-            ('90/10 Beef Trim', 'Beef', 'fresh', 'combo'),
-            ('Boneless Pork Shoulder', 'Pork', 'frozen', 'box'),
-            ('Chicken Breast IQF', 'Chicken', 'frozen', 'box'),
-            ('Beef Tongue', 'Beef', 'fresh', 'combo'),
-            ('Pork Belly', 'Pork', 'frozen', 'box'),
-            ('Ground Turkey', 'Chicken', 'fresh', 'box'),
-            ('Beef Short Ribs', 'Beef', 'frozen', 'box'),
-        ]
+        """DEPRECATED: tenant-scoped product seeding is no longer supported.
 
-        for i, (name, protein, state, pkg) in enumerate(products[:count]):
-            product, created = Product.objects.get_or_create(
-                tenant=tenant,
-                name=name,
-                defaults={
-                    'sku': f'SKU-{i+1:04d}',
-                    'description': f'{state.title()} {protein} product',
-                    'protein_type': protein.lower(),
-                }
+        ProjectMeats uses the system-wide product catalog (apps.system.models.Product)
+        and the management command `python manage.py seed_system_products`.
+        """
+        self.stdout.write(
+            self.style.WARNING(
+                '⚠️  Skipping product seeding: run `python manage.py seed_system_products` instead.'
             )
-            if created:
-                self.stdout.write(f'  ✓ Created product: {product.name}')
+        )
 
     def seed_sales_orders(self, tenant, user, count=10):
         """Seed sales order data."""
@@ -235,7 +219,7 @@ class Command(BaseCommand):
         
         customers = Customer.objects.filter(tenant=tenant)
         suppliers = Supplier.objects.filter(tenant=tenant)
-        products = Product.objects.filter(tenant=tenant)
+        products = Product.objects.filter(is_active=True, is_system=True)
         
         if not customers or not suppliers:
             self.stdout.write(self.style.WARNING('  ⚠️  No customers/suppliers found, skipping sales orders'))

@@ -818,7 +818,7 @@ jobs:
           echo ""
           echo "✓ Superuser setup completed"
       
-      - name: Seed Products (All Tenants)
+      - name: Seed System Products (Golden List)
         env:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -841,7 +841,7 @@ jobs:
           echo ""
           echo "Seeding products for all active tenants..."
           
-          # Run seed_products management command
+          # Seed system-wide products (idempotent)
           docker run --rm \
             --network host \
             -e DATABASE_URL="$DATABASE_URL" \
@@ -849,7 +849,7 @@ jobs:
             -e SECRET_KEY="$DJANGO_SECRET_KEY" \
             -e DB_ENGINE="django.db.backends.postgresql" \
             "$FULL_IMAGE" \
-            python manage.py seed_products --all
+            python manage.py seed_system_products
           
           echo ""
           echo "✓ Product seeding completed"
