@@ -244,44 +244,46 @@ class ConfigSchemaRegistry {
       return { valid: false, errors, warnings };
     }
 
-    // Track all field IDs for duplicate detection
+    // Track all field IDs for duplicate detection + dependency validation
     const fieldIds = new Set<string>();
 
-    // Validate each section
+    // First pass: collect ALL field IDs (ordering must not matter)
     schema.sections.forEach((section, sectionIndex) => {
       const sectionPrefix = `Section ${sectionIndex + 1} (${section.id || 'unnamed'})`;
 
       // Check required section fields
-      if (!section.id) {
-        errors.push(`${sectionPrefix}: missing id`);
-      }
-      if (!section.title) {
-        errors.push(`${sectionPrefix}: missing title`);
-      }
+      if (!section.id) errors.push(`${sectionPrefix}: missing id`);
+      if (!section.title) errors.push(`${sectionPrefix}: missing title`);
       if (!section.fields || section.fields.length === 0) {
         errors.push(`${sectionPrefix}: must have at least one field`);
         return;
       }
 
-      // Validate each field
+      section.fields.forEach((field, fieldIndex) => {
+        const fieldPrefix = `${sectionPrefix}, Field ${fieldIndex + 1} (${field.id || 'unnamed'})`;
+        if (!field.id) {
+          errors.push(`${fieldPrefix}: missing id`);
+          return;
+        }
+        if (fieldIds.has(field.id)) {
+          errors.push(`${fieldPrefix}: duplicate field id '${field.id}'`);
+        }
+        fieldIds.add(field.id);
+      });
+    });
+
+    // Second pass: validate fields using the complete fieldId set
+    schema.sections.forEach((section, sectionIndex) => {
+      const sectionPrefix = `Section ${sectionIndex + 1} (${section.id || 'unnamed'})`;
+      if (!section.fields || section.fields.length === 0) return;
+
       section.fields.forEach((field, fieldIndex) => {
         const fieldPrefix = `${sectionPrefix}, Field ${fieldIndex + 1} (${field.id || 'unnamed'})`;
 
-        // Check required field properties
-        if (!field.id) {
-          errors.push(`${fieldPrefix}: missing id`);
-        } else {
-          // Check for duplicate field IDs
-          if (fieldIds.has(field.id)) {
-            errors.push(`${fieldPrefix}: duplicate field id '${field.id}'`);
-          }
-          fieldIds.add(field.id);
-        }
+        if (!field.type) errors.push(`${fieldPrefix}: missing type`);
 
-        if (!field.type) {
-          errors.push(`${fieldPrefix}: missing type`);
-        }
-        if (!field.label) {
+        // Labels are required for most field types, but not for info/button blocks
+        if (!field.label && field.type !== 'info' && field.type !== 'button') {
           errors.push(`${fieldPrefix}: missing label`);
         }
 
@@ -297,7 +299,7 @@ class ConfigSchemaRegistry {
         }
 
         // Validate conditional rules
-        if (field.conditional) {
+        if (field.conditional && field.id) {
           const conditionalErrors = this.validateConditionalRule(
             field.conditional,
             fieldIds,
@@ -308,29 +310,31 @@ class ConfigSchemaRegistry {
           );
         }
 
-        // Validate validation rules
-        if (field.validation) {
-          field.validation.forEach((rule, ruleIndex) => {
-            if (!rule.type) {
-              errors.push(
-                `${fieldPrefix}: validation rule ${ruleIndex + 1} missing type`
-              );
-            }
-            if (!rule.message) {
-              errors.push(
-                `${fieldPrefix}: validation rule ${ruleIndex + 1} missing message`
-              );
-            }
-            if (rule.type === 'custom' && !rule.validator) {
-              errors.push(
-                `${fieldPrefix}: validation rule ${ruleIndex + 1} type 'custom' requires validator function`
-              );
-            }
-          });
+        // Normalize validation rules to an array to avoid runtime crashes
+        const validationRules = Array.isArray(field.validation) ? field.validation : [];
+        if (field.validation && !Array.isArray(field.validation)) {
+          warnings.push(
+            `${fieldPrefix}: validation should be an array; ignoring non-array value`
+          );
         }
 
+        // Validate validation rules
+        validationRules.forEach((rule, ruleIndex) => {
+          if (!rule.type) {
+            errors.push(`${fieldPrefix}: validation rule ${ruleIndex + 1} missing type`);
+          }
+          if (!rule.message) {
+            errors.push(`${fieldPrefix}: validation rule ${ruleIndex + 1} missing message`);
+          }
+          if (rule.type === 'custom' && !rule.validator) {
+            errors.push(
+              `${fieldPrefix}: validation rule ${ruleIndex + 1} type 'custom' requires validator function`
+            );
+          }
+        });
+
         // Warnings for best practices
-        if (field.required && !field.validation?.some(r => r.type === 'required')) {
+        if (field.required && !validationRules.some(r => r.type === 'required')) {
           warnings.push(
             `${fieldPrefix}: field is marked required but has no 'required' validation rule`
           );
