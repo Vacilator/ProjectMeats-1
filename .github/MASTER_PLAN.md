@@ -49,7 +49,8 @@ This section consolidates the current work queue into a single execution plan. W
 ### PR A — FlowEditor “Once and For All” Config UX (Frontend)
 **Branch:** `fix/floweditor-config-standards`
 
-**Status:** READY — implementation complete; unit test suite verified (Vitest). NOTE: `UnifiedFlowEditor.integration.test.tsx` is temporarily quarantined from Vitest collection due to a deterministic hang under JSDOM.
+**Status:** PR OPEN — https://github.com/Meats-Central/ProjectMeats/pull/3455
+Unit tests verified via Vitest. NOTE: `src/components/FlowEditor/__tests__/UnifiedFlowEditor.integration.test.tsx` is temporarily quarantined from Vitest collection due to a deterministic hang under JSDOM.
 
 Deliverables:
 - **Entity-first config parity for legacy `formStep`** (schema-driven): add `entityType` + `entity-field-picker` so older workflows remain editable.
