@@ -65,6 +65,7 @@ export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactEle
       <EntityFieldPicker
         selectedFields={selectedFields}
         onFieldsChange={handleFieldsChange}
+        upstreamVariables={data?._upstreamVariables || []}
         entityType={entityType}
         hideEntitySelector
         multiSelectMode={field.options?.multiSelect ?? true}
