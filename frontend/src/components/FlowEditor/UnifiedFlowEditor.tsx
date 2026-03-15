@@ -247,7 +247,8 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   }
   
   /* Animate container expand/collapse */
-  .react-flow__node[data-type="formMultiStepContainer"] {
+  .react-flow__node[data-type="formMultiStepContainer"],
+  .react-flow__node[data-type="formProcessGroup"] {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 width 0.3s ease,
                 height 0.3s ease,

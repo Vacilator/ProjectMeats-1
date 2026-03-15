@@ -23,15 +23,39 @@ export function normalizeNodeData(node: Node): Node {
   if (!node.type) {
     return node;
   }
-  
+
+  // --------------------------------------------------------------------------
+  // Phase 7 Stabilization: canonicalize legacy Form Process container types
+  // --------------------------------------------------------------------------
+  // We standardize on the React Flow group implementation (formProcessGroup).
+  // Legacy types should continue to load, but are migrated in-memory so the UI
+  // and config routing are consistent.
+  if (node.type === 'formMultiStepContainer' || node.type === 'formProcess') {
+    const canonicalType = 'formProcessGroup';
+    const canonicalDef = NODE_TYPE_REGISTRY[canonicalType];
+
+    return {
+      ...node,
+      type: canonicalType,
+      data: {
+        ...(node.data || {}),
+        // Ensure group semantics are enabled
+        isGroup: true,
+        // Ensure required sizing metadata exists for downstream logic
+        maxInputs: (node.data as any)?.maxInputs ?? canonicalDef?.maxInputs ?? 1,
+        maxOutputs: (node.data as any)?.maxOutputs ?? canonicalDef?.maxOutputs ?? 1,
+      },
+    };
+  }
+
   // Get node type definition
   const nodeTypeDef = NODE_TYPE_REGISTRY[node.type];
-  
+
   // If unknown type, return as-is
   if (!nodeTypeDef) {
     return node;
   }
-  
+
   // Create new node with normalized data
   return {
     ...node,
