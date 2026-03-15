@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 from . import views
 from .jwt_serializers import TenantAwareTokenObtainPairView
 from . import entity_views  # Phase 1: WorkForms Enhancement
+from . import calendar_views
 from apps.system import workform_views  # Phase 1: WorkForms Enhancement
 
 # Create a router for ViewSets
@@ -49,7 +50,10 @@ urlpatterns = [
     path("workspace/stats/quick/", views.WorkspaceStatsView.as_view(), name="workspace-stats"),
     path("workspace/activity/recent/", views.WorkspaceActivityView.as_view(), name="workspace-activity"),
     path("workspace/calls/upcoming/", views.WorkspaceCallsView.as_view(), name="workspace-calls"),
-    
+
+    # Calendar API (placeholder until Phase 5 integrations are configured)
+    path("calendar/events/", calendar_views.CalendarEventsView.as_view(), name="calendar-events"),
+
     # WorkForms Enhancement API (Phase 1: WF-ENH-2026-Q1)
     # Entity Registry & Schema Endpoints (Phase 1.1-1.3)
     path("entities/", entity_views.entity_registry, name="entity-registry"),
