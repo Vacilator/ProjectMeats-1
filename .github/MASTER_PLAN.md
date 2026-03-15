@@ -102,6 +102,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Fix `WorkflowExecutionModal` context wiring + hydrate context from `execution.data` for resume.
   - Prefill fields from FlowEditor `cascadeFrom` templates (only fills missing/untouched values).
 
+- 2026-03-15 — FlowEditor: fix FormProcessGroup collapsed outline — Commit: 660dae73 (PR: #3478)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3478
+  - Explicitly shrink/grow the React Flow node wrapper on expand/collapse so the expanded outline/shadow does not linger when collapsed.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
