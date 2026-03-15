@@ -54,7 +54,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3457
   - Backend: tenant-safe cache for UniversalSearchService results (short TTL), plus hardened entity lookup response and tenant fallback.
 
-- 2026-03-15 — Phase 8.3 Email ingestion fan-out — Commit: d71673d6 (PR: #3458)
+- 2026-03-15 — Phase 8.3 Email ingestion fan-out — Commit: 86c2025f (PR: #3458)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3458
   - Backend: Celery fan-out for email ingestion (provider-scoped tasks) with jittered dispatch.
 
@@ -110,7 +110,7 @@ Deliverables:
 ### PR E — Phase 8.3: Email ingestion fan-out (Backend)
 **Branch:** `feat/phase8-3-email-ingestion-fanout`
 
-**Status:** PR OPEN — https://github.com/Meats-Central/ProjectMeats/pull/3458
+**Status:** MERGED — https://github.com/Meats-Central/ProjectMeats/pull/3458 (squash commit: `86c2025f`)
 
 Deliverables:
 - Convert sequential provider polling into Celery fan-out (task per provider/tenant).
