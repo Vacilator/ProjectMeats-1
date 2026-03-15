@@ -318,6 +318,7 @@ class ConfigSchemaRegistry {
           );
         }
 
+<<<<<<< HEAD
         // Normalize validation rules to an array to avoid runtime crashes.
         // Backward compatible: if a single object is provided, wrap it.
         if (field.validation && !Array.isArray(field.validation)) {

@@ -342,6 +342,13 @@ export const formSchema: NodeConfigSchema = {
           defaultValue: 'Submit'
         },
         {
+          id: 'showCancelButton',
+          type: 'toggle',
+          label: 'Show Cancel Button',
+          helpText: 'Display a cancel button alongside submit',
+          defaultValue: false
+        },
+        {
           id: 'cancelButtonText',
           type: 'text',
           label: 'Cancel Button Text',
@@ -352,13 +359,6 @@ export const formSchema: NodeConfigSchema = {
             operator: 'equals',
             value: true
           }
-        },
-        {
-          id: 'showCancelButton',
-          type: 'toggle',
-          label: 'Show Cancel Button',
-          helpText: 'Display a cancel button alongside submit',
-          defaultValue: false
         }
       ]
     },
@@ -394,6 +394,7 @@ export const formSchema: NodeConfigSchema = {
         {
           id: '_formBuilderInfo',
           type: 'info',
+          label: 'Information',
           content: 'The Form Builder provides a visual interface to configure fields, add validation rules, set up conditional logic, and define field mappings from upstream nodes.'
         }
       ]
@@ -571,6 +572,7 @@ export const formProcessSchema: NodeConfigSchema = {
         {
           id: '_formBuilderInfo',
           type: 'info',
+          label: 'Information',
           content: 'The Form Builder allows you to visually manage all form steps within this container, set up navigation flow, and configure data mappings between steps.'
         }
       ]
