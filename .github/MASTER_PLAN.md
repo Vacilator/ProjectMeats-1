@@ -286,3 +286,22 @@ Deliverables:
 - Backend deploy evidence:
   - `docker pull registry.digitalocean.com/meatscentral/projectmeats-backend:development-adbec5b774eb226fbfd3faa13877038d3b90c350`
   - container: `pm-backend`
+
+---
+
+### 2026-03-15 — Status reconciliation: “PR F — Emergency UI/UX + API restoration” is COMPLETE
+The PR F section above remains as the original plan snapshot. Execution is now complete across shipped PRs; key delivered items:
+
+- **Global search moved to Header (Ctrl/⌘K) and Cockpit uses header-driven search**
+  - https://github.com/Meats-Central/ProjectMeats/pull/3466
+  - https://github.com/Meats-Central/ProjectMeats/pull/3491
+- **Action Items 500 hardening (tenant guards + null safety)**
+  - https://github.com/Meats-Central/ProjectMeats/pull/3468
+- **Entity relationships routing fixes (snake_case / typed URLs) and Cockpit relationship payload restoration**
+  - https://github.com/Meats-Central/ProjectMeats/pull/3470
+  - https://github.com/Meats-Central/ProjectMeats/pull/3499
+- **Calendar events endpoint alignment + frontend wiring**
+  - https://github.com/Meats-Central/ProjectMeats/pull/3472
+
+Verification:
+- PR #3499 deployed to `development` via Actions run https://github.com/Meats-Central/ProjectMeats/actions/runs/23113180951.
