@@ -179,6 +179,42 @@ const ToolbarWrapper = styled.div`
   }
 `;
 
+const SearchHint = styled.div`
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg, 12px);
+  background: rgb(var(--color-surface));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+`;
+
+const SearchHintTitle = styled.div`
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+`;
+
+const SearchHintMessage = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+
+  kbd {
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid rgb(var(--color-border));
+    background: rgb(var(--color-background));
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 12px;
+  }
+`;
+
 const ToolbarLeft = styled.div`
   display: flex;
   align-items: center;
@@ -604,6 +640,10 @@ export const CockpitDashboard: React.FC = () => {
     }
   }, []);
 
+  const trimmedCockpitQuery = cockpitQuery.trim();
+  const hasSearchQuery = trimmedCockpitQuery.length >= 2;
+  const showSearchView = hasSearchQuery || navigation.path.length > 0;
+
   return (
     <Container>
       {/* Toolbar for search and edit mode */}
@@ -640,19 +680,32 @@ export const CockpitDashboard: React.FC = () => {
       
       {/* Guided Tour */}
       <CockpitTour enabled={true} />
-      
 
-      {/* EMBEDDED SEARCH - Always Visible */}
-      <div style={{ padding: '16px 16px 0 16px' }}>
-        {/* Breadcrumb navigation bar */}
-        {navigation.path.length > 0 && (
-          <div style={{ marginBottom: '12px' }}>
-            <BreadcrumbBar />
-          </div>
-        )}
-        
-        <SmartSearch query={cockpitQuery} hideInput={true} />
-      </div>
+      {/* Search / Record Pivot area (header-driven) */}
+      {showSearchView ? (
+        <div style={{ padding: '16px 16px 0 16px' }}>
+          {/* Breadcrumb navigation bar */}
+          {navigation.path.length > 0 && (
+            <div style={{ marginBottom: '12px' }}>
+              <BreadcrumbBar />
+            </div>
+          )}
+
+          <SmartSearch query={trimmedCockpitQuery} hideInput={true} />
+        </div>
+      ) : (
+        <SearchHint>
+          <SearchHintTitle>Cockpit search is in the header</SearchHintTitle>
+          <SearchHintMessage>
+            Type at least 2 characters above (or press <kbd>Ctrl</kbd>+<kbd>K</kbd>) to start continuous browsing.
+          </SearchHintMessage>
+          <ActionButton
+            onClick={() => (document.getElementById('global-search-input') as HTMLInputElement | null)?.focus()}
+          >
+            Focus Search
+          </ActionButton>
+        </SearchHint>
+      )}
 
       {/* Widget Grid (hidden when a record is active) */}
       {navigation.path.length === 0 && (

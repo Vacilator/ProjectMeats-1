@@ -166,6 +166,7 @@ const Header: React.FC<HeaderProps> = () => {
             <SearchIcon />
           </SearchIconWrapper>
           <SearchInput
+            id="global-search-input"
             ref={searchInputRef}
             type="text"
             placeholder="Search suppliers, customers, orders…"
