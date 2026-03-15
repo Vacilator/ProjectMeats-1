@@ -386,7 +386,7 @@ const DropZoneText = styled.div`
  */
 export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props) => {
   const { id, data, selected } = props;
-  const { setNodes, setEdges, updateNodeInternals } = useReactFlow();
+  const { setNodes, setEdges } = useReactFlow();
   const allNodes = useNodes();
   const allEdges = useEdges();
   
@@ -415,11 +415,6 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   const containerName = data.containerName || 'Untitled Form Process';
   const containerDescription = data.containerDescription;
   const isExpanded = data.isExpanded ?? false;
-
-  // Keep React Flow internals in sync when toggling expanded/collapsed state.
-  useEffect(() => {
-    requestAnimationFrame(() => updateNodeInternals(id));
-  }, [id, isExpanded, updateNodeInternals]);
   const isDropTarget = data.isDropTarget ?? false; // Phase 3: Drop zone indicator
   const sequentialExecution = data.sequentialExecution ?? true; // Phase 3: Sequential by default
   
@@ -436,12 +431,11 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
    */
   const handleToggleExpand = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-
-    const nextExpanded = !isExpanded;
-
+    
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id === id) {
+          const newExpanded = !isExpanded;
           const expandedHeight = Math.max(400, stepCount * 120 + 80);
 
           return {
@@ -451,12 +445,12 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
             // doesn't remain visible at the old dimensions.
             style: {
               ...(node.style || {}),
-              width: nextExpanded ? 600 : 280,
-              height: nextExpanded ? expandedHeight : undefined,
+              width: newExpanded ? 600 : 280,
+              height: newExpanded ? expandedHeight : undefined,
             },
             data: {
               ...node.data,
-              isExpanded: nextExpanded,
+              isExpanded: newExpanded,
             },
           };
         }
@@ -470,10 +464,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
         return node;
       })
     );
-
-    // Force a re-measure so React Flow doesn't keep the previous expanded bounds.
-    requestAnimationFrame(() => updateNodeInternals(id));
-  }, [id, isExpanded, setNodes, stepCount, updateNodeInternals]);
+  }, [id, isExpanded, setNodes]);
   
   /**
    * Save FormProcessGroup as TenantForm to backend
@@ -547,10 +538,10 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
    */
   useEffect(() => {
     if (!isExpanded || childNodes.length === 0) return;
-
+    
     // Apply auto-layout to children
     const layoutedChildren = autoLayoutChildren(childNodes);
-
+    
     setNodes((nodes) =>
       nodes.map((node) => {
         const layouted = layoutedChildren.find((child) => child.id === node.id);
@@ -563,10 +554,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
         return node;
       })
     );
-
-    // Ensure internals account for any layout-driven size changes.
-    requestAnimationFrame(() => updateNodeInternals(id));
-  }, [childNodes.length, id, isExpanded, setNodes, updateNodeInternals]); // Only trigger on count/visibility change
+  }, [childNodes.length, id, isExpanded]); // Only trigger on count/visibility change
   
   /**
    * Auto-connect children in sequential order (Phase 3)
