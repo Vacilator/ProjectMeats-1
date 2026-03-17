@@ -1,0 +1,89 @@
+import React from 'react';
+import { EdgeProps, getSmoothStepPath, useReactFlow } from '@xyflow/react';
+import { Plus } from 'lucide-react';
+import styled from 'styled-components';
+
+const EdgeContainer = styled.div`
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: all;
+`;
+
+const AddButton = styled.button`
+  width: 24px;
+  height: 24px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+  &:hover {
+    background: rgb(var(--color-primary));
+    color: white;
+    border-color: rgb(var(--color-primary));
+    transform: scale(1.1);
+  }
+`;
+
+export default function InsertNodeEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style,
+  markerEnd,
+}: EdgeProps) {
+  useReactFlow();
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  const handleInsertClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.dispatchEvent(
+      new CustomEvent('pm:openNodePalette', {
+        detail: { insertOnEdgeId: id },
+      })
+    );
+  };
+
+  return (
+    <>
+      <path
+        id={id}
+        style={{ ...style, strokeWidth: 2, stroke: 'rgb(var(--color-border))' }}
+        className="react-flow__edge-path"
+        d={edgePath}
+        markerEnd={markerEnd}
+      />
+      <foreignObject
+        width={30}
+        height={30}
+        x={labelX - 15}
+        y={labelY - 15}
+        className="edgebutton-foreignobject"
+        requiredExtensions="http://www.w3.org/1999/xhtml"
+      >
+        <EdgeContainer>
+          <AddButton onClick={handleInsertClick} title="Add step here">
+            <Plus size={14} />
+          </AddButton>
+        </EdgeContainer>
+      </foreignObject>
+    </>
+  );
+}
