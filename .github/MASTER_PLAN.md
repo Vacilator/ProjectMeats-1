@@ -85,6 +85,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Action: Wire quick actions to `useNavigate` routes (PO/SO create/history) and dispatch `pm:open-tool` so “Send Email” opens the PinnedToolsBar email drafter.
   - Hardening: Add global `pm:open-tool` listener to PinnedToolsBar to accept external tool open requests.
   - Verification: Quick Actions open correct routes with entity ids, and Send Email opens the mail drawer without manual click.
+- 2026-03-17 — FlowEditor handler injection hardening — Commit: TBD (branch: `feature/wf-handler-injection`, PR: TBD)
+  - Inject safe defaults for `onEdit`/`onDelete`/`onSave`/`onTitleChange` across all node data objects to prevent missing-callback crashes.
 
 ---
 
