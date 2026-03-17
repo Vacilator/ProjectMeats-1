@@ -551,3 +551,37 @@ Deliverables:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-337dfcbd5a53682cc0a8bf5b0f46ad9bf12178ee`
   - container: `pm-backend`
+
+
+---
+
+### 2026-03-17 — Phase 7 Critical Recovery: ValidationRuleBuilder import fix (PR #3526)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3526
+
+**Status:** MERGED → `development` (squash commit: `fab450f2da4b42e5fcfb964fd2eb97b5c0a7c58a`)
+
+Deliverables:
+- Fixed `ReferenceError: ValidationRuleBuilder is not defined` crash in FlowEditor config panel.
+- Added missing import to `complexRenderers.tsx` to restore validation-driven field rendering.
+- Prevents immediate application crash when clicking nodes with validation configurations.
+
+**Impact:** P0-A blocker resolved; config panels no longer crash on validation-heavy nodes.
+
+
+---
+
+### 2026-03-17 — Phase 7 Critical Recovery: Reactive entity-field cascade (PR #3527)
+**PR:** https://github.com/Meats-Central/ProjectMeats/pull/3527
+
+**Status:** MERGED → `development` (squash commit: `21b16f209e313ae795b828b58187f00074c87bf1`)
+
+Deliverables:
+- Added `useEffect` hook to `EntityFieldPicker` watching `initialEntityType` prop changes.
+- Entity type selection now immediately clears stale fields and triggers schema re-fetch.
+- Completes entity-first configuration reactivity (no manual refresh required).
+
+**Impact:** P0-B blocker resolved; entity-field cascade now fully reactive.
+
+**Verified deploy proof (in progress):**
+- GitHub Actions: https://github.com/Meats-Central/ProjectMeats/actions/runs/1464 (status: in_progress)
+- Image tag (when complete): `development-21b16f209e313ae795b828b58187f00074c87bf1`
