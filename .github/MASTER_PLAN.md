@@ -13,6 +13,9 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 > Fill in as PRs are opened/merged.
 
+- 2026-03-17 — Branch `fix/cockpit-entity-detail` (pending PR)  
+  - MyTasks: workflow execution fetch now clears stale data and returns a tenant-safe empty state for 403/404 responses, preventing “Failed to load workflows” noise while keeping user refresh available.
+
 - 2026-03-13 — Phase 7 Stabilization + Cockpit Navigation — Commit: 6144c189 (PR: #3447)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3447
   - Cockpit: navigation-path driven continuous browsing + breadcrumb jumping; UUID-safe relationships endpoint.

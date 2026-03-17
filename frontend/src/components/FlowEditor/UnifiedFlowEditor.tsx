@@ -5489,10 +5489,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         ...node.data,
         onEdit: () => handleNodeEdit(node.id),
         onDelete: () => handleNodeDelete(node.id),
+        onSave: () => handleSaveWorkflow(),
         onTitleChange: (newTitle: string) => handleNodeTitleChange(node.id, newTitle),
       },
     }));
-  }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange]);
+  }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange, handleSaveWorkflow]);
 
   return (
     <EditorContainer $isFullscreen={isFullscreen}>

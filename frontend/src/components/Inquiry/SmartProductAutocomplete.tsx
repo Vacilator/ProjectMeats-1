@@ -30,20 +30,11 @@ interface SmartProductAutocompleteProps {
   disabled?: boolean;
   error?: boolean;
   autoFocus?: boolean;
+  /** Optional protein filter from parent form (cascades product options) */
+  protein?: string;
 }
 
-interface SearchResult {
-  id: string;
-  product_code: string;
-  name?: string;
-  description?: string;
-  description_of_product_item?: string;
-  protein_type?: string;
-  type_of_protein?: string;
-  avg_price?: number;
-  is_active?: boolean;
-  is_suggested?: boolean;
-}
+type SearchResult = Product & { is_suggested?: boolean };
 
 // ============================================================================
 // Styled Components
@@ -282,6 +273,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
   disabled = false,
   error = false,
   autoFocus = false,
+  protein,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -329,8 +321,8 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
   
   // Debounced search
   const debouncedSearch = useCallback(
-    debounce(async (query: string) => {
-      if (!query.trim()) {
+    debounce(async (query: string, proteinFilter?: string) => {
+      if (!query.trim() && !proteinFilter) {
         setResults([]);
         setLoading(false);
         return;
@@ -339,21 +331,20 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
       try {
         setLoading(true);
         
-        // Use Cockpit search endpoint for unified search
-        const response = await businessApi.get('system/search/', {
+        const response = await businessApi.get('system/products/', {
           params: {
-            query: query,
-            types: 'product',
+            search: query || undefined,
+            protein: proteinFilter || undefined,
+            protein_type: proteinFilter || undefined,
             limit: 20,
           },
         });
         
-        const products = response.data.results
-          .filter((r: any) => r.type === 'product')
-          .map((r: any) => r.data);
+        const rawResults = Array.isArray(response.data)
+          ? response.data
+          : response.data?.results || response.data?.items || [];
         
-        // Mark suggested products
-        const enrichedResults = products.map((p: Product) => ({
+        const enrichedResults = rawResults.map((p: Product) => ({
           ...p,
           is_suggested: suggestedProducts.some(sp => sp.id === p.id),
         }));
@@ -375,8 +366,13 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
     setSelectedProduct(null);
     setIsOpen(true);
     setSelectedIndex(0);
-    debouncedSearch(value);
+    debouncedSearch(value, protein);
   };
+
+  // Re-run search when the protein filter changes to keep options in sync
+  useEffect(() => {
+    debouncedSearch(searchTerm, protein);
+  }, [protein, searchTerm, debouncedSearch]);
   
   const handleSelectProduct = (product: SearchResult) => {
     setSelectedProduct(product as Product);

@@ -540,6 +540,7 @@ export const MyTasks: React.FC = () => {
   const fetchWorkflowExecutions = useCallback(async () => {
     setWorkflowsLoading(true);
     setWorkflowsError('');
+    setWorkflowExecutions([]);
     try {
       const response = await workflowExecutionService.getExecutions({
         status: 'in_progress',
@@ -548,7 +549,13 @@ export const MyTasks: React.FC = () => {
       setWorkflowExecutions(response.results);
     } catch (err) {
       console.error('Failed to fetch workflow executions:', err);
-      setWorkflowsError('Failed to load workflows. Please try again.');
+      const status = (err as any)?.response?.status;
+      if (status === 404 || status === 403) {
+        setWorkflowsError('No workflows available for your tenant yet.');
+        setWorkflowExecutions([]);
+      } else {
+        setWorkflowsError('Failed to load workflows. Please try again.');
+      }
     } finally {
       setWorkflowsLoading(false);
     }
