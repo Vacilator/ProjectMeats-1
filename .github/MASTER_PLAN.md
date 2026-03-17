@@ -85,6 +85,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Action: Wire quick actions to `useNavigate` routes (PO/SO create/history) and dispatch `pm:open-tool` so “Send Email” opens the PinnedToolsBar email drafter.
   - Hardening: Add global `pm:open-tool` listener to PinnedToolsBar to accept external tool open requests.
   - Verification: Quick Actions open correct routes with entity ids, and Send Email opens the mail drawer without manual click.
+- 2026-03-17 — FormProcess left-to-right auto-layout — Commit: TBD (branch: `feature/implement-lr-layout`, PR: TBD)
+  - Auto-layout now honors left-to-right orientation for workflows containing formProcess/formProcessGroup containers; dagre utility uses caller-specified direction instead of forcing top-to-bottom.
 
 ---
 
