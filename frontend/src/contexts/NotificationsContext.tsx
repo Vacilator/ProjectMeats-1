@@ -82,6 +82,12 @@ export interface ActionItem {
   assigned_at: string;
   entity_type?: string;
   entity_id?: string;
+  /**
+   * Optional monetary context for smart prioritization (e.g., PO value).
+   * Provided by the backend when available.
+   */
+  related_po_value?: number;
+  related_po_currency?: string;
 }
 
 export interface ActionItemCounts {
