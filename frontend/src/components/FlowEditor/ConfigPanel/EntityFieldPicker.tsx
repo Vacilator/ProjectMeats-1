@@ -399,6 +399,13 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     }
   }, [initialEntityType, selectedEntityType, resetFieldsTimeout, onFieldsChange]);
 
+  // Ensure fields are refreshed when initialEntityType changes (even in uncontrolled mode)
+  useEffect(() => {
+    if (initialEntityType) {
+      refetchFields();
+    }
+  }, [initialEntityType, refetchFields]);
+
   // Auto-select first entity in uncontrolled mode
   useEffect(() => {
     if (hideEntitySelector || entityType) return;

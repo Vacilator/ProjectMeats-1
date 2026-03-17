@@ -525,7 +525,11 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-      
+
+      if (typeof data.onSave === 'function') {
+        data.onSave();
+      }
+
       toast.success(
         result.created 
           ? `Form saved successfully (v${result.version})` 
@@ -539,7 +543,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     } finally {
       setIsSaving(false);
     }
-  }, [id, isSaving, childNodes.length, allNodes, allEdges, setNodes]);
+  }, [id, isSaving, childNodes.length, allNodes, allEdges, setNodes, data]);
   
   /**
    * Auto-layout children when they change

@@ -289,7 +289,8 @@ class ConfigSchemaRegistry {
         if (!field.type) errors.push(`${fieldPrefix}: missing type`);
 
         // Labels are required for most field types, but not for info/button blocks
-        if (!field.label && field.type !== 'info' && field.type !== 'button') {
+        const requiresLabel = field.type !== 'info' && field.type !== 'button';
+        if (requiresLabel && !field.label) {
           errors.push(`${fieldPrefix}: missing label`);
         }
 
