@@ -8,6 +8,7 @@
 
 **Latest Progress (Power Automate UX)**  
 - Completed Batch 2: disabled manual node dragging/connecting, defaulted edges to inline insertion type, added "+" edge event listener to open the node palette with context, and enforced strict top-to-bottom auto-layout centering.
+- Cockpit consolidation in-flight: removed SmartWizard mode and elevated a hero SmartSearch omnibox on the dashboard with breadcrumb-aware state.
 
 ---
 

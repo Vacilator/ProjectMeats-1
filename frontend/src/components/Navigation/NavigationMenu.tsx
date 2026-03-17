@@ -7,7 +7,7 @@
  * Updated: 2026-02-03 - Phase 2 Forms & Flows Enhancement
  * - Added badge rendering support for action item counts
  */
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { logger } from '@/utils/logger';
 
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -57,7 +57,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   const lastPathnameRef = useRef(location.pathname);
   
   // Filter items based on user roles
-  const filterItemsByRole = (navItems: NavigationItem[]): NavigationItem[] => {
+  const filterItemsByRole = useCallback((navItems: NavigationItem[]): NavigationItem[] => {
     return navItems.filter(item => {
       // If no roles specified, show to everyone
       if (!item.roles || item.roles.length === 0) {
@@ -89,11 +89,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       }
       return item;
     });
-  };
+  }, [isAdmin, user]);
   
   const filteredItems = useMemo(
     () => filterItemsByRole(items),
-    [items, isAdmin, user],
+    [filterItemsByRole, items],
   );
 
   // Auto-expand parent items only when navigation occurs (preserve manual toggles)
