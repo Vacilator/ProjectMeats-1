@@ -23,6 +23,7 @@ import {
   Users, Building2, Package, TrendingUp, X
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
+import { useNavigate } from 'react-router-dom';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityProfileHeader } from './EntityProfileHeader';
@@ -439,6 +440,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
   // Use global navigation context instead of local breadcrumbs
   const navigation = useCockpitNavigation();
+  const navigate = useNavigate();
   
   const [internalQuery, setInternalQuery] = useState(initialQuery);
   const query = controlledQuery ?? internalQuery;
@@ -670,15 +672,35 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Handle quick action click
    */
   const handleQuickAction = useCallback((action: SearchEntity) => {
-    const actionType = action.metadata?.action;
+    const actionType = action.metadata?.action as string | undefined;
     const entityId = action.metadata?.entityId;
-    
-    console.log('[SmartSearch] Quick action triggered:', actionType, entityId);
-    
-    // TODO: Implement actual action handlers (create invoice, schedule call, etc.)
-    // For now, just log the action
-    alert(`Quick Action: ${action.name}\nAction: ${actionType}\nEntity ID: ${entityId}`);
-  }, []);
+
+    if (!actionType) {
+      console.warn('[SmartSearch] Quick action missing actionType', action);
+      return;
+    }
+
+    switch (actionType) {
+      case 'create_po':
+        navigate(`/purchase-orders?action=create&supplier_id=${entityId}`);
+        break;
+      case 'view_purchase_history':
+      case 'view_history':
+        navigate(`/purchase-orders?supplier_id=${entityId}`);
+        break;
+      case 'send_email':
+        window.dispatchEvent(new CustomEvent('pm:open-tool', { detail: { toolId: 'tool:email' } }));
+        break;
+      case 'create_so':
+        navigate(`/sales-orders?action=create&customer_id=${entityId}`);
+        break;
+      case 'view_sales_history':
+        navigate(`/sales-orders?customer_id=${entityId}`);
+        break;
+      default:
+        console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
+    }
+  }, [navigate]);
 
   /**
    * Toggle favorite
