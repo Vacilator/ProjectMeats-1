@@ -385,6 +385,20 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     }
   }, [entityType]);
 
+  // Reactive cascade: watch initialEntityType prop changes (uncontrolled mode)
+  useEffect(() => {
+    if (initialEntityType && initialEntityType !== selectedEntityType) {
+      console.log('[EntityFieldPicker] initialEntityType changed, updating:', initialEntityType);
+      setSelectedEntityType(initialEntityType);
+      setSearchTerm('');
+      setFieldTypeFilter('all');
+      setCheckedFields(new Set());
+      resetFieldsTimeout();
+      // Clear stale selected fields when entity type changes via prop
+      onFieldsChange([]);
+    }
+  }, [initialEntityType, selectedEntityType, resetFieldsTimeout, onFieldsChange]);
+
   // Auto-select first entity in uncontrolled mode
   useEffect(() => {
     if (hideEntitySelector || entityType) return;
