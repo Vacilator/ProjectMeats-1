@@ -7,7 +7,7 @@
  * Updated: 2026-02-03 - Phase 2 Forms & Flows Enhancement
  * - Added badge rendering support for action item counts
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { logger } from '@/utils/logger';
 
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -54,6 +54,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   // Changed from Set to string | null for exclusive accordion (only one open at a time)
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const isDarkMode = themeName === 'dark';
+  const lastPathnameRef = useRef(location.pathname);
   
   // Filter items based on user roles
   const filterItemsByRole = (navItems: NavigationItem[]): NavigationItem[] => {
@@ -90,10 +91,17 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
     });
   };
   
-  const filteredItems = filterItemsByRole(items);
+  const filteredItems = useMemo(
+    () => filterItemsByRole(items),
+    [items, isAdmin, user],
+  );
 
-  // Auto-expand parent items when a child is active
+  // Auto-expand parent items only when navigation occurs (preserve manual toggles)
   useEffect(() => {
+    if (location.pathname === lastPathnameRef.current) {
+      return;
+    }
+
     const findActiveParent = (navItems: NavigationItem[]): string | null => {
       for (const item of navItems) {
         if (item.path === location.pathname && item.children) {
@@ -108,11 +116,12 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       }
       return null;
     };
-    
+
     const activeParent = findActiveParent(filteredItems);
     if (activeParent) {
       setExpandedItem(activeParent);
     }
+    lastPathnameRef.current = location.pathname;
   }, [location.pathname, filteredItems]);
 
   const toggleExpand = (label: string, e?: React.MouseEvent) => {
@@ -617,7 +626,7 @@ const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean
   /* Ensure it doesn't block parent items */
   pointer-events: ${(props) => (props.$isExpanded ? 'auto' : 'none')};
   position: relative;
-  z-index: 1;
+  z-index: auto;
 `;
 
 const Badge = styled.span<{ $isDarkMode: boolean }>`
