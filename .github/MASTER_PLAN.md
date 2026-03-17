@@ -75,6 +75,19 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - CockpitDashboard becomes a results view driven by URL `?q=` (SmartSearch controlled query + hideInput).
   - SmartSearch now debounces via `lodash/debounce` (no setTimeout).
 
+- 2026-03-17 — Cockpit BreadcrumbBar elevation — Commit: 77ac88c3 (branch: `feature/cockpit-actions-breadcrumb`, PR: TBD)
+  - BreadcrumbBar renders directly beneath Toolbar/CockpitTour (outside search block) to keep navigation visible across states.
+  - Verification: Breadcrumb persists above search/hint/results when drilling into entities.
+
+- 2026-03-17 — Cockpit Quick Actions routing + PinnedTools event bus — Commit: 77ac88c3 (branch: `feature/cockpit-actions-breadcrumb`, PR: TBD)
+  - SmartSearch quick actions now route via React Router (PO/SO create/history) and dispatch `pm:open-tool` for Send Email.
+  - PinnedToolsBar listens for global `pm:open-tool` to open email/record tools automatically.
+
+- 2026-03-17 — Cockpit consolidation (SmartWizard removal, hero search, sidebar fix) — Commit: TBD (branch: `feature/cockpit-consolidation`, PR: TBD)
+  - SmartWizard routes/menu removed; Cockpit remains search-first with embedded SmartSearch hero.
+  - Sidebar NavigationMenu memoized and guarded with `lastPathnameRef` to prevent snap-back during manual toggles.
+  - Verification: Hero search updates breadcrumbs/results; sidebar stress test maintains user toggles.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
