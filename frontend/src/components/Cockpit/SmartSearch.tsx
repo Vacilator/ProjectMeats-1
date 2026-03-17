@@ -132,20 +132,6 @@ const ClearButton = styled.button`
   }
 `;
 
-const FocusSearchButton = styled.button`
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-primary));
-  color: white;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:hover {
-    opacity: 0.92;
-  }
-`;
 
 const ContentArea = styled.div`
   flex: 1;
@@ -757,31 +743,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Render search results (top-5 per type)
    */
   const renderSearchResults = () => {
-    const q = query.trim();
     const types = Object.keys(results);
-
-    if (q.length < 2) {
-      return (
-        <EmptyState>
-          <EmptyIcon>
-            <Search size={48} />
-          </EmptyIcon>
-          <EmptyTitle>Search the Cockpit</EmptyTitle>
-          <EmptyMessage>
-            Use the global search bar above (Ctrl+K) and type at least 2 characters.
-          </EmptyMessage>
-          {hideInput && (
-            <div style={{ marginTop: '12px' }}>
-              <FocusSearchButton
-                onClick={() => (document.getElementById('global-search-input') as HTMLInputElement | null)?.focus()}
-              >
-                Focus Search
-              </FocusSearchButton>
-            </div>
-          )}
-        </EmptyState>
-      );
-    }
 
     if (types.length === 0) {
       return (
