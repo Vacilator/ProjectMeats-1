@@ -1272,6 +1272,13 @@ export const documentGenerateSchema: NodeConfigSchema = {
           placeholder: 'Select template...',
           helpText: 'Pre-configured document template',
           required: true,
+          options: [
+            {
+              value: '__loading__',
+              label: 'Loading Templates...',
+              disabled: true,
+            },
+          ],
           visibilityCondition: {
             field: 'templateSource',
             operator: 'equals',
