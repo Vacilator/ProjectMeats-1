@@ -13,8 +13,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 > Fill in as PRs are opened/merged.
 
-- 2026-03-17 — Branch `fix/cockpit-entity-detail` (pending PR)  
-  - MyTasks: workflow execution fetch now clears stale data and returns a tenant-safe empty state for 403/404 responses, preventing “Failed to load workflows” noise while keeping user refresh available.
+- 2026-03-17 — PR #3531 (branch `fix/cockpit-entity-detail`) — merged to `development`  
+  - Cockpit relations: entity_graph now returns safe empty querysets, resilient counts/samples, and tolerant IDs to avoid zero-related responses.  
+  - FlowEditor stability: inject `onSave` into node data; guard `onEdit` in FormProcessGroupNode; EntityFieldPicker refetches on entity type change.  
+  - Inquiry UX: SmartProductAutocomplete uses BusinessApi `system/products` with optional protein filter and protein-change requery.  
+  - MyTasks: clears stale executions and shows tenant-safe empty messaging for 403/404 instead of noisy failures.
 
 - 2026-03-13 — Phase 7 Stabilization + Cockpit Navigation — Commit: 6144c189 (PR: #3447)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3447
