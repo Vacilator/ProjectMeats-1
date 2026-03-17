@@ -627,3 +627,71 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 **Master Plan Version**: 1.0.0  
 **Maintained By**: Development Team + AI Assistants  
 **Next Review**: March 15, 2026
+
+---
+
+## 🚨 EMERGENCY: Node Config Blackout & Registry Normalization
+
+**Date Added**: March 17, 2026  
+**Severity**: CRITICAL  
+**Status**: PENDING IMPLEMENTATION
+
+### Root Cause Analysis
+
+Based on a deep architectural audit of the provided source files and error logs, the "blackout" in the node configuration panels is caused by a **systemic failure in the Schema Validation engine** and a **critical missing reference** in the field renderers. While the `Form` and `FormProcess` nodes are functioning because their schemas were recently normalized, the rest of the editor is currently locked in a "fallback" state because the registry is crashing during initialization.
+
+#### I. Root Cause Analysis
+
+1. **The Registry TypeError:** The console log `Uncaught TypeError: c.validation.forEach is not a function` at `schemaRegistry.ts:313` is the primary blocker. The validator expects the `validation` property to be an **Array**, but schemas for `createRecord`, `outlookEmail`, and others define it as an **Object**. This crash prevents the dynamic panel from rendering anything but an empty container (`<div class="sc-cogdcj jDMnzb"></div>`).
+
+2. **Reference Error (Hard Crash):** The log `ReferenceError: ValidationRuleBuilder is not defined` in `complexRenderers.tsx` indicates that nodes using advanced validation (like `actionCreateRecord` or `actionEmail`) trigger a hard crash the moment they are clicked.
+
+3. **Broken Node Callbacks:** The `Uncaught TypeError: a is not a function` in `FormProcessGroupNode.tsx` confirms that the `onEdit` and `onDelete` handlers are not being correctly passed or bound in the `UnifiedFlowEditor`.
+
+#### II. 🤖 COPILOT CLI DELEGATION: EMERGENCY RESTORATION
+
+**Mode:** `plan`  
+**Agent:** `claude-opus-4.5` (followed by `claude-sonnet-4.5` in `automode`)
+
+**Detailed Prompt:**
+
+> **Context:** Senior Lead Architect for ProjectMeats. We are performing an EMERGENCY restoration of the FlowEditor Configuration Engine.
+>
+> **Objective 1: Harden the Schema Registry Validator**
+> 1. Modify `frontend/src/components/FlowEditor/config/schemaRegistry.ts`.
+> 2. In `validateSchema`, add a defensive normalization step:
+> ```typescript
+> if (field.validation && !Array.isArray(field.validation)) {
+>   field.validation = [field.validation]; // Auto-wrap object into array
+> }
+> ```
+> 3. Update the validator to allow `info` and `button` field types to exist without a `label` property to prevent "missing label" warnings.
+>
+> **Objective 2: Fix Missing Renderer Imports**
+> 1. Locate `frontend/src/components/FlowEditor/config/fieldRenderers/complexRenderers.tsx`.
+> 2. Import the `ValidationRuleBuilder` component (verify its location, likely in `ConfigPanel/ValidationRuleBuilder.tsx`).
+> 3. Ensure the `renderValidationBuilder` function correctly utilizes the component instead of throwing a `ReferenceError`.
+>
+> **Objective 3: Normalize All Node Schemas**
+> 1. Locate all instances of `validation: { ... }` in `frontend/src/components/FlowEditor/config/nodeConfigSchemas.ts` and convert them to `validation: [{ type: 'required', message: '...' }]`.
+> 2. Prioritize fixing `triggerSchema`, `actionCreateRecordSchema`, `actionEmailSchema`, and `timerDelaySchema`.
+> 3. For `documentGenerateSchema`, implement a fallback for the `templateId` select: if no dynamic options are present, render a descriptive "Loading Templates..." placeholder.
+>
+> **Objective 4: Repair Node Event Handlers**
+> 1. Update `frontend/src/components/FlowEditor/UnifiedFlowEditor.tsx`. Ensure the `onEdit` handler is correctly injected into the `data` object for ALL node types in the `nodesWithHandlers` useMemo.
+> 2. In `FormProcessGroupNode.tsx`, ensure `handleConfigure` and `handleSave` check if the callback is a function before execution: `if (typeof data.onEdit === 'function') { data.onEdit(); }`.
+>
+> **Strict Compliance:**
+> * Relocate `<div id="config-portal"></div>` to `frontend/index.html` within the `<body>` to eliminate mount race conditions.
+> * Update `.github/MASTER_PLAN.md` with the resolution of "Node Config Blackout & Registry Normalization."
+
+#### III. 📝 VERIFICATION TASKS
+
+1. **Configuration Verification:** Once the PR is merged, click an **Action: Send Email** node and verify that the "To", "Subject", and "Body" fields appear immediately.
+
+2. **Wait Node Test:** Verify that clicking a **Timer: Delay** node now shows a numeric duration input and a unit dropdown (Minutes/Hours) instead of a blank panel.
+
+3. **Manual "Save" Audit:** Save a workflow containing a **Form Process Group** and verify that the success toast appears without the `TypeError: a is not a function` error appearing in the background console.
+
+4. **Schema Robustness Check:** Verify that the console no longer logs "Invalid schema" warnings for the `createRecord` or `outlookEmail` nodes.
+

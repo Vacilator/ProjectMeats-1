@@ -15,6 +15,7 @@ import { ConfigField, FieldRenderProps } from '../types';
 import EntityFieldPicker, { SelectedField } from '../../ConfigPanel/EntityFieldPicker';
 import FieldMappingPanel from '../../ConfigPanel/FieldMappingPanel';
 import VariablePickerWithUpstream from '../../ConfigPanel/VariablePickerWithUpstream';
+import ValidationRuleBuilder from '../../ConfigPanel/ValidationRuleBuilder';
 
 // ============================================================================
 // Entity Field Picker Renderer (Phase E.3)
@@ -196,7 +197,6 @@ export function renderVariablePicker(props: FieldRenderProps): React.ReactElemen
 /**
  * Renders a validation rule builder
  * Used for defining validation rules on form fields
- * TODO: Implement ValidationRuleBuilder component
  */
 export function renderValidationBuilder(props: FieldRenderProps): React.ReactElement {
   const { field, value, onChange, error } = props;
