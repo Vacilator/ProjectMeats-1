@@ -164,6 +164,59 @@ const Container = styled.div`
   background: rgb(var(--color-background));
 `;
 
+const HeroSection = styled.section`
+  padding: 24px;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--color-primary), 0.08),
+    rgba(var(--color-surface), 0.6)
+  );
+  border-bottom: 1px solid rgb(var(--color-border));
+`;
+
+const HeroCard = styled.div`
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.04);
+`;
+
+const HeroHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const HeroTitle = styled.h2`
+  margin: 0;
+  font-size: 22px;
+  color: rgb(var(--color-text-primary));
+  letter-spacing: -0.01em;
+`;
+
+const HeroSubtitle = styled.p`
+  margin: 4px 0 0;
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+  max-width: 720px;
+`;
+
+const HeroSearchWrapper = styled.div`
+  margin-top: 16px;
+  min-height: 260px;
+`;
+
+const BreadcrumbWrapper = styled.div`
+  max-width: 1100px;
+  margin: 12px auto 0;
+  padding: 0 8px;
+`;
+
 const ToolbarWrapper = styled.div`
   display: flex;
   align-items: center;
@@ -176,42 +229,6 @@ const ToolbarWrapper = styled.div`
     padding: 12px 16px;
     flex-wrap: wrap;
     gap: 12px;
-  }
-`;
-
-const SearchHint = styled.div`
-  margin: 16px;
-  padding: 16px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg, 12px);
-  background: rgb(var(--color-surface));
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  @media (max-width: 640px) {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-`;
-
-const SearchHintTitle = styled.div`
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
-
-const SearchHintMessage = styled.div`
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-
-  kbd {
-    padding: 2px 6px;
-    border-radius: 6px;
-    border: 1px solid rgb(var(--color-border));
-    background: rgb(var(--color-background));
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 12px;
   }
 `;
 
@@ -454,12 +471,18 @@ export const CockpitDashboard: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   
   // Header owns global Ctrl+K search. Cockpit reads query from URL.
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const cockpitQuery = searchParams.get('q') ?? '';
+  const [heroQuery, setHeroQuery] = useState(cockpitQuery);
   
   // Cockpit navigation context
   const navigation = useCockpitNavigation();
   const pinnedTools = useCockpitPinnedTools();
+
+  // Keep hero query in sync with header/global search param
+  useEffect(() => {
+    setHeroQuery(cockpitQuery);
+  }, [cockpitQuery]);
 
   // Load saved layout from backend API with localStorage fallback
   useEffect(() => {
@@ -640,12 +663,44 @@ export const CockpitDashboard: React.FC = () => {
     }
   }, []);
 
-  const trimmedCockpitQuery = cockpitQuery.trim();
-  const hasSearchQuery = trimmedCockpitQuery.length >= 2;
-  const showSearchView = hasSearchQuery || navigation.path.length > 0;
+  const handleHeroQueryChange = useCallback((value: string) => {
+    setHeroQuery(value);
+    if (navigation.path.length > 0 && value !== cockpitQuery) {
+      navigation.clearPath();
+    }
+    const next = new URLSearchParams(searchParams);
+    if (value.trim()) {
+      next.set('q', value);
+    } else {
+      next.delete('q');
+    }
+    setSearchParams(next, { replace: true });
+  }, [cockpitQuery, navigation, searchParams, setSearchParams]);
 
   return (
     <Container>
+      <HeroSection>
+        <HeroCard>
+          <HeroHeader>
+            <div>
+              <HeroTitle>Search-first Cockpit</HeroTitle>
+              <HeroSubtitle>Use the omnibox to jump to any record, workflow, or action without leaving the dashboard.</HeroSubtitle>
+            </div>
+          </HeroHeader>
+          <HeroSearchWrapper>
+            <SmartSearch
+              query={heroQuery}
+              onQueryChange={handleHeroQueryChange}
+            />
+          </HeroSearchWrapper>
+        </HeroCard>
+        {navigation.path.length > 0 && (
+          <BreadcrumbWrapper>
+            <BreadcrumbBar />
+          </BreadcrumbWrapper>
+        )}
+      </HeroSection>
+
       {/* Toolbar for search and edit mode */}
       <ToolbarWrapper>
         <ToolbarLeft>
@@ -680,32 +735,6 @@ export const CockpitDashboard: React.FC = () => {
       
       {/* Guided Tour */}
       <CockpitTour enabled={true} />
-
-      {/* Search / Record Pivot area (header-driven) */}
-      {showSearchView ? (
-        <div style={{ padding: '16px 16px 0 16px' }}>
-          {/* Breadcrumb navigation bar */}
-          {navigation.path.length > 0 && (
-            <div style={{ marginBottom: '12px' }}>
-              <BreadcrumbBar />
-            </div>
-          )}
-
-          <SmartSearch query={trimmedCockpitQuery} hideInput={true} />
-        </div>
-      ) : (
-        <SearchHint>
-          <SearchHintTitle>Cockpit search is in the header</SearchHintTitle>
-          <SearchHintMessage>
-            Type at least 2 characters above (or press <kbd>Ctrl</kbd>+<kbd>K</kbd>) to start continuous browsing.
-          </SearchHintMessage>
-          <ActionButton
-            onClick={() => (document.getElementById('global-search-input') as HTMLInputElement | null)?.focus()}
-          >
-            Focus Search
-          </ActionButton>
-        </SearchHint>
-      )}
 
       {/* Widget Grid (hidden when a record is active) */}
       {navigation.path.length === 0 && (
