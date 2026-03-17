@@ -508,7 +508,7 @@ export const MyTasks: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'due_date' | 'priority' | 'form'>('due_date');
+  const [sortBy, setSortBy] = useState<'smart' | 'due_date' | 'priority' | 'form'>('smart');
   
   // Delegation state
   const [showDelegateModal, setShowDelegateModal] = useState(false);
@@ -597,6 +597,30 @@ export const MyTasks: React.FC = () => {
     return date.toLocaleDateString();
   };
 
+  const daysUntilDue = (dueDate: string | null): number | null => {
+    if (!dueDate) return null;
+    const date = new Date(dueDate);
+    const now = new Date();
+    const diff = date.getTime() - now.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
+  const computeUrgencyValueScore = (item: ActionItem): number => {
+    const priorityWeight: Record<string, number> = {
+      urgent: 1.5,
+      high: 1.0,
+      normal: 0.5,
+      low: 0.2,
+    };
+    const days = daysUntilDue(item.due_date);
+    const isOverdue = item.is_overdue || (days !== null && days < 0);
+    const daysWeight = isOverdue ? 10 : days !== null ? Math.max(0, 7 - Math.min(days, 30)) / 7 : 0;
+    const value = item.related_po_value ?? 0;
+    const valueWeight = Math.log10(value > 0 ? value + 1 : 1); // diminishing returns
+    const priority = priorityWeight[item.priority] ?? 0.3;
+    return (isOverdue ? 5 : 0) + daysWeight * 3 + valueWeight * 2 + priority;
+  };
+
   // Filter and sort action items
   const filteredItems = useMemo(() => {
     let items = [...actionItems];
@@ -627,6 +651,8 @@ export const MyTasks: React.FC = () => {
     // Sort
     items.sort((a, b) => {
       switch (sortBy) {
+        case 'smart':
+          return computeUrgencyValueScore(b) - computeUrgencyValueScore(a);
         case 'due_date':
           if (!a.due_date && !b.due_date) return 0;
           if (!a.due_date) return 1;
@@ -646,6 +672,16 @@ export const MyTasks: React.FC = () => {
 
     return items;
   }, [actionItems, priorityFilter, statusFilter, searchQuery, sortBy]);
+
+  const riskStats = useMemo(() => {
+    const atRiskItems = filteredItems.filter((item) => {
+      const days = daysUntilDue(item.due_date);
+      const value = item.related_po_value ?? 0;
+      return (item.is_overdue || (days !== null && days <= 2)) && value >= 10000;
+    });
+    const totalValue = atRiskItems.reduce((sum, item) => sum + (item.related_po_value ?? 0), 0);
+    return { count: atRiskItems.length, totalValue };
+  }, [filteredItems]);
 
   // Handle task click
   const handleTaskClick = (item: ActionItem) => {
@@ -787,6 +823,16 @@ export const MyTasks: React.FC = () => {
             <StatValue>{actionItemCounts.due_this_week}</StatValue>
             <StatLabel>Due This Week</StatLabel>
           </StatCard>
+          <StatCard $variant="danger">
+            <StatValue>{riskStats.count}</StatValue>
+            <StatLabel>At Risk (≤2 days &gt;= $10k)</StatLabel>
+          </StatCard>
+          <StatCard>
+            <StatValue>
+              {riskStats.totalValue > 0 ? `$${riskStats.totalValue.toLocaleString()}` : '$0'}
+            </StatValue>
+            <StatLabel>At Risk Value</StatLabel>
+          </StatCard>
           <StatCard>
             <StatValue>{actionItemCounts.total}</StatValue>
             <StatLabel>Total Tasks</StatLabel>
@@ -828,8 +874,9 @@ export const MyTasks: React.FC = () => {
           <FilterLabel>Sort By:</FilterLabel>
           <FilterSelect
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'due_date' | 'priority' | 'form')}
+            onChange={(e) => setSortBy(e.target.value as 'smart' | 'due_date' | 'priority' | 'form')}
           >
+            <option value="smart">Urgency × Value (Recommended)</option>
             <option value="due_date">Due Date</option>
             <option value="priority">Priority</option>
             <option value="form">Form Name</option>
@@ -884,6 +931,11 @@ export const MyTasks: React.FC = () => {
                   <TaskMetaItem>
                     📅 {formatDueDate(item.due_date)}
                   </TaskMetaItem>
+                  {typeof item.related_po_value === 'number' && (
+                    <TaskMetaItem>
+                      💰 {item.related_po_currency || 'USD'} {item.related_po_value.toLocaleString()}
+                    </TaskMetaItem>
+                  )}
                   <PriorityBadge $priority={item.priority}>
                     {item.priority}
                   </PriorityBadge>
