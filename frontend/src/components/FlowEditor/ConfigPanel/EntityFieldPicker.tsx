@@ -407,6 +407,13 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     }
   }, [entities, entityType, hideEntitySelector, initialEntityType, selectedEntityType]);
 
+  // Force refetch when the effective entity type changes to avoid stale field lists
+  useEffect(() => {
+    if (effectiveEntityType) {
+      refetchFields();
+    }
+  }, [effectiveEntityType, refetchFields]);
+
   const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const entityType = e.target.value;
     console.log('[EntityFieldPicker] Entity selected:', entityType);

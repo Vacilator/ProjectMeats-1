@@ -691,7 +691,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   const handleConfigure = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     // Call the onEdit handler passed from UnifiedFlowEditor
-    if (data.onEdit) {
+    if (typeof data.onEdit === 'function') {
       data.onEdit();
     }
   }, [data]);
