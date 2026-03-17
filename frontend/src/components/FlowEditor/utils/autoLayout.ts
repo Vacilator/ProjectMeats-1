@@ -21,13 +21,15 @@ export interface LayoutOptions {
   nodeSpacing?: number;
   rankSpacing?: number;
   edgeSpacing?: number;
+  align?: 'UL' | 'UR' | 'DL' | 'DR';
 }
 
-const DEFAULT_OPTIONS: Required<LayoutOptions> = {
-  direction: 'TB', // Top to Bottom
+const DEFAULT_OPTIONS: Required<Omit<LayoutOptions, 'direction'>> & { direction: 'TB' } = {
+  direction: 'TB', // Force Top to Bottom
   nodeSpacing: 50,
   rankSpacing: 100,
   edgeSpacing: 20,
+  align: 'UL',
 };
 
 /**
@@ -38,19 +40,21 @@ export const getLayoutedElements = (
   edges: Edge[],
   options: LayoutOptions = {}
 ): { nodes: Node[]; edges: Edge[] } => {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const opts = { ...DEFAULT_OPTIONS, ...options, direction: 'TB' };
   
   // Create a new dagre graph
   const dagreGraph = new dagre.graphlib.Graph();
   
   // Set graph options
   dagreGraph.setGraph({
-    rankdir: opts.direction,
+    rankdir: 'TB',
+    align: opts.align,
+    ranker: 'longest-path',
     nodesep: opts.nodeSpacing,
     ranksep: opts.rankSpacing,
     edgesep: opts.edgeSpacing,
-    marginx: 50,
-    marginy: 50,
+    marginx: 80,
+    marginy: 80,
   });
   
   // Default edge config
@@ -90,8 +94,30 @@ export const getLayoutedElements = (
     };
   });
   
+  // Center align graph horizontally for consistent top-to-bottom layout
+  const minX = Math.min(...layoutedNodes.map((n) => n.position.x));
+  const maxX = Math.max(...layoutedNodes.map((n) => n.position.x + (n.width || 280)));
+  const centerOffset = (minX + maxX) / 2;
+
+  const alignedNodes = layoutedNodes.map((node) => ({
+    ...node,
+    position: {
+      x: node.position.x - centerOffset,
+      y: node.position.y,
+    },
+  }));
+
+  const normalizedMinX = Math.min(...alignedNodes.map((n) => n.position.x));
+  const normalizedNodes = alignedNodes.map((node) => ({
+    ...node,
+    position: {
+      x: node.position.x - normalizedMinX + 50, // add slight margin for viewport
+      y: node.position.y,
+    },
+  }));
+
   return {
-    nodes: layoutedNodes,
+    nodes: normalizedNodes,
     edges,
   };
 };

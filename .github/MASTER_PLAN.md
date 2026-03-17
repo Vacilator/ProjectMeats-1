@@ -6,6 +6,9 @@
 **Overall Progress**: 88.6% (62/70 todos) + **58 NEW STRATEGIC TODOS** tracked  
 **Infrastructure Status**: Phase 2, 3, 5, 8 fully operational in dev
 
+**Latest Progress (Power Automate UX)**  
+- Completed Batch 2: disabled manual node dragging/connecting, defaulted edges to inline insertion type, added "+" edge event listener to open the node palette with context, and enforced strict top-to-bottom auto-layout centering.
+
 ---
 
 ## 🔧 Phase 7 Stabilization + Cockpit Navigation (Active) ⚠️
@@ -926,4 +929,3 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 **Next Review**: March 15, 2026
 
 ---
-

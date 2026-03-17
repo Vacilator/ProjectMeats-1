@@ -118,7 +118,7 @@ import {
   UtilityNode,
   TerminalNode,
 } from './nodes';
-import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge } from './edges';
+import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge } from './edges';
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
 import { ValidationDrawer } from './components/ValidationDrawer';
@@ -1658,6 +1658,7 @@ const staticEdgeTypes: EdgeTypes = {
   conditional: ConditionalEdge,
   error: ErrorEdge,
   success: SuccessEdge,
+  insert: InsertNodeEdge,
   default: CustomEdge, // Fallback to custom for untyped edges
 };
 
@@ -2396,6 +2397,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [history, setHistory] = useState<HistoryState[]>([{ nodes: normalizedInitialNodes, edges: initialEdges }]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isPaletteVisible, setIsPaletteVisible] = useState(true);
+  const [pendingInsertEdgeId, setPendingInsertEdgeId] = useState<string | null>(null);
+
+  // Inline insertion: listen for "+" edge events to open palette with context
+  useEffect(() => {
+    const handleOpenPalette = (event: Event) => {
+      const detail = (event as CustomEvent<{ insertOnEdgeId?: string }>).detail;
+      setPendingInsertEdgeId(detail?.insertOnEdgeId || null);
+      setIsPaletteVisible(true);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    };
+
+    window.addEventListener('pm:openNodePalette', handleOpenPalette as EventListener);
+    return () => {
+      window.removeEventListener('pm:openNodePalette', handleOpenPalette as EventListener);
+    };
+  }, []);
 
   // Configuration Panel
   // NOTE: selectedNode and selectedNodeId moved to top of component to fix TDZ
@@ -3570,6 +3587,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       // Normal drop on main canvas
+      const insertEdge = pendingInsertEdgeId
+        ? edges.find((e) => e.id === pendingInsertEdgeId)
+        : null;
+
+      if (insertEdge) {
+        const sourceNode = nodes.find((n) => n.id === insertEdge.source);
+        const targetNode = nodes.find((n) => n.id === insertEdge.target);
+
+        if (sourceNode && targetNode) {
+          newNode.position = {
+            x: (sourceNode.position.x + targetNode.position.x) / 2,
+            y: (sourceNode.position.y + targetNode.position.y) / 2,
+          };
+        }
+      }
+
       const updatedNodes = nodes.concat(newNode);
       setNodes(updatedNodes);
       setNodeIdCounter((prev) => prev + 1);
@@ -3579,12 +3612,31 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // Auto-connect to nearby node if found (only for main canvas drops)
       let updatedEdges = edges;
-      if (nearby && !targetContainer) {
+      if (insertEdge && !targetContainer) {
+        updatedEdges = edges.filter((e) => e.id !== insertEdge.id);
+        updatedEdges = [
+          ...updatedEdges,
+          {
+            id: `edge-${insertEdge.source}-${newNode.id}`,
+            source: insertEdge.source,
+            target: newNode.id,
+            type: 'insert',
+          },
+          {
+            id: `edge-${newNode.id}-${insertEdge.target}`,
+            source: newNode.id,
+            target: insertEdge.target,
+            type: 'insert',
+          },
+        ];
+        setEdges(updatedEdges);
+        setPendingInsertEdgeId(null);
+      } else if (nearby && !targetContainer) {
         const newEdge = {
           id: `edge-${nearby.id}-${newNode.id}`,
           source: nearby.id,
           target: newNode.id,
-          type: 'custom',
+          type: 'insert',
         };
         updatedEdges = [...edges, newEdge];
         setEdges(updatedEdges);
@@ -3592,8 +3644,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // Clear nearby node state
       setNearbyNode(null);
+      setPendingInsertEdgeId(null);
     },
-    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, findNearbyNode, setEdges, findContainerAtPosition]
+    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, findNearbyNode, setEdges, findContainerAtPosition, pendingInsertEdgeId]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -5936,6 +5989,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodesDelete={onNodesDelete}
+        nodesDraggable={false}
+        nodesConnectable={false}
         isValidConnection={isValidConnection}
         onDrop={onDrop}
         onDragOver={onDragOver}
@@ -5953,7 +6008,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         maxZoom={4}
         minZoom={0.1}
         defaultEdgeOptions={{ 
-          type: 'custom',
+          type: 'insert',
+          pathOptions: { offset: 20 },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 20,
@@ -5967,7 +6023,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           strokeDasharray: '5,5',
           animation: 'dash 0.5s linear infinite',
         }}
-        connectionLineType="smoothstep"
+        connectionLineType="step"
         fitView
         snapToGrid={snapToGrid}
         snapGrid={[gridSize, gridSize]}
