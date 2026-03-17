@@ -87,6 +87,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Verification: Quick Actions open correct routes with entity ids, and Send Email opens the mail drawer without manual click.
 - 2026-03-17 — FlowEditor handler injection hardening — Commit: TBD (branch: `feature/wf-handler-injection`, PR: TBD)
   - Inject safe defaults for `onEdit`/`onDelete`/`onSave`/`onTitleChange` across all node data objects to prevent missing-callback crashes.
+- 2026-03-17 — Form node deprecation removal — Commit: TBD (branch: `feature/patch-form-deprecation`, PR: TBD)
+  - Treat `formStep` as a first-class node: remove deprecation warning section, refresh display name/description/tags, keep schema fully supported for new and existing workflows.
 
 ---
 

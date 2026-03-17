@@ -2095,28 +2095,13 @@ export const timerDelaySchema: NodeConfigSchema = {
 
 const formStepSchema: NodeConfigSchema = {
   nodeType: 'formStep',
-  displayName: 'Form Step (Deprecated)',
-  description: '[DEPRECATED] Use "Form" node instead. This schema keeps legacy workflows editable.',
+  displayName: 'Form Step',
+  description: 'Single step within a multi-step form. Fully supported for new and existing workflows.',
   icon: FileText,
-  version: '1.1.0',
-  tags: ['form', 'deprecated'],
+  version: '1.1.1',
+  tags: ['form', 'step'],
   contextAware: true,
   sections: [
-    {
-      id: 'deprecation',
-      title: 'Migration Notice',
-      icon: AlertCircle,
-      defaultExpanded: true,
-      description: 'This node type is deprecated. Please migrate to the new "Form" node type.',
-      fields: [
-        {
-          id: '_migrationWarning',
-          type: 'info',
-          label: 'Notice',
-          content: '⚠️ **Deprecated node type.** Please use the "Form" node instead for new workflows. Existing "formStep" nodes will continue to work, but improvements will focus on the new node types.',
-        }
-      ]
-    },
     {
       id: 'basic',
       title: 'Basic Properties',
