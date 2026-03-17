@@ -140,10 +140,21 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                   onApply={onApply}
                   onDiscard={onDiscard}
                   sectionFilter={(section) => {
-                    // Show only basic sections in General tab
-                    // Advanced sections go to Advanced tab
-                    const basicSectionIds = ['basic', 'entity', 'fields', 'appearance', 'behavior'];
-                    return basicSectionIds.includes(section.id);
+                    // Show everything by default in General, except sections intended for Advanced
+                    const advancedSectionIds = [
+                      'advanced',
+                      'validation',
+                      'conditional',
+                      'integration',
+                      'webhooks',
+                      'email',
+                      'notifications',
+                      'errorHandling',
+                      'http-auth',
+                      'advanced-settings',
+                    ].map((s) => s.toLowerCase());
+                    const id = (section.id || '').toLowerCase();
+                    return !advancedSectionIds.includes(id) && !id.includes('advanced');
                   }}
                 />
               </TabPanel>
@@ -209,9 +220,21 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                   onApply={onApply}
                   onDiscard={onDiscard}
                   sectionFilter={(section) => {
-                    // Show advanced sections: validation, conditional logic, integration, etc.
-                    const advancedSectionIds = ['advanced', 'validation', 'conditional', 'integration', 'webhooks', 'email', 'notifications'];
-                    return advancedSectionIds.includes(section.id);
+                    // Show only advanced sections here
+                    const advancedSectionIds = [
+                      'advanced',
+                      'validation',
+                      'conditional',
+                      'integration',
+                      'webhooks',
+                      'email',
+                      'notifications',
+                      'errorHandling',
+                      'http-auth',
+                      'advanced-settings',
+                    ].map((s) => s.toLowerCase());
+                    const id = (section.id || '').toLowerCase();
+                    return advancedSectionIds.includes(id) || id.includes('advanced');
                   }}
                 />
               </TabPanel>

@@ -169,6 +169,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - LiveFormPreview: normalize `field.validation` to an array before iterating.
   - Verified: GitHub Actions run 23112951974 succeeded (dev deploy green). Deployed tags: `development-5b9e5f34da6f80c51f807483caa3910de6d339d9` (pm-frontend + pm-backend).
 
+- 2026-03-17 — FlowEditor: restore dynamic config sections (PR pending)
+  - Fix TabbedConfigPanel strict whitelist that hid non-form node sections (triggers, actions, conditions).
+  - General tab now shows all non-advanced sections; Advanced tab shows only advanced sections.
+  - Impact: All node types render their schema-driven configuration panels again.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
