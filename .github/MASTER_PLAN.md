@@ -623,3 +623,5 @@ Deliverables:
 - ✅ Batch 1 (Cleanup): COMPLETE
 - ✅ Batch 2 (Panel Migration): COMPLETE (PR #3584)
 - ✅ Runtime Fixes: COMPLETE (PR #3584)
+- [x] Wired Cockpit Entity Tools (Smart Quote, Email Drafter) to dynamic workflow engine with record context.
+- [x] Integrated 'Configure Tools' UI for user-customizable action buttons.

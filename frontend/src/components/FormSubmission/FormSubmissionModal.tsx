@@ -959,6 +959,25 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
 
   const workflowContext = useWorkflowContext(workflowNodes, currentNode?.id || null);
 
+  // Inject active record context for workflow/template resolution (Cockpit tools)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    try {
+      const raw = sessionStorage.getItem('pm.activeRecordContext');
+      if (!raw) return;
+
+      sessionStorage.removeItem('pm.activeRecordContext');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        workflowContext.setNodeData('activeRecord', parsed);
+      }
+    } catch (e) {
+      // Non-fatal: context injection is best-effort
+      logger.debug('[FormSubmission] Failed to load active record context');
+    }
+  }, [isOpen, workflowContext]);
+
   // Sync formData with workflow context on step change
   useEffect(() => {
     if (currentStep && formData[currentStep.id]) {
