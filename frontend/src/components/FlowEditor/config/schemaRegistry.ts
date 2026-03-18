@@ -319,13 +319,32 @@ class ConfigSchemaRegistry {
           );
         }
 
-        // Normalize validation rules to an array to avoid runtime crashes.
-        // Backward compatible: if a single object is provided, wrap it.
-        if (field.validation && !Array.isArray(field.validation)) {
-          warnings.push(`${fieldPrefix}: validation should be an array; wrapping single object`);
-          (field as any).validation = [field.validation as any];
+        // Robustly normalize validation rules to an array
+        // Handles cross-realm Array.isArray() issues and double-wrapped arrays
+        let validationRules: any[] = [];
+        if (field.validation) {
+          if (Array.isArray(field.validation)) {
+            // Standard array case
+            validationRules = field.validation as any[];
+          } else if (typeof field.validation === 'object' && field.validation !== null) {
+            // Check if it's an array-like object (cross-realm issue)
+            if (typeof (field.validation as any).length === 'number') {
+              validationRules = Array.from(field.validation as any);
+            } else {
+              // Single object, wrap it
+              validationRules = [field.validation];
+            }
+          } else {
+            // Primitive or unexpected type, wrap it
+            validationRules = [field.validation];
+          }
+          
+          // Flatten to unwrap cross-realm double-wrapped arrays: [[{type: 'required'}]]
+          // flat(Infinity) recursively flattens nested arrays
+          validationRules = validationRules.flat(Infinity).filter(r => 
+            r && typeof r === 'object' && !Array.isArray(r)
+          );
         }
-        const validationRules = Array.isArray(field.validation) ? field.validation : [];
 
         // Validate validation rules
         validationRules.forEach((rule, ruleIndex) => {
