@@ -640,17 +640,16 @@ export const CockpitDashboard: React.FC = () => {
       
       {/* Guided Tour */}
       <CockpitTour enabled={true} />
-      
+
+      {/* Breadcrumb navigation bar - Elevated above search and grid */}
+      {navigation.path.length > 0 && (
+        <div style={{ padding: '16px 24px 0 24px' }}>
+          <BreadcrumbBar />
+        </div>
+      )}
 
       {/* EMBEDDED SEARCH - Always Visible */}
       <div style={{ padding: '16px 16px 0 16px' }}>
-        {/* Breadcrumb navigation bar */}
-        {navigation.path.length > 0 && (
-          <div style={{ marginBottom: '12px' }}>
-            <BreadcrumbBar />
-          </div>
-        )}
-        
         <SmartSearch query={cockpitQuery} />
       </div>
 

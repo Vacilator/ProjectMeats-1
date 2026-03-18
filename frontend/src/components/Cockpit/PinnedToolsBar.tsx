@@ -145,6 +145,20 @@ export const PinnedToolsBar: React.FC = () => {
     }
   }, [openPinnedId, activeRecord, loadActiveRecord]);
 
+  useEffect(() => {
+    if (!isCockpit) return;
+
+    const handleOpenTool = (event: Event) => {
+      const toolId = (event as CustomEvent<{ toolId?: string }>).detail?.toolId;
+      if (typeof toolId === 'string' && toolId.length > 0) {
+        setOpenPinnedId(toolId);
+      }
+    };
+
+    window.addEventListener('pm:open-tool', handleOpenTool as EventListener);
+    return () => window.removeEventListener('pm:open-tool', handleOpenTool as EventListener);
+  }, [isCockpit]);
+
   if (!isCockpit) return null;
 
   const drawerTitle = openPinned?.title ?? openBuiltin?.title ?? '';

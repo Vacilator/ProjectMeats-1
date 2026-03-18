@@ -79,12 +79,14 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Objective: BreadcrumbBar must sit above the hero search area and persist regardless of search/grid view state.
   - Action: Move BreadcrumbBar rendering out of `showSearchView` block and place directly beneath Toolbar/CockpitTour for continuous context.
   - Verification: Drilling into entities shows breadcrumbs at top of workspace above search results and search hint.
+  - Status: Implemented on branch `feature/cockpit-actions-breadcrumb` — BreadcrumbBar now renders immediately below the toolbar/CockpitTour and outside the search block.
 
 - 2026-03-17 — Cockpit Quick Actions routing + PinnedTools event bus — Commit: TBD (PR: TBD)
   - Objective: Replace placeholder `alert` quick actions with real navigation + tool triggers.
   - Action: Wire quick actions to `useNavigate` routes (PO/SO create/history) and dispatch `pm:open-tool` so “Send Email” opens the PinnedToolsBar email drafter.
   - Hardening: Add global `pm:open-tool` listener to PinnedToolsBar to accept external tool open requests.
   - Verification: Quick Actions open correct routes with entity ids, and Send Email opens the mail drawer without manual click.
+  - Status: Implemented on branch `feature/cockpit-actions-breadcrumb` — Quick Actions now route via React Router and dispatch `pm:open-tool`; PinnedToolsBar listens and opens tools.
 
 ---
 
