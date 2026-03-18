@@ -917,7 +917,7 @@ export const outlookEmailSchema: NodeConfigSchema = {
  * - Updated to use 'formSchema' as primary schema
  * - formStepSingleSchema exported as alias for backward compatibility
  */
-export const allSchemas: NodeConfigSchema[] = [
+const buildAllSchemas = (): NodeConfigSchema[] => [
   // === CORE SCHEMAS (Phase 1-3) ===
   formSchema,  // NEW: Primary form schema (Phase E - 2026-02-19)
   formProcessSchema,
@@ -1002,13 +1002,11 @@ export const allSchemas: NodeConfigSchema[] = [
 export const formStepSingleSchema = formSchema;
 
 // ============================================================================
-// Auto-initialize registry
+// Registry initialization
 // ============================================================================
 
-import { schemaRegistry } from './schemaRegistry';
-
-// Initialize registry with CORE schemas first
-schemaRegistry.initialize(allSchemas);
+// NOTE: Registry initialization is deferred until end-of-module to avoid TDZ
+// errors from schema constants declared later in this file.
 
 // Phase E Fix (2026-02-19): Register backward compatibility aliases
 // formStepSingle nodes should use the same schema as 'form' nodes
@@ -4167,8 +4165,9 @@ export const subWorkflowSchema: NodeConfigSchema = {
 // SCHEMA REGISTRATION COMPLETE
 // ============================================================================
 
-// All schemas are now included in the main allSchemas array above
-// and will be initialized automatically via schemaRegistry.initialize(allSchemas)
+// Build + initialize schemas at end-of-module to avoid TDZ errors.
+export const allSchemas: NodeConfigSchema[] = buildAllSchemas();
+schemaRegistry.initialize(allSchemas);
 
 logger.debug(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
 
