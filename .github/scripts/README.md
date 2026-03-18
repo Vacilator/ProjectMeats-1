@@ -28,8 +28,7 @@ This directory contains validation and automation scripts used by GitHub Actions
 # In CI (with PostgreSQL service)
 CI=true DATABASE_URL=postgresql://... ./validate-migrations.sh
 
-# Local testing
-cd backend
+# Local testing (run from repo root or any working directory)
 DATABASE_URL=... ./.github/scripts/validate-migrations.sh
 ```
 
