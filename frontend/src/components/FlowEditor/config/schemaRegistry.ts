@@ -326,7 +326,7 @@ class ConfigSchemaRegistry {
           if (Array.isArray(field.validation)) {
             // Standard array case
             validationRules = field.validation as any[];
-          } else if (typeof field.validation === 'object' && field.validation !== null) {
+          } else if (!Array.isArray(field.validation) && typeof field.validation === 'object' && field.validation !== null) {
             // Check if it's an array-like object (cross-realm issue)
             if (typeof (field.validation as any).length === 'number') {
               validationRules = Array.from(field.validation as any);

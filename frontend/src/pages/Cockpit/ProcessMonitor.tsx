@@ -400,7 +400,7 @@ const ProcessMonitor: React.FC = () => {
     queryFn: async (): Promise<PaginatedResponse<ProcessMonitorItem>> => {
       const params = showMineOnly ? { assigned_to: 'me' } : undefined;
       const res = await businessApi.get<PaginatedResponse<ProcessMonitorItem>>(
-        '/api/v1/workflows/form-submissions/process-monitor/',
+        '/workflows/form-submissions/process-monitor/',
         { params }
       );
       return res.data;
@@ -413,7 +413,7 @@ const ProcessMonitor: React.FC = () => {
     queryKey: ['process-monitor-form', selected?.form_id],
     enabled: !!selected?.form_id,
     queryFn: async (): Promise<TenantFormResponse> => {
-      const res = await businessApi.get<TenantFormResponse>(`/api/v1/workflows/forms/${selected!.form_id}/`);
+      const res = await businessApi.get<TenantFormResponse>(`/workflows/forms/${selected!.form_id}/`);
       return res.data;
     },
   });
