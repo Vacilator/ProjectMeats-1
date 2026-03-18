@@ -52,8 +52,13 @@
 
 **Date Added**: March 17, 2026  
 **Severity**: CRITICAL  
-**Status**: PENDING IMPLEMENTATION  
-**Priority**: P0 (Blocks 60%+ of workflow editor functionality)
+**Status**: MERGED — PR #3455, #3460, #3552  
+**Priority**: P0 (Previously blocked 60%+ of workflow editor functionality)
+
+### Resolution (Shipped)
+- Schema registry now normalizes `field.validation` objects → arrays and treats missing select options as warnings.
+- `complexRenderers.tsx` imports/uses `ValidationRuleBuilder` correctly (no `ReferenceError`).
+- FlowEditor node handler injection is hardened to avoid `a is not a function` runtime failures.
 
 ### Root Cause Analysis
 
@@ -268,7 +273,12 @@ echo "\n- [x] $(date +'%Y-%m-%d %H:%M') Cleaned up inaccurate deprecation warnin
 
 **Date Added**: March 17, 2026  
 **Priority**: P0 (Transforms fragmented pages → Unified operational hub)  
-**Status**: PENDING IMPLEMENTATION
+**Status**: IN PROGRESS — Cockpit consolidation shipped; WorkForms command-center views pending
+
+### Completed (Shipped)
+- Cockpit breadcrumb + quick actions routing (PR #3542)
+- Dashboard Hero SmartSearch + SmartWizard decommission + nav stability (PR #3552, #3553)
+- FlowEditor stability hardening in support of the unified command center (PR #3552)
 
 ### I. ANALYSIS: Context Retrieval → Risk Audit → Strategic Overhaul
 
