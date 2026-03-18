@@ -85,6 +85,41 @@ export interface DynamicConfigPanelProps {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Helper to aggressively check all known condition aliases and support functions
+ * 
+ * Checks for: conditional, visibilityCondition, showIf
+ * Supports: function conditions and standard condition objects
+ * 
+ * @param item - Section or field to check
+ * @param data - Current form data
+ * @returns true if item should be visible, false otherwise
+ */
+const checkIsVisible = (item: any, data: any): boolean => {
+  // Check all known aliases for condition properties
+  const cond = item.conditional || item.visibilityCondition || item.showIf;
+  
+  // No condition = always visible
+  if (!cond) return true;
+  
+  // Support functional conditions
+  if (typeof cond === 'function') {
+    try {
+      return cond(data);
+    } catch (error) {
+      console.warn('[DynamicConfigPanel] Functional condition error:', error);
+      return true; // Default to visible on error
+    }
+  }
+  
+  // Use standard evaluator for object conditions
+  return evaluateCondition(cond, data);
+};
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -181,14 +216,14 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const visible = new Set<string>();
     
     schema.sections.forEach(section => {
-      // Check section-level conditional
-      if (section.conditional && !evaluateCondition(section.conditional, formData)) {
+      // Check section-level conditional (using robust helper)
+      if (!checkIsVisible(section, formData)) {
         return; // Hide entire section
       }
 
       section.fields.forEach(field => {
-        // Check field-level conditional
-        if (!field.conditional || evaluateCondition(field.conditional, formData)) {
+        // Check field-level conditional (using robust helper)
+        if (checkIsVisible(field, formData)) {
           visible.add(field.id);
         }
       });
@@ -541,8 +576,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   // Render a section
   const renderSection = (section: ConfigSection) => {
-    // Check section-level conditional
-    if (section.conditional && !evaluateCondition(section.conditional, formData)) {
+    // Check section-level conditional (using robust helper)
+    if (!checkIsVisible(section, formData)) {
       return null;
     }
 

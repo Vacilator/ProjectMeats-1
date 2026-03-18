@@ -1090,7 +1090,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: Webhook,
       defaultExpanded: true,
       description: 'Configure webhook endpoint and authentication',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'webhook'
@@ -1125,7 +1125,7 @@ export const triggerSchema: NodeConfigSchema = {
           placeholder: 'Auto-generated',
           helpText: 'Secret key for validating incoming requests (auto-generated)',
           readOnly: true,
-          visibilityCondition: {
+          conditional: {
             field: 'webhookAuth',
             operator: 'notEquals',
             value: 'none'
@@ -1153,7 +1153,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: Calendar,
       defaultExpanded: true,
       description: 'Configure when the workflow should run',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'schedule'
@@ -1177,7 +1177,7 @@ export const triggerSchema: NodeConfigSchema = {
           placeholder: 'e.g., 15',
           helpText: 'How often to run',
           defaultValue: 15,
-          visibilityCondition: {
+          conditional: {
             field: 'scheduleType',
             operator: 'equals',
             value: 'simple'
@@ -1198,7 +1198,7 @@ export const triggerSchema: NodeConfigSchema = {
             { value: 'weeks', label: 'Weeks' },
           ],
           defaultValue: 'minutes',
-          visibilityCondition: {
+          conditional: {
             field: 'scheduleType',
             operator: 'equals',
             value: 'simple'
@@ -1210,7 +1210,7 @@ export const triggerSchema: NodeConfigSchema = {
           label: 'Cron Expression',
           placeholder: '0 0 * * *',
           helpText: 'Unix cron syntax (minute hour day month weekday)',
-          visibilityCondition: {
+          conditional: {
             field: 'scheduleType',
             operator: 'equals',
             value: 'cron'
@@ -1246,7 +1246,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: Database,
       defaultExpanded: true,
       description: 'Configure database event triggers',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'event'
@@ -1290,7 +1290,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: FileText,
       defaultExpanded: true,
       description: 'Configure form submission trigger',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'formSubmit'
@@ -1315,7 +1315,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: Zap,
       defaultExpanded: true,
       description: 'Configure manual trigger button',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'manual'
@@ -1404,7 +1404,7 @@ export const documentGenerateSchema: NodeConfigSchema = {
               disabled: true,
             },
           ],
-          visibilityCondition: {
+          conditional: {
             field: 'templateSource',
             operator: 'equals',
             value: 'library'
@@ -1496,7 +1496,7 @@ export const documentSignSchema: NodeConfigSchema = {
           placeholder: 'Select document from previous step...',
           helpText: 'Document to be signed',
           required: true,
-          visibilityCondition: {
+          conditional: {
             field: 'documentSource',
             operator: 'equals',
             value: 'upstream'
@@ -1698,7 +1698,7 @@ export const documentStoreSchema: NodeConfigSchema = {
           label: 'Record ID',
           placeholder: 'Select record ID...',
           helpText: 'ID of the related entity record',
-          visibilityCondition: {
+          conditional: {
             field: 'relatedEntity',
             operator: 'notEmpty',
           }
@@ -1777,7 +1777,7 @@ export const conditionIfSchema: NodeConfigSchema = {
           label: 'Right Value',
           placeholder: 'Select value or enter text...',
           helpText: 'Value to compare against',
-          visibilityCondition: {
+          conditional: {
             field: 'operator',
             operator: 'notIn',
             value: ['isEmpty', 'isNotEmpty']
@@ -2974,7 +2974,7 @@ const actionHTTPSchema: NodeConfigSchema = {
           language: 'json',
           placeholder: '{\n  "key": "value"\n}',
           helpText: 'Request body for POST/PUT/PATCH. Supports {{variable}} substitution.',
-          showIf: {
+          conditional: {
             field: 'method',
             operator: 'in',
             value: ['POST', 'PUT', 'PATCH']
@@ -3016,7 +3016,7 @@ const actionHTTPSchema: NodeConfigSchema = {
           label: 'Bearer Token',
           placeholder: 'your-api-token',
           helpText: 'Token will be sent as "Authorization: Bearer {token}"',
-          showIf: {
+          conditional: {
             field: 'authType',
             operator: 'equals',
             value: 'bearer'
@@ -3027,7 +3027,7 @@ const actionHTTPSchema: NodeConfigSchema = {
           type: 'text',
           label: 'Username',
           placeholder: 'username',
-          showIf: {
+          conditional: {
             field: 'authType',
             operator: 'equals',
             value: 'basic'
@@ -3038,7 +3038,7 @@ const actionHTTPSchema: NodeConfigSchema = {
           type: 'password',
           label: 'Password',
           placeholder: 'password',
-          showIf: {
+          conditional: {
             field: 'authType',
             operator: 'equals',
             value: 'basic'
@@ -3049,7 +3049,7 @@ const actionHTTPSchema: NodeConfigSchema = {
           type: 'text',
           label: 'API Key Header Name',
           placeholder: 'X-API-Key',
-          showIf: {
+          conditional: {
             field: 'authType',
             operator: 'equals',
             value: 'apiKey'
@@ -3060,7 +3060,7 @@ const actionHTTPSchema: NodeConfigSchema = {
           type: 'text',
           label: 'API Key Value',
           placeholder: 'your-api-key',
-          showIf: {
+          conditional: {
             field: 'authType',
             operator: 'equals',
             value: 'apiKey'
@@ -3109,7 +3109,7 @@ const actionHTTPSchema: NodeConfigSchema = {
           defaultValue: 3,
           min: 1,
           max: 10,
-          showIf: {
+          conditional: {
             field: 'errorHandling',
             operator: 'equals',
             value: 'retry'
@@ -3441,7 +3441,7 @@ const dataTransformSchema: NodeConfigSchema = {
           helpText: 'Map input fields to output fields',
           placeholder: { key: 'Output field', value: 'Input field (e.g., {{item.name}})' },
           addButtonText: '+ Add Mapping',
-          showIf: {
+          conditional: {
             field: 'operation',
             operator: 'equals',
             value: 'map'
@@ -3454,7 +3454,7 @@ const dataTransformSchema: NodeConfigSchema = {
           placeholder: 'e.g., {{item.status}} == "active"',
           helpText: 'Items matching this condition will be included',
           rows: 3,
-          showIf: {
+          conditional: {
             field: 'operation',
             operator: 'equals',
             value: 'filter'
@@ -3468,7 +3468,7 @@ const dataTransformSchema: NodeConfigSchema = {
           placeholder: '// Transform logic\nreturn data.map(item => ({\n  id: item.id,\n  name: item.name.toUpperCase()\n}));',
           helpText: 'Full JavaScript control. Input available as "data" variable.',
           rows: 8,
-          showIf: {
+          conditional: {
             field: 'operation',
             operator: 'equals',
             value: 'custom'
@@ -3549,7 +3549,7 @@ const setVariableSchema: NodeConfigSchema = {
           label: 'Value',
           placeholder: 'Enter value...',
           helpText: 'Static value to assign',
-          showIf: {
+          conditional: {
             field: 'valueType',
             operator: 'equals',
             value: 'static'
@@ -3561,7 +3561,7 @@ const setVariableSchema: NodeConfigSchema = {
           label: 'Upstream Field',
           placeholder: 'e.g., {{customer.email}} or {{response.data.id}}',
           helpText: 'Select field from previous node output',
-          showIf: {
+          conditional: {
             field: 'valueType',
             operator: 'equals',
             value: 'upstream'
@@ -3575,7 +3575,7 @@ const setVariableSchema: NodeConfigSchema = {
           placeholder: '// Calculate value\nreturn {{quantity}} * {{price}};',
           helpText: 'JavaScript expression to calculate value. Return the result.',
           rows: 4,
-          showIf: {
+          conditional: {
             field: 'valueType',
             operator: 'equals',
             value: 'expression'
@@ -3623,7 +3623,7 @@ const setVariableSchema: NodeConfigSchema = {
           label: 'Persist to Database',
           defaultValue: false,
           helpText: 'Save variable value to database for future workflow runs',
-          showIf: {
+          conditional: {
             field: 'scope',
             operator: 'equals',
             value: 'global'
@@ -4164,7 +4164,7 @@ export const subWorkflowSchema: NodeConfigSchema = {
           min: 1,
           max: 10,
           defaultValue: 3,
-          visibilityCondition: (data) => data.errorHandling === 'retry',
+          conditional: (data) => data.errorHandling === 'retry',
         },
       ]
     }
