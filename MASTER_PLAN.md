@@ -11,6 +11,7 @@
 - Hotfix: restored dev-site load by fixing nodeConfigSchemas TDZ initialization ordering (PR #3557).
 - Ops hardening: env secret audit aligned to manifests/env.manifest.json v5.1 + email_integration model/schema cleanup (PR #3558).
 - Frontend deps: safe Vite 8 upgrade (Tailwind pinned to 3.4.19 pending dedicated v4 migration) (PR #3559).
+- Deploy unblock: add missing integrations EmailLog migration + RLS policy (PR #3561) — dev pipeline green; dev site/health now 200.
 
 ---
 

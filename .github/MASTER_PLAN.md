@@ -101,6 +101,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Fixed Modal barrel export for strict ESM bundling.
   - Tailwind kept pinned at 3.4.19; Tailwind 4 migration requires dedicated follow-up.
 
+- 2026-03-18 — Deploy unblock: integrations EmailLog migration — Commit: 756c89dc (PR: #3561)
+  - Adds missing migration for `apps.integrations.EmailLog` (fixes CI `makemigrations --check` gate).
+  - Enables Postgres RLS + `emaillog_tenant_isolation` policy on `integrations_emaillog`.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
