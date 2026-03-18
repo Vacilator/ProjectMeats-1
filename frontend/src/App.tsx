@@ -96,6 +96,7 @@ import WorkFormsCatalog from './pages/WorkForms/Catalog';
 import WorkFormsInProgress from './pages/WorkForms/InProgress';
 import WorkFormsHistory from './pages/WorkForms/History';
 import WorkFormsEditor from './pages/WorkForms/Editor';
+import WorkFormsMonitoring from './pages/WorkForms/Monitoring';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -290,6 +291,7 @@ const App: React.FC = () => {
                   <Route index element={<Navigate to="/workforms/tasks" replace />} />
                   <Route path="tasks" element={<MyTasks />} />
                   <Route path="in-progress" element={<WorkFormsInProgress />} />
+                  <Route path="monitoring" element={<WorkFormsMonitoring />} />
                   <Route path="catalog" element={<WorkFormsCatalog />} />
                   <Route path="history" element={<WorkFormsHistory />} />
                   <Route path="editor" element={<WorkFormsEditor />} />
