@@ -40,35 +40,6 @@ const StatsBar = styled.div`
   border-radius: 8px;
 `;
 
-const StatCard = styled.div`
-  padding: 16px;
-  background: white;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-`;
-
-const StatLabel = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-tertiary));
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-`;
-
-const StatValue = styled.div`
-  font-size: 24px;
-  font-weight: 700;
-  color: rgb(239, 68, 68);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const StatSubtext = styled.div`
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-  margin-top: 4px;
-`;
 
 const Title = styled.h1`
   font-size: 28px;
