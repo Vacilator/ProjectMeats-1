@@ -9,10 +9,11 @@
  * - Feeds VariablePicker with sample data
  */
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Node } from 'reactflow';
-import { Play, StepForward, RotateCcw, Download, Eye, Code } from 'lucide-react';
+import { Node, useReactFlow } from '@xyflow/react';
+import { Play, StepForward, RotateCcw, Download, Eye, Code, SkipForward, FastForward, Pause } from 'lucide-react';
+import { useFlowEditor } from '../context';
 
 interface DryRunDebuggerProps {
   selectedNode: Node | null;
@@ -38,7 +39,17 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
   const [isRunning, setIsRunning] = useState(false);
   const [activeTab, setActiveTab] = useState<'output' | 'variables'>('output');
   const [viewMode, setViewMode] = useState<'preview' | 'json'>('preview');
-  
+
+  const { getNodes, getEdges } = useReactFlow();
+  const {
+    debug,
+    startDebugSession,
+    stopDebugSession,
+    resetDebugSession,
+    setDebugActiveNodeId,
+    markNodesExecuted,
+  } = useFlowEditor();
+
   // Generate mock input based on node schema
   useEffect(() => {
     if (selectedNode) {
@@ -46,13 +57,195 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       setMockInput(mock);
     }
   }, [selectedNode]);
-  
+
+  // Auto-start a debug session when opened (Phase 9.4)
+  useEffect(() => {
+    if (!selectedNode) return;
+    if (debug.isActive && debug.activeNodeId) return;
+    startDebugSession(selectedNode.id);
+  }, [debug.activeNodeId, debug.isActive, selectedNode, startDebugSession]);
+
+  const getNodeById = useCallback((nodeId: string) => {
+    return getNodes().find((n) => n.id === nodeId) || null;
+  }, [getNodes]);
+
+  const isTerminalNode = useCallback((node: Node | null) => {
+    if (!node) return true;
+    const t = String(node.type || '');
+    return t.startsWith('terminal') || t.startsWith('end');
+  }, []);
+
+  const isContainerNode = useCallback((node: Node | null) => {
+    if (!node) return false;
+    return (
+      node.type === 'formProcessGroup' ||
+      node.type === 'formProcess' ||
+      node.type === 'formMultiStepContainer'
+    );
+  }, []);
+
+  const getContainerChildIds = useCallback((containerId: string) => {
+    return getNodes()
+      .filter((n) => n.parentId === containerId)
+      .sort((a, b) => (a.position?.y ?? 0) - (b.position?.y ?? 0))
+      .map((n) => n.id);
+  }, [getNodes]);
+
+  const getNextNodeIdStepInto = useCallback((fromNodeId: string) => {
+    const fromNode = getNodeById(fromNodeId);
+
+    // Step Into: for containers, enter first child (if any)
+    if (isContainerNode(fromNode)) {
+      const children = getContainerChildIds(fromNodeId);
+      if (children.length > 0) return children[0];
+    }
+
+    const outgoing = getEdges().filter((e) => e.source === fromNodeId);
+    outgoing.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+    return outgoing[0]?.target ?? null;
+  }, [getContainerChildIds, getEdges, getNodeById, isContainerNode]);
+
+  const getNextNodeIdStepOver = useCallback((fromNodeId: string) => {
+    const fromNode = getNodeById(fromNodeId);
+
+    // Step Over: for containers, skip internals and jump to first edge leaving the container.
+    if (isContainerNode(fromNode)) {
+      const childIds = new Set(getContainerChildIds(fromNodeId));
+      const candidate = getEdges()
+        .filter((e) => childIds.has(e.source) && !childIds.has(e.target))
+        .sort((a, b) => (a.id || '').localeCompare(b.id || ''))[0];
+      if (candidate?.target) return candidate.target;
+    }
+
+    const outgoing = getEdges().filter((e) => e.source === fromNodeId);
+    outgoing.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+    return outgoing[0]?.target ?? null;
+  }, [getContainerChildIds, getEdges, getNodeById, isContainerNode]);
+
+  const stepInto = useCallback(() => {
+    if (!selectedNode) return;
+
+    if (!debug.isActive) {
+      startDebugSession(selectedNode.id);
+      return;
+    }
+
+    const currentId = debug.activeNodeId || selectedNode.id;
+    const currentNode = getNodeById(currentId);
+
+    if (!currentNode) return;
+    if (isTerminalNode(currentNode)) {
+      stopDebugSession();
+      return;
+    }
+
+    // "Execute" current node
+    markNodesExecuted([currentId]);
+
+    const nextId = getNextNodeIdStepInto(currentId);
+    if (!nextId) {
+      stopDebugSession();
+      return;
+    }
+
+    const nextNode = getNodeById(nextId);
+    const hasBreakpoint = Boolean((nextNode?.data as any)?.hasBreakpoint);
+
+    // Move cursor to next node; if it's a breakpoint, pause there.
+    setDebugActiveNodeId(nextId);
+
+    if (hasBreakpoint) return;
+  }, [debug.activeNodeId, debug.isActive, getNextNodeIdStepInto, getNodeById, isTerminalNode, markNodesExecuted, selectedNode, setDebugActiveNodeId, startDebugSession, stopDebugSession]);
+
+  const stepOver = useCallback(() => {
+    if (!selectedNode) return;
+
+    if (!debug.isActive) {
+      startDebugSession(selectedNode.id);
+      return;
+    }
+
+    const currentId = debug.activeNodeId || selectedNode.id;
+    const currentNode = getNodeById(currentId);
+
+    if (!currentNode) return;
+    if (isTerminalNode(currentNode)) {
+      stopDebugSession();
+      return;
+    }
+
+    markNodesExecuted([currentId]);
+
+    const nextId = getNextNodeIdStepOver(currentId);
+    if (!nextId) {
+      stopDebugSession();
+      return;
+    }
+
+    const nextNode = getNodeById(nextId);
+    const hasBreakpoint = Boolean((nextNode?.data as any)?.hasBreakpoint);
+    setDebugActiveNodeId(nextId);
+    if (hasBreakpoint) return;
+  }, [debug.activeNodeId, debug.isActive, getNextNodeIdStepOver, getNodeById, isTerminalNode, markNodesExecuted, selectedNode, setDebugActiveNodeId, startDebugSession, stopDebugSession]);
+
+  const handleContinue = useCallback(() => {
+    if (!selectedNode) return;
+
+    if (!debug.isActive) {
+      startDebugSession(selectedNode.id);
+      return;
+    }
+
+    let cursor = debug.activeNodeId || selectedNode.id;
+    const executedNow: string[] = [];
+
+    // Guard: avoid infinite loops
+    const MAX_STEPS = 500;
+    let steps = 0;
+
+    while (steps < MAX_STEPS) {
+      const currentNode = getNodeById(cursor);
+      if (!currentNode) break;
+
+      if (isTerminalNode(currentNode)) {
+        stopDebugSession();
+        break;
+      }
+
+      executedNow.push(cursor);
+
+      const nextId = getNextNodeIdStepInto(cursor);
+      if (!nextId) {
+        stopDebugSession();
+        break;
+      }
+
+      const nextNode = getNodeById(nextId);
+      const hasBreakpoint = Boolean((nextNode?.data as any)?.hasBreakpoint);
+
+      // Update cursor to next and stop if breakpoint
+      setDebugActiveNodeId(nextId);
+      if (hasBreakpoint) {
+        break;
+      }
+
+      cursor = nextId;
+      steps += 1;
+    }
+
+    markNodesExecuted(executedNow);
+  }, [debug.activeNodeId, debug.isActive, getNextNodeIdStepInto, getNodeById, isTerminalNode, markNodesExecuted, selectedNode, setDebugActiveNodeId, startDebugSession, stopDebugSession]);
+
   const handleRunStep = async () => {
     if (!selectedNode) return;
-    
+
+    // Ensure debug session cursor is on this node
+    if (!debug.isActive) startDebugSession(selectedNode.id);
+    setDebugActiveNodeId(selectedNode.id);
+
     setIsRunning(true);
     const startTime = Date.now();
-    
+
     // Simulate execution
     const step: ExecutionStep = {
       nodeId: selectedNode.id,
@@ -61,24 +254,26 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       input: mockInput,
       output: {},
     };
-    
-    setExecutionHistory(prev => [...prev, step]);
-    
+
+    setExecutionHistory((prev) => [...prev, step]);
+
     // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
     // Generate mock output based on node type
     const output = generateMockOutput(selectedNode, mockInput);
     const duration = Date.now() - startTime;
-    
-    setExecutionHistory(prev => 
-      prev.map(s => 
+
+    setExecutionHistory((prev) =>
+      prev.map((s) =>
         s.nodeId === selectedNode.id && s.status === 'running'
           ? { ...s, status: 'success', output, duration }
           : s
       )
     );
-    
+
+    markNodesExecuted([selectedNode.id]);
+
     setIsRunning(false);
   };
   
@@ -241,9 +436,46 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
               </>
             )}
           </RunButton>
-          <StepButton disabled>
+
+          <StepButton onClick={stepInto} disabled={isRunning || !selectedNode} title="Step Into">
             <StepForward size={18} />
             Step Into
+          </StepButton>
+
+          <StepButton
+            onClick={stepOver}
+            disabled={isRunning || !selectedNode}
+            title="Step Over"
+          >
+            <SkipForward size={18} />
+            Step Over
+          </StepButton>
+
+          <StepButton
+            onClick={handleContinue}
+            disabled={isRunning || !selectedNode}
+            title="Continue until breakpoint or terminal"
+          >
+            <FastForward size={18} />
+            Continue
+          </StepButton>
+
+          <StepButton
+            onClick={stopDebugSession}
+            disabled={!debug.isActive}
+            title="Stop debug session"
+          >
+            <Pause size={18} />
+            Stop
+          </StepButton>
+
+          <StepButton
+            onClick={resetDebugSession}
+            disabled={!debug.isActive}
+            title="Reset timeline"
+          >
+            <RotateCcw size={18} />
+            Reset Timeline
           </StepButton>
         </ExecutionControls>
         

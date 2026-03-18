@@ -143,7 +143,7 @@ import { getCurrentTenant } from '../../config/runtime';
 import { FormBuilderProvider } from '../../contexts/FormBuilderContext';
 
 // FlowEditor Context Provider (Phase E.1)
-import { FlowEditorProvider } from './context';
+import { FlowEditorProvider, useFlowEditor } from './context';
 
 // Error Boundary (2026-02-21 Comprehensive Enhancements)
 import { ErrorBoundary } from './ErrorBoundary';
@@ -1683,6 +1683,85 @@ const staticEdgeTypes: EdgeTypes = {
   success: SuccessEdge,
   insert: InsertNodeEdge,
   default: CustomEdge, // Fallback to custom for untyped edges
+};
+
+// Phase 9.4: Render-time execution tracing (no mutations to saved workflow graph)
+const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (props) => {
+  const { debug } = useFlowEditor();
+
+  const decoratedNodes = useMemo(() => {
+    const nodes = (props.nodes || []) as Node[];
+    if (!debug.isActive) return nodes;
+
+    const executed = new Set(debug.executedNodeIds);
+    const activeId = debug.activeNodeId;
+
+    return nodes.map((n) => {
+      const isActive = activeId === n.id;
+      const isExecuted = executed.has(n.id);
+      if (isActive || isExecuted) return n;
+
+      return {
+        ...n,
+        style: {
+          ...(n.style || {}),
+          opacity: 0.28,
+        },
+      };
+    });
+  }, [props.nodes, debug.isActive, debug.activeNodeId, debug.executedNodeIds]);
+
+  const decoratedEdges = useMemo(() => {
+    const edges = (props.edges || []) as Edge[];
+    if (!debug.isActive) return edges;
+
+    const executed = new Set(debug.executedNodeIds);
+    const activeId = debug.activeNodeId;
+    const prevId = debug.previousNodeId;
+
+    return edges.map((e) => {
+      const isActiveHop = Boolean(prevId && activeId && e.source === prevId && e.target === activeId);
+
+      if (isActiveHop) {
+        return {
+          ...e,
+          animated: true,
+          data: { ...(e.data || {}), animated: true },
+          style: {
+            ...(e.style || {}),
+            stroke: 'rgb(var(--color-primary))',
+            strokeWidth: 3,
+            opacity: 1,
+          },
+        };
+      }
+
+      const targetExecuted = executed.has(e.target);
+      const targetIsActive = activeId === e.target;
+
+      if (targetExecuted || targetIsActive) return e;
+
+      return {
+        ...e,
+        animated: false,
+        data: { ...(e.data || {}), animated: false },
+        style: {
+          ...(e.style || {}),
+          opacity: 0.22,
+        },
+      };
+    });
+  }, [props.edges, debug.isActive, debug.activeNodeId, debug.previousNodeId, debug.executedNodeIds]);
+
+  const { nodes: _n, edges: _e, ...rest } = props;
+
+  return (
+    <ReactFlow
+      {...rest}
+      nodes={decoratedNodes}
+      edges={decoratedEdges}
+    />
+  );
 };
 
 // ============================================================================
@@ -5991,7 +6070,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* React Flow Canvas - Visual Mode */}
       {normalizedEditorMode === 'visual' && (
-        <ReactFlow
+        <DebugAwareReactFlow
         nodes={nodesWithHandlers}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -6236,7 +6315,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             <AlignVerticalDistributeCenter />
           </AlignmentButton>
         </AlignmentToolbar>
-      </ReactFlow>
+      </DebugAwareReactFlow>
       )}
       
       {/* Phase E.3: Context Menu */}
@@ -6669,6 +6748,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ConfirmModal>
       )}
       
+      {/* Phase 7/9.4: Dry Run Debugger */}
+      {showDebugger && (
+        <DryRunDebugger
+          selectedNode={selectedNodeForDebug}
+          onClose={() => setShowDebugger(false)}
+        />
+      )}
+
       {/* Phase 8.6: Keyboard Shortcuts Help Modal */}
       {showKeyboardShortcuts && (
         <KeyboardShortcutsModal onClick={() => setShowKeyboardShortcuts(false)}>
