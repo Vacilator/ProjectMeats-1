@@ -640,3 +640,17 @@ Deliverables:
   - [x] Enforced `MarkerType.ArrowClosed` marker color using CSS vars (no hardcoded hex).
   - [x] Set `onlyRenderVisibleElements={true}` on the main ReactFlow instance.
   - [x] Confirmed Monaco usage remains lazy via `React.lazy(() => import('@monaco-editor/react'))`.
+
+## Phase 9.2: Collaboration & Debugging
+
+- [x] Real-time collaboration scaffold:
+  - [x] Added `useCollaboration` hook (WebSocket connect/disconnect/reconnect w/ backoff) at `frontend/src/components/FlowEditor/hooks/useCollaboration.ts`.
+  - [x] UnifiedFlowEditor broadcasts cursor movement + selection changes (best-effort; no crashes if WS not available).
+  - [x] UnifiedFlowEditor renders live cursors overlay from presence state.
+
+- [x] Debugger improvements:
+  - [x] `DryRunDebugger` now includes a **Variables** tab with a collapsible JSON tree view (scaffold until full execution wiring is available).
+
+- [x] Sub-flow export (scaffold):
+  - [x] NodeContextMenu: added **Save as Sub-Flow Template** for `formProcessGroup` (serializes container + descendants + internal edges and POSTs to `/workflows/templates/`).
+

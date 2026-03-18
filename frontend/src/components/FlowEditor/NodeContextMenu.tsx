@@ -23,8 +23,11 @@
 import React, { useCallback, useLayoutEffect, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
 import { Node, useReactFlow } from '@xyflow/react';
 import { Plus, Copy, Layers, Trash2, Settings, Move, Wand2, Maximize2, Minimize2 } from 'lucide-react';
+
+import { businessApi } from '@/services/businessApi';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -172,7 +175,7 @@ const MenuHeader = styled.div`
  * @param props - Context menu properties
  */
 export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose, onEdit }) => {
-  const { setNodes, getNode, getNodes, getViewport } = useReactFlow();
+  const { setNodes, getNode, getNodes, getEdges, getViewport } = useReactFlow();
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x, y, flipX: false, flipY: false });
   
@@ -344,11 +347,63 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
    */
   const handleConvertToSubFlow = useCallback(() => {
     if (!node) return;
-    
+
     // TODO: Implement sub-flow conversion logic
+    // Kept for backward compatibility with older UX copy.
+    // New canonical action is "Save as Sub-Flow Template" (Phase 9.2).
     console.log('Convert to sub-flow:', node.id);
     onClose();
   }, [node, onClose]);
+
+  /**
+   * Save a Form Process Group as a reusable Sub-Flow Template (Phase 9.2)
+   */
+  const handleSaveAsSubFlowTemplate = useCallback(async () => {
+    if (!node) return;
+    if (node.type !== 'formProcessGroup') return;
+
+    try {
+      const allNodes = getNodes();
+      const allEdges = getEdges();
+
+      // Gather container + all descendants by parentId
+      const ids = new Set<string>();
+      const queue: string[] = [node.id];
+      ids.add(node.id);
+
+      while (queue.length > 0) {
+        const parentId = queue.pop()!;
+        for (const n of allNodes) {
+          if (n.parentId === parentId && !ids.has(n.id)) {
+            ids.add(n.id);
+            queue.push(n.id);
+          }
+        }
+      }
+
+      const subflowNodes = allNodes.filter(n => ids.has(n.id));
+      const subflowEdges = allEdges.filter(e => ids.has(e.source) && ids.has(e.target));
+
+      const name =
+        (node.data?.containerName as string | undefined) ||
+        (node.data?.label as string | undefined) ||
+        'Sub-Flow Template';
+
+      await businessApi.post('/workflows/templates/', {
+        name,
+        source_node_id: node.id,
+        nodes: subflowNodes,
+        edges: subflowEdges,
+      });
+
+      toast.success('Saved as sub-flow template');
+    } catch (error) {
+      // Backend endpoint may not be deployed in all environments yet.
+      toast.error('Failed to save sub-flow template');
+    } finally {
+      onClose();
+    }
+  }, [node, getNodes, getEdges, onClose]);
   
   /**
    * Delete node (and children if container)

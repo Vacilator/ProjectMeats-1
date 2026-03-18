@@ -9,7 +9,7 @@
  * - Feeds VariablePicker with sample data
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Node } from 'reactflow';
 import { Play, StepForward, RotateCcw, Download, Eye, Code } from 'lucide-react';
@@ -36,6 +36,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
   const [mockInput, setMockInput] = useState<Record<string, any>>({});
   const [executionHistory, setExecutionHistory] = useState<ExecutionStep[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [activeTab, setActiveTab] = useState<'output' | 'variables'>('output');
   const [viewMode, setViewMode] = useState<'preview' | 'json'>('preview');
   
   // Generate mock input based on node schema
@@ -118,6 +119,20 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
   }
   
   const currentStep = executionHistory[executionHistory.length - 1];
+
+  const executionVariables = useMemo(() => {
+    const outputAny = (currentStep?.output ?? {}) as any;
+    if (outputAny && typeof outputAny === 'object' && outputAny.variables) {
+      return outputAny.variables;
+    }
+
+    // Scaffold: until real execution wiring is available, expose a meaningful "variables" view
+    // by combining the mock input context and the latest step output.
+    return {
+      input: mockInput,
+      output: currentStep?.output ?? {},
+    };
+  }, [currentStep, mockInput]);
   
   return (
     <DebuggerContainer>
@@ -127,6 +142,23 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
           <NodeType>{selectedNode.type}</NodeType>
         </NodeInfo>
         <ActionButtons>
+          <TabToggle>
+            <ToggleButton
+              $active={activeTab === 'output'}
+              onClick={() => setActiveTab('output')}
+            >
+              <Eye size={16} />
+              Output
+            </ToggleButton>
+            <ToggleButton
+              $active={activeTab === 'variables'}
+              onClick={() => setActiveTab('variables')}
+            >
+              <Code size={16} />
+              Variables
+            </ToggleButton>
+          </TabToggle>
+
           <ViewToggle>
             <ToggleButton
               $active={viewMode === 'preview'}
@@ -215,45 +247,56 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
           </StepButton>
         </ExecutionControls>
         
-        {/* Output Section */}
+        {/* Output / Variables */}
         {currentStep && (
           <Section>
             <SectionTitle>
-              Output 
-              {currentStep.duration && (
+              {activeTab === 'output' ? 'Output' : 'Variables'}
+              {activeTab === 'output' && currentStep.duration && (
                 <DurationBadge>{currentStep.duration}ms</DurationBadge>
               )}
             </SectionTitle>
-            <OutputViewer>
-              {currentStep.status === 'running' ? (
-                <LoadingState>
-                  <div className="spinner">⏳</div>
-                  <p>Executing...</p>
-                </LoadingState>
-              ) : currentStep.status === 'error' ? (
-                <ErrorState>
-                  <h4>Error</h4>
-                  <pre>{currentStep.error}</pre>
-                </ErrorState>
-              ) : (
-                <>
-                  {viewMode === 'preview' ? (
-                    <OutputPreview>
-                      {Object.entries(currentStep.output).map(([key, value]) => (
-                        <OutputField key={key}>
-                          <FieldLabel>{key}:</FieldLabel>
-                          <FieldValue>{JSON.stringify(value, null, 2)}</FieldValue>
-                        </OutputField>
-                      ))}
-                    </OutputPreview>
-                  ) : (
-                    <JsonViewer>
-                      {JSON.stringify(currentStep.output, null, 2)}
-                    </JsonViewer>
-                  )}
-                </>
-              )}
-            </OutputViewer>
+
+            {activeTab === 'output' ? (
+              <OutputViewer>
+                {currentStep.status === 'running' ? (
+                  <LoadingState>
+                    <div className="spinner">⏳</div>
+                    <p>Executing...</p>
+                  </LoadingState>
+                ) : currentStep.status === 'error' ? (
+                  <ErrorState>
+                    <h4>Error</h4>
+                    <pre>{currentStep.error}</pre>
+                  </ErrorState>
+                ) : (
+                  <>
+                    {viewMode === 'preview' ? (
+                      <OutputPreview>
+                        {Object.entries(currentStep.output).map(([key, value]) => (
+                          <OutputField key={key}>
+                            <FieldLabel>{key}:</FieldLabel>
+                            <FieldValue>{JSON.stringify(value, null, 2)}</FieldValue>
+                          </OutputField>
+                        ))}
+                      </OutputPreview>
+                    ) : (
+                      <JsonViewer>
+                        {JSON.stringify(currentStep.output, null, 2)}
+                      </JsonViewer>
+                    )}
+                  </>
+                )}
+              </OutputViewer>
+            ) : (
+              <OutputViewer>
+                {viewMode === 'preview' ? (
+                  <JsonTree value={executionVariables} />
+                ) : (
+                  <JsonViewer>{JSON.stringify(executionVariables, null, 2)}</JsonViewer>
+                )}
+              </OutputViewer>
+            )}
           </Section>
         )}
         
@@ -374,6 +417,118 @@ const DebuggerContainer = styled.div`
   background: rgb(var(--color-background));
 `;
 
+const JsonTreeContainer = styled.div`
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+`;
+
+const JsonTreeRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+`;
+
+const JsonTreeToggle = styled.button`
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: rgb(var(--color-text-secondary));
+  width: 16px;
+
+  &:hover {
+    color: rgb(var(--color-primary));
+  }
+`;
+
+const JsonTreeKey = styled.span`
+  color: rgb(var(--color-text-secondary));
+`;
+
+const JsonTreeValue = styled.span`
+  color: rgb(var(--color-text-primary));
+  white-space: pre-wrap;
+  word-break: break-word;
+`;
+
+const JsonTreeIndent = styled.div<{ $level: number }>`
+  padding-left: ${props => props.$level * 16}px;
+`;
+
+function JsonTree({ value }: { value: unknown }) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ root: true });
+
+  const renderNode = (nodeValue: unknown, path: string, level: number, label?: string) => {
+    const isObj = typeof nodeValue === 'object' && nodeValue !== null;
+    const isArray = Array.isArray(nodeValue);
+    const isExpandable = isObj;
+
+    const isOpen = expanded[path] ?? false;
+
+    const toggle = () => {
+      setExpanded(prev => ({ ...prev, [path]: !isOpen }));
+    };
+
+    let summary: string;
+    if (!isObj) {
+      summary = JSON.stringify(nodeValue);
+    } else if (isArray) {
+      summary = `Array(${(nodeValue as any[]).length})`;
+    } else {
+      summary = `Object(${Object.keys(nodeValue as Record<string, unknown>).length})`;
+    }
+
+    const children: Array<{ key: string; val: unknown }> = [];
+    if (isObj) {
+      if (isArray) {
+        (nodeValue as any[]).forEach((v, idx) => children.push({ key: String(idx), val: v }));
+      } else {
+        Object.entries(nodeValue as Record<string, unknown>).forEach(([k, v]) => children.push({ key: k, val: v }));
+      }
+    }
+
+    return (
+      <JsonTreeIndent key={path} $level={level}>
+        <JsonTreeRow>
+          {isExpandable ? (
+            <JsonTreeToggle onClick={toggle} aria-label={isOpen ? 'Collapse' : 'Expand'}>
+              {isOpen ? '▾' : '▸'}
+            </JsonTreeToggle>
+          ) : (
+            <span style={{ width: 16, display: 'inline-block' }} />
+          )}
+
+          {label !== undefined && <JsonTreeKey>{label}:</JsonTreeKey>}
+          <JsonTreeValue>{summary}</JsonTreeValue>
+        </JsonTreeRow>
+
+        {isExpandable && isOpen && (
+          <div>
+            {children.length === 0 ? (
+              <JsonTreeIndent $level={level + 1}>
+                <JsonTreeRow>
+                  <span style={{ width: 16, display: 'inline-block' }} />
+                  <JsonTreeValue>(empty)</JsonTreeValue>
+                </JsonTreeRow>
+              </JsonTreeIndent>
+            ) : (
+              children.map((c) => renderNode(c.val, `${path}.${c.key}`, level + 1, isArray ? `[${c.key}]` : c.key))
+            )}
+          </div>
+        )}
+      </JsonTreeIndent>
+    );
+  };
+
+  return (
+    <JsonTreeContainer>
+      {renderNode(value, 'root', 0, undefined)}
+    </JsonTreeContainer>
+  );
+}
+
 const DebuggerHeader = styled.div`
   display: flex;
   align-items: center;
@@ -405,6 +560,14 @@ const ActionButtons = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+`;
+
+const TabToggle = styled.div`
+  display: flex;
+  background: rgb(var(--color-background));
+  border-radius: 6px;
+  padding: 2px;
+  border: 1px solid rgb(var(--color-border));
 `;
 
 const ViewToggle = styled.div`
