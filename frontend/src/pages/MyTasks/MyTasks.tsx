@@ -29,6 +29,47 @@ const Header = styled.div`
   margin-bottom: 24px;
 `;
 
+const StatsBar = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(234, 179, 8, 0.05) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+`;
+
+const StatCard = styled.div`
+  padding: 16px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+`;
+
+const StatLabel = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-tertiary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+`;
+
+const StatValue = styled.div`
+  font-size: 24px;
+  font-weight: 700;
+  color: rgb(239, 68, 68);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const StatSubtext = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+  margin-top: 4px;
+`;
+
 const Title = styled.h1`
   font-size: 28px;
   font-weight: 600;
@@ -142,14 +183,21 @@ const TaskList = styled.div`
   gap: 12px;
 `;
 
-const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean }>`
+const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean; $isAtRisk?: boolean }>`
   display: flex;
   align-items: flex-start;
   padding: 16px 20px;
-  background: rgb(var(--color-surface, 255 255 255));
+  background: ${props => props.$isAtRisk 
+    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgb(var(--color-surface, 255 255 255)) 100%)'
+    : 'rgb(var(--color-surface, 255 255 255))'
+  };
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: ${props => props.$isAtRisk 
+    ? '0 2px 8px rgba(239, 68, 68, 0.2)'
+    : '0 1px 3px rgba(0, 0, 0, 0.1)'
+  };
   border-left: 4px solid ${props => {
+    if (props.$isAtRisk) return 'rgb(239, 68, 68)';
     if (props.$isOverdue) return 'rgb(239, 68, 68)';
     switch (props.$priority) {
       case 'urgent': return 'rgb(239, 68, 68)';
@@ -163,7 +211,10 @@ const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean }>`
 
   &:hover {
     transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: ${props => props.$isAtRisk
+      ? '0 4px 12px rgba(239, 68, 68, 0.3)'
+      : '0 4px 12px rgba(0, 0, 0, 0.1)'
+    };
   }
 `;
 
@@ -234,6 +285,25 @@ const OverdueBadge = styled.span`
   text-transform: uppercase;
   background: rgba(239, 68, 68, 0.1);
   color: rgb(239, 68, 68);
+`;
+
+const AtRiskBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: rgba(239, 68, 68, 0.15);
+  color: rgb(239, 68, 68);
+  animation: pulse 2s ease-in-out infinite;
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
 `;
 
 const TaskActions = styled.div`
@@ -673,6 +743,22 @@ export const MyTasks: React.FC = () => {
     return items;
   }, [actionItems, priorityFilter, statusFilter, searchQuery, sortBy]);
 
+  // Calculate "At Risk" tasks (high-value + overdue/due soon)
+  const isAtRisk = (item: ActionItem): boolean => {
+    const days = daysUntilDue(item.due_date);
+    const highValue = (item.related_po_value ?? 0) >= 10000; // $10k+ threshold
+    const timeCritical = item.is_overdue || (days !== null && days <= 2);
+    return highValue && timeCritical;
+  };
+
+  const atRiskStats = useMemo(() => {
+    const atRiskItems = filteredItems.filter(isAtRisk);
+    const totalValue = atRiskItems.reduce((sum, item) => sum + (item.related_po_value ?? 0), 0);
+    const overdue = atRiskItems.filter(item => item.is_overdue).length;
+    const dueSoon = atRiskItems.filter(item => !item.is_overdue).length;
+    return { count: atRiskItems.length, totalValue, overdue, dueSoon };
+  }, [filteredItems]);
+
   const riskStats = useMemo(() => {
     const atRiskItems = filteredItems.filter((item) => {
       const days = daysUntilDue(item.due_date);
@@ -906,54 +992,61 @@ export const MyTasks: React.FC = () => {
         </EmptyState>
       ) : (
         <TaskList>
-          {filteredItems.map((item) => (
-            <TaskCard
-              key={item.id}
-              $priority={item.priority}
-              $isOverdue={item.is_overdue}
-              onClick={() => handleTaskClick(item)}
-              role="button"
-              tabIndex={0}
-              onKeyPress={(e) => e.key === 'Enter' && handleTaskClick(item)}
-            >
-              <TaskContent>
-                <TaskTitle>{item.title}</TaskTitle>
-                {item.description && (
-                  <TaskDescription>{item.description}</TaskDescription>
-                )}
-                <TaskMeta>
-                  {item.form_name && (
+          {filteredItems.map((item) => {
+            const itemIsAtRisk = isAtRisk(item);
+            return (
+              <TaskCard
+                key={item.id}
+                $priority={item.priority}
+                $isOverdue={item.is_overdue}
+                $isAtRisk={itemIsAtRisk}
+                onClick={() => handleTaskClick(item)}
+                role="button"
+                tabIndex={0}
+                onKeyPress={(e) => e.key === 'Enter' && handleTaskClick(item)}
+              >
+                <TaskContent>
+                  <TaskTitle>{item.title}</TaskTitle>
+                  {item.description && (
+                    <TaskDescription>{item.description}</TaskDescription>
+                  )}
+                  <TaskMeta>
+                    {item.form_name && (
+                      <TaskMetaItem>
+                        📋 {item.form_name}
+                        {item.step_name && ` → ${item.step_name}`}
+                      </TaskMetaItem>
+                    )}
                     <TaskMetaItem>
-                      📋 {item.form_name}
-                      {item.step_name && ` → ${item.step_name}`}
+                      📅 {formatDueDate(item.due_date)}
                     </TaskMetaItem>
-                  )}
-                  <TaskMetaItem>
-                    📅 {formatDueDate(item.due_date)}
-                  </TaskMetaItem>
-                  {typeof item.related_po_value === 'number' && (
-                    <TaskMetaItem>
-                      💰 {item.related_po_currency || 'USD'} {item.related_po_value.toLocaleString()}
-                    </TaskMetaItem>
-                  )}
-                  <PriorityBadge $priority={item.priority}>
-                    {item.priority}
-                  </PriorityBadge>
-                  {item.is_overdue && (
-                    <OverdueBadge>Overdue</OverdueBadge>
-                  )}
-                </TaskMeta>
-              </TaskContent>
-              <TaskActions onClick={(e) => e.stopPropagation()}>
-                <SecondaryButton onClick={(e) => handleDelegateClick(e, item)}>
-                  Delegate
-                </SecondaryButton>
-                <ActionButton onClick={() => handleTaskClick(item)}>
-                  Open
-                </ActionButton>
-              </TaskActions>
-            </TaskCard>
-          ))}
+                    {typeof item.related_po_value === 'number' && (
+                      <TaskMetaItem>
+                        💰 {item.related_po_currency || 'USD'} {item.related_po_value.toLocaleString()}
+                      </TaskMetaItem>
+                    )}
+                    <PriorityBadge $priority={item.priority}>
+                      {item.priority}
+                    </PriorityBadge>
+                    {item.is_overdue && (
+                      <OverdueBadge>Overdue</OverdueBadge>
+                    )}
+                    {itemIsAtRisk && (
+                      <AtRiskBadge>⚠️ At Risk</AtRiskBadge>
+                    )}
+                  </TaskMeta>
+                </TaskContent>
+                <TaskActions onClick={(e) => e.stopPropagation()}>
+                  <SecondaryButton onClick={(e) => handleDelegateClick(e, item)}>
+                    Delegate
+                  </SecondaryButton>
+                  <ActionButton onClick={() => handleTaskClick(item)}>
+                    Open
+                  </ActionButton>
+                </TaskActions>
+              </TaskCard>
+            );
+          })}
         </TaskList>
       )}
       
