@@ -4275,10 +4275,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Phase 2: UI/UX Enhancements
    */
   const handleAutoLayout = useCallback(() => {
+    const hasFormProcessContainer = nodes.some(
+      (n) => n.type === 'formProcess' || n.type === 'formProcessGroup'
+    );
+    const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
+    
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
       nodes,
       edges,
-      { direction: 'TB', nodeSpacing: 60, rankSpacing: 120 }
+      { direction: layoutDirection, nodeSpacing: 60, rankSpacing: 120 }
     );
     setNodes(layoutedNodes);
     setHasUnsavedChanges(true);
@@ -4300,10 +4305,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       e => selectedNodeIds.includes(e.source) && selectedNodeIds.includes(e.target)
     );
 
+    const hasFormProcessContainer = selectedNodes.some(
+      (n) => n.type === 'formProcess' || n.type === 'formProcessGroup'
+    );
+    const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
+
     const { nodes: layoutedSelected } = getLayoutedElements(
       selectedNodes,
       relevantEdges,
-      { direction: 'TB' }
+      { direction: layoutDirection }
     );
 
     // Merge layouted nodes back
@@ -5536,16 +5546,37 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Batch 3: Inject edit/delete handlers into node data
   // Batch 4: Also inject title change handler
   const nodesWithHandlers = useMemo(() => {
-    return nodes.map(node => ({
-      ...node,
-      data: {
-        ...node.data,
-        onEdit: () => handleNodeEdit(node.id),
-        onDelete: () => handleNodeDelete(node.id),
-        onSave: () => handleSaveWorkflow(),
-        onTitleChange: (newTitle: string) => handleNodeTitleChange(node.id, newTitle),
-      },
-    }));
+    return nodes.map((node) => {
+      const data = node.data ?? {};
+
+      const onEdit =
+        typeof data.onEdit === 'function'
+          ? data.onEdit
+          : () => handleNodeEdit(node.id);
+      const onDelete =
+        typeof data.onDelete === 'function'
+          ? data.onDelete
+          : () => handleNodeDelete(node.id);
+      const onSave =
+        typeof data.onSave === 'function'
+          ? data.onSave
+          : () => handleSaveWorkflow();
+      const onTitleChange =
+        typeof data.onTitleChange === 'function'
+          ? data.onTitleChange
+          : (newTitle: string) => handleNodeTitleChange(node.id, newTitle);
+
+      return {
+        ...node,
+        data: {
+          ...data,
+          onEdit,
+          onDelete,
+          onSave,
+          onTitleChange,
+        },
+      };
+    });
   }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange, handleSaveWorkflow]);
 
   return (

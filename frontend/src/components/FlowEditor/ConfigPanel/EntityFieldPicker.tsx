@@ -396,15 +396,10 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
       resetFieldsTimeout();
       // Clear stale selected fields when entity type changes via prop
       onFieldsChange([]);
-    }
-  }, [initialEntityType, selectedEntityType, resetFieldsTimeout, onFieldsChange]);
-
-  // Ensure fields are refreshed when initialEntityType changes (even in uncontrolled mode)
-  useEffect(() => {
-    if (initialEntityType) {
+      // Force a fresh fetch so cascaded field lists stay in sync with the new entity type
       refetchFields();
     }
-  }, [initialEntityType, refetchFields]);
+  }, [initialEntityType, selectedEntityType, resetFieldsTimeout, onFieldsChange, refetchFields]);
 
   // Auto-select first entity in uncontrolled mode
   useEffect(() => {

@@ -24,8 +24,8 @@ export interface LayoutOptions {
   align?: 'UL' | 'UR' | 'DL' | 'DR';
 }
 
-const DEFAULT_OPTIONS: Required<Omit<LayoutOptions, 'direction'>> & { direction: 'TB' } = {
-  direction: 'TB', // Force Top to Bottom
+const DEFAULT_OPTIONS: Required<LayoutOptions> = {
+  direction: 'TB', // Default Top to Bottom; callers can override
   nodeSpacing: 50,
   rankSpacing: 100,
   edgeSpacing: 20,
@@ -40,14 +40,15 @@ export const getLayoutedElements = (
   edges: Edge[],
   options: LayoutOptions = {}
 ): { nodes: Node[]; edges: Edge[] } => {
-  const opts = { ...DEFAULT_OPTIONS, ...options, direction: 'TB' };
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const direction = opts.direction ?? 'TB';
   
   // Create a new dagre graph
   const dagreGraph = new dagre.graphlib.Graph();
   
   // Set graph options
   dagreGraph.setGraph({
-    rankdir: 'TB',
+    rankdir: direction,
     align: opts.align,
     ranker: 'longest-path',
     nodesep: opts.nodeSpacing,
@@ -94,25 +95,44 @@ export const getLayoutedElements = (
     };
   });
   
-  // Center align graph horizontally for consistent top-to-bottom layout
-  const minX = Math.min(...layoutedNodes.map((n) => n.position.x));
-  const maxX = Math.max(...layoutedNodes.map((n) => n.position.x + (n.width || 280)));
-  const centerOffset = (minX + maxX) / 2;
+  let alignedNodes = layoutedNodes;
 
-  const alignedNodes = layoutedNodes.map((node) => ({
-    ...node,
-    position: {
-      x: node.position.x - centerOffset,
-      y: node.position.y,
-    },
-  }));
+  if (direction === 'TB' || direction === 'BT') {
+    // Center horizontally for top-to-bottom layout
+    const minX = Math.min(...layoutedNodes.map((n) => n.position.x));
+    const maxX = Math.max(...layoutedNodes.map((n) => n.position.x + (n.width || 280)));
+    const centerOffset = (minX + maxX) / 2;
 
+    alignedNodes = layoutedNodes.map((node) => ({
+      ...node,
+      position: {
+        x: node.position.x - centerOffset,
+        y: node.position.y,
+      },
+    }));
+  } else {
+    // Center vertically for left-to-right layout
+    const minY = Math.min(...layoutedNodes.map((n) => n.position.y));
+    const maxY = Math.max(...layoutedNodes.map((n) => n.position.y + (n.height || 100)));
+    const centerOffsetY = (minY + maxY) / 2;
+
+    alignedNodes = layoutedNodes.map((node) => ({
+      ...node,
+      position: {
+        x: node.position.x,
+        y: node.position.y - centerOffsetY,
+      },
+    }));
+  }
+
+  // Normalize to keep positions positive with a small margin
   const normalizedMinX = Math.min(...alignedNodes.map((n) => n.position.x));
+  const normalizedMinY = Math.min(...alignedNodes.map((n) => n.position.y));
   const normalizedNodes = alignedNodes.map((node) => ({
     ...node,
     position: {
-      x: node.position.x - normalizedMinX + 50, // add slight margin for viewport
-      y: node.position.y,
+      x: node.position.x - normalizedMinX + 50,
+      y: node.position.y - normalizedMinY + 50,
     },
   }));
 

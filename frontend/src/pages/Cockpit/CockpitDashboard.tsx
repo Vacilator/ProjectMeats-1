@@ -250,6 +250,24 @@ const GridWrapper = styled.div`
   }
 `;
 
+const HeroSearchSection = styled.div`
+  padding: 20px 24px 12px;
+  background: rgb(var(--color-surface));
+  border-bottom: 1px solid rgb(var(--color-border));
+
+  @media (max-width: 640px) {
+    padding: 16px;
+  }
+`;
+
+const HeroSearchInner = styled.div`
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
 const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
@@ -648,10 +666,12 @@ export const CockpitDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* EMBEDDED SEARCH - Always Visible */}
-      <div style={{ padding: '16px 16px 0 16px' }}>
-        <SmartSearch query={cockpitQuery} />
-      </div>
+      {/* Hero Search (SmartSearch) */}
+      <HeroSearchSection>
+        <HeroSearchInner>
+          <SmartSearch query={cockpitQuery} />
+        </HeroSearchInner>
+      </HeroSearchSection>
 
       {/* Widget Grid (hidden when a record is active) */}
       {navigation.path.length === 0 && (

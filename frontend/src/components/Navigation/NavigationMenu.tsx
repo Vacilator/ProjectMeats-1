@@ -91,10 +91,12 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
     });
   }, [isAdmin, user]);
   
-  const filteredItems = useMemo(
-    () => filterItemsByRole(items),
-    [filterItemsByRole, items],
-  );
+  const filteredItems = useMemo(() => filterItemsByRole(items), [filterItemsByRole, items]);
+  const filteredItemsRef = useRef<NavigationItem[]>(filteredItems);
+
+  useEffect(() => {
+    filteredItemsRef.current = filteredItems;
+  }, [filteredItems]);
 
   // Auto-expand parent items only when navigation occurs (preserve manual toggles)
   useEffect(() => {
@@ -117,12 +119,13 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       return null;
     };
 
-    const activeParent = findActiveParent(filteredItems);
+    const activeParent = findActiveParent(filteredItemsRef.current);
     if (activeParent) {
       setExpandedItem(activeParent);
     }
     lastPathnameRef.current = location.pathname;
-  }, [location.pathname, filteredItems]);
+  // Run only on pathname change to avoid fighting user-driven expand/collapse
+  }, [location.pathname]);
 
   const toggleExpand = (label: string, e?: React.MouseEvent) => {
     if (e) {
