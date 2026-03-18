@@ -2417,32 +2417,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Configuration Panel
   // NOTE: selectedNode and selectedNodeId moved to top of component to fix TDZ
   
-  // FormStep specialized configuration (Phase 4.2.B Integration)
-  const [formStepModalOpen, setFormStepModalOpen] = useState(false);
+  // FormStep specialized configuration (Phase 4.2.B Integration) - For nested field editing
   const [selectedFormStep, setSelectedFormStep] = useState<Node | null>(null);
   const [editingField, setEditingField] = useState<any | null>(null);
   
-  // FormField specialized configuration (Phase 1 of Navigation Fix Plan)
-  const [formFieldModalOpen, setFormFieldModalOpen] = useState(false);
-  const [selectedFormField, setSelectedFormField] = useState<Node | null>(null);
-  
-  // Section specialized configuration (Phase 1 Task 1.2 of Navigation Fix Plan)
-  const [sectionModalOpen, setSectionModalOpen] = useState(false);
-  const [selectedSection, setSelectedSection] = useState<Node | null>(null);
-  
-  // Document/Upload specialized configuration (Phase 1 Task 1.3 of Navigation Fix Plan)
-  const [documentModalOpen, setDocumentModalOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<Node | null>(null);
-  
-  // Create Record action configuration (Phase 2 Task 2.2)
-  const [createRecordModalOpen, setCreateRecordModalOpen] = useState(false);
-  const [selectedCreateRecord, setSelectedCreateRecord] = useState<Node | null>(null);
-  
-  // Form Reference configuration (Phase 3 Task 3.3)
-  const [formReferenceModalOpen, setFormReferenceModalOpen] = useState(false);
-  const [selectedFormReference, setSelectedFormReference] = useState<Node | null>(null);
-  
-  // Container configuration (Phase 4.3)
+  // Container configuration (Phase 4.3) - FormProcess special handling
   const [containerModalOpen, setContainerModalOpen] = useState(false);
   const [selectedContainer, setSelectedContainer] = useState<Node | null>(null);
   
@@ -4959,18 +4938,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSelectedNodeId(null);
       setSelectedNode(null);
       setSelectedFormStep(null);
-      setSelectedFormField(null);
-      setSelectedSection(null);
-      setSelectedDocument(null);
-      setSelectedCreateRecord(null);
-      setSelectedFormReference(null);
       setSelectedContainer(null);
-      setFormStepModalOpen(false);
-      setFormFieldModalOpen(false);
-      setSectionModalOpen(false);
-      setDocumentModalOpen(false);
-      setCreateRecordModalOpen(false);
-      setFormReferenceModalOpen(false);
       setContainerModalOpen(false);
     }
   }, []);
@@ -4983,13 +4951,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     logger.debug('✏️ [EDIT BUTTON] Opening config panel for:', node.type, nodeId);
     
-    // Close all legacy modals first
-    setFormStepModalOpen(false);
-    setFormFieldModalOpen(false);
-    setSectionModalOpen(false);
-    setDocumentModalOpen(false);
-    setCreateRecordModalOpen(false);
-    setFormReferenceModalOpen(false);
+    // Close container modal (only legacy modal remaining)
     setContainerModalOpen(false);
     
     // FORCE CONFIG PANEL OPEN: Set selectedNode to trigger TabbedConfigPanelWithShadow
@@ -5036,37 +4998,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
         
       case 'formReference':
-        logger.debug('✏️ [EDIT BUTTON] Setting FormReference data');
-        setSelectedFormReference(node);
-        break;
-        
       case 'formField':
-        logger.debug('✏️ [EDIT BUTTON] Setting FormField data');
-        setSelectedFormField(node);
-        break;
-        
       case 'formSection':
       case 'section':
-        logger.debug('✏️ [EDIT BUTTON] Setting Section data');
-        setSelectedSection(node);
-        break;
-        
       case 'formFileUpload':
       case 'document':
       case 'upload':
-        logger.debug('✏️ [EDIT BUTTON] Setting Document data');
-        setSelectedDocument(node);
-        break;
-        
       case 'action':
-        const actionType = node.data.actionType;
-        if (actionType === 'createRecord') {
-          logger.debug('✏️ [EDIT BUTTON] Opening CreateRecord modal');
-          setSelectedCreateRecord(node);
-          setCreateRecordModalOpen(true);
-        } else {
-          setSelectedNode(node);
-        }
+        logger.debug('✏️ [EDIT BUTTON] Using TabbedConfigPanel/DynamicConfigPanel for:', node.type);
+        // Route all node types through the main panel (TabbedConfigPanel wraps DynamicConfigPanel)
+        // selectedNode already set at the beginning of this function
         break;
         
       default:
@@ -6532,122 +6473,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         mode={workflowModalMode}
       />
       
-      {/* FormField Configuration Modal - Direct Selection (Phase 1 of Navigation Fix Plan) */}
-      <SidePanel
-        isOpen={formFieldModalOpen && !!selectedFormField}
-        onClose={() => {
-          setFormFieldModalOpen(false);
-          setSelectedFormField(null);
-        }}
-      >
-        {selectedFormField && (
-          <FormFieldConfigPanel
-            field={selectedFormField.data}
-            onChange={(updatedFieldData) => {
-              handleNodeUpdate(selectedFormField.id, updatedFieldData);
-              setFormFieldModalOpen(false);
-              setSelectedFormField(null);
-            }}
-            onClose={() => {
-              setFormFieldModalOpen(false);
-              setSelectedFormField(null);
-            }}
-            availableFields={getPreviousStepFields(selectedFormField.id)}
-            tenantLists={tenantLists}
-            currentNodeId={selectedFormField.id} // Pass currentNodeId for upstream inheritance
-          />
-        )}
-      </SidePanel>
-      
-      {/* Section Configuration Modal - Direct Selection (Phase 1 Task 1.2) */}
-      <SidePanel
-        isOpen={sectionModalOpen && !!selectedSection}
-        onClose={() => {
-          setSectionModalOpen(false);
-          setSelectedSection(null);
-        }}
-      >
-        {selectedSection && (
-          <SectionConfigPanel
-            section={selectedSection.data}
-            onChange={(updatedSectionData) => {
-              handleNodeUpdate(selectedSection.id, updatedSectionData);
-              setSectionModalOpen(false);
-              setSelectedSection(null);
-            }}
-            onClose={() => {
-              setSectionModalOpen(false);
-              setSelectedSection(null);
-            }}
-            availableFields={getPreviousStepFields(selectedSection.id)}
-          />
-        )}
-      </SidePanel>
-      
-      {/* Document Configuration Modal - Direct Selection (Phase 1 Task 1.3) */}
-      <SidePanel
-        isOpen={documentModalOpen && !!selectedDocument}
-        onClose={() => {
-          setDocumentModalOpen(false);
-          setSelectedDocument(null);
-        }}
-      >
-        {selectedDocument && (
-          <DocumentConfigPanel
-            document={selectedDocument.data}
-            onChange={(updatedDocumentData) => {
-              handleNodeUpdate(selectedDocument.id, updatedDocumentData);
-              setDocumentModalOpen(false);
-              setSelectedDocument(null);
-            }}
-            onClose={() => {
-              setDocumentModalOpen(false);
-              setSelectedDocument(null);
-            }}
-            availableFields={getPreviousStepFields(selectedDocument.id)}
-          />
-        )}
-      </SidePanel>
-      
-      {/* Create Record Action Configuration Modal (Phase 2 Task 2.2) */}
-      <SidePanel
-        isOpen={createRecordModalOpen && !!selectedCreateRecord}
-        onClose={() => {
-          setCreateRecordModalOpen(false);
-          setSelectedCreateRecord(null);
-        }}
-      >
-        {selectedCreateRecord && (
-          <CreateRecordConfigPanel
-            node={selectedCreateRecord}
-            onUpdate={(nodeId, data) => {
-              handleNodeUpdate(nodeId, data);
-              setCreateRecordModalOpen(false);
-              setSelectedCreateRecord(null);
-            }}
-            onClose={() => {
-              setCreateRecordModalOpen(false);
-              setSelectedCreateRecord(null);
-            }}
-          />
-        )}
-      </SidePanel>
-      
-      {/* Form Reference Configuration Modal (Phase 3 Task 3.3) */}
-      {formReferenceModalOpen && selectedFormReference && (
-        <FormReferenceConfigPanel
-          node={selectedFormReference}
-          onUpdate={(nodeId, data) => {
-            handleNodeUpdate(nodeId, data);
-            setFormReferenceModalOpen(false);
-            setSelectedFormReference(null);
-          }}
-          onClose={() => {
-            setFormReferenceModalOpen(false);
-            setSelectedFormReference(null);
-          }}
-        />
-      )}
+      {/* BATCH 1 CLEANUP COMPLETE: All hardcoded config panels removed.
+           Configuration now flows through:
+           1. handleNodeEdit() → setSelectedNode()
+           2. TabbedConfigPanel wraps DynamicConfigPanel
+           3. DynamicConfigPanel renders schema-driven UI for all 51 node types
+           
+           Remaining specialized panels:
+           - FormFieldConfigPanel (nested editing within FormStep)
+           - ContainerConfigPanel (FormProcess special handling)
+      */}
       
       {/* FormField Configuration Modal (nested) - From within FormStep */}
       <SidePanel

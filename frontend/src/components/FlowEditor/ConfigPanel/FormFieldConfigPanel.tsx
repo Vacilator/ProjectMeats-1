@@ -23,6 +23,17 @@ import { Eye, EyeOff, AlertCircle, ChevronDown, ChevronUp, Zap } from 'lucide-re
 import { ValidationRuleBuilder, ValidationRule } from './ValidationRuleBuilder';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
 import { getUpstreamOutputs, formatInheritanceSyntax, isInheritanceSyntax, parseInheritanceSyntax } from '../../../utils/flowUtils';
+import {
+  Section,
+  SectionHeader,
+  SectionTitle,
+  Input,
+  TextArea,
+  HelpText,
+  RequiredIndicator,
+  PrimaryButton,
+  SecondaryButton,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
