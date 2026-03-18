@@ -220,16 +220,15 @@ const FIELD_TYPE_DEFINITIONS: Record<FormFieldType, {
 };
 
 // ============================================================================
-// Styled Components
+// Styled Components (Custom - Panel-specific)
 // ============================================================================
 
+// Layout containers
 const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
 `;
-
-
 
 const Title = styled.h3`
   margin: 0 0 8px 0;
@@ -243,88 +242,12 @@ const Subtitle = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
-
-
-const Section = styled.div`
-  margin-bottom: 32px;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-`;
-
-const SectionHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  cursor: pointer;
-  user-select: none;
-`;
-
-const SectionTitle = styled.h4`
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
+// SectionContent for collapsible sections (shared Section doesn't support $collapsed)
 const SectionContent = styled.div<{ $collapsed?: boolean }>`
   display: ${props => props.$collapsed ? 'none' : 'block'};
 `;
 
-
-
-
-
-const Required = styled.span`
-  color: rgb(239, 68, 68);
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-background));
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  min-height: 80px;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-background));
-  font-family: inherit;
-  resize: vertical;
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
-
-
-
-
-
+// CheckboxLabel (not in shared library)
 const CheckboxLabel = styled.label`
   display: flex;
   align-items: center;
@@ -337,13 +260,7 @@ const CheckboxLabel = styled.label`
   }
 `;
 
-const HelpText = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-tertiary));
-  margin-top: 6px;
-  line-height: 1.5;
-`;
-
+// Field type selector components (specific to FormFieldConfigPanel)
 const FieldTypeGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -411,6 +328,7 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   }
 `;
 
+// Options editor components (specific to FormFieldConfigPanel)
 const OptionsEditor = styled.div`
   display: flex;
   flex-direction: column;
@@ -438,35 +356,6 @@ const OptionInput = styled.input`
   &:focus {
     outline: none;
   }
-`;
-
-
-
-const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
-  padding: 10px 20px;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  ${props => props.$variant === 'primary' ? `
-    background: rgb(var(--color-primary));
-    color: white;
-    
-    &:hover {
-      opacity: 0.9;
-    }
-  ` : `
-    background: rgb(var(--color-background));
-    color: rgb(var(--color-text-primary));
-    border: 1px solid rgb(var(--color-border));
-    
-    &:hover {
-      background: rgb(var(--color-border));
-    }
-  `}
 `;
 
 // ============================================================================
@@ -563,7 +452,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
           <SectionContent $collapsed={collapsedSections.has('basic')}>
             <FormField>
               <Label>
-                Field Type <Required>*</Required>
+                Field Type <RequiredIndicator>*</RequiredIndicator>
               </Label>
               <FieldTypeGrid>
                 {Object.entries(FIELD_TYPE_DEFINITIONS).map(([type, def]) => (
@@ -581,7 +470,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
 
             <FormField>
               <Label>
-                Field Label <Required>*</Required>
+                Field Label <RequiredIndicator>*</RequiredIndicator>
               </Label>
               <Input
                 type="text"
