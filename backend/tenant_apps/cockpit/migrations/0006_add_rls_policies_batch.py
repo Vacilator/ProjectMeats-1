@@ -8,7 +8,7 @@ from django.contrib.postgres.operations import RunSQL
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("cockpit", "0005_activitylog_scheduledcall_created_on_and_more"),
+        ("cockpit", "0005_activitylog_custom_data_scheduledcall_custom_data_and_more"),
     ]
 
     operations = [
