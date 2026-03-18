@@ -474,11 +474,12 @@ export const formProcessSchema: NodeConfigSchema = {
           placeholder: 'e.g., Customer Onboarding Form',
           helpText: 'Display name for this form process',
           defaultValue: 'New Form Process',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Container name is required' },
+            { type: 'minLength', value: 3, message: 'Container name must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Container name must be at most 100 characters' }
+          ]
         },
         {
           id: 'containerDescription',
@@ -487,9 +488,9 @@ export const formProcessSchema: NodeConfigSchema = {
           placeholder: 'Brief description of this form process...',
           helpText: 'Optional description to explain the purpose of this form',
           rows: 3,
-          validation: {
-            maxLength: 500
-          }
+          validation: [
+            { type: 'maxLength', value: 500, message: 'Description must be at most 500 characters' }
+          ]
         }
       ]
     },
@@ -620,11 +621,12 @@ export const formProcessGroupSchema: NodeConfigSchema = {
           placeholder: 'e.g., Customer Information Section',
           helpText: 'Display name for this form group',
           defaultValue: 'New Form Group',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Group name is required' },
+            { type: 'minLength', value: 3, message: 'Group name must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Group name must be at most 100 characters' }
+          ]
         },
         {
           id: 'containerDescription',
@@ -633,9 +635,9 @@ export const formProcessGroupSchema: NodeConfigSchema = {
           placeholder: 'Brief description of this form group...',
           helpText: 'Optional description to explain the purpose',
           rows: 3,
-          validation: {
-            maxLength: 500
-          }
+          validation: [
+            { type: 'maxLength', value: 500, message: 'Description must be at most 500 characters' }
+          ]
         },
         {
           id: 'isExpanded',
@@ -720,11 +722,12 @@ export const createRecordSchema: NodeConfigSchema = {
           placeholder: 'e.g., Create Customer',
           helpText: 'Display name for this action',
           defaultValue: 'Create Record',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Action label is required' },
+            { type: 'minLength', value: 3, message: 'Action label must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Action label must be at most 100 characters' }
+          ]
         },
         {
           id: 'description',
@@ -733,9 +736,9 @@ export const createRecordSchema: NodeConfigSchema = {
           placeholder: 'Optional description...',
           helpText: 'Brief explanation of what this action does',
           rows: 2,
-          validation: {
-            maxLength: 300
-          }
+          validation: [
+            { type: 'maxLength', value: 300, message: 'Description must be at most 300 characters' }
+          ]
         },
         {
           id: 'entity',
@@ -743,9 +746,10 @@ export const createRecordSchema: NodeConfigSchema = {
           label: 'Target Entity',
           placeholder: 'Select entity to create...',
           helpText: 'Choose which entity type to create a record for',
-          validation: {
-            required: true
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Target entity is required' }
+          ]
         }
       ]
     },
@@ -771,18 +775,19 @@ export const createRecordSchema: NodeConfigSchema = {
           helpText: 'Map values from upstream nodes to target entity fields',
           entityFieldId: 'entity',
           showAutoSuggest: true,
-          validation: {
-            custom: (value: any) => {
-              if (!value || value.length === 0) {
-                return { valid: false, message: 'At least one field mapping is required' };
-              }
-              const hasMissingMappings = value.some((m: any) => !m.targetField || !m.sourceExpression);
-              if (hasMissingMappings) {
-                return { valid: false, message: 'All mappings must have both target field and source value' };
-              }
-              return { valid: true };
-            }
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'At least one field mapping is required' },
+            {
+              type: 'custom',
+              message: 'All mappings must have both target field and source value',
+              validator: (value: any) => {
+                if (!value || value.length === 0) return true;
+                const hasMissingMappings = value.some((m: any) => !m.targetField || !m.sourceExpression);
+                return !hasMissingMappings;
+              },
+            },
+          ]
         }
       ]
     }
@@ -826,11 +831,12 @@ export const outlookEmailSchema: NodeConfigSchema = {
           placeholder: 'e.g., Send Welcome Email',
           helpText: 'Display name for this email action',
           defaultValue: 'Send Email',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Node label is required' },
+            { type: 'minLength', value: 3, message: 'Node label must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Node label must be at most 100 characters' }
+          ]
         },
         {
           id: 'to',
@@ -838,11 +844,11 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'To',
           placeholder: 'recipient@example.com',
           helpText: 'Email recipient(s). Separate multiple with commas or use variable picker.',
-          validation: {
-            required: true,
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter valid email address(es)'
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Recipient is required' },
+            { type: 'regex', value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter valid email address(es)' }
+          ]
         },
         {
           id: 'cc',
@@ -850,10 +856,9 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'CC',
           placeholder: 'cc@example.com',
           helpText: 'Carbon copy recipients (optional)',
-          validation: {
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter valid email address(es)'
-          }
+          validation: [
+            { type: 'regex', value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter valid email address(es)' }
+          ]
         },
         {
           id: 'bcc',
@@ -861,10 +866,9 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'BCC',
           placeholder: 'bcc@example.com',
           helpText: 'Blind carbon copy recipients (optional)',
-          validation: {
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter valid email address(es)'
-          }
+          validation: [
+            { type: 'regex', value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter valid email address(es)' }
+          ]
         },
         {
           id: 'subject',
@@ -872,11 +876,12 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'Subject',
           placeholder: 'e.g., Welcome to {{customer.name}}',
           helpText: 'Email subject line. Use {{variable}} for dynamic content.',
-          validation: {
-            required: true,
-            minLength: 1,
-            maxLength: 200
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Subject is required' },
+            { type: 'minLength', value: 1, message: 'Subject must not be empty' },
+            { type: 'maxLength', value: 200, message: 'Subject must be at most 200 characters' }
+          ]
         },
         {
           id: 'body',
@@ -885,10 +890,11 @@ export const outlookEmailSchema: NodeConfigSchema = {
           placeholder: 'Email content...\n\nUse {{variable}} for dynamic values.',
           helpText: 'Email body content. Supports plain text and variables.',
           rows: 10,
-          validation: {
-            required: true,
-            minLength: 1
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Body is required' },
+            { type: 'minLength', value: 1, message: 'Body must not be empty' }
+          ]
         },
         {
           id: 'importance',
@@ -943,7 +949,6 @@ const buildAllSchemas = (): NodeConfigSchema[] => [
   formReferenceSchema,
   formSignatureSchema,
   formFileUploadSchema,
-  formMultiStepContainerSchema,
   
   // Trigger nodes
   triggerManualSchema,
