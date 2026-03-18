@@ -9,13 +9,13 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
-import { RootStackParamList, User, Tenant, Customer, Supplier } from '../types';
+import { RootStackParamList, User, GuestUser, Tenant, Customer, Supplier } from '../types';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 interface Props {
   navigation: HomeScreenNavigationProp;
-  user: User;
+  user: User | GuestUser;
   tenant: Tenant;
   onLogout: () => void;
   onSwitchTenant: () => void;
@@ -190,6 +190,13 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.quickActions}>
           <TouchableOpacity 
+            style={[styles.quickActionButton, styles.workFormsButton]}
+            onPress={() => navigation.navigate('WorkForms')}
+          >
+            <Text style={[styles.quickActionText, styles.workFormsButtonText]}>WorkForms</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
             style={styles.quickActionButton}
             onPress={() => Alert.alert('Coming Soon', 'This feature will be available soon.')}
           >
@@ -326,6 +333,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#e1e5e9',
+  },
+  workFormsButton: {
+    backgroundColor: '#2c3e50',
+    borderColor: '#2c3e50',
+  },
+  workFormsButtonText: {
+    color: '#fff',
   },
   quickActionText: {
     color: '#2c3e50',

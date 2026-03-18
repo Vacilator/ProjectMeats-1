@@ -92,6 +92,32 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
               </Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.alternateActions}>
+            <TouchableOpacity
+              style={styles.altButton}
+              onPress={() => navigation.navigate('Guest')}
+              disabled={loading}
+              accessibilityLabel="Continue as guest"
+            >
+              <Text style={styles.altButtonText}>👁  Browse as Guest</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.altButton}
+              onPress={() => navigation.navigate('Invite', {})}
+              disabled={loading}
+              accessibilityLabel="Accept an invitation"
+            >
+              <Text style={styles.altButtonText}>✉️  Accept an Invite</Text>
+            </TouchableOpacity>
+          </View>
           
           <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
@@ -154,9 +180,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 300,
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#d5d8dc',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#95a5a6',
+    fontSize: 13,
+  },
+  alternateActions: {
+    width: '100%',
+    maxWidth: 300,
+  },
+  altButton: {
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#d5d8dc',
+    backgroundColor: '#fff',
+  },
+  altButtonText: {
+    color: '#5d6d7e',
+    fontSize: 15,
+    fontWeight: '500',
+  },
   versionText: {
-    position: 'absolute',
-    bottom: 20,
+    marginTop: 32,
     fontSize: 12,
     color: '#95a5a6',
   },
