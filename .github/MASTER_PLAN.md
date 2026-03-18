@@ -54,44 +54,34 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3457
   - Backend: tenant-safe cache for UniversalSearchService results (short TTL), plus hardened entity lookup response and tenant fallback.
 
-<<<<<<< HEAD
 - 2026-03-15 — Phase 8.3 Email ingestion fan-out — Commit: d71673d6 (PR: #3458)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3458
   - Backend: Celery fan-out for email ingestion (provider-scoped tasks) with jittered dispatch.
 
 - 2026-03-15 — Entity-First UI Restoration (Portal + Schema Bootstrap) — Commit: TBD (PR: #3460)
-=======
 - 2026-03-15 — Phase 8.3 Email ingestion fan-out — Commit: 86c2025f (PR: #3458)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3458
   - Backend: Celery fan-out for email ingestion (provider-scoped tasks) with jittered dispatch.
 
 - 2026-03-15 — Entity-First UI Restoration (Portal + Schema Bootstrap) — Commit: a12c8ec4 (PR: #3460)
->>>>>>> d99fd677262a2d46dbcf16d58ef189da5bde564f
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3460
   - FlowEditor: add static portal containers to Vite index.html, harden portal lifecycle, and fix portal diagnostics.
   - FlowEditor: ensure schemaRegistry is initialized (no fallback schemas for trigger/formStep), restoring entity-first configuration.
   - FlowEditor: Developer Mode JSON editor uses Monaco (fallback to textarea).
 
-<<<<<<< HEAD
 - 2026-03-15 — FlowEditor: cascading relation fields — Commit: TBD (PR: #3462)
-=======
 - 2026-03-15 — FlowEditor: cascading relation fields — Commit: 9579a247 (PR: #3462)
->>>>>>> d99fd677262a2d46dbcf16d58ef189da5bde564f
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3462
   - EntityFieldPicker: relation fields (FK/M2M/1-1) can select an upstream variable template to cascade/auto-populate (`cascadeFrom`).
   - DynamicConfigPanel: entity-field-picker renderer passes upstream variables into EntityFieldPicker.
 
-<<<<<<< HEAD
 - 2026-03-15 — Cockpit: global search in header (Ctrl+K) — Commit: TBD (PR: #3466)
-=======
 - 2026-03-15 — Cockpit: global search in header (Ctrl+K) — Commit: 2be7d888 (PR: #3466)
->>>>>>> d99fd677262a2d46dbcf16d58ef189da5bde564f
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3466
   - Move Cockpit search input to `Header.tsx` with global Ctrl/⌘K focus.
   - CockpitDashboard becomes a results view driven by URL `?q=` (SmartSearch controlled query + hideInput).
   - SmartSearch now debounces via `lodash/debounce` (no setTimeout).
 
-<<<<<<< HEAD
 - 2026-03-18 — Cockpit BreadcrumbBar elevation — Commit: 68205801 (PR: #3542)
   - BreadcrumbBar renders directly beneath Toolbar/CockpitTour (outside search block) to keep navigation visible across states.
   - Verification: Breadcrumb persists above search/hint/results when drilling into entities.
@@ -129,7 +119,6 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-18 — Docs: align multi-tenancy guidance (shared schema) — Commit: 7020f5c3 (PR: #3565)
   - Removes outdated `django-tenants`/`migrate_schemas` guidance from backend READMEs.
   - Clarifies tenant isolation via `tenant` FK + `TenantMiddleware` + PostgreSQL RLS.
-=======
 - 2026-03-15 — Workflows: ActionItems 500 hardening — Commit: 2b5f2346 (PR: #3468)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3468
   - Return empty results when tenant context is missing (prevents RLS `current_setting()` errors).
@@ -223,7 +212,6 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - schemaRegistry: wrap single-object `field.validation` into an array (backward compatible) to prevent `.forEach` crashes.
   - LiveFormPreview: normalize `field.validation` to an array before iterating.
   - Verified: GitHub Actions run 23112951974 succeeded (dev deploy green). Deployed tags: `development-5b9e5f34da6f80c51f807483caa3910de6d339d9` (pm-frontend + pm-backend).
->>>>>>> d99fd677262a2d46dbcf16d58ef189da5bde564f
 
 ---
 
@@ -277,11 +265,8 @@ Deliverables:
 ### PR E — Phase 8.3: Email ingestion fan-out (Backend)
 **Branch:** `feat/phase8-3-email-ingestion-fanout`
 
-<<<<<<< HEAD
 **Status:** PR OPEN — https://github.com/Meats-Central/ProjectMeats/pull/3458
-=======
 **Status:** MERGED — https://github.com/Meats-Central/ProjectMeats/pull/3458 (squash commit: `86c2025f`)
->>>>>>> d99fd677262a2d46dbcf16d58ef189da5bde564f
 
 Deliverables:
 - Convert sequential provider polling into Celery fan-out (task per provider/tenant).
@@ -292,14 +277,12 @@ Execution rules:
 - No direct axios usage in frontend; BusinessApi/workformsApi only.
 - Maintain PostgreSQL RLS parity and tenant isolation in all backend changes.
 
-<<<<<<< HEAD
 - 2026-03-18 — CRITICAL HOTFIX: WSOD Resolution (schemaRegistry TDZ) — Commit: [pending]
   - Fixed "schemaRegistry is not defined" White Screen of Death on dev environment
   - Root cause: Vite/Rollup ES Module evaluation order caused Temporal Dead Zone
   - Solution: Wrapped all schemaRegistry initialization calls in setTimeout(..., 0) to defer to next macro-task
   - Affected file: frontend/src/components/FlowEditor/config/nodeConfigSchemas.ts (lines 1013-1021, 4171-4173)
   - Impact: Guarantees all ES modules fully link before schema registration executes
-=======
 ---
 
 ## Emergency Restoration Addendum (Priority Queue)
@@ -597,7 +580,6 @@ Deliverables:
 - Backend deploy evidence:
   - `registry.digitalocean.com/meatscentral/projectmeats-backend:development-72354f4dea69e1fdd889693912fd3a7cc8b2bd9c`
   - container: `pm-backend`
->>>>>>> d99fd677262a2d46dbcf16d58ef189da5bde564f
 ## Phase 7 WorkForms Strategic Overhaul - COMPLETE ✅
 
 **Completion Date:** 2025-01-11
