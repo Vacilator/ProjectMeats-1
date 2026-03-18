@@ -25,7 +25,7 @@ import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { Node, useReactFlow } from '@xyflow/react';
-import { Plus, Copy, Layers, Trash2, Settings, Move, Wand2, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, Copy, Layers, Trash2, Settings, Move, Wand2, Maximize2, Minimize2, CircleDot } from 'lucide-react';
 
 import { businessApi } from '@/services/businessApi';
 
@@ -406,6 +406,33 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
   }, [node, getNodes, getEdges, onClose]);
   
   /**
+   * Toggle breakpoint (Phase 9.4)
+   */
+  const handleToggleBreakpoint = useCallback(() => {
+    if (!node) return;
+
+    const current = Boolean((node.data as any)?.hasBreakpoint);
+    const next = !current;
+
+    setNodes((nodes) =>
+      nodes.map((n) => {
+        if (n.id !== node.id) return n;
+        return {
+          ...n,
+          data: {
+            ...(n.data || {}),
+            hasBreakpoint: next,
+          },
+        };
+      })
+    );
+
+    toast.success(next ? 'Breakpoint set' : 'Breakpoint cleared');
+
+    onClose();
+  }, [node, setNodes, onClose]);
+
+  /**
    * Delete node (and children if container)
    */
   const handleDelete = useCallback(() => {
@@ -562,6 +589,18 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
           <MenuSeparator />
         </>
       )}
+
+      {/* Phase 9.4: Breakpoints */}
+      <MenuItem
+        onClick={handleToggleBreakpoint}
+        role="menuitem"
+        aria-label="Toggle breakpoint"
+        title="Pause Continue/Step at this node"
+      >
+        <CircleDot size={16} aria-hidden="true" />
+        <span>{node.data?.hasBreakpoint ? 'Clear Breakpoint' : 'Set Breakpoint'}</span>
+      </MenuItem>
+      <MenuSeparator />
       
       {isContainer && (
         <>

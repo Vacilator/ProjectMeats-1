@@ -654,3 +654,20 @@ Deliverables:
 - [x] Sub-flow export (scaffold):
   - [x] NodeContextMenu: added **Save as Sub-Flow Template** for `formProcessGroup` (serializes container + descendants + internal edges and POSTs to `/workflows/templates/`).
 
+## Phase 9.4: Advanced Debugging & Execution Tracing
+
+- [x] Breakpoints UI:
+  - [x] NodeContextMenu: added **Toggle Breakpoint** (sets `node.data.hasBreakpoint`).
+  - [x] BaseNode: renders a red breakpoint dot indicator when `hasBreakpoint` is enabled.
+
+- [x] Execution timeline styling (debug sessions):
+  - [x] UnifiedFlowEditor: render-time decoration dims unexecuted nodes/edges.
+  - [x] UnifiedFlowEditor: highlights + animates the edge from `previousNodeId` → `activeNodeId` while stepping.
+
+- [x] Step-through controls:
+  - [x] DryRunDebugger: added **Step Into**, **Step Over**, **Continue**, with FlowEditorContext-backed debug session state.
+  - [x] Continue halts at breakpoints or terminal nodes.
+
+- PR: TBD (feat/workforms): Implement visual breakpoints, execution timeline, and step-through debugger
+
+

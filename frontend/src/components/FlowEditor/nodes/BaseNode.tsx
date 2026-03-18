@@ -33,6 +33,8 @@ export interface BaseNodeData {
   onEdit?: () => void; // Batch 3: Edit handler
   onDelete?: () => void; // Batch 3: Delete handler
   onTitleChange?: (newTitle: string) => void; // Batch 4: Title edit handler
+  // Phase 9.4: Breakpoints
+  hasBreakpoint?: boolean;
   // Sprint 1 Task 1.2: Enhanced visuals
   badge?: { status: NodeBadgeStatus; count?: number; message?: string };
   iconType?: NodeIconType;
@@ -203,22 +205,17 @@ const ConfigPreview = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
-const StatusIndicator = styled.div<{ $status: string }>`
+const BreakpointDot = styled.div`
   position: absolute;
   top: -6px;
-  right: -6px;
+  left: -6px;
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: 999px;
   border: 2px solid rgb(var(--color-surface));
-  background: ${props => {
-    switch (props.$status) {
-      case 'active': return 'rgb(34, 197, 94)'; // green
-      case 'error': return 'rgb(239, 68, 68)'; // red
-      case 'disabled': return 'rgb(148, 163, 184)'; // gray
-      default: return 'rgb(234, 179, 8)'; // yellow (draft)
-    }
-  }};
+  background: rgb(var(--color-error));
+  box-shadow: 0 2px 8px rgba(var(--color-error), 0.35);
+  z-index: 12;
 `;
 
 const ErrorMessage = styled.div`
@@ -324,6 +321,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     onEdit,
     onDelete,
     onTitleChange,
+    hasBreakpoint = false,
     // Sprint 1 Task 1.2: Enhanced visuals
     badge,
     iconType,
@@ -476,6 +474,9 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       aria-selected={selected}
       tabIndex={0}
     >
+      {/* Phase 9.4: Breakpoint indicator */}
+      {hasBreakpoint && <BreakpointDot title="Breakpoint" />}
+
       {/* Input Handle */}
       {showInputHandle && (
         <StyledHandle
