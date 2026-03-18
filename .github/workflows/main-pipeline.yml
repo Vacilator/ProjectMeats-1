@@ -25,6 +25,15 @@ concurrency:
   cancel-in-progress: false  # NEVER cancel in-progress deployments - only skip queued ones via check-latest
 
 jobs:
+  verify-golden-state:
+    name: "Verify Golden State"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Verify golden state
+        run: bash scripts/verify_golden_state.sh
+
   # ==========================================
   # Detect Latest Commit (Smart Queue Management)
   # ==========================================

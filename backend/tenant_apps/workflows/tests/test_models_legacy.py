@@ -9,7 +9,7 @@ from django.test import TestCase
 
 from apps.tenants.models import Tenant
 
-from .models import (
+from ..models import (
     ActionType,
     FormStatus,
     OperatorType,
@@ -32,7 +32,12 @@ class TenantListModelTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
-        self.tenant = Tenant.objects.create(name="Test Tenant", slug="test-tenant")
+        self.tenant = Tenant.objects.create(
+            name="Test Tenant",
+            slug="test-tenant",
+            contact_email="test@example.com",
+            created_by=self.user,
+        )
 
     def test_create_tenant_list(self):
         """Test creating a tenant-specific option list."""
@@ -69,7 +74,12 @@ class TenantFormModelTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
-        self.tenant = Tenant.objects.create(name="Test Tenant", slug="test-tenant")
+        self.tenant = Tenant.objects.create(
+            name="Test Tenant",
+            slug="test-tenant",
+            contact_email="test@example.com",
+            created_by=self.user,
+        )
 
     def test_create_single_entity_form(self):
         """Test creating a single-entity form."""
@@ -154,7 +164,12 @@ class TenantWorkflowModelTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
-        self.tenant = Tenant.objects.create(name="Test Tenant", slug="test-tenant")
+        self.tenant = Tenant.objects.create(
+            name="Test Tenant",
+            slug="test-tenant",
+            contact_email="test@example.com",
+            created_by=self.user,
+        )
 
     def test_create_workflow(self):
         """Test creating a basic workflow."""
@@ -241,7 +256,12 @@ class WorkflowExecutionLogTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
-        self.tenant = Tenant.objects.create(name="Test Tenant", slug="test-tenant")
+        self.tenant = Tenant.objects.create(
+            name="Test Tenant",
+            slug="test-tenant",
+            contact_email="test@example.com",
+            created_by=self.user,
+        )
         self.workflow = TenantWorkflow.objects.create(
             tenant=self.tenant,
             name="Test Workflow",
@@ -289,7 +309,12 @@ class EntityPersistenceServiceTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
-        self.tenant = Tenant.objects.create(name="Test Tenant", slug="test-tenant")
+        self.tenant = Tenant.objects.create(
+            name="Test Tenant",
+            slug="test-tenant",
+            contact_email="test@example.com",
+            created_by=self.user,
+        )
         # Create a test form
         self.form = TenantForm.objects.create(
             tenant=self.tenant,
@@ -307,7 +332,7 @@ class EntityPersistenceServiceTest(TestCase):
         """Test that all entity types in registry are valid."""
         from django.apps import apps
 
-        from .services.entity_persistence import ENTITY_MODEL_REGISTRY
+        from ..services.entity_persistence import ENTITY_MODEL_REGISTRY
 
         for entity_type, (app, model) in ENTITY_MODEL_REGISTRY.items():
             try:
@@ -320,8 +345,8 @@ class EntityPersistenceServiceTest(TestCase):
         """Test creating a Supplier from form submission data."""
         from tenant_apps.suppliers.models import Supplier
 
-        from .models import FormSubmission
-        from .services.entity_persistence import EntityPersistenceService
+        from ..models import FormSubmission
+        from ..services.entity_persistence import EntityPersistenceService
 
         # Create a submission with supplier data
         submission = FormSubmission.objects.create(
@@ -358,8 +383,8 @@ class EntityPersistenceServiceTest(TestCase):
 
     def test_skip_empty_steps(self):
         """Test that steps with no data are skipped."""
-        from .models import FormSubmission
-        from .services.entity_persistence import EntityPersistenceService
+        from ..models import FormSubmission
+        from ..services.entity_persistence import EntityPersistenceService
 
         # Create submission with empty data
         submission = FormSubmission.objects.create(
@@ -375,8 +400,8 @@ class EntityPersistenceServiceTest(TestCase):
 
     def test_persist_stores_entity_refs_in_submission(self):
         """Test that created entity references are stored in submission."""
-        from .models import FormSubmission
-        from .services.entity_persistence import EntityPersistenceService
+        from ..models import FormSubmission
+        from ..services.entity_persistence import EntityPersistenceService
 
         submission = FormSubmission.objects.create(
             tenant=self.tenant,
@@ -416,7 +441,12 @@ class FormStatusHistoryModelTest(TestCase):
         cls.user = User.objects.create_user(
             username=f"statususer_{unique_id}", email=f"statususer_{unique_id}@example.com", password="testpass123"
         )
-        cls.tenant = Tenant.objects.create(name=f"Status Tenant {unique_id}", slug=f"status-tenant-{unique_id}")
+        cls.tenant = Tenant.objects.create(
+            name=f"Status Tenant {unique_id}",
+            slug=f"status-tenant-{unique_id}",
+            contact_email=f"statususer_{unique_id}@example.com",
+            created_by=cls.user,
+        )
         cls.form = TenantForm.objects.create(
             tenant=cls.tenant,
             name="Test Form for Status",
@@ -427,7 +457,7 @@ class FormStatusHistoryModelTest(TestCase):
 
     def test_create_status_history(self):
         """Test creating a status history entry."""
-        from .models import FormStatusHistory, FormSubmission, FormSubmissionStatus
+        from ..models import FormStatusHistory, FormSubmission, FormSubmissionStatus
 
         submission = FormSubmission.objects.create(
             tenant=self.tenant, form=self.form, status=FormSubmissionStatus.DRAFT, created_by=self.user
@@ -448,7 +478,7 @@ class FormStatusHistoryModelTest(TestCase):
 
     def test_status_transition(self):
         """Test recording a status transition."""
-        from .models import FormStatusHistory, FormSubmission, FormSubmissionStatus
+        from ..models import FormStatusHistory, FormSubmission, FormSubmissionStatus
 
         submission = FormSubmission.objects.create(
             tenant=self.tenant, form=self.form, status=FormSubmissionStatus.DRAFT, created_by=self.user
@@ -477,7 +507,12 @@ class StepAssignmentModelTest(TestCase):
         cls.user = User.objects.create_user(
             username=f"assignuser_{unique_id}", email=f"assignuser_{unique_id}@example.com", password="testpass123"
         )
-        cls.tenant = Tenant.objects.create(name=f"Assign Tenant {unique_id}", slug=f"assign-tenant-{unique_id}")
+        cls.tenant = Tenant.objects.create(
+            name=f"Assign Tenant {unique_id}",
+            slug=f"assign-tenant-{unique_id}",
+            contact_email=f"assignuser_{unique_id}@example.com",
+            created_by=cls.user,
+        )
         cls.form = TenantForm.objects.create(
             tenant=cls.tenant,
             name="Test Form for Assignment",
@@ -491,7 +526,7 @@ class StepAssignmentModelTest(TestCase):
 
     def test_create_user_assignment(self):
         """Test creating a user-based step assignment."""
-        from .models import AssignmentType, StepAssignment
+        from ..models import AssignmentType, StepAssignment
 
         assignment = StepAssignment.objects.create(
             tenant=self.tenant,
@@ -511,7 +546,7 @@ class StepAssignmentModelTest(TestCase):
 
     def test_create_role_assignment(self):
         """Test creating a role-based step assignment."""
-        from .models import AssignmentType, StepAssignment
+        from ..models import AssignmentType, StepAssignment
 
         assignment = StepAssignment.objects.create(
             tenant=self.tenant,
@@ -539,11 +574,16 @@ class UserNotificationModelTest(TestCase):
         cls.user = User.objects.create_user(
             username=f"notifyuser_{unique_id}", email=f"notifyuser_{unique_id}@example.com", password="testpass123"
         )
-        cls.tenant = Tenant.objects.create(name=f"Notify Tenant {unique_id}", slug=f"notify-tenant-{unique_id}")
+        cls.tenant = Tenant.objects.create(
+            name=f"Notify Tenant {unique_id}",
+            slug=f"notify-tenant-{unique_id}",
+            contact_email=f"notifyuser_{unique_id}@example.com",
+            created_by=cls.user,
+        )
 
     def test_create_notification(self):
         """Test creating a notification."""
-        from .models import NotificationPriority, NotificationType, UserNotification
+        from ..models import NotificationPriority, NotificationType, UserNotification
 
         notification = UserNotification.objects.create(
             tenant=self.tenant,
@@ -561,7 +601,7 @@ class UserNotificationModelTest(TestCase):
 
     def test_mark_read(self):
         """Test marking a notification as read."""
-        from .models import NotificationType, UserNotification
+        from ..models import NotificationType, UserNotification
 
         notification = UserNotification.objects.create(
             tenant=self.tenant,
@@ -581,7 +621,7 @@ class UserNotificationModelTest(TestCase):
 
     def test_dismiss(self):
         """Test dismissing a notification."""
-        from .models import NotificationType, UserNotification
+        from ..models import NotificationType, UserNotification
 
         notification = UserNotification.objects.create(
             tenant=self.tenant,
@@ -612,7 +652,7 @@ class UserNotificationPreferencesModelTest(TestCase):
 
     def test_create_preferences(self):
         """Test creating notification preferences."""
-        from .models import UserNotificationPreferences
+        from ..models import UserNotificationPreferences
 
         prefs = UserNotificationPreferences.objects.create(
             user=self.user, notifications_enabled=True, email_enabled=True, sms_enabled=False, push_enabled=True
@@ -625,7 +665,7 @@ class UserNotificationPreferencesModelTest(TestCase):
 
     def test_should_notify_with_disabled_master(self):
         """Test should_notify returns False when master switch is off."""
-        from .models import DeliveryChannel, UserNotificationPreferences
+        from ..models import DeliveryChannel, UserNotificationPreferences
 
         prefs = UserNotificationPreferences.objects.create(
             user=self.user, notifications_enabled=False, email_enabled=True
@@ -636,7 +676,7 @@ class UserNotificationPreferencesModelTest(TestCase):
 
     def test_should_notify_with_disabled_channel(self):
         """Test should_notify returns False when channel is disabled."""
-        from .models import DeliveryChannel, UserNotificationPreferences
+        from ..models import DeliveryChannel, UserNotificationPreferences
 
         prefs = UserNotificationPreferences.objects.create(
             user=self.user, notifications_enabled=True, email_enabled=False
@@ -647,7 +687,7 @@ class UserNotificationPreferencesModelTest(TestCase):
 
     def test_should_notify_with_type_preferences(self):
         """Test should_notify respects type-specific preferences."""
-        from .models import DeliveryChannel, UserNotificationPreferences
+        from ..models import DeliveryChannel, UserNotificationPreferences
 
         prefs = UserNotificationPreferences.objects.create(
             user=self.user,
@@ -668,7 +708,7 @@ class UserNotificationPreferencesModelTest(TestCase):
 
     def test_get_defaults(self):
         """Test default preferences are returned correctly."""
-        from .models import DeliveryChannel, NotificationType, UserNotificationPreferences
+        from ..models import DeliveryChannel, NotificationType, UserNotificationPreferences
 
         defaults = UserNotificationPreferences.get_defaults()
 
@@ -702,10 +742,22 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         )
 
         # Create tenant
-        self.tenant = Tenant.objects.create(name=f"Test Tenant {unique_id}", slug=f"test-tenant-{unique_id}")
+        self.tenant = Tenant.objects.create(
+            name=f"Test Tenant {unique_id}",
+            slug=f"test-tenant-{unique_id}",
+            contact_email=f"admin_{unique_id}@example.com",
+            created_by=self.admin_user,
+        )
+
+        # Ensure RLS-protected queries can see this tenant's rows.
+        # (TenantMiddleware normally sets these per-request.)
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SET app.current_tenant_id = %s", [str(self.tenant.id)])
+            cursor.execute("SET app.current_tenant = %s", [str(self.tenant.id)])
 
         # Create form
-        from .models import AssignmentType, FormSubmission, FormSubmissionStatus, StepAssignment
+        from ..models import AssignmentType, FormSubmission, FormSubmissionStatus, StepAssignment
 
         self.form = TenantForm.objects.create(tenant=self.tenant, name="Test Form", created_by=self.user1)
 
@@ -756,7 +808,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         """Test filtering by assigned_to=me for user1."""
         from rest_framework.test import APIRequestFactory
 
-        from .views import FormSubmissionViewSet
+        from ..views import FormSubmissionViewSet
 
         factory = APIRequestFactory()
         request = factory.get("/api/workflows/form-submissions/?assigned_to=me")
@@ -764,7 +816,11 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         request.tenant = self.tenant
 
         viewset = FormSubmissionViewSet()
-        viewset.request = request
+        from rest_framework.request import Request
+        drf_request = Request(request)
+        drf_request.user = request.user
+        drf_request.tenant = request.tenant
+        viewset.request = drf_request
         viewset.format_kwarg = None
 
         queryset = viewset.get_queryset()
@@ -782,7 +838,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         """Test filtering by assigned_to=me for user2."""
         from rest_framework.test import APIRequestFactory
 
-        from .views import FormSubmissionViewSet
+        from ..views import FormSubmissionViewSet
 
         factory = APIRequestFactory()
         request = factory.get("/api/workflows/form-submissions/?assigned_to=me")
@@ -790,7 +846,11 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         request.tenant = self.tenant
 
         viewset = FormSubmissionViewSet()
-        viewset.request = request
+        from rest_framework.request import Request
+        drf_request = Request(request)
+        drf_request.user = request.user
+        drf_request.tenant = request.tenant
+        viewset.request = drf_request
         viewset.format_kwarg = None
 
         queryset = viewset.get_queryset()
@@ -807,7 +867,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         """Test filtering by specific user ID as admin."""
         from rest_framework.test import APIRequestFactory
 
-        from .views import FormSubmissionViewSet
+        from ..views import FormSubmissionViewSet
 
         factory = APIRequestFactory()
         request = factory.get(f"/api/workflows/form-submissions/?assigned_to={self.user1.id}")
@@ -815,7 +875,11 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         request.tenant = self.tenant
 
         viewset = FormSubmissionViewSet()
-        viewset.request = request
+        from rest_framework.request import Request
+        drf_request = Request(request)
+        drf_request.user = request.user
+        drf_request.tenant = request.tenant
+        viewset.request = drf_request
         viewset.format_kwarg = None
 
         queryset = viewset.get_queryset()
@@ -829,7 +893,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         """Test that submissions without step assignments are not returned."""
         from rest_framework.test import APIRequestFactory
 
-        from .views import FormSubmissionViewSet
+        from ..views import FormSubmissionViewSet
 
         factory = APIRequestFactory()
         request = factory.get("/api/workflows/form-submissions/?assigned_to=me")
@@ -837,7 +901,11 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         request.tenant = self.tenant
 
         viewset = FormSubmissionViewSet()
-        viewset.request = request
+        from rest_framework.request import Request
+        drf_request = Request(request)
+        drf_request.user = request.user
+        drf_request.tenant = request.tenant
+        viewset.request = drf_request
         viewset.format_kwarg = None
 
         queryset = viewset.get_queryset()
@@ -850,7 +918,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         """Test filtering by invalid numeric user ID returns empty queryset."""
         from rest_framework.test import APIRequestFactory
 
-        from .views import FormSubmissionViewSet
+        from ..views import FormSubmissionViewSet
 
         factory = APIRequestFactory()
         request = factory.get("/api/workflows/form-submissions/?assigned_to=99999")
@@ -858,7 +926,11 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         request.tenant = self.tenant
 
         viewset = FormSubmissionViewSet()
-        viewset.request = request
+        from rest_framework.request import Request
+        drf_request = Request(request)
+        drf_request.user = request.user
+        drf_request.tenant = request.tenant
+        viewset.request = drf_request
         viewset.format_kwarg = None
 
         queryset = viewset.get_queryset()
@@ -870,7 +942,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         """Test filtering by malformed (non-numeric) user ID returns empty queryset."""
         from rest_framework.test import APIRequestFactory
 
-        from .views import FormSubmissionViewSet
+        from ..views import FormSubmissionViewSet
 
         factory = APIRequestFactory()
         # Try with a non-numeric string
@@ -879,7 +951,11 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         request.tenant = self.tenant
 
         viewset = FormSubmissionViewSet()
-        viewset.request = request
+        from rest_framework.request import Request
+        drf_request = Request(request)
+        drf_request.user = request.user
+        drf_request.tenant = request.tenant
+        viewset.request = drf_request
         viewset.format_kwarg = None
 
         queryset = viewset.get_queryset()
@@ -894,7 +970,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         """Test that without assigned_to parameter, all submissions are returned."""
         from rest_framework.test import APIRequestFactory
 
-        from .views import FormSubmissionViewSet
+        from ..views import FormSubmissionViewSet
 
         factory = APIRequestFactory()
         request = factory.get("/api/workflows/form-submissions/")
@@ -902,7 +978,11 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         request.tenant = self.tenant
 
         viewset = FormSubmissionViewSet()
-        viewset.request = request
+        from rest_framework.request import Request
+        drf_request = Request(request)
+        drf_request.user = request.user
+        drf_request.tenant = request.tenant
+        viewset.request = drf_request
         viewset.format_kwarg = None
 
         queryset = viewset.get_queryset()
@@ -914,7 +994,7 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         """Test that non-admin users cannot filter by specific user ID (security)."""
         from rest_framework.test import APIRequestFactory
 
-        from .views import FormSubmissionViewSet
+        from ..views import FormSubmissionViewSet
 
         factory = APIRequestFactory()
         # Non-admin user tries to filter by another user's ID
@@ -923,7 +1003,11 @@ class FormSubmissionAssignedToFilterTest(TestCase):
         request.tenant = self.tenant
 
         viewset = FormSubmissionViewSet()
-        viewset.request = request
+        from rest_framework.request import Request
+        drf_request = Request(request)
+        drf_request.user = request.user
+        drf_request.tenant = request.tenant
+        viewset.request = drf_request
         viewset.format_kwarg = None
 
         queryset = viewset.get_queryset()
