@@ -11,6 +11,7 @@
  */
 
 import { NodeConfigSchema } from './types';
+import { schemaRegistry } from './schemaRegistry';
 import { logger } from '@/utils/logger';
 
 import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Zap, Calendar, Webhook, Clock, FileSignature, Upload, Archive, AlertCircle } from 'lucide-react';
@@ -1008,16 +1009,25 @@ export const formStepSingleSchema = formSchema;
 // NOTE: Registry initialization is deferred until end-of-module to avoid TDZ
 // errors from schema constants declared later in this file.
 
-// Phase E Fix (2026-02-19): Register backward compatibility aliases
-// formStepSingle nodes should use the same schema as 'form' nodes
-schemaRegistry.register({
-  ...formSchema,
-  nodeType: 'formStepSingle',
-  displayName: 'Form (Legacy)',
-  description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
-}, true); // Allow overwrite
+// CRITICAL HOTFIX (2026-03-18): Defer all registry calls to bypass Vite/Rollup ES Module TDZ
+// When index.ts re-exports cause evaluation order issues, schemaRegistry may not be
+// instantiated yet. setTimeout pushes execution to next macro-task after all modules link.
+setTimeout(() => {
+  if (typeof schemaRegistry !== 'undefined') {
+    // Phase E Fix (2026-02-19): Register backward compatibility aliases
+    // formStepSingle nodes should use the same schema as 'form' nodes
+    schemaRegistry.register({
+      ...formSchema,
+      nodeType: 'formStepSingle',
+      displayName: 'Form (Legacy)',
+      description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
+    }, true); // Allow overwrite
 
-logger.debug('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
+    logger.debug('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
+  } else {
+    console.error('[Schema Registry] CRITICAL: schemaRegistry still undefined after deferral at line 1013');
+  }
+}, 0);
 
 // ============================================================================
 // Phase 2: Trigger Node Schema (Unified Entry Point)
@@ -4167,8 +4177,15 @@ export const subWorkflowSchema: NodeConfigSchema = {
 
 // Build + initialize schemas at end-of-module to avoid TDZ errors.
 export const allSchemas: NodeConfigSchema[] = buildAllSchemas();
-schemaRegistry.initialize(allSchemas);
 
-logger.debug(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
+// CRITICAL HOTFIX (2026-03-18): Defer initialization to bypass Vite/Rollup ES Module TDZ
+setTimeout(() => {
+  if (typeof schemaRegistry !== 'undefined') {
+    schemaRegistry.initialize(allSchemas);
+    logger.debug(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
+  } else {
+    console.error('[Schema Registry] CRITICAL: schemaRegistry still undefined after deferral at line 4171');
+  }
+}, 0);
 
 // Cache bust: 1771875847
