@@ -13,6 +13,7 @@
 - Frontend deps: safe Vite 8 upgrade (Tailwind pinned to 3.4.19 pending dedicated v4 migration) (PR #3559).
 - Deploy unblock: add missing integrations EmailLog migration + RLS policy (PR #3561) — dev pipeline green; dev site/health now 200.
 - Ops: harden migration validation script to match shared-schema and validate tenant_apps too (PR #3563).
+- Docs: clean up remaining django-tenants/migrate_schemas guidance in backend readmes (PR #3565).
 
 ---
 

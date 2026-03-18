@@ -109,6 +109,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Removes incorrect django-tenants logic; ProjectMeats is shared-schema only.
   - Script is runnable from any working directory and validates both `apps/` and `tenant_apps/` migrations.
 
+- 2026-03-18 — Docs: align multi-tenancy guidance (shared schema) — Commit: 7020f5c3 (PR: #3565)
+  - Removes outdated `django-tenants`/`migrate_schemas` guidance from backend READMEs.
+  - Clarifies tenant isolation via `tenant` FK + `TenantMiddleware` + PostgreSQL RLS.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
