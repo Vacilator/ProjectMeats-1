@@ -22,7 +22,7 @@ import { logger } from '@/utils/logger';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
-import { Plus, Search, Grid, List, Filter, Sparkles, FileText, Workflow, Clock, Star, Lock, Boxes, Database } from 'lucide-react';
+import { Plus, Search, Grid, List, Filter, Sparkles, FileText, Workflow, Clock, Star, Lock, Boxes, Database, Play, Loader } from 'lucide-react';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -47,11 +47,16 @@ interface TenantForm {
   is_system_template: boolean;
   created_at: string;
   updated_at: string;
+  protein_type?: string; // NEW: Protein category (beef, pork, poultry, seafood, etc.)
+  department?: string; // NEW: Department (receiving, processing, packaging, quality_control)
+  can_quick_run?: boolean; // NEW: Flag if workflow supports one-click execution
 }
 
 type ViewMode = 'grid' | 'list';
 type FilterOption = 'all' | 'active' | 'draft' | 'recent' | 'favorites';
 type TabOption = 'workflows' | 'forms' | 'templates';
+type ProteinType = 'all' | 'beef' | 'pork' | 'poultry' | 'seafood' | 'lamb' | 'other';
+type Department = 'all' | 'receiving' | 'processing' | 'packaging' | 'quality_control' | 'shipping';
 
 
 // ============================================================================
@@ -233,6 +238,89 @@ const ViewButton = styled.button<{ $active?: boolean }>`
   }
 `;
 
+// NEW: Category filter bar for protein type and department
+const CategoryBar = styled.div`
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: rgb(var(--color-surface));
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+`;
+
+const CategoryLabel = styled.span`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  min-width: 80px;
+`;
+
+const CategorySelect = styled.select`
+  padding: 0.5rem 1rem;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  background: white;
+  color: rgb(var(--color-text-primary));
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+  }
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+  }
+`;
+
+// NEW: Quick Run button for instant workflow execution
+const QuickRunButton = styled.button<{ $isRunning?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: ${props => props.$isRunning 
+    ? 'rgba(234, 179, 8, 0.1)' 
+    : 'linear-gradient(135deg, rgb(var(--color-success)) 0%, rgb(34, 197, 94) 100%)'
+  };
+  color: ${props => props.$isRunning ? 'rgb(234, 179, 8)' : 'white'};
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: ${props => props.$isRunning ? 'wait' : 'pointer'};
+  transition: all 0.2s;
+  opacity: ${props => props.$isRunning ? 0.7 : 1};
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+    ${props => props.$isRunning && `
+      animation: spin 1s linear infinite;
+    `}
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+
 const GridContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -386,6 +474,9 @@ const FormsFlowsCatalog: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabOption>('workflows');
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [previewForm, setPreviewForm] = useState<TenantForm | null>(null);
+  const [proteinTypeFilter, setProteinTypeFilter] = useState<ProteinType>('all'); // NEW
+  const [departmentFilter, setDepartmentFilter] = useState<Department>('all'); // NEW
+  const [isQuickRunning, setIsQuickRunning] = useState<string | null>(null); // NEW: Track running workflow ID
   
   // Phase 4.2: Get user permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
@@ -478,6 +569,16 @@ const FormsFlowsCatalog: React.FC = () => {
         form.description?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
+
+    // NEW: Apply protein type filter
+    if (proteinTypeFilter !== 'all') {
+      filtered = filtered.filter(form => form.protein_type === proteinTypeFilter);
+    }
+
+    // NEW: Apply department filter
+    if (departmentFilter !== 'all') {
+      filtered = filtered.filter(form => form.department === departmentFilter);
+    }
     
     // Apply status filter
     if (filter !== 'all') {
@@ -495,7 +596,7 @@ const FormsFlowsCatalog: React.FC = () => {
     }
     
     return filtered;
-  }, [forms, searchQuery, filter, activeTab]);
+  }, [forms, searchQuery, filter, activeTab, proteinTypeFilter, departmentFilter]);
 
   // Count forms by type for tab badges
   const workflowsCount = React.useMemo(() => {
@@ -518,6 +619,29 @@ const FormsFlowsCatalog: React.FC = () => {
   // Handle blank canvas
   const handleCreateBlank = () => {
     navigate('/workforms/editor');
+  };
+
+  // NEW: Handle Quick Run (one-click workflow execution)
+  const handleQuickRun = async (formId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent card click from triggering
+    setIsQuickRunning(formId);
+    try {
+      logger.info('[Catalog] Quick Run initiated for form:', formId);
+      // Create a new submission and navigate directly to the editor
+      const response = await apiClient.post(`/forms/${formId}/submissions/`, {
+        quick_run: true,
+        auto_save: true,
+      });
+      const submissionId = response.data.id;
+      logger.info('[Catalog] Submission created:', submissionId);
+      // Navigate to in-progress view with the new submission
+      navigate(`/workforms/in-progress/${submissionId}`);
+    } catch (error) {
+      logger.error('[Catalog] Quick Run failed:', error);
+      alert('Failed to start workflow. Please try again.');
+    } finally {
+      setIsQuickRunning(null);
+    }
   };
 
   // Handle edit form (now opens preview modal)
@@ -601,6 +725,36 @@ const FormsFlowsCatalog: React.FC = () => {
           </TabBadge>
         </Tab>
       </TabsContainer>
+
+      {/* NEW: Category Filters for Protein Type and Department */}
+      <CategoryBar>
+        <CategoryLabel>Protein Type:</CategoryLabel>
+        <CategorySelect 
+          value={proteinTypeFilter} 
+          onChange={(e) => setProteinTypeFilter(e.target.value as ProteinType)}
+        >
+          <option value="all">All Types</option>
+          <option value="beef">🥩 Beef</option>
+          <option value="pork">🐖 Pork</option>
+          <option value="poultry">🐔 Poultry</option>
+          <option value="seafood">🐟 Seafood</option>
+          <option value="lamb">🐑 Lamb</option>
+          <option value="other">🥓 Other</option>
+        </CategorySelect>
+
+        <CategoryLabel>Department:</CategoryLabel>
+        <CategorySelect 
+          value={departmentFilter} 
+          onChange={(e) => setDepartmentFilter(e.target.value as Department)}
+        >
+          <option value="all">All Departments</option>
+          <option value="receiving">📦 Receiving</option>
+          <option value="processing">⚙️ Processing</option>
+          <option value="packaging">📦 Packaging</option>
+          <option value="quality_control">✅ Quality Control</option>
+          <option value="shipping">🚚 Shipping</option>
+        </CategorySelect>
+      </CategoryBar>
 
       <FilterBar>
         <FilterChip
@@ -704,6 +858,30 @@ const FormsFlowsCatalog: React.FC = () => {
                     {form.status}
                   </StatusBadge>
                 </FormMeta>
+                
+                {/* NEW: Quick Run Button (if workflow supports it) */}
+                {form.can_quick_run && form.status === 'active' && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <QuickRunButton
+                      $isRunning={isQuickRunning === form.id}
+                      onClick={(e) => handleQuickRun(form.id, e)}
+                      disabled={isQuickRunning === form.id}
+                      title="Start this workflow with one click"
+                    >
+                      {isQuickRunning === form.id ? (
+                        <>
+                          <Loader size={16} />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <Play size={16} />
+                          Quick Run
+                        </>
+                      )}
+                    </QuickRunButton>
+                  </div>
+                )}
               </CardContent>
             </FormCard>
           ))}
@@ -741,6 +919,30 @@ const FormsFlowsCatalog: React.FC = () => {
                     </StatusBadge>
                   </FormMeta>
                 </FormCardHeader>
+                
+                {/* NEW: Quick Run Button (if workflow supports it) */}
+                {form.can_quick_run && form.status === 'active' && (
+                  <div style={{ marginTop: '1rem', marginLeft: '4rem' }}>
+                    <QuickRunButton
+                      $isRunning={isQuickRunning === form.id}
+                      onClick={(e) => handleQuickRun(form.id, e)}
+                      disabled={isQuickRunning === form.id}
+                      title="Start this workflow with one click"
+                    >
+                      {isQuickRunning === form.id ? (
+                        <>
+                          <Loader size={16} />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <Play size={16} />
+                          Quick Run
+                        </>
+                      )}
+                    </QuickRunButton>
+                  </div>
+                )}
               </CardContent>
             </FormCard>
           ))}
