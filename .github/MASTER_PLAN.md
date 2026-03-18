@@ -89,6 +89,18 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-18 — Batch: Master plan updates + audits — Commit: 690cd86b (PR: #3553)
   - SmartWizard decommission confirmed; RLS audit for PO/Invoice recorded; Form node UI verified.
 
+- 2026-03-18 — Hotfix: dev site load crash (nodeConfigSchemas TDZ) — Commit: 4729f149 (PR: #3557)
+  - Fixes dev-site crash: “Cannot access before initialization” in nodeConfigSchemas by deferring schema list/registry init until end-of-module.
+
+- 2026-03-18 — Ops: env audit alignment + email integration cleanup — Commit: 101b3caa (PR: #3558)
+  - config/manage_env.py now reads manifests/env.manifest.json (v5.1), supports repo + env secrets audit, and reports missing/zombie secrets.
+  - Removed duplicate email_integration model declarations and aligned webhook EmailLog writes to migration schema (eliminates Django “already registered” warnings).
+
+- 2026-03-18 — Deps: frontend unified upgrades (safe build) — Commit: 7f03b871 (PR: #3559)
+  - Safe Vite 8 upgrade with config hardening (manualChunks + assetFileNames).
+  - Fixed Modal barrel export for strict ESM bundling.
+  - Tailwind kept pinned at 3.4.19; Tailwind 4 migration requires dedicated follow-up.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
