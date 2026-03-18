@@ -5982,8 +5982,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={staticEdgeTypes}
-        // Phase 7.5: Performance optimizations for 1000+ nodes
-        onlyRenderVisibleElements={nodes.length > 100}
+        // Phase 7.5/9: Always render only visible elements for large-editor performance
+        onlyRenderVisibleElements={true}
         elevateNodesOnSelect={nodes.length < 200}
         maxZoom={4}
         minZoom={0.1}
@@ -5994,11 +5994,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             type: MarkerType.ArrowClosed,
             width: 20,
             height: 20,
-            color: '#94a3b8',
+            color: 'rgb(var(--color-border))',
           },
         }}
         connectionLineStyle={{
-          stroke: '#667eea',
+          stroke: 'rgb(var(--color-primary))',
           strokeWidth: 3,
           strokeDasharray: '5,5',
           animation: 'dash 0.5s linear infinite',

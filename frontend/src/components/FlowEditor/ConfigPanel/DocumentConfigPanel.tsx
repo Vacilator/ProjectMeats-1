@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { X, FileUp, Info, AlertCircle } from 'lucide-react';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
+import { useFlowEditor } from '../context';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -82,29 +83,6 @@ const FILE_TYPE_PRESETS = [
 // Styled Components
 // ============================================================================
 
-const Container = styled.div`
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 500px;
-  height: 100vh;
-  background: rgb(var(--color-surface));
-  border-left: 1px solid rgb(var(--color-border));
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  z-index: 1000;
-  animation: slideIn 0.25s ease-out;
-
-  @keyframes slideIn {
-    from {
-      transform: translateX(100%);
-    }
-    to {
-      transform: translateX(0);
-    }
-  }
-`;
 
 
 
@@ -386,8 +364,15 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
   document,
   onChange,
   onClose,
-  availableFields = [],
+  availableFields: availableFieldsProp,
 }) => {
+  const { availableFields: ctxAvailableFields } = useFlowEditor();
+
+  const availableFields = (availableFieldsProp?.length
+    ? availableFieldsProp
+    : ctxAvailableFields.map((f) => ({ id: f.key, label: f.label, type: f.type }))
+  );
+
   const [formData, setFormData] = useState<DocumentData>({
     label: document.label || '',
     description: document.description || '',
@@ -449,7 +434,7 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
   };
 
   return (
-    <Container>
+    <Panel $width="500px">
       <PanelHeader>
         <PanelHeaderTitle>
           <IconBadge>
@@ -700,6 +685,6 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
           Save Upload Field
         </PrimaryButton>
       </PanelFooter>
-    </Container>
+    </Panel>
   );
 };
