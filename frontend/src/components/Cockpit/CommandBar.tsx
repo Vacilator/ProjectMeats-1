@@ -15,6 +15,7 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Search, Command } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 
 // ============================================================================
 // Types
@@ -134,10 +135,12 @@ const isMac = (): boolean => {
 export const CommandBar: React.FC<CommandBarProps> = ({
   onOpenPalette,
   isPaletteOpen = false,
-  placeholder = 'Search anything...',
+  placeholder,
   compact = false,
   className,
 }) => {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t('cockpit.searchPlaceholder');
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLButtonElement>(null);
   const [showMacKey, setShowMacKey] = useState(true);
@@ -169,7 +172,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         onBlur={() => setIsFocused(false)}
         $compact={compact}
         role="button"
-        aria-label="Open search (press Command+K or Control+K)"
+        aria-label={t('cockpit.openSearch')}
         aria-expanded={isPaletteOpen}
         aria-haspopup="dialog"
       >
@@ -178,7 +181,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         </SearchIcon>
         
         <SearchPlaceholder $compact={compact}>
-          {placeholder}
+          {resolvedPlaceholder}
         </SearchPlaceholder>
         
         <ShortcutBadge>

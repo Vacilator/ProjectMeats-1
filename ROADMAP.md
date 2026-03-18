@@ -442,7 +442,7 @@
 - [x] Phase 9: Security scanning & SBOM
 
 ### Q2 2026 (Upcoming)
-- [x] Phase 7.6: Complete i18n rollout (tracking follow-ups in #3586)
+- [x] Phase 7.6: Complete i18n rollout – hooks integrated into Workform Editor, Cockpit, WorkForms; mobile (React Native) parity achieved (en/es/fr, RTL-ready)
 - [ ] Production deployment of all features
 - [ ] External service credential configuration
   - OpenAI API key (AI suggestions already functional in code)

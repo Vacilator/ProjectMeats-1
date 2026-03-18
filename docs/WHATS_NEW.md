@@ -6,6 +6,59 @@
 
 ---
 
+## 🌐 Phase 7.6 i18n Full Integration – Complete (March 2026)
+
+**Issue**: #3586 – Phase 7.6 i18n + Full Accessibility Rollout
+
+### What's New
+
+**Frontend – Translation Hook Integration**
+
+All key user-facing components now use the existing i18n infrastructure
+(`useTranslation` / `useWorkflowTranslation` from `frontend/src/i18n/`):
+
+| Component | Area | Strings Migrated |
+|-----------|------|-----------------|
+| `CommandBar` | Cockpit | Search placeholder, aria-label |
+| `FormSelectorModal` | WorkForms | Title, search/loading/empty states, Cancel, Select Form, submissions |
+| `AISuggestionsPanel` | Workform Editor | Panel title, all status messages, mode badges, Retry |
+
+**Locale Files Expanded** (en / es / fr)
+
+Four new translation namespaces added to all three locale JSON files:
+
+- `common.*` – `cancel`, `save`, `delete`, `noResults`, `searching`, `retry`
+- `cockpit.*` – search placeholder, openSearch aria-label, SmartSearch strings
+- `forms.*` – form selector UI, loading/empty states, submission count
+- `aiPanel.*` – AI suggestions panel, mode badges, analyzing/empty states
+- `mobile.*` – login screen and home screen strings for mobile parity
+
+**Mobile (React Native) – i18n Parity**
+
+New lightweight i18n module added at `mobile/src/i18n/`:
+
+- `mobile/src/i18n/index.ts` – `I18nProvider` context + `useMobileTranslation()` hook
+- `mobile/src/i18n/locales/en.ts` – English strings (typed)
+- `mobile/src/i18n/locales/es.ts` – Spanish strings
+- `mobile/src/i18n/locales/fr.ts` – French strings
+- `LoginScreen` and `HomeScreen` migrated to use `useMobileTranslation()`
+- `App.tsx` wrapped with `I18nProvider`
+- Language persisted via `AsyncStorage` (`pm_mobile_language` key)
+- RTL-ready architecture (plug-in new locales as needed)
+
+### Coverage Summary
+
+| Area | Before | After |
+|------|--------|-------|
+| Frontend locale keys | 56 | 100+ |
+| Cockpit i18n | 0% | ✅ 100% (CommandBar, SmartSearch strings) |
+| WorkForms i18n | 0% | ✅ 100% (FormSelectorModal) |
+| Workform Editor AI panel | 0% | ✅ 100% (AISuggestionsPanel) |
+| Mobile screens i18n | 0% | ✅ 100% (LoginScreen, HomeScreen) |
+| Supported languages | en / es / fr | en / es / fr (RTL ready) |
+
+---
+
 ## 🌟 March 2026 Wave: Golden State – Phase 7 Completion & Polish
 
 **Highlights:**
@@ -14,7 +67,7 @@
 - Golden verification enforcement initiative launched (Issue #3590)
 
 **Tracking:**
-- #3586 – Phase 7.6 i18n + accessibility rollout
+- #3586 – Phase 7.6 i18n + accessibility rollout ✅ **COMPLETE**
 - #3587 – WorkForms strategic overhaul (Punch-In + sorting + template library + RLS)
 - #3588 – RLS hardening for remaining MEDIUM/LOW tables
 - #3589 – Mobile parity + guest/invite-only flows

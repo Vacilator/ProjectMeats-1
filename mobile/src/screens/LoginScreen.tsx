@@ -13,6 +13,7 @@ import {
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
 import { RootStackParamList, User } from '../types';
+import { useMobileTranslation } from '../i18n';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -22,13 +23,14 @@ interface Props {
 }
 
 export default function LoginScreen({ navigation, onLogin }: Props) {
+  const { t } = useMobileTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t.login.loginFailed, t.login.fillFields);
       return;
     }
 
@@ -44,8 +46,8 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
     } catch (error: any) {
       console.error('Login error:', error);
       Alert.alert(
-        'Login Failed', 
-        error.response?.data?.detail || 'Invalid credentials'
+        t.login.loginFailed,
+        error.response?.data?.detail || t.login.invalidCredentials
       );
     } finally {
       setLoading(false);
@@ -59,13 +61,13 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          <Text style={styles.title}>ProjectMeats</Text>
-          <Text style={styles.subtitle}>Multi-Tenant Platform</Text>
+          <Text style={styles.title}>{t.login.title}</Text>
+          <Text style={styles.subtitle}>{t.login.subtitle}</Text>
           
           <View style={styles.form}>
             <TextInput
               style={styles.input}
-              placeholder="Username or Email"
+              placeholder={t.login.username}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
@@ -75,7 +77,7 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
             
             <TextInput
               style={styles.input}
-              placeholder="Password"
+              placeholder={t.login.password}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -88,7 +90,7 @@ export default function LoginScreen({ navigation, onLogin }: Props) {
               disabled={loading}
             >
               <Text style={styles.loginButtonText}>
-                {loading ? 'Signing In...' : 'Sign In'}
+                {loading ? t.login.signingIn : t.login.signIn}
               </Text>
             </TouchableOpacity>
           </View>

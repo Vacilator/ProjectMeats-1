@@ -114,6 +114,83 @@
     "export": "Export",
     "import": "Import",
     "settings": "Settings",
-    "help": "Help"
+    "help": "Help",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "noResults": "No results found",
+    "noRelated": "No related items",
+    "searching": "Searching...",
+    "retry": "Retry"
+  },
+  "cockpit": {
+    "searchPlaceholder": "Search anything...",
+    "openSearch": "Open search (press Command+K or Control+K)",
+    "smartSearch": {
+      "placeholder": "Search customers, suppliers, orders...",
+      "noResults": "No results found",
+      "noRelated": "No related items",
+      "searching": "Searching...",
+      "loadingContext": "Loading record context..."
+    }
+  },
+  "forms": {
+    "selectAForm": "Select a Form",
+    "searchForms": "Search forms...",
+    "loadingForms": "Loading forms...",
+    "noFormsMatch": "No forms match your search",
+    "noForms": "No forms available",
+    "selectForm": "Select Form",
+    "submissions": "{{count}} submissions"
+  },
+  "aiPanel": {
+    "title": "AI Suggestions",
+    "analyzing": "Analyzing workflow...",
+    "suggestions": "Intelligent next steps for your workflow",
+    "buildWorkflow": "Build your workflow to see suggestions",
+    "addNodes": "Add nodes to your workflow to get intelligent suggestions",
+    "retry": "Retry",
+    "mode": {
+      "ai": "AI",
+      "static": "Static",
+      "cached": "Cached"
+    }
+  },
+  "mobile": {
+    "login": {
+      "title": "ProjectMeats",
+      "subtitle": "Multi-Tenant Platform",
+      "username": "Username or Email",
+      "password": "Password",
+      "signIn": "Sign In",
+      "signingIn": "Signing In...",
+      "loginFailed": "Login Failed",
+      "fillFields": "Please fill in all fields",
+      "invalidCredentials": "Invalid credentials"
+    },
+    "home": {
+      "dashboard": "Dashboard",
+      "quickActions": "Quick Actions",
+      "loadingDashboard": "Loading dashboard...",
+      "logout": "Logout",
+      "logoutConfirm": "Are you sure you want to logout?",
+      "switchOrg": "Switch Organization",
+      "switchConfirm": "Do you want to switch to a different organization?",
+      "switchBtn": "Switch",
+      "cancel": "Cancel",
+      "comingSoon": "Coming Soon",
+      "featureSoon": "This feature will be available soon.",
+      "nextUpdate": "{{entity}} management will be available in the next update.",
+      "createOrder": "Create Order",
+      "viewReports": "View Reports",
+      "aiAssistant": "AI Assistant",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "contacts": "Contacts",
+      "plants": "Plants",
+      "carriers": "Carriers",
+      "welcome": "Welcome, {{name}}",
+      "trialAccount": "TRIAL ACCOUNT"
+    }
   }
 }

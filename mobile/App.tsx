@@ -15,6 +15,9 @@ import WorkFormsScreen from './src/screens/WorkFormsScreen';
 // Services
 import { ApiService } from './src/services/ApiService';
 
+// i18n
+import { I18nProvider } from './src/i18n';
+
 // Types
 import { User, Tenant, GuestSession, GuestUser, RootStackParamList } from './src/types';
 
@@ -130,83 +133,85 @@ export default function App() {
   };
 
   return (
-    <NavigationContainer>
-      <StatusBar style="auto" />
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!isAuthenticated ? (
-          <>
-            <Stack.Screen name="Login">
-              {(props) => (
-                <LoginScreen
-                  {...props}
-                  onLogin={handleLogin}
-                />
-              )}
-            </Stack.Screen>
+    <I18nProvider>
+      <NavigationContainer>
+        <StatusBar style="auto" />
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!isAuthenticated ? (
+            <>
+              <Stack.Screen name="Login">
+                {(props) => (
+                  <LoginScreen
+                    {...props}
+                    onLogin={handleLogin}
+                  />
+                )}
+              </Stack.Screen>
 
-            <Stack.Screen name="Guest">
-              {(props) => (
-                <GuestLoginScreen
-                  {...props}
-                  onGuestLogin={handleGuestLogin}
-                />
-              )}
-            </Stack.Screen>
+              <Stack.Screen name="Guest">
+                {(props) => (
+                  <GuestLoginScreen
+                    {...props}
+                    onGuestLogin={handleGuestLogin}
+                  />
+                )}
+              </Stack.Screen>
 
-            <Stack.Screen name="Invite">
+              <Stack.Screen name="Invite">
+                {(props) => (
+                  <InviteScreen
+                    {...props}
+                    onInviteAccepted={handleLogin}
+                  />
+                )}
+              </Stack.Screen>
+            </>
+          ) : !currentTenant ? (
+            <Stack.Screen name="Tenants">
               {(props) => (
-                <InviteScreen
+                <TenantsScreen
                   {...props}
-                  onInviteAccepted={handleLogin}
-                />
-              )}
-            </Stack.Screen>
-          </>
-        ) : !currentTenant ? (
-          <Stack.Screen name="Tenants">
-            {(props) => (
-              <TenantsScreen
-                {...props}
-                user={user!}
-                onTenantSelect={handleTenantSelect}
-                onLogout={handleLogout}
-              />
-            )}
-          </Stack.Screen>
-        ) : (
-          <>
-            <Stack.Screen name="Home">
-              {(props) => (
-                <HomeScreen
-                  {...props}
-                  user={isGuest ? guestUser : user!}
-                  tenant={currentTenant}
+                  user={user!}
+                  onTenantSelect={handleTenantSelect}
                   onLogout={handleLogout}
-                  onSwitchTenant={() => {
-                    if (isGuest) {
-                      // Guest: fully sign out and return to login
-                      handleLogout();
-                    } else {
-                      setCurrentTenant(null);
-                    }
-                  }}
                 />
               )}
             </Stack.Screen>
+          ) : (
+            <>
+              <Stack.Screen name="Home">
+                {(props) => (
+                  <HomeScreen
+                    {...props}
+                    user={isGuest ? guestUser : user!}
+                    tenant={currentTenant}
+                    onLogout={handleLogout}
+                    onSwitchTenant={() => {
+                      if (isGuest) {
+                        // Guest: fully sign out and return to login
+                        handleLogout();
+                      } else {
+                        setCurrentTenant(null);
+                      }
+                    }}
+                  />
+                )}
+              </Stack.Screen>
 
-            <Stack.Screen name="WorkForms">
-              {(props) => (
-                <WorkFormsScreen
-                  {...props}
-                  tenant={currentTenant}
-                  user={isGuest ? guestUser : user!}
-                  isGuest={isGuest}
-                />
-              )}
-            </Stack.Screen>
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+              <Stack.Screen name="WorkForms">
+                {(props) => (
+                  <WorkFormsScreen
+                    {...props}
+                    tenant={currentTenant}
+                    user={isGuest ? guestUser : user!}
+                    isGuest={isGuest}
+                  />
+                )}
+              </Stack.Screen>
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </I18nProvider>
   );
 }

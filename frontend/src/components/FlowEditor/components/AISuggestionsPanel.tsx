@@ -14,6 +14,7 @@ import { Skeleton } from 'antd';
 import { AINodeSuggestionService, NodeSuggestion } from '@/services/aiNodeSuggestionService';
 import { Sparkles, Plus, TrendingUp, Zap, AlertCircle } from 'lucide-react';
 import { workformsApi } from '@/services/workformsApi';
+import { useTranslation } from '@/i18n';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -264,6 +265,7 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
   onAddNode,
   isVisible = true,
 }) => {
+  const { t } = useTranslation();
   const [suggestions, setSuggestions] = useState<NodeSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -354,25 +356,25 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
       <Header>
         <HeaderTitle>
           <Sparkles size={16} />
-          AI Suggestions
+          {t('aiPanel.title')}
           {mode && (
             <ModeBadge $mode={mode}>
               {mode === 'ai' ? <Zap size={10} /> : <AlertCircle size={10} />}
-              {mode === 'ai' ? 'AI' : 'Static'}
+              {mode === 'ai' ? t('aiPanel.mode.ai') : t('aiPanel.mode.static')}
             </ModeBadge>
           )}
           {isCached && (
             <ModeBadge $mode="static">
-              Cached
+              {t('aiPanel.mode.cached')}
             </ModeBadge>
           )}
         </HeaderTitle>
         <HeaderSubtitle>
           {isLoading 
-            ? 'Analyzing workflow...'
+            ? t('aiPanel.analyzing')
             : suggestions.length > 0 
-              ? 'Intelligent next steps for your workflow'
-              : 'Build your workflow to see suggestions'}
+              ? t('aiPanel.suggestions')
+              : t('aiPanel.buildWorkflow')}
         </HeaderSubtitle>
       </Header>
       
@@ -386,16 +388,14 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
             <AlertCircle size={24} />
             <div className="message">{error}</div>
             <div className="retry" onClick={handleRetry}>
-              Retry
+              {t('aiPanel.retry')}
             </div>
           </ErrorState>
         ) : suggestions.length === 0 ? (
           <EmptyState>
             <Sparkles size={32} />
             <div className="message">
-              Add nodes to your workflow
-              <br />
-              to get intelligent suggestions
+              {t('aiPanel.addNodes')}
             </div>
           </EmptyState>
         ) : (
