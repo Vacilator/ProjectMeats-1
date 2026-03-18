@@ -114,7 +114,7 @@ Based on a deep architectural audit of the provided source files and error logs,
 
 **Date Added**: March 17, 2026  
 **Priority**: P0 (Eliminates 2-3 click navigation friction)  
-**Status**: PENDING IMPLEMENTATION
+**Status**: MERGED — PR #3542 (breadcrumb + quick actions), PR #3552 (hero search + nav stability), PR #3553 (plan/audit log)
 
 ### I. ANALYSIS: Cockpit Consolidation & Search-First Operations
 
@@ -174,7 +174,7 @@ The "Smart Wizard" has failed to provide architectural value and currently creat
 
 **Date Added**: March 17, 2026  
 **Priority**: P1 (UX inconsistency + user confusion)  
-**Status**: PENDING IMPLEMENTATION
+**Status**: MERGED — PR #3552 (formStep deprecation cleanup + LR auto-layout)
 
 ### I. ANALYSIS: File State Retrieval & Context Assessment
 
