@@ -66,6 +66,60 @@ const WORKFLOW_PATTERNS: WorkflowPattern[] = [
     nextSuggestions: ['conditionIf', 'actionEmail', 'terminalSuccess'],
     description: 'After approval wait, branch based on decision',
   },
+  // ── Supply-chain domain patterns ──────────────────────────────────────────
+  // Cold-storage monitoring
+  {
+    pattern: ['triggerScheduled', 'actionHTTP'],
+    nextSuggestions: ['actionCreateRecord', 'conditionIf', 'utilityTransform'],
+    description: 'After polling IoT sensor, log the reading and evaluate thresholds',
+  },
+  {
+    pattern: ['actionHTTP', 'actionCreateRecord', 'conditionIf'],
+    nextSuggestions: ['actionEmail', 'actionUpdateRecord', 'terminalSuccess'],
+    description: 'Cold-storage: after breach check, alert QA or mark compliant',
+  },
+  {
+    pattern: ['conditionIf', 'actionEmail', 'actionUpdateRecord'],
+    nextSuggestions: ['waitApproval', 'terminalSuccess', 'terminalFailure'],
+    description: 'Cold-storage: after flagging zone, wait for QA disposition',
+  },
+  // Quality inspection
+  {
+    pattern: ['triggerManualStart', 'FormStepSingle', 'actionCreateRecord'],
+    nextSuggestions: ['conditionIf', 'actionEmail', 'waitApproval'],
+    description: 'Quality inspection: after recording lot data, evaluate pass/fail',
+  },
+  {
+    pattern: ['conditionIf', 'actionCreateRecord'],
+    nextSuggestions: ['actionEmail', 'waitApproval', 'terminalSuccess', 'terminalFailure'],
+    description: 'Quality inspection: NCR raised — notify stakeholders and await disposition',
+  },
+  {
+    pattern: ['waitApproval', 'actionCreateRecord'],
+    nextSuggestions: ['terminalSuccess', 'terminalFailure', 'actionEmail'],
+    description: 'Quality inspection: disposition approved — close with CAPA or accept lot',
+  },
+  // Carrier compliance
+  {
+    pattern: ['triggerManualStart', 'actionHTTP', 'conditionIf'],
+    nextSuggestions: ['FormStepSingle', 'actionEmail', 'terminalFailure'],
+    description: 'Carrier compliance: after vetting, run pre-trip inspection or reject',
+  },
+  {
+    pattern: ['FormStepSingle', 'conditionIf', 'actionCreateRecord'],
+    nextSuggestions: ['waitApproval', 'actionEmail', 'terminalFailure'],
+    description: 'Carrier compliance: after BOL creation, capture driver e-signature',
+  },
+  {
+    // Two consecutive waitApproval nodes is intentional here:
+    // first waits for the driver's e-signature on the BOL,
+    // second waits for the receiver's proof-of-delivery (POD) submission.
+    // An intermediate actionCreateRecord (BOL generation) separates them in the
+    // full template; this pattern anchors the tail of that sequence.
+    pattern: ['waitApproval', 'waitApproval', 'actionCreateRecord'],
+    nextSuggestions: ['terminalSuccess', 'actionEmail'],
+    description: 'Carrier compliance: POD received — close freight audit',
+  },
 ];
 
 // ============================================================================
@@ -75,28 +129,30 @@ const WORKFLOW_PATTERNS: WorkflowPattern[] = [
 const NODE_AFFINITIES: Record<string, string[]> = {
   // Triggers naturally lead to forms or logic
   triggerManualStart: ['FormStepSingle', 'conditionIf', 'actionCreateRecord'],
-  triggerScheduled: ['actionCreateRecord', 'actionEmail', 'FormStepSingle'],
-  
+  triggerScheduled: ['actionHTTP', 'actionCreateRecord', 'actionEmail', 'FormStepSingle'],
+  triggerWebhook: ['actionCreateRecord', 'conditionIf', 'actionHTTP'],
+
   // Forms typically followed by validation or persistence
   FormStepSingle: ['conditionIf', 'actionCreateRecord', 'actionEmail', 'actionUpdateRecord'],
   FormProcessGroup: ['actionCreateRecord', 'actionEmail', 'terminalSuccess'],
-  
+
   // Conditions branch to actions or terminals
   conditionIf: ['actionEmail', 'actionCreateRecord', 'terminalSuccess', 'terminalFailure'],
-  
+
   // Actions can chain or terminate
-  actionCreateRecord: ['actionEmail', 'actionUpdateRecord', 'terminalSuccess'],
+  actionCreateRecord: ['actionEmail', 'actionUpdateRecord', 'terminalSuccess', 'waitApproval'],
   actionUpdateRecord: ['actionEmail', 'terminalSuccess'],
   actionEmail: ['terminalSuccess', 'waitApproval', 'actionCreateRecord'],
-  actionHTTP: ['conditionIf', 'actionCreateRecord', 'terminalSuccess'],
-  
+  // HTTP actions (IoT polls, FMCSA queries) feed into record-creation or conditions
+  actionHTTP: ['actionCreateRecord', 'conditionIf', 'utilityTransform', 'terminalSuccess'],
+
   // Waits need follow-up logic
-  waitApproval: ['conditionIf', 'actionEmail', 'terminalSuccess'],
+  waitApproval: ['conditionIf', 'actionEmail', 'actionCreateRecord', 'terminalSuccess', 'terminalFailure'],
   waitTimer: ['actionEmail', 'actionCreateRecord', 'terminalSuccess'],
-  
+
   // Utilities can go anywhere
   utilityTransform: ['actionCreateRecord', 'actionEmail', 'conditionIf'],
-  
+
   // Terminals are always end nodes
   terminalSuccess: [],
   terminalFailure: [],
@@ -353,13 +409,14 @@ export class AINodeSuggestionService {
     const labels: Record<string, string> = {
       triggerManualStart: 'Manual Start',
       triggerScheduled: 'Scheduled Trigger',
+      triggerWebhook: 'Webhook Trigger',
       FormStepSingle: 'Form Input',
       FormProcessGroup: 'Multi-Step Form',
       conditionIf: 'If/Then Condition',
       actionCreateRecord: 'Create Record',
       actionUpdateRecord: 'Update Record',
       actionEmail: 'Send Email',
-      actionHTTP: 'HTTP Request',
+      actionHTTP: 'HTTP / IoT Request',
       waitApproval: 'Wait for Approval',
       waitTimer: 'Wait Timer',
       terminalSuccess: 'Success',
@@ -376,14 +433,15 @@ export class AINodeSuggestionService {
   private static getNodeDescription(nodeType: string): string {
     const descriptions: Record<string, string> = {
       triggerManualStart: 'Start workflow manually',
-      triggerScheduled: 'Run workflow on schedule',
+      triggerScheduled: 'Run workflow on schedule (cron)',
+      triggerWebhook: 'Start on external event or IoT signal',
       FormStepSingle: 'Collect input from users',
       FormProcessGroup: 'Multi-page form with steps',
       conditionIf: 'Branch based on conditions',
       actionCreateRecord: 'Save data to database',
       actionUpdateRecord: 'Update existing records',
       actionEmail: 'Send notification emails',
-      actionHTTP: 'Call external API',
+      actionHTTP: 'Call external API or IoT gateway',
       waitApproval: 'Pause for human decision',
       waitTimer: 'Delay execution',
       terminalSuccess: 'Mark as successful',

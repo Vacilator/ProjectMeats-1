@@ -198,10 +198,49 @@ class AIPrompter:
         
         return data
     
+    def build_supply_chain_template_prompt(
+        self,
+        tenant: Any,
+        template_domain: str,
+        current_flow: Dict[str, Any],
+    ) -> str:
+        """
+        Build a prompt specifically for supply-chain template suggestions.
+
+        Uses the dedicated ``supply_chain_templates_v1.prompt`` golden template
+        so that OpenAI can return domain-appropriate node suggestions for
+        cold-storage monitoring, quality inspection, or carrier compliance.
+
+        Args:
+            tenant: Tenant model instance
+            template_domain: One of ``cold_storage_monitoring``,
+                ``quality_inspection``, or ``carrier_compliance``
+            current_flow: Current workflow state (nodes/edges)
+
+        Returns:
+            str: Complete prompt ready for OpenAI API
+        """
+        supply_chain_prompter = AIPrompter(template_name="supply_chain_templates_v1.prompt")
+        template = supply_chain_prompter.load_template()
+
+        context = self._build_context(
+            tenant=tenant,
+            current_flow=current_flow,
+            user_request=f"Suggest next steps for a {template_domain.replace('_', ' ')} workflow",
+        )
+        context["template_domain"] = template_domain
+
+        full_prompt = (
+            f"{template}\n\n---\n\n"
+            f"## CURRENT REQUEST\n\n{json.dumps(context, indent=2)}"
+        )
+        return full_prompt
+
     def get_fallback_suggestions(
         self,
         tenant: Any,
-        current_flow: Dict[str, Any]
+        current_flow: Dict[str, Any],
+        template_domain: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate static fallback suggestions when AI is unavailable.
@@ -210,23 +249,122 @@ class AIPrompter:
         - OpenAI API key is missing
         - API is down or rate-limited
         - Connection errors occur
+
+        Supports the three supply-chain template domains introduced in the
+        Phase-7 template library expansion (cold_storage_monitoring,
+        quality_inspection, carrier_compliance) in addition to the original
+        industry-type fallbacks.
         
         Args:
             tenant: Tenant model instance
             current_flow: Current workflow state
+            template_domain: Optional supply-chain template domain override.
+                When supplied this takes precedence over ``industry_type``.
             
         Returns:
-            dict: Static suggestions based on tenant type
+            dict: Static suggestions based on tenant type / template domain
         """
-        # Get tenant industry type
+        # Supply-chain domain-specific fallbacks (new templates)
+        if template_domain == 'cold_storage_monitoring':
+            suggestions = [
+                {
+                    "type": "actionHTTP",
+                    "label": "Pull Sensor Readings",
+                    "description": "Fetch temperature/humidity from IoT gateway",
+                    "reasoning": "Live sensor data required for HACCP CCP log",
+                    "priority": 1,
+                },
+                {
+                    "type": "conditionIf",
+                    "label": "Temperature Breach?",
+                    "description": "Branch if reading exceeds 40°F or drops below 28°F",
+                    "reasoning": "USDA cold-chain safe harbour thresholds",
+                    "priority": 2,
+                },
+                {
+                    "type": "actionEmail",
+                    "label": "Alert QA Manager",
+                    "description": "Notify cold-chain supervisor of breach",
+                    "reasoning": "Immediate escalation required by FSMA",
+                    "priority": 3,
+                },
+            ]
+            return {
+                "suggestions": suggestions,
+                "confidence": 0.0,
+                "mode": "static",
+                "template_domain": template_domain,
+                "alternative_approach": "Enable AI suggestions by configuring OpenAI API key",
+            }
+
+        if template_domain == 'quality_inspection':
+            suggestions = [
+                {
+                    "type": "FormStepSingle",
+                    "label": "Enter Lot Details",
+                    "description": "Capture lot number, weight, temp, and organoleptic scores",
+                    "reasoning": "HACCP CCP data collection step",
+                    "priority": 1,
+                },
+                {
+                    "type": "conditionIf",
+                    "label": "Passes Initial Check?",
+                    "description": "Branch on temperature, appearance, and odor scores",
+                    "reasoning": "Non-conforming lots require NCR and disposition workflow",
+                    "priority": 2,
+                },
+                {
+                    "type": "actionCreateRecord",
+                    "label": "Raise NCR",
+                    "description": "Create Non-Conformance Report with defect details",
+                    "reasoning": "SQF/BRC audit trail requirement",
+                    "priority": 3,
+                },
+            ]
+            return {
+                "suggestions": suggestions,
+                "confidence": 0.0,
+                "mode": "static",
+                "template_domain": template_domain,
+                "alternative_approach": "Enable AI suggestions by configuring OpenAI API key",
+            }
+
+        if template_domain == 'carrier_compliance':
+            suggestions = [
+                {
+                    "type": "actionHTTP",
+                    "label": "Fetch Carrier Compliance Data",
+                    "description": "Query FMCSA SAFER and Carrier411 for authority and score",
+                    "reasoning": "DOT/FMCSA compliance check required before load assignment",
+                    "priority": 1,
+                },
+                {
+                    "type": "FormStepSingle",
+                    "label": "Pre-Trip Inspection Checklist",
+                    "description": "Reefer unit, seals, cleanliness, temperature recorder",
+                    "reasoning": "Required before loading perishable freight",
+                    "priority": 2,
+                },
+                {
+                    "type": "actionCreateRecord",
+                    "label": "Generate Bill of Lading",
+                    "description": "Create BOL with load details, seal number, temp setpoints",
+                    "reasoning": "Legal shipping document required for every load",
+                    "priority": 3,
+                },
+            ]
+            return {
+                "suggestions": suggestions,
+                "confidence": 0.0,
+                "mode": "static",
+                "template_domain": template_domain,
+                "alternative_approach": "Enable AI suggestions by configuring OpenAI API key",
+            }
+
+        # Legacy industry-type fallbacks
         tenant_data = getattr(tenant, 'custom_data', {}) or {}
         industry_type = tenant_data.get('industry_type', 'wholesale')
         
-        # Get last node to determine next logical step
-        existing_nodes = current_flow.get('nodes', [])
-        last_node_type = existing_nodes[-1].get('type') if existing_nodes else None
-        
-        # Industry-specific fallback templates
         if industry_type == 'processor':
             suggestions = [
                 {
