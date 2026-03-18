@@ -759,9 +759,9 @@ export const createRecordSchema: NodeConfigSchema = {
       icon: CheckSquare,
       defaultExpanded: true,
       description: 'Map workflow variables to entity fields',
-      conditionalLogic: {
+      conditional: {
         field: 'entity',
-        condition: 'notEmpty'
+        operator: 'isNotEmpty'
       },
       fields: [
         {
@@ -1700,7 +1700,7 @@ export const documentStoreSchema: NodeConfigSchema = {
           helpText: 'ID of the related entity record',
           conditional: {
             field: 'relatedEntity',
-            operator: 'notEmpty',
+            operator: 'isNotEmpty',
           }
         },
       ]
