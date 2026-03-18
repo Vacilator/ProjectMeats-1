@@ -38,9 +38,10 @@ interface TabItem {
 const TABS: TabItem[] = [
   { path: '/workforms/tasks', label: 'My Tasks', icon: <CheckSquare size={18} />, badgeKey: 'actionRequired' },
   { path: '/workforms/in-progress', label: 'In Progress', icon: <Clock size={18} /> },
+  { path: '/workforms/monitoring', label: 'Monitoring', icon: <Workflow size={18} /> },
   { path: '/workforms/catalog', label: 'Catalog', icon: <BookOpen size={18} /> },
   { path: '/workforms/history', label: 'History', icon: <History size={18} /> },
-  { path: '/workforms/editor', label: 'Editor', icon: <Workflow size={18} />, adminOnly: true },
+  { path: '/workforms/editor', label: 'Editor', icon: <FileText size={18} />, adminOnly: true },
 ];
 
 // ============================================================================
