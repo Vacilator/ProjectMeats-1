@@ -2,7 +2,7 @@
 # Add RLS policies for ActivityLog and ScheduledCall models
 
 from django.db import migrations
-from django.contrib.postgres.operations import RunSQL
+from django.db.migrations import RunSQL
 
 
 class Migration(migrations.Migration):
