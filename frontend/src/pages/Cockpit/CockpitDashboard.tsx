@@ -436,8 +436,17 @@ export const CockpitDashboard: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   
   // Header owns global Ctrl+K search. Cockpit reads query from URL.
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const cockpitQuery = searchParams.get('q') ?? '';
+  
+  // Handle search query changes from SmartSearch component
+  const handleQueryChange = useCallback((newQuery: string) => {
+    if (newQuery) {
+      setSearchParams({ q: newQuery });
+    } else {
+      setSearchParams({});
+    }
+  }, [setSearchParams]);
   
   // Cockpit navigation context
   const navigation = useCockpitNavigation();
@@ -669,7 +678,10 @@ export const CockpitDashboard: React.FC = () => {
       {/* Hero Search (SmartSearch) */}
       <HeroSearchSection>
         <HeroSearchInner>
-          <SmartSearch query={cockpitQuery} />
+          <SmartSearch 
+            query={cockpitQuery} 
+            onQueryChange={handleQueryChange}
+          />
         </HeroSearchInner>
       </HeroSearchSection>
 
