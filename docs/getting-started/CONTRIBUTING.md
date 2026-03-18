@@ -106,6 +106,16 @@ All branches **must** follow this format: `<type>/<description>`
 - ❌ `add-customer-export` (missing type)
 - ❌ `Feature/AddExport` (wrong case - use lowercase)
 
+### Golden State Verification (Required)
+
+Before opening a PR (especially for CI/CD, config, or migrations), run:
+
+```bash
+bash scripts/verify_golden_state.sh
+```
+
+This catches common deployment footguns (manifest presence, tunnel patterns, prohibited django-tenants deps, etc.) early.
+
 ### PR Title Convention
 
 PR titles **must** follow Conventional Commits: `<type>(<scope>): <description>`

@@ -15,6 +15,15 @@ permissions:
   security-events: write
 
 jobs:
+  verify-golden-state:
+    name: "Verify Golden State"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Verify golden state
+        run: bash scripts/verify_golden_state.sh
+
   python-security:
     name: "Python Security Audit"
     runs-on: ubuntu-latest

@@ -59,10 +59,16 @@ class InfrastructureDiagnosticsTestCase(TestCase):
         mock_models.data = [MagicMock(id='gpt-4o-mini'), MagicMock(id='gpt-4')]
         mock_client.models.list.return_value = mock_models
         
+        import sys
+        from types import SimpleNamespace
+
+        fake_openai = SimpleNamespace(OpenAI=MagicMock(return_value=mock_client))
+
         with patch.dict(os.environ, {'OPENAI_API_KEY': 'sk-test123456'}):
-            with patch('scripts.infrastructure_diagnostics.OpenAI', return_value=mock_client):
+            # Provide a fake openai module so the in-function import succeeds even if openai isn't installed.
+            with patch.dict(sys.modules, {'openai': fake_openai}):
                 result = test_openai_connectivity()
-                
+
                 self.assertEqual(result['service'], 'OpenAI')
                 self.assertEqual(result['status'], 'CONNECTED')
                 self.assertTrue(result['details']['test_passed'])
@@ -72,11 +78,14 @@ class InfrastructureDiagnosticsTestCase(TestCase):
         """Test Sentry connectivity when DSN is missing"""
         from scripts.infrastructure_diagnostics import test_sentry_connectivity
         
-        with patch('sentry_sdk.Hub.current') as mock_hub:
-            mock_hub.client = None
-            
+        # Hub is imported inside the function via: from sentry_sdk import Hub
+        # Patch sentry_sdk.Hub to a fake with a simple .current attribute.
+        class FakeHub:
+            current = MagicMock(client=None)
+
+        with patch('sentry_sdk.Hub', new=FakeHub):
             result = test_sentry_connectivity()
-            
+
             self.assertEqual(result['service'], 'Sentry')
             self.assertEqual(result['status'], 'NOT_CONFIGURED')
     
@@ -91,11 +100,13 @@ class InfrastructureDiagnosticsTestCase(TestCase):
         mock_client = MagicMock()
         mock_client.dsn = mock_dsn
         
-        with patch('sentry_sdk.Hub.current') as mock_hub:
-            mock_hub.client = mock_client
+        class FakeHub:
+            current = MagicMock(client=mock_client)
+
+        with patch('sentry_sdk.Hub', new=FakeHub):
             with patch('sentry_sdk.capture_message', return_value='test-event-id'):
                 result = test_sentry_connectivity()
-                
+
                 self.assertEqual(result['service'], 'Sentry')
                 self.assertEqual(result['status'], 'CONNECTED')
                 self.assertTrue(result['details']['test_passed'])

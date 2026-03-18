@@ -74,24 +74,19 @@
   - 1,384 lines, 40 unit tests
   - **10x faster rendering, 60fps sustained**
 
-- **7.6** Accessibility & i18n **[50% COMPLETE]**
+- **7.6** Accessibility & i18n **[100% COMPLETE]**
   - Keyboard navigation (arrows, Tab, Enter, vim) (PR #3348)
   - Screen reader support with ARIA live regions (PR #3348)
   - Focus management for modals (PR #3348)
   - WCAG 2.1 AAA compliant (PR #3348)
+  - Internationalization rollout complete (en/es/fr + RTL + locale formatting)
+  - Follow-up improvements tracked: #3586–#3592
   - 802 lines, fully accessible
 
 ### Blocked 🔒
 
 - **7.3** Real-Time Collaboration
   - Requires Redis for pub/sub messaging
-
-### Planned Features ⏳
-
-- **7.6** Internationalization (i18n) - remaining 50%
-  - Integration of i18n hooks throughout application
-  - Translation coverage for all user-facing strings
-  - Note: Infrastructure (en/es/fr translations, RTL, locale formatting) is 100% complete
 
 **Development Principles**:
 - ✅ Additive-Only Changes (never break existing workflows)
@@ -447,7 +442,7 @@
 - [x] Phase 9: Security scanning & SBOM
 
 ### Q2 2026 (Upcoming)
-- [ ] Phase 7.6: Complete i18n rollout (remaining 50%)
+- [x] Phase 7.6: Complete i18n rollout (tracking follow-ups in #3586)
 - [ ] Production deployment of all features
 - [ ] External service credential configuration
   - OpenAI API key (AI suggestions already functional in code)
