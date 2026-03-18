@@ -41,7 +41,7 @@ import {
   RequiredIndicator,
   PrimaryButton,
   SecondaryButton,
-} from './shared';
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces

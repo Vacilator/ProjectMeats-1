@@ -625,3 +625,18 @@ Deliverables:
 - ✅ Runtime Fixes: COMPLETE (PR #3584)
 - [x] Wired Cockpit Entity Tools (Smart Quote, Email Drafter) to dynamic workflow engine with record context.
 - [x] Integrated 'Configure Tools' UI for user-customizable action buttons.
+
+## Phase 9: Editor Polish & Optimization
+
+- [x] Audit & Destroy Legacy Code: remove direct axios imports under `frontend/src/components/FlowEditor/` (use `businessApi` / `workformsApi` only).
+  - [x] Replaced axios usage in `Modals/SharedTemplateDeleteModal.tsx` with `workformsApi` helpers.
+  - [x] Added `getTenantFormUsageInfo()` + `decrementTenantFormUsage()` to `frontend/src/services/workformsApi.ts`.
+
+- [x] Phase E.2 (Panel Migration): align panels to FlowEditorContext + shared StyledComponents.
+  - [x] `FormFieldConfigPanel.tsx`: imports standardized to `ConfigPanel/shared/StyledComponents.ts` (via explicit path).
+  - [x] `DocumentConfigPanel.tsx`: uses FlowEditorContext fallback for `availableFields` and replaces custom fixed wrapper with shared `Panel`.
+
+- [x] Edge semantics + performance tuning:
+  - [x] Enforced `MarkerType.ArrowClosed` marker color using CSS vars (no hardcoded hex).
+  - [x] Set `onlyRenderVisibleElements={true}` on the main ReactFlow instance.
+  - [x] Confirmed Monaco usage remains lazy via `React.lazy(() => import('@monaco-editor/react'))`.

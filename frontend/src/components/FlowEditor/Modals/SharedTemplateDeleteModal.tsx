@@ -31,7 +31,10 @@ import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { AlertTriangle, Trash2, XCircle, Loader } from 'lucide-react';
 import { notify } from '../../../utils/notify';
-import axios from 'axios';
+import {
+  decrementTenantFormUsage,
+  getTenantFormUsageInfo,
+} from '../../../services/workformsApi';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -357,8 +360,8 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
 
     setIsLoading(true);
     try {
-      const response = await axios.get(`/api/v1/system/tenant-forms/${template.formId}/usage/`);
-      setUsageInfo(response.data);
+      const data = await getTenantFormUsageInfo(template.formId);
+      setUsageInfo(data);
     } catch (error) {
       console.error('[SharedTemplateDeleteModal] Failed to fetch usage info:', error);
       notify.error('Failed to load template usage information');
@@ -377,7 +380,7 @@ export const SharedTemplateDeleteModal: React.FC<SharedTemplateDeleteModalProps>
 
     try {
       // Decrement usage count on backend
-      await axios.post(`/api/v1/system/tenant-forms/${template.formId}/decrement-usage/`);
+      await decrementTenantFormUsage(template.formId);
       
       // Remove node from workflow
       onRemoveFromWorkflow(template.nodeId);
