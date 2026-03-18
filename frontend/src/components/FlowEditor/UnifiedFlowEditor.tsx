@@ -125,6 +125,7 @@ import { ValidationDrawer } from './components/ValidationDrawer';
 import { DryRunDebugger } from './components/DryRunDebugger';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
+import { schemaRegistry } from './config/schemaRegistry';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
 import { EnhancedContextMenu, useEnhancedContextMenu } from './components/EnhancedContextMenu'; // Phase 2: UI/UX
@@ -3671,10 +3672,25 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * - Children render on main canvas with parentId
    * - Uses React Flow's official grouping pattern
    */
-  const nodeTypes = useMemo<NodeTypes>(() => ({
-    ...staticNodeTypes,
-    // Container node no longer needs custom props with single-ReactFlow architecture
-  }), []);
+  const nodeTypes = useMemo<NodeTypes>(() => {
+    const types: NodeTypes = { ...staticNodeTypes };
+
+    // Dynamically map all specific registry types to base visual components
+    Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
+      if (types[typeId]) return;
+
+      if (typeId.startsWith('trigger')) types[typeId] = TriggerNode;
+      else if (typeId.startsWith('action')) types[typeId] = ActionNode;
+      else if (typeId.startsWith('condition') || typeId === 'parallelPath') types[typeId] = ConditionIfNode;
+      else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) types[typeId] = WaitStateNode;
+      else if (typeId.startsWith('document')) types[typeId] = DocumentNode;
+      else if (typeId.startsWith('terminal') || typeId.startsWith('end')) types[typeId] = TerminalNode;
+      else if (typeId.startsWith('form')) types[typeId] = FormStepSingleNode;
+      else types[typeId] = UtilityNode;
+    });
+
+    return types;
+  }, []);
 
   // ============================================================================
   // Container Drag-Drop Logic (Phase 4.4)
@@ -6847,129 +6863,111 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 export { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization';
 
 function getReactFlowNodeType(nodeTypeId: string): string {
-  // Map node type IDs to React Flow node component names
-  
-  // CRITICAL: Check for container BEFORE generic 'form' check
-  // Bug fix: formMultiStepContainer was being caught by startsWith('form')
-  if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
-  
+  // Force all triggers to use the rich Unified Trigger node & schema
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
-  if (nodeTypeId.startsWith('form')) return 'formStep';
-  if (nodeTypeId.startsWith('condition')) return 'condition';
-  if (nodeTypeId.startsWith('action')) return 'action';
-  if (nodeTypeId.startsWith('wait')) return 'waitState';
-  if (nodeTypeId.startsWith('document')) return 'document';
-  if (nodeTypeId.startsWith('utility')) return 'utility';
-  if (nodeTypeId.startsWith('terminal')) return 'terminal';
-  if (nodeTypeId.startsWith('end')) return 'terminal'; // Map 'endSuccess', 'endError' to terminal
-  
-  // Log unknown type for debugging
-  logger.warn(`Unknown node type: ${nodeTypeId}, defaulting to action`);
-  
-  // Default to action
-  return 'action';
+
+  // Preserve specific types for all other nodes so their specific schemas load
+  if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
+  return nodeTypeId;
 }
 
 function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
-  // Return default data based on node type
   const nodeDef = NODE_TYPE_REGISTRY[nodeTypeId];
-  
-  if (nodeTypeId.startsWith('trigger')) {
-    const triggerType = nodeTypeId.replace('trigger', '').toLowerCase();
-    return { 
-      triggerType: triggerType || 'manual',
-      maxInputs: nodeDef?.maxInputs || 0,
-      maxOutputs: nodeDef?.maxOutputs || 1,
+  const resolvedType = getReactFlowNodeType(nodeTypeId);
+
+  let defaults: Record<string, any> = {
+    nodeType: nodeTypeId, // preserve original specific type for metadata
+    maxInputs: nodeDef?.maxInputs ?? 1,
+    maxOutputs: nodeDef?.maxOutputs ?? 1,
+  };
+
+  // Unified trigger defaults (driving triggerSchema conditionals)
+  if (resolvedType === 'trigger') {
+    const triggerMap: Record<string, string> = {
+      triggerManual: 'manual',
+      triggerSchedule: 'schedule',
+      triggerWebhook: 'webhook',
+      triggerEvent: 'event',
+      triggerForm: 'formSubmit',
     };
+    const mappedType = triggerMap[nodeTypeId] || 'manual';
+
+    // Used by unified trigger schema dropdown + section conditionals
+    defaults.type = mappedType;
+
+    // Used by the visual TriggerNode component (kept for backward compatibility)
+    defaults.triggerType = mappedType;
+
+    // Triggers are entrypoints
+    defaults.maxInputs = 0;
   }
-  
-  if (nodeTypeId.startsWith('form')) {
-    // Special handling for multi-step container
-    if (nodeTypeId === 'formMultiStepContainer') {
-      return {
-        fields: [],
-        containerName: 'New Container',
-        isExpanded: true,
-        childNodes: [],
-        maxInputs: nodeDef?.maxInputs || 1,
-        maxOutputs: nodeDef?.maxOutputs || 1,
-      };
-    }
-    
-    return { 
-      fields: [],
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+
+  // Special handling for containers
+  if (resolvedType === 'formMultiStepContainer' || resolvedType === 'formProcessGroup') {
+    defaults.fields = [];
+    defaults.containerName = 'New Container';
+    defaults.isExpanded = true;
+    defaults.childNodes = [];
   }
-  
+
+  // Preserve behavior expected by base node components
   if (nodeTypeId.startsWith('condition')) {
-    return { 
-      rules: [], 
-      logicalOperator: 'AND',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+    defaults.rules = defaults.rules ?? [];
+    defaults.logicalOperator = defaults.logicalOperator ?? 'AND';
   }
-  
+
   if (nodeTypeId.startsWith('action')) {
     const actionType = nodeTypeId.replace('action', '');
     const typeMap: Record<string, string> = {
-      'Email': 'email',
-      'Notify': 'notify',
-      'CreateRecord': 'createRecord',
-      'UpdateRecord': 'updateRecord',
-      'DeleteRecord': 'deleteRecord',
-      'HTTP': 'http',
-      'Script': 'script',
+      Email: 'email',
+      Notify: 'notify',
+      CreateRecord: 'createRecord',
+      UpdateRecord: 'updateRecord',
+      DeleteRecord: 'deleteRecord',
+      HTTP: 'http',
+      Script: 'script',
     };
-    return { 
-      actionType: typeMap[actionType] || 'email',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+    defaults.actionType = typeMap[actionType] || defaults.actionType || 'email';
   }
-  
+
   if (nodeTypeId.startsWith('wait')) {
     const waitType = nodeTypeId.replace('wait', '').toLowerCase();
-    return {
-      waitType: waitType || 'approval',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+    defaults.waitType = defaults.waitType || waitType || 'approval';
   }
-  
+
   if (nodeTypeId.startsWith('document')) {
     const docType = nodeTypeId.replace('document', '').toLowerCase();
-    return {
-      documentType: docType || 'generate',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+    defaults.documentType = defaults.documentType || docType || 'generate';
   }
-  
+
   if (nodeTypeId.startsWith('utility')) {
     const utilType = nodeTypeId.replace('utility', '').toLowerCase();
-    return {
-      utilityType: utilType || 'transform',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 1,
-    };
+    defaults.utilityType = defaults.utilityType || utilType || 'transform';
   }
-  
-  if (nodeTypeId.startsWith('terminal')) {
-    const termType = nodeTypeId.replace('terminal', '').toLowerCase();
-    return {
-      terminalType: termType || 'success',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 0,
-    };
+
+  if (nodeTypeId.startsWith('terminal') || nodeTypeId.startsWith('end')) {
+    const termType = nodeTypeId.replace('terminal', '').replace('end', '').toLowerCase();
+    defaults.terminalType = defaults.terminalType || termType || 'success';
+    defaults.maxOutputs = 0;
   }
-  
-  return {
-    maxInputs: nodeDef?.maxInputs || 1,
-    maxOutputs: nodeDef?.maxOutputs || 1,
-  };
+
+  // Auto-extract defaults from schema to fix DynamicConfigPanel visibility conditions
+  try {
+    if (schemaRegistry.hasSchema(resolvedType)) {
+      const schema = schemaRegistry.getSchema(resolvedType);
+      schema.sections.forEach((section) => {
+        section.fields.forEach((field) => {
+          if (field.defaultValue !== undefined && defaults[field.id] === undefined) {
+            defaults[field.id] = field.defaultValue;
+          }
+        });
+      });
+    }
+  } catch {
+    logger.warn(`Could not extract schema defaults for ${resolvedType}`);
+  }
+
+  return defaults;
 }
 
 // ============================================================================
