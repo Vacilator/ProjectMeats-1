@@ -1658,6 +1658,23 @@ const staticNodeTypes: NodeTypes = {
   terminal: TerminalNode,
 };
 
+// Dynamically build the full registry map statically ONCE outside the component.
+// This avoids TDZ / initialization crashes seen when building nodeTypes inside hooks.
+const dynamicNodeTypes: NodeTypes = { ...staticNodeTypes };
+Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
+  if (dynamicNodeTypes[typeId]) return;
+
+  if (typeId.startsWith('trigger')) dynamicNodeTypes[typeId] = TriggerNode;
+  else if (typeId.startsWith('action')) dynamicNodeTypes[typeId] = ActionNode;
+  else if (typeId.startsWith('condition') || typeId === 'parallelPath') dynamicNodeTypes[typeId] = ConditionIfNode;
+  else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) dynamicNodeTypes[typeId] = WaitStateNode;
+  else if (typeId.startsWith('document')) dynamicNodeTypes[typeId] = DocumentNode;
+  else if (typeId.startsWith('terminal') || typeId.startsWith('end')) dynamicNodeTypes[typeId] = TerminalNode;
+  else if (typeId.startsWith('form')) dynamicNodeTypes[typeId] = FormStepSingleNode;
+  else dynamicNodeTypes[typeId] = UtilityNode;
+});
+
+
 // Static edge types (no useMemo needed - these are constant)
 const staticEdgeTypes: EdgeTypes = {
   custom: CustomEdge,
@@ -3658,38 +3675,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug('🔵 [onDragOver] Event received');
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  // ============================================================================
-  // Dynamic Node Types (Phase: Container Drop Handler Fix)
-  // ============================================================================
-  
-  /**
-   * NodeTypes definition
-   * 
-   * REFACTORED: Single ReactFlow architecture
-   * - Container nodes no longer need custom props
-   * - Children render on main canvas with parentId
-   * - Uses React Flow's official grouping pattern
-   */
-  const nodeTypes = useMemo<NodeTypes>(() => {
-    const types: NodeTypes = { ...staticNodeTypes };
-
-    // Dynamically map all specific registry types to base visual components
-    Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
-      if (types[typeId]) return;
-
-      if (typeId.startsWith('trigger')) types[typeId] = TriggerNode;
-      else if (typeId.startsWith('action')) types[typeId] = ActionNode;
-      else if (typeId.startsWith('condition') || typeId === 'parallelPath') types[typeId] = ConditionIfNode;
-      else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) types[typeId] = WaitStateNode;
-      else if (typeId.startsWith('document')) types[typeId] = DocumentNode;
-      else if (typeId.startsWith('terminal') || typeId.startsWith('end')) types[typeId] = TerminalNode;
-      else if (typeId.startsWith('form')) types[typeId] = FormStepSingleNode;
-      else types[typeId] = UtilityNode;
-    });
-
-    return types;
   }, []);
 
   // ============================================================================
@@ -6035,7 +6020,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           collabSendCursorDebounced(pos);
         }}
         onSelectionChange={handleSelectionChange}
-        nodeTypes={nodeTypes}
+        nodeTypes={dynamicNodeTypes}
         edgeTypes={staticEdgeTypes}
         // Phase 7.5/9: Always render only visible elements for large-editor performance
         onlyRenderVisibleElements={true}
