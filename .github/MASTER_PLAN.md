@@ -75,18 +75,34 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - CockpitDashboard becomes a results view driven by URL `?q=` (SmartSearch controlled query + hideInput).
   - SmartSearch now debounces via `lodash/debounce` (no setTimeout).
 
-- 2026-03-17 — Cockpit BreadcrumbBar elevation — Commit: TBD (PR: TBD)
-  - Objective: BreadcrumbBar must sit above the hero search area and persist regardless of search/grid view state.
-  - Action: Move BreadcrumbBar rendering out of `showSearchView` block and place directly beneath Toolbar/CockpitTour for continuous context.
-  - Verification: Drilling into entities shows breadcrumbs at top of workspace above search results and search hint.
-  - Status: Implemented on branch `feature/cockpit-actions-breadcrumb` — BreadcrumbBar now renders immediately below the toolbar/CockpitTour and outside the search block.
+- 2026-03-17 — Cockpit BreadcrumbBar elevation — Commit: 77ac88c3 (branch: `feature/cockpit-actions-breadcrumb`, PR: TBD)
+  - BreadcrumbBar renders directly beneath Toolbar/CockpitTour (outside search block) to keep navigation visible across states.
+  - Verification: Breadcrumb persists above search/hint/results when drilling into entities.
 
-- 2026-03-17 — Cockpit Quick Actions routing + PinnedTools event bus — Commit: TBD (PR: TBD)
-  - Objective: Replace placeholder `alert` quick actions with real navigation + tool triggers.
-  - Action: Wire quick actions to `useNavigate` routes (PO/SO create/history) and dispatch `pm:open-tool` so “Send Email” opens the PinnedToolsBar email drafter.
-  - Hardening: Add global `pm:open-tool` listener to PinnedToolsBar to accept external tool open requests.
-  - Verification: Quick Actions open correct routes with entity ids, and Send Email opens the mail drawer without manual click.
-  - Status: Implemented on branch `feature/cockpit-actions-breadcrumb` — Quick Actions now route via React Router and dispatch `pm:open-tool`; PinnedToolsBar listens and opens tools.
+- 2026-03-17 — Cockpit Quick Actions routing + PinnedTools event bus — Commit: 77ac88c3 (branch: `feature/cockpit-actions-breadcrumb`, PR: TBD)
+  - SmartSearch quick actions now route via React Router (PO/SO create/history) and dispatch `pm:open-tool` for Send Email.
+  - PinnedToolsBar listens for global `pm:open-tool` to open email/record tools automatically.
+
+- 2026-03-17 — Cockpit consolidation (SmartWizard removal, hero search, sidebar fix) — Commit: TBD (branch: `feature/cockpit-consolidation`, PR: TBD)
+  - SmartWizard routes/menu removed; Cockpit remains search-first with embedded SmartSearch hero.
+  - Sidebar NavigationMenu memoized and guarded with `lastPathnameRef` to prevent snap-back during manual toggles.
+  - Verification: Hero search updates breadcrumbs/results; sidebar stress test maintains user toggles.
+
+- 2026-03-17 — SmartWizard decommission confirmed — Commit: TBD (PR: TBD)
+  - Verified no remaining SmartWizard components or routes in frontend; wizard references limited to inline editor modes only.
+  - No App-level routes or standalone wizard pages remain; decommission task closed.
+
+- 2026-03-17 — RLS audit for Purchase Orders & Invoices — Commit: TBD (PR: TBD)
+  - Confirmed existing RLS coverage in `purchase_orders/0013_refactor_to_tenantaware.py` and `invoices/0011_refactor_invoices_to_tenantaware.py`.
+  - Policies use `tenant_id = current_setting('app.current_tenant', true)::uuid` for isolation and insert checks; no additional migration required.
+
+- 2026-03-17 — RLS audit for Purchase Orders & Invoices — Commit: TBD (PR: #3550)
+  - Confirmed existing RLS coverage in `purchase_orders/0013_refactor_to_tenantaware.py` and `invoices/0011_refactor_invoices_to_tenantaware.py`.
+  - Policies use `tenant_id = current_setting('app.current_tenant', true)::uuid` for isolation and insert checks; no additional migration required.
+
+- 2026-03-17 — Form node UI verified — Commit: TBD (PR: TBD)
+  - Confirmed Form node config shows no deprecation banner/migration notice; tags reflect entity-first discovery.
+  - Visual diff validated for title/description refresh; no warnings in console during panel load.
 
 ---
 
