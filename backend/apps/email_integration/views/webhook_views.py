@@ -360,18 +360,27 @@ def process_outlook_notification(account_id, user_id, resource, change_type, not
             if response.status_code == 200:
                 message_data = response.json()
                 
-                # Log the email event
+                # Log the webhook event (raw email payload stored for debugging)
                 EmailLog.objects.create(
                     email_account=email_account,
-                    event_type='received' if change_type == 'created' else 'updated',
+                    log_type='webhook',
+                    workflow_node_id='',
                     subject=message_data.get('subject', ''),
                     from_address=message_data.get('from', {}).get('emailAddress', {}).get('address', ''),
-                    to_addresses=', '.join([
-                        addr['emailAddress']['address'] 
+                    to_address=', '.join([
+                        addr.get('emailAddress', {}).get('address', '')
                         for addr in message_data.get('toRecipients', [])
+                        if addr.get('emailAddress', {}).get('address')
                     ]),
-                    message_id=message_data.get('id'),
-                    metadata=message_data
+                    success=True,
+                    raw_data={
+                        'change_type': change_type,
+                        'resource': resource,
+                        'message_id': message_data.get('id'),
+                        'message': message_data,
+                        'notification': notification_data,
+                        'subscription_id': notification_data.get('subscriptionId'),
+                    },
                 )
                 
                 # TODO: Trigger EmailTrigger workflow nodes
@@ -639,15 +648,21 @@ def process_gmail_notification(email_address, history_id):
                             for h in full_message['payload']['headers']
                         }
                         
-                        # Log the email event
+                        # Log the webhook event (raw email payload stored for debugging)
                         EmailLog.objects.create(
                             email_account=email_account,
-                            event_type='received',
+                            log_type='webhook',
+                            workflow_node_id='',
                             subject=headers.get('Subject', ''),
                             from_address=headers.get('From', ''),
-                            to_addresses=headers.get('To', ''),
-                            message_id=message['id'],
-                            metadata=full_message
+                            to_address=headers.get('To', ''),
+                            success=True,
+                            raw_data={
+                                'message_id': message.get('id'),
+                                'history_id': history_id,
+                                'headers': headers,
+                                'full_message': full_message,
+                            },
                         )
                         
                         logger.info(f"Processed Gmail email: {headers.get('Subject')}")
