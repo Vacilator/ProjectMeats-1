@@ -98,57 +98,6 @@ class EmailAccount(models.Model):
         return timezone.now() >= (self.webhook_expires_at - timezone.timedelta(days=1))
 
 
-class EmailLog(models.Model):
-    """Log of email events for debugging and audit trail"""
-    
-    EVENT_CHOICES = [
-        ('received', 'Email Received'),
-        ('sent', 'Email Sent'),
-        ('updated', 'Email Updated'),
-        ('error', 'Error'),
-    ]
-    
-    email_account = models.ForeignKey(
-        EmailAccount,
-        on_delete=models.CASCADE,
-        related_name='email_logs'
-    )
-    
-    event_type = models.CharField(max_length=20, choices=EVENT_CHOICES)
-    subject = models.CharField(max_length=500, blank=True)
-    from_address = models.EmailField(blank=True)
-    to_addresses = models.TextField(blank=True, help_text='Comma-separated list')
-    message_id = models.CharField(max_length=255, blank=True)
-    
-    # Full message data (JSON)
-    metadata = models.JSONField(default=dict, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'email_logs'
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['email_account', '-created_at']),
-            models.Index(fields=['event_type']),
-        ]
-    
-    def __str__(self):
-        return f'{self.event_type}: {self.subject}'
-
-
-# Placeholder models for workflow integration (to be implemented)
-class EmailTrigger(models.Model):
-    """Workflow trigger node for email events"""
-    # TODO: Implement full workflow integration
-    pass
-
-
-class EmailAction(models.Model):
-    """Workflow action node for sending emails"""
-    # TODO: Implement full workflow integration
-    pass
-
 
 class EmailTrigger(models.Model):
     """Email-based trigger configuration for workflow nodes"""
