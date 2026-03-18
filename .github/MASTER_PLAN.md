@@ -105,6 +105,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Adds missing migration for `apps.integrations.EmailLog` (fixes CI `makemigrations --check` gate).
   - Enables Postgres RLS + `emaillog_tenant_isolation` policy on `integrations_emaillog`.
 
+- 2026-03-18 — Ops: harden validate-migrations.sh — Commit: e96ab930 (PR: #3563)
+  - Removes incorrect django-tenants logic; ProjectMeats is shared-schema only.
+  - Script is runnable from any working directory and validates both `apps/` and `tenant_apps/` migrations.
+
 ---
 
 ## Consolidated Execution Plan (2026-03-13)
