@@ -67,12 +67,12 @@ export default defineConfig({
       output: {
         // Different output directories for different apps
         assetFileNames: (assetInfo) => {
-          const info = assetInfo.name.split('.');
-          const ext = info[info.length - 1];
-          if (/\.(css)$/.test(assetInfo.name)) {
-            return `css/[name]-[hash][extname]`;
+          // Vite 8/Rolldown can pass assets without a stable name; guard accordingly.
+          const name = assetInfo.name ?? '';
+          if (name.endsWith('.css')) {
+            return 'css/[name]-[hash][extname]';
           }
-          return `assets/[name]-[hash][extname]`;
+          return 'assets/[name]-[hash][extname]';
         },
         chunkFileNames: 'js/[name]-[hash].js',
         entryFileNames: (chunkInfo) => {
@@ -82,13 +82,25 @@ export default defineConfig({
           }
           return 'js/[name]-[hash].js';
         },
-        manualChunks: {
-          // Vendor chunk for React and related
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Vendor chunk for Ant Design
-          'vendor-antd': ['antd', '@ant-design/icons'],
-          // Vendor chunk for utilities
-          'vendor-utils': ['axios', 'styled-components'],
+        manualChunks: (id) => {
+          if (!id.includes('node_modules')) return;
+
+          // Keep chunking stable across builds while avoiding Rolldown's object-form restriction.
+          if (
+            id.includes('/node_modules/react/') ||
+            id.includes('/node_modules/react-dom/') ||
+            id.includes('/node_modules/react-router-dom/')
+          ) {
+            return 'vendor-react';
+          }
+          if (id.includes('/node_modules/antd/') || id.includes('/node_modules/@ant-design/')) {
+            return 'vendor-antd';
+          }
+          if (id.includes('/node_modules/axios/') || id.includes('/node_modules/styled-components/')) {
+            return 'vendor-utils';
+          }
+
+          return;
         },
       },
     },
