@@ -139,6 +139,9 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2:
 // FormBuilder Context Provider (2026-02-21 Comprehensive Enhancements)
 import { FormBuilderProvider } from '../../contexts/FormBuilderContext';
 
+// FlowEditor Context Provider (Phase E.1)
+import { FlowEditorProvider } from './context';
+
 // Error Boundary (2026-02-21 Comprehensive Enhancements)
 import { ErrorBoundary } from './ErrorBoundary';
 // NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
@@ -2450,7 +2453,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       return response.data.results || response.data || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: formStepModalOpen || !!editingField, // Only fetch when needed
+    enabled: !!editingField, // Only fetch when needed
   });
   
   // Drag-drop state for ghost preview and smart snapping
@@ -5521,7 +5524,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange, handleSaveWorkflow]);
 
   return (
-    <EditorContainer $isFullscreen={isFullscreen}>
+    <FlowEditorProvider
+      tenantLists={tenantLists}
+      availableFields={selectedFormStep?.data?.fields || []}
+      currentNodeId={selectedFormStep?.id || null}
+    >
+      <EditorContainer $isFullscreen={isFullscreen}>
       {/* Deprecation Banner (Phase 6.1) */}
       {hasDeprecatedNodes && !bannerDismissed && (
         <DeprecationBanner>
@@ -6494,9 +6502,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             field={editingField}
             onChange={handleFieldUpdate}
             onClose={() => setEditingField(null)}
-            availableFields={selectedFormStep?.data?.fields || []}
-            tenantLists={tenantLists}
-            currentNodeId={selectedFormStep?.id} // Pass currentNodeId for upstream inheritance
           />
         )}
       </SidePanel>
@@ -6729,7 +6734,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           skip: 'Skip tour',
         }}
       />
-    </EditorContainer>
+      </EditorContainer>
+    </FlowEditorProvider>
   );
 };
 

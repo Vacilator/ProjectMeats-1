@@ -602,33 +602,24 @@ Deliverables:
 
 ---
 
-### 2026-03-18 — Batch 1 Cleanup: Remove Dead Modal Code (Work in Progress)
-**Status:** Code changes committed locally, PR pending
+### 2026-03-18 — FlowEditor Stabilization: Batch 2 Panel Migration + Runtime Fixes (COMPLETE) (PR #3584)
+**Status:** PR opened — https://github.com/Meats-Central/ProjectMeats/pull/3584
 
 **Deliverables:**
-- ✅ Removed 6 dead modal state variables (formFieldModalOpen, sectionModalOpen, documentModalOpen, createRecordModalOpen, formReferenceModalOpen, formStepModalOpen)
-- ✅ Removed 5 dead SidePanel modals (FormField direct, Section direct, Document direct, CreateRecord, FormReference)
-- ✅ Simplified edit button handler - all node types now route through `setSelectedNode()` → `TabbedConfigPanel` → `DynamicConfigPanel`
-- ✅ Cleaned up selection reset handler (removed references to deleted state variables)
-- ✅ Verified Batch 3 Visual Polish already complete (edge markers, custom edge types, minimap all implemented)
+- ✅ Runtime Fixes: UnifiedFlowEditor tenantLists query no longer references deleted `formStepModalOpen`; ProcessMonitor routes fixed (remove redundant `/api/v1`).
+- ✅ Schema Validation Bug: schemaRegistry validation normalization avoids double-wrapping arrays.
+- ✅ Batch 2 (Migration): FormFieldConfigPanel migrated to standardized config panel shared components (`ConfigPanel/shared/*`) and now reads `tenantLists` / `availableFields` / `currentNodeId` via FlowEditorContext (no prop drilling).
 
 **Impact:**
-- ~150 lines removed from UnifiedFlowEditor.tsx (modal state + dead code)
-- Eliminated 6 unused state variables + their setters
-- Eliminated 5 modal components that were never triggered (modalOpen states always false)
-- All configuration now flows through schema-driven DynamicConfigPanel (51 node types)
-- Zero breaking changes - existing panels continue to work for specialized use cases
+- Removes a production runtime crash path (stale modal state reference)
+- Eliminates incorrect API 404s caused by double-prefixing routes
+- Standardizes nested field editor UI patterns and reduces wiring complexity
 
 **Remaining Work:**
-- FormFieldConfigPanel: Still used for nested field editing within FormStep (926 lines, uses custom styled components)
-- FormStepConfigPanel: Still used for FormStep configuration (1,129 lines, already uses shared components)
-- DocumentConfigPanel: Still used for document config (705 lines, already uses shared components)
-
-**Next Steps (Optional Panel Migration - Batch 2):**
-- Migrate FormFieldConfigPanel to use shared/StyledComponents (projected -35% lines)
-- This is lower priority since the primary goal (removing dead modals, routing through DynamicConfigPanel) is complete
+- FormStepConfigPanel: Still used for FormStep configuration (already uses shared components)
+- DocumentConfigPanel: Still used for document config (already uses shared components)
 
 **Todo Status:**
-- ✅ Batch 1 (Cleanup): 3/3 complete
-- ✅ Batch 3 (Visual): 3/3 complete (already implemented)
-- ⏸️ Batch 2 (Migration): 3/3 pending (optional - lower priority)
+- ✅ Batch 1 (Cleanup): COMPLETE
+- ✅ Batch 2 (Panel Migration): COMPLETE (PR #3584)
+- ✅ Runtime Fixes: COMPLETE (PR #3584)

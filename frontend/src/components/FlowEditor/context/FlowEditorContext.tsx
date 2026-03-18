@@ -65,23 +65,23 @@ export interface FlowEditorContextValue {
   // Selected elements
   selectedNode: Node | null;
   selectedEdge: Edge | null;
-  
+
   // Actions for selection
   selectNode: (node: Node | null) => void;
   selectEdge: (edge: Edge | null) => void;
   clearSelection: () => void;
-  
+
   // Editor mode
   mode: EditorMode;
   setMode: (mode: EditorMode) => void;
-  
+
   // Modal management
   modals: Record<ModalType, ModalState>;
   openModal: (type: ModalType, node?: Node) => void;
   closeModal: (type: ModalType) => void;
   closeAllModals: () => void;
   isModalOpen: (type: ModalType) => boolean;
-  
+
   // UI settings
   ui: UISettings;
   togglePalette: () => void;
@@ -90,14 +90,19 @@ export interface FlowEditorContextValue {
   toggleFullscreen: () => void;
   setSnapToGrid: (snap: boolean) => void;
   setGridSize: (size: number) => void;
-  
+
   // History
   canUndo: boolean;
   canRedo: boolean;
-  
+
   // Unsaved changes
   hasUnsavedChanges: boolean;
   setHasUnsavedChanges: (value: boolean) => void;
+
+  // Config panel context (Phase E.1): eliminate prop drilling for panel-specific data
+  tenantLists: Array<{ id: string; name: string }>;
+  availableFields: Array<{ key: string; label: string; type: string }>;
+  currentNodeId: string | null;
 }
 
 // ============================================================================
@@ -115,6 +120,11 @@ export interface FlowEditorProviderProps {
   initialMode?: EditorMode;
   onModeChange?: (mode: EditorMode) => void;
   onSelectionChange?: (node: Node | null, edge: Edge | null) => void;
+
+  // Config panel context
+  tenantLists?: Array<{ id: string; name: string }>;
+  availableFields?: Array<{ key: string; label: string; type: string }>;
+  currentNodeId?: string | null;
 }
 
 // ============================================================================
@@ -126,6 +136,9 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
   initialMode = 'visual',
   onModeChange,
   onSelectionChange,
+  tenantLists = [],
+  availableFields = [],
+  currentNodeId = null,
 }) => {
   // ---------------------------------------------------------------------------
   // SELECTION STATE
@@ -285,18 +298,18 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
     selectNode,
     selectEdge,
     clearSelection,
-    
+
     // Mode
     mode,
     setMode,
-    
+
     // Modals
     modals,
     openModal,
     closeModal,
     closeAllModals,
     isModalOpen,
-    
+
     // UI
     ui,
     togglePalette,
@@ -305,14 +318,19 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
     toggleFullscreen,
     setSnapToGrid,
     setGridSize,
-    
+
     // History
     canUndo,
     canRedo,
-    
+
     // Unsaved changes
     hasUnsavedChanges,
     setHasUnsavedChanges,
+
+    // Config panel context
+    tenantLists,
+    availableFields,
+    currentNodeId,
   };
   
   return (
