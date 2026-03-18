@@ -182,3 +182,11 @@ Execution rules:
   - Solution: Wrapped all schemaRegistry initialization calls in setTimeout(..., 0) to defer to next macro-task
   - Affected file: frontend/src/components/FlowEditor/config/nodeConfigSchemas.ts (lines 1013-1021, 4171-4173)
   - Impact: Guarantees all ES modules fully link before schema registration executes
+
+- 2026-03-18 — Fix trigger/action node visibility conditions — Commit: [merged] (PR: #3570)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3570
+  - Standardized 28 visibility condition properties (visibilityCondition, showIf → conditional)
+  - Added checkIsVisible helper to DynamicConfigPanel for robust condition evaluation
+  - Supports functional conditions with error handling
+  - Fixes issue where trigger nodes showed all options simultaneously
+  - Impact: Trigger nodes now properly show/hide sections based on selected type (webhook/schedule/event)
