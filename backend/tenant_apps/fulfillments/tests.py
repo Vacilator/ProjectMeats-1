@@ -192,3 +192,81 @@ class FulfillmentModelTest(TestCase):
         
         self.assertEqual(fulfillment.carrier, self.carrier)
         self.assertIn(fulfillment, self.carrier.fulfillments.all())
+
+
+class FulfillmentRLSMigrationTest(TestCase):
+    """Tests that verify RLS migration SQL is correctly defined for Fulfillment."""
+
+    def test_rls_migration_exists(self):
+        """Verify the RLS migration file exists for fulfillments."""
+        import os
+        migration_path = os.path.join(
+            os.path.dirname(__file__),
+            'migrations',
+            '0003_add_rls_policies_batch.py',
+        )
+        self.assertTrue(
+            os.path.exists(migration_path),
+            "RLS migration file 0003_add_rls_policies_batch.py must exist for fulfillments",
+        )
+
+    def test_rls_migration_contains_enable_rls(self):
+        """Verify the RLS migration SQL enables row-level security."""
+        import os
+        migration_path = os.path.join(
+            os.path.dirname(__file__),
+            'migrations',
+            '0003_add_rls_policies_batch.py',
+        )
+        with open(migration_path) as f:
+            content = f.read()
+        self.assertIn('ENABLE ROW LEVEL SECURITY', content)
+        self.assertIn('fulfillments_fulfillment', content)
+
+    def test_rls_migration_contains_isolation_policy(self):
+        """Verify the RLS migration SQL creates tenant isolation policy."""
+        import os
+        migration_path = os.path.join(
+            os.path.dirname(__file__),
+            'migrations',
+            '0003_add_rls_policies_batch.py',
+        )
+        with open(migration_path) as f:
+            content = f.read()
+        self.assertIn('fulfillment_tenant_isolation', content)
+        self.assertIn("app.current_tenant", content)
+        self.assertIn('tenant_id', content)
+
+    def test_rls_migration_has_insert_policy(self):
+        """Verify the RLS migration SQL creates an INSERT policy."""
+        import os
+        migration_path = os.path.join(
+            os.path.dirname(__file__),
+            'migrations',
+            '0003_add_rls_policies_batch.py',
+        )
+        with open(migration_path) as f:
+            content = f.read()
+        self.assertIn('fulfillment_tenant_insert', content)
+        self.assertIn('FOR INSERT', content)
+        self.assertIn('WITH CHECK', content)
+
+    def test_rls_migration_has_reverse_sql(self):
+        """Verify the RLS migration includes reverse SQL for rollback."""
+        import os
+        migration_path = os.path.join(
+            os.path.dirname(__file__),
+            'migrations',
+            '0003_add_rls_policies_batch.py',
+        )
+        with open(migration_path) as f:
+            content = f.read()
+        self.assertIn('DISABLE ROW LEVEL SECURITY', content)
+        self.assertIn('DROP POLICY IF EXISTS', content)
+
+    def test_fulfillment_model_has_tenant_fk(self):
+        """Verify Fulfillment model has a tenant ForeignKey."""
+        from django.db import models
+        tenant_field = Fulfillment._meta.get_field('tenant')
+        self.assertIsInstance(tenant_field, models.ForeignKey)
+        self.assertEqual(tenant_field.related_model.__name__, 'Tenant')

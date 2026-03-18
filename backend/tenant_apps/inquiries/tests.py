@@ -307,3 +307,76 @@ class InquiryTemplateModelTest(TestCase):
         self.assertEqual(tenant2_templates.count(), 1)
         self.assertIn(t1, tenant1_templates)
         self.assertNotIn(t2, tenant1_templates)
+
+
+class InquiryRLSMigrationTest(TestCase):
+    """Tests that verify RLS migration SQL is correctly defined for Inquiry and InquiryTemplate."""
+
+    def _get_migration_content(self):
+        import os
+        migration_path = os.path.join(
+            os.path.dirname(__file__),
+            'migrations',
+            '0004_add_rls_policies_batch.py',
+        )
+        with open(migration_path) as f:
+            return f.read()
+
+    def test_rls_migration_exists(self):
+        """Verify the RLS migration file exists for inquiries."""
+        import os
+        migration_path = os.path.join(
+            os.path.dirname(__file__),
+            'migrations',
+            '0004_add_rls_policies_batch.py',
+        )
+        self.assertTrue(
+            os.path.exists(migration_path),
+            "RLS migration file 0004_add_rls_policies_batch.py must exist for inquiries",
+        )
+
+    def test_rls_migration_enables_rls_on_inquiry(self):
+        """Verify the RLS migration enables row-level security on inquiries_inquiry."""
+        content = self._get_migration_content()
+        self.assertIn('ENABLE ROW LEVEL SECURITY', content)
+        self.assertIn('inquiries_inquiry', content)
+
+    def test_rls_migration_enables_rls_on_inquirytemplate(self):
+        """Verify the RLS migration enables row-level security on inquiries_inquirytemplate."""
+        content = self._get_migration_content()
+        self.assertIn('inquiries_inquirytemplate', content)
+        self.assertIn('inquirytemplate_tenant_isolation', content)
+
+    def test_rls_migration_uses_app_current_tenant(self):
+        """Verify the RLS migration uses the app.current_tenant session variable."""
+        content = self._get_migration_content()
+        self.assertIn("app.current_tenant", content)
+        self.assertIn('tenant_id', content)
+
+    def test_rls_migration_has_insert_policies(self):
+        """Verify the RLS migration creates INSERT policies for both models."""
+        content = self._get_migration_content()
+        self.assertIn('inquiry_tenant_insert', content)
+        self.assertIn('inquirytemplate_tenant_insert', content)
+        self.assertIn('FOR INSERT', content)
+        self.assertIn('WITH CHECK', content)
+
+    def test_rls_migration_has_reverse_sql(self):
+        """Verify the RLS migration includes reverse SQL for rollback."""
+        content = self._get_migration_content()
+        self.assertIn('DISABLE ROW LEVEL SECURITY', content)
+        self.assertIn('DROP POLICY IF EXISTS', content)
+
+    def test_inquiry_model_has_tenant_fk(self):
+        """Verify Inquiry model has a tenant ForeignKey."""
+        from django.db import models
+        tenant_field = Inquiry._meta.get_field('tenant')
+        self.assertIsInstance(tenant_field, models.ForeignKey)
+        self.assertEqual(tenant_field.related_model.__name__, 'Tenant')
+
+    def test_inquirytemplate_model_has_tenant_fk(self):
+        """Verify InquiryTemplate model has a tenant ForeignKey."""
+        from django.db import models
+        tenant_field = InquiryTemplate._meta.get_field('tenant')
+        self.assertIsInstance(tenant_field, models.ForeignKey)
+        self.assertEqual(tenant_field.related_model.__name__, 'Tenant')
