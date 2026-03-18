@@ -1,61 +1,58 @@
 /**
  * Process Monitoring Page - "Punch-In" View
- * 
+ *
  * Real-time dashboard for monitoring active workflow executions.
  * Users can "punch in" to see exactly where a process is stuck and why.
- * 
+ *
  * Features:
- * - Table view of active FormSubmissions
- * - Click to open read-only UnifiedFlowEditor
- * - Highlight current node in workflow
+ * - Table view of active FormSubmissions (via process-monitor endpoint)
  * - Side panel with "Who, When, Why" execution details
- * - Real-time status updates
- * - Filter by workflow type and status
- * 
- * Created: 2026-03-18
+ * - Overdue / SLA indicators
+ * - Real-time auto-refresh every 10 seconds
+ * - Filter by status, search by name / user
+ *
  * Phase: 7 - WorkForms Strategic Overhaul
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import {
-  Play, Clock, AlertCircle, CheckCircle, XCircle,
-  RefreshCw, Filter, Search, Eye, User, Calendar
+  Clock, AlertCircle, CheckCircle, XCircle,
+  RefreshCw, Search, Eye, User, Calendar, X, Timer, AlertTriangle,
 } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 
 // ============================================================================
-// TypeScript Interfaces
+// TypeScript Interfaces — matched to the /process-monitor/ API response
 // ============================================================================
 
-interface FormSubmission {
+interface ProcessMonitorRow {
   id: string;
-  form: {
-    id: string;
-    name: string;
-    workflow_definition: any;
-  };
+  form_id: string;
+  form_name: string | null;
   status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
-  current_step?: number;
-  total_steps?: number;
-  created_at: string;
-  updated_at: string;
-  created_by?: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  data?: Record<string, any>;
-}
-
-interface ExecutionDetails {
-  submission: FormSubmission;
-  currentNodeId?: string;
-  currentNodeType?: string;
-  currentNodeLabel?: string;
-  blockedReason?: string;
-  waitingFor?: string;
-  lastActivity?: string;
+  created_by: string | null;
+  created_by_name: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  current_step_id: string | null;
+  current_step_name: string | null;
+  current_step_order: number | null;
+  current_step_entity_type: string | null;
+  current_step_status: string | null;
+  current_step_updated_at: string | null;
+  assigned_to: {
+    assignment_type?: string;
+    assigned_user_id?: string;
+    assigned_user_name?: string;
+    assigned_role?: string;
+    due_days?: number;
+  } | null;
+  assigned_to_display: string | null;
+  due_days: number | null;
+  due_at: string | null;
+  is_overdue: boolean;
+  time_in_current_step_seconds: number | null;
 }
 
 // ============================================================================
@@ -304,130 +301,230 @@ const LoadingOverlay = styled.div`
   color: rgb(var(--color-text-tertiary));
 `;
 
+// ── Execution Detail Panel ────────────────────────────────────────────────────
+
+const DetailOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0 0 0 / 0.3);
+  z-index: 200;
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const DetailPanel = styled.div`
+  width: min(480px, 95vw);
+  height: 100%;
+  background: rgb(var(--color-surface));
+  box-shadow: -4px 0 24px rgba(0 0 0 / 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const DetailHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface-secondary));
+`;
+
+const DetailTitle = styled.h2`
+  font-size: 18px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const CloseButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+  border-radius: var(--radius-md, 8px);
+  flex-shrink: 0;
+  margin-left: 12px;
+
+  &:hover {
+    background: rgb(var(--color-surface-hover));
+    color: rgb(var(--color-text-primary));
+  }
+`;
+
+const DetailBody = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+const DetailSection = styled.div`
+  background: rgb(var(--color-surface-secondary));
+  border-radius: var(--radius-md, 8px);
+  padding: 16px;
+`;
+
+const DetailSectionTitle = styled.h3`
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+`;
+
+const DetailRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgb(var(--color-border));
+  font-size: 14px;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: rgb(var(--color-text-tertiary));
+  }
+`;
+
+const DetailKey = styled.span`
+  color: rgb(var(--color-text-secondary));
+  min-width: 130px;
+  font-weight: 500;
+`;
+
+const DetailValue = styled.span`
+  color: rgb(var(--color-text-primary));
+  flex: 1;
+  word-break: break-word;
+`;
+
+const OverdueBanner = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md, 8px);
+  color: rgb(239, 68, 68);
+  font-size: 14px;
+  font-weight: 500;
+`;
+
 // ============================================================================
 // Main Component
 // ============================================================================
 
 export const Monitoring: React.FC = () => {
-  const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
+  const [rows, setRows] = useState<ProcessMonitorRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedSubmission, setSelectedSubmission] = useState<ExecutionDetails | null>(null);
+  const [selectedRow, setSelectedRow] = useState<ProcessMonitorRow | null>(null);
 
   /**
-   * Fetch active form submissions
+   * Fetch process-monitor rows.
+   * Uses the enriched endpoint that includes current-step assignee, SLA, and
+   * elapsed time — exactly the data needed for the Punch-In side panel.
    */
-  const fetchSubmissions = useCallback(async (silent = false) => {
+  const fetchRows = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     else setIsRefreshing(true);
 
     try {
-      const response = await businessApi.get('/workflows/form-submissions/', {
+      const response = await businessApi.get('/workflows/form-submissions/process-monitor/', {
         params: {
           status: statusFilter === 'all' ? undefined : statusFilter,
           ordering: '-updated_at',
         },
       });
 
-      setSubmissions(response.data.results || response.data || []);
+      const data = response.data;
+      setRows(data.results || data || []);
     } catch (error) {
-      console.error('[Monitoring] Failed to fetch submissions:', error);
+      console.error('[Monitoring] Failed to fetch process-monitor rows:', error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
   }, [statusFilter]);
 
-  /**
-   * Load submissions on mount and status filter change
-   */
+  /** Load on mount and whenever status filter changes */
   useEffect(() => {
-    fetchSubmissions();
-  }, [fetchSubmissions]);
+    fetchRows();
+  }, [fetchRows]);
 
-  /**
-   * Auto-refresh every 10 seconds
-   */
+  /** Auto-refresh every 10 seconds (silent) */
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchSubmissions(true); // Silent refresh
-    }, 10000);
-
+    const interval = setInterval(() => fetchRows(true), 10_000);
     return () => clearInterval(interval);
-  }, [fetchSubmissions]);
+  }, [fetchRows]);
 
-  /**
-   * Filter submissions by search query
-   */
-  const filteredSubmissions = useMemo(() => {
-    if (!searchQuery.trim()) return submissions;
-
-    const query = searchQuery.toLowerCase();
-    return submissions.filter(sub =>
-      sub.form.name.toLowerCase().includes(query) ||
-      sub.id.toLowerCase().includes(query) ||
-      sub.created_by?.name.toLowerCase().includes(query)
+  /** Filter rows by search query */
+  const filteredRows = useMemo(() => {
+    if (!searchQuery.trim()) return rows;
+    const q = searchQuery.toLowerCase();
+    return rows.filter(row =>
+      (row.form_name ?? '').toLowerCase().includes(q) ||
+      row.id.toLowerCase().includes(q) ||
+      (row.created_by_name ?? '').toLowerCase().includes(q) ||
+      (row.assigned_to_display ?? '').toLowerCase().includes(q),
     );
-  }, [submissions, searchQuery]);
+  }, [rows, searchQuery]);
 
-  /**
-   * Handle "Punch In" - Open execution details
-   */
-  const handlePunchIn = useCallback((submission: FormSubmission) => {
-    // Determine current node from workflow definition and submission data
-    const currentNodeId = submission.data?.current_node_id || 'unknown';
-    const currentNodeType = submission.data?.current_node_type || 'unknown';
-
-    setSelectedSubmission({
-      submission,
-      currentNodeId,
-      currentNodeType,
-      currentNodeLabel: submission.data?.current_node_label || 'Unknown Step',
-      blockedReason: submission.data?.blocked_reason,
-      waitingFor: submission.data?.waiting_for,
-      lastActivity: submission.updated_at,
-    });
-  }, []);
-
-  /**
-   * Format date for display
-   */
-  const formatDate = (dateString: string) => {
+  /** Format relative date */
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '—';
     const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-
+    const diffMins = Math.floor((Date.now() - date.getTime()) / 60000);
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
     return date.toLocaleDateString();
   };
 
-  /**
-   * Get status icon
-   */
+  /** Format seconds into a human-readable duration */
+  const formatDuration = (seconds: number | null): string => {
+    if (seconds === null || seconds < 0) return '—';
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+    return `${Math.floor(seconds / 86400)}d`;
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'in_progress':
-        return <Clock size={14} />;
-      case 'completed':
-        return <CheckCircle size={14} />;
-      case 'cancelled':
-        return <XCircle size={14} />;
-      default:
-        return <AlertCircle size={14} />;
+      case 'in_progress': return <Clock size={14} />;
+      case 'completed':   return <CheckCircle size={14} />;
+      case 'cancelled':   return <XCircle size={14} />;
+      default:            return <AlertCircle size={14} />;
     }
   };
 
-  /**
-   * Get status display name
-   */
-  const getStatusDisplay = (status: string) => {
-    return status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  };
+  const getStatusDisplay = (status: string) =>
+    status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
   return (
     <Container>
@@ -458,7 +555,7 @@ export const Monitoring: React.FC = () => {
           </FilterSelect>
         </ToolbarLeft>
 
-        <RefreshButton onClick={() => fetchSubmissions()} disabled={isRefreshing}>
+        <RefreshButton onClick={() => fetchRows()} disabled={isRefreshing}>
           <RefreshCw size={16} />
           {isRefreshing ? 'Refreshing...' : 'Refresh'}
         </RefreshButton>
@@ -469,7 +566,7 @@ export const Monitoring: React.FC = () => {
           <RefreshCw size={32} style={{ animation: 'spin 1s linear infinite' }} />
           <p>Loading active workflows...</p>
         </LoadingOverlay>
-      ) : filteredSubmissions.length === 0 ? (
+      ) : filteredRows.length === 0 ? (
         <EmptyState>
           <EmptyIcon>📊</EmptyIcon>
           <EmptyTitle>No Active Workflows</EmptyTitle>
@@ -485,32 +582,39 @@ export const Monitoring: React.FC = () => {
             <Tr>
               <Th>Workflow Name</Th>
               <Th>Status</Th>
-              <Th>Progress</Th>
-              <Th>Started By</Th>
+              <Th>Current Step</Th>
+              <Th>Assigned To</Th>
+              <Th>Time in Step</Th>
               <Th>Last Activity</Th>
               <Th>Actions</Th>
             </Tr>
           </Thead>
           <Tbody>
-            {filteredSubmissions.map((submission) => (
-              <Tr key={submission.id} clickable onClick={() => handlePunchIn(submission)}>
+            {filteredRows.map((row) => (
+              <Tr key={row.id} clickable onClick={() => setSelectedRow(row)}>
                 <Td>
-                  <strong>{submission.form.name}</strong>
+                  <strong>{row.form_name ?? 'Unknown Workflow'}</strong>
                   <div style={{ fontSize: '12px', color: 'rgb(var(--color-text-tertiary))', marginTop: '4px' }}>
-                    ID: {submission.id.slice(0, 8)}...
+                    ID: {row.id.slice(0, 8)}…
                   </div>
                 </Td>
                 <Td>
-                  <StatusBadge status={submission.status}>
-                    {getStatusIcon(submission.status)}
-                    {getStatusDisplay(submission.status)}
+                  <StatusBadge status={row.status}>
+                    {getStatusIcon(row.status)}
+                    {getStatusDisplay(row.status)}
                   </StatusBadge>
+                  {row.is_overdue && (
+                    <div style={{ marginTop: '4px' }}>
+                      <StatusBadge status="cancelled">
+                        <AlertTriangle size={12} />
+                        Overdue
+                      </StatusBadge>
+                    </div>
+                  )}
                 </Td>
                 <Td>
-                  {submission.current_step && submission.total_steps ? (
-                    <span>
-                      Step {submission.current_step} of {submission.total_steps}
-                    </span>
+                  {row.current_step_name ? (
+                    <span>{row.current_step_name}</span>
                   ) : (
                     <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
                   )}
@@ -518,17 +622,23 @@ export const Monitoring: React.FC = () => {
                 <Td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <User size={14} style={{ color: 'rgb(var(--color-text-tertiary))' }} />
-                    {submission.created_by?.name || 'Unknown'}
+                    {row.assigned_to_display ?? row.created_by_name ?? 'Unassigned'}
+                  </div>
+                </Td>
+                <Td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Timer size={14} style={{ color: 'rgb(var(--color-text-tertiary))' }} />
+                    {formatDuration(row.time_in_current_step_seconds)}
                   </div>
                 </Td>
                 <Td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Calendar size={14} style={{ color: 'rgb(var(--color-text-tertiary))' }} />
-                    {formatDate(submission.updated_at)}
+                    {formatDate(row.updated_at)}
                   </div>
                 </Td>
                 <Td onClick={(e) => e.stopPropagation()}>
-                  <ActionButton onClick={() => handlePunchIn(submission)}>
+                  <ActionButton onClick={() => setSelectedRow(row)}>
                     <Eye size={14} />
                     Punch In
                   </ActionButton>
@@ -539,17 +649,140 @@ export const Monitoring: React.FC = () => {
         </Table>
       )}
 
-      {/* TODO: Add modal/side panel for execution details */}
-      {selectedSubmission && (
-        <div style={{ marginTop: '24px', padding: '16px', background: 'rgb(var(--color-surface))', borderRadius: '8px' }}>
-          <h3>Selected: {selectedSubmission.submission.form.name}</h3>
-          <p>Current Node: {selectedSubmission.currentNodeLabel}</p>
-          <p>Status: {selectedSubmission.submission.status}</p>
-          <p>Last Activity: {formatDate(selectedSubmission.lastActivity || '')}</p>
-          <p style={{ fontSize: '12px', color: 'rgb(var(--color-text-tertiary))' }}>
-            (Full UnifiedFlowEditor integration coming in next iteration)
-          </p>
-        </div>
+      {/* Execution Detail Side Panel */}
+      {selectedRow && (
+        <DetailOverlay onClick={() => setSelectedRow(null)}>
+          <DetailPanel onClick={(e) => e.stopPropagation()}>
+            <DetailHeader>
+              <DetailTitle title={selectedRow.form_name ?? 'Workflow Details'}>
+                {selectedRow.form_name ?? 'Workflow Details'}
+              </DetailTitle>
+              <CloseButton onClick={() => setSelectedRow(null)} aria-label="Close panel">
+                <X size={18} />
+              </CloseButton>
+            </DetailHeader>
+
+            <DetailBody>
+              {/* Overdue warning */}
+              {selectedRow.is_overdue && (
+                <OverdueBanner>
+                  <AlertTriangle size={16} />
+                  This workflow step is overdue and requires immediate attention.
+                </OverdueBanner>
+              )}
+
+              {/* Status */}
+              <DetailSection>
+                <DetailSectionTitle>Workflow Status</DetailSectionTitle>
+                <DetailRow>
+                  <StatusBadge status={selectedRow.status}>
+                    {getStatusIcon(selectedRow.status)}
+                    {getStatusDisplay(selectedRow.status)}
+                  </StatusBadge>
+                </DetailRow>
+              </DetailSection>
+
+              {/* Current Step */}
+              <DetailSection>
+                <DetailSectionTitle>Current Step</DetailSectionTitle>
+                <DetailRow>
+                  <DetailKey>Step Name</DetailKey>
+                  <DetailValue>{selectedRow.current_step_name ?? '—'}</DetailValue>
+                </DetailRow>
+                {selectedRow.current_step_order !== null && (
+                  <DetailRow>
+                    <DetailKey>Step Order</DetailKey>
+                    <DetailValue>#{selectedRow.current_step_order}</DetailValue>
+                  </DetailRow>
+                )}
+                {selectedRow.current_step_entity_type && (
+                  <DetailRow>
+                    <DetailKey>Entity Type</DetailKey>
+                    <DetailValue>{selectedRow.current_step_entity_type}</DetailValue>
+                  </DetailRow>
+                )}
+                {selectedRow.current_step_status && (
+                  <DetailRow>
+                    <DetailKey>Step Status</DetailKey>
+                    <DetailValue>{getStatusDisplay(selectedRow.current_step_status)}</DetailValue>
+                  </DetailRow>
+                )}
+                <DetailRow>
+                  <Timer size={14} />
+                  <DetailKey>Time in Step</DetailKey>
+                  <DetailValue>{formatDuration(selectedRow.time_in_current_step_seconds)}</DetailValue>
+                </DetailRow>
+              </DetailSection>
+
+              {/* Assignment */}
+              <DetailSection>
+                <DetailSectionTitle>Assigned To</DetailSectionTitle>
+                <DetailRow>
+                  <User size={14} />
+                  <DetailKey>Assignee</DetailKey>
+                  <DetailValue>{selectedRow.assigned_to_display ?? 'Unassigned'}</DetailValue>
+                </DetailRow>
+                {selectedRow.assigned_to?.assignment_type && (
+                  <DetailRow>
+                    <DetailKey>Assignment Type</DetailKey>
+                    <DetailValue>{selectedRow.assigned_to.assignment_type}</DetailValue>
+                  </DetailRow>
+                )}
+                {selectedRow.due_days !== null && (
+                  <DetailRow>
+                    <DetailKey>SLA (days)</DetailKey>
+                    <DetailValue>{selectedRow.due_days} day{selectedRow.due_days === 1 ? '' : 's'}</DetailValue>
+                  </DetailRow>
+                )}
+                {selectedRow.due_at && (
+                  <DetailRow>
+                    <AlertCircle size={14} />
+                    <DetailKey>Due At</DetailKey>
+                    <DetailValue style={{ color: selectedRow.is_overdue ? 'rgb(239, 68, 68)' : undefined }}>
+                      {new Date(selectedRow.due_at).toLocaleString()}
+                    </DetailValue>
+                  </DetailRow>
+                )}
+              </DetailSection>
+
+              {/* History */}
+              <DetailSection>
+                <DetailSectionTitle>Timeline</DetailSectionTitle>
+                <DetailRow>
+                  <Calendar size={14} />
+                  <DetailKey>Started By</DetailKey>
+                  <DetailValue>{selectedRow.created_by_name ?? '—'}</DetailValue>
+                </DetailRow>
+                <DetailRow>
+                  <Calendar size={14} />
+                  <DetailKey>Created At</DetailKey>
+                  <DetailValue>{selectedRow.created_at ? new Date(selectedRow.created_at).toLocaleString() : '—'}</DetailValue>
+                </DetailRow>
+                <DetailRow>
+                  <Calendar size={14} />
+                  <DetailKey>Last Activity</DetailKey>
+                  <DetailValue>{formatDate(selectedRow.updated_at)}</DetailValue>
+                </DetailRow>
+                {selectedRow.current_step_updated_at && (
+                  <DetailRow>
+                    <Calendar size={14} />
+                    <DetailKey>Step Updated</DetailKey>
+                    <DetailValue>{formatDate(selectedRow.current_step_updated_at)}</DetailValue>
+                  </DetailRow>
+                )}
+              </DetailSection>
+
+              {/* Submission ID */}
+              <DetailSection>
+                <DetailSectionTitle>Reference</DetailSectionTitle>
+                <DetailRow>
+                  <DetailKey>Submission ID</DetailKey>
+                  <DetailValue style={{ fontSize: '12px', fontFamily: 'monospace' }}>{selectedRow.id}</DetailValue>
+                </DetailRow>
+              </DetailSection>
+            </DetailBody>
+          </DetailPanel>
+        </DetailOverlay>
       )}
     </Container>
   );

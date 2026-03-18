@@ -3252,9 +3252,14 @@ class ActionItemsAPIView(APIView):
 
             # Find submissions that have this user's assigned steps in action_needed status
             for assignment in assignments:
-                # Find step submissions in action_needed status
+                # Find step submissions in action_needed status.
+                # Both tenant= and submission__tenant= are set intentionally:
+                # - tenant= enforces RLS at the FormStepSubmission level (defense in depth)
+                # - submission__tenant= guards the parent FormSubmission
+                # See manifests/RLS_POLICIES.md for the PostgreSQL policy pattern.
                 step_submissions = FormStepSubmission.objects.filter(
                     step=assignment.step,
+                    tenant=tenant,
                     status=StepSubmissionStatus.ACTION_NEEDED,
                     submission__status="in_progress",
                     submission__tenant=tenant,
@@ -3284,6 +3289,12 @@ class ActionItemsAPIView(APIView):
                             "assigned_at": step_sub.created_at,
                             "entity_type": assignment.step.entity_type,
                             "entity_id": step_sub.id,
+                            # PO value fields: null by default; populated in a future iteration
+                            # once FormSubmission gains a FK to a PurchaseOrder entity.
+                            # The frontend ActionItem interface already accepts these as optional.
+                            # TODO: Populate from submission.data or a linked PO entity when available.
+                            "related_po_value": None,
+                            "related_po_currency": None,
                         }
                     )
 
@@ -3364,11 +3375,13 @@ class ActionItemCountsAPIView(APIView):
             ).select_related("form", "step")
 
             for assignment in assignments:
+                # Both tenant= and submission__tenant= are set intentionally for defense-in-depth RLS.
                 step_submissions = FormStepSubmission.objects.filter(
-                    step=assignment.step, 
-                    status=StepSubmissionStatus.ACTION_NEEDED, 
+                    step=assignment.step,
+                    tenant=tenant,
+                    status=StepSubmissionStatus.ACTION_NEEDED,
                     submission__status="in_progress",
-                    submission__tenant=tenant  # EXPLICIT tenant filter
+                    submission__tenant=tenant,  # EXPLICIT tenant filter
                 )
 
                 for step_sub in step_submissions:
