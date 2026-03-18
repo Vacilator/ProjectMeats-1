@@ -175,3 +175,10 @@ Execution rules:
 - New branch per PR → PR → merge to `development`.
 - No direct axios usage in frontend; BusinessApi/workformsApi only.
 - Maintain PostgreSQL RLS parity and tenant isolation in all backend changes.
+
+- 2026-03-18 — CRITICAL HOTFIX: WSOD Resolution (schemaRegistry TDZ) — Commit: [pending]
+  - Fixed "schemaRegistry is not defined" White Screen of Death on dev environment
+  - Root cause: Vite/Rollup ES Module evaluation order caused Temporal Dead Zone
+  - Solution: Wrapped all schemaRegistry initialization calls in setTimeout(..., 0) to defer to next macro-task
+  - Affected file: frontend/src/components/FlowEditor/config/nodeConfigSchemas.ts (lines 1013-1021, 4171-4173)
+  - Impact: Guarantees all ES modules fully link before schema registration executes
