@@ -35,6 +35,7 @@ urlpatterns = [
     # API v1 endpoints
     path("api/v1/system/", include("apps.system.urls")),  # NEW: Centralized config system (v2.0 Wave 1)
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
+    path("api/v1/integrations/", include("apps.integrations.urls")),  # OAuth + email providers (ExternalAuthProvider)
     path("api/v1/workflows/email/", include("apps.email_integration.urls")),  # Email integration & webhooks
     # NOTE: accounts_receivables DELETED in v2.0 Wave 1 (merged into invoices/accounting)
     path("api/v1/", include("tenant_apps.suppliers.urls")),
