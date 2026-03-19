@@ -3,14 +3,19 @@ OAuth integration views for external email providers.
 """
 import secrets
 from datetime import timedelta
-from django.utils import timezone
+from urllib.parse import quote
+
 from django.shortcuts import redirect
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from .microsoft.utils import get_microsoft_redirect_uri
 from .models import ExternalAuthProvider
 from .providers import MicrosoftGraphProvider
+from .providers.base import EmailProviderError, AuthenticationError
 
 
 @api_view(['GET'])
@@ -43,21 +48,42 @@ def get_auth_url(request):
     request.session[f'oauth_state_{provider_type}'] = state
     request.session[f'oauth_tenant_{provider_type}'] = request.tenant.id
     
-    # Build redirect URI
-    redirect_uri = request.build_absolute_uri(f'/api/integrations/oauth/callback/{provider_type}/')
-    
+    # Build redirect URI (must match callback path and include /api/v1 sub-path routing)
+    callback_path = f'/api/v1/integrations/oauth/callback/{provider_type}/'
+    redirect_uri = get_microsoft_redirect_uri(request, callback_path=callback_path)
+
     # Get provider instance
     if provider_type == 'microsoft':
-        provider = MicrosoftGraphProvider(request.tenant.id)
+        try:
+            provider = MicrosoftGraphProvider(request.tenant.id)
+        except EmailProviderError as e:
+            return Response(
+                {
+                    "error": str(e),
+                    "code": "provider_not_configured",
+                    "provider": provider_type,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
     else:
         return Response(
             {"error": "Provider not implemented yet"},
             status=status.HTTP_501_NOT_IMPLEMENTED
         )
-    
-    # Generate auth URL
-    auth_response = provider.get_auth_url(redirect_uri, state)
-    
+
+    try:
+        # Generate auth URL
+        auth_response = provider.get_auth_url(redirect_uri, state)
+    except AuthenticationError as e:
+        return Response(
+            {
+                "error": str(e),
+                "code": "oauth_init_failed",
+                "provider": provider_type,
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
     return Response({
         "auth_url": auth_response.auth_url,
         "provider": provider_type,
@@ -81,39 +107,43 @@ def oauth_callback(request, provider_type):
     error = request.GET.get('error')
     if error:
         error_description = request.GET.get('error_description', 'Unknown error')
-        return redirect(f'/settings/integrations?error={error}&description={error_description}')
+        return redirect(f'/settings?error={error}&description={error_description}')
     
     # Get authorization code
     code = request.GET.get('code')
     if not code:
-        return redirect('/settings/integrations?error=no_code')
+        return redirect('/settings?error=no_code')
     
     # Validate state for CSRF protection
     state = request.GET.get('state')
     expected_state = request.session.get(f'oauth_state_{provider_type}')
     
     if not state or state != expected_state:
-        return redirect('/settings/integrations?error=invalid_state')
+        return redirect('/settings?error=invalid_state')
     
     # Get tenant from session
     tenant_id = request.session.get(f'oauth_tenant_{provider_type}')
     if not tenant_id:
-        return redirect('/settings/integrations?error=no_tenant')
+        return redirect('/settings?error=no_tenant')
     
     try:
         from apps.tenants.models import Tenant
         tenant = Tenant.objects.get(id=tenant_id)
     except Tenant.DoesNotExist:
-        return redirect('/settings/integrations?error=tenant_not_found')
-    
+        return redirect('/settings?error=tenant_not_found')
+
     # Build redirect URI (must match the one used in get_auth_url)
-    redirect_uri = request.build_absolute_uri(f'/api/integrations/oauth/callback/{provider_type}/')
-    
+    callback_path = f'/api/v1/integrations/oauth/callback/{provider_type}/'
+    redirect_uri = get_microsoft_redirect_uri(request, callback_path=callback_path)
+
     # Get provider instance
     if provider_type == 'microsoft':
-        provider = MicrosoftGraphProvider(tenant.id)
+        try:
+            provider = MicrosoftGraphProvider(tenant.id)
+        except EmailProviderError as e:
+            return redirect(f"/settings?error=provider_not_configured&message={quote(str(e))}")
     else:
-        return redirect('/settings/integrations?error=provider_not_supported')
+        return redirect('/settings?error=provider_not_supported')
     
     try:
         # Exchange code for tokens
@@ -145,10 +175,12 @@ def oauth_callback(request, provider_type):
         request.session.pop(f'oauth_tenant_{provider_type}', None)
         
         # Redirect to success page
-        return redirect('/settings/integrations?success=connected')
-        
-    except Exception as e:
-        return redirect(f'/settings/integrations?error=exchange_failed&message={str(e)}')
+        return redirect('/settings?success=connected')
+
+    except (AuthenticationError, EmailProviderError) as e:
+        return redirect(f"/settings?error=exchange_failed&message={quote(str(e))}")
+    except Exception:
+        return redirect('/settings?error=exchange_failed')
 
 
 @api_view(['GET'])
