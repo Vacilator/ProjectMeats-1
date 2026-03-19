@@ -396,3 +396,5 @@ export const WorkFormsEditor: React.FC = () => {
   );
 };
 
+export default WorkFormsEditor;
+
