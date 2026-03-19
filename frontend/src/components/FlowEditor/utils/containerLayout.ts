@@ -83,11 +83,13 @@ export function calculateContainerLayout(
   }
   
   // Separate nodes by type
-  const formSteps = childNodes.filter(node => node.type === 'formStep' || node.type === 'formReference');
-  const otherNodes = childNodes.filter(node => 
-    node.type !== 'formStep' && 
-    node.type !== 'formReference' &&
-    node.type !== 'formMultiStepContainer' // Don't layout nested containers
+  // Pages (form nodes) should be laid out in a horizontal row; other child nodes remain free-positioned.
+  const isPageNodeType = (type?: string) =>
+    type === 'form' || type === 'formReference' || type === 'formStepSingle' || type === 'formStep';
+
+  const formSteps = childNodes.filter((node) => isPageNodeType(node.type));
+  const otherNodes = childNodes.filter(
+    (node) => !isPageNodeType(node.type) && node.type !== 'formMultiStepContainer' // Don't layout nested containers
   );
   
   logger.debug(`[Layout] Found \${formSteps.length} form steps, \${otherNodes.length} non-form child nodes`);
@@ -184,8 +186,11 @@ export function autoConnectSequentialSteps(
   const childNodes = allNodes.filter(node => node.parentId === containerId);
   
   // Get only form steps and sort by x-position (left-to-right)
+  const isPageNodeType = (type?: string) =>
+    type === 'form' || type === 'formReference' || type === 'formStepSingle' || type === 'formStep';
+
   const formSteps = childNodes
-    .filter(node => node.type === 'formStep' || node.type === 'formReference')
+    .filter((node) => isPageNodeType(node.type))
     .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
   
   logger.debug(`[AutoConnect] Found ${formSteps.length} form steps to connect`);

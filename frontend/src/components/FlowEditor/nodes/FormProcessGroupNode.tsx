@@ -27,9 +27,9 @@ import { logger } from '@/utils/logger';
 
 import styled from 'styled-components';
 import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
-import { BaseNode, BaseNodeData } from './BaseNode';
+import type { BaseNodeData } from './BaseNode';
 import { ChevronDown, ChevronRight, Plus, Settings, Save, Check } from 'lucide-react';
-import { autoLayoutChildren, calculateChildXPosition } from './FormProcessChildWrapper';
+import { calculateChildXPosition } from './FormProcessChildWrapper';
 import { saveFormProcessGroup } from '../../../services/tenantFormService';
 import toast from 'react-hot-toast';
 
@@ -64,6 +64,8 @@ export interface FormProcessGroupData extends BaseNodeData {
   isDropTarget?: boolean;
   /** Sequential execution order enabled (Phase 3) */
   sequentialExecution?: boolean;
+  /** Stable horizontal ordering for page nodes (computed, additive-only) */
+  pageOrder?: string[];
   /** Edit handler from UnifiedFlowEditor */
   onEdit?: () => void;
   /** Delete handler from UnifiedFlowEditor */
@@ -91,10 +93,12 @@ const spinAnimation = `
  * Adapts size based on expanded/collapsed state
  * Phase 3: Added drop zone indicator
  */
-const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; isDropTarget?: boolean }>`
+const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; pageCount: number; isDropTarget?: boolean }>`
   ${spinAnimation}
   
-  min-width: ${props => props.isExpanded ? `${Math.max(600, props.stepCount * 300 + 100)}px` : '280px'};
+  /* Expand horizontally based on the number of page nodes (form pages). */
+  min-width: ${(props) => (props.isExpanded ? `${Math.max(600, 140 + props.pageCount * 360)}px` : '280px')};
+  width: ${(props) => (props.isExpanded ? `${Math.max(600, 140 + props.pageCount * 360)}px` : '280px')};
   min-height: ${props => props.isExpanded ? '360px' : 'auto'};
   max-width: ${props => props.isExpanded ? 'none' : '320px'};
   
@@ -396,7 +400,6 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   // Local state for save operations
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Debug logging
   logger.debug('[FormProcessGroup] Rendered with ID:', id, 'Data:', data);
@@ -414,6 +417,12 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     return children;
   }, [allNodes, id]);
   
+  const isPageNodeType = (type?: string) =>
+    type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
+
+  const pageNodes = useMemo(() => childNodes.filter((n) => isPageNodeType(n.type)), [childNodes]);
+  const pageCount = pageNodes.length;
+
   const stepCount = childNodes.length;
   const containerName = data.containerName || 'Untitled Form Process';
   const containerDescription = data.containerDescription;
@@ -445,7 +454,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id === id) {
-          const expandedWidth = Math.max(600, stepCount * 300 + 100);
+          const expandedWidth = Math.max(600, 140 + pageCount * 360);
           const expandedHeight = 400;
 
           return {
@@ -477,7 +486,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
 
     // Force a re-measure so React Flow doesn't keep the previous expanded bounds.
     requestAnimationFrame(() => updateNodeInternals(id));
-  }, [id, isExpanded, setNodes, stepCount, updateNodeInternals]);
+  }, [id, isExpanded, setNodes, pageCount, updateNodeInternals]);
   
   /**
    * Save FormProcessGroup as TenantForm to backend
@@ -528,7 +537,6 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       );
       
       setLastSaved(new Date());
-      setHasUnsavedChanges(false);
 
       if (typeof data.onSave === 'function') {
         data.onSave();
@@ -550,147 +558,192 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   }, [id, isSaving, childNodes.length, allNodes, allEdges, setNodes, data]);
   
   /**
-   * Auto-layout children when they change
-   * Triggers vertical re-positioning when steps are added/removed/reordered
+   * Auto-layout pages (form nodes) horizontally.
+   * Non-form child nodes remain free-positioned inside the container.
    */
   useEffect(() => {
-    if (!isExpanded || childNodes.length === 0) return;
+    if (!isExpanded || pageNodes.length === 0) return;
 
-    // Apply auto-layout to children
-    const layoutedChildren = autoLayoutChildren(childNodes);
+    const existingOrder = Array.isArray(data.pageOrder) ? data.pageOrder : undefined;
+    const pageIdSet = new Set(pageNodes.map((n) => n.id));
+
+    const normalizedExisting = existingOrder ? existingOrder.filter((pid) => pageIdSet.has(pid)) : [];
+    const missing = pageNodes
+      .filter((n) => !normalizedExisting.includes(n.id))
+      .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0) || (a.position?.y || 0) - (b.position?.y || 0))
+      .map((n) => n.id);
+
+    const nextOrder = [...normalizedExisting, ...missing];
+
+    const PAGE_START_X = 30;
+    const PAGE_ROW_Y = 90;
+    const PAGE_SPACING_X = 360;
+
+    const desiredPositions = new Map(
+      nextOrder.map((pid, index) => [pid, { x: PAGE_START_X + index * PAGE_SPACING_X, y: PAGE_ROW_Y }])
+    );
+
+    const needsOrderUpdate = !existingOrder || JSON.stringify(existingOrder) !== JSON.stringify(nextOrder);
+    const needsPositionUpdate = pageNodes.some((n) => {
+      const desired = desiredPositions.get(n.id);
+      if (!desired) return false;
+      return n.position?.x !== desired.x || n.position?.y !== desired.y;
+    });
+
+    if (!needsOrderUpdate && !needsPositionUpdate) return;
 
     setNodes((nodes) =>
       nodes.map((node) => {
-        const layouted = layoutedChildren.find((child) => child.id === node.id);
-        if (layouted && node.parentId === id) {
+        if (node.id === id) {
+          const expandedWidth = Math.max(600, 140 + pageCount * 360);
           return {
             ...node,
-            position: layouted.position,
+            style: {
+              ...(node.style || {}),
+              width: expandedWidth,
+            },
+            data: needsOrderUpdate
+              ? {
+                  ...node.data,
+                  pageOrder: nextOrder,
+                }
+              : node.data,
           };
         }
+
+        const desired = desiredPositions.get(node.id);
+        if (desired && node.parentId === id) {
+          return {
+            ...node,
+            position: desired,
+          };
+        }
+
         return node;
       })
     );
 
-    // Ensure internals account for any layout-driven size changes.
     requestAnimationFrame(() => updateNodeInternals(id));
-  }, [childNodes.length, id, isExpanded, setNodes, updateNodeInternals]); // Only trigger on count/visibility change
-  
-  /**
-   * Auto-connect children in sequential order (Phase 3)
-   * Creates edges between consecutive child nodes based on Y position
-   * 
-   * FIX: Prevents infinite loop by memoizing edge IDs and only updating when needed
-   */
-  useEffect(() => {
-    if (!sequentialExecution || childNodes.length < 2) return;
-    
-    // Sort children by X position (left to right execution order)
-    const sortedChildren = [...childNodes].sort((a, b) => a.position.x - b.position.x);
-    
-    // Generate expected edge IDs for this configuration
-    const expectedEdgeIds = new Set<string>();
-    for (let i = 0; i < sortedChildren.length - 1; i++) {
-      const edgeId = `${sortedChildren[i].id}-to-${sortedChildren[i + 1].id}`;
-      expectedEdgeIds.add(edgeId);
-    }
-    
-    // Check current edges to see if update is needed (prevents infinite loop)
-    const childIds = new Set(sortedChildren.map(c => c.id));
-    const currentAutoEdges = allEdges.filter(edge => 
-      childIds.has(edge.source) && childIds.has(edge.target)
-    );
-    const currentEdgeIds = new Set(currentAutoEdges.map(e => e.id));
-    
-    // Only update if the edge configuration changed
-    const needsUpdate = 
-      expectedEdgeIds.size !== currentEdgeIds.size ||
-      [...expectedEdgeIds].some(id => !currentEdgeIds.has(id));
-    
-    if (!needsUpdate) {
-      logger.debug(`[FormProcessGroup] Auto-connect: edges already correct, skipping update`);
-      return;
-    }
-    
-    logger.debug(`[FormProcessGroup] Auto-connect: updating ${expectedEdgeIds.size} edges`);
-    
-    // Create edges between consecutive nodes
-    const newEdges: Edge[] = [];
-    for (let i = 0; i < sortedChildren.length - 1; i++) {
-      const sourceNode = sortedChildren[i];
-      const targetNode = sortedChildren[i + 1];
-      const edgeId = `${sourceNode.id}-to-${targetNode.id}`;
-      
-      newEdges.push({
-        id: edgeId,
-        source: sourceNode.id,
-        target: targetNode.id,
-        type: 'smoothstep',
-        animated: true,
-        style: { 
-          stroke: 'rgba(139, 92, 246, 0.6)',
-          strokeWidth: 2,
-        },
-        label: `Step ${i + 1} → ${i + 2}`,
-        labelStyle: {
-          fill: 'rgb(139, 92, 246)',
-          fontWeight: 600,
-          fontSize: 11,
-        },
-        labelBgStyle: {
-          fill: 'rgb(var(--color-surface))',
-        },
-      });
-    }
-    
-    if (newEdges.length > 0) {
-      setEdges((edges) => {
-        // Remove old auto-generated edges between these children
-        const filteredEdges = edges.filter(edge => {
-          const isAutoEdge = childIds.has(edge.source) && childIds.has(edge.target);
-          return !isAutoEdge;
-        });
-        return [...filteredEdges, ...newEdges];
-      });
-    }
   }, [
-    // CRITICAL: Only depend on node count and positions, NOT allEdges
-    // Depending on allEdges causes infinite loop: update edges → allEdges changes → useEffect runs → update edges...
-    childNodes.length,
-    sequentialExecution,
-    // Memoize child positions to detect actual changes
+    id,
+    isExpanded,
+    pageCount,
+    pageNodes.length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(childNodes.map(c => ({ id: c.id, x: c.position.x }))),
-    setEdges
+    JSON.stringify(pageNodes.map((n) => n.id).sort()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(data.pageOrder || []),
+    setNodes,
+    updateNodeInternals,
   ]);
   
   /**
-   * Add new step to this group
-   * Creates a formStepSingle node as child
+   * Auto-connect pages in sequential order.
+   * Only connects page nodes (form / legacy form types) and never deletes manual edges.
    */
-  const handleAddStep = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // Create new step node at calculated position
-    const newStepId = `step-${Date.now()}`;
-    const newStep: Node = {
-      id: newStepId,
-      type: 'formStepSingle',
-      position: { 
-        x: calculateChildXPosition(stepCount),
-        y: 80,
-      },
-      data: {
-        label: `Step ${stepCount + 1}`,
-        formFields: [],
-      },
-      parentId: id,
-      extent: 'parent' as const, // Constrain to parent bounds
-      draggable: true,
-    };
-    
-    setNodes((nodes) => [...nodes, newStep]);
-  }, [id, stepCount, setNodes]);
+  useEffect(() => {
+    if (!sequentialExecution || pageNodes.length < 2) return;
+
+    const existingOrder = Array.isArray(data.pageOrder) ? data.pageOrder : undefined;
+    const pageIdSet = new Set(pageNodes.map((n) => n.id));
+
+    const normalizedExisting = existingOrder ? existingOrder.filter((pid) => pageIdSet.has(pid)) : [];
+    const missing = pageNodes
+      .filter((n) => !normalizedExisting.includes(n.id))
+      .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0) || (a.position?.y || 0) - (b.position?.y || 0))
+      .map((n) => n.id);
+
+    const orderedPageIds = [...normalizedExisting, ...missing];
+
+    setEdges((prevEdges) => {
+      const isThisAutoEdge = (edge: Edge) =>
+        edge.data?.auto === true && edge.data?.containerId === id && edge.data?.kind === 'pageSequence';
+
+      const prevAutoEdges = prevEdges.filter(isThisAutoEdge);
+      const preservedEdges = prevEdges.filter((e) => !isThisAutoEdge(e));
+
+      const nextAutoEdges: Edge[] = [];
+      for (let i = 0; i < orderedPageIds.length - 1; i++) {
+        const sourceId = orderedPageIds[i];
+        const targetId = orderedPageIds[i + 1];
+
+        // Don’t auto-generate an edge if a manual edge already exists.
+        const manualExists = preservedEdges.some(
+          (e) => e.source === sourceId && e.target === targetId && e.data?.auto !== true
+        );
+        if (manualExists) continue;
+
+        nextAutoEdges.push({
+          id: `auto-page-${id}-${sourceId}-${targetId}`,
+          source: sourceId,
+          target: targetId,
+          type: 'smoothstep',
+          animated: true,
+          data: {
+            auto: true,
+            containerId: id,
+            kind: 'pageSequence',
+          },
+          style: {
+            stroke: 'rgba(139, 92, 246, 0.6)',
+            strokeWidth: 2,
+          },
+        });
+      }
+
+      const prevIds = new Set(prevAutoEdges.map((e) => e.id));
+      const nextIds = new Set(nextAutoEdges.map((e) => e.id));
+      const same = prevIds.size === nextIds.size && [...nextIds].every((x) => prevIds.has(x));
+
+      if (same) return prevEdges;
+
+      logger.debug(`[FormProcessGroup] Auto-connect: updating ${nextAutoEdges.length} page edges`);
+      return [...preservedEdges, ...nextAutoEdges];
+    });
+  }, [
+    id,
+    sequentialExecution,
+    pageNodes.length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(pageNodes.map((n) => ({ id: n.id, x: n.position?.x, y: n.position?.y }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(data.pageOrder || []),
+    setEdges,
+  ]);
+  
+  /**
+   * Add new page to this group.
+   * Creates a `form` node as a child; page nodes are laid out horizontally.
+   */
+  const handleAddStep = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+
+      const newPageIndex = pageCount;
+      const newPageId = `page-${Date.now()}`;
+
+      const newPage: Node = {
+        id: newPageId,
+        type: 'form',
+        position: {
+          x: calculateChildXPosition(newPageIndex),
+          y: 90,
+        },
+        data: {
+          stepTitle: `Page ${newPageIndex + 1}`,
+          label: `Page ${newPageIndex + 1}`,
+          fields: [],
+        },
+        parentId: id,
+        extent: 'parent' as const,
+        expandParent: true,
+        draggable: true,
+      };
+
+      setNodes((nodes) => [...nodes, newPage]);
+    },
+    [id, pageCount, setNodes]
+  );
   
   /**
    * Open configuration panel
@@ -712,6 +765,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     <GroupContainer 
       isExpanded={isExpanded} 
       stepCount={stepCount}
+      pageCount={pageCount}
       isDropTarget={isDropTarget}
       data-node-id={id}
       data-node-type="formProcessGroup"

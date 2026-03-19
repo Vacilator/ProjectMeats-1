@@ -5,9 +5,9 @@
  * This intentionally does NOT rely on BaseNode so we can fully customize the UI.
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import styled from 'styled-components';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react';
 
 type PreviewField = {
   id: string;
@@ -100,6 +100,97 @@ const FieldPreview = styled.div`
   gap: 6px;
 `;
 
+const InlineEditor = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const EditorHint = styled.div`
+  font-size: 11px;
+  color: rgb(var(--color-text-tertiary));
+  text-align: center;
+`;
+
+const EditorRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 90px 26px auto;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  background: rgb(var(--color-background));
+`;
+
+const SmallInput = styled.input`
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const SmallSelect = styled.select`
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+  }
+`;
+
+const IconBtn = styled.button`
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-secondary));
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-text-primary));
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const AddFieldBtn = styled.button`
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px dashed rgb(var(--color-border));
+  background: transparent;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
+    background: rgba(var(--color-primary), 0.06);
+  }
+`;
+
 const FieldStub = styled.div`
   display: grid;
   grid-template-columns: 1fr;
@@ -161,6 +252,8 @@ const StyledHandle = styled(Handle)<{ $role: 'in' | 'out' }>`
 `;
 
 export const FormNode: React.FC<NodeProps<FormNodeData>> = React.memo(({ id, data, selected }) => {
+  const { setNodes } = useReactFlow();
+
   const fields = (data?.fields as PreviewField[] | undefined) ?? [];
   const title =
     (data?.stepTitle as string | undefined) ||
@@ -168,8 +261,69 @@ export const FormNode: React.FC<NodeProps<FormNodeData>> = React.memo(({ id, dat
     'Form';
 
   const entityType = (data?.entityType as string | undefined) || '';
-
   const preview = fields.slice(0, 4);
+  const showInSituEditor = Boolean(selected);
+
+  const mutateFields = useCallback(
+    (mutator: (prev: PreviewField[]) => PreviewField[]) => {
+      setNodes((nodes) =>
+        nodes.map((n) => {
+          if (n.id !== id) return n;
+          const prevFields = ((n.data as any)?.fields as PreviewField[] | undefined) ?? [];
+          const nextFields = mutator([...prevFields]);
+          return {
+            ...n,
+            data: {
+              ...(n.data as any),
+              fields: nextFields,
+            },
+          };
+        })
+      );
+    },
+    [id, setNodes]
+  );
+
+  const handleAddField = useCallback(() => {
+    mutateFields((prev) => [
+      ...prev,
+      {
+        id: `field-${Date.now()}`,
+        label: `Field ${prev.length + 1}`,
+        type: 'text',
+        required: false,
+      },
+    ]);
+  }, [mutateFields]);
+
+  const handleRemoveField = useCallback(
+    (fieldId: string) => {
+      mutateFields((prev) => prev.filter((f) => f.id !== fieldId));
+    },
+    [mutateFields]
+  );
+
+  const handleMoveField = useCallback(
+    (fieldId: string, dir: -1 | 1) => {
+      mutateFields((prev) => {
+        const idx = prev.findIndex((f) => f.id === fieldId);
+        if (idx === -1) return prev;
+        const nextIdx = idx + dir;
+        if (nextIdx < 0 || nextIdx >= prev.length) return prev;
+        const next = [...prev];
+        [next[idx], next[nextIdx]] = [next[nextIdx], next[idx]];
+        return next;
+      });
+    },
+    [mutateFields]
+  );
+
+  const handleUpdateField = useCallback(
+    (fieldId: string, patch: Partial<PreviewField>) => {
+      mutateFields((prev) => prev.map((f) => (f.id === fieldId ? { ...f, ...patch } : f)));
+    },
+    [mutateFields]
+  );
 
   return (
     <Page $selected={Boolean(selected)} role="article" aria-label={`Form node: ${title}`} aria-selected={selected}>
@@ -186,7 +340,75 @@ export const FormNode: React.FC<NodeProps<FormNodeData>> = React.memo(({ id, dat
       </Header>
 
       <Body className="nodrag">
-        {preview.length === 0 ? (
+        {showInSituEditor ? (
+          <InlineEditor aria-label="In-situ form field editor">
+            {fields.length === 0 ? (
+              <Empty>Add fields directly on the canvas</Empty>
+            ) : null}
+
+            {fields.map((f, idx) => (
+              <EditorRow key={f.id} onMouseDown={(e) => e.stopPropagation()}>
+                <SmallInput
+                  value={f.label || ''}
+                  placeholder="Field label"
+                  onChange={(e) => handleUpdateField(f.id, { label: e.target.value })}
+                />
+
+                <SmallSelect
+                  value={f.type || 'text'}
+                  onChange={(e) => handleUpdateField(f.id, { type: e.target.value })}
+                >
+                  <option value="text">Text</option>
+                  <option value="textarea">Textarea</option>
+                  <option value="number">Number</option>
+                  <option value="email">Email</option>
+                  <option value="phone">Phone</option>
+                  <option value="url">URL</option>
+                  <option value="date">Date</option>
+                  <option value="datetime">DateTime</option>
+                  <option value="select">Select</option>
+                  <option value="radio">Radio</option>
+                  <option value="checkbox">Checkbox</option>
+                  <option value="file">File</option>
+                </SmallSelect>
+
+                <input
+                  type="checkbox"
+                  checked={Boolean(f.required)}
+                  onChange={(e) => handleUpdateField(f.id, { required: e.target.checked })}
+                  aria-label={`Required: ${f.label || f.id}`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                />
+
+                <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                  <IconBtn
+                    onClick={() => handleMoveField(f.id, -1)}
+                    disabled={idx === 0}
+                    aria-label="Move field up"
+                  >
+                    ↑
+                  </IconBtn>
+                  <IconBtn
+                    onClick={() => handleMoveField(f.id, 1)}
+                    disabled={idx === fields.length - 1}
+                    aria-label="Move field down"
+                  >
+                    ↓
+                  </IconBtn>
+                  <IconBtn onClick={() => handleRemoveField(f.id)} aria-label="Delete field">
+                    ✕
+                  </IconBtn>
+                </div>
+              </EditorRow>
+            ))}
+
+            <AddFieldBtn onClick={handleAddField} onMouseDown={(e) => e.stopPropagation()}>
+              + Add field
+            </AddFieldBtn>
+
+            <EditorHint>Advanced options are available in the side panel</EditorHint>
+          </InlineEditor>
+        ) : preview.length === 0 ? (
           <Empty>Click “Fields” in the config panel to add fields</Empty>
         ) : (
           <FieldPreview>
