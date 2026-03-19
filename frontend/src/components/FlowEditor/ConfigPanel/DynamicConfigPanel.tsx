@@ -412,6 +412,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       
       case 'select':
       case 'multiselect':
+      case 'multiSelect': // FIX: Added exact match for schema
         renderedField = renderSelectField(commonProps);
         break;
       
@@ -420,6 +421,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         break;
       
       // Phase E: Dynamic entity type select (replaces old entity-selector usage)
+      case 'entityType': // FIX: Added entityType field
       case 'entity-selector':
         // Use simple select dropdown for entity TYPE selection
         renderedField = renderEntityTypeSelect(commonProps);
