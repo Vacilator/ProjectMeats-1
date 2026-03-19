@@ -29,7 +29,7 @@ import styled from 'styled-components';
 import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { ChevronDown, ChevronRight, Plus, Settings, Save, Check } from 'lucide-react';
-import { autoLayoutChildren, calculateChildYPosition } from './FormProcessChildWrapper';
+import { autoLayoutChildren, calculateChildXPosition } from './FormProcessChildWrapper';
 import { saveFormProcessGroup } from '../../../services/tenantFormService';
 import toast from 'react-hot-toast';
 
@@ -94,9 +94,9 @@ const spinAnimation = `
 const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; isDropTarget?: boolean }>`
   ${spinAnimation}
   
-  min-width: ${props => props.isExpanded ? '600px' : '280px'};
-  min-height: ${props => props.isExpanded ? `${Math.max(400, props.stepCount * 120 + 80)}px` : 'auto'};
-  max-width: ${props => props.isExpanded ? '1200px' : '320px'};
+  min-width: ${props => props.isExpanded ? `${Math.max(600, props.stepCount * 300 + 100)}px` : '280px'};
+  min-height: ${props => props.isExpanded ? '360px' : 'auto'};
+  max-width: ${props => props.isExpanded ? 'none' : '320px'};
   
   background: ${props => {
     if (props.isDropTarget) return 'rgba(139, 92, 246, 0.15)'; // Highlight when dragging over
@@ -267,7 +267,10 @@ const GroupBody = styled.div<{ isExpanded: boolean }>`
   min-height: ${props => props.isExpanded ? '300px' : '0'};
   max-height: ${props => props.isExpanded ? '2000px' : '0'};
   position: relative;
-  display: block;
+  display: ${props => props.isExpanded ? 'flex' : 'block'};
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 40px;
   overflow: ${props => props.isExpanded ? 'visible' : 'hidden'};
   opacity: ${props => props.isExpanded ? 1 : 0};
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -442,7 +445,8 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id === id) {
-          const expandedHeight = Math.max(400, stepCount * 120 + 80);
+          const expandedWidth = Math.max(600, stepCount * 300 + 100);
+          const expandedHeight = 400;
 
           return {
             ...node,
@@ -451,7 +455,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
             // doesn't remain visible at the old dimensions.
             style: {
               ...(node.style || {}),
-              width: nextExpanded ? 600 : 280,
+              width: nextExpanded ? expandedWidth : 280,
               height: nextExpanded ? expandedHeight : undefined,
             },
             data: {
@@ -581,8 +585,8 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   useEffect(() => {
     if (!sequentialExecution || childNodes.length < 2) return;
     
-    // Sort children by Y position (top to bottom execution order)
-    const sortedChildren = [...childNodes].sort((a, b) => a.position.y - b.position.y);
+    // Sort children by X position (left to right execution order)
+    const sortedChildren = [...childNodes].sort((a, b) => a.position.x - b.position.x);
     
     // Generate expected edge IDs for this configuration
     const expectedEdgeIds = new Set<string>();
@@ -656,7 +660,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     sequentialExecution,
     // Memoize child positions to detect actual changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(childNodes.map(c => ({ id: c.id, y: c.position.y }))),
+    JSON.stringify(childNodes.map(c => ({ id: c.id, x: c.position.x }))),
     setEdges
   ]);
   
@@ -673,8 +677,8 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       id: newStepId,
       type: 'formStepSingle',
       position: { 
-        x: 20, 
-        y: calculateChildYPosition(stepCount) // Use auto-layout calculation
+        x: calculateChildXPosition(stepCount),
+        y: 80,
       },
       data: {
         label: `Step ${stepCount + 1}`,
@@ -799,7 +803,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
           {stepCount > 0 && (
             <CollapsedStepList>
               {childNodes
-                .sort((a, b) => a.position.y - b.position.y) // Sort by Y position for flow order
+                .sort((a, b) => a.position.x - b.position.x) // Sort by X position for flow order
                 .slice(0, 5)
                 .map((child, index) => (
                   <StepPreview key={child.id}>

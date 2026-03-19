@@ -25,10 +25,11 @@ export type FormNodeData = {
 
 const Page = styled.div<{ $selected: boolean }>`
   position: relative;
-  min-width: 220px;
-  max-width: 320px;
+  min-width: 240px;
+  max-width: 340px;
+  min-height: 260px;
   background: rgb(var(--color-surface));
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid rgb(var(--color-border));
   box-shadow: 0 4px 14px rgb(var(--color-text-primary) / 0.08);
   overflow: hidden;
@@ -128,8 +129,8 @@ const Required = styled.span`
   color: rgb(var(--color-error));
 `;
 
-const InputStub = styled.div`
-  height: 10px;
+const MockBox = styled.div<{ $type?: string }>`
+  height: ${(p) => (p.$type === 'textarea' ? '16px' : '10px')};
   border-radius: 4px;
   background: rgb(var(--color-border));
   opacity: 0.55;
@@ -168,7 +169,7 @@ export const FormNode: React.FC<NodeProps<FormNodeData>> = React.memo(({ id, dat
 
   const entityType = (data?.entityType as string | undefined) || '';
 
-  const preview = fields.slice(0, 5);
+  const preview = fields.slice(0, 4);
 
   return (
     <Page $selected={Boolean(selected)} role="article" aria-label={`Form node: ${title}`} aria-selected={selected}>
@@ -195,14 +196,14 @@ export const FormNode: React.FC<NodeProps<FormNodeData>> = React.memo(({ id, dat
                   <span>{f.label || 'Untitled field'}</span>
                   {f.required ? <Required>*</Required> : null}
                 </FieldLabel>
-                <InputStub />
+                <MockBox $type={f.type} />
               </FieldStub>
             ))}
-            {fields.length > preview.length ? (
+            {(fields || []).length > 4 && (
               <div style={{ fontSize: 11, color: 'rgb(var(--color-text-tertiary))', textAlign: 'center' }}>
-                +{fields.length - preview.length} more
+                + {(fields.length - 4)} more fields...
               </div>
-            ) : null}
+            )}
           </FieldPreview>
         )}
       </Body>
