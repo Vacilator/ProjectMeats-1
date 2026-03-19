@@ -311,51 +311,6 @@ const ButtonHandle = styled(Handle)`
   }
 `;
 
-// Batch 3: Node Controls
-const NodeControls = styled.div`
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  gap: 4px;
-  opacity: 1; /* Always visible */
-  transition: opacity 0.2s ease;
-  z-index: 10; /* Ensure buttons appear above other elements */
-`;
-
-const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' | 'expand' | 'pin' }>`
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.95);
-  color: ${props => {
-    if (props.$variant === 'delete') return 'rgb(239, 68, 68)';
-    if (props.$variant === 'edit') return 'rgb(var(--color-primary))';
-    if (props.$variant === 'pin') return 'rgb(99, 102, 241)'; // Indigo
-    return 'rgb(var(--color-text-secondary))';
-  }};
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  
-  &:hover {
-    transform: scale(1.1);
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-  
-  &:active {
-    transform: scale(0.95);
-  }
-  
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-`;
 
 const ExpandButton = styled(ControlButton)`
   position: absolute;
@@ -418,19 +373,6 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
   
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault(); // Also prevent default to be extra safe
-    console.log('🔘 [BaseNode] Edit button clicked - calling onEdit');
-    if (onEdit) onEdit();
-  };
-  
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onDelete && window.confirm('Delete this node?')) {
-      onDelete();
-    }
-  };
   
   const handlePin = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -624,6 +566,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           id="output"
           isConnectable={true}
           aria-label="Output connection handle"
+          style={{ top: nodeType.hasErrorRoute ? '40%' : '50%' }}
         />
       )}
       
@@ -635,7 +578,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           id="error"
           $color="rgb(239, 68, 68)"
           style={{
-            top: '60%',
+            top: '70%',
             width: '16px',
             height: '16px',
             cursor: 'crosshair',
