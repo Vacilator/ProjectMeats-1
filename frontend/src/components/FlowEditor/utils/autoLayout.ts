@@ -42,184 +42,59 @@ export const getLayoutedElements = (
 ): { nodes: Node[]; edges: Edge[] } => {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  const getDims = (node: Node) => {
-    const width = (node.measured as any)?.width ?? node.width ?? (node.style as any)?.width ?? 280;
-    const height = (node.measured as any)?.height ?? node.height ?? (node.style as any)?.height ?? 100;
-    return { width: typeof width === 'number' ? width : 280, height: typeof height === 'number' ? height : 100 };
-  };
+  // CRITICAL FIX: dagre crashes on grouped nodes (parentId).
+  // We only layout top-level nodes on the global canvas.
+  const topLevelNodes = nodes.filter((n) => !n.parentId);
+  const topLevelNodeIds = new Set(topLevelNodes.map((n) => n.id));
 
-  const layoutDagre = (
-    inputNodes: Node[],
-    inputEdges: Edge[],
-    normalize: { x: number; y: number }
-  ) => {
-    const dagreGraph = new dagre.graphlib.Graph({ compound: true });
-    dagreGraph.setGraph({
-      // Phase 10: Always Top-to-Bottom for compound clusters
-      rankdir: 'TB',
-      align: opts.align,
-      ranker: 'longest-path',
-      nodesep: opts.nodeSpacing,
-      ranksep: opts.rankSpacing,
-      edgesep: opts.edgeSpacing,
-      marginx: 80,
-      marginy: 80,
-    });
-    dagreGraph.setDefaultEdgeLabel(() => ({}));
+  // Only route edges where both source and target are top-level
+  const topLevelEdges = edges.filter(
+    (e) => topLevelNodeIds.has(e.source) && topLevelNodeIds.has(e.target)
+  );
 
-    const nodeById = new Map<string, Node>();
-    inputNodes.forEach((n) => {
-      nodeById.set(n.id, n);
-      const { width, height } = getDims(n);
-      dagreGraph.setNode(n.id, { width, height });
-    });
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setGraph({
+    rankdir: opts.direction,
+    nodesep: opts.nodeSpacing,
+    ranksep: opts.rankSpacing,
+    edgesep: opts.edgeSpacing,
+    marginx: 50,
+    marginy: 50,
+  });
 
-    // Compound graph: attach children to their parent formProcessGroup nodes
-    inputNodes.forEach((n) => {
-      if (!n.parentId) return;
-      const parent = nodeById.get(n.parentId);
-      if (!parent) return;
-      if (parent.type !== 'formProcessGroup') return;
-      dagreGraph.setParent(n.id, parent.id);
-    });
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-    inputEdges.forEach((e) => {
-      if (!dagreGraph.hasNode(e.source) || !dagreGraph.hasNode(e.target)) return;
-      dagreGraph.setEdge(e.source, e.target);
-    });
+  topLevelNodes.forEach((node) => {
+    const width = node.width || 280;
+    const height = node.height || 100;
+    dagreGraph.setNode(node.id, { width, height });
+  });
 
-    dagre.layout(dagreGraph);
+  topLevelEdges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
 
-    const absTopLeft = new Map<string, { x: number; y: number }>();
+  dagre.layout(dagreGraph);
 
-    // Pass 1: compute absolute top-left positions for all nodes
-    inputNodes.forEach((n) => {
-      const p = dagreGraph.node(n.id);
-      const { width, height } = getDims(n);
-      absTopLeft.set(n.id, {
-        x: p.x - width / 2,
-        y: p.y - height / 2,
-      });
-    });
+  // Apply positions back to top-level nodes, keep child nodes unchanged
+  const layoutedNodes = nodes.map((node) => {
+    if (node.parentId) return node; // Skip child nodes
 
-    const isRootLike = (n: Node) => {
-      if (!n.parentId) return true;
-      const parent = nodeById.get(n.parentId);
-      return !(parent && parent.type === 'formProcessGroup');
+    const nodeWithPosition = dagreGraph.node(node.id);
+    if (!nodeWithPosition) return node;
+
+    const x = nodeWithPosition.x - (node.width || 280) / 2;
+    const y = nodeWithPosition.y - (node.height || 100) / 2;
+
+    return {
+      ...node,
+      position: { x, y },
     };
-
-    // Pass 2: convert compound children into parent-relative coordinates
-    const laidOut = inputNodes.map((n) => {
-      const pos = absTopLeft.get(n.id) ?? { x: 0, y: 0 };
-
-      if (n.parentId) {
-        const parent = nodeById.get(n.parentId);
-        if (parent && parent.type === 'formProcessGroup') {
-          const parentAbs = absTopLeft.get(parent.id);
-          if (parentAbs) {
-            return {
-              ...n,
-              position: {
-                x: pos.x - parentAbs.x,
-                y: pos.y - parentAbs.y,
-              },
-            };
-          }
-        }
-      }
-
-      return {
-        ...n,
-        position: pos,
-      };
-    });
-
-    // Normalize only root-level nodes. Child nodes are relative to their parent.
-    const rootNodes = laidOut.filter(isRootLike);
-    const minX = Math.min(...rootNodes.map((n) => n.position.x));
-    const minY = Math.min(...rootNodes.map((n) => n.position.y));
-
-    return laidOut.map((n) => {
-      if (!isRootLike(n)) return n;
-      return {
-        ...n,
-        position: {
-          x: n.position.x - minX + normalize.x,
-          y: n.position.y - minY + normalize.y,
-        },
-      };
-    });
-  };
-
-  const PADDING_X = 30;
-  const PADDING_Y = 30;
-  const HEADER_HEIGHT = 60;
-  const MIN_CONTAINER_WIDTH = 500;
-  const MIN_CONTAINER_HEIGHT = 300;
-
-  // Phase 10: Single-pass compound layout across the whole graph.
-  // Dagre routes edges that leave and re-enter compound parents.
-  const laidOutAll = layoutDagre(nodes, edges, { x: 50, y: 50 });
-
-  // Update container dimensions to comfortably fit their children.
-  const byId = new Map<string, Node>(laidOutAll.map((n) => [n.id, n]));
-
-  for (const parent of laidOutAll) {
-    if (parent.type !== 'formProcessGroup') continue;
-
-    const children = laidOutAll.filter((n) => n.parentId === parent.id);
-    if (children.length === 0) {
-      // Keep a sensible minimum size for empty containers
-      byId.set(parent.id, {
-        ...parent,
-        style: {
-          ...(parent.style as any),
-          width: Math.max(MIN_CONTAINER_WIDTH, (parent.style as any)?.width || 0),
-          height: Math.max(MIN_CONTAINER_HEIGHT, (parent.style as any)?.height || 0),
-        },
-      });
-      continue;
-    }
-
-    let maxRight = 0;
-    let maxBottom = 0;
-
-    for (const c of children) {
-      const { width, height } = getDims(c);
-      maxRight = Math.max(maxRight, c.position.x + width);
-      maxBottom = Math.max(maxBottom, c.position.y + height);
-    }
-
-    const containerWidth = Math.max(MIN_CONTAINER_WIDTH, maxRight + PADDING_X);
-    const containerHeight = Math.max(MIN_CONTAINER_HEIGHT, maxBottom + PADDING_Y + HEADER_HEIGHT);
-
-    byId.set(parent.id, {
-      ...parent,
-      style: {
-        ...(parent.style as any),
-        width: containerWidth,
-        height: containerHeight,
-      },
-    });
-
-    // Apply consistent inset within the container for readability
-    for (const c of children) {
-      byId.set(c.id, {
-        ...c,
-        position: {
-          x: c.position.x + PADDING_X,
-          y: c.position.y + HEADER_HEIGHT + PADDING_Y,
-        },
-      });
-    }
-  }
-
-  // Merge back into original order (order-preserving)
-  const merged = nodes.map((n) => byId.get(n.id) ?? n);
+  });
 
   return {
-    nodes: merged,
-    edges,
+    nodes: layoutedNodes,
+    edges, // Return all edges original array
   };
 };
 

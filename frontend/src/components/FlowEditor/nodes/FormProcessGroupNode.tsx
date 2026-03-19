@@ -268,7 +268,7 @@ const GroupBody = styled.div<{ isExpanded: boolean }>`
   max-height: ${props => props.isExpanded ? '2000px' : '0'};
   position: relative;
   display: block;
-  overflow: hidden;
+  overflow: ${props => props.isExpanded ? 'visible' : 'hidden'};
   opacity: ${props => props.isExpanded ? 1 : 0};
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 `;
