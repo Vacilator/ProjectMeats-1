@@ -22,7 +22,7 @@ frontend/src/pages/Admin/
 ## ✨ Features
 
 ### 1. Users & Invitations (Phase 1)
-**Route**: `/admin/users`
+**Route**: `/workspace/users`
 
 - View all tenant users
 - Invite new users via email
@@ -34,7 +34,7 @@ frontend/src/pages/Admin/
 **Permissions**: Owners and admins only
 
 ### 2. Profile & Branding (Phase 2)
-**Route**: `/admin/profile`
+**Route**: `/workspace/profile`
 
 - Organization information (name, description, address, website)
 - Logo upload with preview
@@ -45,7 +45,7 @@ frontend/src/pages/Admin/
 **Permissions**: Owners and admins only
 
 ### 3. Option Lists Management (Phase 3)
-**Route**: `/admin/option-lists`
+**Route**: `/workspace/option-lists`
 
 - View all system choice lists
 - Create custom option lists
@@ -57,7 +57,7 @@ frontend/src/pages/Admin/
 **Permissions**: Owners and admins only
 
 ### 4. Configurations (Phase 4)
-**Route**: `/admin/configurations`
+**Route**: `/workspace/configurations`
 
 - Category-based organization (6 categories)
   - General
@@ -76,7 +76,7 @@ frontend/src/pages/Admin/
 **Permissions**: Owners and admins only
 
 ### 5. Activity & Audit Logs (Phase 5)
-**Route**: `/admin/activity`
+**Route**: `/workspace/activity`
 
 - Timeline view of all admin actions
 - Color-coded action types (create/update/delete)
@@ -94,7 +94,7 @@ frontend/src/pages/Admin/
 **Permissions**: Owners and admins only
 
 ### 6. Billing (Placeholder)
-**Route**: `/admin/billing`
+**Route**: `/workspace/billing`
 
 - Subscription management (coming soon)
 - Payment methods (coming soon)
@@ -103,7 +103,7 @@ frontend/src/pages/Admin/
 **Permissions**: Owners only
 
 ### 7. Customizations (Placeholder)
-**Route**: `/admin/customizations`
+**Route**: `/workspace/customizations`
 
 - UI customization options (coming soon)
 - Custom fields (coming soon)

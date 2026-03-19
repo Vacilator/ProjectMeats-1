@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { apiClient } from '@/services/apiService';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSkeleton } from '@/components/Admin/LoadingSkeleton';
 import styles from './Profile.module.css';
@@ -42,7 +42,7 @@ export const Profile: React.FC = () => {
   const { data: tenant, isLoading } = useQuery<Tenant>({
     queryKey: ['tenant'],
     queryFn: async () => {
-      const response = await axios.get('/api/tenants/current/');
+      const response = await apiClient.get('/tenants/current/');
       return response.data;
     },
   });
@@ -79,7 +79,7 @@ export const Profile: React.FC = () => {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const response = await axios.patch(`/api/tenants/${tenant?.id}/`, data, {
+      const response = await apiClient.patch(`/tenants/${tenant?.id}/`, data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data;

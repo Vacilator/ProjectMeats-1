@@ -21,7 +21,7 @@ import {
   FileText,
   Loader
 } from 'lucide-react';
-import axios from 'axios';
+import { apiClient } from '../../../services/apiService';
 
 // Types
 interface ActivityLog {
@@ -54,7 +54,6 @@ interface ActivityFilters {
   end_date: string;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 // Action type configuration
 const ACTION_TYPES = [
@@ -101,26 +100,23 @@ const ActivityPage: React.FC = () => {
       setLoading(true);
       setError('');
 
-      const params = new URLSearchParams({
-        page: pageNum.toString(),
-        page_size: '20',
+      const params: Record<string, string | number> = {
+        page: pageNum,
+        page_size: 20,
         ordering: '-created_at',
-      });
+      };
 
       // Add filters
-      if (filters.search) params.append('search', filters.search);
-      if (filters.action) params.append('action', filters.action);
-      if (filters.entity_type) params.append('entity_type', filters.entity_type);
-      if (filters.start_date) params.append('created_at__gte', filters.start_date);
-      if (filters.end_date) params.append('created_at__lte', filters.end_date);
+      if (filters.search) params.search = filters.search;
+      if (filters.action) params.action = filters.action;
+      if (filters.entity_type) params.entity_type = filters.entity_type;
+      if (filters.start_date) params.created_at__gte = filters.start_date;
+      if (filters.end_date) params.created_at__lte = filters.end_date;
 
-      const token = localStorage.getItem('access_token');
-      const response = await axios.get(`${API_BASE_URL}/api/v1/activity-logs/?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await apiClient.get('/activity-logs/', { params });
 
       // Ensure response.data.results is always an array
-      const results = Array.isArray(response.data.results) ? response.data.results : [];
+      const results = Array.isArray((response.data as any)?.results) ? (response.data as any).results : [];
       
       if (appendMode) {
         setLogs(prev => [...prev, ...results]);
@@ -128,7 +124,7 @@ const ActivityPage: React.FC = () => {
         setLogs(results);
       }
 
-      setHasMore(!!response.data.next);
+      setHasMore(Boolean((response.data as any)?.next));
       setPage(pageNum);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load activity logs');
@@ -167,24 +163,22 @@ const ActivityPage: React.FC = () => {
     try {
       setExporting(true);
 
-      const params = new URLSearchParams();
-      if (filters.search) params.append('search', filters.search);
-      if (filters.action) params.append('action', filters.action);
-      if (filters.entity_type) params.append('entity_type', filters.entity_type);
-      if (filters.start_date) params.append('created_at__gte', filters.start_date);
-      if (filters.end_date) params.append('created_at__lte', filters.end_date);
+      const params: Record<string, string> = {};
+      if (filters.search) params.search = filters.search;
+      if (filters.action) params.action = filters.action;
+      if (filters.entity_type) params.entity_type = filters.entity_type;
+      if (filters.start_date) params.created_at__gte = filters.start_date;
+      if (filters.end_date) params.created_at__lte = filters.end_date;
 
-      const token = localStorage.getItem('access_token');
-      const response = await axios.get(
-        `${API_BASE_URL}/api/v1/activity-logs/export/?${params}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: 'blob',
-        }
-      );
+      const response = await apiClient.get('/activity-logs/export/', {
+        params,
+        responseType: 'blob',
+      });
 
       // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const data = response.data as any;
+      const blob = data instanceof Blob ? data : new Blob([data]);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `activity_logs_${new Date().toISOString().split('T')[0]}.csv`);
