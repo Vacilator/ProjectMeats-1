@@ -193,18 +193,49 @@ class IntentResult:
 
 
 class IntentEngine:
+    """AI-powered intent recognition + document understanding for email processing.
+
+    Phase 6.5 adds *document* classification (PO / invoice / claim / BOL / inquiry)
+    in addition to the earlier intent classification.
+
+    Design goals:
+    - Tenant-aware credentials: prefer per-tenant AIConfiguration; fall back to env.
+    - Soft dependency on openai: methods degrade gracefully if package/key missing.
+    - Bounded prompts: cap attachment text to avoid token blowups.
     """
-    AI-powered intent recognition for email processing.
-    
-    Uses OpenAI ChatCompletions to classify emails and extract data.
-    """
-    
-    def __init__(self):
-        self.api_key = os.environ.get('OPENAI_API_KEY')
+
+    DEFAULT_DOCUMENT_MODEL = os.environ.get('OPENAI_DOCUMENT_MODEL', 'gpt-4o-mini')
+
+    def __init__(
+        self,
+        tenant=None,
+        api_key: str | None = None,
+        model_name: str | None = None,
+    ):
+        self.tenant = tenant
+        self.api_key = api_key or os.environ.get('OPENAI_API_KEY')
+        self.model_name = model_name or self.DEFAULT_DOCUMENT_MODEL
+
+        # Prefer per-tenant AIConfiguration if available.
+        if self.tenant and not api_key:
+            try:
+                from tenant_apps.ai_assistant.models import AIConfiguration
+
+                cfg = (
+                    AIConfiguration.objects.filter(tenant=self.tenant, is_active=True, is_default=True)
+                    .only('api_key', 'model_name')
+                    .first()
+                )
+                if cfg and getattr(cfg, 'api_key', None):
+                    self.api_key = cfg.api_key
+                    self.model_name = getattr(cfg, 'model_name', None) or self.model_name
+            except Exception:
+                logger.debug('AIConfiguration lookup failed; falling back to env', exc_info=True)
+
         if not self.api_key:
-            logger.warning('OPENAI_API_KEY not configured - intent recognition disabled')
-        
-        # System prompt for intent recognition
+            logger.warning('OpenAI not configured (no api key) - intent engine will use fallbacks')
+
+        # System prompt for intent recognition (legacy path)
         self.system_prompt = """You are an AI assistant for a meat processing company.
 Your job is to analyze incoming emails and determine the sender's intent.
 
@@ -239,7 +270,123 @@ Respond in JSON format:
   },
   "reasoning": "Email explicitly requests 100kg of ribeye beef"
 }"""
-    
+
+        self.document_system_prompt = (
+            "You are an AI data extraction specialist for a wholesale meat logistics platform.\n\n"
+            "Task:\n"
+            "1) Classify the document_type: Purchase Order | Invoice | Claim | Bill of Lading | Inquiry\n"
+            "2) Extract key metadata into JSON for automation.\n\n"
+            "Extraction requirements (include null/empty if missing):\n"
+            "- urgency: low|medium|high\n"
+            "- sender_intent: place_order|send_invoice|file_claim|provide_shipping_docs|general_inquiry|unknown\n"
+            "- po_number, invoice_number, bol_number\n"
+            "- items: [{item, cut, species, quantity, unit, pack, notes}]\n"
+            "- ship_to, bill_to, requested_delivery_date\n\n"
+            "Rules:\n"
+            "- Do not hallucinate identifiers; only extract what exists.\n"
+            "- If uncertain, set document_type=Inquiry and confidence<0.6.\n"
+            "- Output MUST be valid JSON."
+        )
+
+    def analyze_document(self, email_body: str, attachments: List[Dict[str, Any]], subject: str | None = None, sender_email: str | None = None) -> Dict[str, Any]:
+        """Analyze an email + attachments and return structured JSON for triggers."""
+
+        def _extract_attachment_text(att: Dict[str, Any]) -> str:
+            name = att.get('name')
+            ct = (att.get('content_type') or '').lower()
+            raw = att.get('content_bytes')
+            if not raw:
+                return ''
+
+            # Text-like content
+            if ct.startswith('text/') or ct in {'application/json', 'application/xml'}:
+                try:
+                    return raw.decode('utf-8', errors='ignore')
+                except Exception:
+                    return ''
+
+            # PDF (soft dependency)
+            if ct == 'application/pdf':
+                try:
+                    from io import BytesIO
+                    from pypdf import PdfReader  # type: ignore
+
+                    reader = PdfReader(BytesIO(raw))
+                    parts = []
+                    for page in reader.pages[:10]:
+                        parts.append(page.extract_text() or '')
+                    return '\n'.join(parts)
+                except Exception:
+                    return ''
+
+            # DOCX (soft dependency)
+            if ct in {
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/msword',
+            }:
+                try:
+                    from io import BytesIO
+                    import docx  # type: ignore
+
+                    doc = docx.Document(BytesIO(raw))
+                    return '\n'.join([p.text for p in doc.paragraphs])
+                except Exception:
+                    return ''
+
+            return ''
+
+        # Fallback if OpenAI not configured
+        if not self.api_key:
+            return {
+                'document_type': 'Inquiry',
+                'confidence': 0.0,
+                'error': 'OpenAI not configured',
+            }
+
+        # Build bounded prompt
+        attachment_texts: List[str] = []
+        for att in attachments or []:
+            t = _extract_attachment_text(att)
+            if t:
+                attachment_texts.append(f"--- Attachment: {att.get('name')} ---\n{t}")
+
+        combined_attachments = '\n\n'.join(attachment_texts)
+        if len(combined_attachments) > 30_000:
+            combined_attachments = combined_attachments[:30_000] + '\n\n[TRUNCATED]'
+
+        parts = []
+        if sender_email:
+            parts.append(f"From: {sender_email}")
+        if subject:
+            parts.append(f"Subject: {subject}")
+        parts.append("Email Body:\n" + (email_body or ''))
+        if combined_attachments:
+            parts.append("Attachments (extracted text):\n" + combined_attachments)
+
+        user_message = '\n\n'.join(parts)
+
+        try:
+            import openai
+
+            openai.api_key = self.api_key
+            response = openai.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {'role': 'system', 'content': self.document_system_prompt},
+                    {'role': 'user', 'content': user_message},
+                ],
+                temperature=0.2,
+                response_format={'type': 'json_object'},
+            )
+            text = response.choices[0].message.content
+            return json.loads(text)
+        except ImportError:
+            logger.error('openai package not installed')
+            return {'document_type': 'Inquiry', 'confidence': 0.0, 'error': 'openai package not installed'}
+        except Exception as e:
+            logger.warning('OpenAI document analysis failed: %s', str(e), exc_info=True)
+            return {'document_type': 'Inquiry', 'confidence': 0.0, 'error': str(e)}
+
     def recognize_intent(self, email_body: str, sender_email: str = None) -> IntentResult:
         """
         Analyze email and recognize intent.

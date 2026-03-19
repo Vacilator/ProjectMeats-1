@@ -5,6 +5,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 ## Active Initiative: Phase 7 Stabilization + Cockpit Navigation
 
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
+
+### 2026-03-19 — Phase 6.5: AI Document Understanding
+- Integrated Microsoft Graph Email Ingestion service + OpenAI Intent Engine for document classification (Purchase Order, Invoice, Claim, Bill of Lading, Inquiry).
+- Added EMAIL_RECEIVED trigger type + documented trigger condition schema.
+
 - Microsoft Graph Email Ingestion
 - Meat-Industry Specific LLM Document Classification
 - Smart Workflow Triggers based on AI Intents

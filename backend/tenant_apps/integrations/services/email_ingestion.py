@@ -28,7 +28,11 @@ class EmailIngestionService:
         'delivery', 'shipment'
     ]
     
-    def __init__(self):
+    def __init__(self, tenant: Tenant | None = None):
+        # Optional tenant scope (Phase 6.5). When provided, the service can be used
+        # as a single-tenant ingestion unit (e.g., smart triggers).
+        self.tenant = tenant
+
         self.stats = {
             'tenants_processed': 0,
             'emails_fetched': 0,
@@ -297,6 +301,75 @@ class EmailIngestionService:
     # Phase 6.5: AI Document Understanding + Smart Email Triggers (Scaffolding)
     # -------------------------------------------------------------------------
 
+    def fetch_unread_actionable_emails(self) -> List[Dict[str, Any]]:
+        """Fetch unread actionable emails (unread + hasAttachments) for this service's tenant.
+
+        Uses Microsoft Graph endpoint:
+        /me/messages?$filter=isRead eq false and hasAttachments eq true
+
+        Returns:
+            List of results: {"message": <graph message>, "attachments": [...], "analysis": {...}}
+        """
+        if not self.tenant:
+            raise ValueError('EmailIngestionService requires tenant for fetch_unread_actionable_emails')
+
+        from apps.integrations.providers import MicrosoftGraphProvider
+        import requests
+
+        provider = (
+            ExternalAuthProvider.objects.filter(
+                tenant=self.tenant,
+                provider_type='microsoft',
+                is_active=True,
+            )
+            .select_related('tenant')
+            .first()
+        )
+        if not provider:
+            logger.info('No active Microsoft provider for tenant=%s', self.tenant.id)
+            return []
+
+        # Handle token expiration gracefully.
+        try:
+            provider.refresh_if_needed()
+        except Exception:
+            logger.warning('Token refresh failed for tenant=%s provider_id=%s', self.tenant.id, provider.id, exc_info=True)
+
+        access_token = provider.get_decrypted_token('access')
+        if not access_token:
+            logger.warning('No access token available tenant=%s provider_id=%s', self.tenant.id, provider.id)
+            return []
+
+        graph_provider = MicrosoftGraphProvider(self.tenant.id)
+
+        url = f"{graph_provider.GRAPH_API_BASE}/me/messages"
+        params = {
+            '$filter': 'isRead eq false and hasAttachments eq true',
+            '$select': 'id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId,isRead',
+            '$top': 25,
+            '$orderby': 'receivedDateTime desc',
+        }
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': 'application/json',
+        }
+
+        try:
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
+            resp.raise_for_status()
+            messages = (resp.json() or {}).get('value', [])
+        except Exception:
+            logger.error('Graph actionable unread fetch failed tenant=%s', self.tenant.id, exc_info=True)
+            return []
+
+        results: List[Dict[str, Any]] = []
+        for msg in messages:
+            attachments: List[Dict[str, Any]] = self._download_attachments(graph_provider, access_token, message_id=msg.get('id'))
+            analysis = self.process_email_via_ai(msg, attachments)
+            results.append({'message': msg, 'attachments': attachments, 'analysis': analysis})
+
+        return results
+
     def fetch_unread_emails(self, tenant: Tenant) -> List[Dict[str, Any]]:
         """Fetch unread emails (and attachments) for a tenant via Microsoft Graph.
 
@@ -422,42 +495,24 @@ class EmailIngestionService:
         return downloaded
 
     def process_email_via_ai(self, email_data: Dict[str, Any], attachments: List[Dict[str, Any]]):
-        """Hand-off point: email payload -> AI intent engine.
+        """Hand-off point: email payload -> OpenAI IntentEngine.
 
-        This method intentionally does NOT persist anything yet.
-        It produces a structured intent payload that downstream code can use to:
-        - trigger workflows (TriggerType.EMAIL_RECEIVED)
-        - create records (PO, invoice, claim intake)
-        - route for human review
+        Production-ready behavior:
+        - The IntentEngine handles attachment text extraction (soft dependencies).
+        - Uses tenant-scoped AIConfiguration when available.
+        - Returns JSON suitable for TriggerType.EMAIL_RECEIVED routing.
         """
-        from tenant_apps.workflows.services.intent_engine import analyze_document_intent
+        from tenant_apps.workflows.services.intent_engine import IntentEngine
 
+        tenant = self.tenant
         subject = email_data.get('subject')
         sender = (email_data.get('from') or {}).get('emailAddress', {}).get('address')
 
         body = email_data.get('body') or {}
         body_content = body.get('content') or email_data.get('bodyPreview') or ''
 
-        # Scaffolding: only attempt text extraction for text/* attachments.
-        attachment_text_chunks: List[str] = []
-        for att in attachments or []:
-            ct = (att.get('content_type') or '').lower()
-            raw = att.get('content_bytes')
-            if not raw or not ct.startswith('text/'):
-                continue
-            try:
-                attachment_text_chunks.append(raw.decode('utf-8', errors='ignore'))
-            except Exception:
-                continue
-
-        attachment_text = "\n\n".join(attachment_text_chunks)
-
-        return analyze_document_intent(
-            email_body=body_content,
-            attachment_text=attachment_text,
-            subject=subject,
-            sender_email=sender,
-        )
+        engine = IntentEngine(tenant=tenant)
+        return engine.analyze_document(email_body=body_content, attachments=attachments, subject=subject, sender_email=sender)
 
 
 def ai_extract_order_data(email_body: str) -> Dict[str, Any]:
