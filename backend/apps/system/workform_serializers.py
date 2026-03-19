@@ -199,7 +199,28 @@ class TenantWorkFormSerializer(serializers.ModelSerializer):
         return None
     
     def create(self, validated_data):
-        """Create workflow and extract form references."""
+        """Create workflow and extract form references.
+
+        Defensive improvements:
+        - Avoid 500s when creating a new workform with a duplicate name by auto-suffixing
+          (common with the default "Untitled Workflow").
+        """
+        tenant = validated_data.get('tenant')
+        name = validated_data.get('name')
+
+        if tenant and name:
+            # The DB constraint is (tenant, name, version). New workforms start at version=1,
+            # so duplicate names would raise IntegrityError and surface as 500.
+            base_name = name
+            candidate = base_name
+            suffix = 2
+
+            while TenantWorkForm.objects.filter(tenant=tenant, name=candidate, version=1).exists():
+                candidate = f"{base_name} ({suffix})"
+                suffix += 1
+
+            validated_data['name'] = candidate
+
         workform = super().create(validated_data)
         workform.update_form_references()
         return workform
