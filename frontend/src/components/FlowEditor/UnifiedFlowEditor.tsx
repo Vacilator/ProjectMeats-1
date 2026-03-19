@@ -108,7 +108,6 @@ import {
   FormNode,
   FormStepSingleNode,
   FormReferenceNode,
-  FormProcessNode,
   FormProcessGroupNode,
   TriggerNode,
   ConditionIfNode,
@@ -253,6 +252,7 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   
   /* Animate container expand/collapse */
   .react-flow__node[data-type="formMultiStepContainer"],
+  .react-flow__node[data-type="formProcess"],
   .react-flow__node[data-type="formProcessGroup"] {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 width 0.3s ease,
@@ -1642,11 +1642,11 @@ const staticNodeTypes: NodeTypes = {
   // Form nodes (Phase E - 2026-02-19)
   form: FormNode,  // NEW: Primary form node name
   formStepSingle: FormStepSingleNode,  // Backward compatibility
-  formProcess: FormProcessNode,
+  formProcess: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
   formProcessGroup: FormProcessGroupNode,
   // Backward compatibility aliases
   formStep: FormStepSingleNode,  // Deprecated
-  formMultiStepContainer: FormProcessNode,  // Deprecated
+  formMultiStepContainer: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -3226,11 +3226,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug('[Container] Looking for containers at position:', position);
     
     // Get all container nodes (support both formMultiStepContainer and formProcessGroup)
-    const containerNodes = nodes.filter(node => 
-      node.type === 'formMultiStepContainer' || 
-      node.type === 'formProcessGroup' ||
-      node.type === 'formProcess'
-    );
+    const containerNodes = nodes.filter(node => isFormProcessContainerType(node.type));
     
     logger.debug('[Container] Total nodes on canvas:', nodes.length);
     logger.debug('[Container] Container nodes found:', containerNodes.length);
@@ -3504,7 +3500,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const nearby = findNearbyNode(position);
       
       // Fix #2: Ensure default dimensions upfront (prevents React Flow dimension errors)
-      const isContainerNode = type === 'formMultiStepContainer' || type === 'formProcessGroup';
+      const isContainerNode = isFormProcessContainerType(type);
       const defaultDimensions = isContainerNode
         ? { width: 600, height: 400 } // Larger for containers
         : undefined; // Let React Flow calculate for regular nodes
@@ -3539,7 +3535,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       // Phase 3: FormProcessGroup as true React Flow group container (2026-02-21)
-      if (type === 'formProcessGroup') {
+      if (isFormProcessContainerType(type)) {
         newNode.style = {
           width: 600,  // Default width for group container
           height: 400, // Default height for child nodes
@@ -3549,8 +3545,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           isExpanded: true, // Default to expanded so children are visible
           isGroup: true, // Mark as group for React Flow
         };
-        // Enable React Flow group behavior
-        (newNode as any).type = 'formProcessGroup'; // Explicit type for React Flow
+        // Upgrade legacy formProcess to canonical formProcessGroup type
+        (newNode as any).type = 'formProcessGroup';
       }
       
       // Phase 1.4: If dropping into a container, set parent-child relationship
@@ -3558,9 +3554,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         logger.debug(`[Container] Setting up parent-child relationship with container ${targetContainer.id}`);
         
         // Phase 1.4: Don't allow containers to be nested
-        const isContainerType = type === 'formMultiStepContainer' || 
-                               type === 'formProcessGroup' || 
-                               type === 'formProcess';
+        const isContainerType = isFormProcessContainerType(type);
         
         if (isContainerType) {
           logger.debug(`[Container] ❌ Cannot nest containers - node type ${type} will be added to main canvas`);
@@ -3862,9 +3856,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const newParentId = container?.id || null;
     
     // Prevent containers from being nested in other containers
-    const isContainerNode = node.type === 'formMultiStepContainer' || 
-                           node.type === 'formProcessGroup' || 
-                           node.type === 'formProcess';
+    const isContainerNode = isFormProcessContainerType(node.type);
     
     if (isContainerNode && newParentId) {
       logger.debug('[Container] Cannot nest containers inside containers');
@@ -4359,9 +4351,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Phase 2: UI/UX Enhancements
    */
   const handleAutoLayout = useCallback(() => {
-    const hasFormProcessContainer = nodes.some(
-      (n) => n.type === 'formProcess' || n.type === 'formProcessGroup'
-    );
+    const hasFormProcessContainer = nodes.some((n) => isFormProcessContainerType(n.type));
     const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
     
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
@@ -4389,9 +4379,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       e => selectedNodeIds.includes(e.source) && selectedNodeIds.includes(e.target)
     );
 
-    const hasFormProcessContainer = selectedNodes.some(
-      (n) => n.type === 'formProcess' || n.type === 'formProcessGroup'
-    );
+    const hasFormProcessContainer = selectedNodes.some((n) => isFormProcessContainerType(n.type));
     const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
 
     const { nodes: layoutedSelected } = getLayoutedElements(
@@ -5087,8 +5075,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setSelectedFormStep(node);
         break;
       
-      case 'formMultiStepContainer': {
-        // Phase 7 Stabilization: this node type is deprecated.
+      case 'formMultiStepContainer':
+      case 'formProcess': {
+        // Phase 7 Stabilization: these node types are deprecated.
         // Migrate in-memory to the canonical Form Process Group node.
         logger.debug('✏️ [EDIT BUTTON] Migrating legacy container to formProcessGroup');
 
@@ -6941,6 +6930,15 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   // Preserve specific types for all other nodes so their specific schemas load
   if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
   return nodeTypeId;
+}
+
+/** Returns true for all Form Process container node type IDs (current + legacy). */
+function isFormProcessContainerType(nodeType: string | undefined | null): boolean {
+  return (
+    nodeType === 'formProcessGroup' ||
+    nodeType === 'formProcess' ||
+    nodeType === 'formMultiStepContainer'
+  );
 }
 
 function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
