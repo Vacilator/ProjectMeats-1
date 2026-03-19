@@ -517,21 +517,24 @@ const FormsFlowsHistory: React.FC = () => {
     }
   };
   
-  useEffect(() => {
-    fetchSubmissions();
-  }, [page, startDate, endDate]);
   
-  // Debounced search
+  // Debounced search (respect active tab)
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (page === 1) {
+      if (page !== 1) {
+        setPage(1);
+        return;
+      }
+
+      if (activeTab === 'submissions') {
         fetchSubmissions();
       } else {
-        setPage(1);
+        fetchWorkflowExecutions();
       }
     }, 300);
+
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [activeTab, page, searchQuery]);
   
   // Fetch workflow executions
   const fetchWorkflowExecutions = async () => {
@@ -650,13 +653,21 @@ const FormsFlowsHistory: React.FC = () => {
       <TabsContainer>
         <Tab
           $active={activeTab === 'submissions'}
-          onClick={() => setActiveTab('submissions')}
+          onClick={() => {
+            setExpandedWorkflow(null);
+            setPage(1);
+            setActiveTab('submissions');
+          }}
         >
           Form Submissions
         </Tab>
         <Tab
           $active={activeTab === 'workflows'}
-          onClick={() => setActiveTab('workflows')}
+          onClick={() => {
+            setExpandedWorkflow(null);
+            setPage(1);
+            setActiveTab('workflows');
+          }}
         >
           Workflow Executions
         </Tab>
@@ -701,11 +712,11 @@ const FormsFlowsHistory: React.FC = () => {
             Export
           </ActionButton>
           <ActionButton 
-            onClick={fetchSubmissions} 
-            disabled={loading}
-            aria-label={loading ? 'Loading...' : 'Refresh history'}
+            onClick={() => (activeTab === 'submissions' ? fetchSubmissions() : fetchWorkflowExecutions())}
+            disabled={currentLoading}
+            aria-label={currentLoading ? 'Loading...' : 'Refresh history'}
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
+            <RefreshCw size={16} className={currentLoading ? 'animate-spin' : ''} aria-hidden="true" />
           </ActionButton>
         </div>
       </Toolbar>
