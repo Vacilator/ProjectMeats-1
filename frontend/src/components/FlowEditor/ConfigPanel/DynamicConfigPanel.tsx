@@ -24,6 +24,7 @@ import { AutoMappingSuggestionsPanel } from '../components/AutoMappingSuggestion
 // Phase E.3: Data inheritance hook
 import { useUpstreamVariables } from '../hooks/useUpstreamVariables';
 import ConditionBuilder, { type ConditionRule } from './ConditionBuilder';
+import { useEntityFields } from '../../../services/schemaService';
 
 // FormBuilder Context (2026-02-21 Comprehensive Enhancements)
 import { useFormBuilderContext } from '../../../contexts/FormBuilderContext';
@@ -161,6 +162,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     nodes,
     edges,
   });
+
+  // FIX: Fetch entity fields if an entity is selected in the node's config (e.g., for Database Event triggers)
+  const configuredEntity = formData.entityType || formData.eventEntity || formData.entity || '';
+  const { data: entityFieldsData } = useEntityFields(configuredEntity, { enabled: !!configuredEntity });
 
   // FormBuilder Context (2026-02-21 Comprehensive Enhancements)
   const { openFormBuilder } = useFormBuilderContext();
@@ -482,11 +487,32 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         const logicRaw = (formData as any).logic as string | undefined;
         const logic = logicRaw?.toLowerCase() === 'or' ? 'or' : 'and';
 
+        // Include upstream variables
         const availableFields = (upstreamVariables || []).map(v => ({
           key: v.template,
           label: `${v.nodeName}: ${v.fieldLabel}`,
           type: v.fieldType,
         }));
+
+        // FIX: Also include fields from the selected entity (crucial for trigger nodes)
+        if (entityFieldsData?.fields) {
+          entityFieldsData.fields.forEach(f => {
+            const rawType = (f.type || f.field_type || '').toString().toLowerCase();
+            const mappedType = rawType.includes('number') || rawType.includes('int') || rawType.includes('float') || rawType.includes('decimal')
+              ? 'number'
+              : rawType.includes('date')
+                ? 'date'
+                : rawType.includes('bool')
+                  ? 'boolean'
+                  : 'text';
+
+            availableFields.push({
+              key: f.name,
+              label: `${configuredEntity} Context: ${f.label}`,
+              type: mappedType,
+            });
+          });
+        }
 
         renderedField = (
           <div key={field.id}>

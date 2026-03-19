@@ -20,6 +20,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - FormNode UX: selected pages support a lightweight in-canvas field editor (add/reorder) to reduce side-panel dependency.
   - Connectivity: plan to introduce virtual handles for collapsed groups so edges can cross the container boundary cleanly without breaking `extent: 'parent'` visually.
 
+- 2026-03-19 — Fix: ConditionBuilder loads entity fields — Commit: TBD (PR: TBD)
+  - DynamicConfigPanel: when an entity is selected (entityType/eventEntity/entity), load entity fields via schemaService and include them in ConditionBuilder available fields.
+  - Resolves empty ConditionBuilder dropdowns for Database Event trigger nodes.
+
 - 2026-03-19 — Fix: Workforms Editor UI/config/publish polish — Commit: 25a56157 (PR: #3629)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3629
   - DynamicConfigPanel: handle field.type=entityType and field.type=multiSelect to prevent "Unknown field type" rendering errors.
