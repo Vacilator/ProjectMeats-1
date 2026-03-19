@@ -12,12 +12,13 @@
  * Created: 2026-02-27
  */
 
-import React, { memo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import {
   EdgeProps,
   getBezierPath,
   EdgeLabelRenderer,
   BaseEdge,
+  useReactFlow,
 } from '@xyflow/react';
 import styled, { keyframes } from 'styled-components';
 import { CheckCircle, AlertCircle, XCircle, Info } from 'lucide-react';
@@ -125,6 +126,44 @@ const AnimatedPath = styled.path<{ $animated: boolean }>`
   }
 `;
 
+const DataKeysTooltip = styled.div`
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: rgba(var(--color-background-primary), 0.95);
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: rgb(var(--color-text-primary));
+  max-width: 260px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+`;
+
+const DataKeysTitle = styled.div`
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 4px;
+`;
+
+const DataKeysList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+`;
+
+const DataKeyChip = styled.span`
+  font-size: 11px;
+  font-family: var(--font-family-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  color: rgb(var(--color-text-secondary));
+`;
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -192,6 +231,7 @@ function getStatusIcon(status: ConnectionStatus): React.ReactNode {
 export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = memo(
   ({
     id,
+    source,
     sourceX,
     sourceY,
     targetX,
@@ -221,17 +261,48 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
     const edgeColor = getEdgeColor(status);
     const strokeWidth = selected ? 3 : status !== 'default' ? 2.5 : 2;
 
+    const [isHovered, setIsHovered] = useState(false);
+
+    const { getNode } = useReactFlow();
+
+    const dataKeys = useMemo(() => {
+      const sourceNode = source ? getNode(source) : undefined;
+      const keys: string[] = [];
+
+      const outputFields = sourceNode?.data?.outputSchema?.outputFields;
+      if (Array.isArray(outputFields)) {
+        for (const f of outputFields) {
+          const key = f?.fieldName || f?.fieldId;
+          if (typeof key === 'string' && key.trim()) keys.push(key);
+        }
+      }
+
+      if (keys.length === 0) {
+        const fields = sourceNode?.data?.fields || sourceNode?.data?.selectedFields;
+        if (Array.isArray(fields)) {
+          for (const f of fields) {
+            const key = typeof f === 'string' ? f : (f?.name || f?.id || f?.key);
+            if (typeof key === 'string' && key.trim()) keys.push(key);
+          }
+        }
+      }
+
+      // Unique + stable order
+      return Array.from(new Set(keys));
+    }, [getNode, source]);
+
+    const visibleKeys = dataKeys.slice(0, 6);
+    const remainingCount = Math.max(0, dataKeys.length - visibleKeys.length);
+
     return (
       <>
         {/* Invisible thick hitbox under the visible edge to stabilize hover/interaction */}
-        <BaseEdge
-          id={`${id}-hitbox`}
-          path={edgePath}
-          style={{
-            stroke: 'transparent',
-            strokeWidth: 30,
-            strokeOpacity: 0,
-          }}
+        <path
+          d={edgePath}
+          style={{ stroke: 'transparent', strokeWidth: 30, strokeOpacity: 0 }}
+          pointerEvents="stroke"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         />
 
         {/* Base Edge */}
@@ -258,20 +329,42 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
           />
         )}
 
-        {/* Label with Icon */}
-        {(label || showIcon) && (
-          <EdgeLabelRenderer>
+        <EdgeLabelRenderer>
+          {/* Phase 11: Edge payload / data-key visualization */}
+          {visibleKeys.length > 0 && (
+            <DataKeysTooltip
+              style={{
+                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 22}px)`,
+                opacity: isHovered ? 1 : 0,
+              }}
+            >
+              <DataKeysTitle>Data Keys</DataKeysTitle>
+              <DataKeysList>
+                {visibleKeys.map((k) => (
+                  <DataKeyChip key={k}>{k}</DataKeyChip>
+                ))}
+                {remainingCount > 0 && <DataKeyChip>+{remainingCount}</DataKeyChip>}
+              </DataKeysList>
+            </DataKeysTooltip>
+          )}
+
+          {/* Label with Icon */}
+          {(label || showIcon) && (
             <EdgeLabel
               $status={status}
               style={{
                 transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                opacity: isHovered ? 1 : undefined,
+                animation: isHovered ? 'none' : undefined,
               }}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
             >
               {showIcon && getStatusIcon(status)}
               {label && <span>{label}</span>}
             </EdgeLabel>
-          </EdgeLabelRenderer>
-        )}
+          )}
+        </EdgeLabelRenderer>
       </>
     );
   }
