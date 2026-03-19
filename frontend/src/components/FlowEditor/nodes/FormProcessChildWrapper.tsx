@@ -145,17 +145,17 @@ export function calculateChildYPosition(
 }
 
 /**
- * Calculate horizontal position for a child node based on its index.
- * Used for the horizontal “page row” layout inside form process groups.
+ * Calculate horizontal position for a child node based on its index
+ * 
+ * Book+Pages: steps flow left-to-right like pages on a track.
  */
 export function calculateChildXPosition(
   stepIndex: number,
-  baseX: number = 30,
-  spacing: number = 360
+  baseX: number = 20,
+  spacing: number = 350
 ): number {
   return baseX + (stepIndex * spacing);
 }
-
 
 /**
  * Auto-layout children within a container
