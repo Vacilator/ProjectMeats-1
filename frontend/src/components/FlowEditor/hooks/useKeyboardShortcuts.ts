@@ -208,9 +208,10 @@ export const useKeyboardShortcuts = (options: KeyboardShortcutsOptions = {}) => 
         const selectedNodes = nodes.filter((n) => n.selected);
         
         if (selectedNodes.length > 0) {
+          const createId = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
           const duplicates = selectedNodes.map((node) => ({
             ...node,
-            id: `${node.id}-copy-${Date.now()}`,
+            id: createId(),
             position: {
               x: node.position.x + 50,
               y: node.position.y + 50,

@@ -29,6 +29,7 @@
  * Updated: 2026-02-21 - Applied React Flow best practices + consolidated duplicates
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
@@ -2518,6 +2519,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Undo/Redo history
   const [history, setHistory] = useState<HistoryState[]>([{ nodes: normalizedInitialNodes, edges: initialEdges }]);
   const [historyIndex, setHistoryIndex] = useState(0);
+
+  // Phase 9.5: Local clipboard (nodes only per spec)
+  const [clipboardData, setClipboardData] = useState<Node[]>([]);
   const [isPaletteVisible, setIsPaletteVisible] = useState(true);
   const [pendingInsertEdgeId, setPendingInsertEdgeId] = useState<string | null>(null);
 
@@ -2879,27 +2883,50 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   useEffect(() => {
+    const sanitizeForClone = (value: unknown): unknown => {
+      if (!value || typeof value !== 'object') return value;
+      if (Array.isArray(value)) return value.map(sanitizeForClone);
+
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        if (typeof v === 'function') continue;
+        out[k] = sanitizeForClone(v);
+      }
+      return out;
+    };
+
     // Debounce history tracking to avoid too many snapshots
     const timer = setTimeout(() => {
-      const currentState = { nodes, edges };
+      const sanitizedCurrentState = {
+        nodes: nodes.map((n) => ({
+          ...n,
+          data: sanitizeForClone(n.data) as any,
+        })),
+        edges: edges.map((e) => ({ ...e })),
+      };
+
+      // Use structuredClone to avoid shallow-reference mutation bugs
+      // (deep changes inside node.data must produce stable history snapshots).
+      const currentState = structuredClone(sanitizedCurrentState) as HistoryState;
       const lastState = history[historyIndex];
-      
+
       // Only add to history if state actually changed
       if (JSON.stringify(currentState) !== JSON.stringify(lastState)) {
         const newHistory = history.slice(0, historyIndex + 1);
         newHistory.push(currentState);
-        
-        // Keep max 50 history states
+
+        // Keep max 50 history states (strict cap)
         if (newHistory.length > 50) {
           newHistory.shift();
+          setHistoryIndex(49);
         } else {
-          setHistoryIndex(prev => prev + 1);
+          setHistoryIndex((prev) => prev + 1);
         }
-        
+
         setHistory(newHistory);
       }
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [nodes, edges]); // Only track when nodes or edges change
 
@@ -4477,9 +4504,89 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Setup keyboard shortcuts
    * Phase 2: UI/UX Enhancements
    */
+  const handleCopySelection = useCallback(() => {
+    const selectedNodes = nodes.filter((n) => n.selected);
+    if (selectedNodes.length === 0) return;
+
+    // Store a safe snapshot (we re-clone on paste anyway)
+    setClipboardData(selectedNodes.map((n) => ({ ...n, selected: false })));
+    toast.success(`Copied ${selectedNodes.length} node(s)`);
+  }, [nodes]);
+
+  const handlePasteSelection = useCallback(() => {
+    if (!clipboardData.length) return;
+
+    const safeClone = <T,>(value: T): T => {
+      try {
+        return structuredClone(value);
+      } catch {
+        if (value && typeof value === 'object') return { ...(value as any) };
+        return value;
+      }
+    };
+
+    const createId = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : uuidv4());
+    const idMap = new Map<string, string>();
+
+    for (const n of clipboardData) {
+      idMap.set(n.id, createId());
+    }
+
+    const pastedNodes = clipboardData.map((node) => {
+      const newId = idMap.get(node.id) || createId();
+      const cloned = safeClone(node);
+
+      const oldParentId = (cloned as any).parentId as string | undefined;
+      const newParentId = oldParentId ? idMap.get(oldParentId) : undefined;
+      const keepParent = Boolean(oldParentId && newParentId);
+
+      const next: Node = {
+        ...cloned,
+        id: newId,
+        selected: true,
+        position: {
+          x: (cloned.position?.x ?? 0) + 50,
+          y: (cloned.position?.y ?? 0) + 50,
+        },
+        data: safeClone((cloned as any).data),
+      };
+
+      if (keepParent) {
+        (next as any).parentId = newParentId;
+        next.extent = 'parent';
+        (next as any).expandParent = true;
+        next.hidden = false;
+      } else {
+        delete (next as any).parentId;
+        next.extent = undefined;
+        delete (next as any).expandParent;
+        next.hidden = false;
+      }
+
+      // Ensure legacy parentNode is not carried forward
+      delete (next as any).parentNode;
+
+      return next;
+    });
+
+    const sortedPasted = sortNodesTopologically(pastedNodes);
+
+    setNodes((nds) => {
+      const cleared = nds.map((n) => ({ ...n, selected: false }));
+      return [...cleared, ...sortedPasted];
+    });
+
+    setSelectedNodeId(sortedPasted[0]?.id ?? null);
+    setSelectedNode(null);
+
+    toast.success(`Pasted ${sortedPasted.length} node(s)`);
+  }, [clipboardData, setNodes, setSelectedNodeId, setSelectedNode]);
+
   useKeyboardShortcuts({
     onSave: handleSaveWorkflow,
     onLayout: handleAutoLayout,
+    onCopy: handleCopySelection,
+    onPaste: handlePasteSelection,
     onUndo: () => {
       if (historyIndex > 0) {
         const prevState = history[historyIndex - 1];

@@ -41,103 +41,150 @@ export const getLayoutedElements = (
   options: LayoutOptions = {}
 ): { nodes: Node[]; edges: Edge[] } => {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const direction = opts.direction ?? 'TB';
-  
-  // Create a new dagre graph
-  const dagreGraph = new dagre.graphlib.Graph();
-  
-  // Set graph options
-  dagreGraph.setGraph({
-    rankdir: direction,
-    align: opts.align,
-    ranker: 'longest-path',
-    nodesep: opts.nodeSpacing,
-    ranksep: opts.rankSpacing,
-    edgesep: opts.edgeSpacing,
-    marginx: 80,
-    marginy: 80,
-  });
-  
-  // Default edge config
-  dagreGraph.setDefaultEdgeLabel(() => ({}));
-  
-  // Add nodes to dagre
-  nodes.forEach((node) => {
-    // Use measured dimensions or defaults
-    const width = node.width || 280;
-    const height = node.height || 100;
-    
-    dagreGraph.setNode(node.id, {
-      width,
-      height,
+
+  const getDims = (node: Node) => {
+    const width = (node.measured as any)?.width ?? node.width ?? (node.style as any)?.width ?? 280;
+    const height = (node.measured as any)?.height ?? node.height ?? (node.style as any)?.height ?? 100;
+    return { width: typeof width === 'number' ? width : 280, height: typeof height === 'number' ? height : 100 };
+  };
+
+  const layoutDagre = (inputNodes: Node[], inputEdges: Edge[], normalize: { x: number; y: number }) => {
+    const direction = opts.direction ?? 'TB';
+
+    const dagreGraph = new dagre.graphlib.Graph();
+    dagreGraph.setGraph({
+      rankdir: direction,
+      align: opts.align,
+      ranker: 'longest-path',
+      nodesep: opts.nodeSpacing,
+      ranksep: opts.rankSpacing,
+      edgesep: opts.edgeSpacing,
+      marginx: 80,
+      marginy: 80,
     });
-  });
-  
-  // Add edges to dagre
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
-  
-  // Calculate layout
-  dagre.layout(dagreGraph);
-  
-  // Apply calculated positions to nodes
-  const layoutedNodes = nodes.map((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id);
-    
-    // Dagre gives center positions, React Flow uses top-left
-    const x = nodeWithPosition.x - (node.width || 280) / 2;
-    const y = nodeWithPosition.y - (node.height || 100) / 2;
-    
-    return {
-      ...node,
-      position: { x, y },
-    };
-  });
-  
-  let alignedNodes = layoutedNodes;
+    dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-  if (direction === 'TB' || direction === 'BT') {
-    // Center horizontally for top-to-bottom layout
-    const minX = Math.min(...layoutedNodes.map((n) => n.position.x));
-    const maxX = Math.max(...layoutedNodes.map((n) => n.position.x + (n.width || 280)));
-    const centerOffset = (minX + maxX) / 2;
+    inputNodes.forEach((n) => {
+      const { width, height } = getDims(n);
+      dagreGraph.setNode(n.id, { width, height });
+    });
 
-    alignedNodes = layoutedNodes.map((node) => ({
-      ...node,
+    inputEdges.forEach((e) => {
+      if (!dagreGraph.hasNode(e.source) || !dagreGraph.hasNode(e.target)) return;
+      dagreGraph.setEdge(e.source, e.target);
+    });
+
+    dagre.layout(dagreGraph);
+
+    const laidOut = inputNodes.map((n) => {
+      const p = dagreGraph.node(n.id);
+      const { width, height } = getDims(n);
+      return {
+        ...n,
+        position: {
+          x: p.x - width / 2,
+          y: p.y - height / 2,
+        },
+      };
+    });
+
+    const minX = Math.min(...laidOut.map((n) => n.position.x));
+    const minY = Math.min(...laidOut.map((n) => n.position.y));
+
+    return laidOut.map((n) => ({
+      ...n,
       position: {
-        x: node.position.x - centerOffset,
-        y: node.position.y,
+        x: n.position.x - minX + normalize.x,
+        y: n.position.y - minY + normalize.y,
       },
     }));
-  } else {
-    // Center vertically for left-to-right layout
-    const minY = Math.min(...layoutedNodes.map((n) => n.position.y));
-    const maxY = Math.max(...layoutedNodes.map((n) => n.position.y + (n.height || 100)));
-    const centerOffsetY = (minY + maxY) / 2;
+  };
 
-    alignedNodes = layoutedNodes.map((node) => ({
-      ...node,
-      position: {
-        x: node.position.x,
-        y: node.position.y - centerOffsetY,
-      },
-    }));
+  // Group nodes by parentId
+  const childrenByParent = new Map<string, Node[]>();
+  const nodeById = new Map<string, Node>();
+  nodes.forEach((n) => {
+    nodeById.set(n.id, n);
+    if (n.parentId) {
+      const arr = childrenByParent.get(n.parentId) ?? [];
+      arr.push(n);
+      childrenByParent.set(n.parentId, arr);
+    }
+  });
+
+  const updates = new Map<string, Node>();
+
+  const PADDING_X = 30;
+  const PADDING_Y = 30;
+  const HEADER_HEIGHT = 60;
+  const MIN_CONTAINER_WIDTH = 500;
+  const MIN_CONTAINER_HEIGHT = 300;
+
+  const layoutContainerRecursive = (containerId: string) => {
+    const children = childrenByParent.get(containerId) ?? [];
+    if (children.length === 0) return;
+
+    // Layout nested containers first so their dims are updated before parent layout
+    for (const child of children) {
+      if (childrenByParent.has(child.id)) layoutContainerRecursive(child.id);
+    }
+
+    const childIds = new Set(children.map((c) => c.id));
+    const childEdges = edges.filter((e) => childIds.has(e.source) && childIds.has(e.target));
+
+    const mergedChildren = children.map((c) => updates.get(c.id) ?? c);
+    const laidOutChildren = layoutDagre(mergedChildren, childEdges, {
+      x: PADDING_X,
+      y: HEADER_HEIGHT + PADDING_Y,
+    });
+
+    // Compute container bounds to fit children
+    let maxRight = 0;
+    let maxBottom = 0;
+    for (const c of laidOutChildren) {
+      const { width, height } = getDims(c);
+      maxRight = Math.max(maxRight, c.position.x + width);
+      maxBottom = Math.max(maxBottom, c.position.y + height);
+    }
+
+    const containerWidth = Math.max(MIN_CONTAINER_WIDTH, maxRight + PADDING_X);
+    const containerHeight = Math.max(MIN_CONTAINER_HEIGHT, maxBottom + PADDING_Y);
+
+    for (const c of laidOutChildren) {
+      updates.set(c.id, c);
+    }
+
+    const container = nodeById.get(containerId);
+    if (container) {
+      updates.set(containerId, {
+        ...container,
+        style: {
+          ...(container.style as any),
+          width: containerWidth,
+          height: containerHeight,
+        },
+      });
+    }
+  };
+
+  // Layout all containers (deepest-first via recursion)
+  for (const containerId of childrenByParent.keys()) {
+    layoutContainerRecursive(containerId);
   }
 
-  // Normalize to keep positions positive with a small margin
-  const normalizedMinX = Math.min(...alignedNodes.map((n) => n.position.x));
-  const normalizedMinY = Math.min(...alignedNodes.map((n) => n.position.y));
-  const normalizedNodes = alignedNodes.map((node) => ({
-    ...node,
-    position: {
-      x: node.position.x - normalizedMinX + 50,
-      y: node.position.y - normalizedMinY + 50,
-    },
-  }));
+  // Final pass: layout top-level nodes/containers
+  const topLevel = nodes.filter((n) => !n.parentId).map((n) => updates.get(n.id) ?? n);
+  const topIds = new Set(topLevel.map((n) => n.id));
+  const topEdges = edges.filter((e) => topIds.has(e.source) && topIds.has(e.target));
+
+  const laidOutTop = layoutDagre(topLevel, topEdges, { x: 50, y: 50 });
+  for (const n of laidOutTop) updates.set(n.id, n);
+
+  // Merge back into original order (order-preserving)
+  const merged = nodes.map((n) => updates.get(n.id) ?? n);
 
   return {
-    nodes: normalizedNodes,
+    nodes: merged,
     edges,
   };
 };

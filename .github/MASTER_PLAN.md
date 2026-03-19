@@ -4,6 +4,17 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ## Active Initiative: Phase 7 Stabilization + Cockpit Navigation
 
+## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
+
+### PR Log (append-only)
+
+- 2026-03-19 — Phase 9.5: Copy/Paste + container-aware auto-layout + memory-safe undo/redo — Commit: ba8c0d99 (PR: #3612)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3612
+  - FlowEditor: Ctrl/⌘C copies selected nodes; Ctrl/⌘V pastes with fresh UUIDs, +50px offset, and selection moves to pasted nodes.
+  - Layout: recursive dagre layout per container (parentId grouping) + final top-level pass; containers auto-resize to fit children.
+  - History: structuredClone-based snapshots (sanitized for clone safety) with strict 50-state cap.
+
+
 ### Scope
 - Cockpit “continuous browsing” navigation + relationships.
 - MyTasks workflow execution dashboard stability.
