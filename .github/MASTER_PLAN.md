@@ -14,6 +14,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Container edges: strict container edge isolation remains removed to support Form → Action → Form workflows across permeable boundaries.
   - Layout: steps sequence horizontally (wider spacing) and non-form child nodes are not repositioned by container auto-layout.
 
+- 2026-03-19 — Phase 7 — Initiative: WorkForm Visual Evolution: Interleaved Action Containers and Horizontal Page Layout — Commit: TBD
+  - FormProcessGroupNode: pages (type `form`) lay out horizontally while other node types remain free-positioned within the container.
+  - Group container sizing: width expands with page count ("book" grows as pages are added).
+  - FormNode UX: selected pages support a lightweight in-canvas field editor (add/reorder) to reduce side-panel dependency.
+  - Connectivity: plan to introduce virtual handles for collapsed groups so edges can cross the container boundary cleanly without breaking `extent: 'parent'` visually.
+
 - 2026-03-19 — Fix: Workforms Editor UI/config/publish polish — Commit: 25a56157 (PR: #3629)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3629
   - DynamicConfigPanel: handle field.type=entityType and field.type=multiSelect to prevent "Unknown field type" rendering errors.
