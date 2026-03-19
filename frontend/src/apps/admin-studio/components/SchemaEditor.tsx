@@ -20,7 +20,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
-import axios from 'axios';
+import { adminClient } from '@/services/apiService';
 import {
   useReactTable,
   getCoreRowModel,
@@ -1337,7 +1337,7 @@ const SchemaEditor: React.FC = () => {
                         document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       
       // Save schema to API - backend expects schema_config, not fields
-      const response = await axios.patch(
+      const response = await adminClient.patch(
         `/admin/system-config/api/studio/versions/${blueprintId}/schema/`,
         { 
           schema_config: fields.map((f, index) => ({
