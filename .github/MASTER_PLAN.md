@@ -703,4 +703,22 @@ Deliverables:
 
 - PR: TBD (refactor/workforms): overhaul canvas UX, dual-direction auto-layout, and fix handle targets
 
+## Phase 9.7: Preemptive Hardening & State Sync
+
+- [x] Required validator normalization:
+  - [x] schemaRegistry now normalizes schemas on registration so any `required: true` field has a `required` validation rule (including nested child schemas).
+
+- [x] FormBuilder → ReactFlow state sync:
+  - [x] UnifiedFlowEditorInner wires FormBuilderProvider `onNodeDataUpdate` to the node update pipeline so edits persist immediately.
+
+- [x] Deep-clone duplication:
+  - [x] UnifiedFlowEditor: container duplication now deep-clones nodes, rewrites IDs/parentId, and also clones internal edges between duplicated descendants.
+  - [x] NodeContextMenu prefers centralized duplicate logic (with a safe fallback).
+
+- [x] Aggressive edge cleanup:
+  - [x] UnifiedFlowEditor: deletes clean up edges for deleted nodes and all descendants (container deletes).
+  - [x] NodeContextMenu prefers centralized delete logic (with a safe fallback).
+
+- PR: TBD (refactor/workforms): Phase 9.7 hardening & state sync
+
 
