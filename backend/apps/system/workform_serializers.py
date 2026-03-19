@@ -33,6 +33,8 @@ class TenantFormSerializer(serializers.ModelSerializer):
             'form_definition',
             'version',
             'usage_count',
+            'is_workform',
+            'parent_workform',
             'entity_type',
             'field_count',
             'step_count',
@@ -98,6 +100,8 @@ class TenantFormListSerializer(serializers.ModelSerializer):
             'type',
             'version',
             'usage_count',
+            'is_workform',
+            'parent_workform',
             'entity_type',
             'field_count',
             'step_count',
@@ -198,8 +202,66 @@ class TenantWorkFormSerializer(serializers.ModelSerializer):
             return obj.updated_by.get_full_name() or obj.updated_by.username
         return None
     
+    def _snapshot_and_link_containers(self, workflow_def, tenant, user, parent_workform):
+        """Snapshot form containers into TenantForms and link them back to the parent workform.
+
+        Non-breaking behavior:
+        - Prefers nested `container.data.steps` when present (frontend sub-flow payload)
+        - Only enforces the 3+ steps rule for canonical `formBook` containers
+        """
+        from apps.system.services.container_versioning import extract_container_definitions, snapshot_container
+
+        if not isinstance(workflow_def, dict):
+            return workflow_def
+
+        nodes = workflow_def.get('nodes', [])
+        if not isinstance(nodes, list):
+            return workflow_def
+
+        containers = extract_container_definitions(nodes)
+
+        for container_info in containers:
+            container_node = container_info['container']
+            child_steps = container_info['children']
+
+            if not child_steps:
+                continue
+
+            # Validation: canonical Form containers must have >= 3 steps.
+            if container_node.get('type') == 'formBook' and len(child_steps) < 3:
+                raise serializers.ValidationError(
+                    {
+                        'workflow_definition': [
+                            f'Form "{(container_node.get("data") or {}).get("label", container_node.get("id"))}" must have at least 3 steps.'
+                        ]
+                    }
+                )
+
+            tenant_form = snapshot_container(
+                container_node=container_node,
+                child_steps=child_steps,
+                tenant=tenant,
+                user=user,
+            )
+
+            # Mark extracted forms as workform-derived for unified selector UX.
+            if parent_workform and (
+                not getattr(tenant_form, 'is_workform', False)
+                or getattr(tenant_form, 'parent_workform_id', None) != parent_workform.id
+            ):
+                tenant_form.is_workform = True
+                tenant_form.parent_workform = parent_workform
+                tenant_form.save(update_fields=['is_workform', 'parent_workform'])
+
+            # Update container node with tenantFormId reference
+            container_data = container_node.setdefault('data', {})
+            container_data['tenantFormId'] = str(tenant_form.id)
+            container_data['tenantFormVersion'] = tenant_form.version
+
+        return workflow_def
+
     def create(self, validated_data):
-        """Create workflow and extract form references.
+        """Create workflow, snapshot containers, and extract form references.
 
         Defensive improvements:
         - Avoid 500s when creating a new workform with a duplicate name by auto-suffixing
@@ -209,8 +271,6 @@ class TenantWorkFormSerializer(serializers.ModelSerializer):
         name = validated_data.get('name')
 
         if tenant and name:
-            # The DB constraint is (tenant, name, version). New workforms start at version=1,
-            # so duplicate names would raise IntegrityError and surface as 500.
             base_name = name
             candidate = base_name
             suffix = 2
@@ -222,58 +282,42 @@ class TenantWorkFormSerializer(serializers.ModelSerializer):
             validated_data['name'] = candidate
 
         workform = super().create(validated_data)
-        workform.update_form_references()
-        return workform
-    
-    def update(self, instance, validated_data):
-        """
-        Update workflow with container versioning.
-        
-        Phase 1: Automatically snapshot formMultiStepContainer nodes into
-        reusable TenantForm records with version tracking.
-        """
-        from apps.system.services.container_versioning import (
-            extract_container_definitions,
-            snapshot_container
-        )
-        
-        # Get user from request context
+
         request = self.context.get('request')
         user = request.user if request else None
-        tenant = instance.tenant
-        
-        # Extract workflow definition
+
+        workflow_def = workform.workflow_definition
+        workflow_def = self._snapshot_and_link_containers(
+            workflow_def=workflow_def,
+            tenant=workform.tenant,
+            user=user,
+            parent_workform=workform,
+        )
+
+        workform.workflow_definition = workflow_def
+        workform.form_references = workform.extract_form_references()
+        workform.save(update_fields=['workflow_definition', 'form_references'])
+
+        return workform
+
+    def update(self, instance, validated_data):
+        """Update workflow with container versioning + dual-reference linking."""
+
+        request = self.context.get('request')
+        user = request.user if request else None
+
         workflow_def = validated_data.get('workflow_definition', instance.workflow_definition)
-        nodes = workflow_def.get('nodes', [])
-        
-        # Extract and process containers
-        containers = extract_container_definitions(nodes)
-        
-        # Snapshot each container
-        for container_info in containers:
-            container_node = container_info['container']
-            child_steps = container_info['children']
-            
-            if child_steps:  # Only snapshot if container has children
-                tenant_form = snapshot_container(
-                    container_node=container_node,
-                    child_steps=child_steps,
-                    tenant=tenant,
-                    user=user
-                )
-                
-                # Update container node with tenantFormId reference
-                container_data = container_node.setdefault('data', {})
-                container_data['tenantFormId'] = str(tenant_form.id)
-                container_data['tenantFormVersion'] = tenant_form.version
-        
-        # Update workflow_definition with modified nodes
+        workflow_def = self._snapshot_and_link_containers(
+            workflow_def=workflow_def,
+            tenant=instance.tenant,
+            user=user,
+            parent_workform=instance,
+        )
+
         validated_data['workflow_definition'] = workflow_def
-        
-        # Perform standard update
+
         workform = super().update(instance, validated_data)
         workform.update_form_references()
-        
         return workform
 
 

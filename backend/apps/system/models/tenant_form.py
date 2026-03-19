@@ -154,6 +154,21 @@ class TenantForm(models.Model):
         db_index=True,
         help_text="Whether this form is a reusable template"
     )
+
+    # WorkForm extraction metadata (Phase 7: Dual references)
+    is_workform = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="If true, this TenantForm was generated from a TenantWorkForm save"
+    )
+    parent_workform = models.ForeignKey(
+        'system.TenantWorkForm',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='extracted_forms',
+        help_text="The TenantWorkForm that generated this form (optional)"
+    )
     
     class Meta:
         db_table = 'tenant_forms'

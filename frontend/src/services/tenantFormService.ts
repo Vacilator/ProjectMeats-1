@@ -81,9 +81,14 @@ export interface SaveFormResult {
  * Note: xyflow uses `parentId` for grouping, but some older code paths still
  * write `parentNode`. We support both to avoid false "0 children" saves.
  */
-function getChildNodes(groupNode: Node<FormProcessGroupData>, allNodes: Node[]): Node[] {
-  const groupNodeId = groupNode.id;
-  const pageOrder = Array.isArray(groupNode.data?.pageOrder) ? groupNode.data.pageOrder : null;
+function getChildNodes(groupNode: Node<FormProcessGroupData> | string, allNodes: Node[]): Node[] {
+  const groupNodeId = typeof groupNode === 'string' ? groupNode : groupNode.id;
+  const pageOrder =
+    typeof groupNode === 'string'
+      ? null
+      : Array.isArray(groupNode.data?.pageOrder)
+        ? groupNode.data.pageOrder
+        : null;
 
   const isChild = (node: Node): boolean => {
     const anyNode = node as any;
@@ -184,72 +189,17 @@ export async function saveFormProcessGroup(
   allNodes: Node[],
   allEdges: Edge[]
 ): Promise<SaveFormResult> {
-  logger.debug('[TenantFormService] Saving FormProcessGroup:', groupNode.id);
-  
-  // Extract child nodes (form/page steps only)
-  const childNodes = getChildNodes(groupNode, allNodes);
+  // Deprecated: All saving now goes through the TenantWorkForm endpoints.
+  // Backend now snapshots nested `container.data.steps` during TenantWorkForm save.
+  logger.warn('[TenantFormService] saveFormProcessGroup is deprecated', {
+    nodeId: groupNode.id,
+    nodes: allNodes.length,
+    edges: allEdges.length,
+  });
 
-  if (childNodes.length === 0) {
-    throw new Error('FormProcessGroup must have at least one child step');
-  }
-  
-  // Convert child nodes to form steps
-  const steps = childNodes.map((node, index) => convertNodeToFormStep(node, index));
-  
-  // Build form definition
-  const formDefinition = {
-    steps,
-    navigation: {
-      show_progress: groupNode.data.showProgressIndicator !== false,
-      allow_back: groupNode.data.allowBackNavigation !== false,
-      allow_skip: groupNode.data.allowSkipSteps || false
-    }
-  };
-  
-  // Generate hash for deduplication
-  const definitionHash = await generateDefinitionHash(formDefinition);
-  
-  // Check if form already exists (by source_node_id)
-  const existingFormId = groupNode.data.tenantFormId;
-  
-  const tenantFormData: Partial<TenantForm> = {
-    name: groupNode.data.containerName || groupNode.data.label || 'Untitled Form Process',
-    description: groupNode.data.containerDescription || '',
-    type: 'multi_step',
-    form_definition: formDefinition,
-    source_node_id: groupNode.id,
-    definition_hash: definitionHash,
-    is_template: false
-  };
-  
-  try {
-    let response;
-    
-    if (existingFormId) {
-      // Update existing form (increments version automatically)
-      logger.debug('[TenantFormService] Updating existing form:', existingFormId);
-      response = await adminClient.patch(`/workflows/forms/${existingFormId}/`, tenantFormData);
-      
-      return {
-        tenantFormId: response.data.id,
-        version: response.data.version,
-        created: false
-      };
-    } else {
-      // Create new form
-      logger.debug('[TenantFormService] Creating new form');
-      response = await adminClient.post('/workflows/forms/', tenantFormData);
-      
-      return {
-        tenantFormId: response.data.id,
-        version: response.data.version,
-        created: true
-      };
-    }
-  } catch (error: any) {
-    logger.error('[TenantFormService] Save failed:', error);
-    throw new Error(`Failed to save form: ${error.response?.data?.detail || error.message}`);
-  }
+  throw new Error(
+    'Saving TenantForms via /api/v1/workflows/forms is deprecated. Use /api/v1/tenant-workforms/{id}/ to save the full workflow definition.'
+  );
 }
 
 /**

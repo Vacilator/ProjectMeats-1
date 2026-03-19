@@ -84,9 +84,13 @@ def get_auth_url(request):
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
+    # By default we return JSON (existing behavior). Some UI flows prefer a direct 302.
+    if request.GET.get('redirect') in {'1', 'true', 'yes'}:
+        return redirect(auth_response.auth_url)
+
     return Response({
-        "auth_url": auth_response.auth_url,
-        "provider": provider_type,
+        'auth_url': auth_response.auth_url,
+        'provider': provider_type,
     })
 
 

@@ -6,7 +6,6 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService'; // FIX: Use authenticated client
 import { toast } from 'react-hot-toast';
 import { Mail, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 
@@ -54,13 +53,10 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
     setIsConnecting(true);
     
     try {
-      const response = await apiClient.get('/integrations/oauth/authorize/', { // FIX: Use apiClient
-        params: { provider },
-      });
-      window.location.href = response.data.auth_url;
+      window.location.href = `/api/v1/integrations/oauth/authorize/?provider=${encodeURIComponent(provider)}&redirect=1`;
     } catch (error: any) {
       console.error('[EmailConnection] OAuth initiation failed:', error);
-      toast.error(error.response?.data?.error || 'Failed to initiate connection');
+      toast.error('Failed to initiate connection');
       setIsConnecting(false);
     }
   };
