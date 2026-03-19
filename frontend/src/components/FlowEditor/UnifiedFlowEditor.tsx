@@ -1640,13 +1640,13 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // Static node types (not containers that need node access)
 const staticNodeTypes: NodeTypes = {
   // Form nodes (Phase E - 2026-02-19)
-  form: FormNode,  // NEW: Primary form node name
-  formStepSingle: FormStepSingleNode,  // Backward compatibility
-  formProcess: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
+  form: FormNode, // NEW: Primary form node name
+  formStepSingle: FormStepSingleNode, // Backward compatibility
+  formProcess: FormProcessGroupNode, // Upgraded: legacy type now uses the group node component
   formProcessGroup: FormProcessGroupNode,
   // Backward compatibility aliases
-  formStep: FormStepSingleNode,  // Deprecated
-  formMultiStepContainer: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
+  formStep: FormStepSingleNode, // Deprecated
+  formMultiStepContainer: FormProcessGroupNode, // Upgraded: legacy type now uses the group node component
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -1658,23 +1658,6 @@ const staticNodeTypes: NodeTypes = {
   terminal: TerminalNode,
 };
 
-// Dynamically build the full registry map statically ONCE outside the component.
-// This avoids TDZ / initialization crashes seen when building nodeTypes inside hooks.
-const dynamicNodeTypes: NodeTypes = { ...staticNodeTypes };
-Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
-  if (dynamicNodeTypes[typeId]) return;
-
-  if (typeId.startsWith('trigger')) dynamicNodeTypes[typeId] = TriggerNode;
-  else if (typeId.startsWith('action')) dynamicNodeTypes[typeId] = ActionNode;
-  else if (typeId.startsWith('condition') || typeId === 'parallelPath') dynamicNodeTypes[typeId] = ConditionIfNode;
-  else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) dynamicNodeTypes[typeId] = WaitStateNode;
-  else if (typeId.startsWith('document')) dynamicNodeTypes[typeId] = DocumentNode;
-  else if (typeId.startsWith('terminal') || typeId.startsWith('end')) dynamicNodeTypes[typeId] = TerminalNode;
-  else if (typeId.startsWith('form')) dynamicNodeTypes[typeId] = FormStepSingleNode;
-  else dynamicNodeTypes[typeId] = UtilityNode;
-});
-
-
 // Static edge types (no useMemo needed - these are constant)
 const staticEdgeTypes: EdgeTypes = {
   custom: CustomEdge,
@@ -1683,6 +1666,33 @@ const staticEdgeTypes: EdgeTypes = {
   success: SuccessEdge,
   insert: InsertNodeEdge,
   default: CustomEdge, // Fallback to custom for untyped edges
+};
+
+function getDynamicNodeTypes(): NodeTypes {
+  const types: NodeTypes = { ...staticNodeTypes };
+  Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
+    if (types[typeId]) return;
+
+    if (typeId.startsWith('trigger')) types[typeId] = TriggerNode;
+    else if (typeId.startsWith('action')) types[typeId] = ActionNode;
+    else if (typeId.startsWith('condition') || typeId === 'parallelPath') types[typeId] = ConditionIfNode;
+    else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) {
+      types[typeId] = WaitStateNode;
+    } else if (typeId.startsWith('document')) types[typeId] = DocumentNode;
+    else if (typeId.startsWith('terminal') || typeId.startsWith('end')) types[typeId] = TerminalNode;
+    else if (typeId.startsWith('form')) types[typeId] = FormStepSingleNode;
+    else types[typeId] = UtilityNode;
+  });
+  return types;
+}
+
+const MINIMAP_NODE_STROKE_COLOR = 'rgb(var(--color-border))';
+const MINIMAP_MASK_COLOR = 'rgba(var(--color-primary), 0.12)';
+const MINIMAP_STYLE: React.CSSProperties = {
+  backgroundColor: 'rgba(var(--color-surface), 0.95)',
+  border: '1px solid rgb(var(--color-border))',
+  borderRadius: 'var(--radius-md)',
+  boxShadow: '0 6px 18px rgba(0, 0, 0, 0.12)',
 };
 
 // Phase 9.4: Render-time execution tracing (no mutations to saved workflow graph)
@@ -1842,11 +1852,31 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   editorMode = 'visual',
   allowedNodeCategories, // Phase 4.2: Permission-based filtering
 }) => {
+  const nodeTypes = useMemo(() => getDynamicNodeTypes(), []);
+
   // Normalize nodes to ensure all have required properties (maxInputs, maxOutputs)
   const normalizedInitialNodes = useMemo(() => normalizeNodes(initialNodes), [initialNodes]);
   
   const [nodes, setNodes, onNodesChangeBase] = useNodesState(normalizedInitialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  // Minimap density heatmap: approximate "density" via node degree (connected edges).
+  // Keeps overhead low (O(edges)) and avoids expensive spatial clustering.
+  const minimapDegreeMap = useMemo(() => {
+    const degree: Record<string, number> = {};
+    for (const e of edges) {
+      degree[e.source] = (degree[e.source] || 0) + 1;
+      degree[e.target] = (degree[e.target] || 0) + 1;
+    }
+    return degree;
+  }, [edges]);
+
+  const minimapNodeColor = useCallback((node: Node) => {
+    const d = minimapDegreeMap[node.id] || 0;
+    const alpha = Math.min(0.9, 0.18 + d * 0.12);
+    return `rgba(var(--color-primary), ${alpha})`;
+  }, [minimapDegreeMap]);
+
   const [nodeIdCounter, setNodeIdCounter] = useState(normalizedInitialNodes.length + 1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
@@ -2321,26 +2351,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   );
 
   // ============================================================================
-  // Phase 9.2: Collaboration & Presence
-  // ============================================================================
-
-  const tenantId = getCurrentTenant() ?? '';
-  const { presence: collabPresence, sendCursor: collabSendCursor, sendSelection: collabSendSelection } =
-    useCollaboration({ workflowId: currentWorkflowId, tenantId });
-
-  const collabSendCursorDebounced = useMemo(
-    () => debounce((cursor: { x: number; y: number }) => collabSendCursor(cursor), 30),
-    [collabSendCursor]
-  );
-
-  useEffect(() => {
-    return () => {
-      collabSendCursorDebounced.cancel();
-    };
-  }, [collabSendCursorDebounced]);
-
-  
-  // ============================================================================
   // Onboarding Tour (Gap Analysis Phase 1.1)
   // ============================================================================
   
@@ -2551,7 +2561,35 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   
   // Sprint 1 Task 1.3: Minimap toggle
-  const [isMinimapVisible, setIsMinimapVisible] = useState(true);
+  const [isMinimapVisible, setIsMinimapVisible] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('pm.floweditor.minimap.visible');
+      if (stored === null) return true;
+      return stored === 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleMinimap = useCallback(() => {
+    setIsMinimapVisible((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('pm.floweditor.minimap.visible', String(next));
+      } catch {
+        // ignore storage failures
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('pm.floweditor.minimap.visible', String(isMinimapVisible));
+    } catch {
+      // ignore storage failures
+    }
+  }, [isMinimapVisible]);
   
   // Sprint 1 Task 1.4: Background & Grid controls
   const [backgroundVariant, setBackgroundVariant] = useState<BackgroundVariant>(BackgroundVariant.Dots);
@@ -2636,6 +2674,26 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [currentWorkflowName, setCurrentWorkflowName] = useState<string>('Untitled Workflow');
   const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState<string>(''); // Phase 8.2
   const [currentWorkflowStatus, setCurrentWorkflowStatus] = useState<'draft' | 'active' | 'archived'>('draft'); // Phase 8.2
+
+  // ============================================================================
+  // Phase 9.2: Collaboration & Presence
+  // NOTE: Must be declared after currentWorkflowId to avoid TDZ crashes.
+  // ============================================================================
+  const tenantId = getCurrentTenant() ?? '';
+  const { presence: collabPresence, sendCursor: collabSendCursor, sendSelection: collabSendSelection } =
+    useCollaboration({ workflowId: currentWorkflowId, tenantId });
+
+  const collabSendCursorDebounced = useMemo(
+    () => debounce((cursor: { x: number; y: number }) => collabSendCursor(cursor), 30),
+    [collabSendCursor]
+  );
+
+  useEffect(() => {
+    return () => {
+      collabSendCursorDebounced.cancel();
+    };
+  }, [collabSendCursorDebounced]);
+
   const [workflowList, setWorkflowList] = useState<WorkflowListItem[]>([]);
   const [isLoadMenuOpen, setIsLoadMenuOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -4850,11 +4908,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
-      // M: Toggle minimap (Sprint 1 Task 1.3)
-      if (event.key === 'm' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-        if (isTypingInInput(event)) return; // Don't toggle while typing
+      // Ctrl+M / Cmd+M: Toggle minimap (Sprint 1 Task 1.3)
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') {
+        if (isTypingInInput(event)) return;
         event.preventDefault();
-        setIsMinimapVisible(prev => !prev);
+        toggleMinimap();
+        return;
+      }
+
+      // M: Toggle minimap (legacy shortcut)
+      if (event.key.toLowerCase() === 'm' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return;
+        event.preventDefault();
+        toggleMinimap();
         return;
       }
       
@@ -4922,6 +4988,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setSelectedNode, 
     isDragging,
     isMinimapVisible, // Sprint 1 Task 1.3
+    toggleMinimap,
     alignHorizontal,
     alignVertical,
     alignLeft,
@@ -6019,8 +6086,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton 
-          onClick={() => setIsMinimapVisible(!isMinimapVisible)} 
-          title={isMinimapVisible ? "Hide Minimap (M)" : "Show Minimap (M)"}
+          onClick={toggleMinimap} 
+          title={isMinimapVisible ? "Hide Minimap (Ctrl+M)" : "Show Minimap (Ctrl+M)"}
           style={isMinimapVisible ? {
             background: 'rgb(var(--color-primary))',
             color: 'white',
@@ -6088,7 +6155,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           collabSendCursorDebounced(pos);
         }}
         onSelectionChange={handleSelectionChange}
-        nodeTypes={dynamicNodeTypes}
+        nodeTypes={nodeTypes}
         edgeTypes={staticEdgeTypes}
         // Phase 7.5/9: Always render only visible elements for large-editor performance
         onlyRenderVisibleElements={true}
@@ -6176,17 +6243,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         )}
         {isMinimapVisible && (
           <MiniMap 
-            nodeColor={(node) => {
-              const registry = NODE_TYPE_REGISTRY[node.type];
-              return registry?.color || '#94a3b8';
-            }}
-            maskColor="rgba(0, 0, 0, 0.1)"
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              border: '1px solid rgb(var(--color-border))',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-            }}
+            nodeColor={minimapNodeColor}
+            nodeStrokeColor={MINIMAP_NODE_STROKE_COLOR}
+            nodeStrokeWidth={2}
+            maskColor={MINIMAP_MASK_COLOR}
+            style={MINIMAP_STYLE}
             pannable
             zoomable
           />
