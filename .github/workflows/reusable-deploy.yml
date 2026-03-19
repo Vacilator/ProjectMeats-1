@@ -111,6 +111,9 @@ on:
       MICROSOFT_REDIRECT_URI:
         required: false
         description: "Microsoft OAuth redirect URI (must match Azure app registration)"
+      OAUTH_ENCRYPTION_KEY:
+        required: false
+        description: "Fernet key for encrypting stored OAuth tokens"
 
 env:
   REGISTRY: registry.digitalocean.com/meatscentral
@@ -912,6 +915,7 @@ jobs:
           	MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}
           	MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }}
           	MICROSOFT_REDIRECT_URI=${{ secrets.MICROSOFT_REDIRECT_URI }}
+          	OAUTH_ENCRYPTION_KEY=${{ secrets.OAUTH_ENCRYPTION_KEY }}
           	EOF
           
           # Verify SENDGRID_API_KEY is set (show length only for security)
