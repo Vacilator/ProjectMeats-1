@@ -12,7 +12,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Handle, Position, NodeToolbar } from '@xyflow/react';
-import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react';
+import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock, Plus } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
 import type { NodeBadgeStatus } from '../components/NodeBadge';
 import { NodeIcon, NodeIconType } from '../components/NodeIcons';
@@ -32,6 +32,8 @@ export interface BaseNodeData {
   onEdit?: () => void; // Batch 3: Edit handler
   onDelete?: () => void; // Batch 3: Delete handler
   onTitleChange?: (newTitle: string) => void; // Batch 4: Title edit handler
+  /** Open the node palette in "insert after this node" context */
+  onInsertAfter?: () => void;
   // Phase 9.4: Breakpoints
   hasBreakpoint?: boolean;
   // Sprint 1 Task 1.2: Enhanced visuals
@@ -479,6 +481,17 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
               title={isPinned ? 'Unlock node (allow drag)' : 'Lock node position (Cmd/Ctrl+L)'}
             >
               {isPinned ? <Lock size={16} /> : <Unlock size={16} />}
+            </ToolbarBtn>
+          )}
+          {data.onInsertAfter && (
+            <ToolbarBtn
+              onClick={(e) => {
+                e.stopPropagation();
+                data.onInsertAfter!();
+              }}
+              title="Add next node"
+            >
+              <Plus size={16} />
             </ToolbarBtn>
           )}
           {data.onEdit && (

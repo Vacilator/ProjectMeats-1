@@ -2511,17 +2511,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [clipboardData, setClipboardData] = useState<Node[]>([]);
   const [isPaletteVisible, setIsPaletteVisible] = useState(true);
   const [pendingInsertEdgeId, setPendingInsertEdgeId] = useState<string | null>(null);
+  const [pendingInsertAnchorNodeId, setPendingInsertAnchorNodeId] = useState<string | null>(null);
 
   // Inline insertion: listen for "+" edge events to open palette with context
   useEffect(() => {
     const openPaletteForEdge = (edgeId: string | null) => {
       setPendingInsertEdgeId(edgeId);
+      setPendingInsertAnchorNodeId(null);
+      setIsPaletteVisible(true);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    };
+
+    const openPaletteForNode = (nodeId: string | null) => {
+      setPendingInsertEdgeId(null);
+      setPendingInsertAnchorNodeId(nodeId);
+      setSelectedNodeId(nodeId);
+      setSelectedNode(null);
       setIsPaletteVisible(true);
       requestAnimationFrame(() => searchInputRef.current?.focus());
     };
 
     const handleOpenPalette = (event: Event) => {
-      const detail = (event as CustomEvent<{ insertOnEdgeId?: string }>).detail;
+      const detail = (event as CustomEvent<{ insertOnEdgeId?: string; anchorNodeId?: string }>).detail;
+      if (detail?.anchorNodeId) {
+        openPaletteForNode(detail.anchorNodeId);
+        return;
+      }
       openPaletteForEdge(detail?.insertOnEdgeId || null);
     };
 
@@ -3366,6 +3381,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
         setNodeIdCounter((prev) => prev + counterDelta);
         setPendingInsertEdgeId(null);
+        setPendingInsertAnchorNodeId(null);
         setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
@@ -3375,11 +3391,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       // Otherwise, insert directly below the selected node (or the bottom-most node)
       const selectedById = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) || null : null;
+      const pendingAnchor = pendingInsertAnchorNodeId ? nodes.find((n) => n.id === pendingInsertAnchorNodeId) || null : null;
       const bottomMost = [...nodes]
         .filter((n) => !n.hidden)
         .sort((a, b) => (b.position?.y ?? 0) - (a.position?.y ?? 0))[0];
 
-      const anchor = selectedNode || selectedById || nodes.find((n) => n.selected) || bottomMost || null;
+      const anchor = pendingAnchor || selectedNode || selectedById || nodes.find((n) => n.selected) || bottomMost || null;
 
       if (anchor) {
         // Preserve container context if inserting within a group
@@ -3441,6 +3458,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
 
         setNodeIdCounter((prev) => prev + counterDelta);
+        setPendingInsertAnchorNodeId(null);
         setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
@@ -3451,6 +3469,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       readOnly,
       addToRecent,
       pendingInsertEdgeId,
+      pendingInsertAnchorNodeId,
       edges,
       nodes,
       nodeIdCounter,
@@ -6125,6 +6144,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           ? data.onTitleChange
           : (newTitle: string) => handleNodeTitleChange(node.id, newTitle);
 
+      const onInsertAfter =
+        typeof data.onInsertAfter === 'function'
+          ? data.onInsertAfter
+          : () => {
+              window.dispatchEvent(
+                new CustomEvent('pm:openNodePalette', {
+                  detail: { anchorNodeId: node.id },
+                })
+              );
+            };
+
       return {
         ...node,
         data: {
@@ -6133,6 +6163,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           onDelete,
           onSave,
           onTitleChange,
+          onInsertAfter,
         },
       };
     });
