@@ -47,6 +47,7 @@ interface TenantForm {
   is_system_template: boolean;
   created_at: string;
   updated_at: string;
+  flow_data?: any; // Add flow_data for advanced filtering
   protein_type?: string; // NEW: Protein category (beef, pork, poultry, seafood, etc.)
   department?: string; // NEW: Department (receiving, processing, packaging, quality_control)
   can_quick_run?: boolean; // NEW: Flag if workflow supports one-click execution
@@ -529,6 +530,29 @@ const FormsFlowsCatalog: React.FC = () => {
     }
   }, [error]);
 
+  // Helper to determine if a form should be classified as a Workflow (Logic)
+  const isWorkflow = React.useCallback((form: TenantForm) => {
+    if (form.is_multi_entity) return true;
+    if (form.entity_count && form.entity_count > 1) return true;
+
+    // Inspect flow_data to see if it uses advanced workflow nodes
+    if (form.flow_data?.nodes && Array.isArray(form.flow_data.nodes)) {
+      const hasAdvancedNodes = form.flow_data.nodes.some((n: any) =>
+        n.type === 'formProcessGroup' ||
+        n.type === 'formProcess' ||
+        n.type === 'formMultiStepContainer' ||
+        n.type === 'conditionIf' ||
+        n.type === 'conditionSwitch' ||
+        (n.type && n.type.startsWith('action')) ||
+        (n.type && n.type.startsWith('trigger') && n.type !== 'triggerManual') ||
+        (n.type && n.type.startsWith('document'))
+      );
+      if (hasAdvancedNodes) return true;
+    }
+
+    return false;
+  }, []);
+
   // Filter forms based on search, filter, and tab
   const filteredForms = React.useMemo(() => {
     // Safety check: ensure forms is an array
@@ -539,26 +563,15 @@ const FormsFlowsCatalog: React.FC = () => {
     
     let filtered = forms;
     
-    // Apply tab filter first (Phase 5: Separate Logic vs Data + Phase 2.2: Templates)
+    // Apply tab filter first
     if (activeTab === 'workflows') {
-      // Workflows: Forms with logic/automation nodes (exclude templates)
-      filtered = filtered.filter(form => 
-        !form.is_system_template && (
-          form.is_multi_entity === true || 
-          (form.entity_count && form.entity_count > 1)
-        )
-      );
+      // Workflows: Forms with logic/automation nodes or multi-step containers
+      filtered = filtered.filter(form => !form.is_system_template && isWorkflow(form));
     } else if (activeTab === 'forms') {
-      // Forms: Simple data capture forms (single entity or basic forms, exclude templates)
-      filtered = filtered.filter(form => 
-        !form.is_system_template && (
-          form.is_multi_entity === false || 
-          !form.entity_count || 
-          form.entity_count <= 1
-        )
-      );
+      // Forms: Simple single-step data capture forms
+      filtered = filtered.filter(form => !form.is_system_template && !isWorkflow(form));
     } else if (activeTab === 'templates') {
-      // Templates: Industry-standard system templates (Phase 2.2)
+      // Templates: Industry-standard system templates
       filtered = filtered.filter(form => form.is_system_template === true);
     }
     
@@ -596,18 +609,18 @@ const FormsFlowsCatalog: React.FC = () => {
     }
     
     return filtered;
-  }, [forms, searchQuery, filter, activeTab, proteinTypeFilter, departmentFilter]);
+  }, [forms, searchQuery, filter, activeTab, proteinTypeFilter, departmentFilter, isWorkflow]);
 
   // Count forms by type for tab badges
   const workflowsCount = React.useMemo(() => {
     if (!forms || !Array.isArray(forms)) return 0;
-    return forms.filter(f => f.is_multi_entity === true || (f.entity_count && f.entity_count > 1)).length;
-  }, [forms]);
+    return forms.filter(f => !f.is_system_template && isWorkflow(f)).length;
+  }, [forms, isWorkflow]);
 
   const formsCount = React.useMemo(() => {
     if (!forms || !Array.isArray(forms)) return 0;
-    return forms.filter(f => f.is_multi_entity === false || !f.entity_count || f.entity_count <= 1).length;
-  }, [forms]);
+    return forms.filter(f => !f.is_system_template && !isWorkflow(f)).length;
+  }, [forms, isWorkflow]);
 
   // Handle template selection
   const handleTemplateSelect = (template: FlowTemplate) => {

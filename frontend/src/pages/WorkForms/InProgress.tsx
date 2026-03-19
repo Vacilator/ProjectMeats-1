@@ -577,7 +577,7 @@ const FormsFlowsInProgress: React.FC = () => {
           <EmptyMessage>
             {searchQuery 
               ? 'No matching forms found. Try a different search term.'
-              : 'Start a new form from the Catalog to see it here.'}
+              : 'You have no active form submissions or workflow executions running right now. Start a new one from the Catalog.'}
           </EmptyMessage>
         </EmptyState>
       ) : (
