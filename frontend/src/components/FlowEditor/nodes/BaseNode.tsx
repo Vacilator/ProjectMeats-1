@@ -12,7 +12,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Handle, Position, NodeToolbar, useStore } from '@xyflow/react';
-import { Pencil, Trash2, ChevronDown, ChevronUp, Lock, Unlock, Plus } from 'lucide-react';
+import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock, Plus } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
 import type { NodeBadgeStatus } from '../components/NodeBadge';
 import { NodeIcon, NodeIconType } from '../components/NodeIcons';
@@ -387,7 +387,6 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   // Batch 3: Expand/collapse state
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const [isHovered, setIsHovered] = useState(false);
   const connectionInProcess = useStore((s: any) => Boolean(s.connectionInProcess));
 
   // Batch 4: Title editing state
@@ -403,7 +402,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   const showOutputHandle = nodeType.maxOutputs !== 0;
 
   const showButtonHandle = selected || connectionInProcess || Boolean((data as any)?.isLastInWorkflow);
-  const showToolbar = selected || isHovered;
+  const showToolbar = selected;
 
   const handlePin = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -454,8 +453,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       $isDragging={isDragging}
       onDragStart={() => setIsDragging(true)}
       onDragEnd={() => setIsDragging(false)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+
       role="article"
       aria-label={`${nodeType.name} node: ${data.label || 'Untitled'}`}
       aria-selected={selected}
@@ -481,7 +479,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Status Indicator - REMOVED (confusing yellow dot) */}
       
-      <NodeToolbar isVisible position={Position.Top}>
+      <NodeToolbar isVisible={selected} position={Position.Top}>
         <ToolbarCard
           className="nodrag"
           style={{
@@ -510,7 +508,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
               }}
               title="Edit Node"
             >
-              <Pencil size={16} />
+              <Edit2 size={16} />
             </ToolbarBtn>
           )}
           {data.onDelete && (

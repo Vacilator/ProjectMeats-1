@@ -15,10 +15,13 @@ import {
   NodeToolbar,
   Position,
   getNodesBounds,
+  type Edge,
   type Node,
   type NodeProps,
+  useEdges,
   useNodes,
   useReactFlow,
+  useUpdateNodeInternals,
 } from '@xyflow/react';
 import { Plus, Pencil, Trash2, Save } from 'lucide-react';
 
@@ -297,7 +300,12 @@ const isFormBookStepType = (type?: string) =>
 
 export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selected }) => {
   const allNodes = useNodes();
-  const { setNodes } = useReactFlow();
+  const allEdges = useEdges();
+  const { setNodes, setEdges } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  const isExpanded = (data as any)?.isExpanded ?? true;
+  const sequentialExecution = (data as any)?.sequentialExecution ?? true;
 
   const childSteps = useMemo(
     () => allNodes.filter((n) => (n as any).parentId === id && isFormBookStepType(n.type)),
@@ -336,6 +344,107 @@ export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selecte
         .join('|'),
     [sortedSteps]
   );
+
+  const childXKey = useMemo(
+    () => JSON.stringify(sortedSteps.map((c) => ({ id: c.id, x: Math.round(c.position?.x ?? 0) }))),
+    [sortedSteps]
+  );
+
+  // Auto-layout children (Book → Pages) with bailout to avoid render loops
+  useEffect(() => {
+    if (!isExpanded || sortedSteps.length === 0) return;
+
+    const startX = LEFT_SIDEBAR_W + PADDING;
+    const y = HEADER_H + TABS_H + PADDING;
+
+    const layoutedChildren = sortedSteps.map((n, index) => ({
+      id: n.id,
+      position: {
+        x: startX + index * (STEP_W + STEP_GAP),
+        y,
+      },
+    }));
+
+    setNodes((currentNodes) => {
+      let hasChanges = false;
+      const nextNodes = currentNodes.map((node) => {
+        const layouted = layoutedChildren.find((child) => child.id === node.id);
+        if (layouted && (node as any).parentId === id) {
+          // CRITICAL: Bailout check to prevent infinite loops when positions are stable
+          if (
+            Math.abs((node.position?.x ?? 0) - layouted.position.x) > 1 ||
+            Math.abs((node.position?.y ?? 0) - layouted.position.y) > 1
+          ) {
+            hasChanges = true;
+            return {
+              ...node,
+              position: layouted.position,
+            };
+          }
+        }
+        return node;
+      });
+
+      // Only return a new array reference if positions actually changed
+      return hasChanges ? nextNodes : currentNodes;
+    });
+
+    requestAnimationFrame(() => {
+      updateNodeInternals(id);
+    });
+  }, [sortedSteps.length, id, isExpanded, setNodes, updateNodeInternals]);
+
+  // Auto-connect pages left-to-right with thick "step" edges
+  useEffect(() => {
+    if (!isExpanded || !sequentialExecution || sortedSteps.length < 2) return;
+
+    const sortedChildren = [...sortedSteps].sort((a, b) => (a.position?.x ?? 0) - (b.position?.x ?? 0));
+
+    const expectedEdgeIds = new Set<string>();
+    for (let i = 0; i < sortedChildren.length - 1; i++) {
+      expectedEdgeIds.add(`${sortedChildren[i].id}-to-${sortedChildren[i + 1].id}`);
+    }
+
+    const currentAutoEdges = allEdges.filter(
+      (edge) => (edge.data as any)?.autoStepEdge === true && (edge.data as any)?.parentFormId === id
+    );
+    const currentEdgeIds = new Set(currentAutoEdges.map((e) => e.id));
+
+    const needsUpdate =
+      expectedEdgeIds.size !== currentEdgeIds.size ||
+      [...expectedEdgeIds].some((edgeId) => !currentEdgeIds.has(edgeId));
+
+    if (!needsUpdate) return;
+
+    const newEdges: Edge[] = [];
+    for (let i = 0; i < sortedChildren.length - 1; i++) {
+      const sourceNode = sortedChildren[i];
+      const targetNode = sortedChildren[i + 1];
+
+      newEdges.push({
+        id: `${sourceNode.id}-to-${targetNode.id}`,
+        source: sourceNode.id,
+        target: targetNode.id,
+        type: 'step',
+        animated: true,
+        style: { stroke: 'rgba(var(--color-primary), 0.55)', strokeWidth: 3 },
+        label: `Step ${i + 1} → ${i + 2}`,
+        data: {
+          autoStepEdge: true,
+          parentFormId: id,
+        },
+      });
+    }
+
+    if (newEdges.length > 0) {
+      setEdges((edges) => {
+        const filteredEdges = edges.filter(
+          (edge) => !((edge.data as any)?.autoStepEdge === true && (edge.data as any)?.parentFormId === id)
+        );
+        return [...filteredEdges, ...newEdges];
+      });
+    }
+  }, [sortedSteps.length, isExpanded, sequentialExecution, childXKey, allEdges, id, setEdges]);
 
   // Auto-size the container + persist nested steps payload
   useEffect(() => {

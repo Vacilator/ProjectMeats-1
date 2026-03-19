@@ -6863,8 +6863,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           interactionWidth: 28,
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            width: 32,
-            height: 32,
+            width: 24,
+            height: 24,
             color: 'rgb(var(--color-text-secondary))',
           },
         }}
