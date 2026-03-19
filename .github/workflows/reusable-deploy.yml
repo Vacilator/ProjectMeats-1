@@ -99,6 +99,18 @@ on:
       SENTRY_ENABLED:
         required: false
         description: "Enable/disable Sentry error tracking (from job environment)"
+      MICROSOFT_CLIENT_ID:
+        required: false
+        description: "Microsoft Azure OAuth client ID (from job environment)"
+      MICROSOFT_CLIENT_SECRET:
+        required: false
+        description: "Microsoft Azure OAuth client secret (from job environment)"
+      MICROSOFT_TENANT_ID:
+        required: false
+        description: "Microsoft Azure tenant ID (optional; use 'common' for multi-tenant apps)"
+      MICROSOFT_REDIRECT_URI:
+        required: false
+        description: "Microsoft OAuth redirect URI (must match Azure app registration)"
 
 env:
   REGISTRY: registry.digitalocean.com/meatscentral
@@ -896,6 +908,10 @@ jobs:
           	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
           	SENTRY_DSN=${{ secrets.SENTRY_DSN }}
           	SENTRY_ENABLED=${{ secrets.SENTRY_ENABLED }}
+          	MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }}
+          	MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          	MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }}
+          	MICROSOFT_REDIRECT_URI=${{ secrets.MICROSOFT_REDIRECT_URI }}
           	EOF
           
           # Verify SENDGRID_API_KEY is set (show length only for security)
