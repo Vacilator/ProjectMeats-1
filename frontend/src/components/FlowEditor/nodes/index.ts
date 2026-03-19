@@ -13,9 +13,10 @@
 export { BaseNode } from './BaseNode';
 export type { BaseNodeData, BaseNodeProps } from './BaseNode';
 
-// Form nodes - Phase E (2026-02-19): FormNode is the new name, FormStepSingleNode exported for backward compat
-export { FormNode, FormStepSingleNode } from './FormNode';
-export type { FormStepNodeData, FormField } from './FormNode';
+// Form nodes - Phase E (2026-02-19): FormNode is the new name, FormStepSingleNode retained for backward compat
+export { FormNode } from './FormNode';
+export { FormStepSingleNode } from './FormStepSingleNode';
+export type { FormStepNodeData, FormField } from './FormStepSingleNode';
 
 export { FormReferenceNode } from './FormReferenceNode';
 export type { FormReferenceNodeData } from './FormReferenceNode';
