@@ -14,6 +14,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Layout: recursive dagre layout per container (parentId grouping) + final top-level pass; containers auto-resize to fit children.
   - History: structuredClone-based snapshots (sanitized for clone safety) with strict 50-state cap.
 
+- 2026-03-19 — Hotfix: Workforms Editor TDZ crash (collaboration hook used `currentWorkflowId` before initialization) — Commit: f24bc3fc (PR: #3613)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3613
+  - FlowEditor: move collaboration/presence hook block to after `currentWorkflowId` state initialization to prevent `ReferenceError: Cannot access before initialization`.
+
 
 ### Scope
 - Cockpit “continuous browsing” navigation + relationships.
