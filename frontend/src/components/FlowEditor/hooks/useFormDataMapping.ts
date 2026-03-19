@@ -92,7 +92,7 @@ export const useFormDataMapping = (): UseFormDataMappingReturn => {
     const data = node.data;
 
     // Extract fields from different form node types
-    if (node.type === 'formProcessGroup' || node.type === 'formReference') {
+    if (node.type === 'formBook' || node.type === 'formProcessGroup' || node.type === 'formReference') {
       // Get child nodes with form fields
       const childNodes = getNodes().filter(n => n.parentId === node.id);
       childNodes.forEach((child, stepIndex) => {
@@ -201,7 +201,7 @@ export const useFormDataMapping = (): UseFormDataMappingReturn => {
 
       incomingEdges.forEach((edge) => {
         const sourceNode = nodes.find((n) => n.id === edge.source);
-        if (sourceNode && ['formProcessGroup', 'formReference', 'formStepSingle'].includes(sourceNode.type || '')) {
+        if (sourceNode && ['formBook', 'formProcessGroup', 'formReference', 'formStepSingle'].includes(sourceNode.type || '')) {
           const fields = generateFormOutputs(sourceNode);
           upstreamFields.push(...fields);
         }

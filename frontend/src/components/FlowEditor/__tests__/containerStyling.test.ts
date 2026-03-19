@@ -74,6 +74,7 @@ describe('Container Styling Utilities', () => {
 
   describe('getContainerIcon', () => {
     it('should return correct icon for known container types', () => {
+      expect(getContainerIcon('formBook')).toBe('Book');
       expect(getContainerIcon('formProcessGroup')).toBe('Layers');
       expect(getContainerIcon('subWorkflow')).toBe('GitBranch');
       expect(getContainerIcon('parallelPath')).toBe('GitMerge');

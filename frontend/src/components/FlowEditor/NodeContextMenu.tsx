@@ -290,23 +290,26 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
    */
   const handleAddStep = useCallback(() => {
     if (!node) return;
-    
-    const childNodes = getNodes().filter(n => n.parentId === node.id);
+
+    const childNodes = getNodes().filter((n) => n.parentId === node.id);
     const newStepId = `step-${Date.now()}`;
-    
+
+    // Book + Pages: add a new Form Step (Page) constrained to the container
     const newStep: Node = {
       id: newStepId,
-      type: 'formStepSingle',
-      position: { x: 20, y: 60 + childNodes.length * 120 },
-      data: {
-        label: `Step ${childNodes.length + 1}`,
-        formFields: [],
-      },
+      type: 'form',
       parentId: node.id,
       extent: 'parent' as const,
+      expandParent: true,
+      position: { x: 30 + childNodes.length * 350, y: 90 },
+      data: {
+        label: `Step ${childNodes.length + 1}`,
+        status: 'draft',
+        fields: [],
+      },
       draggable: true,
     };
-    
+
     setNodes((nodes) => [...nodes, newStep]);
     onClose();
   }, [node, getNodes, setNodes, onClose]);
@@ -372,7 +375,7 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
    */
   const handleSaveAsSubFlowTemplate = useCallback(async () => {
     if (!node) return;
-    if (node.type !== 'formProcessGroup') return;
+    if (node.type !== 'formProcessGroup' && node.type !== 'formBook') return;
 
     try {
       const allNodes = getNodes();
@@ -582,8 +585,9 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
   
   if (!node) return null;
   
-  const isContainer = node.type === 'formProcessGroup' || 
-                     node.type === 'formProcess' || 
+  const isContainer = node.type === 'formBook' ||
+                     node.type === 'formProcessGroup' ||
+                     node.type === 'formProcess' ||
                      node.type === 'formMultiStepContainer';
   
   const isChildNode = !!node.parentId;

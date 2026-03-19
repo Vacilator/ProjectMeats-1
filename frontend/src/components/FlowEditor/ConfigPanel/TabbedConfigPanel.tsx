@@ -82,6 +82,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
 
   // Context-aware tab visibility
   const isContainerNode =
+    node?.type === 'formBook' ||
     node?.type === 'formProcessGroup' ||
     node?.type === 'formMultiStepContainer' ||
     node?.type === 'formProcess';

@@ -49,7 +49,7 @@ export interface ContainerDropResult {
  * @returns Drag state and handler functions
  */
 export function useContainerDragAndDrop(
-  containerNodeTypes: string[] = ['formProcessGroup'],
+  containerNodeTypes: string[] = ['formBook', 'formProcessGroup'],
   snapThreshold: number = 30,
   gridSize: number = 20
 ) {

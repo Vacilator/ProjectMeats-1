@@ -204,6 +204,8 @@ const getNodeIcon = (nodeType: string) => {
     case 'formStepSingle':
       return FileText;
     case 'formProcess':
+    case 'formBook':
+    case 'formBook':
     case 'formProcessGroup':
       return Layers;
     case 'createRecord':
