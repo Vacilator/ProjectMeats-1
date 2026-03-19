@@ -230,12 +230,24 @@ const ErrorMessage = styled.div`
 `;
 
 const StyledHandle = styled(Handle)<{ $color: string }>`
-  width: 16px;
-  height: 16px;
-  background: ${props => props.$color};
+  width: 14px;
+  height: 14px;
+  background: ${(props) => props.$color};
   border: 2px solid rgb(var(--color-surface));
+  border-radius: 4px;
   cursor: crosshair;
   z-index: 20;
+
+  /* Push handles outside node body to avoid overlapping internal controls */
+  &.react-flow__handle-top,
+  &[data-handlepos='top'] {
+    top: -14px;
+  }
+
+  &.react-flow__handle-bottom,
+  &[data-handlepos='bottom'] {
+    bottom: -14px;
+  }
 
   &:hover {
     transform: scale(1.1);
@@ -430,9 +442,6 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           aria-label="Input connection handle"
           style={{
             left: '18px',
-            width: '16px',
-            height: '16px',
-            cursor: 'crosshair',
           }}
         />
       )}
@@ -559,9 +568,6 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           style={{
             left: 'unset',
             right: '18px',
-            width: '16px',
-            height: '16px',
-            cursor: 'crosshair',
           }}
         />
       )}

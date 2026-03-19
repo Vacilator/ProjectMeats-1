@@ -54,6 +54,15 @@ export default function InsertNodeEdge({
 
   const handleInsertClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // New: unified event used by CustomEdge (+) button
+    window.dispatchEvent(
+      new CustomEvent('insert-node-between', {
+        detail: { edgeId: id },
+      })
+    );
+
+    // Backward compatibility: existing listener
     window.dispatchEvent(
       new CustomEvent('pm:openNodePalette', {
         detail: { insertOnEdgeId: id },
@@ -63,6 +72,14 @@ export default function InsertNodeEdge({
 
   return (
     <>
+      {/* Invisible thick hitbox under the visible edge to prevent hover flicker */}
+      <path
+        d={edgePath}
+        className="react-flow__edge-path"
+        style={{ stroke: 'transparent', strokeWidth: 30, strokeOpacity: 0 }}
+        pointerEvents="stroke"
+      />
+
       <path
         id={id}
         style={{ ...style, strokeWidth: 2, stroke: 'rgb(var(--color-border))' }}

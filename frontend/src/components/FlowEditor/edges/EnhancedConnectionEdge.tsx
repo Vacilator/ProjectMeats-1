@@ -223,6 +223,17 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
 
     return (
       <>
+        {/* Invisible thick hitbox under the visible edge to stabilize hover/interaction */}
+        <BaseEdge
+          id={`${id}-hitbox`}
+          path={edgePath}
+          style={{
+            stroke: 'transparent',
+            strokeWidth: 30,
+            strokeOpacity: 0,
+          }}
+        />
+
         {/* Base Edge */}
         <BaseEdge
           id={id}
