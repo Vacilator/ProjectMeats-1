@@ -2322,26 +2322,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   );
 
   // ============================================================================
-  // Phase 9.2: Collaboration & Presence
-  // ============================================================================
-
-  const tenantId = getCurrentTenant() ?? '';
-  const { presence: collabPresence, sendCursor: collabSendCursor, sendSelection: collabSendSelection } =
-    useCollaboration({ workflowId: currentWorkflowId, tenantId });
-
-  const collabSendCursorDebounced = useMemo(
-    () => debounce((cursor: { x: number; y: number }) => collabSendCursor(cursor), 30),
-    [collabSendCursor]
-  );
-
-  useEffect(() => {
-    return () => {
-      collabSendCursorDebounced.cancel();
-    };
-  }, [collabSendCursorDebounced]);
-
-  
-  // ============================================================================
   // Onboarding Tour (Gap Analysis Phase 1.1)
   // ============================================================================
   
@@ -2654,7 +2634,26 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false); // Phase 8.6
   const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false); // Task 1: Workflow Execution
   const [isFlowPreviewOpen, setIsFlowPreviewOpen] = useState(false); // Phase 1: Hybrid Functionality
-  
+
+  // ============================================================================
+  // Phase 9.2: Collaboration & Presence
+  // ============================================================================
+
+  const tenantId = getCurrentTenant() ?? '';
+  const { presence: collabPresence, sendCursor: collabSendCursor, sendSelection: collabSendSelection } =
+    useCollaboration({ workflowId: currentWorkflowId, tenantId });
+
+  const collabSendCursorDebounced = useMemo(
+    () => debounce((cursor: { x: number; y: number }) => collabSendCursor(cursor), 30),
+    [collabSendCursor]
+  );
+
+  useEffect(() => {
+    return () => {
+      collabSendCursorDebounced.cancel();
+    };
+  }, [collabSendCursorDebounced]);
+
   // ============================================================================
   // Wizard Mode State (Phase 2.2 Batch 3)
   // ============================================================================
