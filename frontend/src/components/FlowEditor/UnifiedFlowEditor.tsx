@@ -5860,31 +5860,48 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Get previous step fields for conditional logic
   const getPreviousStepFields = useCallback((currentNodeId: string) => {
     const allFields: any[] = [];
-    
-    // Find all FormStep nodes before the current one
-    const currentNode = nodes.find(n => n.id === currentNodeId);
+
+    const currentNode = nodes.find((n) => n.id === currentNodeId);
     if (!currentNode) return allFields;
-    
-    // Simple heuristic: nodes with lower Y position are "before" current node
-    const previousNodes = nodes.filter(n => 
-      n.type === 'formStep' && 
-      n.id !== currentNodeId &&
-      n.position.y < currentNode.position.y
+
+    // Phase 11: Use true graph traversal instead of Y-coordinate heuristics.
+    // Trace ancestors by following incoming edges (target -> source).
+    const upstreamNodeIds = new Set<string>();
+    const visited = new Set<string>();
+    const queue: string[] = [currentNodeId];
+
+    while (queue.length > 0) {
+      const nodeId = queue.shift()!;
+      if (visited.has(nodeId)) continue;
+      visited.add(nodeId);
+
+      const incoming = edges.filter((e) => e.target === nodeId);
+      for (const e of incoming) {
+        if (!upstreamNodeIds.has(e.source)) {
+          upstreamNodeIds.add(e.source);
+          queue.push(e.source);
+        }
+      }
+    }
+
+    const upstreamFormNodes = nodes.filter(
+      (n) =>
+        upstreamNodeIds.has(n.id) &&
+        (n.type === 'formStep' || n.type === 'formStepSingle' || n.type === 'form')
     );
-    
-    // Extract fields from previous FormStep nodes
-    previousNodes.forEach(node => {
-      const fields = node.data.fields || [];
+
+    upstreamFormNodes.forEach((node) => {
+      const fields = node.data?.fields || [];
       fields.forEach((field: any) => {
         allFields.push({
           ...field,
-          stepTitle: node.data.stepTitle || node.data.label || 'Unnamed Step',
+          stepTitle: node.data?.stepTitle || node.data?.label || 'Unnamed Step',
         });
       });
     });
-    
+
     return allFields;
-  }, [nodes]);
+  }, [nodes, edges]);
   
   const handleAddField = useCallback(() => {
     // Create new blank field and open field editor
