@@ -132,9 +132,9 @@ describe('useContainerManagement', () => {
       const setNodesCall = mockSetNodes.mock.calls[0][0];
       const updatedNodes = setNodesCall(nodes);
 
-      // Check that child nodes have parentNode set
+      // Check that child nodes have parentId set (React Flow sub-flow parenting)
       const childNode = updatedNodes.find((n: Node) => n.id === '1');
-      expect(childNode.parentNode).toBeTruthy();
+      expect(childNode.parentId).toBeTruthy();
       expect(childNode.extent).toBe('parent');
     });
   });
@@ -193,8 +193,8 @@ describe('useContainerManagement', () => {
     it('should ungroup container and restore children', () => {
       const nodes: Node[] = [
         createContainerNode('c1', 100, 100, ['1', '2']),
-        { ...createTestNode('1', 50, 50), parentNode: 'c1' },
-        { ...createTestNode('2', 100, 100), parentNode: 'c1' },
+        { ...createTestNode('1', 50, 50), parentId: 'c1' },
+        { ...createTestNode('2', 100, 100), parentId: 'c1' },
       ];
       mockGetNodes.mockReturnValue(nodes);
 
@@ -215,7 +215,7 @@ describe('useContainerManagement', () => {
 
       // Children should have no parent
       const child1 = updatedNodes.find((n: Node) => n.id === '1');
-      expect(child1.parentNode).toBeUndefined();
+      expect(child1.parentId).toBeUndefined();
     });
   });
 
