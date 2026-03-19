@@ -48,6 +48,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - tenantService: removed rogue axios.create + interceptors (incl. 401 hard redirect to /login); now uses centralized JWT-aware apiClient.
   - IntegrationSettings + EmailConnection: switched to apiClient and removed hardcoded /api/v1 (or /api) prefixes to avoid double-stacking baseURL.
 
+- 2026-03-19 — Email Integrations UI mounted (Settings) — Commit: TBD (PR: TBD)
+  - Settings: mounted IntegrationsSection below Tenant Branding.
+  - IntegrationsSection + EmailConnection: OAuth calls now use authenticated apiClient (no raw axios, no hardcoded /api prefix).
+
 - 2026-03-19 — Phase 11: Data Flow Tracing — Commit: c02d4d2d (PR: #3623)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3623
   - FlowEditor: upstream context is now derived from true graph traversal (edges), not Y-position heuristics.
