@@ -406,8 +406,16 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
    * Find all child nodes with parentId matching this group's ID
    */
   const childNodes = useMemo(() => {
-    const children = allNodes.filter(node => node.parentId === id);
-    logger.debug('[FormProcessGroup] Children found:', children.length, 'IDs:', children.map(c => c.id));
+    const children = allNodes.filter((node) => {
+      const anyNode = node as any;
+      return (
+        anyNode.parentId === id ||
+        anyNode.parentNode === id ||
+        (node.data as any)?.parentId === id ||
+        (node.data as any)?.parentNode === id
+      );
+    });
+    logger.debug('[FormProcessGroup] Children found:', children.length, 'IDs:', children.map((c) => c.id));
     return children;
   }, [allNodes, id]);
   
@@ -474,14 +482,14 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id === id) {
-          // Horizontal calculation: 350px per step + padding
+          // Default expanded size; a separate effect will auto-fit to children.
           const expandedWidth = Math.max(600, stepCount * 350 + 100);
           return {
             ...node,
             style: {
               ...(node.style || {}),
               width: nextExpanded ? expandedWidth : 320,
-              height: nextExpanded ? 450 : 80,
+              height: nextExpanded ? 320 : 80,
             },
             data: {
               ...node.data,
@@ -491,7 +499,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
         }
 
         // Hide/show children
-        if (node.parentId === id) {
+        if ((node as any).parentId === id || (node as any).parentNode === id) {
           return {
             ...node,
             hidden: !nextExpanded,
@@ -519,8 +527,8 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     
     if (isSaving) return;
     
-    // Validate: Must have at least one child step
-    if (childNodes.length === 0) {
+    // Validate: Must have at least one form/page step
+    if (pageNodes.length === 0) {
       toast.error('Cannot save: Form must have at least one step');
       return;
     }
@@ -576,7 +584,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     } finally {
       setIsSaving(false);
     }
-  }, [id, isSaving, childNodes.length, allNodes, allEdges, setNodes, data]);
+  }, [id, isSaving, pageNodes.length, allNodes, allEdges, setNodes, data]);
   
   /**
    * Auto-layout pages (form nodes) horizontally.
@@ -779,9 +787,79 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   }, [data]);
   
   // ============================================================================
+  // Auto-resize container to fit children (especially vertical)
+  // ============================================================================
+
+  const childBoundsKey = useMemo(
+    () =>
+      JSON.stringify(
+        childNodes
+          .map((n) => ({
+            id: n.id,
+            x: n.position?.x ?? 0,
+            y: n.position?.y ?? 0,
+            w: (n as any).measured?.width ?? n.width ?? 220,
+            h: (n as any).measured?.height ?? n.height ?? 140,
+          }))
+          .sort((a, b) => a.id.localeCompare(b.id))
+      ),
+    [childNodes]
+  );
+
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    const HEADER_HEIGHT = 56;
+    const PADDING_X = 60;
+    const PADDING_Y = 120;
+
+    const pageWidthBaseline = Math.max(600, 140 + pageCount * 360);
+
+    const childBoxes = childNodes.map((n) => {
+      const measured = (n as any).measured;
+      const w = measured?.width ?? n.width ?? 220;
+      const h = measured?.height ?? n.height ?? 140;
+      const x = n.position?.x ?? 0;
+      const y = n.position?.y ?? 0;
+      return { x, y, w, h };
+    });
+
+    const maxRight = childBoxes.length ? Math.max(...childBoxes.map((b) => b.x + b.w)) : 0;
+    const maxBottom = childBoxes.length ? Math.max(...childBoxes.map((b) => b.y + b.h)) : 0;
+
+    const desiredWidth = Math.max(pageWidthBaseline, maxRight + PADDING_X);
+    const desiredHeight = Math.max(240, HEADER_HEIGHT + maxBottom + PADDING_Y);
+
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+
+        const currentW = Number((node.style as any)?.width ?? node.width ?? 0);
+        const currentH = Number((node.style as any)?.height ?? node.height ?? 0);
+
+        const nextW = Math.round(desiredWidth);
+        const nextH = Math.round(desiredHeight);
+
+        if (currentW === nextW && currentH === nextH) return node;
+
+        return {
+          ...node,
+          style: {
+            ...(node.style || {}),
+            width: nextW,
+            height: nextH,
+          },
+        };
+      })
+    );
+
+    requestAnimationFrame(() => updateNodeInternals(id));
+  }, [childBoundsKey, id, isExpanded, pageCount, setNodes, updateNodeInternals]);
+
+  // ============================================================================
   // Render
   // ============================================================================
-  
+
   return (
     <GroupContainer 
       isExpanded={isExpanded} 
@@ -789,6 +867,22 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       data-node-id={id}
       data-node-type="formProcessGroup"
     >
+      {/* Always-available handles so the container can connect to other nodes */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="group:in"
+        aria-label="Incoming connection"
+        style={{ top: 42, zIndex: 40, background: 'rgb(var(--color-primary))' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="group:out"
+        aria-label="Outgoing connection"
+        style={{ top: 42, zIndex: 40, background: 'rgb(var(--color-success))' }}
+      />
+
       {/* Virtual handles when collapsed: edges to hidden children are proxied to these handles */}
       {!isExpanded && (
         <>
