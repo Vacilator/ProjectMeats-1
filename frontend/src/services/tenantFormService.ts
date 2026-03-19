@@ -228,7 +228,7 @@ export async function saveFormProcessGroup(
     if (existingFormId) {
       // Update existing form (increments version automatically)
       logger.debug('[TenantFormService] Updating existing form:', existingFormId);
-      response = await adminClient.patch(`/core/tenant-forms/${existingFormId}/`, tenantFormData);
+      response = await adminClient.patch(`/workflows/forms/${existingFormId}/`, tenantFormData);
       
       return {
         tenantFormId: response.data.id,
@@ -238,7 +238,7 @@ export async function saveFormProcessGroup(
     } else {
       // Create new form
       logger.debug('[TenantFormService] Creating new form');
-      response = await adminClient.post('/core/tenant-forms/', tenantFormData);
+      response = await adminClient.post('/workflows/forms/', tenantFormData);
       
       return {
         tenantFormId: response.data.id,
@@ -262,7 +262,7 @@ export async function loadTenantForm(tenantFormId: string): Promise<TenantForm> 
   logger.debug('[TenantFormService] Loading TenantForm:', tenantFormId);
   
   try {
-    const response = await adminClient.get(`/core/tenant-forms/${tenantFormId}/`);
+    const response = await adminClient.get(`/workflows/forms/${tenantFormId}/`);
     return response.data;
   } catch (error: any) {
     logger.error('[TenantFormService] Load failed:', error);
@@ -279,7 +279,7 @@ export async function deleteTenantForm(tenantFormId: string): Promise<void> {
   logger.debug('[TenantFormService] Deleting TenantForm:', tenantFormId);
   
   try {
-    await adminClient.delete(`/core/tenant-forms/${tenantFormId}/`);
+    await adminClient.delete(`/workflows/forms/${tenantFormId}/`);
   } catch (error: any) {
     logger.error('[TenantFormService] Delete failed:', error);
     throw new Error(`Failed to delete form: ${error.response?.data?.detail || error.message}`);
@@ -295,7 +295,7 @@ export async function listTenantForms(): Promise<TenantForm[]> {
   logger.debug('[TenantFormService] Listing TenantForms');
   
   try {
-    const response = await adminClient.get('/core/tenant-forms/');
+    const response = await adminClient.get('/workflows/forms/');
     return response.data.results || response.data;
   } catch (error: any) {
     logger.error('[TenantFormService] List failed:', error);

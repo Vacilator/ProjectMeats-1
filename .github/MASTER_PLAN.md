@@ -32,6 +32,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - BaseNode: replaced ad-hoc controls with React Flow NodeToolbar and added button-style output handle.
   - Edges: default to smoothstep (via EnhancedConnectionEdge) with thicker strokes + larger arrow markers; added a hover EdgeToolbar with insert/delete affordances.
 
+- 2026-03-19 — Phase 7 — Fix: TenantForm API path + FormProcessGroup internals + Auto-Map panel click isolation — Commit: TBD (PR: TBD)
+  - tenantFormService: align CRUD base path to `/workflows/forms/` (views mounted on workflows router).
+  - FormProcessGroupNode: use `useUpdateNodeInternals()` and remove stale height style when collapsing to avoid ResizeObserver glitches.
+  - AutoMappingSuggestionsPanel: improve wrapping and stop event propagation on Apply/Reject/Apply All.
+
 - 2026-03-19 — Fix: Workforms Editor UI/config/publish polish — Commit: 25a56157 (PR: #3629)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3629
   - DynamicConfigPanel: handle field.type=entityType and field.type=multiSelect to prevent "Unknown field type" rendering errors.

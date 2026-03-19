@@ -26,7 +26,7 @@ import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import { logger } from '@/utils/logger';
 
 import styled from 'styled-components';
-import { Handle, Position, NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
+import { Handle, Position, NodeProps, Node, Edge, useReactFlow, useNodes, useEdges, useUpdateNodeInternals } from '@xyflow/react';
 import type { BaseNodeData } from './BaseNode';
 import { ChevronDown, ChevronRight, Plus, Settings, Save, Check } from 'lucide-react';
 import { calculateChildXPosition } from './FormProcessChildWrapper';
@@ -387,7 +387,8 @@ const VirtualHandle = styled(Handle)<{ $side: 'in' | 'out' }>`
  */
 export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props) => {
   const { id, data } = props;
-  const { setNodes, setEdges, updateNodeInternals } = useReactFlow();
+  const { setNodes, setEdges } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
   const allNodes = useNodes();
   const allEdges = useEdges();
   
@@ -496,14 +497,19 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
         if (node.id === id) {
           // Default expanded size; a separate effect will auto-fit to children.
           const expandedWidth = Math.max(600, stepCount * 350 + 100);
+          const expandedHeight = 450;
+
+          const newStyle: any = { ...(node.style || {}) };
+          newStyle.width = nextExpanded ? expandedWidth : 280;
+          if (nextExpanded) {
+            newStyle.height = expandedHeight;
+          } else {
+            delete newStyle.height;
+          }
+
           return {
             ...node,
-            style: {
-              ...(node.style || {}),
-              width: nextExpanded ? expandedWidth : 320,
-              // Explicit bounds prevent ResizeObserver "glitch" during expand/collapse
-              height: nextExpanded ? 450 : 80,
-            },
+            style: newStyle,
             data: {
               ...node.data,
               isExpanded: nextExpanded,
@@ -523,11 +529,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       })
     );
 
-    requestAnimationFrame(() => {
-      if (typeof updateNodeInternals === 'function') {
-        updateNodeInternals(id);
-      }
-    });
+    requestAnimationFrame(() => updateNodeInternals(id));
   }, [id, isExpanded, setNodes, stepCount, updateNodeInternals]);
   
   /**
