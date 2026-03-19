@@ -1925,9 +1925,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         // Unparent all children of deleted containers
         setNodes((nds) =>
           nds.map((n) => {
-            if (removedContainerIds.includes(n.parentNode || '')) {
+            if (removedContainerIds.includes(n.parentId || '')) {
               // Calculate absolute position before unparenting
-              const parent = nds.find(p => p.id === n.parentNode);
+              const parent = nds.find(p => p.id === n.parentId);
               const absolutePosition = parent
                 ? {
                     x: n.position.x + parent.position.x,
@@ -1939,7 +1939,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               return {
                 ...n,
                 position: absolutePosition,
-                parentNode: undefined,
+                parentId: undefined,
                 extent: undefined,
               };
             }
@@ -4206,7 +4206,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             } else if (currentParentId) {
               // Node is being removed from container
               updatedNode.position = absolutePosition;
-              delete updatedNode.parentNode;
+              delete (updatedNode as any).parentId;
               delete updatedNode.extent;
               logger.debug(`[Container] Node ${node.id} removed from container`);
             }
@@ -4524,7 +4524,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       try {
         // Log container information for debugging (Phase E)
         const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
-        const nodesInContainers = nodes.filter(n => n.parentNode); // Phase E: Using React Flow parentNode
+        const nodesInContainers = nodes.filter(n => n.parentId);
         
         logger.debug('[Save] Workflow saved with container state:');
         logger.debug(`  - ${containerNodes.length} container(s)`);

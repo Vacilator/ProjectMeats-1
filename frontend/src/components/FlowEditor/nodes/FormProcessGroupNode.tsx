@@ -410,9 +410,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       const anyNode = node as any;
       return (
         anyNode.parentId === id ||
-        anyNode.parentNode === id ||
-        (node.data as any)?.parentId === id ||
-        (node.data as any)?.parentNode === id
+        (node.data as any)?.parentId === id
       );
     });
     logger.debug('[FormProcessGroup] Children found:', children.length, 'IDs:', children.map((c) => c.id));
@@ -514,7 +512,7 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
         }
 
         // Hide/show children
-        if ((node as any).parentId === id || (node as any).parentNode === id) {
+        if ((node as any).parentId === id) {
           return {
             ...node,
             hidden: !nextExpanded,
