@@ -13,6 +13,33 @@
  */
 
 /* ============================================================================
+   Phase 9.6: Drag handle + handle hitboxes
+   ============================================================================ */
+
+.custom-drag-handle {
+  cursor: grab;
+}
+
+.custom-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Ensure handles are always clickable above internal node buttons */
+.react-flow__handle {
+  z-index: 20;
+}
+
+/* Expand the hitbox without changing the visible handle size */
+.react-flow__handle::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+}
+
+/* ============================================================================
    Mobile Styles (< 600px)
    ============================================================================ */
 

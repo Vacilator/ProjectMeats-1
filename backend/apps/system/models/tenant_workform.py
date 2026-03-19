@@ -193,33 +193,48 @@ class TenantWorkForm(models.Model):
         return f"{self.name} (v{self.version}) - {self.tenant.name}"
     
     def extract_form_references(self):
+        """Extract TenantForm UUIDs referenced by this workform.
+
+        This is intentionally defensive:
+        - tolerate malformed workflow_definition shapes
+        - ignore non-UUID tenantFormId values (prevents 500s on save)
         """
-        Extract TenantForm IDs from workflow nodes.
-        
-        Scans all nodes in workflow_definition and collects tenantFormId
-        references from Form Step nodes and Form Multi-Step Containers.
-        
-        Returns:
-            list: List of UUID strings
-        """
+
+        def _coerce_uuid(value):
+            if not value:
+                return None
+            try:
+                return str(uuid.UUID(str(value)))
+            except (ValueError, AttributeError, TypeError):
+                return None
+
         form_ids = set()
         nodes = self.workflow_definition.get('nodes', [])
-        
+        if not isinstance(nodes, list):
+            return []
+
         for node in nodes:
-            node_data = node.get('data', {})
-            
-            # Form Step node
-            if node.get('type') == 'formStep' and node_data.get('tenantFormId'):
-                form_ids.add(node_data['tenantFormId'])
-            
-            # Form Multi-Step Container (if implemented)
-            if node.get('type') == 'formMultiStepContainer' and node_data.get('tenantFormId'):
-                form_ids.add(node_data['tenantFormId'])
-            
-            # Form Reference node
-            if node.get('type') == 'formReference' and node_data.get('tenantFormId'):
-                form_ids.add(node_data['tenantFormId'])
-        
+            if not isinstance(node, dict):
+                continue
+
+            node_type = node.get('type')
+            node_data = node.get('data') or {}
+            if not isinstance(node_data, dict):
+                continue
+
+            candidate = node_data.get('tenantFormId')
+            coerced = _coerce_uuid(candidate)
+            if not coerced:
+                continue
+
+            # Form nodes
+            if node_type in {'formStep', 'formReference', 'form', 'formStepSingle'}:
+                form_ids.add(coerced)
+
+            # Form containers (legacy + canonical)
+            if node_type in {'formMultiStepContainer', 'formProcessGroup', 'formProcess'}:
+                form_ids.add(coerced)
+
         return list(form_ids)
     
     def update_form_references(self):

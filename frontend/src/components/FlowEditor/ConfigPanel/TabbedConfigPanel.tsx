@@ -10,7 +10,7 @@
  * Created: 2026-02-24
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -74,16 +74,37 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
     }
   });
 
+  // Per MASTER_PLAN: raw JSON editing must not be part of the standard user flow.
+  // We only show the UI toggle in dev builds; power users can still enable via localStorage.
+  const showDevToolsToggle = import.meta.env.DEV;
+
   if (!node) return null;
 
-  // Determine which tabs to show based on node type
-  const isFormNode = node.type?.toLowerCase().includes('form') || 
-                     node.type?.toLowerCase().includes('step');
-  
-  const visibleTabs = TABS.filter(tab => {
-    if (!tab.showFor) return true; // Always show tabs without showFor
-    return isFormNode; // Show form-specific tabs only for form nodes
-  });
+  // Context-aware tab visibility
+  const isContainerNode =
+    node?.type === 'formProcessGroup' ||
+    node?.type === 'formMultiStepContainer' ||
+    node?.type === 'formProcess';
+
+  const isFormNode = node?.type === 'formStep' || node?.type === 'form' || node?.type === 'formStepSingle';
+
+  const visibleTabs = useMemo(() => {
+    return TABS.filter((tab) => {
+      // Hide Fields/Preview for container nodes (steps managed on canvas; settings live in General/Advanced)
+      if (tab.id === 'fields' || tab.id === 'preview') {
+        return isFormNode && !isContainerNode;
+      }
+
+      return true;
+    });
+  }, [isContainerNode, isFormNode]);
+
+  // If the previously selected tab is no longer visible for this node, fall back to General
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.id === activeTab)) {
+      setActiveTab('general');
+    }
+  }, [activeTab, visibleTabs]);
 
   return (
     <AnimatePresence>
@@ -160,7 +181,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
               </TabPanel>
             )}
 
-            {activeTab === 'fields' && isFormNode && (
+            {activeTab === 'fields' && isFormNode && !isContainerNode && (
               <TabPanel
                 key="fields"
                 initial={{ opacity: 0, y: 10 }}
@@ -185,25 +206,27 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <DevToolsRow>
-                  <DevToolsLabel>
-                    <input
-                      type="checkbox"
-                      checked={developerMode}
-                      onChange={(e) => {
-                        const enabled = e.target.checked;
-                        setDeveloperMode(enabled);
-                        try {
-                          window.localStorage.setItem('pm.floweditor.devMode', String(enabled));
-                        } catch {
-                          // ignore
-                        }
-                      }}
-                    />
-                    Developer Mode
-                  </DevToolsLabel>
-                  <DevToolsHint>Shows a raw JSON escape hatch for node.data</DevToolsHint>
-                </DevToolsRow>
+                {showDevToolsToggle && (
+                  <DevToolsRow>
+                    <DevToolsLabel>
+                      <input
+                        type="checkbox"
+                        checked={developerMode}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          setDeveloperMode(enabled);
+                          try {
+                            window.localStorage.setItem('pm.floweditor.devMode', String(enabled));
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                      />
+                      Developer Mode
+                    </DevToolsLabel>
+                    <DevToolsHint>Shows a raw JSON escape hatch for node.data</DevToolsHint>
+                  </DevToolsRow>
+                )}
 
                 {developerMode && (
                   <DeveloperJsonEditor
@@ -240,7 +263,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
               </TabPanel>
             )}
 
-            {activeTab === 'preview' && isFormNode && (
+            {activeTab === 'preview' && isFormNode && !isContainerNode && (
               <TabPanel
                 key="preview"
                 initial={{ opacity: 0, y: 10 }}

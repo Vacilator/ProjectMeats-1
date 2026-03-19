@@ -72,7 +72,7 @@ ProjectMeats uses **environment-scoped secrets** across 6 deployment lanes:
 
 **Diagnostic Tool**: `backend/scripts/infrastructure_diagnostics.py`  
 **Management Command**: `python manage.py check_infrastructure`  
-**Last Audit**: March 3, 2026
+**Last Audit**: March 18, 2026
 
 | Service | Dev Status | UAT Status | Prod Status | Purpose |
 |---------|-----------|-----------|-------------|---------|
@@ -157,5 +157,5 @@ ssh user@dev.meatscentral.com \
 ## See Also
 
 - `.github/copilot-instructions.md` - AI development standards
-- `docs/ARCHITECTURE.md` - System design
-- `.github/MASTER_PLAN.md` - Project roadmap
+- `docs/architecture/ARCHITECTURE.md` - System design
+- `MASTER_PLAN.md` - Project roadmap (root-level authoritative copy)

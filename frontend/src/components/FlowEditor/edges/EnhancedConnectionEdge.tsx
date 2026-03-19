@@ -12,15 +12,16 @@
  * Created: 2026-02-27
  */
 
-import React, { memo } from 'react';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   EdgeProps,
-  getBezierPath,
+  getSmoothStepPath,
   EdgeLabelRenderer,
   BaseEdge,
+  useReactFlow,
 } from '@xyflow/react';
 import styled, { keyframes } from 'styled-components';
-import { CheckCircle, AlertCircle, XCircle, Info } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Info, Edit2, Trash2, Plus } from 'lucide-react';
 
 // ============================================================================
 // Types
@@ -115,6 +116,89 @@ const EdgeLabel = styled.div<{ $status: ConnectionStatus }>`
   }
 `;
 
+const EdgeToolbarWrapper = styled.div`
+  position: absolute;
+  transform: translate(-50%, -50%) scale(0.9);
+  display: flex;
+  gap: 4px;
+  background: rgb(var(--color-surface));
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: all;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+`;
+
+const EdgeBtn = styled.button`
+  padding: 4px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: rgb(var(--color-text-secondary));
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.1);
+    color: rgb(var(--color-primary));
+  }
+`;
+
+const EdgeEditCard = styled.div`
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgb(var(--color-surface));
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  pointer-events: all;
+  min-width: 220px;
+`;
+
+const EdgeEditInput = styled.input`
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  font-size: 12px;
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.15);
+  }
+`;
+
+const EdgeEditActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+`;
+
+const EdgeEditActionBtn = styled.button<{ $primary?: boolean }>`
+  border: 1px solid rgb(var(--color-border));
+  background: ${(p) => (p.$primary ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))')};
+  color: ${(p) => (p.$primary ? 'white' : 'rgb(var(--color-text-secondary))')};
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    color: ${(p) => (p.$primary ? 'white' : 'rgb(var(--color-primary))')};
+    background: ${(p) => (p.$primary ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.08)')};
+  }
+`;
+
 const AnimatedPath = styled.path<{ $animated: boolean }>`
   stroke-dasharray: ${(props) => (props.$animated ? '8 4' : 'none')};
   animation: ${(props) => (props.$animated ? flowAnimation : 'none')} 1s linear
@@ -123,6 +207,44 @@ const AnimatedPath = styled.path<{ $animated: boolean }>`
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
+`;
+
+const DataKeysTooltip = styled.div`
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: rgba(var(--color-background-primary), 0.95);
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: rgb(var(--color-text-primary));
+  max-width: 260px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+`;
+
+const DataKeysTitle = styled.div`
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 4px;
+`;
+
+const DataKeysList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+`;
+
+const DataKeyChip = styled.span`
+  font-size: 11px;
+  font-family: var(--font-family-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  color: rgb(var(--color-text-secondary));
 `;
 
 // ============================================================================
@@ -192,12 +314,14 @@ function getStatusIcon(status: ConnectionStatus): React.ReactNode {
 export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = memo(
   ({
     id,
+    source,
     sourceX,
     sourceY,
     targetX,
     targetY,
     sourcePosition,
     targetPosition,
+    markerEnd,
     data = {},
     selected,
   }) => {
@@ -209,24 +333,150 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
     } = data;
 
     // Calculate path
-    const [edgePath, labelX, labelY] = getBezierPath({
+    const [edgePath, labelX, labelY] = getSmoothStepPath({
       sourceX,
       sourceY,
       sourcePosition,
       targetX,
       targetY,
       targetPosition,
+      borderRadius: 16,
     });
 
     const edgeColor = getEdgeColor(status);
     const strokeWidth = selected ? 3 : status !== 'default' ? 2.5 : 2;
 
+    const [isHovered, setIsHovered] = useState(false);
+    const hoverOffTimeoutRef = useRef<number | null>(null);
+
+    const [isEditingLabel, setIsEditingLabel] = useState(false);
+    const [draftLabel, setDraftLabel] = useState<string>(label ?? '');
+
+    const setHoverOn = useCallback(() => {
+      if (hoverOffTimeoutRef.current) {
+        window.clearTimeout(hoverOffTimeoutRef.current);
+        hoverOffTimeoutRef.current = null;
+      }
+      setIsHovered(true);
+    }, []);
+
+    const scheduleHoverOff = useCallback(() => {
+      if (hoverOffTimeoutRef.current) {
+        window.clearTimeout(hoverOffTimeoutRef.current);
+      }
+      hoverOffTimeoutRef.current = window.setTimeout(() => {
+        setIsHovered(false);
+        hoverOffTimeoutRef.current = null;
+      }, 120);
+    }, []);
+
+    const { getNode, setEdges } = useReactFlow();
+
+    const handleEditEdge = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setHoverOn();
+        setDraftLabel(label ?? '');
+        setIsEditingLabel(true);
+      },
+      [label, setHoverOn]
+    );
+
+    const handleCancelEdit = useCallback(
+      (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        setIsEditingLabel(false);
+        setDraftLabel(label ?? '');
+      },
+      [label]
+    );
+
+    const handleSaveEdit = useCallback(
+      (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        const next = draftLabel.trim();
+        setEdges((eds) =>
+          eds.map((edge) =>
+            edge.id === id
+              ? {
+                  ...edge,
+                  data: {
+                    ...(edge.data as any),
+                    label: next,
+                  },
+                }
+              : edge
+          )
+        );
+        setIsEditingLabel(false);
+      },
+      [draftLabel, id, setEdges]
+    );
+
+    const handleInsertHere = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      window.dispatchEvent(
+        new CustomEvent('insert-node-between', {
+          detail: { edgeId: id },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent('pm:openNodePalette', {
+          detail: { insertOnEdgeId: id },
+        })
+      );
+    };
+
+    const handleDeleteEdge = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEdges((eds) => eds.filter((edge) => edge.id !== id));
+    };
+
+    const dataKeys = useMemo(() => {
+      const sourceNode = source ? getNode(source) : undefined;
+      const keys: string[] = [];
+
+      const outputFields = sourceNode?.data?.outputSchema?.outputFields;
+      if (Array.isArray(outputFields)) {
+        for (const f of outputFields) {
+          const key = f?.fieldName || f?.fieldId;
+          if (typeof key === 'string' && key.trim()) keys.push(key);
+        }
+      }
+
+      if (keys.length === 0) {
+        const fields = sourceNode?.data?.fields || sourceNode?.data?.selectedFields;
+        if (Array.isArray(fields)) {
+          for (const f of fields) {
+            const key = typeof f === 'string' ? f : (f?.name || f?.id || f?.key);
+            if (typeof key === 'string' && key.trim()) keys.push(key);
+          }
+        }
+      }
+
+      // Unique + stable order
+      return Array.from(new Set(keys));
+    }, [getNode, source]);
+
+    const visibleKeys = dataKeys.slice(0, 6);
+    const remainingCount = Math.max(0, dataKeys.length - visibleKeys.length);
+
     return (
       <>
+        {/* Invisible thick hitbox under the visible edge to stabilize hover/interaction */}
+        <path
+          d={edgePath}
+          style={{ stroke: 'transparent', strokeWidth: 30, strokeOpacity: 0 }}
+          pointerEvents="stroke"
+          onMouseEnter={setHoverOn}
+          onMouseLeave={scheduleHoverOff}
+        />
+
         {/* Base Edge */}
         <BaseEdge
           id={id}
           path={edgePath}
+          markerEnd={markerEnd}
           style={{
             stroke: edgeColor,
             strokeWidth,
@@ -247,20 +497,94 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
           />
         )}
 
-        {/* Label with Icon */}
-        {(label || showIcon) && (
-          <EdgeLabelRenderer>
+        <EdgeLabelRenderer>
+          {/* Phase 11: Edge payload / data-key visualization */}
+          {visibleKeys.length > 0 && (
+            <DataKeysTooltip
+              style={{
+                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 22}px)`,
+                opacity: isHovered ? 1 : 0,
+              }}
+            >
+              <DataKeysTitle>Data Keys</DataKeysTitle>
+              <DataKeysList>
+                {visibleKeys.map((k) => (
+                  <DataKeyChip key={k}>{k}</DataKeyChip>
+                ))}
+                {remainingCount > 0 && <DataKeyChip>+{remainingCount}</DataKeyChip>}
+              </DataKeysList>
+            </DataKeysTooltip>
+          )}
+
+          {/* Label with Icon */}
+          {(label || showIcon) && (
             <EdgeLabel
               $status={status}
               style={{
                 transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                opacity: isHovered ? 1 : undefined,
+                animation: isHovered ? 'none' : undefined,
               }}
+              onMouseEnter={setHoverOn}
+              onMouseLeave={scheduleHoverOff}
             >
               {showIcon && getStatusIcon(status)}
               {label && <span>{label}</span>}
             </EdgeLabel>
-          </EdgeLabelRenderer>
-        )}
+          )}
+
+          {/* Edge Edit Popover */}
+          {isEditingLabel && (
+            <EdgeEditCard
+              style={{
+                left: labelX,
+                top: labelY - 54,
+              }}
+              onMouseEnter={setHoverOn}
+              onMouseLeave={scheduleHoverOff}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <EdgeEditInput
+                value={draftLabel}
+                placeholder="Edge label"
+                onChange={(e) => setDraftLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveEdit();
+                  if (e.key === 'Escape') handleCancelEdit();
+                }}
+                autoFocus
+              />
+              <EdgeEditActions>
+                <EdgeEditActionBtn onClick={handleCancelEdit}>Cancel</EdgeEditActionBtn>
+                <EdgeEditActionBtn $primary onClick={handleSaveEdit}>
+                  Save
+                </EdgeEditActionBtn>
+              </EdgeEditActions>
+            </EdgeEditCard>
+          )}
+
+          {/* Hover Toolbar */}
+          <EdgeToolbarWrapper
+            style={{
+              left: labelX,
+              top: labelY,
+              opacity: isHovered ? 1 : 0,
+              transform: `translate(-50%, -50%) scale(${isHovered ? 1 : 0.9})`,
+            }}
+            onMouseEnter={setHoverOn}
+            onMouseLeave={scheduleHoverOff}
+          >
+            <EdgeBtn title="Add Node Here" onClick={handleInsertHere}>
+              <Plus size={14} />
+            </EdgeBtn>
+            <EdgeBtn title="Edit Edge" onClick={handleEditEdge}>
+              <Edit2 size={14} />
+            </EdgeBtn>
+            <EdgeBtn title="Delete Edge" onClick={handleDeleteEdge}>
+              <Trash2 size={14} />
+            </EdgeBtn>
+          </EdgeToolbarWrapper>
+        </EdgeLabelRenderer>
       </>
     );
   }

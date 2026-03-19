@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
+import { apiClient } from '../../services/apiService'; // FIX: Use authenticated client
 import { toast } from 'react-hot-toast';
-import { Plug, Trash2, RefreshCw } from 'lucide-react';
+import { Trash2, RefreshCw } from 'lucide-react';
 import { EmailConnection } from './EmailConnection';
 import { IngestionMonitor } from './IngestionMonitor';
 
@@ -22,7 +22,7 @@ export const IntegrationsSection: React.FC = () => {
 
   const loadConnections = useCallback(async () => {
     try {
-      const response = await axios.get('/api/integrations/oauth/status/');
+      const response = await apiClient.get('/integrations/oauth/status/'); // FIX: Use apiClient
       setConnections(response.data.connections || []);
     } catch (error: any) {
       console.error('[IntegrationsSection] Failed to load connections:', error);
@@ -58,7 +58,7 @@ export const IntegrationsSection: React.FC = () => {
 
     setIsDisconnecting(provider);
     try {
-      await axios.post('/api/integrations/oauth/disconnect/', { provider });
+      await apiClient.post('/integrations/oauth/disconnect/', { provider }); // FIX: Use apiClient
       toast.success(`${provider} disconnected successfully`);
       loadConnections();
     } catch (error: any) {

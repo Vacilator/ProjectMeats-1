@@ -4,6 +4,71 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ## Active Initiative: Phase 7 Stabilization + Cockpit Navigation
 
+## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
+
+### PR Log (append-only)
+
+- 2026-03-19 — Phase 9.5: Book + Pages paradigm shift — Commit: fca3d658 (PR: #3631)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3631
+  - Paradigm: Form Process Group behaves like a "book" / swimlane; Form steps render as "pages" with in-node field preview.
+  - Container edges: strict container edge isolation remains removed to support Form → Action → Form workflows across permeable boundaries.
+  - Layout: steps sequence horizontally (wider spacing) and non-form child nodes are not repositioned by container auto-layout.
+
+- 2026-03-19 — Phase 7 — Initiative: WorkForm Visual Evolution: Interleaved Action Containers and Horizontal Page Layout — Commit: TBD
+  - FormProcessGroupNode: pages (type `form`) lay out horizontally while other node types remain free-positioned within the container.
+  - Group container sizing: width expands with page count ("book" grows as pages are added).
+  - FormNode UX: selected pages support a lightweight in-canvas field editor (add/reorder) to reduce side-panel dependency.
+  - Connectivity: plan to introduce virtual handles for collapsed groups so edges can cross the container boundary cleanly without breaking `extent: 'parent'` visually.
+
+- 2026-03-19 — Fix: ConditionBuilder loads entity fields — Commit: TBD (PR: TBD)
+  - DynamicConfigPanel: when an entity is selected (entityType/eventEntity/entity), load entity fields via schemaService and include them in ConditionBuilder available fields.
+  - Resolves empty ConditionBuilder dropdowns for Database Event trigger nodes.
+
+- 2026-03-19 — Fix: Catalog filtering shows hybrid WorkForms — Commit: TBD (PR: TBD)
+  - WorkForms Catalog: refactored filtering/classification to deeply inspect flow_data.nodes, correctly categorizing hybrid WorkForms (Form Process Groups) and pure workflows so user-created flows are not hidden.
+
+- 2026-03-19 — Phase 7 UX: Sub-flows + toolbars + smoother edges — Commit: TBD (PR: TBD)
+  - FormProcessGroupNode: removed dimension transitions and force explicit width/height on expand/collapse to avoid ResizeObserver bounding-box glitches.
+  - BaseNode: replaced ad-hoc controls with React Flow NodeToolbar and added button-style output handle.
+  - Edges: default to smoothstep (via EnhancedConnectionEdge) with thicker strokes + larger arrow markers; added a hover EdgeToolbar with insert/delete affordances.
+
+- 2026-03-19 — Fix: Workforms Editor UI/config/publish polish — Commit: 25a56157 (PR: #3629)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3629
+  - DynamicConfigPanel: handle field.type=entityType and field.type=multiSelect to prevent "Unknown field type" rendering errors.
+  - UnifiedFlowEditor: move canvas settings panel to bottom-left; add explicit node palette toggle; Help (?) opens keyboard shortcuts.
+  - WorkForms Editor: click-to-edit flow title; Publish disabled when there are unsaved changes.
+
+- 2026-03-19 — Fix: Dagre global layout crash + Add Step clipping — Commit: 44617749 (PR: #3627)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3627
+  - Auto-layout: isolate global dagre pass to top-level nodes only (filters child nodes with parentId) to prevent React Flow grouped-node crashes.
+  - UI: container bodies allow visible overflow when expanded so the "Add Step" button is not clipped.
+
+- 2026-03-19 — Fix: Phantom Logout (Settings/Integrations) — Commit: c267ca88 (PR: #3625)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3625
+  - tenantService: removed rogue axios.create + interceptors (incl. 401 hard redirect to /login); now uses centralized JWT-aware apiClient.
+  - IntegrationSettings + EmailConnection: switched to apiClient and removed hardcoded /api/v1 (or /api) prefixes to avoid double-stacking baseURL.
+
+- 2026-03-19 — Email Integrations UI mounted (Settings) — Commit: TBD (PR: TBD)
+  - Settings: mounted IntegrationsSection below Tenant Branding.
+  - IntegrationsSection + EmailConnection: OAuth calls now use authenticated apiClient (no raw axios, no hardcoded /api prefix).
+
+- 2026-03-19 — Phase 11: Data Flow Tracing — Commit: c02d4d2d (PR: #3623)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3623
+  - FlowEditor: upstream context is now derived from true graph traversal (edges), not Y-position heuristics.
+  - EnhancedConnectionEdge: hover tooltip shows Data Keys flowing across the edge (from source output schema / fields).
+  - VariablePicker: adds a scope warning indicator for variables that may not be evaluated before a step executes.
+
+- 2026-03-19 — Phase 9.5: Copy/Paste + container-aware auto-layout + memory-safe undo/redo — Commit: ba8c0d99 (PR: #3612)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3612
+  - FlowEditor: Ctrl/⌘C copies selected nodes; Ctrl/⌘V pastes with fresh UUIDs, +50px offset, and selection moves to pasted nodes.
+  - Layout: recursive dagre layout per container (parentId grouping) + final top-level pass; containers auto-resize to fit children.
+  - History: structuredClone-based snapshots (sanitized for clone safety) with strict 50-state cap.
+
+- 2026-03-19 — Hotfix: Workforms Editor TDZ crash (collaboration hook used `currentWorkflowId` before initialization) — Commit: f24bc3fc (PR: #3613)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3613
+  - FlowEditor: move collaboration/presence hook block to after `currentWorkflowId` state initialization to prevent `ReferenceError: Cannot access before initialization`.
+
+
 ### Scope
 - Cockpit “continuous browsing” navigation + relationships.
 - MyTasks workflow execution dashboard stability.
@@ -602,33 +667,108 @@ Deliverables:
 
 ---
 
-### 2026-03-18 — Batch 1 Cleanup: Remove Dead Modal Code (Work in Progress)
-**Status:** Code changes committed locally, PR pending
+### 2026-03-18 — FlowEditor Stabilization: Batch 2 Panel Migration + Runtime Fixes (COMPLETE) (PR #3584)
+**Status:** PR opened — https://github.com/Meats-Central/ProjectMeats/pull/3584
 
 **Deliverables:**
-- ✅ Removed 6 dead modal state variables (formFieldModalOpen, sectionModalOpen, documentModalOpen, createRecordModalOpen, formReferenceModalOpen, formStepModalOpen)
-- ✅ Removed 5 dead SidePanel modals (FormField direct, Section direct, Document direct, CreateRecord, FormReference)
-- ✅ Simplified edit button handler - all node types now route through `setSelectedNode()` → `TabbedConfigPanel` → `DynamicConfigPanel`
-- ✅ Cleaned up selection reset handler (removed references to deleted state variables)
-- ✅ Verified Batch 3 Visual Polish already complete (edge markers, custom edge types, minimap all implemented)
+- ✅ Runtime Fixes: UnifiedFlowEditor tenantLists query no longer references deleted `formStepModalOpen`; ProcessMonitor routes fixed (remove redundant `/api/v1`).
+- ✅ Schema Validation Bug: schemaRegistry validation normalization avoids double-wrapping arrays.
+- ✅ Batch 2 (Migration): FormFieldConfigPanel migrated to standardized config panel shared components (`ConfigPanel/shared/*`) and now reads `tenantLists` / `availableFields` / `currentNodeId` via FlowEditorContext (no prop drilling).
 
 **Impact:**
-- ~150 lines removed from UnifiedFlowEditor.tsx (modal state + dead code)
-- Eliminated 6 unused state variables + their setters
-- Eliminated 5 modal components that were never triggered (modalOpen states always false)
-- All configuration now flows through schema-driven DynamicConfigPanel (51 node types)
-- Zero breaking changes - existing panels continue to work for specialized use cases
+- Removes a production runtime crash path (stale modal state reference)
+- Eliminates incorrect API 404s caused by double-prefixing routes
+- Standardizes nested field editor UI patterns and reduces wiring complexity
 
 **Remaining Work:**
-- FormFieldConfigPanel: Still used for nested field editing within FormStep (926 lines, uses custom styled components)
-- FormStepConfigPanel: Still used for FormStep configuration (1,129 lines, already uses shared components)
-- DocumentConfigPanel: Still used for document config (705 lines, already uses shared components)
-
-**Next Steps (Optional Panel Migration - Batch 2):**
-- Migrate FormFieldConfigPanel to use shared/StyledComponents (projected -35% lines)
-- This is lower priority since the primary goal (removing dead modals, routing through DynamicConfigPanel) is complete
+- FormStepConfigPanel: Still used for FormStep configuration (already uses shared components)
+- DocumentConfigPanel: Still used for document config (already uses shared components)
 
 **Todo Status:**
-- ✅ Batch 1 (Cleanup): 3/3 complete
-- ✅ Batch 3 (Visual): 3/3 complete (already implemented)
-- ⏸️ Batch 2 (Migration): 3/3 pending (optional - lower priority)
+- ✅ Batch 1 (Cleanup): COMPLETE
+- ✅ Batch 2 (Panel Migration): COMPLETE (PR #3584)
+- ✅ Runtime Fixes: COMPLETE (PR #3584)
+- [x] Wired Cockpit Entity Tools (Smart Quote, Email Drafter) to dynamic workflow engine with record context.
+- [x] Integrated 'Configure Tools' UI for user-customizable action buttons.
+
+## Phase 9: Editor Polish & Optimization
+
+- [x] Audit & Destroy Legacy Code: remove direct axios imports under `frontend/src/components/FlowEditor/` (use `businessApi` / `workformsApi` only).
+  - [x] Replaced axios usage in `Modals/SharedTemplateDeleteModal.tsx` with `workformsApi` helpers.
+  - [x] Added `getTenantFormUsageInfo()` + `decrementTenantFormUsage()` to `frontend/src/services/workformsApi.ts`.
+
+- [x] Phase E.2 (Panel Migration): align panels to FlowEditorContext + shared StyledComponents.
+  - [x] `FormFieldConfigPanel.tsx`: imports standardized to `ConfigPanel/shared/StyledComponents.ts` (via explicit path).
+  - [x] `DocumentConfigPanel.tsx`: uses FlowEditorContext fallback for `availableFields` and replaces custom fixed wrapper with shared `Panel`.
+
+- [x] Edge semantics + performance tuning:
+  - [x] Enforced `MarkerType.ArrowClosed` marker color using CSS vars (no hardcoded hex).
+  - [x] Set `onlyRenderVisibleElements={true}` on the main ReactFlow instance.
+  - [x] Confirmed Monaco usage remains lazy via `React.lazy(() => import('@monaco-editor/react'))`.
+
+## Phase 9.2: Collaboration & Debugging
+
+- [x] Real-time collaboration scaffold:
+  - [x] Added `useCollaboration` hook (WebSocket connect/disconnect/reconnect w/ backoff) at `frontend/src/components/FlowEditor/hooks/useCollaboration.ts`.
+  - [x] UnifiedFlowEditor broadcasts cursor movement + selection changes (best-effort; no crashes if WS not available).
+  - [x] UnifiedFlowEditor renders live cursors overlay from presence state.
+
+- [x] Debugger improvements:
+  - [x] `DryRunDebugger` now includes a **Variables** tab with a collapsible JSON tree view (scaffold until full execution wiring is available).
+
+- [x] Sub-flow export (scaffold):
+  - [x] NodeContextMenu: added **Save as Sub-Flow Template** for `formProcessGroup` (serializes container + descendants + internal edges and POSTs to `/workflows/templates/`).
+
+## Phase 9.4: Advanced Debugging & Execution Tracing
+
+- [x] Breakpoints UI:
+  - [x] NodeContextMenu: added **Toggle Breakpoint** (sets `node.data.hasBreakpoint`).
+  - [x] BaseNode: renders a red breakpoint dot indicator when `hasBreakpoint` is enabled.
+
+- [x] Execution timeline styling (debug sessions):
+  - [x] UnifiedFlowEditor: render-time decoration dims unexecuted nodes/edges.
+  - [x] UnifiedFlowEditor: highlights + animates the edge from `previousNodeId` → `activeNodeId` while stepping.
+
+- [x] Step-through controls:
+  - [x] DryRunDebugger: added **Step Into**, **Step Over**, **Continue**, with FlowEditorContext-backed debug session state.
+  - [x] Continue halts at breakpoints or terminal nodes.
+
+- PR: TBD (feat/workforms): Implement visual breakpoints, execution timeline, and step-through debugger
+
+## Phase 9.6: Canvas UX Overhaul
+
+- [x] Eradicated completion/config % badge on nodes:
+  - [x] BaseNode: removed live validation badge plumbing that was surfacing useless “0%” style indicators.
+
+- [x] Fixed handle overlap + improved hit targets:
+  - [x] BaseNode: enlarged handles (16x16) and repositioned to avoid overlap with controls (top-left input, bottom-right output, error handle shifted).
+  - [x] UnifiedFlowEditor.responsive.css: boosted handle z-index and expanded handle hitbox via ::before.
+
+- [x] Fixed dragging ergonomics:
+  - [x] BaseNode: header marked as `.custom-drag-handle`; body/controls marked as `.nodrag` to prevent accidental drags while clicking.
+  - [x] UnifiedFlowEditor.responsive.css: added grab/grabbing cursor styling for `.custom-drag-handle`.
+
+- [x] Dual-direction auto-layout:
+  - [x] autoLayout.getLayoutedElements: root graph laid out Top-to-Bottom (TB) while container children lay out Left-to-Right (LR) and containers auto-resize to fit.
+
+- PR: TBD (refactor/workforms): overhaul canvas UX, dual-direction auto-layout, and fix handle targets
+
+## Phase 9.7: Preemptive Hardening & State Sync
+
+- [x] Required validator normalization:
+  - [x] schemaRegistry now normalizes schemas on registration so any `required: true` field has a `required` validation rule (including nested child schemas).
+
+- [x] FormBuilder → ReactFlow state sync:
+  - [x] UnifiedFlowEditorInner wires FormBuilderProvider `onNodeDataUpdate` to the node update pipeline so edits persist immediately.
+
+- [x] Deep-clone duplication:
+  - [x] UnifiedFlowEditor: container duplication now deep-clones nodes, rewrites IDs/parentId, and also clones internal edges between duplicated descendants.
+  - [x] NodeContextMenu prefers centralized duplicate logic (with a safe fallback).
+
+- [x] Aggressive edge cleanup:
+  - [x] UnifiedFlowEditor: deletes clean up edges for deleted nodes and all descendants (container deletes).
+  - [x] NodeContextMenu prefers centralized delete logic (with a safe fallback).
+
+- PR: TBD (refactor/workforms): Phase 9.7 hardening & state sync
+
+

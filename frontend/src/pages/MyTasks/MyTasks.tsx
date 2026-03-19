@@ -586,17 +586,21 @@ export const MyTasks: React.FC = () => {
       const response = await workflowExecutionService.getExecutions({
         status: 'in_progress',
         assigned_to: 'me',
+        page_size: 25,
       });
       setWorkflowExecutions(response.results);
     } catch (err) {
       console.error('Failed to fetch workflow executions:', err);
       const status = (err as any)?.response?.status;
+
+      // Degrade gracefully: prefer the normal empty-state UI over a scary error banner.
+      // (This page already has a Retry button.)
       if (status === 404 || status === 403) {
         setWorkflowsError('No workflows available for your tenant yet.');
-        setWorkflowExecutions([]);
       } else {
-        setWorkflowsError('Failed to load workflows. Please try again.');
+        setWorkflowsError('');
       }
+      setWorkflowExecutions([]);
     } finally {
       setWorkflowsLoading(false);
     }

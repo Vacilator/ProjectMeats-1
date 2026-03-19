@@ -29,6 +29,7 @@
  * Updated: 2026-02-21 - Applied React Flow best practices + consolidated duplicates
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
@@ -100,7 +101,7 @@ import {
   Trash2, // Phase 8.3
   HelpCircle, // Workform Editor Enhancements
   Play, // Task 1: Workflow Execution
-  Map, // Sprint 1 Task 1.3: Minimap toggle
+  Map as MapIcon, // Sprint 1 Task 1.3: Minimap toggle
   Settings, // Sprint 1 Task 1.4: Background & Grid settings
 } from 'lucide-react';
 
@@ -108,7 +109,6 @@ import {
   FormNode,
   FormStepSingleNode,
   FormReferenceNode,
-  FormProcessNode,
   FormProcessGroupNode,
   TriggerNode,
   ConditionIfNode,
@@ -118,13 +118,14 @@ import {
   UtilityNode,
   TerminalNode,
 } from './nodes';
-import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge } from './edges';
+import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
 import { ValidationDrawer } from './components/ValidationDrawer';
 import { DryRunDebugger } from './components/DryRunDebugger';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
+import { schemaRegistry } from './config/schemaRegistry';
 import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
 import { EnhancedContextMenu, useEnhancedContextMenu } from './components/EnhancedContextMenu'; // Phase 2: UI/UX
@@ -135,9 +136,14 @@ import { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization'; /
 import { NodeConfigPanelWithShadow, TabbedConfigPanelWithShadow } from './ConfigPanel';
 import { getLayoutedElements, alignNodesHorizontally, alignNodesVertically, distributeNodesHorizontally, distributeNodesVertically } from './utils/autoLayout'; // Phase 2: UI/UX
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2: UI/UX
+import { useCollaboration } from './hooks/useCollaboration'; // Phase 9.2
+import { getCurrentTenant } from '../../config/runtime';
 
 // FormBuilder Context Provider (2026-02-21 Comprehensive Enhancements)
 import { FormBuilderProvider } from '../../contexts/FormBuilderContext';
+
+// FlowEditor Context Provider (Phase E.1)
+import { FlowEditorProvider, useFlowEditor } from './context';
 
 // Error Boundary (2026-02-21 Comprehensive Enhancements)
 import { ErrorBoundary } from './ErrorBoundary';
@@ -247,6 +253,7 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   
   /* Animate container expand/collapse */
   .react-flow__node[data-type="formMultiStepContainer"],
+  .react-flow__node[data-type="formProcess"],
   .react-flow__node[data-type="formProcessGroup"] {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 width 0.3s ease,
@@ -1537,7 +1544,7 @@ const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $po
 // Sprint 1 Task 1.4: Background & Grid Settings Panel
 const SettingsPanel = styled.div`
   position: absolute;
-  top: 12px;
+  bottom: 60px; /* FIX: Changed from top: 12px to pop up above the toolbar */
   left: 12px;
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
@@ -1636,11 +1643,11 @@ const staticNodeTypes: NodeTypes = {
   // Form nodes (Phase E - 2026-02-19)
   form: FormNode,  // NEW: Primary form node name
   formStepSingle: FormStepSingleNode,  // Backward compatibility
-  formProcess: FormProcessNode,
+  formProcess: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
   formProcessGroup: FormProcessGroupNode,
   // Backward compatibility aliases
   formStep: FormStepSingleNode,  // Deprecated
-  formMultiStepContainer: FormProcessNode,  // Deprecated
+  formMultiStepContainer: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -1652,14 +1659,111 @@ const staticNodeTypes: NodeTypes = {
   terminal: TerminalNode,
 };
 
+// Dynamically build the full registry map statically ONCE outside the component.
+// This avoids TDZ / initialization crashes seen when building nodeTypes inside hooks.
+const dynamicNodeTypes: NodeTypes = { ...staticNodeTypes };
+Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
+  if (dynamicNodeTypes[typeId]) return;
+
+  if (typeId.startsWith('trigger')) dynamicNodeTypes[typeId] = TriggerNode;
+  else if (typeId.startsWith('action')) dynamicNodeTypes[typeId] = ActionNode;
+  else if (typeId.startsWith('condition') || typeId === 'parallelPath') dynamicNodeTypes[typeId] = ConditionIfNode;
+  else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) dynamicNodeTypes[typeId] = WaitStateNode;
+  else if (typeId.startsWith('document')) dynamicNodeTypes[typeId] = DocumentNode;
+  else if (typeId.startsWith('terminal') || typeId.startsWith('end')) dynamicNodeTypes[typeId] = TerminalNode;
+  else if (typeId.startsWith('form')) dynamicNodeTypes[typeId] = FormStepSingleNode;
+  else dynamicNodeTypes[typeId] = UtilityNode;
+});
+
+
 // Static edge types (no useMemo needed - these are constant)
 const staticEdgeTypes: EdgeTypes = {
   custom: CustomEdge,
   conditional: ConditionalEdge,
   error: ErrorEdge,
   success: SuccessEdge,
+  enhanced: EnhancedConnectionEdge,
   insert: InsertNodeEdge,
   default: CustomEdge, // Fallback to custom for untyped edges
+};
+
+// Phase 9.4: Render-time execution tracing (no mutations to saved workflow graph)
+const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (props) => {
+  const { debug } = useFlowEditor();
+
+  const decoratedNodes = useMemo(() => {
+    const nodes = (props.nodes || []) as Node[];
+    if (!debug.isActive) return nodes;
+
+    const executed = new Set(debug.executedNodeIds);
+    const activeId = debug.activeNodeId;
+
+    return nodes.map((n) => {
+      const isActive = activeId === n.id;
+      const isExecuted = executed.has(n.id);
+      if (isActive || isExecuted) return n;
+
+      return {
+        ...n,
+        style: {
+          ...(n.style || {}),
+          opacity: 0.28,
+        },
+      };
+    });
+  }, [props.nodes, debug.isActive, debug.activeNodeId, debug.executedNodeIds]);
+
+  const decoratedEdges = useMemo(() => {
+    const edges = (props.edges || []) as Edge[];
+    if (!debug.isActive) return edges;
+
+    const executed = new Set(debug.executedNodeIds);
+    const activeId = debug.activeNodeId;
+    const prevId = debug.previousNodeId;
+
+    return edges.map((e) => {
+      const isActiveHop = Boolean(prevId && activeId && e.source === prevId && e.target === activeId);
+
+      if (isActiveHop) {
+        return {
+          ...e,
+          animated: true,
+          data: { ...(e.data || {}), animated: true },
+          style: {
+            ...(e.style || {}),
+            stroke: 'rgb(var(--color-primary))',
+            strokeWidth: 3,
+            opacity: 1,
+          },
+        };
+      }
+
+      const targetExecuted = executed.has(e.target);
+      const targetIsActive = activeId === e.target;
+
+      if (targetExecuted || targetIsActive) return e;
+
+      return {
+        ...e,
+        animated: false,
+        data: { ...(e.data || {}), animated: false },
+        style: {
+          ...(e.style || {}),
+          opacity: 0.22,
+        },
+      };
+    });
+  }, [props.edges, debug.isActive, debug.activeNodeId, debug.previousNodeId, debug.executedNodeIds]);
+
+  const { nodes: _n, edges: _e, ...rest } = props;
+
+  return (
+    <ReactFlow
+      {...rest}
+      nodes={decoratedNodes}
+      edges={decoratedEdges}
+    />
+  );
 };
 
 // ============================================================================
@@ -1753,6 +1857,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
+
+  // Keep ref to current edges for stable callbacks
+  const edgesRef = useRef<Edge[]>(edges);
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
   
   // Selected node state (moved here to fix TDZ - used in useMemo at line ~1917)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -2217,7 +2327,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     nodes.find(n => n.id === selectedNodeId) || null,
     [nodes, selectedNodeId]
   );
-  
+
   // ============================================================================
   // Onboarding Tour (Gap Analysis Phase 1.1)
   // ============================================================================
@@ -2396,21 +2506,51 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Undo/Redo history
   const [history, setHistory] = useState<HistoryState[]>([{ nodes: normalizedInitialNodes, edges: initialEdges }]);
   const [historyIndex, setHistoryIndex] = useState(0);
+
+  // Phase 9.5: Local clipboard (nodes only per spec)
+  const [clipboardData, setClipboardData] = useState<Node[]>([]);
   const [isPaletteVisible, setIsPaletteVisible] = useState(true);
   const [pendingInsertEdgeId, setPendingInsertEdgeId] = useState<string | null>(null);
+  const [pendingInsertAnchorNodeId, setPendingInsertAnchorNodeId] = useState<string | null>(null);
 
   // Inline insertion: listen for "+" edge events to open palette with context
   useEffect(() => {
-    const handleOpenPalette = (event: Event) => {
-      const detail = (event as CustomEvent<{ insertOnEdgeId?: string }>).detail;
-      setPendingInsertEdgeId(detail?.insertOnEdgeId || null);
+    const openPaletteForEdge = (edgeId: string | null) => {
+      setPendingInsertEdgeId(edgeId);
+      setPendingInsertAnchorNodeId(null);
       setIsPaletteVisible(true);
       requestAnimationFrame(() => searchInputRef.current?.focus());
     };
 
+    const openPaletteForNode = (nodeId: string | null) => {
+      setPendingInsertEdgeId(null);
+      setPendingInsertAnchorNodeId(nodeId);
+      setSelectedNodeId(nodeId);
+      setSelectedNode(null);
+      setIsPaletteVisible(true);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    };
+
+    const handleOpenPalette = (event: Event) => {
+      const detail = (event as CustomEvent<{ insertOnEdgeId?: string; anchorNodeId?: string }>).detail;
+      if (detail?.anchorNodeId) {
+        openPaletteForNode(detail.anchorNodeId);
+        return;
+      }
+      openPaletteForEdge(detail?.insertOnEdgeId || null);
+    };
+
+    const handleInsertNodeBetween = (event: Event) => {
+      const detail = (event as CustomEvent<{ edgeId?: string }>).detail;
+      openPaletteForEdge(detail?.edgeId || null);
+    };
+
     window.addEventListener('pm:openNodePalette', handleOpenPalette as EventListener);
+    window.addEventListener('insert-node-between', handleInsertNodeBetween as EventListener);
+
     return () => {
       window.removeEventListener('pm:openNodePalette', handleOpenPalette as EventListener);
+      window.removeEventListener('insert-node-between', handleInsertNodeBetween as EventListener);
     };
   }, []);
 
@@ -2450,7 +2590,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       return response.data.results || response.data || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: formStepModalOpen || !!editingField, // Only fetch when needed
+    enabled: !!editingField, // Only fetch when needed
   });
   
   // Drag-drop state for ghost preview and smart snapping
@@ -2528,7 +2668,26 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false); // Phase 8.6
   const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false); // Task 1: Workflow Execution
   const [isFlowPreviewOpen, setIsFlowPreviewOpen] = useState(false); // Phase 1: Hybrid Functionality
-  
+
+  // ============================================================================
+  // Phase 9.2: Collaboration & Presence
+  // ============================================================================
+
+  const tenantId = getCurrentTenant() ?? '';
+  const { presence: collabPresence, sendCursor: collabSendCursor, sendSelection: collabSendSelection } =
+    useCollaboration({ workflowId: currentWorkflowId, tenantId });
+
+  const collabSendCursorDebounced = useMemo(
+    () => debounce((cursor: { x: number; y: number }) => collabSendCursor(cursor), 30),
+    [collabSendCursor]
+  );
+
+  useEffect(() => {
+    return () => {
+      collabSendCursorDebounced.cancel();
+    };
+  }, [collabSendCursorDebounced]);
+
   // ============================================================================
   // Wizard Mode State (Phase 2.2 Batch 3)
   // ============================================================================
@@ -2757,27 +2916,50 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   useEffect(() => {
+    const sanitizeForClone = (value: unknown): unknown => {
+      if (!value || typeof value !== 'object') return value;
+      if (Array.isArray(value)) return value.map(sanitizeForClone);
+
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        if (typeof v === 'function') continue;
+        out[k] = sanitizeForClone(v);
+      }
+      return out;
+    };
+
     // Debounce history tracking to avoid too many snapshots
     const timer = setTimeout(() => {
-      const currentState = { nodes, edges };
+      const sanitizedCurrentState = {
+        nodes: nodes.map((n) => ({
+          ...n,
+          data: sanitizeForClone(n.data) as any,
+        })),
+        edges: edges.map((e) => ({ ...e })),
+      };
+
+      // Use structuredClone to avoid shallow-reference mutation bugs
+      // (deep changes inside node.data must produce stable history snapshots).
+      const currentState = structuredClone(sanitizedCurrentState) as HistoryState;
       const lastState = history[historyIndex];
-      
+
       // Only add to history if state actually changed
       if (JSON.stringify(currentState) !== JSON.stringify(lastState)) {
         const newHistory = history.slice(0, historyIndex + 1);
         newHistory.push(currentState);
-        
-        // Keep max 50 history states
+
+        // Keep max 50 history states (strict cap)
         if (newHistory.length > 50) {
           newHistory.shift();
+          setHistoryIndex(49);
         } else {
-          setHistoryIndex(prev => prev + 1);
+          setHistoryIndex((prev) => prev + 1);
         }
-        
+
         setHistory(newHistory);
       }
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [nodes, edges]); // Only track when nodes or edges change
 
@@ -2914,56 +3096,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       if (!sourceNode || !targetNode) return;
       
-      // Phase 6.1: Container isolation validation (HIGHEST PRIORITY)
-      // Block connections from child node to external node
-      if (sourceNode.parentNode && !targetNode.parentNode) {
-        logger.warn('[Connection] ❌ Cannot connect child node to external node (container isolation)');
-        toast.error('Cannot connect nodes across container boundaries', {
-          duration: 4000,
-          icon: '🚫',
-        });
-        Sentry.captureMessage('Container isolation: child → external blocked', {
-          level: 'info',
-          extra: { sourceNode: sourceNode.id, targetNode: targetNode.id },
-        });
-        return;
-      }
-      
-      // Block connections from external node to child node
-      if (!sourceNode.parentNode && targetNode.parentNode) {
-        logger.warn('[Connection] ❌ Cannot connect external node to child node (container isolation)');
-        toast.error('Cannot connect nodes across container boundaries', {
-          duration: 4000,
-          icon: '🚫',
-        });
-        Sentry.captureMessage('Container isolation: external → child blocked', {
-          level: 'info',
-          extra: { sourceNode: sourceNode.id, targetNode: targetNode.id },
-        });
-        return;
-      }
-      
-      // Block connections between nodes in different containers
-      if (sourceNode.parentNode && targetNode.parentNode && sourceNode.parentNode !== targetNode.parentNode) {
-        logger.warn('[Connection] ❌ Cannot connect nodes from different containers');
-        toast.error('Cannot connect nodes between different containers', {
-          duration: 4000,
-          icon: '🚫',
-        });
-        Sentry.captureMessage('Container isolation: different containers blocked', {
-          level: 'info',
-          extra: { 
-            sourceNode: sourceNode.id, 
-            targetNode: targetNode.id,
-            sourceContainer: sourceNode.parentNode,
-            targetContainer: targetNode.parentNode,
-          },
-        });
-        return;
-      }
-      
-      logger.debug('[Connection] ✅ Container isolation check passed');
-      
+      // Phase 10: WYSIWYG Form Flow
+      // Container boundaries are permeable: allow edges to leave/re-enter containers.
       // Type-aware validation
       const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
       if (!typeCheck.valid) {
@@ -3011,13 +3145,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const onNodesDelete = useCallback(async (deletedNodes: Node[]) => {
+    const deletedIds = new Set<string>(deletedNodes.map((n) => n.id));
+
+    // If a container is deleted, include all descendants (parentId chain) so we can clean edges robustly.
+    const snapshot = nodesRef.current;
+    const queue = Array.from(deletedIds);
+
+    while (queue.length > 0) {
+      const parentId = queue.pop()!;
+      for (const n of snapshot) {
+        if (n.parentId === parentId && !deletedIds.has(n.id)) {
+          deletedIds.add(n.id);
+          queue.push(n.id);
+        }
+      }
+    }
+
+    // Aggressive edge cleanup: remove any edge referencing any deleted node (parents or children)
+    setEdges((eds) => eds.filter((e) => !deletedIds.has(e.source) && !deletedIds.has(e.target)));
+
+    // Ghost cleanup
     for (const node of deletedNodes) {
-      // Check if this is a container node with a tenantFormId
       if (node.type === 'formMultiStepContainer' && node.data.tenantFormId) {
         try {
           const result = await workformsApi.decrementFormUsage(node.data.tenantFormId);
           logger.debug(`[Ghost Cleanup] ✅ Decremented usage for container: ${result.usage_count} remaining`);
-          
+
           if (result.can_delete) {
             logger.debug('[Ghost Cleanup] 🗑️ Form is now orphaned (usage_count=0). Will be cleaned up by background task.');
           }
@@ -3026,7 +3179,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         }
       }
     }
-  }, []);
+  }, [setEdges]);
 
   // ============================================================================
   // Drag & Drop Handlers
@@ -3073,18 +3226,259 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const onDragStart = useCallback((event: React.DragEvent, nodeTypeId: string) => {
     event.dataTransfer.setData('application/reactflow-nodetype', nodeTypeId);
     event.dataTransfer.effectAllowed = 'move';
-    
+
     // Reset drop succeeded flag when starting a new drag
     dropSucceededRef.current = false;
-    
+
     // Track drag state for ghost preview
     setIsDragging(true);
     setDragNodeType(nodeTypeId);
-    
+
     // Track as recently used
     addToRecent(nodeTypeId);
   }, [addToRecent]);
-  
+
+  const applyAutoLayoutImmediate = useCallback(
+    (nextNodes: Node[], nextEdges: Edge[]) => {
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nextNodes, nextEdges, {
+        direction: 'TB',
+        nodeSpacing: 60,
+        rankSpacing: 120,
+      });
+
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+      setHasUnsavedChanges(true);
+    },
+    [setNodes, setEdges]
+  );
+
+  const handleClickToAddNode = useCallback(
+    (nodeTypeId: string) => {
+      if (readOnly) return;
+
+      addToRecent(nodeTypeId);
+
+      const insertEdge = pendingInsertEdgeId ? edges.find((e) => e.id === pendingInsertEdgeId) : null;
+
+      const isNewContainer = isFormProcessContainerType(nodeTypeId);
+
+      const containerNodeId = `node-${nodeIdCounter}`;
+      const newNodeId = containerNodeId;
+      const reactFlowType = getReactFlowNodeType(nodeTypeId);
+
+      // Ensure default dimensions upfront (prevents React Flow dimension errors)
+      const defaultDimensions = isNewContainer ? { width: 600, height: 400 } : undefined;
+
+      const newNode: Node = {
+        id: newNodeId,
+        type: reactFlowType,
+        position: { x: 0, y: 0 },
+        ...(defaultDimensions && { style: defaultDimensions }),
+        data: {
+          label: NODE_TYPE_REGISTRY[nodeTypeId]?.name || 'New Node',
+          status: 'draft',
+          ...getDefaultNodeData(nodeTypeId),
+        },
+        selected: true,
+      };
+
+      // Upgrade legacy container types to the canonical group container
+      if (isNewContainer) {
+        newNode.style = {
+          width: 600,
+          height: 400,
+        };
+        newNode.data = {
+          ...newNode.data,
+          isExpanded: true,
+          isGroup: true,
+        };
+        (newNode as any).type = 'formProcessGroup';
+      }
+
+      const spawnDefaultFormPage = (parentId: string) => {
+        const pageId = `node-${nodeIdCounter + 1}`;
+
+        const pageNode: Node = {
+          id: pageId,
+          type: 'form',
+          parentId,
+          extent: 'parent',
+          expandParent: true,
+          position: { x: 30, y: 90 },
+          data: {
+            label: NODE_TYPE_REGISTRY.form?.name || 'Form',
+            status: 'draft',
+            fields: [],
+            ...getDefaultNodeData('form'),
+          },
+          selected: true,
+        };
+
+        const edge: Edge = {
+          id: `edge-${parentId}-${pageId}`,
+          source: parentId,
+          target: pageId,
+          type: 'insert',
+        };
+
+        return { pageNode, edge, pageId };
+      };
+
+      const selectOnly = (ns: Node[], selectedId: string) => ns.map((n) => ({ ...n, selected: n.id === selectedId }));
+
+      // If we're in "insert between edge" mode, split the target edge
+      if (insertEdge) {
+        const sourceNode = nodes.find((n) => n.id === insertEdge.source);
+        const targetNode = nodes.find((n) => n.id === insertEdge.target);
+
+        if (sourceNode && targetNode) {
+          const sharedParentId =
+            sourceNode.parentId && sourceNode.parentId === targetNode.parentId ? sourceNode.parentId : undefined;
+
+          if (sharedParentId) {
+            newNode.parentId = sharedParentId;
+            newNode.extent = 'parent';
+            newNode.expandParent = true;
+          }
+
+          newNode.position = {
+            x: (sourceNode.position.x + targetNode.position.x) / 2,
+            y: (sourceNode.position.y + targetNode.position.y) / 2,
+          };
+        }
+
+        const nextEdges: Edge[] = [
+          ...edges.filter((e) => e.id !== insertEdge.id),
+          {
+            id: `edge-${insertEdge.source}-${newNodeId}`,
+            source: insertEdge.source,
+            target: newNodeId,
+            type: 'insert',
+          },
+          {
+            id: `edge-${newNodeId}-${insertEdge.target}`,
+            source: newNodeId,
+            target: insertEdge.target,
+            type: 'insert',
+          },
+        ];
+
+        const nodesToAdd: Node[] = [newNode];
+        let selectedId = newNodeId;
+        let counterDelta = 1;
+
+        if (isNewContainer) {
+          const { pageNode, edge, pageId } = spawnDefaultFormPage(newNodeId);
+          nodesToAdd.push(pageNode);
+          nextEdges.push(edge);
+          selectedId = pageId;
+          counterDelta = 2;
+        }
+
+        const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
+
+        setNodeIdCounter((prev) => prev + counterDelta);
+        setPendingInsertEdgeId(null);
+        setPendingInsertAnchorNodeId(null);
+        setSelectedNodeId(selectedId);
+        setSelectedNode(null);
+
+        applyAutoLayoutImmediate(nextNodes, nextEdges);
+        return;
+      }
+
+      // Otherwise, insert directly below the selected node (or the bottom-most node)
+      const selectedById = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) || null : null;
+      const pendingAnchor = pendingInsertAnchorNodeId ? nodes.find((n) => n.id === pendingInsertAnchorNodeId) || null : null;
+      const bottomMost = [...nodes]
+        .filter((n) => !n.hidden)
+        .sort((a, b) => (b.position?.y ?? 0) - (a.position?.y ?? 0))[0];
+
+      const anchor = pendingAnchor || selectedNode || selectedById || nodes.find((n) => n.selected) || bottomMost || null;
+
+      if (anchor) {
+        // Preserve container context if inserting within a group
+        if (anchor.parentId) {
+          newNode.parentId = anchor.parentId;
+          newNode.extent = 'parent';
+          newNode.expandParent = true;
+        }
+
+        newNode.position = {
+          x: anchor.position.x,
+          y: anchor.position.y + 150,
+        };
+
+        const nextEdges: Edge[] = [
+          ...edges,
+          {
+            id: `edge-${anchor.id}-${newNodeId}`,
+            source: anchor.id,
+            target: newNodeId,
+            type: 'insert',
+          },
+        ];
+
+        const nodesToAdd: Node[] = [newNode];
+        let selectedId = newNodeId;
+        let counterDelta = 1;
+
+        if (isNewContainer) {
+          const { pageNode, edge, pageId } = spawnDefaultFormPage(newNodeId);
+          nodesToAdd.push(pageNode);
+          nextEdges.push(edge);
+          selectedId = pageId;
+          counterDelta = 2;
+        }
+
+        const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
+
+        setNodeIdCounter((prev) => prev + counterDelta);
+        setSelectedNodeId(selectedId);
+        setSelectedNode(null);
+
+        applyAutoLayoutImmediate(nextNodes, nextEdges);
+      } else {
+        const nextEdges: Edge[] = [...edges];
+
+        const nodesToAdd: Node[] = [newNode];
+        let selectedId = newNodeId;
+        let counterDelta = 1;
+
+        if (isNewContainer) {
+          const { pageNode, edge, pageId } = spawnDefaultFormPage(newNodeId);
+          nodesToAdd.push(pageNode);
+          nextEdges.push(edge);
+          selectedId = pageId;
+          counterDelta = 2;
+        }
+
+        const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
+
+        setNodeIdCounter((prev) => prev + counterDelta);
+        setPendingInsertAnchorNodeId(null);
+        setSelectedNodeId(selectedId);
+        setSelectedNode(null);
+
+        applyAutoLayoutImmediate(nextNodes, nextEdges);
+      }
+    },
+    [
+      readOnly,
+      addToRecent,
+      pendingInsertEdgeId,
+      pendingInsertAnchorNodeId,
+      edges,
+      nodes,
+      nodeIdCounter,
+      selectedNode,
+      selectedNodeId,
+      applyAutoLayoutImmediate,
+    ]
+  );
+
   // ============================================================================
   // Container Detection Helper (Phase E)
   // ============================================================================
@@ -3104,11 +3498,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug('[Container] Looking for containers at position:', position);
     
     // Get all container nodes (support both formMultiStepContainer and formProcessGroup)
-    const containerNodes = nodes.filter(node => 
-      node.type === 'formMultiStepContainer' || 
-      node.type === 'formProcessGroup' ||
-      node.type === 'formProcess'
-    );
+    const containerNodes = nodes.filter(node => isFormProcessContainerType(node.type));
     
     logger.debug('[Container] Total nodes on canvas:', nodes.length);
     logger.debug('[Container] Container nodes found:', containerNodes.length);
@@ -3382,7 +3772,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const nearby = findNearbyNode(position);
       
       // Fix #2: Ensure default dimensions upfront (prevents React Flow dimension errors)
-      const isContainerNode = type === 'formMultiStepContainer' || type === 'formProcessGroup';
+      const isContainerNode = isFormProcessContainerType(type);
       const defaultDimensions = isContainerNode
         ? { width: 600, height: 400 } // Larger for containers
         : undefined; // Let React Flow calculate for regular nodes
@@ -3417,7 +3807,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       // Phase 3: FormProcessGroup as true React Flow group container (2026-02-21)
-      if (type === 'formProcessGroup') {
+      if (isFormProcessContainerType(type)) {
         newNode.style = {
           width: 600,  // Default width for group container
           height: 400, // Default height for child nodes
@@ -3427,8 +3817,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           isExpanded: true, // Default to expanded so children are visible
           isGroup: true, // Mark as group for React Flow
         };
-        // Enable React Flow group behavior
-        (newNode as any).type = 'formProcessGroup'; // Explicit type for React Flow
+        // Upgrade legacy formProcess to canonical formProcessGroup type
+        (newNode as any).type = 'formProcessGroup';
       }
       
       // Phase 1.4: If dropping into a container, set parent-child relationship
@@ -3436,9 +3826,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         logger.debug(`[Container] Setting up parent-child relationship with container ${targetContainer.id}`);
         
         // Phase 1.4: Don't allow containers to be nested
-        const isContainerType = type === 'formMultiStepContainer' || 
-                               type === 'formProcessGroup' || 
-                               type === 'formProcess';
+        const isContainerType = isFormProcessContainerType(type);
         
         if (isContainerType) {
           logger.debug(`[Container] ❌ Cannot nest containers - node type ${type} will be added to main canvas`);
@@ -3566,9 +3954,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       // Normal drop on main canvas
-      const insertEdge = pendingInsertEdgeId
-        ? edges.find((e) => e.id === pendingInsertEdgeId)
-        : null;
+      const insertEdge = pendingInsertEdgeId ? edges.find((e) => e.id === pendingInsertEdgeId) : null;
 
       if (insertEdge) {
         const sourceNode = nodes.find((n) => n.id === insertEdge.source);
@@ -3582,13 +3968,43 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         }
       }
 
-      const updatedNodes = nodes.concat(newNode);
-      setNodes(updatedNodes);
-      setNodeIdCounter((prev) => prev + 1);
-      
+      const nodesToAdd: Node[] = [newNode];
+      const edgesToAdd: Edge[] = [];
+      let counterDelta = 1;
+
+      // Phase 10: Auto-spawn a default Form page inside a new formProcessGroup
+      if (isContainerNode && newNode.type === 'formProcessGroup') {
+        const pageId = `node-${nodeIdCounter + 1}`;
+        const pageNode: Node = {
+          id: pageId,
+          type: 'form',
+          parentId: newNode.id,
+          extent: 'parent',
+          expandParent: true,
+          position: { x: 30, y: 90 },
+          data: {
+            label: NODE_TYPE_REGISTRY.form?.name || 'Form',
+            status: 'draft',
+            fields: [],
+            ...getDefaultNodeData('form'),
+          },
+        };
+
+        nodesToAdd.push(pageNode);
+        edgesToAdd.push({
+          id: `edge-${newNode.id}-${pageId}`,
+          source: newNode.id,
+          target: pageId,
+          type: 'insert',
+        });
+        counterDelta = 2;
+      }
+
+      const updatedNodes = nodes.concat(nodesToAdd);
+
       // Mark drop as succeeded
       dropSucceededRef.current = true;
-      
+
       // Auto-connect to nearby node if found (only for main canvas drops)
       let updatedEdges = edges;
       if (insertEdge && !targetContainer) {
@@ -3608,7 +4024,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             type: 'insert',
           },
         ];
-        setEdges(updatedEdges);
         setPendingInsertEdgeId(null);
       } else if (nearby && !targetContainer) {
         const newEdge = {
@@ -3618,14 +4033,36 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           type: 'insert',
         };
         updatedEdges = [...edges, newEdge];
-        setEdges(updatedEdges);
       }
-      
+
+      updatedEdges = [...updatedEdges, ...edgesToAdd];
+
+      if (isContainerNode && newNode.type === 'formProcessGroup') {
+        applyAutoLayoutImmediate(updatedNodes, updatedEdges);
+      } else {
+        setNodes(updatedNodes);
+        setEdges(updatedEdges);
+        setHasUnsavedChanges(true);
+      }
+
+      setNodeIdCounter((prev) => prev + counterDelta);
+
       // Clear nearby node state
       setNearbyNode(null);
       setPendingInsertEdgeId(null);
     },
-    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, findNearbyNode, setEdges, findContainerAtPosition, pendingInsertEdgeId]
+    [
+      nodeIdCounter,
+      setNodes,
+      reactFlowInstance,
+      nodes,
+      edges,
+      findNearbyNode,
+      setEdges,
+      findContainerAtPosition,
+      pendingInsertEdgeId,
+      applyAutoLayoutImmediate,
+    ]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -3633,23 +4070,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   }, []);
-
-  // ============================================================================
-  // Dynamic Node Types (Phase: Container Drop Handler Fix)
-  // ============================================================================
-  
-  /**
-   * NodeTypes definition
-   * 
-   * REFACTORED: Single ReactFlow architecture
-   * - Container nodes no longer need custom props
-   * - Children render on main canvas with parentId
-   * - Uses React Flow's official grouping pattern
-   */
-  const nodeTypes = useMemo<NodeTypes>(() => ({
-    ...staticNodeTypes,
-    // Container node no longer needs custom props with single-ReactFlow architecture
-  }), []);
 
   // ============================================================================
   // Container Drag-Drop Logic (Phase 4.4)
@@ -3757,9 +4177,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const newParentId = container?.id || null;
     
     // Prevent containers from being nested in other containers
-    const isContainerNode = node.type === 'formMultiStepContainer' || 
-                           node.type === 'formProcessGroup' || 
-                           node.type === 'formProcess';
+    const isContainerNode = isFormProcessContainerType(node.type);
     
     if (isContainerNode && newParentId) {
       logger.debug('[Container] Cannot nest containers inside containers');
@@ -4254,16 +4672,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Phase 2: UI/UX Enhancements
    */
   const handleAutoLayout = useCallback(() => {
-    const hasFormProcessContainer = nodes.some(
-      (n) => n.type === 'formProcess' || n.type === 'formProcessGroup'
-    );
-    const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
-    
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-      nodes,
-      edges,
-      { direction: layoutDirection, nodeSpacing: 60, rankSpacing: 120 }
-    );
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, {
+      direction: 'TB',
+      nodeSpacing: 60,
+      rankSpacing: 120,
+    });
     setNodes(layoutedNodes);
     setHasUnsavedChanges(true);
     toast.success('Layout applied successfully');
@@ -4284,16 +4697,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       e => selectedNodeIds.includes(e.source) && selectedNodeIds.includes(e.target)
     );
 
-    const hasFormProcessContainer = selectedNodes.some(
-      (n) => n.type === 'formProcess' || n.type === 'formProcessGroup'
-    );
-    const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
-
-    const { nodes: layoutedSelected } = getLayoutedElements(
-      selectedNodes,
-      relevantEdges,
-      { direction: layoutDirection }
-    );
+    const { nodes: layoutedSelected } = getLayoutedElements(selectedNodes, relevantEdges, {
+      direction: 'TB',
+    });
 
     // Merge layouted nodes back
     const updatedNodes = nodes.map(node => {
@@ -4384,9 +4790,89 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Setup keyboard shortcuts
    * Phase 2: UI/UX Enhancements
    */
+  const handleCopySelection = useCallback(() => {
+    const selectedNodes = nodes.filter((n) => n.selected);
+    if (selectedNodes.length === 0) return;
+
+    // Store a safe snapshot (we re-clone on paste anyway)
+    setClipboardData(selectedNodes.map((n) => ({ ...n, selected: false })));
+    toast.success(`Copied ${selectedNodes.length} node(s)`);
+  }, [nodes]);
+
+  const handlePasteSelection = useCallback(() => {
+    if (!clipboardData.length) return;
+
+    const safeClone = <T,>(value: T): T => {
+      try {
+        return structuredClone(value);
+      } catch {
+        if (value && typeof value === 'object') return { ...(value as any) };
+        return value;
+      }
+    };
+
+    const createId = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : uuidv4());
+    const idMap = new Map<string, string>();
+
+    for (const n of clipboardData) {
+      idMap.set(n.id, createId());
+    }
+
+    const pastedNodes = clipboardData.map((node) => {
+      const newId = idMap.get(node.id) || createId();
+      const cloned = safeClone(node);
+
+      const oldParentId = (cloned as any).parentId as string | undefined;
+      const newParentId = oldParentId ? idMap.get(oldParentId) : undefined;
+      const keepParent = Boolean(oldParentId && newParentId);
+
+      const next: Node = {
+        ...cloned,
+        id: newId,
+        selected: true,
+        position: {
+          x: (cloned.position?.x ?? 0) + 50,
+          y: (cloned.position?.y ?? 0) + 50,
+        },
+        data: safeClone((cloned as any).data),
+      };
+
+      if (keepParent) {
+        (next as any).parentId = newParentId;
+        next.extent = 'parent';
+        (next as any).expandParent = true;
+        next.hidden = false;
+      } else {
+        delete (next as any).parentId;
+        next.extent = undefined;
+        delete (next as any).expandParent;
+        next.hidden = false;
+      }
+
+      // Ensure legacy parentNode is not carried forward
+      delete (next as any).parentNode;
+
+      return next;
+    });
+
+    const sortedPasted = sortNodesTopologically(pastedNodes);
+
+    setNodes((nds) => {
+      const cleared = nds.map((n) => ({ ...n, selected: false }));
+      return [...cleared, ...sortedPasted];
+    });
+
+    setSelectedNodeId(sortedPasted[0]?.id ?? null);
+    setSelectedNode(null);
+
+    toast.success(`Pasted ${sortedPasted.length} node(s)`);
+  }, [clipboardData, setNodes, setSelectedNodeId, setSelectedNode]);
+
   useKeyboardShortcuts({
     onSave: handleSaveWorkflow,
     onLayout: handleAutoLayout,
+    onCopy: handleCopySelection,
+    onPaste: handlePasteSelection,
     onUndo: () => {
       if (historyIndex > 0) {
         const prevState = history[historyIndex - 1];
@@ -4577,6 +5063,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       // "?" key - Show keyboard shortcuts
       if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (isTypingInInput(e)) return;
         e.preventDefault();
         setShowKeyboardShortcuts(true);
       }
@@ -4752,6 +5239,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // F: Fit to view
       if (event.key === 'f' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return;
         event.preventDefault();
         fitView();
         return;
@@ -4767,6 +5255,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // 1: Zoom to 100%
       if (event.key === '1' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return;
         event.preventDefault();
         zoomTo(1);
         return;
@@ -4774,6 +5263,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // 2: Zoom to 50%
       if (event.key === '2' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return;
         event.preventDefault();
         zoomTo(0.5);
         return;
@@ -4781,6 +5271,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // 3: Fit view (same as F)
       if (event.key === '3' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return;
         event.preventDefault();
         fitView();
         return;
@@ -4926,6 +5417,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // Track selected node ID for keyboard shortcuts and debugging
       setSelectedNodeId(node.id);
+
+      // Phase 9.2: Broadcast collaborative selection
+      collabSendSelection([node.id]);
       
       // DO NOT call setSelectedNode(node) here!
       // That triggers NodeConfigPanel to open automatically.
@@ -4940,8 +5434,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setSelectedFormStep(null);
       setSelectedContainer(null);
       setContainerModalOpen(false);
+
+      // Phase 9.2: Broadcast cleared selection
+      collabSendSelection([]);
     }
-  }, []);
+  }, [collabSendSelection]);
   
   // Batch 3: Handler to open modal from Edit button
   // IMPORTANT: This is the ONLY place modals should be opened (except programmatic saves)
@@ -4976,8 +5473,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setSelectedFormStep(node);
         break;
       
-      case 'formMultiStepContainer': {
-        // Phase 7 Stabilization: this node type is deprecated.
+      case 'formMultiStepContainer':
+      case 'formProcess': {
+        // Phase 7 Stabilization: these node types are deprecated.
         // Migrate in-memory to the canonical Form Process Group node.
         logger.debug('✏️ [EDIT BUTTON] Migrating legacy container to formProcessGroup');
 
@@ -5068,18 +5566,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       toast.error('Cannot delete node: Invalid state');
       return;
     }
-    
-    const nodeToDelete = nodes.find(n => n.id === nodeId);
+
+    const nodeToDelete = nodes.find((n) => n.id === nodeId);
     if (!nodeToDelete) {
       toast.warning('Node not found');
       return;
     }
-    
+
+    // Include descendants so edges can be cleaned in one pass.
+    const idsToDelete = new Set<string>([nodeId]);
+    const queue = [nodeId];
+
+    while (queue.length > 0) {
+      const parentId = queue.pop()!;
+      for (const n of nodes) {
+        if (n.parentId === parentId && !idsToDelete.has(n.id)) {
+          idsToDelete.add(n.id);
+          queue.push(n.id);
+        }
+      }
+    }
+
     try {
       // Phase 2: Decrement usage_count when formProcess node is deleted
       if (nodeToDelete.type === 'formProcess' || nodeToDelete.type === 'formMultiStepContainer') {
         const tenantFormId = nodeToDelete.data?.tenantFormId;
-        
+
         if (tenantFormId) {
           try {
             await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
@@ -5088,35 +5600,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             // Continue with deletion even if API call fails
           }
         }
-        
-        // If deleting a container, also remove its children
-        const childNodeIds = new Set(
-          nodes.filter(n => n.parentId === nodeId).map(n => n.id)
-        );
-        
-        if (childNodeIds.size > 0) {
-          setNodes(nds => nds.filter(n => 
-            n.id !== nodeId && !childNodeIds.has(n.id)
-          ));
-        } else {
-          setNodes(nds => nds.filter(n => n.id !== nodeId));
-        }
-      } else {
-        // Remove node normally
-        setNodes(nds => nds.filter(n => n.id !== nodeId));
       }
-      
-      // Remove connected edges
-      setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
-      
+
+      setNodes((nds) => nds.filter((n) => !idsToDelete.has(n.id)));
+      setEdges((eds) => eds.filter((e) => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)));
+
       // Clear selections if deleted node was selected
-      if (selectedNode?.id === nodeId) {
+      if (selectedNode?.id && idsToDelete.has(selectedNode.id)) {
         setSelectedNode(null);
       }
-      
+
       setHasUnsavedChanges(true);
       toast.success('Node deleted');
-      logger.debug('[UnifiedFlowEditor] Node deleted successfully:', nodeId);
+      logger.debug('[UnifiedFlowEditor] Node deleted successfully:', { nodeId, deletedCount: idsToDelete.size });
     } catch (error) {
       logger.error('[FlowEditor] Delete failed:', error);
       toast.error('Failed to delete node');
@@ -5149,7 +5645,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [setNodes]);
 
   const handleNodeUpdate = useCallback((nodeId: string, newData: Record<string, any>) => {
-    setNodes((nds) => 
+    setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
           return {
@@ -5163,6 +5659,130 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug(`Node ${nodeId} updated:`, newData);
     setHasUnsavedChanges(true);
   }, [setNodes]);
+
+  const handleNodeDataUpdate = useCallback((nodeId: string, updates: any) => {
+    logger.debug('[UnifiedFlowEditor] Syncing FormBuilder updates:', { nodeId, updates });
+    handleNodeUpdate(nodeId, updates);
+  }, [handleNodeUpdate]);
+
+  const duplicateNode = useCallback((nodeId: string) => {
+    const snapshot = nodesRef.current;
+    const edgesSnapshot = edgesRef.current;
+
+    const original = snapshot.find((n) => n.id === nodeId);
+    if (!original) return;
+
+    const generateId = (prefix: string) => {
+      const uuid =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? (crypto as any).randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      return `${prefix}-${uuid}`;
+    };
+
+    const stripFunctions = (value: any): any => {
+      if (Array.isArray(value)) return value.map(stripFunctions);
+      if (!value || typeof value !== 'object') return value;
+
+      const out: any = {};
+      for (const [k, v] of Object.entries(value)) {
+        if (typeof v === 'function') continue;
+        out[k] = stripFunctions(v);
+      }
+      return out;
+    };
+
+    const safeClone = <T,>(value: T): T => {
+      try {
+        return structuredClone(value);
+      } catch {
+        return JSON.parse(JSON.stringify(value));
+      }
+    };
+
+    const isContainer = original.type === 'formProcessGroup';
+
+    const toCloneIds: string[] = [original.id];
+    if (isContainer) {
+      const queue = [original.id];
+      const seen = new Set<string>(toCloneIds);
+
+      while (queue.length > 0) {
+        const parentId = queue.pop()!;
+        for (const n of snapshot) {
+          if (n.parentId === parentId && !seen.has(n.id)) {
+            seen.add(n.id);
+            toCloneIds.push(n.id);
+            queue.push(n.id);
+          }
+        }
+      }
+    }
+
+    const idMap = new Map<string, string>();
+    for (const oldId of toCloneIds) {
+      const prefix = oldId === original.id && isContainer ? 'container' : 'node';
+      idMap.set(oldId, generateId(prefix));
+    }
+
+    const clonedNodes: Node[] = [];
+    for (const oldId of toCloneIds) {
+      const src = snapshot.find((n) => n.id === oldId);
+      if (!src) continue;
+
+      const sanitized = stripFunctions(src);
+      const cloned = safeClone(sanitized) as Node;
+
+      // Ensure fresh IDs, positions, and no selection carryover
+      cloned.id = idMap.get(oldId)!;
+      cloned.selected = false;
+      (cloned as any).dragging = false;
+      delete (cloned as any).measured;
+
+      cloned.position = {
+        x: src.position.x + 50,
+        y: src.position.y + 50,
+      };
+
+      if (src.parentId) {
+        cloned.parentId = idMap.get(src.parentId) ?? src.parentId;
+      }
+
+      // Ensure duplicated children re-parent to the duplicated container
+      if (isContainer && src.parentId === original.id) {
+        cloned.parentId = idMap.get(original.id)!;
+      }
+
+      clonedNodes.push(cloned);
+    }
+
+    // Clone internal edges when duplicating a container
+    const clonedEdges: Edge[] = [];
+    if (isContainer) {
+      const cloneIdSet = new Set(toCloneIds);
+      const internalEdges = edgesSnapshot.filter(
+        (e) => cloneIdSet.has(e.source) && cloneIdSet.has(e.target)
+      );
+
+      for (const e of internalEdges) {
+        const sanitized = stripFunctions(e);
+        const cloned = safeClone(sanitized) as Edge;
+
+        cloned.id = generateId('edge');
+        cloned.source = idMap.get(e.source) ?? e.source;
+        cloned.target = idMap.get(e.target) ?? e.target;
+        (cloned as any).selected = false;
+
+        clonedEdges.push(cloned);
+      }
+    }
+
+    setNodes((nds) => [...nds, ...clonedNodes]);
+    if (clonedEdges.length > 0) {
+      setEdges((eds) => [...eds, ...clonedEdges]);
+    }
+    setHasUnsavedChanges(true);
+  }, [setEdges, setNodes]);
 
   // Phase 4.2.B: FormStep-specific handlers
   const handleFormStepUpdate = useCallback((updatedStepData: any) => {
@@ -5260,31 +5880,48 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Get previous step fields for conditional logic
   const getPreviousStepFields = useCallback((currentNodeId: string) => {
     const allFields: any[] = [];
-    
-    // Find all FormStep nodes before the current one
-    const currentNode = nodes.find(n => n.id === currentNodeId);
+
+    const currentNode = nodes.find((n) => n.id === currentNodeId);
     if (!currentNode) return allFields;
-    
-    // Simple heuristic: nodes with lower Y position are "before" current node
-    const previousNodes = nodes.filter(n => 
-      n.type === 'formStep' && 
-      n.id !== currentNodeId &&
-      n.position.y < currentNode.position.y
+
+    // Phase 11: Use true graph traversal instead of Y-coordinate heuristics.
+    // Trace ancestors by following incoming edges (target -> source).
+    const upstreamNodeIds = new Set<string>();
+    const visited = new Set<string>();
+    const queue: string[] = [currentNodeId];
+
+    while (queue.length > 0) {
+      const nodeId = queue.shift()!;
+      if (visited.has(nodeId)) continue;
+      visited.add(nodeId);
+
+      const incoming = edges.filter((e) => e.target === nodeId);
+      for (const e of incoming) {
+        if (!upstreamNodeIds.has(e.source)) {
+          upstreamNodeIds.add(e.source);
+          queue.push(e.source);
+        }
+      }
+    }
+
+    const upstreamFormNodes = nodes.filter(
+      (n) =>
+        upstreamNodeIds.has(n.id) &&
+        (n.type === 'formStep' || n.type === 'formStepSingle' || n.type === 'form')
     );
-    
-    // Extract fields from previous FormStep nodes
-    previousNodes.forEach(node => {
-      const fields = node.data.fields || [];
+
+    upstreamFormNodes.forEach((node) => {
+      const fields = node.data?.fields || [];
       fields.forEach((field: any) => {
         allFields.push({
           ...field,
-          stepTitle: node.data.stepTitle || node.data.label || 'Unnamed Step',
+          stepTitle: node.data?.stepTitle || node.data?.label || 'Unnamed Step',
         });
       });
     });
-    
+
     return allFields;
-  }, [nodes]);
+  }, [nodes, edges]);
   
   const handleAddField = useCallback(() => {
     // Create new blank field and open field editor
@@ -5507,6 +6144,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           ? data.onTitleChange
           : (newTitle: string) => handleNodeTitleChange(node.id, newTitle);
 
+      const onInsertAfter =
+        typeof data.onInsertAfter === 'function'
+          ? data.onInsertAfter
+          : () => {
+              window.dispatchEvent(
+                new CustomEvent('pm:openNodePalette', {
+                  detail: { anchorNodeId: node.id },
+                })
+              );
+            };
+
       return {
         ...node,
         data: {
@@ -5515,13 +6163,83 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           onDelete,
           onSave,
           onTitleChange,
+          onInsertAfter,
         },
       };
     });
   }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange, handleSaveWorkflow]);
 
+  // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
+  // are re-targeted to virtual handles on the container boundary so connectivity remains visible.
+  const edgesForCanvas = useMemo(() => {
+    const nodeById = new Map(nodesWithHandlers.map((n) => [n.id, n] as const));
+
+    const containerByHiddenChild = new Map<string, string>();
+    nodesWithHandlers.forEach((n) => {
+      if (!n.parentId) return;
+      const parent = nodeById.get(n.parentId);
+      const parentCollapsed = parent && (parent.data as any)?.isExpanded === false;
+      if (!parentCollapsed) return;
+      if (!n.hidden) return;
+      containerByHiddenChild.set(n.id, n.parentId);
+    });
+
+    if (containerByHiddenChild.size === 0) return edges;
+
+    const derived: Edge[] = [];
+
+    edges.forEach((e) => {
+      const sourceContainer = containerByHiddenChild.get(e.source);
+      const targetContainer = containerByHiddenChild.get(e.target);
+
+      if (!sourceContainer && !targetContainer) {
+        derived.push(e);
+        return;
+      }
+
+      // Internal edges inside the same collapsed container don’t need to render.
+      if (sourceContainer && targetContainer && sourceContainer === targetContainer) {
+        return;
+      }
+
+      const virtualEdge: Edge = {
+        ...e,
+        id: `${e.id}::vh`,
+        ...(sourceContainer ? { source: sourceContainer, sourceHandle: `vh:out:${e.source}` } : {}),
+        ...(targetContainer ? { target: targetContainer, targetHandle: `vh:in:${e.target}` } : {}),
+        data: {
+          ...(e.data || {}),
+          virtual: {
+            sourceContainer,
+            targetContainer,
+            originalSource: e.source,
+            originalTarget: e.target,
+          },
+        },
+      };
+
+      // Edge where both ends are hidden but in different collapsed containers → container-to-container.
+      if (sourceContainer && targetContainer) {
+        (virtualEdge as any).source = sourceContainer;
+        (virtualEdge as any).target = targetContainer;
+        (virtualEdge as any).sourceHandle = `vh:out:${e.source}`;
+        (virtualEdge as any).targetHandle = `vh:in:${e.target}`;
+      }
+
+      derived.push(virtualEdge);
+    });
+
+    return derived;
+  }, [edges, nodesWithHandlers]);
+
   return (
-    <EditorContainer $isFullscreen={isFullscreen}>
+    <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
+    <FlowEditorProvider
+      tenantLists={tenantLists}
+      availableFields={selectedFormStep?.data?.fields || []}
+      currentNodeId={selectedFormStep?.id || null}
+    >
+      <EditorContainer $isFullscreen={isFullscreen}>
       {/* Deprecation Banner (Phase 6.1) */}
       {hasDeprecatedNodes && !bannerDismissed && (
         <DeprecationBanner>
@@ -5610,6 +6328,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     key={node.id}
                     $color={node.color}
                     draggable
+                    onClick={() => handleClickToAddNode(node.id)}
                     onDragStart={(e) => onDragStart(e, node.id)}
                     onDrag={onDrag}
                     onDragEnd={onDragEnd}
@@ -5653,6 +6372,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     key={node.id}
                     $color={node.color}
                     draggable
+                    onClick={() => handleClickToAddNode(node.id)}
                     onDragStart={(e) => onDragStart(e, node.id)}
                     onDrag={onDrag}
                     onDragEnd={onDragEnd}
@@ -5702,6 +6422,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                       key={node.id}
                       $color={node.color}
                       draggable
+                      onClick={() => handleClickToAddNode(node.id)}
                       onDragStart={(e) => onDragStart(e, node.id)}
                       onDrag={onDrag}
                       onDragEnd={onDragEnd}
@@ -5887,6 +6608,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* Viewport Controls */}
       <ViewportToolbar>
+        {/* NEW: Explicit Node Palette Toggle */}
+        {!readOnly && normalizedEditorMode === 'visual' && (
+          <>
+            <ViewportButton 
+              onClick={() => setIsPaletteVisible(!isPaletteVisible)} 
+              title={isPaletteVisible ? 'Hide Node Palette (Tab)' : 'Show Node Palette (Tab)'}
+              style={isPaletteVisible ? {
+                background: 'rgb(var(--color-primary))',
+                color: 'white',
+                borderColor: 'rgb(var(--color-primary))'
+              } : {}}
+            >
+              <Plus />
+            </ViewportButton>
+            <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          </>
+        )}
         <ViewportButton 
           onClick={() => setIsSettingsPanelOpen(!isSettingsPanelOpen)} 
           title="Canvas Settings (Grid, Background)"
@@ -5899,7 +6637,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <Settings />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
-        <ViewportButton onClick={toggleFullscreen} title={isFullscreen ? "Exit Fullscreen (ESC)" : "Enter Fullscreen"}>
+        <ViewportButton onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen (ESC)' : 'Enter Fullscreen'}>
           {isFullscreen ? <Minimize2 /> : <Maximize2 />}
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
@@ -5915,17 +6653,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton 
           onClick={() => setIsMinimapVisible(!isMinimapVisible)} 
-          title={isMinimapVisible ? "Hide Minimap (M)" : "Show Minimap (M)"}
+          title={isMinimapVisible ? 'Hide Minimap (M)' : 'Show Minimap (M)'}
           style={isMinimapVisible ? {
             background: 'rgb(var(--color-primary))',
             color: 'white',
             borderColor: 'rgb(var(--color-primary))'
           } : {}}
         >
-          <Map />
+          <MapIcon />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
-        <ViewportButton onClick={() => setIsHelpModalOpen(true)} title="Help & Keyboard Shortcuts (?)">
+        {/* FIX: Wired Help button directly to Keyboard Shortcuts state */}
+        <ViewportButton onClick={() => setShowKeyboardShortcuts(true)} title="Help & Keyboard Shortcuts (?)">
           <HelpCircle />
         </ViewportButton>
       </ViewportToolbar>
@@ -5954,14 +6693,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* React Flow Canvas - Visual Mode */}
       {normalizedEditorMode === 'visual' && (
-        <ReactFlow
+        <DebugAwareReactFlow
         nodes={nodesWithHandlers}
-        edges={edges}
+        edges={edgesForCanvas}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodesDelete={onNodesDelete}
-        nodesDraggable={false}
+        nodesDraggable={true}
+        nodeDragHandle=".custom-drag-handle"
         nodesConnectable={false}
         isValidConnection={isValidConnection}
         onDrop={onDrop}
@@ -5971,26 +6711,33 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
         onPaneClick={handleCloseMenu}
+        onPaneMouseMove={(event) => {
+          if (!currentWorkflowId) return;
+          if (!reactFlowInstance?.screenToFlowPosition) return;
+
+          const pos = reactFlowInstance.screenToFlowPosition({
+            x: (event as MouseEvent).clientX,
+            y: (event as MouseEvent).clientY,
+          });
+
+          collabSendCursorDebounced(pos);
+        }}
         onSelectionChange={handleSelectionChange}
-        nodeTypes={nodeTypes}
+        nodeTypes={dynamicNodeTypes}
         edgeTypes={staticEdgeTypes}
-        // Phase 7.5: Performance optimizations for 1000+ nodes
-        onlyRenderVisibleElements={nodes.length > 100}
+        // Phase 7.5/9: Always render only visible elements for large-editor performance
+        onlyRenderVisibleElements={true}
         elevateNodesOnSelect={nodes.length < 200}
         maxZoom={4}
         minZoom={0.1}
-        defaultEdgeOptions={{ 
-          type: 'insert',
-          pathOptions: { offset: 20 },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 20,
-            height: 20,
-            color: '#94a3b8',
-          },
+        defaultEdgeOptions={{
+          // Keep our enhanced edge component, but render it with thicker step-like styling.
+          type: 'enhanced',
+          style: { strokeWidth: 3, stroke: 'rgb(148, 163, 184)' },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 24, height: 24, color: 'rgb(148, 163, 184)' },
         }}
         connectionLineStyle={{
-          stroke: '#667eea',
+          stroke: 'rgb(148, 163, 184)',
           strokeWidth: 3,
           strokeDasharray: '5,5',
           animation: 'dash 0.5s linear infinite',
@@ -6002,6 +6749,62 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         connectionRadius={20}
       >
         <Background variant={backgroundVariant} gap={20} size={1} />
+
+        {/* Phase 9.2: Live cursors overlay */}
+        {collabPresence.length > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 50,
+            }}
+            aria-hidden="true"
+          >
+            {collabPresence.map((u) => {
+              if (!u.cursor) return null;
+
+              const viewport = reactFlowInstance?.getViewport?.() || { x: 0, y: 0, zoom: 1 };
+              const left = u.cursor.x * viewport.zoom + viewport.x;
+              const top = u.cursor.y * viewport.zoom + viewport.y;
+              const color = u.color || 'rgb(var(--color-primary))';
+
+              return (
+                <div
+                  key={u.userId}
+                  style={{
+                    position: 'absolute',
+                    transform: `translate(${left}px, ${top}px)`,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M4 3l7.5 18 2-7 7-2L4 3z"
+                      fill={color}
+                      opacity={0.9}
+                    />
+                  </svg>
+                  <div
+                    style={{
+                      marginTop: -2,
+                      padding: '2px 6px',
+                      borderRadius: 999,
+                      background: 'rgb(var(--color-surface))',
+                      border: `1px solid ${color}`,
+                      color: 'rgb(var(--color-text-primary))',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      display: 'inline-block',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {u.name || 'User'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {isMinimapVisible && (
           <MiniMap 
             nodeColor={(node) => {
@@ -6132,7 +6935,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             <AlignVerticalDistributeCenter />
           </AlignmentButton>
         </AlignmentToolbar>
-      </ReactFlow>
+      </DebugAwareReactFlow>
       )}
       
       {/* Phase E.3: Context Menu */}
@@ -6145,6 +6948,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           onEdit={(nodeId) => {
             handleCloseMenu();
             handleNodeEdit(nodeId);
+          }}
+          onDuplicate={(nodeId) => {
+            handleCloseMenu();
+            duplicateNode(nodeId);
+          }}
+          onDelete={async (nodeId) => {
+            handleCloseMenu();
+            await handleNodeDelete(nodeId);
           }}
         />
       )}
@@ -6494,9 +7305,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             field={editingField}
             onChange={handleFieldUpdate}
             onClose={() => setEditingField(null)}
-            availableFields={selectedFormStep?.data?.fields || []}
-            tenantLists={tenantLists}
-            currentNodeId={selectedFormStep?.id} // Pass currentNodeId for upstream inheritance
           />
         )}
       </SidePanel>
@@ -6568,6 +7376,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ConfirmModal>
       )}
       
+      {/* Phase 7/9.4: Dry Run Debugger */}
+      {showDebugger && (
+        <DryRunDebugger
+          selectedNode={selectedNodeForDebug}
+          onClose={() => setShowDebugger(false)}
+        />
+      )}
+
       {/* Phase 8.6: Keyboard Shortcuts Help Modal */}
       {showKeyboardShortcuts && (
         <KeyboardShortcutsModal onClick={() => setShowKeyboardShortcuts(false)}>
@@ -6729,7 +7545,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           skip: 'Skip tour',
         }}
       />
-    </EditorContainer>
+      </EditorContainer>
+    </FlowEditorProvider>
+    </FormBuilderProvider>
   );
 };
 
@@ -6746,129 +7564,120 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 export { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization';
 
 function getReactFlowNodeType(nodeTypeId: string): string {
-  // Map node type IDs to React Flow node component names
-  
-  // CRITICAL: Check for container BEFORE generic 'form' check
-  // Bug fix: formMultiStepContainer was being caught by startsWith('form')
-  if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
-  
+  // Force all triggers to use the rich Unified Trigger node & schema
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
-  if (nodeTypeId.startsWith('form')) return 'formStep';
-  if (nodeTypeId.startsWith('condition')) return 'condition';
-  if (nodeTypeId.startsWith('action')) return 'action';
-  if (nodeTypeId.startsWith('wait')) return 'waitState';
-  if (nodeTypeId.startsWith('document')) return 'document';
-  if (nodeTypeId.startsWith('utility')) return 'utility';
-  if (nodeTypeId.startsWith('terminal')) return 'terminal';
-  if (nodeTypeId.startsWith('end')) return 'terminal'; // Map 'endSuccess', 'endError' to terminal
-  
-  // Log unknown type for debugging
-  logger.warn(`Unknown node type: ${nodeTypeId}, defaulting to action`);
-  
-  // Default to action
-  return 'action';
+
+  // Preserve specific types for all other nodes so their specific schemas load
+  if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
+  return nodeTypeId;
+}
+
+/** Returns true for all Form Process container node type IDs (current + legacy). */
+function isFormProcessContainerType(nodeType: string | undefined | null): boolean {
+  return (
+    nodeType === 'formProcessGroup' ||
+    nodeType === 'formProcess' ||
+    nodeType === 'formMultiStepContainer'
+  );
 }
 
 function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
-  // Return default data based on node type
   const nodeDef = NODE_TYPE_REGISTRY[nodeTypeId];
-  
-  if (nodeTypeId.startsWith('trigger')) {
-    const triggerType = nodeTypeId.replace('trigger', '').toLowerCase();
-    return { 
-      triggerType: triggerType || 'manual',
-      maxInputs: nodeDef?.maxInputs || 0,
-      maxOutputs: nodeDef?.maxOutputs || 1,
+  const resolvedType = getReactFlowNodeType(nodeTypeId);
+
+  let defaults: Record<string, any> = {
+    nodeType: nodeTypeId, // preserve original specific type for metadata
+    maxInputs: nodeDef?.maxInputs ?? 1,
+    maxOutputs: nodeDef?.maxOutputs ?? 1,
+  };
+
+  // Unified trigger defaults (driving triggerSchema conditionals)
+  if (resolvedType === 'trigger') {
+    const triggerMap: Record<string, string> = {
+      triggerManual: 'manual',
+      triggerSchedule: 'schedule',
+      triggerWebhook: 'webhook',
+      triggerEvent: 'event',
+      triggerForm: 'formSubmit',
     };
+    const mappedType = triggerMap[nodeTypeId] || 'manual';
+
+    // Used by unified trigger schema dropdown + section conditionals
+    defaults.type = mappedType;
+
+    // Used by the visual TriggerNode component (kept for backward compatibility)
+    defaults.triggerType = mappedType;
+
+    // Triggers are entrypoints
+    defaults.maxInputs = 0;
   }
-  
-  if (nodeTypeId.startsWith('form')) {
-    // Special handling for multi-step container
-    if (nodeTypeId === 'formMultiStepContainer') {
-      return {
-        fields: [],
-        containerName: 'New Container',
-        isExpanded: true,
-        childNodes: [],
-        maxInputs: nodeDef?.maxInputs || 1,
-        maxOutputs: nodeDef?.maxOutputs || 1,
-      };
-    }
-    
-    return { 
-      fields: [],
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+
+  // Special handling for containers
+  if (resolvedType === 'formMultiStepContainer' || resolvedType === 'formProcessGroup') {
+    defaults.fields = [];
+    defaults.containerName = 'New Container';
+    defaults.isExpanded = true;
+    defaults.childNodes = [];
   }
-  
+
+  // Preserve behavior expected by base node components
   if (nodeTypeId.startsWith('condition')) {
-    return { 
-      rules: [], 
-      logicalOperator: 'AND',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+    defaults.rules = defaults.rules ?? [];
+    defaults.logicalOperator = defaults.logicalOperator ?? 'AND';
   }
-  
+
   if (nodeTypeId.startsWith('action')) {
     const actionType = nodeTypeId.replace('action', '');
     const typeMap: Record<string, string> = {
-      'Email': 'email',
-      'Notify': 'notify',
-      'CreateRecord': 'createRecord',
-      'UpdateRecord': 'updateRecord',
-      'DeleteRecord': 'deleteRecord',
-      'HTTP': 'http',
-      'Script': 'script',
+      Email: 'email',
+      Notify: 'notify',
+      CreateRecord: 'createRecord',
+      UpdateRecord: 'updateRecord',
+      DeleteRecord: 'deleteRecord',
+      HTTP: 'http',
+      Script: 'script',
     };
-    return { 
-      actionType: typeMap[actionType] || 'email',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+    defaults.actionType = typeMap[actionType] || defaults.actionType || 'email';
   }
-  
+
   if (nodeTypeId.startsWith('wait')) {
     const waitType = nodeTypeId.replace('wait', '').toLowerCase();
-    return {
-      waitType: waitType || 'approval',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+    defaults.waitType = defaults.waitType || waitType || 'approval';
   }
-  
+
   if (nodeTypeId.startsWith('document')) {
     const docType = nodeTypeId.replace('document', '').toLowerCase();
-    return {
-      documentType: docType || 'generate',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 2,
-    };
+    defaults.documentType = defaults.documentType || docType || 'generate';
   }
-  
+
   if (nodeTypeId.startsWith('utility')) {
     const utilType = nodeTypeId.replace('utility', '').toLowerCase();
-    return {
-      utilityType: utilType || 'transform',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 1,
-    };
+    defaults.utilityType = defaults.utilityType || utilType || 'transform';
   }
-  
-  if (nodeTypeId.startsWith('terminal')) {
-    const termType = nodeTypeId.replace('terminal', '').toLowerCase();
-    return {
-      terminalType: termType || 'success',
-      maxInputs: nodeDef?.maxInputs || 1,
-      maxOutputs: nodeDef?.maxOutputs || 0,
-    };
+
+  if (nodeTypeId.startsWith('terminal') || nodeTypeId.startsWith('end')) {
+    const termType = nodeTypeId.replace('terminal', '').replace('end', '').toLowerCase();
+    defaults.terminalType = defaults.terminalType || termType || 'success';
+    defaults.maxOutputs = 0;
   }
-  
-  return {
-    maxInputs: nodeDef?.maxInputs || 1,
-    maxOutputs: nodeDef?.maxOutputs || 1,
-  };
+
+  // Auto-extract defaults from schema to fix DynamicConfigPanel visibility conditions
+  try {
+    if (schemaRegistry.hasSchema(resolvedType)) {
+      const schema = schemaRegistry.getSchema(resolvedType);
+      schema.sections.forEach((section) => {
+        section.fields.forEach((field) => {
+          if (field.defaultValue !== undefined && defaults[field.id] === undefined) {
+            defaults[field.id] = field.defaultValue;
+          }
+        });
+      });
+    }
+  } catch {
+    logger.warn(`Could not extract schema defaults for ${resolvedType}`);
+  }
+
+  return defaults;
 }
 
 // ============================================================================
@@ -6876,13 +7685,6 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
 // ============================================================================
 
 export const UnifiedFlowEditor: React.FC<UnifiedFlowEditorProps> = (props) => {
-  // Handler for node data updates from FormBuilder
-  const handleNodeDataUpdate = useCallback((nodeId: string, updates: any) => {
-    logger.debug('[UnifiedFlowEditor] Node data updated from FormBuilder:', { nodeId, updates });
-    // This will be called by FormBuilder context when data changes
-    // The actual state update happens inside UnifiedFlowEditorInner via setNodes
-  }, []);
-
   return (
     <ErrorBoundary 
       componentName="Workforms Editor"
@@ -6891,9 +7693,7 @@ export const UnifiedFlowEditor: React.FC<UnifiedFlowEditorProps> = (props) => {
       }}
     >
       <ReactFlowProvider>
-        <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
-          <UnifiedFlowEditorInner {...props} />
-        </FormBuilderProvider>
+        <UnifiedFlowEditorInner {...props} />
       </ReactFlowProvider>
     </ErrorBoundary>
   );

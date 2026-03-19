@@ -1,11 +1,10 @@
 import React from 'react';
-import { EdgeProps, getSmoothStepPath, useReactFlow } from '@xyflow/react';
+import { EdgeLabelRenderer, EdgeProps, getSmoothStepPath, useReactFlow } from '@xyflow/react';
 import { Plus } from 'lucide-react';
 import styled from 'styled-components';
 
 const EdgeContainer = styled.div`
-  position: absolute;
-  transform: translate(-50%, -50%);
+  position: relative;
   pointer-events: all;
 `;
 
@@ -54,6 +53,15 @@ export default function InsertNodeEdge({
 
   const handleInsertClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // New: unified event used by CustomEdge (+) button
+    window.dispatchEvent(
+      new CustomEvent('insert-node-between', {
+        detail: { edgeId: id },
+      })
+    );
+
+    // Backward compatibility: existing listener
     window.dispatchEvent(
       new CustomEvent('pm:openNodePalette', {
         detail: { insertOnEdgeId: id },
@@ -63,6 +71,14 @@ export default function InsertNodeEdge({
 
   return (
     <>
+      {/* Invisible thick hitbox under the visible edge to prevent hover flicker */}
+      <path
+        d={edgePath}
+        className="react-flow__edge-path"
+        style={{ stroke: 'transparent', strokeWidth: 30, strokeOpacity: 0 }}
+        pointerEvents="stroke"
+      />
+
       <path
         id={id}
         style={{ ...style, strokeWidth: 2, stroke: 'rgb(var(--color-border))' }}
@@ -70,20 +86,25 @@ export default function InsertNodeEdge({
         d={edgePath}
         markerEnd={markerEnd}
       />
-      <foreignObject
-        width={30}
-        height={30}
-        x={labelX - 15}
-        y={labelY - 15}
-        className="edgebutton-foreignobject"
-        requiredExtensions="http://www.w3.org/1999/xhtml"
-      >
-        <EdgeContainer>
-          <AddButton onClick={handleInsertClick} title="Add step here">
-            <Plus size={14} />
-          </AddButton>
-        </EdgeContainer>
-      </foreignObject>
+
+      {/* Render the insert button above nodes/containers (foreignObject can get covered/clipped) */}
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            pointerEvents: 'all',
+            zIndex: 1000,
+          }}
+          className="nodrag nopan"
+        >
+          <EdgeContainer>
+            <AddButton onClick={handleInsertClick} title="Add step here">
+              <Plus size={14} />
+            </AddButton>
+          </EdgeContainer>
+        </div>
+      </EdgeLabelRenderer>
     </>
   );
 }

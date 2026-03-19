@@ -141,6 +141,29 @@ function findUpstreamNodes(
 }
 
 /**
+ * Returns upstream node distances (1 = direct parent, 2 = grandparent, ...)
+ * using true graph traversal over edges (target -> source).
+ */
+export function getUpstreamNodeDistances(
+  currentNodeId: string,
+  edges: Edge[],
+  maxDistance: number = 10
+): Map<string, number> {
+  return findUpstreamNodes(currentNodeId, edges, maxDistance);
+}
+
+/**
+ * Convenience helper: set of upstream node IDs for currentNodeId.
+ */
+export function getUpstreamNodeIdSet(
+  currentNodeId: string,
+  edges: Edge[],
+  maxDistance: number = 10
+): Set<string> {
+  return new Set(getUpstreamNodeDistances(currentNodeId, edges, maxDistance).keys());
+}
+
+/**
  * Extract field definitions from a Form Step Single node
  */
 function extractFieldsFromFormStep(node: Node): Array<{

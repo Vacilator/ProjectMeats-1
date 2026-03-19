@@ -18,17 +18,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { useReactFlow } from '@xyflow/react';
-import Select from 'react-select';
-import { Eye, EyeOff, AlertCircle, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import ReactSelect from 'react-select';
+import { Eye, EyeOff, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { ValidationRuleBuilder, ValidationRule } from './ValidationRuleBuilder';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
-import { getUpstreamOutputs, formatInheritanceSyntax, isInheritanceSyntax, parseInheritanceSyntax } from '../../../utils/flowUtils';
+import { useFlowEditor } from '../context';
+import { getUpstreamOutputs, formatInheritanceSyntax, isInheritanceSyntax } from '../../../utils/flowUtils';
 import {
+  PanelHeader,
+  PanelTitle,
+  PanelContent,
+  PanelFooter,
   Section,
   SectionHeader,
   SectionTitle,
+  FormField,
+  Label,
   Input,
   TextArea,
+  Select,
   HelpText,
   RequiredIndicator,
   PrimaryButton,
@@ -96,9 +104,6 @@ export interface FormFieldConfigPanelProps {
   field: FormField;
   onChange: (field: FormField) => void;
   onClose: () => void;
-  availableFields?: Array<{ key: string; label: string; type: string }>;
-  tenantLists?: Array<{ id: string; name: string }>;
-  currentNodeId?: string; // Add for upstream data inheritance
 }
 
 // ============================================================================
@@ -230,13 +235,6 @@ const Container = styled.div`
   height: 100%;
 `;
 
-const Title = styled.h3`
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-`;
-
 const Subtitle = styled.div`
   font-size: 13px;
   color: rgb(var(--color-text-secondary));
@@ -254,10 +252,26 @@ const CheckboxLabel = styled.label`
   font-size: 13px;
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  
+
   &:hover {
     color: rgb(var(--color-primary));
   }
+`;
+
+const Checkbox = styled.input`
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  accent-color: rgb(var(--color-primary));
+`;
+
+const UpstreamBadge = styled.span`
+  margin-left: 8px;
+  font-size: 11px;
+  color: rgb(var(--color-primary));
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 // Field type selector components (specific to FormFieldConfigPanel)
@@ -328,35 +342,6 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   }
 `;
 
-// Options editor components (specific to FormFieldConfigPanel)
-const OptionsEditor = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const OptionItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgb(var(--color-background));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-`;
-
-const OptionInput = styled.input`
-  flex: 1;
-  padding: 6px 8px;
-  border: none;
-  background: transparent;
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  
-  &:focus {
-    outline: none;
-  }
-`;
 
 // ============================================================================
 // Component
@@ -366,10 +351,8 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
   field,
   onChange,
   onClose,
-  availableFields = [],
-  tenantLists = [],
-  currentNodeId, // Add currentNodeId prop
 }) => {
+  const { tenantLists, availableFields, currentNodeId } = useFlowEditor();
   // Ensure required arrays are always initialized
   const [localField, setLocalField] = useState<FormField>({
     ...field,
@@ -389,12 +372,12 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
 
   // Convert upstream outputs to react-select options
   const inheritanceOptions = useMemo(() => {
-    return upstreamOutputs.map(output => ({
+    return upstreamOutputs.map((output) => ({
       value: formatInheritanceSyntax(output.nodeId, output.fieldName),
       label: `${output.nodeLabel} → ${output.fieldLabel}`,
       nodeLabel: output.nodeLabel,
       fieldLabel: output.fieldLabel,
-      type: output.type,
+      type: output.fieldType,
       sample: output.sampleValue,
     }));
   }, [upstreamOutputs]);
@@ -520,49 +503,31 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                 <Label>
                   Default Value
                   {upstreamOutputs.length > 0 && (
-                    <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgb(139, 92, 246)' }}>
-                      <Zap size={12} style={{ verticalAlign: 'middle', marginRight: '2px' }} />
+                    <UpstreamBadge>
+                      <Zap size={12} />
                       {upstreamOutputs.length} upstream field(s)
-                    </span>
+                    </UpstreamBadge>
                   )}
                 </Label>
                 
                 {/* Mode Toggle */}
                 {upstreamOutputs.length > 0 && (
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                    <button
+                    <ToggleButton
                       type="button"
+                      $active={inheritanceMode === 'manual'}
                       onClick={() => setInheritanceMode('manual')}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        border: `1px solid ${inheritanceMode === 'manual' ? 'rgb(139, 92, 246)' : 'rgb(var(--color-border))'}`,
-                        background: inheritanceMode === 'manual' ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
-                        color: inheritanceMode === 'manual' ? 'rgb(139, 92, 246)' : 'rgb(var(--color-text-secondary))',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                      }}
                     >
                       Manual Value
-                    </button>
-                    <button
+                    </ToggleButton>
+                    <ToggleButton
                       type="button"
+                      $active={inheritanceMode === 'inherit'}
                       onClick={() => setInheritanceMode('inherit')}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        border: `1px solid ${inheritanceMode === 'inherit' ? 'rgb(139, 92, 246)' : 'rgb(var(--color-border))'}`,
-                        background: inheritanceMode === 'inherit' ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
-                        color: inheritanceMode === 'inherit' ? 'rgb(139, 92, 246)' : 'rgb(var(--color-text-secondary))',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                      }}
                     >
-                      <Zap size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                      <Zap size={12} />
                       Inherit from Upstream
-                    </button>
+                    </ToggleButton>
                   </div>
                 )}
 
@@ -578,8 +543,8 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
 
                 {/* Inheritance Mode - Dropdown Selector */}
                 {inheritanceMode === 'inherit' && upstreamOutputs.length > 0 && (
-                  <Select
-                    value={inheritanceOptions.find(opt => opt.value === localField.defaultValue)}
+                  <ReactSelect
+                    value={inheritanceOptions.find((opt) => opt.value === localField.defaultValue)}
                     onChange={(selected) => {
                       if (selected) {
                         handleUpdate({ defaultValue: selected.value });
@@ -606,12 +571,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                         borderRadius: 'var(--radius-md)',
                         boxShadow: 'none',
                         '&:hover': {
-                          border: '1px solid rgb(139, 92, 246)',
+                          border: '1px solid rgb(var(--color-primary))',
                         },
                       }),
                       option: (base, state) => ({
                         ...base,
-                        backgroundColor: state.isFocused ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                        backgroundColor: state.isFocused
+                          ? 'rgba(var(--color-primary), 0.1)'
+                          : 'transparent',
                         color: 'rgb(var(--color-text-primary))',
                         cursor: 'pointer',
                         padding: '12px',
@@ -669,12 +636,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                 <Label>Options Source</Label>
                 <Select
                   value={localField.options?.source || 'manual'}
-                  onChange={(e) => handleUpdate({
-                    options: {
-                      ...localField.options,
-                      source: e.target.value as 'manual' | 'tenant-list' | 'entity',
-                    }
-                  })}
+                  onChange={(e) =>
+                    handleUpdate({
+                      options: {
+                        ...(localField.options ?? { source: 'manual' }),
+                        source: e.target.value as 'manual' | 'tenant-list' | 'entity',
+                      },
+                    })
+                  }
                 >
                   <option value="manual">Manual Entry</option>
                   <option value="tenant-list">Tenant List</option>
@@ -687,12 +656,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   <Label>Options (one per line)</Label>
                   <TextArea
                     value={localField.options?.manualOptions?.join('\n') || ''}
-                    onChange={(e) => handleUpdate({
-                      options: {
-                        ...localField.options,
-                        manualOptions: e.target.value.split('\n').filter(o => o.trim()),
-                      }
-                    })}
+                    onChange={(e) =>
+                      handleUpdate({
+                        options: {
+                          ...(localField.options ?? { source: 'manual' }),
+                          manualOptions: e.target.value.split('\n').filter((o) => o.trim()),
+                        },
+                      })
+                    }
                     placeholder="Option 1&#10;Option 2&#10;Option 3"
                   />
                   <HelpText>Enter each option on a new line</HelpText>
@@ -704,12 +675,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   <Label>Select Tenant List</Label>
                   <Select
                     value={localField.options?.tenantListId || ''}
-                    onChange={(e) => handleUpdate({
-                      options: {
-                        ...localField.options,
-                        tenantListId: e.target.value,
-                      }
-                    })}
+                    onChange={(e) =>
+                      handleUpdate({
+                        options: {
+                          ...(localField.options ?? { source: 'tenant-list' }),
+                          tenantListId: e.target.value,
+                        },
+                      })
+                    }
                   >
                     <option value="">Choose a list...</option>
                     {tenantLists.map(list => (
@@ -728,12 +701,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     <Label>Entity Type</Label>
                     <Select
                       value={localField.options?.entityType || ''}
-                      onChange={(e) => handleUpdate({
-                        options: {
-                          ...localField.options,
-                          entityType: e.target.value,
-                        }
-                      })}
+                      onChange={(e) =>
+                        handleUpdate({
+                          options: {
+                            ...(localField.options ?? { source: 'entity' }),
+                            entityType: e.target.value,
+                          },
+                        })
+                      }
                     >
                       <option value="">Select entity...</option>
                       <option value="supplier">Suppliers</option>
@@ -747,12 +722,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     <Input
                       type="text"
                       value={localField.options?.entityField || ''}
-                      onChange={(e) => handleUpdate({
-                        options: {
-                          ...localField.options,
-                          entityField: e.target.value,
-                        }
-                      })}
+                      onChange={(e) =>
+                        handleUpdate({
+                          options: {
+                            ...(localField.options ?? { source: 'entity' }),
+                            entityField: e.target.value,
+                          },
+                        })
+                      }
                       placeholder="e.g., name"
                     />
                     <HelpText>Which field to show in the dropdown (e.g., "name")</HelpText>

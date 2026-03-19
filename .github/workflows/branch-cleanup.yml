@@ -1,0 +1,182 @@
+name: "🧹 Branch Cleanup - Archive Stale Branches"
+
+# Automatically deletes stale feature branches that:
+# - Have been merged into development/main/uat, OR
+# - Have had no commits in the last 30 days
+#
+# Protected branches (development, uat, main, and release/* patterns) are NEVER deleted.
+# Runs weekly and can be triggered manually.
+
+on:
+  schedule:
+    - cron: "0 2 * * 1"  # Every Monday at 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (list branches without deleting)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      staleness_days:
+        description: "Days of inactivity before a branch is considered stale"
+        required: false
+        default: "30"
+        type: string
+
+concurrency:
+  group: branch-cleanup
+  cancel-in-progress: false  # Never cancel a cleanup run mid-flight
+
+permissions:
+  contents: write  # Required to delete branches
+
+jobs:
+  verify-golden-state:
+    name: "Verify Golden State"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Verify golden state
+        run: bash scripts/verify_golden_state.sh
+
+  cleanup-stale-branches:
+    name: "Delete Stale Feature Branches (>${{ inputs.staleness_days || 30 }} days)"
+    runs-on: ubuntu-latest
+    needs: [verify-golden-state]
+
+    env:
+      DRY_RUN: ${{ inputs.dry_run || 'true' }}
+      STALENESS_DAYS: ${{ inputs.staleness_days || '30' }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history needed to evaluate branch activity
+
+      - name: Identify and delete stale branches
+        run: |
+          set -euo pipefail
+
+          echo "🔍 Branch Cleanup — Stale Branch Removal"
+          echo "Staleness threshold: ${STALENESS_DAYS} days"
+          echo "Dry run: ${DRY_RUN}"
+          echo ""
+
+          # Protected branches — never delete these
+          PROTECTED_PATTERN="^(development|main|uat|HEAD)$|^(release|hotfix)/"
+
+          # Cutoff date (epoch seconds) — runners use GNU date (ubuntu-latest)
+          CUTOFF=$(date -d "${STALENESS_DAYS} days ago" +%s)
+
+          DELETED=0
+          SKIPPED=0
+          STALE_LIST=""
+
+          # Fetch all remote branches
+          git fetch --prune origin
+
+          while IFS= read -r REF; do
+            BRANCH="${REF#refs/remotes/origin/}"
+
+            # Skip protected branches
+            if echo "$BRANCH" | grep -qE "$PROTECTED_PATTERN"; then
+              continue
+            fi
+
+            # Get last commit date (epoch seconds)
+            LAST_COMMIT_EPOCH=$(git log -1 --format="%ct" "origin/${BRANCH}" 2>/dev/null || true)
+            if [ -z "$LAST_COMMIT_EPOCH" ]; then
+              echo "⚠️  Could not determine commit date for '${BRANCH}' — skipping"
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+
+            # Check if branch is already merged into a protected branch
+            MERGED_INTO=""
+            for BASE in development main uat; do
+              if git merge-base --is-ancestor "origin/${BRANCH}" "origin/${BASE}" 2>/dev/null; then
+                MERGED_INTO="${BASE}"
+                break
+              fi
+            done
+
+            # Determine if stale (old commit date OR already merged)
+            IS_STALE=false
+            REASON=""
+
+            if [ "$LAST_COMMIT_EPOCH" -lt "$CUTOFF" ]; then
+              IS_STALE=true
+              LAST_DATE=$(date -d "@${LAST_COMMIT_EPOCH}" "+%Y-%m-%d")
+              REASON="no activity since ${LAST_DATE}"
+            fi
+
+            if [ -n "$MERGED_INTO" ]; then
+              IS_STALE=true
+              REASON="${REASON:+${REASON}, }already merged into ${MERGED_INTO}"
+            fi
+
+            if [ "$IS_STALE" = "true" ]; then
+              STALE_LIST="${STALE_LIST}  - ${BRANCH} (${REASON})\n"
+
+              if [ "${DRY_RUN}" = "true" ]; then
+                echo "🔎 [DRY RUN] Would delete: ${BRANCH} — ${REASON}"
+              else
+                echo "🗑️  Deleting: ${BRANCH} — ${REASON}"
+                if git push origin --delete "${BRANCH}" 2>&1; then
+                  DELETED=$((DELETED + 1))
+                else
+                  echo "⚠️  Failed to delete ${BRANCH}"
+                  SKIPPED=$((SKIPPED + 1))
+                fi
+              fi
+            fi
+
+          done < <(git for-each-ref --format="%(refname)" refs/remotes/origin/)
+
+          echo ""
+          echo "────────────────────────────────────────"
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "🔎 DRY RUN complete — no branches were deleted."
+            STALE_COUNT=$(echo -e "$STALE_LIST" | grep -c "^  -" || true)
+            echo "   Stale branches found: ${STALE_COUNT}"
+          else
+            echo "✅ Cleanup complete."
+            echo "   Branches deleted : ${DELETED}"
+            echo "   Branches skipped : ${SKIPPED}"
+          fi
+
+          # Write job summary
+          {
+            echo "## 🧹 Branch Cleanup Summary"
+            echo ""
+            if [ "${DRY_RUN}" = "true" ]; then
+              echo "> **Mode**: Dry run — no branches were deleted"
+            else
+              echo "> **Mode**: Live run"
+            fi
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Staleness threshold | ${STALENESS_DAYS} days |"
+            if [ "${DRY_RUN}" = "true" ]; then
+              STALE_COUNT=$(printf "%b" "$STALE_LIST" | grep -c "^  -" || true)
+              echo "| Stale branches found | ${STALE_COUNT} |"
+            else
+              echo "| Branches deleted | ${DELETED} |"
+              echo "| Branches skipped | ${SKIPPED} |"
+            fi
+            echo ""
+            if [ -n "$STALE_LIST" ]; then
+              echo "### Stale Branches"
+              echo ""
+              printf "%b" "$STALE_LIST"
+            else
+              echo "✅ No stale branches found."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

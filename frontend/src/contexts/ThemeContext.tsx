@@ -13,10 +13,11 @@
  */
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ConfigProvider } from 'antd';
-import { Theme, themes, lightTheme, darkTheme, injectTenantColors } from '../config/theme';
+import { Theme, themes, injectTenantColors } from '../config/theme';
 import { getThemeConfig, applyCanvasTheme } from '../theme/themeConfig';
 import { getRuntimeConfig } from '../config/runtime';
-import axios from 'axios';
+import { apiClient } from '../services/apiService';
+import { getAuthHeader } from '../services/jwtService';
 
 type ThemeName = 'light' | 'dark' | 'high-contrast';
 
@@ -66,35 +67,24 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   
   const [tenantBranding, setTenantBranding] = useState<TenantBranding | null>(null);
 
-  // NEW: Always use CSS variable-based themes (no custom theme object needed)
-  const theme = themes[themeName];
+  const cssThemeMode: 'light' | 'dark' = themeName === 'dark' ? 'dark' : 'light';
 
-  // Apply theme to document body (now sets data-theme attribute for CSS variable switching)
+  // CSS-variable theme object only supports light/dark
+  const theme = themes[cssThemeMode];
+
+  // Apply theme to document body (data-theme powers global CSS variables)
   useEffect(() => {
-    document.body.setAttribute('data-theme', themeName);
+    document.body.setAttribute('data-theme', cssThemeMode);
     applyCanvasTheme(themeName);
-    // Background and text color are now controlled by CSS variables
-    // No need to manually set body styles here
-  }, [themeName]);
+  }, [cssThemeMode, themeName]);
 
   // Sync theme to backend when it changes
   useEffect(() => {
     const syncThemeToBackend = async () => {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
+      if (!getAuthHeader()) return;
 
       try {
-        const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
-        await axios.patch(
-          `${apiBaseUrl}/preferences/me/`,
-          { theme: themeName },
-          {
-            headers: {
-              Authorization: `Token ${token}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
+        await apiClient.patch('/preferences/me/', { theme: themeName });
       } catch (error) {
         console.error('Failed to sync theme to backend:', error);
       }
@@ -106,19 +96,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Load tenant branding from backend on mount (only once)
   useEffect(() => {
     const loadTenantBranding = async () => {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
+      if (!getAuthHeader()) return;
 
       try {
         const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
-        const response = await axios.get(
-          `${apiBaseUrl}/tenants/current_theme/`,
-          {
-            headers: {
-              Authorization: `Token ${token}`,
-            },
-          }
-        );
+        const response = await apiClient.get('/tenants/current_theme/');
 
         const branding = {
           logoUrl: response.data.logo_url,
@@ -168,27 +150,18 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       injectTenantColors(
         tenantBranding.primaryColorLight,
         tenantBranding.primaryColorDark,
-        themeName
+        cssThemeMode
       );
     }
-  }, [themeName, tenantBranding]);
+  }, [cssThemeMode, themeName, tenantBranding]);
 
   // Load theme from backend on mount
   useEffect(() => {
     const loadThemeFromBackend = async () => {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
+      if (!getAuthHeader()) return;
 
       try {
-        const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
-        const response = await axios.get(
-          `${apiBaseUrl}/preferences/me/`,
-          {
-            headers: {
-              Authorization: `Token ${token}`,
-            },
-          }
-        );
+        const response = await apiClient.get('/preferences/me/');
 
         const backendTheme = response.data.theme;
         if (backendTheme === 'light' || backendTheme === 'dark' || backendTheme === 'high-contrast') {

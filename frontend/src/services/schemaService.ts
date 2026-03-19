@@ -212,9 +212,6 @@ export const useEntityFields = (
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2, // Retry failed requests
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    onError: (error) => {
-      logger.error(`Failed to fetch fields for entity "${entityId}":`, error);
-    },
     select: (fields) => ({
       entity_id: entityId!,
       field_count: fields.length,

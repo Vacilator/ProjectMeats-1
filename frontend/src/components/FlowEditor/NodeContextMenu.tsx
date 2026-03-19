@@ -23,8 +23,11 @@
 import React, { useCallback, useLayoutEffect, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
 import { Node, useReactFlow } from '@xyflow/react';
-import { Plus, Copy, Layers, Trash2, Settings, Move, Wand2, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, Copy, Layers, Trash2, Settings, Move, Wand2, Maximize2, Minimize2, CircleDot } from 'lucide-react';
+
+import { businessApi } from '@/services/businessApi';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -41,6 +44,10 @@ export interface ContextMenuProps {
   onClose: () => void;
   /** Callback to edit node configuration */
   onEdit?: (nodeId: string) => void;
+  /** Callback to duplicate node (centralized in editor) */
+  onDuplicate?: (nodeId: string) => void;
+  /** Callback to delete node (centralized in editor) */
+  onDelete?: (nodeId: string) => void | Promise<void>;
 }
 
 export interface ContextMenuAction {
@@ -171,8 +178,8 @@ const MenuHeader = styled.div`
  * 
  * @param props - Context menu properties
  */
-export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose, onEdit }) => {
-  const { setNodes, getNode, getNodes, getViewport } = useReactFlow();
+export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose, onEdit, onDuplicate, onDelete }) => {
+  const { setNodes, getNode, getNodes, getEdges, getViewport } = useReactFlow();
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x, y, flipX: false, flipY: false });
   
@@ -308,11 +315,18 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
    */
   const handleDuplicateContainer = useCallback(() => {
     if (!node) return;
-    
-    const childNodes = getNodes().filter(n => n.parentId === node.id);
+
+    // Prefer centralized duplicate logic from UnifiedFlowEditor (deep clone + child handling)
+    if (onDuplicate) {
+      onDuplicate(node.id);
+      onClose();
+      return;
+    }
+
+    const childNodes = getNodes().filter((n) => n.parentId === node.id);
     const containerId = `container-${Date.now()}`;
-    
-    // Duplicate container
+
+    // Fallback: Duplicate container
     const duplicatedContainer: Node = {
       ...node,
       id: containerId,
@@ -326,60 +340,152 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       },
       selected: false,
     };
-    
-    // Duplicate children
+
+    // Fallback: Duplicate children
     const duplicatedChildren = childNodes.map((child, index) => ({
       ...child,
       id: `${containerId}-step-${index}`,
       parentId: containerId,
       selected: false,
     }));
-    
+
     setNodes((nodes) => [...nodes, duplicatedContainer, ...duplicatedChildren]);
     onClose();
-  }, [node, getNodes, setNodes, onClose]);
+  }, [node, getNodes, setNodes, onClose, onDuplicate]);
   
   /**
    * Convert container to sub-flow (placeholder)
    */
   const handleConvertToSubFlow = useCallback(() => {
     if (!node) return;
-    
+
     // TODO: Implement sub-flow conversion logic
+    // Kept for backward compatibility with older UX copy.
+    // New canonical action is "Save as Sub-Flow Template" (Phase 9.2).
     console.log('Convert to sub-flow:', node.id);
     onClose();
   }, [node, onClose]);
+
+  /**
+   * Save a Form Process Group as a reusable Sub-Flow Template (Phase 9.2)
+   */
+  const handleSaveAsSubFlowTemplate = useCallback(async () => {
+    if (!node) return;
+    if (node.type !== 'formProcessGroup') return;
+
+    try {
+      const allNodes = getNodes();
+      const allEdges = getEdges();
+
+      // Gather container + all descendants by parentId
+      const ids = new Set<string>();
+      const queue: string[] = [node.id];
+      ids.add(node.id);
+
+      while (queue.length > 0) {
+        const parentId = queue.pop()!;
+        for (const n of allNodes) {
+          if (n.parentId === parentId && !ids.has(n.id)) {
+            ids.add(n.id);
+            queue.push(n.id);
+          }
+        }
+      }
+
+      const subflowNodes = allNodes.filter(n => ids.has(n.id));
+      const subflowEdges = allEdges.filter(e => ids.has(e.source) && ids.has(e.target));
+
+      const name =
+        (node.data?.containerName as string | undefined) ||
+        (node.data?.label as string | undefined) ||
+        'Sub-Flow Template';
+
+      await businessApi.post('/workflows/templates/', {
+        name,
+        source_node_id: node.id,
+        nodes: subflowNodes,
+        edges: subflowEdges,
+      });
+
+      toast.success('Saved as sub-flow template');
+    } catch (error) {
+      // Backend endpoint may not be deployed in all environments yet.
+      toast.error('Failed to save sub-flow template');
+    } finally {
+      onClose();
+    }
+  }, [node, getNodes, getEdges, onClose]);
   
+  /**
+   * Toggle breakpoint (Phase 9.4)
+   */
+  const handleToggleBreakpoint = useCallback(() => {
+    if (!node) return;
+
+    const current = Boolean((node.data as any)?.hasBreakpoint);
+    const next = !current;
+
+    setNodes((nodes) =>
+      nodes.map((n) => {
+        if (n.id !== node.id) return n;
+        return {
+          ...n,
+          data: {
+            ...(n.data || {}),
+            hasBreakpoint: next,
+          },
+        };
+      })
+    );
+
+    toast.success(next ? 'Breakpoint set' : 'Breakpoint cleared');
+
+    onClose();
+  }, [node, setNodes, onClose]);
+
   /**
    * Delete node (and children if container)
    */
   const handleDelete = useCallback(() => {
     if (!node) return;
-    
-    const isContainer = node.type === 'formProcessGroup' || 
-                       node.type === 'formProcess' || 
-                       node.type === 'formMultiStepContainer';
-    
-    if (isContainer) {
-      // Delete container and all children
-      const childNodes = getNodes().filter(n => n.parentId === node.id);
-      const idsToDelete = [node.id, ...childNodes.map(n => n.id)];
-      
-      setNodes((nodes) => nodes.filter(n => !idsToDelete.includes(n.id)));
-    } else {
-      // Delete single node
-      setNodes((nodes) => nodes.filter(n => n.id !== node.id));
+
+    // Prefer centralized delete logic from UnifiedFlowEditor (ensures edge cleanup + ghost cleanup)
+    if (onDelete) {
+      void onDelete(node.id);
+      onClose();
+      return;
     }
-    
+
+    const isContainer =
+      node.type === 'formProcessGroup' || node.type === 'formProcess' || node.type === 'formMultiStepContainer';
+
+    if (isContainer) {
+      // Fallback: Delete container and all children
+      const childNodes = getNodes().filter((n) => n.parentId === node.id);
+      const idsToDelete = [node.id, ...childNodes.map((n) => n.id)];
+
+      setNodes((nodes) => nodes.filter((n) => !idsToDelete.includes(n.id)));
+    } else {
+      // Fallback: Delete single node
+      setNodes((nodes) => nodes.filter((n) => n.id !== node.id));
+    }
+
     onClose();
-  }, [node, getNodes, setNodes, onClose]);
+  }, [node, getNodes, setNodes, onClose, onDelete]);
   
   /**
    * Copy node
    */
   const handleCopy = useCallback(() => {
     if (!node) return;
-    
+
+    // Prefer centralized duplicate logic from UnifiedFlowEditor (deep clone)
+    if (onDuplicate) {
+      onDuplicate(node.id);
+      onClose();
+      return;
+    }
+
     const copiedNode: Node = {
       ...node,
       id: `node-${Date.now()}`,
@@ -393,10 +499,10 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       },
       selected: false,
     };
-    
+
     setNodes((nodes) => [...nodes, copiedNode]);
     onClose();
-  }, [node, setNodes, onClose]);
+  }, [node, setNodes, onClose, onDuplicate]);
   
   /**
    * Extract from container
@@ -507,6 +613,18 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
           <MenuSeparator />
         </>
       )}
+
+      {/* Phase 9.4: Breakpoints */}
+      <MenuItem
+        onClick={handleToggleBreakpoint}
+        role="menuitem"
+        aria-label="Toggle breakpoint"
+        title="Pause Continue/Step at this node"
+      >
+        <CircleDot size={16} aria-hidden="true" />
+        <span>{node.data?.hasBreakpoint ? 'Clear Breakpoint' : 'Set Breakpoint'}</span>
+      </MenuItem>
+      <MenuSeparator />
       
       {isContainer && (
         <>
@@ -547,9 +665,9 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       
       {!isContainer && (
         <>
-          <MenuItem onClick={handleCopy} role="menuitem" aria-label="Copy node">
+          <MenuItem onClick={handleCopy} role="menuitem" aria-label="Duplicate node">
             <Copy size={16} aria-hidden="true" />
-            <span>Copy Node</span>
+            <span>Duplicate Node</span>
           </MenuItem>
           <MenuSeparator />
         </>

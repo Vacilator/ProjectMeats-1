@@ -9,6 +9,7 @@
  */
 
 import { NodeConfigSchema, SchemaValidationResult } from './types';
+import type { ConfigField, ValidationRule } from './types';
 
 /**
  * Singleton registry for node configuration schemas
@@ -16,6 +17,58 @@ import { NodeConfigSchema, SchemaValidationResult } from './types';
 class ConfigSchemaRegistry {
   private schemas: Map<string, NodeConfigSchema> = new Map();
   private initialized: boolean = false;
+
+  /**
+   * Phase 9.7: Preemptive hardening
+   *
+   * Ensure any field marked `required: true` has a corresponding `required` validation rule,
+   * including nested child schemas (e.g., nested-children arrays).
+   */
+  private normalizeRequiredValidators(schema: NodeConfigSchema): NodeConfigSchema {
+    const toValidationArray = (validation: unknown): ValidationRule[] => {
+      if (!validation) return [];
+      if (Array.isArray(validation)) return validation as ValidationRule[];
+      if (typeof validation === 'object') return [validation as ValidationRule];
+      return [];
+    };
+
+    const ensureRequiredRule = (field: ConfigField): ConfigField => {
+      const validation = [...toValidationArray((field as any).validation)];
+      const hasRequiredRule = validation.some((r) => r?.type === 'required');
+
+      if (field.required && !hasRequiredRule) {
+        validation.unshift({
+          type: 'required',
+          message: `${field.label || field.id} is required`,
+        });
+      }
+
+      const childSchema = (field as any).childSchema
+        ? normalizeSchemaLike((field as any).childSchema)
+        : undefined;
+
+      return {
+        ...(field as any),
+        validation: validation.length > 0 ? validation : undefined,
+        childSchema,
+      } as ConfigField;
+    };
+
+    const normalizeSchemaLike = (schemaLike: any): any => {
+      if (!schemaLike || !Array.isArray(schemaLike.sections)) return schemaLike;
+      return {
+        ...schemaLike,
+        sections: schemaLike.sections.map((section: any) => ({
+          ...section,
+          fields: Array.isArray(section.fields)
+            ? section.fields.map((f: ConfigField) => ensureRequiredRule(f))
+            : section.fields,
+        })),
+      };
+    };
+
+    return normalizeSchemaLike(schema) as NodeConfigSchema;
+  }
 
   /**
    * Initialize registry with built-in schemas
@@ -29,7 +82,8 @@ class ConfigSchemaRegistry {
     // Zero-crash standard: one broken schema must never take down the registry.
     for (const schema of schemas) {
       try {
-        const validation = this.validateSchema(schema);
+        const normalizedSchema = this.normalizeRequiredValidators(schema);
+        const validation = this.validateSchema(normalizedSchema);
         if (!validation.valid) {
           console.error(`Invalid schema for ${schema.nodeType}:`, validation.errors);
           continue;
@@ -39,7 +93,7 @@ class ConfigSchemaRegistry {
           console.warn(`Warnings for schema ${schema.nodeType}:`, validation.warnings);
         }
 
-        this.schemas.set(schema.nodeType, schema);
+        this.schemas.set(normalizedSchema.nodeType, normalizedSchema);
       } catch (error) {
         console.error(`[Schema Registry] Failed to register schema for ${schema?.nodeType || 'unknown'}:`, error);
         continue;
@@ -58,7 +112,9 @@ class ConfigSchemaRegistry {
    */
   register(schema: NodeConfigSchema, overwrite: boolean = false): void {
     // Validate schema first
-    const validation = this.validateSchema(schema);
+    const normalizedSchema = this.normalizeRequiredValidators(schema);
+
+    const validation = this.validateSchema(normalizedSchema);
     if (!validation.valid) {
       throw new Error(
         `Cannot register invalid schema for ${schema.nodeType}: ${validation.errors.join(', ')}`
@@ -66,16 +122,16 @@ class ConfigSchemaRegistry {
     }
 
     // Check for existing schema
-    if (this.schemas.has(schema.nodeType) && !overwrite) {
+    if (this.schemas.has(normalizedSchema.nodeType) && !overwrite) {
       console.warn(
-        `Schema for ${schema.nodeType} already registered. ` +
+        `Schema for ${normalizedSchema.nodeType} already registered. ` +
         `Use overwrite=true to replace existing schema.`
       );
       return;
     }
 
-    this.schemas.set(schema.nodeType, schema);
-    console.log(`Registered schema for node type: ${schema.nodeType}`);
+    this.schemas.set(normalizedSchema.nodeType, normalizedSchema);
+    console.log(`Registered schema for node type: ${normalizedSchema.nodeType}`);
   }
 
   /**
@@ -326,7 +382,7 @@ class ConfigSchemaRegistry {
           if (Array.isArray(field.validation)) {
             // Standard array case
             validationRules = field.validation as any[];
-          } else if (typeof field.validation === 'object' && field.validation !== null) {
+          } else if (!Array.isArray(field.validation) && typeof field.validation === 'object' && field.validation !== null) {
             // Check if it's an array-like object (cross-realm issue)
             if (typeof (field.validation as any).length === 'number') {
               validationRules = Array.from(field.validation as any);

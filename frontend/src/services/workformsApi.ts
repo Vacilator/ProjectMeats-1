@@ -85,6 +85,29 @@ export interface TenantForm {
   updated_by_name?: string;
 }
 
+// ---------------------------------------------------------------------------
+// System / TenantForm helpers (Phase 9: remove direct axios usage)
+// ---------------------------------------------------------------------------
+
+export interface TenantFormUsageInfo {
+  form_id: string;
+  usage_count: number;
+  workflows: Array<{
+    id: string;
+    name: string;
+    status: string;
+  }>;
+}
+
+export const getTenantFormUsageInfo = async (formId: string): Promise<TenantFormUsageInfo> => {
+  const response = await apiClient.get(`/system/tenant-forms/${formId}/usage/`);
+  return response.data;
+};
+
+export const decrementTenantFormUsage = async (formId: string): Promise<void> => {
+  await apiClient.post(`/system/tenant-forms/${formId}/decrement-usage/`);
+};
+
 export interface TenantWorkForm {
   id: string;
   tenant: string;

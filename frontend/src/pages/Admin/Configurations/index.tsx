@@ -9,7 +9,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
+import { apiClient } from '../../../services/apiService';
 
 // Types
 interface Configuration {
@@ -55,7 +55,7 @@ const ConfigurationsPage: React.FC = () => {
   const loadConfigurations = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/configurations/');
+      const response = await apiClient.get('/configurations/');
       // Ensure response.data is always an array
       const data = Array.isArray(response.data) ? response.data : [];
       setConfigurations(data);
@@ -90,8 +90,8 @@ const ConfigurationsPage: React.FC = () => {
         value
       }));
 
-      await axios.post('/api/v1/configurations/bulk_update/', {
-        configurations: configurationsToUpdate
+      await apiClient.post('/configurations/bulk_update/', {
+        configurations: configurationsToUpdate,
       });
 
       showMessage('success', `Saved ${configurationsToUpdate.length} configuration(s)`);
@@ -112,8 +112,8 @@ const ConfigurationsPage: React.FC = () => {
 
     try {
       setSaving(true);
-      await axios.post('/api/v1/configurations/reset_category/', {
-        category: activeCategory
+      await apiClient.post('/configurations/reset_category/', {
+        category: activeCategory,
       });
       
       showMessage('success', `Reset ${activeCategory} configurations to defaults`);

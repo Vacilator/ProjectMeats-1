@@ -328,6 +328,14 @@ class TenantFormEntity(TenantAwareModel):
         related_name='entities',
         help_text="Form this entity belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.form_id:
+            tenant_id = getattr(self.form, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantForm.objects.only('tenant_id').get(pk=self.form_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Reference to the entity type (e.g., 'supplier', 'customer', 'purchase_order')
     entity_type = models.CharField(
@@ -374,6 +382,14 @@ class TenantFormField(TenantAwareModel):
         related_name='fields',
         help_text="Form entity this field belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.form_entity_id:
+            tenant_id = getattr(self.form_entity, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantFormEntity.objects.only('tenant_id').get(pk=self.form_entity_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Reference to the actual field
     field_key = models.CharField(
@@ -507,6 +523,14 @@ class TenantFormRule(TenantAwareModel):
         related_name='rules',
         help_text="Form this rule belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.form_id:
+            tenant_id = getattr(self.form, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantForm.objects.only('tenant_id').get(pk=self.form_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     name = models.CharField(
         max_length=255,
@@ -670,6 +694,14 @@ class TenantWorkflowCondition(TenantAwareModel):
         related_name='conditions',
         help_text="Workflow this condition belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.workflow_id:
+            tenant_id = getattr(self.workflow, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantWorkflow.objects.only('tenant_id').get(pk=self.workflow_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Field to check
     field_path = models.CharField(
@@ -720,6 +752,14 @@ class TenantWorkflowAction(TenantAwareModel):
         related_name='actions',
         help_text="Workflow this action belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.workflow_id:
+            tenant_id = getattr(self.workflow, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantWorkflow.objects.only('tenant_id').get(pk=self.workflow_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Action type
     action_type = models.CharField(
@@ -772,6 +812,14 @@ class WorkflowExecutionLog(TenantAwareModel):
         related_name='execution_logs',
         help_text="Workflow that was executed"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.workflow_id:
+            tenant_id = getattr(self.workflow, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantWorkflow.objects.only('tenant_id').get(pk=self.workflow_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Trigger info
     trigger_type = models.CharField(
@@ -1403,11 +1451,17 @@ class StepAssignment(models.Model):
         ]
     
     def __str__(self):
+        step_label = (
+            getattr(self.step, 'step_name', None)
+            or getattr(self.step, 'name', None)
+            or str(self.step)
+        )
+
         if self.assignment_type == AssignmentType.USER and self.assigned_user:
-            return f"{self.step.name} → {self.assigned_user.username}"
-        elif self.assignment_type in [AssignmentType.ROLE, AssignmentType.TEAM]:
-            return f"{self.step.name} → {self.assigned_role}"
-        return f"{self.step.name} → {self.assignment_type}"
+            return f"{step_label} → {self.assigned_user.username}"
+        if self.assignment_type in [AssignmentType.ROLE, AssignmentType.TEAM]:
+            return f"{step_label} → {self.assigned_role}"
+        return f"{step_label} → {self.assignment_type}"
 
 
 # =============================================================================

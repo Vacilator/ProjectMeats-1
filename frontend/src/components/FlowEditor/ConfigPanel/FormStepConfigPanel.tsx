@@ -609,7 +609,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 {entities.length > 0 ? (
                   entities.map(entity => (
                     <option key={entity.id} value={entity.id}>
-                      {entity.label_plural} ({entity.field_count} fields)
+                      {entity.field_count > 0
+                        ? `${entity.label_plural} (${entity.field_count} fields)`
+                        : entity.label_plural}
                     </option>
                   ))
                 ) : !entitiesLoading && (

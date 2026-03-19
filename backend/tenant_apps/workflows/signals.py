@@ -55,6 +55,7 @@ def create_step_submissions(sender, instance, created, **kwargs):
             step_submissions.append(
                 FormStepSubmission(
                     submission=instance,
+                    tenant=instance.tenant,
                     step=step,
                     status=StepSubmissionStatus.NOT_STARTED,
                 )

@@ -5,7 +5,7 @@
  * 
  * This module handles automatic positioning of nodes within containers:
  * - Form steps arrange horizontally (left-to-right)
- * - Action nodes stack vertically below connected form steps
+ * - Non-form nodes are NOT repositioned by container layout (prevents forcing actions inside the book)
  * - Maintains consistent spacing and alignment
  */
 
@@ -20,7 +20,7 @@ import { logger } from '@/utils/logger';
 export const LAYOUT_CONSTANTS = {
   // Horizontal layout for form steps
   START_X: 50,           // Starting x position for first form step
-  STEP_SPACING: 250,     // Horizontal spacing between form steps
+  STEP_SPACING: 350,     // Horizontal spacing between form steps
   STEP_Y: 80,            // Y position for form step row
   
   // Vertical layout for action nodes
@@ -83,14 +83,16 @@ export function calculateContainerLayout(
   }
   
   // Separate nodes by type
-  const formSteps = childNodes.filter(node => node.type === 'formStep' || node.type === 'formReference');
-  const actionNodes = childNodes.filter(node => 
-    node.type !== 'formStep' && 
-    node.type !== 'formReference' &&
-    node.type !== 'formMultiStepContainer' // Don't layout nested containers
+  // Pages (form nodes) should be laid out in a horizontal row; other child nodes remain free-positioned.
+  const isPageNodeType = (type?: string) =>
+    type === 'form' || type === 'formReference' || type === 'formStepSingle' || type === 'formStep';
+
+  const formSteps = childNodes.filter((node) => isPageNodeType(node.type));
+  const otherNodes = childNodes.filter(
+    (node) => !isPageNodeType(node.type) && node.type !== 'formMultiStepContainer' // Don't layout nested containers
   );
   
-  logger.debug(`[Layout] Found \${formSteps.length} form steps, \${actionNodes.length} action nodes`);
+  logger.debug(`[Layout] Found \${formSteps.length} form steps, \${otherNodes.length} non-form child nodes`);
   
   // Sort form steps by current x-position to preserve rough order
   formSteps.sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
@@ -114,49 +116,8 @@ export function calculateContainerLayout(
     };
   });
   
-  // Layout action nodes below their connected form steps
-  const updatedActionNodes = actionNodes.map(action => {
-    // Find which form step this action is connected to
-    const connectedStep = findConnectedFormStep(action, updatedFormSteps, allEdges);
-    
-    if (connectedStep) {
-      // Position below the connected form step
-      const actionsAtThisStep = actionNodes.filter(a => 
-        findConnectedFormStep(a, updatedFormSteps, allEdges)?.id === connectedStep.id
-      );
-      const actionIndex = actionsAtThisStep.indexOf(action);
-      
-      const newPosition: NodePosition = {
-        x: connectedStep.position.x,
-        y: connectedStep.position.y + LAYOUT_CONSTANTS.ACTION_OFFSET_Y + 
-           (actionIndex * LAYOUT_CONSTANTS.ACTION_SPACING_Y),
-      };
-      
-      logger.debug(`[Layout] Action \${action.id} positioned below step \${connectedStep.id} at (\${newPosition.x}, \${newPosition.y})`);
-      
-      return {
-        ...action,
-        position: newPosition,
-      };
-    } else {
-      // No connected form step - position at the end
-      const defaultX = LAYOUT_CONSTANTS.START_X + (formSteps.length * LAYOUT_CONSTANTS.STEP_SPACING);
-      const newPosition: NodePosition = {
-        x: defaultX,
-        y: LAYOUT_CONSTANTS.STEP_Y,
-      };
-      
-      logger.debug(`[Layout] Orphaned action \${action.id} positioned at end (\${newPosition.x}, \${newPosition.y})`);
-      
-      return {
-        ...action,
-        position: newPosition,
-      };
-    }
-  });
-  
-  // Combine updated nodes
-  const updatedChildNodes = [...updatedFormSteps, ...updatedActionNodes];
+  // Book+Pages: only reposition form steps; leave other child nodes unchanged
+  const updatedChildNodes = [...updatedFormSteps, ...otherNodes];
   
   // Calculate required container dimensions
   const maxX = Math.max(
@@ -186,43 +147,6 @@ export function calculateContainerLayout(
   };
 }
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Find the form step that an action node is connected to
- * 
- * @param actionNode - The action node to check
- * @param formSteps - Array of form step nodes
- * @param edges - All edges in the editor
- * @returns The connected form step node, or null if none found
- */
-function findConnectedFormStep(
-  actionNode: Node,
-  formSteps: Node[],
-  edges: Edge[]
-): Node | null {
-  // Check incoming edges (action is target)
-  const incomingEdge = edges.find(edge => edge.target === actionNode.id);
-  if (incomingEdge) {
-    const sourceNode = formSteps.find(step => step.id === incomingEdge.source);
-    if (sourceNode) {
-      return sourceNode;
-    }
-  }
-  
-  // Check outgoing edges (action is source)
-  const outgoingEdge = edges.find(edge => edge.source === actionNode.id);
-  if (outgoingEdge) {
-    const targetNode = formSteps.find(step => step.id === outgoingEdge.target);
-    if (targetNode) {
-      return targetNode;
-    }
-  }
-  
-  return null;
-}
 
 /**
  * Check if a node should trigger auto-layout
@@ -262,8 +186,11 @@ export function autoConnectSequentialSteps(
   const childNodes = allNodes.filter(node => node.parentId === containerId);
   
   // Get only form steps and sort by x-position (left-to-right)
+  const isPageNodeType = (type?: string) =>
+    type === 'form' || type === 'formReference' || type === 'formStepSingle' || type === 'formStep';
+
   const formSteps = childNodes
-    .filter(node => node.type === 'formStep' || node.type === 'formReference')
+    .filter((node) => isPageNodeType(node.type))
     .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
   
   logger.debug(`[AutoConnect] Found ${formSteps.length} form steps to connect`);

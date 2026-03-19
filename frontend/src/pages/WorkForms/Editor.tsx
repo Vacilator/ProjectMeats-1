@@ -730,6 +730,7 @@ export const WorkFormsEditor: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedIndicator, setShowSavedIndicator] = useState(false);
   const [flowName, setFlowName] = useState('New Flow');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [initialNodes, setInitialNodes] = useState<Node[]>([]);
   const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -1281,7 +1282,40 @@ export const WorkFormsEditor: React.FC = () => {
             ← Back
           </BackButton>
           <div>
-            <PageTitle>{flowName}</PageTitle>
+            {isEditingTitle ? (
+              <input
+                value={flowName}
+                onChange={(e) => {
+                  setFlowName(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
+                onBlur={() => setIsEditingTitle(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setIsEditingTitle(false);
+                }}
+                autoFocus
+                style={{
+                  fontSize: '24px',
+                  fontWeight: 700,
+                  background: 'transparent',
+                  border: '1px dashed rgb(var(--color-primary))',
+                  color: 'rgb(var(--color-text-primary))',
+                  borderRadius: '4px',
+                  padding: '2px 8px',
+                  outline: 'none',
+                  minWidth: '250px'
+                }}
+              />
+            ) : (
+              <PageTitle 
+                onClick={() => setIsEditingTitle(true)}
+                title="Click to edit flow name"
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                {flowName}
+                <Eye size={14} style={{ opacity: 0.5 }} />
+              </PageTitle>
+            )}
           </div>
         </HeaderLeft>
         
@@ -1389,8 +1423,8 @@ export const WorkFormsEditor: React.FC = () => {
           <ActionButton 
             $variant="primary" 
             onClick={handlePublish}
-            disabled={!permissions.can_publish || status === 'active' || !id || publishMutation.isPending || permissionsLoading}
-            title={!permissions.can_publish ? getUpgradeMessage('publish', permissions.role) : ''}
+            disabled={!permissions.can_publish || status === 'active' || hasUnsavedChanges || !id || publishMutation.isPending || permissionsLoading}
+            title={!permissions.can_publish ? getUpgradeMessage('publish', permissions.role) : (hasUnsavedChanges ? 'Save changes before publishing' : '')}
           >
             {publishMutation.isPending ? 'Publishing...' : status === 'active' ? 'Published' : 'Publish'}
           </ActionButton>

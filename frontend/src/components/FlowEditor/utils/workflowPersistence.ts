@@ -214,7 +214,13 @@ export const saveWorkflow = async (
     
     return response.data;
   } catch (error: any) {
-    logger.error('❌ Error saving workflow:', error);
+    logger.error('❌ Error saving workflow:', {
+      message: error?.message,
+      status: error?.response?.status,
+      url: error?.config?.url,
+      method: error?.config?.method,
+      data: error?.response?.data,
+    });
     
     // Enhanced error handling with user-friendly messages
     if (error.response?.status === 401) {

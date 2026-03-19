@@ -41,104 +41,60 @@ export const getLayoutedElements = (
   options: LayoutOptions = {}
 ): { nodes: Node[]; edges: Edge[] } => {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const direction = opts.direction ?? 'TB';
-  
-  // Create a new dagre graph
+
+  // CRITICAL FIX: dagre crashes on grouped nodes (parentId).
+  // We only layout top-level nodes on the global canvas.
+  const topLevelNodes = nodes.filter((n) => !n.parentId);
+  const topLevelNodeIds = new Set(topLevelNodes.map((n) => n.id));
+
+  // Only route edges where both source and target are top-level
+  const topLevelEdges = edges.filter(
+    (e) => topLevelNodeIds.has(e.source) && topLevelNodeIds.has(e.target)
+  );
+
   const dagreGraph = new dagre.graphlib.Graph();
-  
-  // Set graph options
   dagreGraph.setGraph({
-    rankdir: direction,
-    align: opts.align,
-    ranker: 'longest-path',
+    rankdir: opts.direction,
     nodesep: opts.nodeSpacing,
     ranksep: opts.rankSpacing,
     edgesep: opts.edgeSpacing,
-    marginx: 80,
-    marginy: 80,
+    marginx: 50,
+    marginy: 50,
   });
-  
-  // Default edge config
+
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  
-  // Add nodes to dagre
-  nodes.forEach((node) => {
-    // Use measured dimensions or defaults
+
+  topLevelNodes.forEach((node) => {
     const width = node.width || 280;
     const height = node.height || 100;
-    
-    dagreGraph.setNode(node.id, {
-      width,
-      height,
-    });
+    dagreGraph.setNode(node.id, { width, height });
   });
-  
-  // Add edges to dagre
-  edges.forEach((edge) => {
+
+  topLevelEdges.forEach((edge) => {
     dagreGraph.setEdge(edge.source, edge.target);
   });
-  
-  // Calculate layout
+
   dagre.layout(dagreGraph);
-  
-  // Apply calculated positions to nodes
+
+  // Apply positions back to top-level nodes, keep child nodes unchanged
   const layoutedNodes = nodes.map((node) => {
+    if (node.parentId) return node; // Skip child nodes
+
     const nodeWithPosition = dagreGraph.node(node.id);
-    
-    // Dagre gives center positions, React Flow uses top-left
+    if (!nodeWithPosition) return node;
+
     const x = nodeWithPosition.x - (node.width || 280) / 2;
     const y = nodeWithPosition.y - (node.height || 100) / 2;
-    
+
     return {
       ...node,
       position: { x, y },
     };
   });
-  
-  let alignedNodes = layoutedNodes;
-
-  if (direction === 'TB' || direction === 'BT') {
-    // Center horizontally for top-to-bottom layout
-    const minX = Math.min(...layoutedNodes.map((n) => n.position.x));
-    const maxX = Math.max(...layoutedNodes.map((n) => n.position.x + (n.width || 280)));
-    const centerOffset = (minX + maxX) / 2;
-
-    alignedNodes = layoutedNodes.map((node) => ({
-      ...node,
-      position: {
-        x: node.position.x - centerOffset,
-        y: node.position.y,
-      },
-    }));
-  } else {
-    // Center vertically for left-to-right layout
-    const minY = Math.min(...layoutedNodes.map((n) => n.position.y));
-    const maxY = Math.max(...layoutedNodes.map((n) => n.position.y + (n.height || 100)));
-    const centerOffsetY = (minY + maxY) / 2;
-
-    alignedNodes = layoutedNodes.map((node) => ({
-      ...node,
-      position: {
-        x: node.position.x,
-        y: node.position.y - centerOffsetY,
-      },
-    }));
-  }
-
-  // Normalize to keep positions positive with a small margin
-  const normalizedMinX = Math.min(...alignedNodes.map((n) => n.position.x));
-  const normalizedMinY = Math.min(...alignedNodes.map((n) => n.position.y));
-  const normalizedNodes = alignedNodes.map((node) => ({
-    ...node,
-    position: {
-      x: node.position.x - normalizedMinX + 50,
-      y: node.position.y - normalizedMinY + 50,
-    },
-  }));
 
   return {
-    nodes: normalizedNodes,
-    edges,
+    nodes: layoutedNodes,
+    edges, // Return all edges original array
   };
 };
 

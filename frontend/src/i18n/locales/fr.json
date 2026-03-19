@@ -114,6 +114,83 @@
     "export": "Exporter",
     "import": "Importer",
     "settings": "Paramètres",
-    "help": "Aide"
+    "help": "Aide",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "noResults": "Aucun résultat trouvé",
+    "noRelated": "Aucun élément associé",
+    "searching": "Recherche en cours...",
+    "retry": "Réessayer"
+  },
+  "cockpit": {
+    "searchPlaceholder": "Rechercher n'importe quoi...",
+    "openSearch": "Ouvrir la recherche (appuyez sur Command+K ou Control+K)",
+    "smartSearch": {
+      "placeholder": "Rechercher clients, fournisseurs, commandes...",
+      "noResults": "Aucun résultat trouvé",
+      "noRelated": "Aucun élément associé",
+      "searching": "Recherche en cours...",
+      "loadingContext": "Chargement du contexte de l'enregistrement..."
+    }
+  },
+  "forms": {
+    "selectAForm": "Sélectionner un Formulaire",
+    "searchForms": "Rechercher des formulaires...",
+    "loadingForms": "Chargement des formulaires...",
+    "noFormsMatch": "Aucun formulaire ne correspond à votre recherche",
+    "noForms": "Aucun formulaire disponible",
+    "selectForm": "Sélectionner le Formulaire",
+    "submissions": "{{count}} soumissions"
+  },
+  "aiPanel": {
+    "title": "Suggestions IA",
+    "analyzing": "Analyse du flux en cours...",
+    "suggestions": "Prochaines étapes intelligentes pour votre flux",
+    "buildWorkflow": "Construisez votre flux pour voir des suggestions",
+    "addNodes": "Ajoutez des nœuds à votre flux pour obtenir des suggestions intelligentes",
+    "retry": "Réessayer",
+    "mode": {
+      "ai": "IA",
+      "static": "Statique",
+      "cached": "En cache"
+    }
+  },
+  "mobile": {
+    "login": {
+      "title": "ProjectMeats",
+      "subtitle": "Plateforme Multi-Locataire",
+      "username": "Nom d'utilisateur ou E-mail",
+      "password": "Mot de passe",
+      "signIn": "Se connecter",
+      "signingIn": "Connexion en cours...",
+      "loginFailed": "Échec de connexion",
+      "fillFields": "Veuillez remplir tous les champs",
+      "invalidCredentials": "Identifiants invalides"
+    },
+    "home": {
+      "dashboard": "Tableau de bord",
+      "quickActions": "Actions rapides",
+      "loadingDashboard": "Chargement du tableau de bord...",
+      "logout": "Déconnexion",
+      "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter?",
+      "switchOrg": "Changer d'organisation",
+      "switchConfirm": "Voulez-vous passer à une autre organisation?",
+      "switchBtn": "Changer",
+      "cancel": "Annuler",
+      "comingSoon": "Bientôt disponible",
+      "featureSoon": "Cette fonctionnalité sera disponible prochainement.",
+      "nextUpdate": "La gestion de {{entity}} sera disponible dans la prochaine mise à jour.",
+      "createOrder": "Créer une commande",
+      "viewReports": "Voir les rapports",
+      "aiAssistant": "Assistant IA",
+      "customers": "Clients",
+      "suppliers": "Fournisseurs",
+      "contacts": "Contacts",
+      "plants": "Usines",
+      "carriers": "Transporteurs",
+      "welcome": "Bienvenue, {{name}}",
+      "trialAccount": "COMPTE D'ESSAI"
+    }
   }
 }

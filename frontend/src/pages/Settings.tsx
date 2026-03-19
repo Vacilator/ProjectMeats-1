@@ -7,6 +7,7 @@ import { ChromePicker, ColorResult } from 'react-color';
 import { extractBrandColors, rgbToHex, hexToRgb } from '../utils/themeUtils';
 import { injectTenantColors } from '../config/theme';
 import { getRuntimeConfig } from '../config/runtime';
+import { IntegrationsSection } from '../components/Integrations/IntegrationsSection';
 
 // Renamed to avoid collision with component name (ESLint no-redeclare warning)
 interface UserSettings {
@@ -533,6 +534,9 @@ const Settings: React.FC = () => {
             </SettingGroup>
           </SettingsSection>
         )}
+
+        {/* Email Integrations Section */}
+        <IntegrationsSection />
 
         {/* Notification Settings */}
         <SettingsSection>

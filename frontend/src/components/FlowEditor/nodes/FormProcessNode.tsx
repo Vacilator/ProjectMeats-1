@@ -202,6 +202,7 @@ const ContainerBody = styled.div<{ isExpanded: boolean }>`
   min-height: ${props => props.isExpanded ? '350px' : 'auto'};
   min-width: 300px;
   position: relative;
+  overflow: ${props => props.isExpanded ? 'visible' : 'hidden'};
   
   /* CRITICAL: When expanded, container body must NOT block drop events */
   /* Drop events need to reach the ReactFlow component's drop zone */

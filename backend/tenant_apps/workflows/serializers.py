@@ -687,6 +687,9 @@ class ActionItemSerializer(serializers.Serializer):
     assigned_at = serializers.DateTimeField()
     entity_type = serializers.CharField(required=False)
     entity_id = serializers.UUIDField(required=False)
+    # Optional PO value fields used by the frontend urgency × value sort matrix
+    related_po_value = serializers.FloatField(required=False, allow_null=True)
+    related_po_currency = serializers.CharField(required=False, allow_null=True)
 
 
 class ActionItemCountsSerializer(serializers.Serializer):

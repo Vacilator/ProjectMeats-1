@@ -1,17 +1,20 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: February 27, 2026  
+**Last Updated**: March 18, 2026  
 **Status**: ✅ ALL SYSTEMS COMPLIANT
 
 ---
 
 ## PostgreSQL Row-Level Security (RLS) Status
 
-### Audit Date: February 27, 2026 16:50 UTC
+### Latest Audit: March 18, 2026
 
-**Auditor**: Automated CI/CD Pipeline (ops-db-surgery workflow)  
-**Audit Run**: [#22495330666](https://github.com/Meats-Central/ProjectMeats/actions/runs/22495330666)  
+**Previous Audit**: February 27, 2026 16:50 UTC  
+**Previous Audit Run**: [#22495330666](https://github.com/Meats-Central/ProjectMeats/actions/runs/22495330666)  
 **Verification Method**: PostgreSQL system catalog query (`pg_class.relrowsecurity`)
+
+**Phase**: RLS Hardening (Issue #3) – Medium/Low Priority Tables  
+**Change**: Added RLS policies for remaining 8 tables (fulfillments, inquiries, customers, sales_orders, suppliers, products, plants). Upgraded legacy `app.current_tenant_id` policies to modern `app.current_tenant` pattern.
 
 ---
 
@@ -45,33 +48,54 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
-## Financial Module (4 tables) - ✅ 100% COMPLIANT
+## Financial Module (7 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
-| `invoices_invoice` | ✅ | `0003_refactor_to_tenantaware` | Feb 27, 2026 00:36 UTC |
-| `claims_claim` | ✅ | `0003_refactor_to_tenantaware` | Feb 27, 2026 00:36 UTC |
-| `payments_paymenttransaction` | ✅ | `0002_refactor_to_tenantaware` | Feb 27, 2026 00:36 UTC |
-| `contacts_contact` | ✅ | `0006_refactor_to_tenantaware` | Feb 27, 2026 00:36 UTC |
-
-**Deployment**: [Run #22492923027](https://github.com/Meats-Central/ProjectMeats/actions/runs/22492923027)  
-**PR**: [#3308](https://github.com/Meats-Central/ProjectMeats/pull/3308)
+| `invoices_invoice` | ✅ | `invoices/0011_refactor_invoices_to_tenantaware` | Feb 27, 2026 00:36 UTC |
+| `invoices_claim` | ✅ | `invoices/0011_refactor_invoices_to_tenantaware` | Feb 27, 2026 00:36 UTC |
+| `invoices_paymenttransaction` | ✅ | `invoices/0011_refactor_invoices_to_tenantaware` | Feb 27, 2026 00:36 UTC |
+| `contacts_contact` | ✅ | `contacts/0004_refactor_contact_to_tenantaware` | Feb 27, 2026 00:36 UTC |
+| `customers_customer` | ✅ | `customers/0010_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
+| `inquiries_inquiry` | ✅ | `inquiries/0004_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
+| `inquiries_inquirytemplate` | ✅ | `inquiries/0004_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
 
 ---
 
-## Logistics Module (4 tables) - ✅ 100% COMPLIANT
+## Logistics Module (8 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
-| `purchase_orders_purchaseorder` | ✅ | `0004_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
-| `purchase_orders_carrierpurchaseorder` | ✅ | `0004_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
-| `purchase_orders_coldstorageentry` | ✅ | `0004_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
-| `locations_location` | ✅ | `0003_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
-| `locations_locationassociatedproduct` | ✅ | `0008_locationassociatedproduct_and_more` | Mar 15, 2026 18:21 UTC |
-| `plants_plantassociatedproduct` | ✅ | `0008_plantassociatedproduct_plant_associated_products_and_more` | Mar 15, 2026 18:21 UTC |
+| `purchase_orders_purchaseorder` | ✅ | `purchase_orders/0013_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
+| `purchase_orders_carrierpurchaseorder` | ✅ | `purchase_orders/0013_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
+| `purchase_orders_coldstorageentry` | ✅ | `purchase_orders/0013_refactor_to_tenantaware` | Feb 27, 2026 00:45 UTC |
+| `locations_location` | ✅ | `locations/0002_enable_rls_locations` | Feb 27, 2026 00:45 UTC |
+| `locations_locationassociatedproduct` | ✅ | `locations/0008_locationassociatedproduct_and_more` | Mar 15, 2026 18:21 UTC |
+| `plants_plantassociatedproduct` | ✅ | `plants/0008_plantassociatedproduct_plant_associated_products_and_more` | Mar 15, 2026 18:21 UTC |
+| `fulfillments_fulfillment` | ✅ | `fulfillments/0003_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
+| `sales_orders_salesorder` | ✅ | `sales_orders/0013_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
 
-**Deployment**: [Run #22493063831](https://github.com/Meats-Central/ProjectMeats/actions/runs/22493063831)  
-**PR**: [#3310](https://github.com/Meats-Central/ProjectMeats/pull/3310)
+---
+
+## Core Business Module (4 tables) - ✅ 100% COMPLIANT
+
+| Table Name | RLS Enabled | Migration | Deployment Date |
+|------------|-------------|-----------|-----------------|
+| `suppliers_supplier` | ✅ | `suppliers/0012_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
+| `products_product` | ✅ | `products/0007_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
+| `plants_plant` | ✅ | `plants/0009_add_rls_policies_batch` | Mar 18, 2026 (Issue #3) |
+| `carriers_carrier` | ✅ | `carriers/0006_add_rls_policies_batch` | Mar 18, 2026 |
+
+---
+
+## Support Module (4 tables) - ✅ 100% COMPLIANT
+
+| Table Name | RLS Enabled | Migration | Deployment Date |
+|------------|-------------|-----------|-----------------|
+| `cockpit_activitylog` | ✅ | `cockpit/0006_add_rls_policies_batch` | Mar 18, 2026 |
+| `cockpit_scheduledcall` | ✅ | `cockpit/0006_add_rls_policies_batch` | Mar 18, 2026 |
+| `bug_reports_bugreport` | ✅ | `bug_reports/0005_add_rls_policies_batch` | Mar 18, 2026 |
+| `ai_assistant_configurations` | ✅ | `ai_assistant/0005_add_rls_policies_batch` | Mar 18, 2026 |
 
 ---
 
@@ -80,9 +104,11 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | Module | Tables | RLS Policies | Status |
 |--------|--------|--------------|--------|
 | **Workflows** | 17 | 17 | ✅ COMPLIANT |
-| **Financial** | 4 | 8 (2 per table) | ✅ COMPLIANT |
-| **Logistics** | 4 | 8 (2 per table) | ✅ COMPLIANT |
-| **TOTAL** | **25** | **33** | ✅ **100% COMPLIANT** |
+| **Financial** | 7 | 14 (2 per table) | ✅ COMPLIANT |
+| **Logistics** | 8 | 16 (2 per table) | ✅ COMPLIANT |
+| **Core Business** | 4 | 8 (2 per table) | ✅ COMPLIANT |
+| **Support** | 4 | 4 | ✅ COMPLIANT |
+| **TOTAL** | **40** | **59** | ✅ **100% COMPLIANT** |
 
 ---
 

@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Drawer, Button, Spin } from 'antd';
-import { Calculator, Mail, PinOff, Search } from 'lucide-react';
+import { Calculator, Mail, PinOff, Search, Settings } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { useCockpitPinnedTools } from '../../contexts/CockpitPinnedToolsContext';
+import { useQuickActions } from '../../contexts/QuickActionsContext';
+import { notify } from '../../utils/notify';
 import { businessApi } from '../../services/businessApi';
 import {
   ActionItemsWidget,
@@ -104,6 +106,7 @@ export const PinnedToolsBar: React.FC = () => {
   const location = useLocation();
   const { path } = useCockpitNavigation();
   const { pinned, unpin } = useCockpitPinnedTools();
+  const { quickActions, availableForms, openFormModal, openEditor } = useQuickActions();
 
   const isCockpit = location.pathname.startsWith('/cockpit');
   const activeRecord = path[path.length - 1];
@@ -119,21 +122,25 @@ export const PinnedToolsBar: React.FC = () => {
 
   const openBuiltin = useMemo(() => {
     if (!openPinnedId) return null;
-    if (openPinnedId === 'tool:record') return { id: openPinnedId, title: 'Record Context', icon: <Search size={14} /> };
-    if (openPinnedId === 'tool:email') return { id: openPinnedId, title: 'Email Drafter', icon: <Mail size={14} /> };
-    if (openPinnedId === 'tool:quote') return { id: openPinnedId, title: 'Smart Quote', icon: <Calculator size={14} /> };
+    if (openPinnedId === 'tool:record') {
+      return { id: openPinnedId, title: 'Record Context', icon: <Search size={14} /> };
+    }
     return null;
   }, [openPinnedId]);
 
   const loadActiveRecord = useCallback(async () => {
-    if (!activeRecord) return;
+    if (!activeRecord) return null;
     setRecordLoading(true);
     try {
-      const resp = await businessApi.get(`/system/entities/${encodeURIComponent(activeRecord.type)}/${encodeURIComponent(String(activeRecord.id))}/`);
+      const resp = await businessApi.get(
+        `/system/entities/${encodeURIComponent(activeRecord.type)}/${encodeURIComponent(String(activeRecord.id))}/`
+      );
       setRecordDetail(resp.data);
+      return resp.data;
     } catch (e) {
       console.warn('[PinnedToolsBar] Failed to load active record context:', e);
       setRecordDetail(null);
+      return null;
     } finally {
       setRecordLoading(false);
     }
@@ -145,19 +152,79 @@ export const PinnedToolsBar: React.FC = () => {
     }
   }, [openPinnedId, activeRecord, loadActiveRecord]);
 
+  const runTool = useCallback(
+    async (tool: 'email' | 'quote') => {
+      if (!activeRecord) return;
+
+      // Ensure we have the full record detail so we can pass context to the runner
+      const detail = recordDetail ?? (recordLoading ? null : await loadActiveRecord());
+
+      try {
+        sessionStorage.setItem(
+          'pm.activeRecordContext',
+          JSON.stringify({
+            activeRecord,
+            recordDetail: detail,
+          })
+        );
+      } catch (e) {
+        console.warn('[PinnedToolsBar] Failed to persist active record context:', e);
+      }
+
+      const desiredLabel = tool === 'email' ? 'Email Drafter' : 'Smart Quote';
+      const quickAction = quickActions.find(
+        (a) => a.type === 'form' && a.form_id && a.label?.toLowerCase() === desiredLabel.toLowerCase()
+      );
+      const fallbackForm = availableForms.find(
+        (f) => f.id && f.name?.toLowerCase() === desiredLabel.toLowerCase()
+      );
+
+      const formId = quickAction?.form_id ?? fallbackForm?.id ?? null;
+      if (!formId) {
+        notify.error(
+          `No form configured for “${desiredLabel}”. Click Configure Tools to add a Quick Action with that label.`
+        );
+        openEditor();
+        return;
+      }
+
+      await openFormModal(formId);
+    },
+    [
+      activeRecord,
+      availableForms,
+      loadActiveRecord,
+      openEditor,
+      openFormModal,
+      quickActions,
+      recordDetail,
+      recordLoading,
+    ]
+  );
+
   useEffect(() => {
     if (!isCockpit) return;
 
     const handleOpenTool = (event: Event) => {
       const toolId = (event as CustomEvent<{ toolId?: string }>).detail?.toolId;
-      if (typeof toolId === 'string' && toolId.length > 0) {
-        setOpenPinnedId(toolId);
+      if (typeof toolId !== 'string' || toolId.length === 0) return;
+
+      if (toolId === 'tool:email') {
+        void runTool('email');
+        return;
       }
+
+      if (toolId === 'tool:quote') {
+        void runTool('quote');
+        return;
+      }
+
+      setOpenPinnedId(toolId);
     };
 
     window.addEventListener('pm:open-tool', handleOpenTool as EventListener);
     return () => window.removeEventListener('pm:open-tool', handleOpenTool as EventListener);
-  }, [isCockpit]);
+  }, [isCockpit, runTool]);
 
   if (!isCockpit) return null;
 
@@ -177,8 +244,7 @@ export const PinnedToolsBar: React.FC = () => {
           <Search size={16} />
         </ToolButton>
         <ToolButton
-          $active={openPinnedId === 'tool:email'}
-          onClick={() => setOpenPinnedId(openPinnedId === 'tool:email' ? null : 'tool:email')}
+          onClick={() => void runTool('email')}
           title="Email Drafter"
           aria-label="Email Drafter"
           disabled={!activeRecord}
@@ -186,8 +252,7 @@ export const PinnedToolsBar: React.FC = () => {
           <Mail size={16} />
         </ToolButton>
         <ToolButton
-          $active={openPinnedId === 'tool:quote'}
-          onClick={() => setOpenPinnedId(openPinnedId === 'tool:quote' ? null : 'tool:quote')}
+          onClick={() => void runTool('quote')}
           title="Smart Quote"
           aria-label="Smart Quote"
           disabled={!activeRecord}
@@ -206,6 +271,14 @@ export const PinnedToolsBar: React.FC = () => {
             📌
           </ToolButton>
         ))}
+
+        <ToolButton
+          onClick={openEditor}
+          title="Configure Tools"
+          aria-label="Configure Tools"
+        >
+          <Settings size={16} />
+        </ToolButton>
 
         {activeRecord && <ToolLabel>Active: {activeRecord.label}</ToolLabel>}
       </Row>
@@ -239,14 +312,6 @@ export const PinnedToolsBar: React.FC = () => {
               {JSON.stringify(recordDetail, null, 2)}
             </pre>
           )
-        ) : openPinnedId === 'tool:email' ? (
-          <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
-            Drafting from active record: <b>{activeRecord?.label}</b>. (Template + rules TBD.)
-          </div>
-        ) : openPinnedId === 'tool:quote' ? (
-          <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
-            Smart Quote for: <b>{activeRecord?.label}</b>. (Formula TBD.)
-          </div>
         ) : (
           <div style={{ color: 'rgb(var(--color-text-tertiary))' }}>No content</div>
         )}
