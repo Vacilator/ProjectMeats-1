@@ -201,7 +201,7 @@ export function useContainerManagement(): ContainerManagementResult {
               y: node.position.y - containerNode.position.y,
             },
             // Set parent reference
-            parentNode: containerId,
+            parentId: containerId,
             extent: 'parent' as const,
           };
         }
@@ -247,7 +247,7 @@ export function useContainerManagement(): ContainerManagementResult {
 
             return {
               ...node,
-              parentNode: containerNodeId,
+              parentId: containerNodeId,
               extent: 'parent' as const,
               position: {
                 x: node.position.x - containerNode.position.x,
@@ -288,13 +288,13 @@ export function useContainerManagement(): ContainerManagementResult {
           }
 
           // Update child nodes (make absolute again)
-          if (nodeIds.includes(node.id) && node.parentNode === containerNodeId) {
+          if (nodeIds.includes(node.id) && node.parentId === containerNodeId) {
             const containerNode = nodes.find((n) => n.id === containerNodeId);
             if (!containerNode) return node;
 
             return {
               ...node,
-              parentNode: undefined,
+              parentId: undefined,
               extent: undefined,
               position: {
                 x: node.position.x + containerNode.position.x,
@@ -325,10 +325,10 @@ export function useContainerManagement(): ContainerManagementResult {
         return nodes
           .filter((node) => node.id !== containerNodeId)
           .map((node) => {
-            if (node.parentNode === containerNodeId) {
+            if (node.parentId === containerNodeId) {
               return {
                 ...node,
-                parentNode: undefined,
+                parentId: undefined,
                 extent: undefined,
                 position: {
                   x: node.position.x + containerNode.position.x,
@@ -354,7 +354,7 @@ export function useContainerManagement(): ContainerManagementResult {
           return nodes;
         }
 
-        const children = nodes.filter((n) => n.parentNode === containerNodeId);
+        const children = nodes.filter((n) => n.parentId === containerNodeId);
         if (children.length === 0) {
           return nodes;
         }
