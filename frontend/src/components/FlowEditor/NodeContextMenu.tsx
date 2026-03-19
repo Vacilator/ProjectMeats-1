@@ -44,6 +44,10 @@ export interface ContextMenuProps {
   onClose: () => void;
   /** Callback to edit node configuration */
   onEdit?: (nodeId: string) => void;
+  /** Callback to duplicate node (centralized in editor) */
+  onDuplicate?: (nodeId: string) => void;
+  /** Callback to delete node (centralized in editor) */
+  onDelete?: (nodeId: string) => void | Promise<void>;
 }
 
 export interface ContextMenuAction {
@@ -174,7 +178,7 @@ const MenuHeader = styled.div`
  * 
  * @param props - Context menu properties
  */
-export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose, onEdit }) => {
+export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClose, onEdit, onDuplicate, onDelete }) => {
   const { setNodes, getNode, getNodes, getEdges, getViewport } = useReactFlow();
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x, y, flipX: false, flipY: false });
@@ -311,11 +315,18 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
    */
   const handleDuplicateContainer = useCallback(() => {
     if (!node) return;
-    
-    const childNodes = getNodes().filter(n => n.parentId === node.id);
+
+    // Prefer centralized duplicate logic from UnifiedFlowEditor (deep clone + child handling)
+    if (onDuplicate) {
+      onDuplicate(node.id);
+      onClose();
+      return;
+    }
+
+    const childNodes = getNodes().filter((n) => n.parentId === node.id);
     const containerId = `container-${Date.now()}`;
-    
-    // Duplicate container
+
+    // Fallback: Duplicate container
     const duplicatedContainer: Node = {
       ...node,
       id: containerId,
@@ -329,18 +340,18 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       },
       selected: false,
     };
-    
-    // Duplicate children
+
+    // Fallback: Duplicate children
     const duplicatedChildren = childNodes.map((child, index) => ({
       ...child,
       id: `${containerId}-step-${index}`,
       parentId: containerId,
       selected: false,
     }));
-    
+
     setNodes((nodes) => [...nodes, duplicatedContainer, ...duplicatedChildren]);
     onClose();
-  }, [node, getNodes, setNodes, onClose]);
+  }, [node, getNodes, setNodes, onClose, onDuplicate]);
   
   /**
    * Convert container to sub-flow (placeholder)
@@ -437,31 +448,44 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
    */
   const handleDelete = useCallback(() => {
     if (!node) return;
-    
-    const isContainer = node.type === 'formProcessGroup' || 
-                       node.type === 'formProcess' || 
-                       node.type === 'formMultiStepContainer';
-    
-    if (isContainer) {
-      // Delete container and all children
-      const childNodes = getNodes().filter(n => n.parentId === node.id);
-      const idsToDelete = [node.id, ...childNodes.map(n => n.id)];
-      
-      setNodes((nodes) => nodes.filter(n => !idsToDelete.includes(n.id)));
-    } else {
-      // Delete single node
-      setNodes((nodes) => nodes.filter(n => n.id !== node.id));
+
+    // Prefer centralized delete logic from UnifiedFlowEditor (ensures edge cleanup + ghost cleanup)
+    if (onDelete) {
+      void onDelete(node.id);
+      onClose();
+      return;
     }
-    
+
+    const isContainer =
+      node.type === 'formProcessGroup' || node.type === 'formProcess' || node.type === 'formMultiStepContainer';
+
+    if (isContainer) {
+      // Fallback: Delete container and all children
+      const childNodes = getNodes().filter((n) => n.parentId === node.id);
+      const idsToDelete = [node.id, ...childNodes.map((n) => n.id)];
+
+      setNodes((nodes) => nodes.filter((n) => !idsToDelete.includes(n.id)));
+    } else {
+      // Fallback: Delete single node
+      setNodes((nodes) => nodes.filter((n) => n.id !== node.id));
+    }
+
     onClose();
-  }, [node, getNodes, setNodes, onClose]);
+  }, [node, getNodes, setNodes, onClose, onDelete]);
   
   /**
    * Copy node
    */
   const handleCopy = useCallback(() => {
     if (!node) return;
-    
+
+    // Prefer centralized duplicate logic from UnifiedFlowEditor (deep clone)
+    if (onDuplicate) {
+      onDuplicate(node.id);
+      onClose();
+      return;
+    }
+
     const copiedNode: Node = {
       ...node,
       id: `node-${Date.now()}`,
@@ -475,10 +499,10 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       },
       selected: false,
     };
-    
+
     setNodes((nodes) => [...nodes, copiedNode]);
     onClose();
-  }, [node, setNodes, onClose]);
+  }, [node, setNodes, onClose, onDuplicate]);
   
   /**
    * Extract from container
@@ -641,9 +665,9 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       
       {!isContainer && (
         <>
-          <MenuItem onClick={handleCopy} role="menuitem" aria-label="Copy node">
+          <MenuItem onClick={handleCopy} role="menuitem" aria-label="Duplicate node">
             <Copy size={16} aria-hidden="true" />
-            <span>Copy Node</span>
+            <span>Duplicate Node</span>
           </MenuItem>
           <MenuSeparator />
         </>

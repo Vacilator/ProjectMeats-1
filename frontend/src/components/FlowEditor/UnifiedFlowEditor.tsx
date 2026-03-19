@@ -1856,6 +1856,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
+
+  // Keep ref to current edges for stable callbacks
+  const edgesRef = useRef<Edge[]>(edges);
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
   
   // Selected node state (moved here to fix TDZ - used in useMemo at line ~1917)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -3159,13 +3165,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const onNodesDelete = useCallback(async (deletedNodes: Node[]) => {
+    const deletedIds = new Set<string>(deletedNodes.map((n) => n.id));
+
+    // If a container is deleted, include all descendants (parentId chain) so we can clean edges robustly.
+    const snapshot = nodesRef.current;
+    const queue = Array.from(deletedIds);
+
+    while (queue.length > 0) {
+      const parentId = queue.pop()!;
+      for (const n of snapshot) {
+        if (n.parentId === parentId && !deletedIds.has(n.id)) {
+          deletedIds.add(n.id);
+          queue.push(n.id);
+        }
+      }
+    }
+
+    // Aggressive edge cleanup: remove any edge referencing any deleted node (parents or children)
+    setEdges((eds) => eds.filter((e) => !deletedIds.has(e.source) && !deletedIds.has(e.target)));
+
+    // Ghost cleanup
     for (const node of deletedNodes) {
-      // Check if this is a container node with a tenantFormId
       if (node.type === 'formMultiStepContainer' && node.data.tenantFormId) {
         try {
           const result = await workformsApi.decrementFormUsage(node.data.tenantFormId);
           logger.debug(`[Ghost Cleanup] ✅ Decremented usage for container: ${result.usage_count} remaining`);
-          
+
           if (result.can_delete) {
             logger.debug('[Ghost Cleanup] 🗑️ Form is now orphaned (usage_count=0). Will be cleaned up by background task.');
           }
@@ -3174,7 +3199,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         }
       }
     }
-  }, []);
+  }, [setEdges]);
 
   // ============================================================================
   // Drag & Drop Handlers
@@ -5279,18 +5304,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       toast.error('Cannot delete node: Invalid state');
       return;
     }
-    
-    const nodeToDelete = nodes.find(n => n.id === nodeId);
+
+    const nodeToDelete = nodes.find((n) => n.id === nodeId);
     if (!nodeToDelete) {
       toast.warning('Node not found');
       return;
     }
-    
+
+    // Include descendants so edges can be cleaned in one pass.
+    const idsToDelete = new Set<string>([nodeId]);
+    const queue = [nodeId];
+
+    while (queue.length > 0) {
+      const parentId = queue.pop()!;
+      for (const n of nodes) {
+        if (n.parentId === parentId && !idsToDelete.has(n.id)) {
+          idsToDelete.add(n.id);
+          queue.push(n.id);
+        }
+      }
+    }
+
     try {
       // Phase 2: Decrement usage_count when formProcess node is deleted
       if (nodeToDelete.type === 'formProcess' || nodeToDelete.type === 'formMultiStepContainer') {
         const tenantFormId = nodeToDelete.data?.tenantFormId;
-        
+
         if (tenantFormId) {
           try {
             await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
@@ -5299,35 +5338,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             // Continue with deletion even if API call fails
           }
         }
-        
-        // If deleting a container, also remove its children
-        const childNodeIds = new Set(
-          nodes.filter(n => n.parentId === nodeId).map(n => n.id)
-        );
-        
-        if (childNodeIds.size > 0) {
-          setNodes(nds => nds.filter(n => 
-            n.id !== nodeId && !childNodeIds.has(n.id)
-          ));
-        } else {
-          setNodes(nds => nds.filter(n => n.id !== nodeId));
-        }
-      } else {
-        // Remove node normally
-        setNodes(nds => nds.filter(n => n.id !== nodeId));
       }
-      
-      // Remove connected edges
-      setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
-      
+
+      setNodes((nds) => nds.filter((n) => !idsToDelete.has(n.id)));
+      setEdges((eds) => eds.filter((e) => !idsToDelete.has(e.source) && !idsToDelete.has(e.target)));
+
       // Clear selections if deleted node was selected
-      if (selectedNode?.id === nodeId) {
+      if (selectedNode?.id && idsToDelete.has(selectedNode.id)) {
         setSelectedNode(null);
       }
-      
+
       setHasUnsavedChanges(true);
       toast.success('Node deleted');
-      logger.debug('[UnifiedFlowEditor] Node deleted successfully:', nodeId);
+      logger.debug('[UnifiedFlowEditor] Node deleted successfully:', { nodeId, deletedCount: idsToDelete.size });
     } catch (error) {
       logger.error('[FlowEditor] Delete failed:', error);
       toast.error('Failed to delete node');
@@ -5360,7 +5383,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [setNodes]);
 
   const handleNodeUpdate = useCallback((nodeId: string, newData: Record<string, any>) => {
-    setNodes((nds) => 
+    setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
           return {
@@ -5374,6 +5397,130 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug(`Node ${nodeId} updated:`, newData);
     setHasUnsavedChanges(true);
   }, [setNodes]);
+
+  const handleNodeDataUpdate = useCallback((nodeId: string, updates: any) => {
+    logger.debug('[UnifiedFlowEditor] Syncing FormBuilder updates:', { nodeId, updates });
+    handleNodeUpdate(nodeId, updates);
+  }, [handleNodeUpdate]);
+
+  const duplicateNode = useCallback((nodeId: string) => {
+    const snapshot = nodesRef.current;
+    const edgesSnapshot = edgesRef.current;
+
+    const original = snapshot.find((n) => n.id === nodeId);
+    if (!original) return;
+
+    const generateId = (prefix: string) => {
+      const uuid =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? (crypto as any).randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      return `${prefix}-${uuid}`;
+    };
+
+    const stripFunctions = (value: any): any => {
+      if (Array.isArray(value)) return value.map(stripFunctions);
+      if (!value || typeof value !== 'object') return value;
+
+      const out: any = {};
+      for (const [k, v] of Object.entries(value)) {
+        if (typeof v === 'function') continue;
+        out[k] = stripFunctions(v);
+      }
+      return out;
+    };
+
+    const safeClone = <T,>(value: T): T => {
+      try {
+        return structuredClone(value);
+      } catch {
+        return JSON.parse(JSON.stringify(value));
+      }
+    };
+
+    const isContainer = original.type === 'formProcessGroup';
+
+    const toCloneIds: string[] = [original.id];
+    if (isContainer) {
+      const queue = [original.id];
+      const seen = new Set<string>(toCloneIds);
+
+      while (queue.length > 0) {
+        const parentId = queue.pop()!;
+        for (const n of snapshot) {
+          if (n.parentId === parentId && !seen.has(n.id)) {
+            seen.add(n.id);
+            toCloneIds.push(n.id);
+            queue.push(n.id);
+          }
+        }
+      }
+    }
+
+    const idMap = new Map<string, string>();
+    for (const oldId of toCloneIds) {
+      const prefix = oldId === original.id && isContainer ? 'container' : 'node';
+      idMap.set(oldId, generateId(prefix));
+    }
+
+    const clonedNodes: Node[] = [];
+    for (const oldId of toCloneIds) {
+      const src = snapshot.find((n) => n.id === oldId);
+      if (!src) continue;
+
+      const sanitized = stripFunctions(src);
+      const cloned = safeClone(sanitized) as Node;
+
+      // Ensure fresh IDs, positions, and no selection carryover
+      cloned.id = idMap.get(oldId)!;
+      cloned.selected = false;
+      (cloned as any).dragging = false;
+      delete (cloned as any).measured;
+
+      cloned.position = {
+        x: src.position.x + 50,
+        y: src.position.y + 50,
+      };
+
+      if (src.parentId) {
+        cloned.parentId = idMap.get(src.parentId) ?? src.parentId;
+      }
+
+      // Ensure duplicated children re-parent to the duplicated container
+      if (isContainer && src.parentId === original.id) {
+        cloned.parentId = idMap.get(original.id)!;
+      }
+
+      clonedNodes.push(cloned);
+    }
+
+    // Clone internal edges when duplicating a container
+    const clonedEdges: Edge[] = [];
+    if (isContainer) {
+      const cloneIdSet = new Set(toCloneIds);
+      const internalEdges = edgesSnapshot.filter(
+        (e) => cloneIdSet.has(e.source) && cloneIdSet.has(e.target)
+      );
+
+      for (const e of internalEdges) {
+        const sanitized = stripFunctions(e);
+        const cloned = safeClone(sanitized) as Edge;
+
+        cloned.id = generateId('edge');
+        cloned.source = idMap.get(e.source) ?? e.source;
+        cloned.target = idMap.get(e.target) ?? e.target;
+        (cloned as any).selected = false;
+
+        clonedEdges.push(cloned);
+      }
+    }
+
+    setNodes((nds) => [...nds, ...clonedNodes]);
+    if (clonedEdges.length > 0) {
+      setEdges((eds) => [...eds, ...clonedEdges]);
+    }
+    setHasUnsavedChanges(true);
+  }, [setEdges, setNodes]);
 
   // Phase 4.2.B: FormStep-specific handlers
   const handleFormStepUpdate = useCallback((updatedStepData: any) => {
@@ -5732,6 +5879,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange, handleSaveWorkflow]);
 
   return (
+    <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
     <FlowEditorProvider
       tenantLists={tenantLists}
       availableFields={selectedFormStep?.data?.fields || []}
@@ -6429,6 +6577,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             handleCloseMenu();
             handleNodeEdit(nodeId);
           }}
+          onDuplicate={(nodeId) => {
+            handleCloseMenu();
+            duplicateNode(nodeId);
+          }}
+          onDelete={async (nodeId) => {
+            handleCloseMenu();
+            await handleNodeDelete(nodeId);
+          }}
         />
       )}
       
@@ -7019,6 +7175,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       />
       </EditorContainer>
     </FlowEditorProvider>
+    </FormBuilderProvider>
   );
 };
 
@@ -7156,13 +7313,6 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
 // ============================================================================
 
 export const UnifiedFlowEditor: React.FC<UnifiedFlowEditorProps> = (props) => {
-  // Handler for node data updates from FormBuilder
-  const handleNodeDataUpdate = useCallback((nodeId: string, updates: any) => {
-    logger.debug('[UnifiedFlowEditor] Node data updated from FormBuilder:', { nodeId, updates });
-    // This will be called by FormBuilder context when data changes
-    // The actual state update happens inside UnifiedFlowEditorInner via setNodes
-  }, []);
-
   return (
     <ErrorBoundary 
       componentName="Workforms Editor"
@@ -7171,9 +7321,7 @@ export const UnifiedFlowEditor: React.FC<UnifiedFlowEditorProps> = (props) => {
       }}
     >
       <ReactFlowProvider>
-        <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
-          <UnifiedFlowEditorInner {...props} />
-        </FormBuilderProvider>
+        <UnifiedFlowEditorInner {...props} />
       </ReactFlowProvider>
     </ErrorBoundary>
   );
