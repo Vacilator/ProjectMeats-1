@@ -25,15 +25,35 @@ export type FormNodeData = {
 
 const Page = styled.div<{ $selected: boolean }>`
   position: relative;
-  min-width: 240px;
-  max-width: 340px;
-  min-height: 260px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  min-height: 300px;
   background: rgb(var(--color-surface));
   border-radius: 10px;
   border: 1px solid rgb(var(--color-border));
   box-shadow: 0 4px 14px rgb(var(--color-text-primary) / 0.08);
   overflow: hidden;
   transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+
+  /* Subtle "ripped page" hint along the bottom edge */
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 10px;
+    background:
+      linear-gradient(
+        135deg,
+        transparent 0,
+        transparent 6px,
+        rgb(var(--color-surface)) 6px
+      );
+    opacity: 0.6;
+    pointer-events: none;
+  }
 
   ${(p) =>
     p.$selected
@@ -94,10 +114,47 @@ const Body = styled.div`
   background: rgb(var(--color-surface));
 `;
 
-const FieldPreview = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+const PreviewCard = styled.div`
+  padding: 12px;
+  background: rgb(var(--color-background-secondary));
+  border-radius: 6px;
+  margin-top: 12px;
+`;
+
+const PreviewTitle = styled.div`
+  font-size: 10px;
+  font-weight: 700;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+`;
+
+const PreviewFieldRow = styled.div`
+  margin-bottom: 8px;
+`;
+
+const PreviewFieldLabel = styled.div`
+  font-size: 11px;
+  color: rgb(var(--color-text-primary));
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const PreviewFieldBox = styled.div`
+  height: 24px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+`;
+
+const PreviewMore = styled.div`
+  font-size: 10px;
+  color: rgb(var(--color-text-secondary));
+  text-align: center;
+  margin-top: 2px;
 `;
 
 const InlineEditor = styled.div`
@@ -189,42 +246,6 @@ const AddFieldBtn = styled.button`
     color: rgb(var(--color-primary));
     background: rgba(var(--color-primary), 0.06);
   }
-`;
-
-const FieldStub = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 4px;
-  padding: 8px 8px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  background: rgb(var(--color-background));
-`;
-
-const FieldLabel = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
-const Required = styled.span`
-  font-size: 11px;
-  font-weight: 800;
-  color: rgb(var(--color-error));
-`;
-
-const MockBox = styled.div<{ $type?: string }>`
-  height: ${(p) => (p.$type === 'textarea' ? '16px' : '10px')};
-  border-radius: 4px;
-  background: rgb(var(--color-border));
-  opacity: 0.55;
 `;
 
 const Empty = styled.div`
@@ -411,22 +432,16 @@ export const FormNode: React.FC<NodeProps<FormNodeData>> = React.memo(({ id, dat
         ) : preview.length === 0 ? (
           <Empty>Click “Fields” in the config panel to add fields</Empty>
         ) : (
-          <FieldPreview>
-            {preview.map((f) => (
-              <FieldStub key={f.id}>
-                <FieldLabel title={f.label || f.id}>
-                  <span>{f.label || 'Untitled field'}</span>
-                  {f.required ? <Required>*</Required> : null}
-                </FieldLabel>
-                <MockBox $type={f.type} />
-              </FieldStub>
+          <PreviewCard aria-label="Field preview">
+            <PreviewTitle>Field Preview</PreviewTitle>
+            {(fields || []).slice(0, 4).map((field) => (
+              <PreviewFieldRow key={field.id}>
+                <PreviewFieldLabel title={field.label || field.id}>{field.label || 'Untitled field'}</PreviewFieldLabel>
+                <PreviewFieldBox />
+              </PreviewFieldRow>
             ))}
-            {(fields || []).length > 4 && (
-              <div style={{ fontSize: 11, color: 'rgb(var(--color-text-tertiary))', textAlign: 'center' }}>
-                + {(fields.length - 4)} more fields...
-              </div>
-            )}
-          </FieldPreview>
+            {(fields || []).length > 4 && <PreviewMore>+ {(fields.length - 4)} more fields...</PreviewMore>}
+          </PreviewCard>
         )}
       </Body>
 
