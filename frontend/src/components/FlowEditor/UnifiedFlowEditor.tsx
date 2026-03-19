@@ -101,7 +101,7 @@ import {
   Trash2, // Phase 8.3
   HelpCircle, // Workform Editor Enhancements
   Play, // Task 1: Workflow Execution
-  Map, // Sprint 1 Task 1.3: Minimap toggle
+  Map as MapIcon, // Sprint 1 Task 1.3: Minimap toggle
   Settings, // Sprint 1 Task 1.4: Background & Grid settings
 } from 'lucide-react';
 
@@ -6628,7 +6628,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             borderColor: 'rgb(var(--color-primary))'
           } : {}}
         >
-          <Map />
+          <MapIcon />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         {/* FIX: Wired Help button directly to Keyboard Shortcuts state */}
