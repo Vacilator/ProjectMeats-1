@@ -80,6 +80,7 @@ const SuggestionCard = styled.div<{ $score: number }>`
 
 const SuggestionContent = styled.div`
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -87,6 +88,7 @@ const SuggestionContent = styled.div`
 
 const FieldMapping = styled.div`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
@@ -111,6 +113,8 @@ const MatchInfo = styled.div`
 const Actions = styled.div`
   display: flex;
   gap: 0.5rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 `;
 
 const EmptyState = styled.div`
@@ -272,14 +276,22 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
                 type="primary"
                 size="small"
                 icon={<CheckOutlined />}
-                onClick={() => onAccept(suggestion)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onAccept(suggestion);
+                }}
               >
                 Apply
               </Button>
               <Button
                 size="small"
                 icon={<CloseOutlined />}
-                onClick={() => onReject(suggestion.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onReject(suggestion.id);
+                }}
               >
                 Reject
               </Button>
@@ -296,7 +308,11 @@ export const AutoMappingSuggestionsPanel: React.FC<AutoMappingSuggestionsProps> 
           <Button
             type="primary"
             icon={<ThunderboltOutlined />}
-            onClick={onApplyAll}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onApplyAll();
+            }}
           >
             Apply All Auto-Mappings ({autoSuggestions.length})
           </Button>
