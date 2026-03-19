@@ -24,6 +24,9 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - DynamicConfigPanel: when an entity is selected (entityType/eventEntity/entity), load entity fields via schemaService and include them in ConditionBuilder available fields.
   - Resolves empty ConditionBuilder dropdowns for Database Event trigger nodes.
 
+- 2026-03-19 — Fix: Catalog filtering shows hybrid WorkForms — Commit: TBD (PR: TBD)
+  - WorkForms Catalog: refactored filtering/classification to deeply inspect flow_data.nodes, correctly categorizing hybrid WorkForms (Form Process Groups) and pure workflows so user-created flows are not hidden.
+
 - 2026-03-19 — Fix: Workforms Editor UI/config/publish polish — Commit: 25a56157 (PR: #3629)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3629
   - DynamicConfigPanel: handle field.type=entityType and field.type=multiSelect to prevent "Unknown field type" rendering errors.

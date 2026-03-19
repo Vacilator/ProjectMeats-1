@@ -721,7 +721,7 @@ const FormsFlowsHistory: React.FC = () => {
           <EmptyMessage>
             {searchQuery || startDate || endDate
               ? 'No matching records found. Try adjusting your filters.'
-              : 'Completed and cancelled forms will appear here.'}
+              : 'Completed and cancelled form submissions will appear here once a workflow finishes executing.'}
           </EmptyMessage>
         </EmptyState>
       ) : (
