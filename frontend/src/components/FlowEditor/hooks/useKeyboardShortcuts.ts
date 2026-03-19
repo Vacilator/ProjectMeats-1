@@ -1,9 +1,9 @@
 /**
  * useKeyboardShortcuts Hook
- * 
+ *
  * Comprehensive keyboard shortcut system for FlowEditor.
  * Provides industry-standard shortcuts for common operations.
- * 
+ *
  * Features:
  * - Undo/Redo (Ctrl+Z / Ctrl+Y)
  * - Delete (Del / Backspace)
@@ -13,13 +13,14 @@
  * - Layout (Ctrl+L)
  * - Save (Ctrl+S)
  * - Search (Ctrl+F)
- * 
+ *
  * Created: 2026-02-21 - Phase 2: UI/UX Enhancements
  */
 
-import { useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-import { Node, Edge, useReactFlow } from '@xyflow/react';
+import { useReactFlow } from '@xyflow/react';
+import { isTypingInInput } from '../utils/keyboardUtils';
 
 export interface KeyboardShortcutsOptions {
   /** Enable undo/redo shortcuts */
@@ -68,147 +69,136 @@ export const useKeyboardShortcuts = (options: KeyboardShortcutsOptions = {}) => 
   const { getNodes, setNodes, getEdges, setEdges } = useReactFlow();
 
   /**
-   * Check if user is typing in an input field
+   * Centralized keydown guard.
+   *
+   * IMPORTANT: The first line must be the typing-context check to avoid
+   * rogue shortcuts intercepting text entry (Monaco, AntD, inline editors, etc.).
    */
-  const isTyping = useCallback(() => {
-    const activeElement = document.activeElement;
-    const tagName = activeElement?.tagName.toLowerCase();
-    return (
-      tagName === 'input' ||
-      tagName === 'textarea' ||
-      tagName === 'select' ||
-      activeElement?.getAttribute('contenteditable') === 'true'
-    );
+  const handleKeyDown = useCallback((event: KeyboardEvent, action: () => void) => {
+    if (isTypingInInput(event)) return;
+    action();
   }, []);
 
-  /**
-   * Undo - Ctrl+Z
-   */
+  // Undo - Ctrl+Z
   useHotkeys(
     'ctrl+z, meta+z',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      onUndo?.();
+      handleKeyDown(e, () => {
+        e.preventDefault();
+        onUndo?.();
+      });
     },
     {
       enabled: enableHistory,
       enableOnFormTags: false,
     },
-    [onUndo, isTyping]
+    [onUndo, handleKeyDown]
   );
 
-  /**
-   * Redo - Ctrl+Y or Ctrl+Shift+Z
-   */
+  // Redo - Ctrl+Y or Ctrl+Shift+Z
   useHotkeys(
     'ctrl+y, meta+y, ctrl+shift+z, meta+shift+z',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      onRedo?.();
+      handleKeyDown(e, () => {
+        e.preventDefault();
+        onRedo?.();
+      });
     },
     {
       enabled: enableHistory,
       enableOnFormTags: false,
     },
-    [onRedo, isTyping]
+    [onRedo, handleKeyDown]
   );
 
-  /**
-   * Delete - Del or Backspace
-   */
+  // Delete - Del or Backspace
   useHotkeys(
     'delete, backspace',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      
-      if (onDelete) {
-        onDelete();
-      } else {
-        // Default: delete selected nodes and edges
+      handleKeyDown(e, () => {
+        e.preventDefault();
+
+        if (onDelete) {
+          onDelete();
+          return;
+        }
+
         const nodes = getNodes();
-        const edges = getEdges();
-        
-        const selectedNodeIds = nodes
-          .filter((n) => n.selected)
-          .map((n) => n.id);
-        
+        const selectedNodeIds = nodes.filter((n) => n.selected).map((n) => n.id);
+
         if (selectedNodeIds.length > 0) {
           setNodes((nds) => nds.filter((n) => !n.selected));
           setEdges((eds) =>
             eds.filter(
-              (e) =>
-                !selectedNodeIds.includes(e.source) &&
-                !selectedNodeIds.includes(e.target)
+              (edge) => !selectedNodeIds.includes(edge.source) && !selectedNodeIds.includes(edge.target)
             )
           );
         } else {
           // Delete selected edges
-          setEdges((eds) => eds.filter((e) => !e.selected));
+          setEdges((eds) => eds.filter((edge) => !edge.selected));
         }
-      }
+      });
     },
     {
       enabled: enableDelete,
       enableOnFormTags: false,
     },
-    [onDelete, getNodes, getEdges, setNodes, setEdges, isTyping]
+    [onDelete, getNodes, setNodes, setEdges, handleKeyDown]
   );
 
-  /**
-   * Copy - Ctrl+C
-   */
+  // Copy - Ctrl+C
   useHotkeys(
     'ctrl+c, meta+c',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      onCopy?.();
+      handleKeyDown(e, () => {
+        e.preventDefault();
+        onCopy?.();
+      });
     },
     {
       enabled: enableClipboard,
       enableOnFormTags: false,
     },
-    [onCopy, isTyping]
+    [onCopy, handleKeyDown]
   );
 
-  /**
-   * Paste - Ctrl+V
-   */
+  // Paste - Ctrl+V
   useHotkeys(
     'ctrl+v, meta+v',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      onPaste?.();
+      handleKeyDown(e, () => {
+        e.preventDefault();
+        onPaste?.();
+      });
     },
     {
       enabled: enableClipboard,
       enableOnFormTags: false,
     },
-    [onPaste, isTyping]
+    [onPaste, handleKeyDown]
   );
 
-  /**
-   * Duplicate - Ctrl+D
-   */
+  // Duplicate - Ctrl+D
   useHotkeys(
     'ctrl+d, meta+d',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      
-      if (onDuplicate) {
-        onDuplicate();
-      } else {
-        // Default: duplicate selected nodes
+      handleKeyDown(e, () => {
+        e.preventDefault();
+
+        if (onDuplicate) {
+          onDuplicate();
+          return;
+        }
+
         const nodes = getNodes();
         const selectedNodes = nodes.filter((n) => n.selected);
-        
+
         if (selectedNodes.length > 0) {
-          const createId = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+          const createId = () =>
+            globalThis.crypto?.randomUUID
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
           const duplicates = selectedNodes.map((node) => ({
             ...node,
             id: createId(),
@@ -218,100 +208,96 @@ export const useKeyboardShortcuts = (options: KeyboardShortcutsOptions = {}) => 
             },
             selected: false,
           }));
-          
+
           setNodes((nds) => [
             ...nds.map((n) => ({ ...n, selected: false })),
             ...duplicates.map((d) => ({ ...d, selected: true })),
           ]);
         }
-      }
+      });
     },
     {
       enabled: enableClipboard,
       enableOnFormTags: false,
     },
-    [onDuplicate, getNodes, setNodes, isTyping]
+    [onDuplicate, getNodes, setNodes, handleKeyDown]
   );
 
-  /**
-   * Auto-layout - Ctrl+L
-   */
+  // Auto-layout - Ctrl+L
   useHotkeys(
     'ctrl+l, meta+l',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      onLayout?.();
+      handleKeyDown(e, () => {
+        e.preventDefault();
+        onLayout?.();
+      });
     },
     {
       enabled: enableLayout,
       enableOnFormTags: false,
     },
-    [onLayout, isTyping]
+    [onLayout, handleKeyDown]
   );
 
-  /**
-   * Save - Ctrl+S
-   */
+  // Save - Ctrl+S
   useHotkeys(
     'ctrl+s, meta+s',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      onSave?.();
+      handleKeyDown(e, () => {
+        e.preventDefault();
+        onSave?.();
+      });
     },
     {
       enabled: enableSave,
       enableOnFormTags: false,
     },
-    [onSave, isTyping]
+    [onSave, handleKeyDown]
   );
 
-  /**
-   * Search - Ctrl+F
-   */
+  // Search - Ctrl+F
   useHotkeys(
     'ctrl+f, meta+f',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      onSearch?.();
+      handleKeyDown(e, () => {
+        e.preventDefault();
+        onSearch?.();
+      });
     },
     {
       enableOnFormTags: false,
     },
-    [onSearch, isTyping]
+    [onSearch, handleKeyDown]
   );
 
-  /**
-   * Select All - Ctrl+A
-   */
+  // Select All - Ctrl+A
   useHotkeys(
     'ctrl+a, meta+a',
     (e) => {
-      if (isTyping()) return;
-      e.preventDefault();
-      setNodes((nds) => nds.map((n) => ({ ...n, selected: true })));
-      setEdges((eds) => eds.map((e) => ({ ...e, selected: true })));
+      handleKeyDown(e, () => {
+        e.preventDefault();
+        setNodes((nds) => nds.map((n) => ({ ...n, selected: true })));
+        setEdges((eds) => eds.map((edge) => ({ ...edge, selected: true })));
+      });
     },
     {
       enableOnFormTags: false,
     },
-    [setNodes, setEdges, isTyping]
+    [setNodes, setEdges, handleKeyDown]
   );
 
-  /**
-   * Escape - Clear selection and close panels
-   */
+  // Escape - Clear selection and close panels
   useHotkeys(
     'escape',
-    () => {
-      setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
-      setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
+    (e) => {
+      handleKeyDown(e, () => {
+        setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+        setEdges((eds) => eds.map((edge) => ({ ...edge, selected: false })));
+      });
     },
     {
       enableOnFormTags: false,
     },
-    [setNodes, setEdges]
+    [setNodes, setEdges, handleKeyDown]
   );
 };

@@ -4776,6 +4776,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       // "?" key - Show keyboard shortcuts
       if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (isTypingInInput(e)) return;
         e.preventDefault();
         setShowKeyboardShortcuts(true);
       }
@@ -4951,6 +4952,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // F: Fit to view
       if (event.key === 'f' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return;
         event.preventDefault();
         fitView();
         return;
@@ -4966,6 +4968,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // 1: Zoom to 100%
       if (event.key === '1' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return;
         event.preventDefault();
         zoomTo(1);
         return;
@@ -4973,6 +4976,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // 2: Zoom to 50%
       if (event.key === '2' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return;
         event.preventDefault();
         zoomTo(0.5);
         return;
@@ -4980,6 +4984,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // 3: Fit view (same as F)
       if (event.key === '3' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (isTypingInInput(event)) return;
         event.preventDefault();
         fitView();
         return;
