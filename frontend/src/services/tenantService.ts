@@ -3,53 +3,7 @@
  *
  * Handles tenant-related API calls including branding and logo management.
  */
-import axios from 'axios';
-import { config } from '../config/runtime';
-
-// API Configuration
-const API_BASE_URL = config.API_BASE_URL;
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // Allow cookies for authentication
-  xsrfCookieName: 'csrftoken', // Django's CSRF cookie name
-  xsrfHeaderName: 'X-CSRFToken', // Django's expected CSRF header
-});
-
-// Request interceptor for authentication and tenant context
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Token ${token}`;
-    }
-    
-    // Add tenant ID header if available
-    const tenantId = localStorage.getItem('tenantId');
-    if (tenantId) {
-      config.headers['X-Tenant-ID'] = tenantId;
-    }
-    
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+import { apiClient } from './apiService';
 
 export interface Tenant {
   id: string;
