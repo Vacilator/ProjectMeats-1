@@ -57,6 +57,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Settings: mounted IntegrationsSection below Tenant Branding.
   - IntegrationsSection + EmailConnection: OAuth calls now use authenticated apiClient (no raw axios, no hardcoded /api prefix).
   - Forced deployment to dev environment via .deployment-trigger to inject updated Microsoft OAuth Client ID and Secret environment variables.
+  - Added .well-known/microsoft-identity-association.json to frontend public directory for Azure Publisher Domain verification.
 
 - 2026-03-19 — Phase 11: Data Flow Tracing — Commit: c02d4d2d (PR: #3623)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3623
