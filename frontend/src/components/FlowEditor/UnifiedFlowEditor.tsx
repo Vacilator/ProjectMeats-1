@@ -6700,25 +6700,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         maxZoom={4}
         minZoom={0.1}
         defaultEdgeOptions={{
+          // Keep our enhanced edge component, but render it with thicker step-like styling.
           type: 'enhanced',
-          style: {
-            strokeWidth: 3,
-            stroke: 'rgb(var(--color-border))',
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 24,
-            height: 24,
-            color: 'rgb(var(--color-border))',
-          },
+          style: { strokeWidth: 3, stroke: 'rgb(148, 163, 184)' },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 24, height: 24, color: 'rgb(148, 163, 184)' },
         }}
         connectionLineStyle={{
-          stroke: 'rgb(var(--color-primary))',
+          stroke: 'rgb(148, 163, 184)',
           strokeWidth: 3,
           strokeDasharray: '5,5',
           animation: 'dash 0.5s linear infinite',
         }}
-        connectionLineType="smoothstep"
+        connectionLineType="step"
         fitView
         snapToGrid={snapToGrid}
         snapGrid={[gridSize, gridSize]}

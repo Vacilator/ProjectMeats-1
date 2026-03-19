@@ -311,6 +311,26 @@ const ButtonHandle = styled(Handle)`
   }
 `;
 
+const ControlButton = styled.button`
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.08);
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
+  }
+`;
 
 const ExpandButton = styled(ControlButton)`
   position: absolute;

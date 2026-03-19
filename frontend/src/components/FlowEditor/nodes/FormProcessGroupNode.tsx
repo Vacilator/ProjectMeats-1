@@ -489,7 +489,8 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
             style: {
               ...(node.style || {}),
               width: nextExpanded ? expandedWidth : 320,
-              height: nextExpanded ? 320 : 80,
+              // Explicit bounds prevent ResizeObserver "glitch" during expand/collapse
+              height: nextExpanded ? 450 : 80,
             },
             data: {
               ...node.data,

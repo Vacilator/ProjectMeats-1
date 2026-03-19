@@ -118,7 +118,7 @@ const EdgeLabel = styled.div<{ $status: ConnectionStatus }>`
 
 const EdgeToolbarWrapper = styled.div`
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(0.9);
   display: flex;
   gap: 4px;
   background: rgb(var(--color-surface));
@@ -128,7 +128,7 @@ const EdgeToolbarWrapper = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   pointer-events: all;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 `;
 
 const EdgeBtn = styled.button`
@@ -441,6 +441,7 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
               left: labelX,
               top: labelY,
               opacity: isHovered ? 1 : 0,
+              transform: `translate(-50%, -50%) scale(${isHovered ? 1 : 0.9})`,
             }}
             onMouseEnter={setHoverOn}
             onMouseLeave={scheduleHoverOff}
