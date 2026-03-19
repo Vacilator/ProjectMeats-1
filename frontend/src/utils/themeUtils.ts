@@ -3,22 +3,47 @@
  * Note: colorthief types are not available, using 'any' sparingly
  */
 
-let cachedColorThiefCtor: any | null = null;
+let cachedColorThiefModule: any | null = null;
+let cachedColorThiefInstance: any | null = null;
 
-const getColorThiefCtor = async (): Promise<any> => {
-  if (cachedColorThiefCtor) return cachedColorThiefCtor;
+const getColorThiefModule = async (): Promise<any> => {
+  if (cachedColorThiefModule) return cachedColorThiefModule;
 
   // colorthief export shape varies across versions and bundlers.
   // Use dynamic import to avoid Rollup static export checks.
-  const mod: any = await import('colorthief');
-  cachedColorThiefCtor = mod?.default ?? mod?.ColorThief ?? mod;
-  return cachedColorThiefCtor;
+  cachedColorThiefModule = await import('colorthief');
+  return cachedColorThiefModule;
+};
+
+const getColorThiefInstance = async (): Promise<any> => {
+  if (cachedColorThiefInstance) return cachedColorThiefInstance;
+
+  const mod: any = await getColorThiefModule();
+  const exported: any = mod?.default ?? mod?.ColorThief ?? mod;
+
+  // Some bundlers expose an already-created instance; others expose a constructor.
+  if (exported && typeof exported.getColor === 'function') {
+    cachedColorThiefInstance = exported;
+    return cachedColorThiefInstance;
+  }
+
+  if (typeof exported === 'function') {
+    try {
+      cachedColorThiefInstance = new exported();
+      return cachedColorThiefInstance;
+    } catch {
+      // Fallback: some builds may expose a factory function.
+      cachedColorThiefInstance = exported();
+      return cachedColorThiefInstance;
+    }
+  }
+
+  throw new TypeError('Unsupported colorthief export shape');
 };
 
 export const extractBrandColors = async (logoUrl: string): Promise<number[] | null> => {
   try {
-    const ColorThiefCtor = await getColorThiefCtor();
-    const colorThief: any = new ColorThiefCtor();
+    const colorThief: any = await getColorThiefInstance();
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     

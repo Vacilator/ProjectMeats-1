@@ -75,9 +75,10 @@ export class TenantService {
       const formData = new FormData();
       formData.append('logo', logoFile);
 
+      // IMPORTANT: do NOT set Content-Type for FormData; the browser will add the multipart boundary.
       const response = await apiClient.patch(`/tenants/${id}/`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json',
         },
       });
       return response.data;
