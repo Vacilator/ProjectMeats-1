@@ -12,7 +12,7 @@
  * Created: 2026-02-27
  */
 
-import React, { memo, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   EdgeProps,
   getSmoothStepPath,
@@ -142,6 +142,60 @@ const EdgeBtn = styled.button`
   &:hover {
     background: rgba(var(--color-primary), 0.1);
     color: rgb(var(--color-primary));
+  }
+`;
+
+const EdgeEditCard = styled.div`
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgb(var(--color-surface));
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  pointer-events: all;
+  min-width: 220px;
+`;
+
+const EdgeEditInput = styled.input`
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  font-size: 12px;
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.15);
+  }
+`;
+
+const EdgeEditActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+`;
+
+const EdgeEditActionBtn = styled.button<{ $primary?: boolean }>`
+  border: 1px solid rgb(var(--color-border));
+  background: ${(p) => (p.$primary ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))')};
+  color: ${(p) => (p.$primary ? 'white' : 'rgb(var(--color-text-secondary))')};
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    color: ${(p) => (p.$primary ? 'white' : 'rgb(var(--color-primary))')};
+    background: ${(p) => (p.$primary ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.08)')};
   }
 `;
 
@@ -295,15 +349,18 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
     const [isHovered, setIsHovered] = useState(false);
     const hoverOffTimeoutRef = useRef<number | null>(null);
 
-    const setHoverOn = () => {
+    const [isEditingLabel, setIsEditingLabel] = useState(false);
+    const [draftLabel, setDraftLabel] = useState<string>(label ?? '');
+
+    const setHoverOn = useCallback(() => {
       if (hoverOffTimeoutRef.current) {
         window.clearTimeout(hoverOffTimeoutRef.current);
         hoverOffTimeoutRef.current = null;
       }
       setIsHovered(true);
-    };
+    }, []);
 
-    const scheduleHoverOff = () => {
+    const scheduleHoverOff = useCallback(() => {
       if (hoverOffTimeoutRef.current) {
         window.clearTimeout(hoverOffTimeoutRef.current);
       }
@@ -311,9 +368,50 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
         setIsHovered(false);
         hoverOffTimeoutRef.current = null;
       }, 120);
-    };
+    }, []);
 
     const { getNode, setEdges } = useReactFlow();
+
+    const handleEditEdge = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setHoverOn();
+        setDraftLabel(label ?? '');
+        setIsEditingLabel(true);
+      },
+      [label, setHoverOn]
+    );
+
+    const handleCancelEdit = useCallback(
+      (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        setIsEditingLabel(false);
+        setDraftLabel(label ?? '');
+      },
+      [label]
+    );
+
+    const handleSaveEdit = useCallback(
+      (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        const next = draftLabel.trim();
+        setEdges((eds) =>
+          eds.map((edge) =>
+            edge.id === id
+              ? {
+                  ...edge,
+                  data: {
+                    ...(edge.data as any),
+                    label: next,
+                  },
+                }
+              : edge
+          )
+        );
+        setIsEditingLabel(false);
+      },
+      [draftLabel, id, setEdges]
+    );
 
     const handleInsertHere = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -435,6 +533,36 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
             </EdgeLabel>
           )}
 
+          {/* Edge Edit Popover */}
+          {isEditingLabel && (
+            <EdgeEditCard
+              style={{
+                left: labelX,
+                top: labelY - 54,
+              }}
+              onMouseEnter={setHoverOn}
+              onMouseLeave={scheduleHoverOff}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <EdgeEditInput
+                value={draftLabel}
+                placeholder="Edge label"
+                onChange={(e) => setDraftLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveEdit();
+                  if (e.key === 'Escape') handleCancelEdit();
+                }}
+                autoFocus
+              />
+              <EdgeEditActions>
+                <EdgeEditActionBtn onClick={handleCancelEdit}>Cancel</EdgeEditActionBtn>
+                <EdgeEditActionBtn $primary onClick={handleSaveEdit}>
+                  Save
+                </EdgeEditActionBtn>
+              </EdgeEditActions>
+            </EdgeEditCard>
+          )}
+
           {/* Hover Toolbar */}
           <EdgeToolbarWrapper
             style={{
@@ -449,7 +577,7 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
             <EdgeBtn title="Add Node Here" onClick={handleInsertHere}>
               <Plus size={14} />
             </EdgeBtn>
-            <EdgeBtn title="Edit Edge" onClick={(e) => e.stopPropagation()}>
+            <EdgeBtn title="Edit Edge" onClick={handleEditEdge}>
               <Edit2 size={14} />
             </EdgeBtn>
             <EdgeBtn title="Delete Edge" onClick={handleDeleteEdge}>
