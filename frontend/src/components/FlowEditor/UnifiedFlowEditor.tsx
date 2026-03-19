@@ -6124,39 +6124,155 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       .map(id => NODE_TYPE_REGISTRY[id])
       .filter(Boolean);
   }, [recentNodes]);
+
+  const lastNodeIdSet = useMemo(() => {
+    const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
+    const outgoingWithinScope = new Set<string>();
+
+    edges.forEach((e) => {
+      const sourceNode = nodeById.get(e.source);
+      const targetNode = nodeById.get(e.target);
+      if (!sourceNode || !targetNode) return;
+
+      const sourceScope = sourceNode.parentId ?? '__root__';
+      const targetScope = targetNode.parentId ?? '__root__';
+
+      if (sourceScope !== targetScope) return;
+      outgoingWithinScope.add(sourceNode.id);
+    });
+
+    const sinks = new Set<string>();
+    nodes.forEach((n) => {
+      if (n.hidden) return;
+      if (!outgoingWithinScope.has(n.id)) sinks.add(n.id);
+    });
+
+    return sinks;
+  }, [edges, nodes]);
+
+  const addFormStepInsideContainer = useCallback(
+    (containerId: string, afterNodeId?: string) => {
+      setNodes((prev) => {
+        const nodeById = new Map(prev.map((n) => [n.id, n] as const));
+        const container = nodeById.get(containerId);
+        if (!container) return prev;
+
+        const isPageNodeType = (type?: string) =>
+          type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
+
+        const pageNodes = prev.filter((n) => n.parentId === containerId && isPageNodeType(n.type));
+        const pageIdSet = new Set(pageNodes.map((n) => n.id));
+
+        const existingOrder = Array.isArray((container.data as any)?.pageOrder)
+          ? (((container.data as any).pageOrder as string[]) || [])
+          : [];
+
+        const normalizedExisting = existingOrder.filter((pid) => pageIdSet.has(pid));
+        const missing = pageNodes
+          .filter((n) => !normalizedExisting.includes(n.id))
+          .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0) || (a.position?.y || 0) - (b.position?.y || 0))
+          .map((n) => n.id);
+
+        const baseOrder = [...normalizedExisting, ...missing];
+        const insertIndex = afterNodeId && baseOrder.includes(afterNodeId) ? baseOrder.indexOf(afterNodeId) + 1 : baseOrder.length;
+
+        const newPageId = `page-${uuidv4()}`;
+        const nextOrder = [...baseOrder.slice(0, insertIndex), newPageId, ...baseOrder.slice(insertIndex)];
+
+        const newPageNumber = insertIndex + 1;
+        const newPage: Node = {
+          id: newPageId,
+          type: 'form',
+          position: {
+            x: 30 + insertIndex * 360,
+            y: 90,
+          },
+          data: {
+            stepTitle: `Page ${newPageNumber}`,
+            label: `Page ${newPageNumber}`,
+            fields: [],
+          },
+          parentId: containerId,
+          extent: 'parent',
+          expandParent: true,
+          draggable: true,
+        };
+
+        const nextNodes = prev.map((n) => {
+          if (n.id !== containerId) return n;
+          return {
+            ...n,
+            data: {
+              ...(n.data || {}),
+              pageOrder: nextOrder,
+              isExpanded: true,
+            },
+          };
+        });
+
+        return [...nextNodes, newPage];
+      });
+    },
+    [setNodes]
+  );
   
   // Batch 3: Inject edit/delete handlers into node data
   // Batch 4: Also inject title change handler
   const nodesWithHandlers = useMemo(() => {
+    const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
+    const isFormContainerType = (type?: string) => type === 'formBook' || type === 'formProcessGroup';
+
     return nodes.map((node) => {
       const data = node.data ?? {};
 
       const onEdit =
-        typeof data.onEdit === 'function'
-          ? data.onEdit
+        typeof (data as any).onEdit === 'function'
+          ? (data as any).onEdit
           : () => handleNodeEdit(node.id);
+
       const onDelete =
-        typeof data.onDelete === 'function'
-          ? data.onDelete
+        typeof (data as any).onDelete === 'function'
+          ? (data as any).onDelete
           : () => handleNodeDelete(node.id);
+
       const onSave =
-        typeof data.onSave === 'function'
-          ? data.onSave
+        typeof (data as any).onSave === 'function'
+          ? (data as any).onSave
           : () => handleSaveWorkflow();
+
       const onTitleChange =
-        typeof data.onTitleChange === 'function'
-          ? data.onTitleChange
+        typeof (data as any).onTitleChange === 'function'
+          ? (data as any).onTitleChange
           : (newTitle: string) => handleNodeTitleChange(node.id, newTitle);
 
       const onInsertAfter =
-        typeof data.onInsertAfter === 'function'
-          ? data.onInsertAfter
+        typeof (data as any).onInsertAfter === 'function'
+          ? (data as any).onInsertAfter
           : () => {
               window.dispatchEvent(
                 new CustomEvent('pm:openNodePalette', {
                   detail: { anchorNodeId: node.id },
                 })
               );
+            };
+
+      const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
+      const parentIsFormContainer = parent && isFormContainerType(parent.type);
+      const nodeIsFormContainer = isFormContainerType(node.type);
+
+      const onAddStepInsideForm =
+        typeof (data as any).onAddStepInsideForm === 'function'
+          ? (data as any).onAddStepInsideForm
+          : () => {
+              if (nodeIsFormContainer) {
+                addFormStepInsideContainer(node.id);
+                return;
+              }
+              if (parentIsFormContainer && node.parentId) {
+                addFormStepInsideContainer(node.parentId, node.id);
+                return;
+              }
+              onInsertAfter();
             };
 
       return {
@@ -6168,10 +6284,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           onSave,
           onTitleChange,
           onInsertAfter,
+          onAddStepInsideForm,
+          isLastInWorkflow: lastNodeIdSet.has(node.id),
         },
       };
     });
-  }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange, handleSaveWorkflow]);
+  }, [addFormStepInsideContainer, handleNodeDelete, handleNodeEdit, handleNodeTitleChange, handleSaveWorkflow, lastNodeIdSet, nodes]);
 
   // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
   // are re-targeted to virtual handles on the container boundary so connectivity remains visible.

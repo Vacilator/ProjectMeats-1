@@ -18,10 +18,11 @@ import {
   getSmoothStepPath,
   EdgeLabelRenderer,
   BaseEdge,
+  EdgeToolbar,
   useReactFlow,
 } from '@xyflow/react';
 import styled, { keyframes } from 'styled-components';
-import { CheckCircle, AlertCircle, XCircle, Info, Edit2, Trash2, Plus } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Info, Pencil, Trash2, Plus } from 'lucide-react';
 
 // ============================================================================
 // Types
@@ -116,9 +117,7 @@ const EdgeLabel = styled.div<{ $status: ConnectionStatus }>`
   }
 `;
 
-const EdgeToolbarWrapper = styled.div`
-  position: absolute;
-  transform: translate(-50%, -50%) scale(0.9);
+const EdgeToolbarCard = styled.div`
   display: flex;
   gap: 4px;
   background: rgb(var(--color-surface));
@@ -128,6 +127,7 @@ const EdgeToolbarWrapper = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   pointer-events: all;
   opacity: 0;
+  transform: scale(0.9);
   transition: opacity 0.2s ease, transform 0.2s ease;
 `;
 
@@ -564,26 +564,27 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
           )}
 
           {/* Hover Toolbar */}
-          <EdgeToolbarWrapper
-            style={{
-              left: labelX,
-              top: labelY,
-              opacity: isHovered ? 1 : 0,
-              transform: `translate(-50%, -50%) scale(${isHovered ? 1 : 0.9})`,
-            }}
-            onMouseEnter={setHoverOn}
-            onMouseLeave={scheduleHoverOff}
-          >
-            <EdgeBtn title="Add Node Here" onClick={handleInsertHere}>
-              <Plus size={14} />
-            </EdgeBtn>
-            <EdgeBtn title="Edit Edge" onClick={handleEditEdge}>
-              <Edit2 size={14} />
-            </EdgeBtn>
-            <EdgeBtn title="Delete Edge" onClick={handleDeleteEdge}>
-              <Trash2 size={14} />
-            </EdgeBtn>
-          </EdgeToolbarWrapper>
+          <EdgeToolbar edgeId={id} x={labelX} y={labelY} isVisible>
+            <EdgeToolbarCard
+              style={{
+                opacity: isHovered || selected ? 1 : 0,
+                transform: `scale(${isHovered || selected ? 1 : 0.9})`,
+                pointerEvents: isHovered || selected ? 'all' : 'none',
+              }}
+              onMouseEnter={setHoverOn}
+              onMouseLeave={scheduleHoverOff}
+            >
+              <EdgeBtn title="Add Node Here" onClick={handleInsertHere}>
+                <Plus size={14} />
+              </EdgeBtn>
+              <EdgeBtn title="Edit Edge" onClick={handleEditEdge}>
+                <Pencil size={14} />
+              </EdgeBtn>
+              <EdgeBtn title="Delete Edge" onClick={handleDeleteEdge}>
+                <Trash2 size={14} />
+              </EdgeBtn>
+            </EdgeToolbarCard>
+          </EdgeToolbar>
         </EdgeLabelRenderer>
       </>
     );
