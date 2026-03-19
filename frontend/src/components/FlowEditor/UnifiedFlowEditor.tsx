@@ -6151,6 +6151,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     return sinks;
   }, [edges, nodes]);
 
+  // React Flow Sub-flows reference: https://reactflow.dev/examples/nodes/sub-flows
+  // We treat Form containers as true parent nodes (parentId + extent:'parent') and insert pages within that scope.
   const addFormStepInsideContainer = useCallback(
     (containerId: string, afterNodeId?: string) => {
       setNodes((prev) => {

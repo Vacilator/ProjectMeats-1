@@ -11,6 +11,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DynamicConfigPanel } from './DynamicConfigPanel';
 import type { Node, Edge } from '@xyflow/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FormBuilderProvider } from '../../../contexts/FormBuilderContext';
 
 // Mock the schema registry
@@ -90,11 +91,19 @@ vi.mock('./NestedChildrenRenderer', () => ({
 
 // Helper to wrap component with providers
 const renderWithProviders = (ui: React.ReactElement) => {
-  return render(
-    <FormBuilderProvider>
-      {ui}
-    </FormBuilderProvider>
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+
+  const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <QueryClientProvider client={queryClient}>
+      <FormBuilderProvider>{children}</FormBuilderProvider>
+    </QueryClientProvider>
   );
+
+  return render(ui, { wrapper: Wrapper });
 };
 
 describe('DynamicConfigPanel', () => {
@@ -318,14 +327,12 @@ describe('DynamicConfigPanel', () => {
 
       // Change to null
       rerender(
-        <FormBuilderProvider>
-          <DynamicConfigPanel
-            node={null}
-            nodes={mockNodes}
-            edges={mockEdges}
-            onUpdateNode={mockOnUpdateNode}
-          />
-        </FormBuilderProvider>
+        <DynamicConfigPanel
+          node={null}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
       );
 
       expect(screen.getByText('No Node Selected')).toBeInTheDocument();
@@ -346,14 +353,12 @@ describe('DynamicConfigPanel', () => {
       // Simulate multiple re-renders (React 19 strict mode behavior)
       for (let i = 0; i < 5; i++) {
         rerender(
-          <FormBuilderProvider>
-            <DynamicConfigPanel
-              node={null}
-              nodes={mockNodes}
-              edges={mockEdges}
-              onUpdateNode={mockOnUpdateNode}
-            />
-          </FormBuilderProvider>
+          <DynamicConfigPanel
+            node={null}
+            nodes={mockNodes}
+            edges={mockEdges}
+            onUpdateNode={mockOnUpdateNode}
+          />
         );
       }
 
@@ -386,25 +391,21 @@ describe('DynamicConfigPanel', () => {
 
       // Rapid changes
       rerender(
-        <FormBuilderProvider>
-          <DynamicConfigPanel
-            node={null}
-            nodes={mockNodes}
-            edges={mockEdges}
-            onUpdateNode={mockOnUpdateNode}
-          />
-        </FormBuilderProvider>
+        <DynamicConfigPanel
+          node={null}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
       );
 
       rerender(
-        <FormBuilderProvider>
-          <DynamicConfigPanel
-            node={node2}
-            nodes={mockNodes}
-            edges={mockEdges}
-            onUpdateNode={mockOnUpdateNode}
-          />
-        </FormBuilderProvider>
+        <DynamicConfigPanel
+          node={node2}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
       );
 
       // Should handle without errors
