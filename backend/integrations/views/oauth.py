@@ -57,11 +57,10 @@ class OAuthAuthorizeView(APIView):
         redirect_uri = get_microsoft_redirect_uri(request, callback_path=callback_path)
 
         # NOTE: client_secret is not required for the authorize redirect.
-        client_id = request.environ.get('MICROSOFT_CLIENT_ID') or request.META.get('MICROSOFT_CLIENT_ID')
-        if not client_id:
-            import os
+        # Use OS environment variables (container env). Avoid request.environ: not guaranteed.
+        import os
 
-            client_id = os.environ.get('MICROSOFT_CLIENT_ID')
+        client_id = os.environ.get('MICROSOFT_CLIENT_ID')
 
         if not client_id:
             logger.warning('[OAuthAuthorizeView] missing MICROSOFT_CLIENT_ID')
