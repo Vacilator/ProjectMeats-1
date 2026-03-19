@@ -6137,6 +6137,69 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     });
   }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange, handleSaveWorkflow]);
 
+  // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
+  // are re-targeted to virtual handles on the container boundary so connectivity remains visible.
+  const edgesForCanvas = useMemo(() => {
+    const nodeById = new Map(nodesWithHandlers.map((n) => [n.id, n] as const));
+
+    const containerByHiddenChild = new Map<string, string>();
+    nodesWithHandlers.forEach((n) => {
+      if (!n.parentId) return;
+      const parent = nodeById.get(n.parentId);
+      const parentCollapsed = parent && (parent.data as any)?.isExpanded === false;
+      if (!parentCollapsed) return;
+      if (!n.hidden) return;
+      containerByHiddenChild.set(n.id, n.parentId);
+    });
+
+    if (containerByHiddenChild.size === 0) return edges;
+
+    const derived: Edge[] = [];
+
+    edges.forEach((e) => {
+      const sourceContainer = containerByHiddenChild.get(e.source);
+      const targetContainer = containerByHiddenChild.get(e.target);
+
+      if (!sourceContainer && !targetContainer) {
+        derived.push(e);
+        return;
+      }
+
+      // Internal edges inside the same collapsed container don’t need to render.
+      if (sourceContainer && targetContainer && sourceContainer === targetContainer) {
+        return;
+      }
+
+      const virtualEdge: Edge = {
+        ...e,
+        id: `${e.id}::vh`,
+        ...(sourceContainer ? { source: sourceContainer, sourceHandle: `vh:out:${e.source}` } : {}),
+        ...(targetContainer ? { target: targetContainer, targetHandle: `vh:in:${e.target}` } : {}),
+        data: {
+          ...(e.data || {}),
+          virtual: {
+            sourceContainer,
+            targetContainer,
+            originalSource: e.source,
+            originalTarget: e.target,
+          },
+        },
+      };
+
+      // Edge where both ends are hidden but in different collapsed containers → container-to-container.
+      if (sourceContainer && targetContainer) {
+        (virtualEdge as any).source = sourceContainer;
+        (virtualEdge as any).target = targetContainer;
+        (virtualEdge as any).sourceHandle = `vh:out:${e.source}`;
+        (virtualEdge as any).targetHandle = `vh:in:${e.target}`;
+      }
+
+      derived.push(virtualEdge);
+    });
+
+    return derived;
+  }, [edges, nodesWithHandlers]);
+
   return (
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
     <FlowEditorProvider
@@ -6600,7 +6663,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {normalizedEditorMode === 'visual' && (
         <DebugAwareReactFlow
         nodes={nodesWithHandlers}
-        edges={edges}
+        edges={edgesForCanvas}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
