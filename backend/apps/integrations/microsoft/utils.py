@@ -31,8 +31,10 @@ def get_microsoft_redirect_uri(request: HttpRequest, callback_path: str = "/api/
         >>> get_microsoft_redirect_uri(request)
         'https://meatscentral.com/api/v1/integrations/oauth/callback/'
     """
-    # Get scheme (http/https)
-    scheme = request.scheme
+    # Get scheme (http/https). Behind nginx, prefer X-Forwarded-Proto.
+    scheme = request.META.get('HTTP_X_FORWARDED_PROTO', request.scheme)
+    if scheme and ',' in scheme:
+        scheme = scheme.split(',')[0].strip()
     
     # Get host (WITHOUT api. prefix)
     host = request.get_host()
