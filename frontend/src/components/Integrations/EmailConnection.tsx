@@ -6,7 +6,7 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
+import { apiClient as axios } from '../../services/apiService';
 import { toast } from 'react-hot-toast';
 import { Mail, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 
@@ -54,7 +54,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
     setIsConnecting(true);
     
     try {
-      const response = await axios.get('/api/integrations/oauth/authorize/', {
+      const response = await axios.get('/integrations/oauth/authorize/', {
         params: { provider },
       });
       window.location.href = response.data.auth_url;
