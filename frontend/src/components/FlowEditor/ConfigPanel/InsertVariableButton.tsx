@@ -28,7 +28,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import styled from 'styled-components';
-import { Node, Edge } from 'reactflow';
+import { Node, Edge } from '@xyflow/react';
 import { Code2, Info } from 'lucide-react';
 import { VariablePickerWithUpstream } from './VariablePickerWithUpstream';
 import { UpstreamVariable } from '../hooks/useUpstreamVariables';

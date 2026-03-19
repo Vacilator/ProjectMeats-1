@@ -90,11 +90,14 @@ export function getUpstreamOutputs(
  */
 function extractNodeOutputs(node: Node): UpstreamOutput[] {
   const outputs: UpstreamOutput[] = [];
-  const data = node.data || {};
-  
+  const data = (node.data ?? {}) as Record<string, any>;
+
   // Handle form nodes (formStep, formStepSingle, formProcess)
-  if ((node.type?.includes('form') || node.type?.includes('Form')) && data.fields) {
-    for (const field of data.fields) {
+  if (
+    (node.type?.includes('form') || node.type?.includes('Form')) &&
+    Array.isArray(data.fields)
+  ) {
+    for (const field of data.fields as any[]) {
       outputs.push({
         nodeId: node.id,
         nodeLabel: data.label || data.stepTitle || 'Unnamed Form',
@@ -108,8 +111,8 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
   }
   
   // Handle entity nodes (createRecord with entity)
-  if (data.entityType && data.outputFields) {
-    for (const field of data.outputFields) {
+  if (data.entityType && Array.isArray(data.outputFields)) {
+    for (const field of data.outputFields as any[]) {
       outputs.push({
         nodeId: node.id,
         nodeLabel: data.label || 'Create Record',
@@ -153,8 +156,8 @@ function extractNodeOutputs(node: Node): UpstreamOutput[] {
   }
   
   // Handle variable nodes (explicit key-value storage)
-  if (data.variables && Array.isArray(data.variables)) {
-    for (const variable of data.variables) {
+  if (Array.isArray(data.variables)) {
+    for (const variable of data.variables as any[]) {
       outputs.push({
         nodeId: node.id,
         nodeLabel: data.label || 'Variables',

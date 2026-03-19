@@ -27,6 +27,7 @@ declare global {
       SUPPORTED_FILE_TYPES?: string;
       ENABLE_DEBUG?: string;
       ENABLE_DEVTOOLS?: string;
+      SENTRY_DSN?: string;
     };
   }
 }

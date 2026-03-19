@@ -436,12 +436,12 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
   return (
     <Panel $width="500px">
       <PanelHeader>
-        <PanelHeaderTitle>
+        <HeaderTitle>
           <IconBadge>
             <FileUp size={20} />
           </IconBadge>
           <PanelTitle>Configure File Upload</PanelTitle>
-        </PanelHeaderTitle>
+        </HeaderTitle>
         <CloseButton onClick={onClose}>
           <X size={20} />
         </CloseButton>
@@ -668,8 +668,12 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
             <div style={{ marginTop: '16px' }}>
               <ConditionBuilder
                 conditions={formData.conditionalVisibility!.conditions || []}
-                logic={formData.conditionalVisibility!.logic || 'AND'}
-                availableFields={availableFields}
+                logic={formData.conditionalVisibility!.logic || 'and'}
+                availableFields={availableFields?.map((f) => ({
+                  key: f.id,
+                  label: f.label,
+                  type: f.type,
+                }))}
                 onChange={handleConditionsChange}
               />
             </div>

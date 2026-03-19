@@ -224,12 +224,7 @@ const App: React.FC = () => {
                   <QuickActionsProvider>
                     <CockpitNavigationProvider>
                       <CockpitPinnedToolsProvider>
-                        <Router
-                          future={{
-                            v7_startTransition: true,
-                            v7_relativeSplatPath: true,
-                          }}
-                        >
+                        <Router>
                         <SessionManagerProvider>
                           <NavigationProvider>
                     <Routes>

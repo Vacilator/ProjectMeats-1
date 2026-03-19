@@ -2,7 +2,7 @@
  * OutlookEmailNode - Node for sending emails via Microsoft Outlook
  */
 import React from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Mail } from 'lucide-react';
 import styled from 'styled-components';
 

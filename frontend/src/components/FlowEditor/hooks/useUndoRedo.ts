@@ -23,7 +23,7 @@
 import { useCallback, useRef } from 'react';
 import { logger } from '@/utils/logger';
 
-import { Node, Edge } from 'reactflow';
+import { Node, Edge } from '@xyflow/react';
 import useUndo from 'use-undo';
 
 // ============================================================================

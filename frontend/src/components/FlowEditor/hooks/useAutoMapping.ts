@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Node, useReactFlow } from 'reactflow';
+import { Node, useReactFlow } from '@xyflow/react';
 import {
   AutoMappingService,
   AutoMappingSuggestions,

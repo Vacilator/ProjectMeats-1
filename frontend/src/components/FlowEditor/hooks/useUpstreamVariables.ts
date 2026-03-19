@@ -31,7 +31,7 @@
  */
 
 import { useMemo } from 'react';
-import { Node, Edge } from 'reactflow';
+import { Node, Edge } from '@xyflow/react';
 
 // ============================================================================
 // TypeScript Interfaces
