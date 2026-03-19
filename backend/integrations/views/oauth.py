@@ -51,7 +51,7 @@ class OAuthAuthorizeView(APIView):
         # Generate CSRF state and persist in session.
         state = secrets.token_urlsafe(32)
         request.session[f'oauth_state_{provider}'] = state
-        request.session[f'oauth_tenant_{provider}'] = tenant.id
+        request.session[f'oauth_tenant_{provider}'] = str(tenant.id)
 
         callback_path = f'/api/v1/integrations/oauth/callback/{provider}/'
         redirect_uri = get_microsoft_redirect_uri(request, callback_path=callback_path)
@@ -118,6 +118,7 @@ class OAuthCallbackView(APIView):
         tenant_id = request.session.get(f'oauth_tenant_{provider}')
         if not tenant_id:
             return redirect('/settings/email-integrations?error=no_tenant')
+        tenant_id = str(tenant_id)
 
         try:
             tenant = Tenant.objects.get(id=tenant_id)

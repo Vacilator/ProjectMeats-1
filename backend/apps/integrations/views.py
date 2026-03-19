@@ -46,7 +46,7 @@ def get_auth_url(request):
     
     # Store state in session for validation
     request.session[f'oauth_state_{provider_type}'] = state
-    request.session[f'oauth_tenant_{provider_type}'] = request.tenant.id
+    request.session[f'oauth_tenant_{provider_type}'] = str(request.tenant.id)
     
     # Build redirect URI (must match callback path and include /api/v1 sub-path routing)
     callback_path = f'/api/v1/integrations/oauth/callback/{provider_type}/'
