@@ -504,7 +504,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
                 ? 'date'
                 : rawType.includes('bool')
                   ? 'boolean'
-                  : 'text';
+                  : 'string';
 
             availableFields.push({
               key: f.name,
@@ -549,7 +549,12 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
                 // Check if button has FormBuilder action metadata
                 if (field.metadata?.action === 'openFormBuilder') {
                   console.log('[DynamicConfigPanel] Opening FormBuilder for node:', node.id);
-                  openFormBuilder(node);
+                  openFormBuilder({
+                    nodeId: node.id,
+                    nodeData: node.data,
+                    nodeType: node.type || 'form',
+                    formId: (node.data as any)?.formId,
+                  });
                 } else if (field.metadata?.onClick) {
                   // Custom onClick handler from schema
                   field.metadata.onClick(node, formData);
@@ -621,7 +626,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           onClick={isCollapsible ? () => toggleSection(section.id) : undefined}
           style={{ cursor: isCollapsible ? 'pointer' : 'default' }}
         >
-          {section.icon && <section.icon size={16} />}
+          {section.icon && (() => {
+            const Icon = section.icon as any;
+            return <Icon size={16} />;
+          })()}
           <SectionTitle>{section.title}</SectionTitle>
           {isCollapsible && (
             isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />

@@ -17,6 +17,8 @@ interface LogContext {
   metadata?: Record<string, any>;
 }
 
+type LogContextOrData = LogContext | unknown;
+
 class Logger {
   private isDevelopment: boolean;
   private minLevel: LogLevel;
@@ -79,37 +81,73 @@ class Logger {
   /**
    * Debug-level logging (development only)
    */
-  debug(message: string, context?: LogContext, data?: any): void {
+  debug(message: string, data?: any): void;
+  debug(message: string, context?: LogContext, data?: any): void;
+  debug(message: string, contextOrData?: LogContextOrData, data?: any): void {
     if (!this.shouldLog('debug')) return;
-    this.logToConsole('debug', message, context, data);
+
+    if (contextOrData && typeof contextOrData === 'object' && !Array.isArray(contextOrData)) {
+      const ctx = contextOrData as LogContext;
+      const hasAnyContextKey = 'component' in ctx || 'user' in ctx || 'tenant' in ctx || 'metadata' in ctx;
+      if (hasAnyContextKey) {
+        this.logToConsole('debug', message, ctx, data);
+        return;
+      }
+    }
+
+    this.logToConsole('debug', message, undefined, contextOrData);
   }
 
   /**
    * Info-level logging (development only by default)
    */
-  info(message: string, context?: LogContext, data?: any): void {
+  info(message: string, data?: any): void;
+  info(message: string, context?: LogContext, data?: any): void;
+  info(message: string, contextOrData?: LogContextOrData, data?: any): void {
     if (!this.shouldLog('info')) return;
-    this.logToConsole('info', message, context, data);
+
+    if (contextOrData && typeof contextOrData === 'object' && !Array.isArray(contextOrData)) {
+      const ctx = contextOrData as LogContext;
+      const hasAnyContextKey = 'component' in ctx || 'user' in ctx || 'tenant' in ctx || 'metadata' in ctx;
+      if (hasAnyContextKey) {
+        this.logToConsole('info', message, ctx, data);
+        return;
+      }
+    }
+
+    this.logToConsole('info', message, undefined, contextOrData);
   }
 
   /**
    * Warning-level logging (always logged)
    */
-  warn(message: string, context?: LogContext, data?: any): void {
+  warn(message: string, data?: any): void;
+  warn(message: string, context?: LogContext, data?: any): void;
+  warn(message: string, contextOrData?: LogContextOrData, data?: any): void {
     if (!this.shouldLog('warn')) return;
-    this.logToConsole('warn', message, context, data);
-    
+
+    const ctx =
+      contextOrData && typeof contextOrData === 'object' && !Array.isArray(contextOrData)
+        ? (contextOrData as LogContext)
+        : undefined;
+    const hasAnyContextKey =
+      !!ctx && ('component' in ctx || 'user' in ctx || 'tenant' in ctx || 'metadata' in ctx);
+
+    this.logToConsole('warn', message, hasAnyContextKey ? ctx : undefined, hasAnyContextKey ? data : contextOrData);
+
+    const sentryData = hasAnyContextKey ? data : contextOrData;
+
     // Send to Sentry in production
     if (!this.isDevelopment && typeof window !== 'undefined' && (window as any).Sentry) {
       (window as any).Sentry.captureMessage(message, {
         level: 'warning',
         tags: {
-          component: context?.component,
-          tenant: context?.tenant,
+          component: hasAnyContextKey ? ctx?.component : undefined,
+          tenant: hasAnyContextKey ? ctx?.tenant : undefined,
         },
         extra: {
-          ...context?.metadata,
-          data,
+          ...(hasAnyContextKey ? ctx?.metadata : undefined),
+          data: sentryData,
         },
       });
     }
@@ -118,33 +156,45 @@ class Logger {
   /**
    * Error-level logging (always logged)
    */
-  error(message: string, context?: LogContext, data?: any): void {
+  error(message: string, data?: any): void;
+  error(message: string, context?: LogContext, data?: any): void;
+  error(message: string, contextOrData?: LogContextOrData, data?: any): void {
     if (!this.shouldLog('error')) return;
-    this.logToConsole('error', message, context, data);
-    
+
+    const ctx =
+      contextOrData && typeof contextOrData === 'object' && !Array.isArray(contextOrData)
+        ? (contextOrData as LogContext)
+        : undefined;
+    const hasAnyContextKey =
+      !!ctx && ('component' in ctx || 'user' in ctx || 'tenant' in ctx || 'metadata' in ctx);
+
+    this.logToConsole('error', message, hasAnyContextKey ? ctx : undefined, hasAnyContextKey ? data : contextOrData);
+
+    const sentryData = hasAnyContextKey ? data : contextOrData;
+
     // Send to Sentry in production
     if (!this.isDevelopment && typeof window !== 'undefined' && (window as any).Sentry) {
-      if (data instanceof Error) {
-        (window as any).Sentry.captureException(data, {
+      if (sentryData instanceof Error) {
+        (window as any).Sentry.captureException(sentryData, {
           tags: {
-            component: context?.component,
-            tenant: context?.tenant,
+            component: hasAnyContextKey ? ctx?.component : undefined,
+            tenant: hasAnyContextKey ? ctx?.tenant : undefined,
           },
           extra: {
             message,
-            ...context?.metadata,
+            ...(hasAnyContextKey ? ctx?.metadata : undefined),
           },
         });
       } else {
         (window as any).Sentry.captureMessage(message, {
           level: 'error',
           tags: {
-            component: context?.component,
-            tenant: context?.tenant,
+            component: hasAnyContextKey ? ctx?.component : undefined,
+            tenant: hasAnyContextKey ? ctx?.tenant : undefined,
           },
           extra: {
-            ...context?.metadata,
-            data,
+            ...(hasAnyContextKey ? ctx?.metadata : undefined),
+            data: sentryData,
           },
         });
       }

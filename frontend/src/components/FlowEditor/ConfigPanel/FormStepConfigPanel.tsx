@@ -683,7 +683,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                   loading={autoMappingLoading}
                   error={autoMappingError}
                   onAccept={(suggestion) => {
-                    applySuggestion(suggestion);
+                    if (nodeId) {
+                      applySuggestion(nodeId, suggestion);
+                    }
                     // Note: Field mapping will be applied to node data
                     // The actual field addition to localStep.fields would need
                     // additional logic to convert mapping to form field
@@ -693,7 +695,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                     // This would need additional state management
                   }}
                   onApplyAll={() => {
-                    applyAllSuggestions();
+                    if (nodeId) {
+                      applyAllSuggestions(nodeId);
+                    }
                   }}
                   onClose={() => {
                     clearSuggestions();
@@ -858,13 +862,19 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
-                  checked={localStep.navigation?.allowBack !== false}
-                  onChange={(e) => handleUpdate({
-                    navigation: {
-                      ...localStep.navigation,
-                      allowBack: e.target.checked,
-                    }
-                  })}
+                  checked={(localStep.navigation?.allowBack ?? true) === true}
+                  onChange={(e) =>
+                    handleUpdate({
+                      navigation: {
+                        allowBack: e.target.checked,
+                        allowSkip: localStep.navigation?.allowSkip ?? false,
+                        autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                        backLabel: localStep.navigation?.backLabel,
+                        nextLabel: localStep.navigation?.nextLabel,
+                        skipLabel: localStep.navigation?.skipLabel,
+                      },
+                    })
+                  }
                 />
                 Allow Back Button
               </CheckboxLabel>
@@ -875,13 +885,19 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
-                  checked={localStep.navigation?.allowSkip === true}
-                  onChange={(e) => handleUpdate({
-                    navigation: {
-                      ...localStep.navigation,
-                      allowSkip: e.target.checked,
-                    }
-                  })}
+                  checked={(localStep.navigation?.allowSkip ?? false) === true}
+                  onChange={(e) =>
+                    handleUpdate({
+                      navigation: {
+                        allowBack: localStep.navigation?.allowBack ?? true,
+                        allowSkip: e.target.checked,
+                        autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                        backLabel: localStep.navigation?.backLabel,
+                        nextLabel: localStep.navigation?.nextLabel,
+                        skipLabel: localStep.navigation?.skipLabel,
+                      },
+                    })
+                  }
                 />
                 Allow Skip Button
               </CheckboxLabel>
@@ -892,13 +908,19 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
-                  checked={localStep.navigation?.autoAdvance === true}
-                  onChange={(e) => handleUpdate({
-                    navigation: {
-                      ...localStep.navigation,
-                      autoAdvance: e.target.checked,
-                    }
-                  })}
+                  checked={(localStep.navigation?.autoAdvance ?? false) === true}
+                  onChange={(e) =>
+                    handleUpdate({
+                      navigation: {
+                        allowBack: localStep.navigation?.allowBack ?? true,
+                        allowSkip: localStep.navigation?.allowSkip ?? false,
+                        autoAdvance: e.target.checked,
+                        backLabel: localStep.navigation?.backLabel,
+                        nextLabel: localStep.navigation?.nextLabel,
+                        skipLabel: localStep.navigation?.skipLabel,
+                      },
+                    })
+                  }
                 />
                 Auto-advance on Completion
               </CheckboxLabel>
@@ -910,36 +932,54 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <Input
                 type="text"
                 value={localStep.navigation?.backLabel || ''}
-                onChange={(e) => handleUpdate({
-                  navigation: {
-                    ...localStep.navigation,
-                    backLabel: e.target.value,
-                  }
-                })}
+                onChange={(e) =>
+                  handleUpdate({
+                    navigation: {
+                      allowBack: localStep.navigation?.allowBack ?? true,
+                      allowSkip: localStep.navigation?.allowSkip ?? false,
+                      autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                      backLabel: e.target.value,
+                      nextLabel: localStep.navigation?.nextLabel,
+                      skipLabel: localStep.navigation?.skipLabel,
+                    },
+                  })
+                }
                 placeholder="Back (default)"
               />
               <Input
                 type="text"
                 value={localStep.navigation?.nextLabel || ''}
-                onChange={(e) => handleUpdate({
-                  navigation: {
-                    ...localStep.navigation,
-                    nextLabel: e.target.value,
-                  }
-                })}
+                onChange={(e) =>
+                  handleUpdate({
+                    navigation: {
+                      allowBack: localStep.navigation?.allowBack ?? true,
+                      allowSkip: localStep.navigation?.allowSkip ?? false,
+                      autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                      backLabel: localStep.navigation?.backLabel,
+                      nextLabel: e.target.value,
+                      skipLabel: localStep.navigation?.skipLabel,
+                    },
+                  })
+                }
                 placeholder="Next (default)"
                 style={{ marginTop: '8px' }}
               />
-              {localStep.navigation?.allowSkip && (
+              {(localStep.navigation?.allowSkip ?? false) && (
                 <Input
                   type="text"
                   value={localStep.navigation?.skipLabel || ''}
-                  onChange={(e) => handleUpdate({
-                    navigation: {
-                      ...localStep.navigation,
-                      skipLabel: e.target.value,
-                    }
-                  })}
+                  onChange={(e) =>
+                    handleUpdate({
+                      navigation: {
+                        allowBack: localStep.navigation?.allowBack ?? true,
+                        allowSkip: localStep.navigation?.allowSkip ?? false,
+                        autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                        backLabel: localStep.navigation?.backLabel,
+                        nextLabel: localStep.navigation?.nextLabel,
+                        skipLabel: e.target.value,
+                      },
+                    })
+                  }
                   placeholder="Skip (default)"
                   style={{ marginTop: '8px' }}
                 />
@@ -1011,12 +1051,15 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <Label>Custom Validation Message (Optional)</Label>
               <TextArea
                 value={localStep.validation?.customMessage || ''}
-                onChange={(e) => handleUpdate({
-                  validation: {
-                    ...localStep.validation,
-                    customMessage: e.target.value,
-                  }
-                })}
+                onChange={(e) =>
+                  handleUpdate({
+                    validation: {
+                      ...localStep.validation,
+                      mode: localStep.validation?.mode ?? 'all',
+                      customMessage: e.target.value,
+                    },
+                  })
+                }
                 placeholder="e.g., Please complete all required fields before continuing."
               />
               <HelpText>
