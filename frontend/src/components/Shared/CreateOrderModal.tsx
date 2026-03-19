@@ -46,7 +46,7 @@ interface Supplier {
 }
 
 interface Product {
-  id: number;
+  id: string; // system.Product uses UUIDs
   product_code: string;
   description_of_product_item: string;
   name?: string; // Fallback for compatibility
@@ -280,7 +280,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       // Filter by customer if selected (takes precedence for Sales Orders)
       if (customerId) {
         try {
-          const response = await apiClient.get(`products/?customer=${customerId}`);
+          const response = await apiClient.get(`/products/?customer=${customerId}`);
           setFilteredProducts(response.data.results || response.data || []);
         } catch (error) {
           console.error('Error filtering products by customer:', error);
@@ -290,7 +290,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       // Filter by supplier if selected (for Purchase Orders)
       else if (supplierId) {
         try {
-          const response = await apiClient.get(`products/?supplier=${supplierId}`);
+          const response = await apiClient.get(`/products/?supplier=${supplierId}`);
           setFilteredProducts(response.data.results || response.data || []);
         } catch (error) {
           console.error('Error filtering products by supplier:', error);
@@ -307,9 +307,9 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       setLoading(true);
       
       const [customersRes, suppliersRes, productsRes] = await Promise.allSettled([
-        apiClient.get('customers/'),
-        apiClient.get('suppliers/'),
-        apiClient.get('products/'),
+        apiClient.get('/customers/'),
+        apiClient.get('/suppliers/'),
+        apiClient.get('/products/'),
       ]);
 
       // Handle customers
@@ -398,13 +398,14 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       const payload = {
         customer: parseInt(formData.customer),
         supplier: parseInt(formData.supplier),
-        product: parseInt(formData.product),
+        // system.Product uses UUIDs, so keep the string value
+        product: formData.product,
         total_amount: parseFloat(formData.total_amount),
         order_date: formData.order_date,
         notes: formData.notes,
       };
 
-      await apiClient.post('sales-orders/', payload);
+      await apiClient.post('/sales-orders/', payload);
 
       // Success!
       onSuccess();
