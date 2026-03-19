@@ -898,6 +898,9 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
     """
     API endpoint for Tenant Forms.
 
+    NOTE (Phase 7): Creation via POST /api/v1/workflows/forms/ is deprecated.
+    WorkForms persistence is now handled via /api/v1/tenant-workforms/.
+
     Custom forms that tenants can create for entity record creation/editing.
 
     Phase 4.2: Uses role-based permissions:
@@ -928,6 +931,27 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
         if self.action == "create":
             return TenantFormCreateSerializer
         return TenantFormSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Deprecated endpoint.
+
+        Legacy frontend code attempted to persist WorkForms (workflow graphs) by POSTing
+        to `/api/v1/workflows/forms/`. WorkForms are saved via `/api/v1/tenant-workforms/`.
+
+        We return 410 to make the failure mode explicit and stable.
+        """
+        return Response(
+            {
+                "error": "deprecated_endpoint",
+                "detail": "POST /api/v1/workflows/forms/ is deprecated. Save WorkForms via /api/v1/tenant-workforms/ instead.",
+                "recommended": {
+                    "method": "PUT",
+                    "path": "/api/v1/tenant-workforms/{id}/",
+                    "field": "workflow_definition",
+                },
+            },
+            status=status.HTTP_410_GONE,
+        )
 
     def get_queryset(self):
         qs = super().get_queryset()

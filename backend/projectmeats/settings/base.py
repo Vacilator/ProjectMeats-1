@@ -631,6 +631,17 @@ MICROSOFT_SCOPES = [
     "Contacts.ReadWrite",  # Read/write contacts
 ]
 
+
+def env(key: str, default=None):
+    """Small settings helper for env access (keeps config declarative)."""
+    return os.environ.get(key, default)
+
+
+MICROSOFT_OAUTH = {
+    'CLIENT_ID': env('MICROSOFT_CLIENT_ID'),
+    'REDIRECT_URI': env('MICROSOFT_REDIRECT_URI'),
+}
+
 # ==============================================================================
 # Email Configuration (SendGrid Web API ONLY - NO SMTP)
 # ==============================================================================

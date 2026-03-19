@@ -300,10 +300,7 @@ export const loadWorkflow = async (
   // Removed getApiBaseUrl - using apiClient
   
   try {
-    const response = await apiClient.get(
-      `/tenant-workforms/${workflowId}/`,
-      
-    );
+    const response = await apiClient.get(`/tenant-workforms/${workflowId}/`);
     
     logger.debug('✅ Workflow loaded:', response.data);
     

@@ -61,16 +61,9 @@ export const IntegrationSettings: React.FC = () => {
     }
   };
 
-  const handleConnect = async (provider: string) => {
-    try {
-      setError(null);
-      const response = await axios.get(`/integrations/oauth/authorize/?provider=${provider}`);
-      
-      // Redirect to OAuth authorization URL
-      window.location.href = response.data.auth_url;
-    } catch (err: any) {
-      setError(err.response?.data?.error || `Failed to connect to ${provider}`);
-    }
+  const handleConnect = (provider: string) => {
+    setError(null);
+    window.location.href = `/api/v1/integrations/oauth/authorize/?provider=${encodeURIComponent(provider)}&redirect=1`;
   };
 
   const handleDisconnect = async (provider: string) => {

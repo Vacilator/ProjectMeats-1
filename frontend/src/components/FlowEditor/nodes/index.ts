@@ -13,10 +13,16 @@
 export { BaseNode } from './BaseNode';
 export type { BaseNodeData, BaseNodeProps } from './BaseNode';
 
-// Form nodes - Phase E (2026-02-19): FormNode is the new name, FormStepSingleNode retained for backward compat
+// Form nodes
+// - FormNode: container (Book) using React Flow sub-flows
+// - FormStepNode: child step (Page) inside the container
 export { FormNode } from './FormNode';
+export { FormStepNode } from './FormStepNode';
+export type { FormStepNodeData } from './FormStepNode';
+
+// Backward compatibility (legacy step node)
 export { FormStepSingleNode } from './FormStepSingleNode';
-export type { FormStepNodeData, FormField } from './FormStepSingleNode';
+export type { FormStepNodeData as LegacyFormStepNodeData, FormField } from './FormStepSingleNode';
 
 export { FormReferenceNode } from './FormReferenceNode';
 export type { FormReferenceNodeData } from './FormReferenceNode';

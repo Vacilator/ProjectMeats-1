@@ -33,7 +33,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
 import * as Sentry from '@sentry/react'; // Error tracking
@@ -107,9 +107,9 @@ import {
 
 import {
   FormNode,
+  FormStepNode,
   FormStepSingleNode,
   FormReferenceNode,
-  FormProcessGroupNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -175,8 +175,23 @@ export type EditorMode = 'wizard' | 'visual' | 'expert'; // 'expert' is deprecat
 interface UnifiedFlowEditorProps {
   initialNodes?: Node[];
   initialEdges?: Edge[];
+
+  /**
+   * Legacy callback (deprecated): saving is now handled internally via tenant-workforms persistence.
+   */
   onSave?: (nodes: Node[], edges: Edge[]) => void;
+
   onChange?: (nodes: Node[], edges: Edge[]) => void; // Track changes for auto-save
+
+  /**
+   * Optional initial workflow metadata (used when embedding the editor in a route-driven page).
+   */
+  initialWorkflowId?: string;
+  initialWorkflowName?: string;
+  initialWorkflowDescription?: string;
+  initialWorkflowStatus?: 'draft' | 'active' | 'archived';
+  onWorkflowSaved?: (workflow: { id: string; name: string }) => void;
+
   readOnly?: boolean;
   editorMode?: EditorMode;
   allowedNodeCategories?: string[]; // Phase 4.2: Filter nodes by permission
@@ -1644,14 +1659,14 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // we cast here to keep editor typing stable while runtime behavior remains unchanged.
 const staticNodeTypes = {
   // Form nodes (Phase E - 2026-02-19)
-  form: FormNode,  // Form Step (Page)
+  form: FormStepNode,  // Form Step (Page)
   formStepSingle: FormStepSingleNode,  // Backward compatibility
-  formBook: FormProcessGroupNode,  // NEW: Singular Form container (Book)
-  formProcess: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
-  formProcessGroup: FormProcessGroupNode,
+  formBook: FormNode,  // Form container (Book)
+  formProcess: FormNode,  // Legacy container types render as canonical container
+  formProcessGroup: FormNode,
   // Backward compatibility aliases
   formStep: FormStepSingleNode,  // Deprecated
-  formMultiStepContainer: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
+  formMultiStepContainer: FormNode,  // Legacy container alias
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -1845,6 +1860,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   initialEdges = [],
   onSave,
   onChange, // Track changes for auto-save
+  initialWorkflowId,
+  initialWorkflowName,
+  initialWorkflowDescription,
+  initialWorkflowStatus,
+  onWorkflowSaved,
   readOnly = false,
   editorMode = 'visual',
   allowedNodeCategories, // Phase 4.2: Permission-based filtering
@@ -1856,6 +1876,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeIdCounter, setNodeIdCounter] = useState(normalizedInitialNodes.length + 1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const queryClient = useQueryClient();
   
   // Keep ref to current nodes for stable callbacks
   const nodesRef = useRef<Node[]>(nodes);
@@ -2386,12 +2408,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isTypingInInput(e)) return;
       
-      // Ctrl/Cmd + S: Save
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        handleSave();
-      }
-      
       // Ctrl/Cmd + Z: Undo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -2655,12 +2671,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Workflow Persistence State (Phase 7)
   // ============================================================================
   
-  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | undefined>(undefined);
-  const [currentWorkflowName, setCurrentWorkflowName] = useState<string>('Untitled Workflow');
-  const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState<string>(''); // Phase 8.2
-  const [currentWorkflowStatus, setCurrentWorkflowStatus] = useState<'draft' | 'active' | 'archived'>('draft'); // Phase 8.2
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | undefined>(initialWorkflowId);
+  const [currentWorkflowName, setCurrentWorkflowName] = useState<string>(
+    initialWorkflowName || 'Untitled Workflow'
+  );
+  const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState<string>(
+    initialWorkflowDescription || ''
+  ); // Phase 8.2
+  const [currentWorkflowStatus, setCurrentWorkflowStatus] = useState<'draft' | 'active' | 'archived'>(
+    initialWorkflowStatus || 'draft'
+  ); // Phase 8.2
   const [workflowList, setWorkflowList] = useState<WorkflowListItem[]>([]);
   const [isLoadMenuOpen, setIsLoadMenuOpen] = useState(false);
+
+  // Keep workflow metadata in sync when the parent route/page swaps the loaded workflow.
+  useEffect(() => {
+    if (initialWorkflowId !== undefined) setCurrentWorkflowId(initialWorkflowId);
+    if (initialWorkflowName !== undefined) setCurrentWorkflowName(initialWorkflowName || 'Untitled Workflow');
+    if (initialWorkflowDescription !== undefined) setCurrentWorkflowDescription(initialWorkflowDescription || '');
+    if (initialWorkflowStatus !== undefined)
+      setCurrentWorkflowStatus(initialWorkflowStatus || 'draft');
+  }, [initialWorkflowId, initialWorkflowName, initialWorkflowDescription, initialWorkflowStatus]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false); // Phase 8.2
@@ -4510,53 +4541,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, setNodes]);
 
   // ============================================================================
-  // Save Handler
+  // Save Handler (Legacy compatibility)
   // ============================================================================
-  
-  const handleSaveImpl = useCallback(() => {
-    logger.debug('[FlowEditor] Quick save triggered');
-    
-    // SAFETY: Validate state before save
-    if (!nodes || !edges) {
-      logger.error('[FlowEditor] Cannot save: nodes or edges undefined');
-      toast.error('Cannot save workflow: Invalid state');
-      return;
-    }
-    
-    toast.success('Workflow saved');
-    
-    if (onSave) {
-      try {
-        // Log container information for debugging (Phase E)
-        const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
-        const nodesInContainers = nodes.filter(n => n.parentId);
-        
-        logger.debug('[Save] Workflow saved with container state:');
-        logger.debug(`  - ${containerNodes.length} container(s)`);
-        logger.debug(`  - ${nodesInContainers.length} node(s) in containers`);
-        
-        if (containerNodes.length > 0) {
-          containerNodes.forEach(container => {
-            const childNodes = nodes.filter(n => n.parentId === container.id); // Phase E: Using parentNode
-            logger.debug(`  - Container ${container.id}: ${childNodes.length} nodes`);
-          });
-        }
-        
-        onSave(nodes, edges);
-        logger.debug('Flow saved successfully!');
-        setHasUnsavedChanges(false);
-      } catch (error) {
-        logger.error('[FlowEditor] Save failed:', error);
-        toast.error('Failed to save workflow');
-      }
-    }
-  }, [nodes, edges, onSave]);
-  
-  // Populate forward ref (CRITICAL: Must be after useCallback definition)
-  handleSaveRef.current = handleSaveImpl;
-  
-  // Alias for keyboard shortcut (now points to the forward ref wrapper)
-  const handleQuickSave = handleSave;
+  // NOTE: The editor persists workflows via `handleSaveWorkflow` (tenant-workforms).
+  // `handleSaveRef` remains as a stable indirection for keyboard/UI triggers.
 
   // ============================================================================
   // Phase 7: Workflow Persistence Handlers
@@ -4570,22 +4558,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const errors: string[] = [];
     
     // Find all container nodes
-    const containerNodes = nodes.filter(
-      n => n.type === 'formMultiStepContainer'
+    const containerNodes = nodes.filter((n) =>
+      ['formBook', 'formProcessGroup', 'formProcess', 'formMultiStepContainer'].includes(n.type || '')
     );
     
     for (const container of containerNodes) {
       // Get child nodes
       const childNodes = nodes.filter(n => n.parentId === container.id);
       
-      // Check for at least one form step
-      const formSteps = childNodes.filter(
-        n => n.type === 'formStep' || n.type === 'formReference'
+      // Check for form/page steps in the container.
+      const formSteps = childNodes.filter((n) =>
+        ['form', 'formStepSingle', 'formStep', 'formReference'].includes(n.type || '')
       );
-      
-      if (formSteps.length === 0) {
+
+      const minSteps = container.type === 'formBook' ? 3 : 1;
+      if (formSteps.length < minSteps) {
         errors.push(
-          `Container "${container.data.label || container.id}" must have at least one form step`
+          `Container "${container.data.label || container.id}" must have at least ${minSteps} step(s)`
         );
       }
       
@@ -4650,6 +4639,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if (!currentWorkflowId) {
         setCurrentWorkflowId(savedWorkflow.id);
       }
+
+      onWorkflowSaved?.({ id: savedWorkflow.id, name: savedWorkflow.name });
+
+      // Refresh any UI surfaces that list available forms/workforms.
+      queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
+      queryClient.invalidateQueries({ queryKey: ['tenant-workforms'] });
       
       setHasUnsavedChanges(false);
       logger.debug('✅ Workflow saved:', savedWorkflow.name);
@@ -4670,7 +4665,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus]);
+  }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus, onWorkflowSaved, queryClient]);
+
+  // Populate forward ref now that the real save handler exists.
+  handleSaveRef.current = () => {
+    void handleSaveWorkflow();
+  };
   
   /**
    * Auto-layout: Apply dagre layout to all nodes
