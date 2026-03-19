@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { adminClient } from '@/services/apiService';
 
 interface Blueprint {
   id: string;
@@ -24,7 +24,7 @@ export const Dashboard: React.FC = () => {
       // Using the available-workflows endpoint which lists published blueprints
       // For studio admin, we might want a different endpoint that lists ALL blueprints (drafts included)
       // But for now let's try available-workflows or check if there is a 'blueprints' endpoint
-      const response = await axios.get('/admin/system-config/api/available-workflows/');
+      const response = await adminClient.get('/admin/system-config/api/available-workflows/');
       setBlueprints(response.data);
       setError(null);
     } catch (err) {

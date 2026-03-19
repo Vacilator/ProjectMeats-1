@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import SchemaEditor from '../components/SchemaEditorSimple';
+import { adminClient } from '@/services/apiService';
 // Use UnifiedFlowEditor instead of WorkflowCanvas
 import { UnifiedFlowEditor } from '../../../components/FlowEditor';
 import { VersionHistory } from '../components/VersionHistory';
@@ -44,13 +44,15 @@ const Editor: React.FC<EditorProps> = () => {
   const fetchBlueprintStatus = async (id: string, token: string) => {
     try {
       setLoading(true);
-      const response = await axios.get(
+      const response = await adminClient.get(
         `/admin/system-config/api/studio/versions/${id}/`,
         {
-          headers: {
-            'X-CSRFToken': token,
-            'Content-Type': 'application/json',
-          },
+          headers: token
+            ? {
+                'X-CSRFToken': token,
+                'Content-Type': 'application/json',
+              }
+            : undefined,
         }
       );
       setIsPublished(response.data.is_published || false);
@@ -68,14 +70,16 @@ const Editor: React.FC<EditorProps> = () => {
     if (confirm('Publish this workflow? It will become available to all tenant users.')) {
       try {
         setPublishing(true);
-        await axios.post(
+        await adminClient.post(
           `/admin/system-config/api/studio/versions/${blueprintId}/publish/`,
           {},
           {
-            headers: {
-              'X-CSRFToken': csrfToken,
-              'Content-Type': 'application/json',
-            },
+            headers: csrfToken
+              ? {
+                  'X-CSRFToken': csrfToken,
+                  'Content-Type': 'application/json',
+                }
+              : undefined,
           }
         );
         setIsPublished(true);
@@ -95,14 +99,16 @@ const Editor: React.FC<EditorProps> = () => {
     if (confirm('Unpublish this workflow? It will be removed from the catalog.')) {
       try {
         setPublishing(true);
-        await axios.post(
+        await adminClient.post(
           `/admin/system-config/api/studio/versions/${blueprintId}/unpublish/`,
           {},
           {
-            headers: {
-              'X-CSRFToken': csrfToken,
-              'Content-Type': 'application/json',
-            },
+            headers: csrfToken
+              ? {
+                  'X-CSRFToken': csrfToken,
+                  'Content-Type': 'application/json',
+                }
+              : undefined,
           }
         );
         setIsPublished(false);

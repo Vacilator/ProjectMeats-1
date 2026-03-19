@@ -6,8 +6,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
 import FormPreview from './FormPreview';
+import { adminClient } from '@/services/apiService';
 
 interface FieldDefinition {
   id: string;
@@ -322,12 +322,10 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   const fetchSchema = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(
+      const response = await adminClient.get(
         `/admin/system-config/api/studio/versions/${blueprintId}/`,
         {
-          headers: {
-            'X-CSRFToken': csrfToken,
-          },
+          headers: csrfToken ? { 'X-CSRFToken': csrfToken } : undefined,
         }
       );
       
@@ -344,14 +342,16 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      await axios.patch(
+      await adminClient.patch(
         `/admin/system-config/api/studio/versions/${blueprintId}/`,
         { schema_config: fields },
         {
-          headers: {
-            'X-CSRFToken': csrfToken,
-            'Content-Type': 'application/json',
-          },
+          headers: csrfToken
+            ? {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+              }
+            : undefined,
         }
       );
       
