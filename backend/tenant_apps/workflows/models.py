@@ -32,6 +32,7 @@ class TriggerType(models.TextChoices):
     WEBHOOK = 'webhook', 'Webhook (External API)'
     EVENT = 'event', 'Database Event'
     FORM_SUBMIT = 'form_submit', 'Form Submission'
+    EMAIL_RECEIVED = 'email_received', 'Email Received'  # Phase 6.5 (AI document understanding)
     RECORD_CREATED = 'record_created', 'New Record Created'  # Legacy - use EVENT
     RECORD_UPDATED = 'record_updated', 'Record Field Updated'  # Legacy - use EVENT
 
@@ -626,6 +627,17 @@ class TenantWorkflow(TenantAwareModel):
     # For scheduled: {"cron": "0 9 * * 1", "timezone": "America/New_York"}
     # For record_created: {"entity_type": "purchase_order"}
     # For record_updated: {"entity_type": "purchase_order", "fields": ["status", "total"]}
+    #
+    # For email_received (Phase 6.5):
+    # {
+    #   "conditions": {
+    #     "sender_contains": "@customer.com",
+    #     "subject_contains": "PO",
+    #     "document_type_equals": "PURCHASE_ORDER",
+    #     "body_keywords": ["ribeye", "delivery"],
+    #     "urgency_equals": "high"
+    #   }
+    # }
     trigger_config = models.JSONField(
         default=dict,
         blank=True,

@@ -33,6 +33,146 @@ from enum import Enum
 logger = logging.getLogger(__name__)
 
 
+def analyze_document_intent(
+    email_body: str,
+    attachment_text: str = '',
+    subject: str | None = None,
+    sender_email: str | None = None,
+) -> Dict[str, Any]:
+    """Analyze an email + attachment text and return a structured intent payload.
+
+    Phase 6.5 scaffolding: meat-industry specific document classification.
+
+    Document types to classify:
+    - Purchase Order
+    - Invoice
+    - Claim
+    - Bill of Lading
+    - Spec Sheet
+
+    Output JSON shape (example):
+    {
+      "document_type": "PURCHASE_ORDER",
+      "confidence": 0.92,
+      "metadata": {
+        "sender": "buyer@customer.com",
+        "urgency": "medium",
+        "order_numbers": ["PO-12345"],
+        "invoice_numbers": [],
+        "bill_of_lading_numbers": [],
+        "keywords": ["ribeye", "delivery"],
+        "received_channel": "email"
+      },
+      "routing": {
+        "suggested_trigger": "EMAIL_RECEIVED",
+        "requires_human_review": false
+      },
+      "reasoning": "..."
+    }
+
+    If OpenAI is not configured, returns a conservative heuristic result.
+    """
+
+    def heuristic() -> Dict[str, Any]:
+        text = f"{subject or ''}\n{email_body or ''}\n{attachment_text or ''}".lower()
+        if any(k in text for k in ['bill of lading', 'bol', 'b/l']):
+            doc = 'BILL_OF_LADING'
+        elif any(k in text for k in ['invoice', 'inv#', 'inv #']):
+            doc = 'INVOICE'
+        elif any(k in text for k in ['claim', 'shortage', 'damage', 'complaint']):
+            doc = 'CLAIM'
+        elif any(k in text for k in ['spec sheet', 'specification', 'specs']):
+            doc = 'SPEC_SHEET'
+        elif any(k in text for k in ['purchase order', 'po#', 'po #', 'p.o.']):
+            doc = 'PURCHASE_ORDER'
+        else:
+            doc = 'UNKNOWN'
+
+        # Very light extraction for routing/triggering scaffolding.
+        keywords = [k for k in ['beef', 'pork', 'chicken', 'ribeye', 'tenderloin', 'delivery', 'urgent'] if k in text]
+        urgency = 'high' if 'urgent' in text or 'asap' in text else 'medium' if 'today' in text else 'low'
+
+        return {
+            'document_type': doc,
+            'confidence': 0.25,
+            'metadata': {
+                'sender': sender_email,
+                'urgency': urgency,
+                'order_numbers': [],
+                'invoice_numbers': [],
+                'bill_of_lading_numbers': [],
+                'keywords': keywords,
+                'received_channel': 'email',
+            },
+            'routing': {
+                'suggested_trigger': 'EMAIL_RECEIVED',
+                'requires_human_review': True,
+            },
+            'reasoning': 'Heuristic fallback (OpenAI not configured).',
+        }
+
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        return heuristic()
+
+    system_prompt = """You are an AI document understanding assistant for a meat industry company.
+
+Your job:
+1) Classify the incoming email + any extracted attachment text into ONE document_type:
+   - PURCHASE_ORDER
+   - INVOICE
+   - CLAIM
+   - BILL_OF_LADING
+   - SPEC_SHEET
+   - UNKNOWN
+
+2) Extract metadata useful for automation:
+   - sender (email)
+   - urgency: low | medium | high
+   - order_numbers (PO numbers, order refs)
+   - invoice_numbers
+   - bill_of_lading_numbers
+   - keywords relevant to meat ops (cuts, quantities, delivery, temperature, QA)
+
+Rules:
+- If uncertain, choose UNKNOWN and set requires_human_review=true.
+- Do NOT hallucinate identifiers: only include numbers explicitly present.
+- Output MUST be valid JSON.
+
+Return JSON with keys: document_type, confidence (0-1), metadata, routing, reasoning.
+"""
+
+    user_parts = []
+    if sender_email:
+        user_parts.append(f"From: {sender_email}")
+    if subject:
+        user_parts.append(f"Subject: {subject}")
+    user_parts.append("Email Body:\n" + (email_body or ''))
+    if attachment_text:
+        user_parts.append("Attachment Text (extracted):\n" + attachment_text)
+
+    user_message = "\n\n".join(user_parts)
+
+    try:
+        import openai
+
+        openai.api_key = api_key
+        response = openai.chat.completions.create(
+            model='gpt-4',
+            messages=[
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_message},
+            ],
+            temperature=0.2,
+            response_format={'type': 'json_object'},
+        )
+        result_text = response.choices[0].message.content
+        return json.loads(result_text)
+    except Exception as e:
+        logger.warning('analyze_document_intent failed; falling back to heuristic: %s', str(e), exc_info=True)
+        return heuristic()
+
+
 class Intent(str, Enum):
     """Possible intents for email classification."""
     ORDER_REQUEST = 'order_request'

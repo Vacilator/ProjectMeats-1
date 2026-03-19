@@ -293,6 +293,172 @@ class EmailIngestionService:
             logger.error(f"No active Microsoft provider for tenant {tenant_id}")
             return {'error': 'No active Microsoft account connected'}
 
+    # -------------------------------------------------------------------------
+    # Phase 6.5: AI Document Understanding + Smart Email Triggers (Scaffolding)
+    # -------------------------------------------------------------------------
+
+    def fetch_unread_emails(self, tenant: Tenant) -> List[Dict[str, Any]]:
+        """Fetch unread emails (and attachments) for a tenant via Microsoft Graph.
+
+        This is intentionally "scaffolding" code:
+        - Focuses on correctness + clear hand-off boundaries.
+        - Uses the existing ExternalAuthProvider token store (encrypted at rest).
+        - Keeps all behavior additive (does not replace the Phase 8.3 ingestion pipeline).
+
+        Returns:
+            A list of dicts: {"message": <graph message>, "attachments": [ ... ]}
+        """
+        from apps.integrations.providers import MicrosoftGraphProvider
+        import requests
+
+        provider = (
+            ExternalAuthProvider.objects.filter(
+                tenant=tenant,
+                provider_type='microsoft',
+                is_active=True,
+            )
+            .select_related('tenant')
+            .first()
+        )
+        if not provider:
+            logger.info('No active Microsoft provider for tenant=%s', tenant.id)
+            return []
+
+        # Ensure a valid access token.
+        try:
+            provider.refresh_if_needed()
+        except Exception:
+            logger.warning('Token refresh failed for tenant=%s provider_id=%s', tenant.id, provider.id, exc_info=True)
+
+        access_token = provider.get_decrypted_token('access')
+        if not access_token:
+            logger.warning('No access token available tenant=%s provider_id=%s', tenant.id, provider.id)
+            return []
+
+        graph_provider = MicrosoftGraphProvider(tenant.id)
+
+        url = f"{graph_provider.GRAPH_API_BASE}/me/mailFolders/inbox/messages"
+        params = {
+            '$filter': 'isRead eq false',
+            '$select': 'id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId,isRead',
+            '$top': 25,
+            '$orderby': 'receivedDateTime desc',
+        }
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': 'application/json',
+        }
+
+        try:
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
+            resp.raise_for_status()
+            messages = (resp.json() or {}).get('value', [])
+        except Exception:
+            logger.error('Graph unread fetch failed tenant=%s', tenant.id, exc_info=True)
+            return []
+
+        results: List[Dict[str, Any]] = []
+        for msg in messages:
+            attachments: List[Dict[str, Any]] = []
+            if msg.get('hasAttachments'):
+                attachments = self._download_attachments(graph_provider, access_token, message_id=msg.get('id'))
+            results.append({'message': msg, 'attachments': attachments})
+
+        return results
+
+    def _download_attachments(self, graph_provider, access_token: str, message_id: str | None) -> List[Dict[str, Any]]:
+        """Download attachments for a Graph message.
+
+        Notes:
+        - For fileAttachment, Graph may include `contentBytes` (base64). Large files may require `/$value`.
+        - For Phase 6.5 scaffolding, we decode `contentBytes` when present.
+        """
+        if not message_id:
+            return []
+
+        import base64
+        import requests
+
+        url = f"{graph_provider.GRAPH_API_BASE}/me/messages/{message_id}/attachments"
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': 'application/json',
+        }
+
+        try:
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            items = (resp.json() or {}).get('value', [])
+        except Exception:
+            logger.warning('Graph attachments fetch failed message_id=%s', message_id, exc_info=True)
+            return []
+
+        downloaded: List[Dict[str, Any]] = []
+        for att in items:
+            odata_type = att.get('@odata.type', '')
+            name = att.get('name')
+            content_type = att.get('contentType')
+            size = att.get('size')
+
+            content_bytes_b64 = att.get('contentBytes')
+            content_bytes: bytes | None = None
+            if content_bytes_b64 and 'fileAttachment' in odata_type:
+                try:
+                    content_bytes = base64.b64decode(content_bytes_b64)
+                except Exception:
+                    content_bytes = None
+
+            downloaded.append(
+                {
+                    'id': att.get('id'),
+                    'name': name,
+                    'content_type': content_type,
+                    'size': size,
+                    'odata_type': odata_type,
+                    'content_bytes': content_bytes,  # bytes (may be None)
+                }
+            )
+
+        return downloaded
+
+    def process_email_via_ai(self, email_data: Dict[str, Any], attachments: List[Dict[str, Any]]):
+        """Hand-off point: email payload -> AI intent engine.
+
+        This method intentionally does NOT persist anything yet.
+        It produces a structured intent payload that downstream code can use to:
+        - trigger workflows (TriggerType.EMAIL_RECEIVED)
+        - create records (PO, invoice, claim intake)
+        - route for human review
+        """
+        from tenant_apps.workflows.services.intent_engine import analyze_document_intent
+
+        subject = email_data.get('subject')
+        sender = (email_data.get('from') or {}).get('emailAddress', {}).get('address')
+
+        body = email_data.get('body') or {}
+        body_content = body.get('content') or email_data.get('bodyPreview') or ''
+
+        # Scaffolding: only attempt text extraction for text/* attachments.
+        attachment_text_chunks: List[str] = []
+        for att in attachments or []:
+            ct = (att.get('content_type') or '').lower()
+            raw = att.get('content_bytes')
+            if not raw or not ct.startswith('text/'):
+                continue
+            try:
+                attachment_text_chunks.append(raw.decode('utf-8', errors='ignore'))
+            except Exception:
+                continue
+
+        attachment_text = "\n\n".join(attachment_text_chunks)
+
+        return analyze_document_intent(
+            email_body=body_content,
+            attachment_text=attachment_text,
+            subject=subject,
+            sender_email=sender,
+        )
+
 
 def ai_extract_order_data(email_body: str) -> Dict[str, Any]:
     """

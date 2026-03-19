@@ -4,6 +4,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ## Active Initiative: Phase 7 Stabilization + Cockpit Navigation
 
+**Phase 6.5: AI Document Understanding & Agentic Workflows**
+- Microsoft Graph Email Ingestion
+- Meat-Industry Specific LLM Document Classification
+- Smart Workflow Triggers based on AI Intents
+
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
 ### PR Log (append-only)
