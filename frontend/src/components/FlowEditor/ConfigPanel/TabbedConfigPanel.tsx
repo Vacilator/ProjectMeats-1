@@ -10,7 +10,7 @@
  * Created: 2026-02-24
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -76,14 +76,31 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
 
   if (!node) return null;
 
-  // Determine which tabs to show based on node type
-  const isFormNode = node.type?.toLowerCase().includes('form') || 
-                     node.type?.toLowerCase().includes('step');
-  
-  const visibleTabs = TABS.filter(tab => {
-    if (!tab.showFor) return true; // Always show tabs without showFor
-    return isFormNode; // Show form-specific tabs only for form nodes
-  });
+  // Context-aware tab visibility
+  const isContainerNode =
+    node?.type === 'formProcessGroup' ||
+    node?.type === 'formMultiStepContainer' ||
+    node?.type === 'formProcess';
+
+  const isFormNode = node?.type === 'formStep' || node?.type === 'form' || node?.type === 'formStepSingle';
+
+  const visibleTabs = useMemo(() => {
+    return TABS.filter((tab) => {
+      // Hide Fields/Preview for container nodes (steps managed on canvas; settings live in General/Advanced)
+      if (tab.id === 'fields' || tab.id === 'preview') {
+        return isFormNode && !isContainerNode;
+      }
+
+      return true;
+    });
+  }, [isContainerNode, isFormNode]);
+
+  // If the previously selected tab is no longer visible for this node, fall back to General
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.id === activeTab)) {
+      setActiveTab('general');
+    }
+  }, [activeTab, visibleTabs]);
 
   return (
     <AnimatePresence>
@@ -160,7 +177,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
               </TabPanel>
             )}
 
-            {activeTab === 'fields' && isFormNode && (
+            {activeTab === 'fields' && isFormNode && !isContainerNode && (
               <TabPanel
                 key="fields"
                 initial={{ opacity: 0, y: 10 }}
@@ -240,7 +257,7 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
               </TabPanel>
             )}
 
-            {activeTab === 'preview' && isFormNode && (
+            {activeTab === 'preview' && isFormNode && !isContainerNode && (
               <TabPanel
                 key="preview"
                 initial={{ opacity: 0, y: 10 }}
