@@ -12,7 +12,6 @@ import styled from 'styled-components';
 import { X, FileText, Edit, Eye, ExternalLink } from 'lucide-react';
 import {
   PanelOverlay,
-  Panel,
   PanelHeader,
   PanelTitle,
   CloseButton,
@@ -223,23 +222,35 @@ const Button = styled.button<{ $variant?: 'primary' }>`
 // Form Reference Config Panel Component
 // ============================================================================
 
+type FormReferenceNodeData = {
+  formId?: string;
+  formName?: string;
+  formDescription?: string;
+  fieldCount: number;
+  sectionCount: number;
+  allowEdit: boolean;
+  prefillData: Record<string, unknown>;
+};
+
 export const FormReferenceConfigPanel: React.FC<FormReferenceConfigPanelProps> = ({
   node,
   onUpdate,
   onClose,
 }) => {
   const [showFormSelector, setShowFormSelector] = useState(false);
-  const [localData, setLocalData] = useState({
-    formId: node.data.formId,
-    formName: node.data.formName,
-    formDescription: node.data.formDescription,
-    fieldCount: node.data.fieldCount || 0,
-    sectionCount: node.data.sectionCount || 0,
-    allowEdit: node.data.allowEdit || false,
-    prefillData: node.data.prefillData || {},
+  const nodeData = (node.data ?? {}) as Partial<FormReferenceNodeData>;
+
+  const [localData, setLocalData] = useState<FormReferenceNodeData>({
+    formId: nodeData.formId,
+    formName: nodeData.formName,
+    formDescription: nodeData.formDescription,
+    fieldCount: nodeData.fieldCount ?? 0,
+    sectionCount: nodeData.sectionCount ?? 0,
+    allowEdit: nodeData.allowEdit ?? false,
+    prefillData: nodeData.prefillData ?? {},
   });
   
-  const hasForm = localData.formId && localData.formName;
+  const hasForm = Boolean(localData.formId && localData.formName);
   
   const handleFormSelect = (form: FormDefinition) => {
     setLocalData({
@@ -286,9 +297,9 @@ export const FormReferenceConfigPanel: React.FC<FormReferenceConfigPanelProps> =
                       <FileText size={20} />
                     </FormIcon>
                     <FormDetails>
-                      <FormName>{localData.formName}</FormName>
+                      <FormName>{String(localData.formName ?? '')}</FormName>
                       {localData.formDescription && (
-                        <FormDescription>{localData.formDescription}</FormDescription>
+                        <FormDescription>{String(localData.formDescription)}</FormDescription>
                       )}
                     </FormDetails>
                   </FormHeader>

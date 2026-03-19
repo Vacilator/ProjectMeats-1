@@ -398,7 +398,8 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
   const [selectedEntityField, setSelectedEntityField] = useState<string | null>(null);
   const [expandedMappings, setExpandedMappings] = useState<Set<string>>(new Set());
 
-  const entityFields = ENTITY_FIELDS[targetEntity] || [];
+  const entityFields: Array<{ key: string; label: string; type: string; required?: boolean }> =
+    ENTITY_FIELDS[targetEntity] ?? [];
 
   useEffect(() => {
     setLocalMappings(mappings);
@@ -525,17 +526,23 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
   const autoSuggestMappings = () => {
     const suggestions: FieldMapping[] = [];
     const unmappedFormFields = formFields.filter(ff => !mappedFormFields.has(ff.id));
-    const unmappedEntityFields = entityFields.filter(ef => !mappedEntityFields.has(ef.key));
+    const unmappedEntityFields: Array<{ key: string; label: string; type: string; required?: boolean }> =
+      entityFields.filter(ef => !mappedEntityFields.has(ef.key));
 
     unmappedFormFields.forEach(formField => {
-      let bestMatch: { field: typeof unmappedEntityFields[0]; score: number } | null = null;
+      let bestMatch: any = null;
 
-      unmappedEntityFields.forEach(entityField => {
+      unmappedEntityFields.forEach((entityField) => {
         // Calculate similarity score
         const nameSimilarity = calculateStringSimilarity(formField.label, entityField.label);
-        const typeSimilarity = formField.type === entityField.type ? 1.0 : 
-                               (formField.type === 'text' && entityField.type === 'textarea') ? 0.8 :
-                               (formField.type === 'textarea' && entityField.type === 'text') ? 0.8 : 0;
+        const typeSimilarity =
+          formField.type === entityField.type
+            ? 1.0
+            : formField.type === 'text' && entityField.type === 'textarea'
+              ? 0.8
+              : formField.type === 'textarea' && entityField.type === 'text'
+                ? 0.8
+                : 0;
 
         // Combined score (70% name, 30% type)
         const score = (nameSimilarity * 0.7) + (typeSimilarity * 0.3);
@@ -546,9 +553,13 @@ export const FieldMappingPanel: React.FC<FieldMappingPanelProps> = ({
         }
       });
 
-      if (bestMatch && bestMatch.score >= 0.6) {
+      if (!bestMatch) {
+        return;
+      }
+
+      if (bestMatch.score >= 0.6) {
         suggestions.push({
-          id: `mapping-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `mapping-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
           formFieldId: formField.id,
           entityField: bestMatch.field.key,
           transformation: {

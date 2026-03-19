@@ -24,7 +24,7 @@
     "noFallthroughCasesInSwitch": true,
     
     /* Additional */
-    "allowJs": true,
+    "allowJs": false,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,

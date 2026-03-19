@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
@@ -7,10 +7,7 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react({
-      // Enable Fast Refresh for React 19
-      fastRefresh: true,
-    }),
+    react(),
     // Enable importing SVGs as React components
     svgr(),
     // Enable tsconfig path mapping
