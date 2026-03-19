@@ -27,7 +27,7 @@ import EntityFieldPicker, { type SelectedField } from './EntityFieldPicker';
 import { listTenantForms, getFormFields } from '../../../services/workformsApi';
 import { COMMON_ENTITY_TYPES } from '../../../services/schemaService';
 import {
-  Panel,
+  Panel as BasePanel,
   PanelHeader,
   PanelTitle,
   PanelContent,
@@ -43,7 +43,6 @@ import {
   EmptyState,
   EmptyIcon,
   EmptyText,
-  Button,
   PrimaryButton,
   SecondaryButton,
 } from './shared/StyledComponents';
@@ -76,6 +75,7 @@ interface FormField {
   required: boolean;
   placeholder?: string;
   defaultValue?: any;
+  options?: string[];
 }
 
 interface ConditionRule {
@@ -197,6 +197,12 @@ const HelpIcon = styled(HelpCircle)`
   &:hover {
     color: rgb(var(--color-text-secondary));
   }
+`;
+
+const SlidingPanel = styled(BasePanel)<{ $isOpen: boolean }>`
+  transform: translateX(${props => props.$isOpen ? '0' : '100%'});
+  opacity: ${props => props.$isOpen ? 1 : 0};
+  pointer-events: ${props => props.$isOpen ? 'auto' : 'none'};
 `;
 
 
@@ -735,7 +741,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <FormField>
             <Label>
               Node Label <RequiredIndicator>*</RequiredIndicator>
-              <HelpIcon size={14} title="Display name for this node" />
+              <span title="Display name for this node">
+                <HelpIcon size={14} />
+              </span>
             </Label>
             <Input
               value={formData.label || ''}
@@ -796,7 +804,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <FormField>
             <Label>
               Entity + Fields
-              <HelpIcon size={14} title="Select entity and choose fields (mirrors Django Admin builder)" />
+              <span title="Select entity and choose fields (mirrors Django Admin builder)">
+                <HelpIcon size={14} />
+              </span>
             </Label>
 
             <EntityFieldPicker
@@ -1535,7 +1545,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   return (
     <>
       <PanelOverlay $isOpen={isOpen} onClick={handleClose} />
-      <Panel $isOpen={isOpen}>
+      <SlidingPanel $isOpen={isOpen}>
         <PanelHeader>
           <HeaderLeft>
             <NodeIcon>⚙️</NodeIcon>
@@ -1582,7 +1592,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             {hasUnsavedChanges && ' *'}
           </Button>
         </PanelFooter>
-      </Panel>
+      </SlidingPanel>
     </>
   );
 };
