@@ -11,7 +11,7 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position, NodeToolbar } from '@xyflow/react';
 import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
 import type { NodeBadgeStatus } from '../components/NodeBadge';
@@ -254,6 +254,63 @@ const StyledHandle = styled(Handle)<{ $color: string }>`
   }
 `;
 
+const ToolbarCard = styled.div`
+  display: flex;
+  gap: 4px;
+  background: rgb(var(--color-surface));
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+`;
+
+const ToolbarBtn = styled.button<{ $danger?: boolean }>`
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: ${(props) =>
+      props.$danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))')};
+  }
+`;
+
+// Button Handle overrides standard dot
+const ButtonHandle = styled(Handle)`
+  width: 24px;
+  height: 24px;
+  background: rgb(var(--color-surface));
+  border: 2px solid rgb(var(--color-primary));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: transform 0.15s ease, background 0.15s ease;
+
+  &::after {
+    content: '+';
+    color: rgb(var(--color-primary));
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  &:hover {
+    transform: scale(1.1);
+    background: rgb(var(--color-primary));
+
+    &::after {
+      color: white;
+    }
+  }
+`;
+
 // Batch 3: Node Controls
 const NodeControls = styled.div`
   position: absolute;
@@ -449,42 +506,44 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Status Indicator - REMOVED (confusing yellow dot) */}
       
-      {/* Node Controls (Batch 3 + Sprint 1 Pin) */}
-      <NodeControls className="nodrag">
-        {onPin && (
-          <ControlButton 
-            $variant="pin" 
-            onClick={handlePin}
-            title={isPinned ? "Unlock node (allow drag)" : "Lock node position (Cmd/Ctrl+L)"}
-          >
-            {isPinned ? <Lock /> : <Unlock />}
-          </ControlButton>
-        )}
-        {onEdit && (
-          <ControlButton 
-            $variant="edit" 
-            onClick={handleEdit}
-            title="Edit node configuration"
-            aria-label={`Edit ${data.label || 'node'} configuration`}
-            role="button"
-            tabIndex={0}
-          >
-            <Edit2 aria-hidden="true" />
-          </ControlButton>
-        )}
-        {onDelete && (
-          <ControlButton 
-            $variant="delete" 
-            onClick={handleDelete}
-            title="Delete node"
-            aria-label={`Delete ${data.label || 'node'}`}
-            role="button"
-            tabIndex={0}
-          >
-            <Trash2 aria-hidden="true" />
-          </ControlButton>
-        )}
-      </NodeControls>
+      <NodeToolbar isVisible={selected} position={Position.Top}>
+        <ToolbarCard className="nodrag">
+          {onPin && (
+            <ToolbarBtn
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePin(e);
+              }}
+              title={isPinned ? 'Unlock node (allow drag)' : 'Lock node position (Cmd/Ctrl+L)'}
+            >
+              {isPinned ? <Lock size={16} /> : <Unlock size={16} />}
+            </ToolbarBtn>
+          )}
+          {data.onEdit && (
+            <ToolbarBtn
+              onClick={(e) => {
+                e.stopPropagation();
+                data.onEdit!();
+              }}
+              title="Edit Node"
+            >
+              <Edit2 size={16} />
+            </ToolbarBtn>
+          )}
+          {data.onDelete && (
+            <ToolbarBtn
+              $danger
+              onClick={(e) => {
+                e.stopPropagation();
+                data.onDelete!();
+              }}
+              title="Delete Node"
+            >
+              <Trash2 size={16} />
+            </ToolbarBtn>
+          )}
+        </ToolbarCard>
+      </NodeToolbar>
 
       {/* Header */}
       <NodeHeader className={headerDragHandleClass} $color={nodeType.color}>
@@ -559,16 +618,12 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Output Handle */}
       {showOutputHandle && (
-        <StyledHandle
+        <ButtonHandle
           type="source"
-          position={Position.Bottom}
+          position={Position.Right}
           id="output"
-          $color={nodeType.color}
+          isConnectable={true}
           aria-label="Output connection handle"
-          style={{
-            left: 'unset',
-            right: '18px',
-          }}
         />
       )}
       

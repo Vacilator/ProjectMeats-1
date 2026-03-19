@@ -27,6 +27,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-19 — Fix: Catalog filtering shows hybrid WorkForms — Commit: TBD (PR: TBD)
   - WorkForms Catalog: refactored filtering/classification to deeply inspect flow_data.nodes, correctly categorizing hybrid WorkForms (Form Process Groups) and pure workflows so user-created flows are not hidden.
 
+- 2026-03-19 — Phase 7 UX: Sub-flows + toolbars + smoother edges — Commit: TBD (PR: TBD)
+  - FormProcessGroupNode: removed dimension transitions and force explicit width/height on expand/collapse to avoid ResizeObserver bounding-box glitches.
+  - BaseNode: replaced ad-hoc controls with React Flow NodeToolbar and added button-style output handle.
+  - Edges: default to smoothstep (via EnhancedConnectionEdge) with thicker strokes + larger arrow markers; added a hover EdgeToolbar with insert/delete affordances.
+
 - 2026-03-19 — Fix: Workforms Editor UI/config/publish polish — Commit: 25a56157 (PR: #3629)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3629
   - DynamicConfigPanel: handle field.type=entityType and field.type=multiSelect to prevent "Unknown field type" rendering errors.

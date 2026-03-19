@@ -9,4 +9,5 @@ export { CustomEdge } from './CustomEdge';
 export { ConditionalEdge } from './ConditionalEdge';
 export { ErrorEdge } from './ErrorEdge';
 export { SuccessEdge } from './SuccessEdge';
+export { EnhancedConnectionEdge } from './EnhancedConnectionEdge';
 export { default as InsertNodeEdge } from './InsertNodeEdge';
