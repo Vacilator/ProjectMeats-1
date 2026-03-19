@@ -685,4 +685,22 @@ Deliverables:
 
 - PR: TBD (feat/workforms): Implement visual breakpoints, execution timeline, and step-through debugger
 
+## Phase 9.6: Canvas UX Overhaul
+
+- [x] Eradicated completion/config % badge on nodes:
+  - [x] BaseNode: removed live validation badge plumbing that was surfacing useless “0%” style indicators.
+
+- [x] Fixed handle overlap + improved hit targets:
+  - [x] BaseNode: enlarged handles (16x16) and repositioned to avoid overlap with controls (top-left input, bottom-right output, error handle shifted).
+  - [x] UnifiedFlowEditor.responsive.css: boosted handle z-index and expanded handle hitbox via ::before.
+
+- [x] Fixed dragging ergonomics:
+  - [x] BaseNode: header marked as `.custom-drag-handle`; body/controls marked as `.nodrag` to prevent accidental drags while clicking.
+  - [x] UnifiedFlowEditor.responsive.css: added grab/grabbing cursor styling for `.custom-drag-handle`.
+
+- [x] Dual-direction auto-layout:
+  - [x] autoLayout.getLayoutedElements: root graph laid out Top-to-Bottom (TB) while container children lay out Left-to-Right (LR) and containers auto-resize to fit.
+
+- PR: TBD (refactor/workforms): overhaul canvas UX, dual-direction auto-layout, and fix handle targets
+
 
