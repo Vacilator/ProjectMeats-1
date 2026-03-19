@@ -2513,16 +2513,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   // Inline insertion: listen for "+" edge events to open palette with context
   useEffect(() => {
-    const handleOpenPalette = (event: Event) => {
-      const detail = (event as CustomEvent<{ insertOnEdgeId?: string }>).detail;
-      setPendingInsertEdgeId(detail?.insertOnEdgeId || null);
+    const openPaletteForEdge = (edgeId: string | null) => {
+      setPendingInsertEdgeId(edgeId);
       setIsPaletteVisible(true);
       requestAnimationFrame(() => searchInputRef.current?.focus());
     };
 
+    const handleOpenPalette = (event: Event) => {
+      const detail = (event as CustomEvent<{ insertOnEdgeId?: string }>).detail;
+      openPaletteForEdge(detail?.insertOnEdgeId || null);
+    };
+
+    const handleInsertNodeBetween = (event: Event) => {
+      const detail = (event as CustomEvent<{ edgeId?: string }>).detail;
+      openPaletteForEdge(detail?.edgeId || null);
+    };
+
     window.addEventListener('pm:openNodePalette', handleOpenPalette as EventListener);
+    window.addEventListener('insert-node-between', handleInsertNodeBetween as EventListener);
+
     return () => {
       window.removeEventListener('pm:openNodePalette', handleOpenPalette as EventListener);
+      window.removeEventListener('insert-node-between', handleInsertNodeBetween as EventListener);
     };
   }, []);
 
@@ -3246,18 +3258,187 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const onDragStart = useCallback((event: React.DragEvent, nodeTypeId: string) => {
     event.dataTransfer.setData('application/reactflow-nodetype', nodeTypeId);
     event.dataTransfer.effectAllowed = 'move';
-    
+
     // Reset drop succeeded flag when starting a new drag
     dropSucceededRef.current = false;
-    
+
     // Track drag state for ghost preview
     setIsDragging(true);
     setDragNodeType(nodeTypeId);
-    
+
     // Track as recently used
     addToRecent(nodeTypeId);
   }, [addToRecent]);
-  
+
+  const applyAutoLayoutImmediate = useCallback(
+    (nextNodes: Node[], nextEdges: Edge[]) => {
+      const hasFormProcessContainer = nextNodes.some((n) => isFormProcessContainerType(n.type));
+      const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
+
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nextNodes, nextEdges, {
+        direction: layoutDirection,
+        nodeSpacing: 60,
+        rankSpacing: 120,
+      });
+
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+      setHasUnsavedChanges(true);
+    },
+    [setNodes, setEdges]
+  );
+
+  const handleClickToAddNode = useCallback(
+    (nodeTypeId: string) => {
+      if (readOnly) return;
+
+      addToRecent(nodeTypeId);
+
+      const insertEdge = pendingInsertEdgeId ? edges.find((e) => e.id === pendingInsertEdgeId) : null;
+
+      const newNodeId = `node-${nodeIdCounter}`;
+      const reactFlowType = getReactFlowNodeType(nodeTypeId);
+
+      // Ensure default dimensions upfront (prevents React Flow dimension errors)
+      const isContainerNode = isFormProcessContainerType(nodeTypeId);
+      const defaultDimensions = isContainerNode ? { width: 600, height: 400 } : undefined;
+
+      const newNode: Node = {
+        id: newNodeId,
+        type: reactFlowType,
+        position: { x: 0, y: 0 },
+        ...(defaultDimensions && { style: defaultDimensions }),
+        data: {
+          label: NODE_TYPE_REGISTRY[nodeTypeId]?.name || 'New Node',
+          status: 'draft',
+          ...getDefaultNodeData(nodeTypeId),
+        },
+        selected: true,
+      };
+
+      // Upgrade legacy container types to the canonical group container
+      if (nodeTypeId === 'formMultiStepContainer' || isFormProcessContainerType(nodeTypeId)) {
+        newNode.style = {
+          width: 600,
+          height: 400,
+        };
+        newNode.data = {
+          ...newNode.data,
+          isExpanded: true,
+          isGroup: true,
+        };
+        (newNode as any).type = 'formProcessGroup';
+      }
+
+      const withOnlyNewSelected = (ns: Node[]) => ns.map((n) => ({ ...n, selected: n.id === newNodeId }));
+
+      // If we're in "insert between edge" mode, split the target edge
+      if (insertEdge) {
+        const sourceNode = nodes.find((n) => n.id === insertEdge.source);
+        const targetNode = nodes.find((n) => n.id === insertEdge.target);
+
+        if (sourceNode && targetNode) {
+          const sharedParentId =
+            sourceNode.parentId && sourceNode.parentId === targetNode.parentId ? sourceNode.parentId : undefined;
+
+          if (sharedParentId) {
+            newNode.parentId = sharedParentId;
+            newNode.extent = 'parent';
+            newNode.expandParent = true;
+          }
+
+          newNode.position = {
+            x: (sourceNode.position.x + targetNode.position.x) / 2,
+            y: (sourceNode.position.y + targetNode.position.y) / 2,
+          };
+        }
+
+        const nextNodes = withOnlyNewSelected([...nodes, newNode]);
+        const nextEdges: Edge[] = [
+          ...edges.filter((e) => e.id !== insertEdge.id),
+          {
+            id: `edge-${insertEdge.source}-${newNodeId}`,
+            source: insertEdge.source,
+            target: newNodeId,
+            type: 'insert',
+          },
+          {
+            id: `edge-${newNodeId}-${insertEdge.target}`,
+            source: newNodeId,
+            target: insertEdge.target,
+            type: 'insert',
+          },
+        ];
+
+        setNodeIdCounter((prev) => prev + 1);
+        setPendingInsertEdgeId(null);
+        setSelectedNodeId(newNodeId);
+        setSelectedNode(null);
+
+        applyAutoLayoutImmediate(nextNodes, nextEdges);
+        return;
+      }
+
+      // Otherwise, insert directly below the selected node (or the bottom-most node)
+      const selectedById = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) || null : null;
+      const bottomMost = [...nodes]
+        .filter((n) => !n.hidden)
+        .sort((a, b) => (b.position?.y ?? 0) - (a.position?.y ?? 0))[0];
+
+      const anchor = selectedNode || selectedById || nodes.find((n) => n.selected) || bottomMost || null;
+
+      if (anchor) {
+        // Preserve container context if inserting within a group
+        if (anchor.parentId) {
+          newNode.parentId = anchor.parentId;
+          newNode.extent = 'parent';
+          newNode.expandParent = true;
+        }
+
+        newNode.position = {
+          x: anchor.position.x,
+          y: anchor.position.y + 150,
+        };
+
+        const nextNodes = withOnlyNewSelected([...nodes, newNode]);
+        const nextEdges: Edge[] = [
+          ...edges,
+          {
+            id: `edge-${anchor.id}-${newNodeId}`,
+            source: anchor.id,
+            target: newNodeId,
+            type: 'insert',
+          },
+        ];
+
+        setNodeIdCounter((prev) => prev + 1);
+        setSelectedNodeId(newNodeId);
+        setSelectedNode(null);
+
+        applyAutoLayoutImmediate(nextNodes, nextEdges);
+      } else {
+        const nextNodes = withOnlyNewSelected([newNode]);
+
+        setNodeIdCounter((prev) => prev + 1);
+        setSelectedNodeId(newNodeId);
+        setSelectedNode(null);
+
+        applyAutoLayoutImmediate(nextNodes, edges);
+      }
+    },
+    [
+      readOnly,
+      addToRecent,
+      pendingInsertEdgeId,
+      edges,
+      nodes,
+      nodeIdCounter,
+      selectedNode,
+      selectedNodeId,
+      applyAutoLayoutImmediate,
+    ]
+  );
+
   // ============================================================================
   // Container Detection Helper (Phase E)
   // ============================================================================
@@ -5974,6 +6155,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     key={node.id}
                     $color={node.color}
                     draggable
+                    onClick={() => handleClickToAddNode(node.id)}
                     onDragStart={(e) => onDragStart(e, node.id)}
                     onDrag={onDrag}
                     onDragEnd={onDragEnd}
@@ -6017,6 +6199,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                     key={node.id}
                     $color={node.color}
                     draggable
+                    onClick={() => handleClickToAddNode(node.id)}
                     onDragStart={(e) => onDragStart(e, node.id)}
                     onDrag={onDrag}
                     onDragEnd={onDragEnd}
@@ -6066,6 +6249,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                       key={node.id}
                       $color={node.color}
                       draggable
+                      onClick={() => handleClickToAddNode(node.id)}
                       onDragStart={(e) => onDragStart(e, node.id)}
                       onDrag={onDrag}
                       onDragEnd={onDragEnd}
@@ -6325,7 +6509,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodesDelete={onNodesDelete}
-        nodesDraggable={false}
+        nodesDraggable={true}
+        nodeDragHandle=".custom-drag-handle"
         nodesConnectable={false}
         isValidConnection={isValidConnection}
         onDrop={onDrop}
