@@ -8,6 +8,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-19 — Phase 9.5: Book + Pages paradigm shift — Commit: fca3d658 (PR: #3631)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3631
+  - Paradigm: Form Process Group behaves like a "book" / swimlane; Form steps render as "pages" with in-node field preview.
+  - Container edges: strict container edge isolation remains removed to support Form → Action → Form workflows across permeable boundaries.
+  - Layout: steps sequence horizontally (wider spacing) and non-form child nodes are not repositioned by container auto-layout.
+
 - 2026-03-19 — Fix: Workforms Editor UI/config/publish polish — Commit: 25a56157 (PR: #3629)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3629
   - DynamicConfigPanel: handle field.type=entityType and field.type=multiSelect to prevent "Unknown field type" rendering errors.
