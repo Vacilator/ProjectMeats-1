@@ -437,6 +437,20 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   const isDropTarget = data.isDropTarget ?? false; // Phase 3: Drop zone indicator
   const sequentialExecution = data.sequentialExecution ?? true; // Phase 3: Sequential by default
 
+  // Stable effect keys (avoid eslint-disable + reduce accidental effect churn)
+  const pageNodesIdsKey = useMemo(() => pageNodes.map((n) => n.id).sort().join('|'), [pageNodes]);
+
+  const pageNodesPositionsKey = useMemo(
+    () =>
+      pageNodes
+        .map((n) => `${n.id}:${n.position?.x ?? 0},${n.position?.y ?? 0}`)
+        .sort()
+        .join('|'),
+    [pageNodes]
+  );
+
+  const pageOrderKey = useMemo(() => JSON.stringify(data.pageOrder ?? []), [data.pageOrder]);
+
   const collapsedVirtualHandles = useMemo(() => {
     if (isExpanded) return { incoming: [] as string[], outgoing: [] as string[] };
 
@@ -538,9 +552,11 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     
     try {
       // Find the current node object
-      const currentNode = allNodes.find(n => n.id === id);
+      const currentNode = allNodes.find((n) => n.id === id);
       if (!currentNode) {
-        throw new Error('Node not found');
+        logger.error('[FormProcessGroup] Save failed: container node missing', { id });
+        toast.error('Save failed: container not found');
+        return;
       }
       
       logger.debug('[FormProcessGroup] Saving to backend:', id);
@@ -659,10 +675,8 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     isExpanded,
     pageCount,
     pageNodes.length,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(pageNodes.map((n) => n.id).sort()),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(data.pageOrder || []),
+    pageNodesIdsKey,
+    pageOrderKey,
     setNodes,
     updateNodeInternals,
   ]);
@@ -734,10 +748,8 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
     id,
     sequentialExecution,
     pageNodes.length,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(pageNodes.map((n) => ({ id: n.id, x: n.position?.x, y: n.position?.y }))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(data.pageOrder || []),
+    pageNodesPositionsKey,
+    pageOrderKey,
     setEdges,
   ]);
   
