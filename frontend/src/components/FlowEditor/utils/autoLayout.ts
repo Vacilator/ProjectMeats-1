@@ -51,12 +51,12 @@ export const getLayoutedElements = (
   const layoutDagre = (
     inputNodes: Node[],
     inputEdges: Edge[],
-    normalize: { x: number; y: number },
-    rankdir: 'TB' | 'LR'
+    normalize: { x: number; y: number }
   ) => {
-    const dagreGraph = new dagre.graphlib.Graph();
+    const dagreGraph = new dagre.graphlib.Graph({ compound: true });
     dagreGraph.setGraph({
-      rankdir,
+      // Phase 10: Always Top-to-Bottom for compound clusters
+      rankdir: 'TB',
       align: opts.align,
       ranker: 'longest-path',
       nodesep: opts.nodeSpacing,
@@ -67,9 +67,20 @@ export const getLayoutedElements = (
     });
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
+    const nodeById = new Map<string, Node>();
     inputNodes.forEach((n) => {
+      nodeById.set(n.id, n);
       const { width, height } = getDims(n);
       dagreGraph.setNode(n.id, { width, height });
+    });
+
+    // Compound graph: attach children to their parent formProcessGroup nodes
+    inputNodes.forEach((n) => {
+      if (!n.parentId) return;
+      const parent = nodeById.get(n.parentId);
+      if (!parent) return;
+      if (parent.type !== 'formProcessGroup') return;
+      dagreGraph.setParent(n.id, parent.id);
     });
 
     inputEdges.forEach((e) => {
@@ -79,43 +90,66 @@ export const getLayoutedElements = (
 
     dagre.layout(dagreGraph);
 
-    const laidOut = inputNodes.map((n) => {
+    const absTopLeft = new Map<string, { x: number; y: number }>();
+
+    // Pass 1: compute absolute top-left positions for all nodes
+    inputNodes.forEach((n) => {
       const p = dagreGraph.node(n.id);
       const { width, height } = getDims(n);
+      absTopLeft.set(n.id, {
+        x: p.x - width / 2,
+        y: p.y - height / 2,
+      });
+    });
+
+    const isRootLike = (n: Node) => {
+      if (!n.parentId) return true;
+      const parent = nodeById.get(n.parentId);
+      return !(parent && parent.type === 'formProcessGroup');
+    };
+
+    // Pass 2: convert compound children into parent-relative coordinates
+    const laidOut = inputNodes.map((n) => {
+      const pos = absTopLeft.get(n.id) ?? { x: 0, y: 0 };
+
+      if (n.parentId) {
+        const parent = nodeById.get(n.parentId);
+        if (parent && parent.type === 'formProcessGroup') {
+          const parentAbs = absTopLeft.get(parent.id);
+          if (parentAbs) {
+            return {
+              ...n,
+              position: {
+                x: pos.x - parentAbs.x,
+                y: pos.y - parentAbs.y,
+              },
+            };
+          }
+        }
+      }
+
       return {
         ...n,
-        position: {
-          x: p.x - width / 2,
-          y: p.y - height / 2,
-        },
+        position: pos,
       };
     });
 
-    const minX = Math.min(...laidOut.map((n) => n.position.x));
-    const minY = Math.min(...laidOut.map((n) => n.position.y));
+    // Normalize only root-level nodes. Child nodes are relative to their parent.
+    const rootNodes = laidOut.filter(isRootLike);
+    const minX = Math.min(...rootNodes.map((n) => n.position.x));
+    const minY = Math.min(...rootNodes.map((n) => n.position.y));
 
-    return laidOut.map((n) => ({
-      ...n,
-      position: {
-        x: n.position.x - minX + normalize.x,
-        y: n.position.y - minY + normalize.y,
-      },
-    }));
+    return laidOut.map((n) => {
+      if (!isRootLike(n)) return n;
+      return {
+        ...n,
+        position: {
+          x: n.position.x - minX + normalize.x,
+          y: n.position.y - minY + normalize.y,
+        },
+      };
+    });
   };
-
-  // Group nodes by parentId
-  const childrenByParent = new Map<string, Node[]>();
-  const nodeById = new Map<string, Node>();
-  nodes.forEach((n) => {
-    nodeById.set(n.id, n);
-    if (n.parentId) {
-      const arr = childrenByParent.get(n.parentId) ?? [];
-      arr.push(n);
-      childrenByParent.set(n.parentId, arr);
-    }
-  });
-
-  const updates = new Map<string, Node>();
 
   const PADDING_X = 30;
   const PADDING_Y = 30;
@@ -123,74 +157,65 @@ export const getLayoutedElements = (
   const MIN_CONTAINER_WIDTH = 500;
   const MIN_CONTAINER_HEIGHT = 300;
 
-  const layoutContainerRecursive = (containerId: string) => {
-    const children = childrenByParent.get(containerId) ?? [];
-    if (children.length === 0) return;
+  // Phase 10: Single-pass compound layout across the whole graph.
+  // Dagre routes edges that leave and re-enter compound parents.
+  const laidOutAll = layoutDagre(nodes, edges, { x: 50, y: 50 });
 
-    // Layout nested containers first so their dims are updated before parent layout
-    for (const child of children) {
-      if (childrenByParent.has(child.id)) layoutContainerRecursive(child.id);
+  // Update container dimensions to comfortably fit their children.
+  const byId = new Map<string, Node>(laidOutAll.map((n) => [n.id, n]));
+
+  for (const parent of laidOutAll) {
+    if (parent.type !== 'formProcessGroup') continue;
+
+    const children = laidOutAll.filter((n) => n.parentId === parent.id);
+    if (children.length === 0) {
+      // Keep a sensible minimum size for empty containers
+      byId.set(parent.id, {
+        ...parent,
+        style: {
+          ...(parent.style as any),
+          width: Math.max(MIN_CONTAINER_WIDTH, (parent.style as any)?.width || 0),
+          height: Math.max(MIN_CONTAINER_HEIGHT, (parent.style as any)?.height || 0),
+        },
+      });
+      continue;
     }
 
-    const childIds = new Set(children.map((c) => c.id));
-    const childEdges = edges.filter((e) => childIds.has(e.source) && childIds.has(e.target));
-
-    const mergedChildren = children.map((c) => updates.get(c.id) ?? c);
-    // Container children are laid out Left-to-Right (LR)
-    const laidOutChildren = layoutDagre(
-      mergedChildren,
-      childEdges,
-      {
-        x: PADDING_X,
-        y: HEADER_HEIGHT + PADDING_Y,
-      },
-      'LR'
-    );
-
-    // Compute container bounds to fit children
     let maxRight = 0;
     let maxBottom = 0;
-    for (const c of laidOutChildren) {
+
+    for (const c of children) {
       const { width, height } = getDims(c);
       maxRight = Math.max(maxRight, c.position.x + width);
       maxBottom = Math.max(maxBottom, c.position.y + height);
     }
 
     const containerWidth = Math.max(MIN_CONTAINER_WIDTH, maxRight + PADDING_X);
-    const containerHeight = Math.max(MIN_CONTAINER_HEIGHT, maxBottom + PADDING_Y);
+    const containerHeight = Math.max(MIN_CONTAINER_HEIGHT, maxBottom + PADDING_Y + HEADER_HEIGHT);
 
-    for (const c of laidOutChildren) {
-      updates.set(c.id, c);
-    }
+    byId.set(parent.id, {
+      ...parent,
+      style: {
+        ...(parent.style as any),
+        width: containerWidth,
+        height: containerHeight,
+      },
+    });
 
-    const container = nodeById.get(containerId);
-    if (container) {
-      updates.set(containerId, {
-        ...container,
-        style: {
-          ...(container.style as any),
-          width: containerWidth,
-          height: containerHeight,
+    // Apply consistent inset within the container for readability
+    for (const c of children) {
+      byId.set(c.id, {
+        ...c,
+        position: {
+          x: c.position.x + PADDING_X,
+          y: c.position.y + HEADER_HEIGHT + PADDING_Y,
         },
       });
     }
-  };
-
-  // Layout all containers (deepest-first via recursion)
-  for (const containerId of childrenByParent.keys()) {
-    layoutContainerRecursive(containerId);
   }
 
-  // Final pass: layout root nodes/containers Top-to-Bottom (TB)
-  const rootNodes = nodes.filter((n) => !n.parentId).map((n) => updates.get(n.id) ?? n);
-  const rootIds = new Set(rootNodes.map((n) => n.id));
-  const rootEdges = edges.filter((e) => rootIds.has(e.source) && rootIds.has(e.target));
-
-  const laidOutTop = layoutDagre(rootNodes, rootEdges, { x: 50, y: 50 }, 'TB');
-  for (const n of laidOutTop) updates.set(n.id, n);
-
   // Merge back into original order (order-preserving)
-  const merged = nodes.map((n) => updates.get(n.id) ?? n);
+  const merged = nodes.map((n) => byId.get(n.id) ?? n);
 
   return {
     nodes: merged,

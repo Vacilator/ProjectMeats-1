@@ -3080,56 +3080,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       if (!sourceNode || !targetNode) return;
       
-      // Phase 6.1: Container isolation validation (HIGHEST PRIORITY)
-      // Block connections from child node to external node
-      if (sourceNode.parentNode && !targetNode.parentNode) {
-        logger.warn('[Connection] ❌ Cannot connect child node to external node (container isolation)');
-        toast.error('Cannot connect nodes across container boundaries', {
-          duration: 4000,
-          icon: '🚫',
-        });
-        Sentry.captureMessage('Container isolation: child → external blocked', {
-          level: 'info',
-          extra: { sourceNode: sourceNode.id, targetNode: targetNode.id },
-        });
-        return;
-      }
-      
-      // Block connections from external node to child node
-      if (!sourceNode.parentNode && targetNode.parentNode) {
-        logger.warn('[Connection] ❌ Cannot connect external node to child node (container isolation)');
-        toast.error('Cannot connect nodes across container boundaries', {
-          duration: 4000,
-          icon: '🚫',
-        });
-        Sentry.captureMessage('Container isolation: external → child blocked', {
-          level: 'info',
-          extra: { sourceNode: sourceNode.id, targetNode: targetNode.id },
-        });
-        return;
-      }
-      
-      // Block connections between nodes in different containers
-      if (sourceNode.parentNode && targetNode.parentNode && sourceNode.parentNode !== targetNode.parentNode) {
-        logger.warn('[Connection] ❌ Cannot connect nodes from different containers');
-        toast.error('Cannot connect nodes between different containers', {
-          duration: 4000,
-          icon: '🚫',
-        });
-        Sentry.captureMessage('Container isolation: different containers blocked', {
-          level: 'info',
-          extra: { 
-            sourceNode: sourceNode.id, 
-            targetNode: targetNode.id,
-            sourceContainer: sourceNode.parentNode,
-            targetContainer: targetNode.parentNode,
-          },
-        });
-        return;
-      }
-      
-      logger.debug('[Connection] ✅ Container isolation check passed');
-      
+      // Phase 10: WYSIWYG Form Flow
+      // Container boundaries are permeable: allow edges to leave/re-enter containers.
       // Type-aware validation
       const typeCheck = isValidConnectionType(sourceNode.type || '', targetNode.type || '');
       if (!typeCheck.valid) {
@@ -3272,11 +3224,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
   const applyAutoLayoutImmediate = useCallback(
     (nextNodes: Node[], nextEdges: Edge[]) => {
-      const hasFormProcessContainer = nextNodes.some((n) => isFormProcessContainerType(n.type));
-      const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
-
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nextNodes, nextEdges, {
-        direction: layoutDirection,
+        direction: 'TB',
         nodeSpacing: 60,
         rankSpacing: 120,
       });
@@ -3296,12 +3245,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       const insertEdge = pendingInsertEdgeId ? edges.find((e) => e.id === pendingInsertEdgeId) : null;
 
-      const newNodeId = `node-${nodeIdCounter}`;
+      const isNewContainer = isFormProcessContainerType(nodeTypeId);
+
+      const containerNodeId = `node-${nodeIdCounter}`;
+      const newNodeId = containerNodeId;
       const reactFlowType = getReactFlowNodeType(nodeTypeId);
 
       // Ensure default dimensions upfront (prevents React Flow dimension errors)
-      const isContainerNode = isFormProcessContainerType(nodeTypeId);
-      const defaultDimensions = isContainerNode ? { width: 600, height: 400 } : undefined;
+      const defaultDimensions = isNewContainer ? { width: 600, height: 400 } : undefined;
 
       const newNode: Node = {
         id: newNodeId,
@@ -3317,7 +3268,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       };
 
       // Upgrade legacy container types to the canonical group container
-      if (nodeTypeId === 'formMultiStepContainer' || isFormProcessContainerType(nodeTypeId)) {
+      if (isNewContainer) {
         newNode.style = {
           width: 600,
           height: 400,
@@ -3330,7 +3281,36 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         (newNode as any).type = 'formProcessGroup';
       }
 
-      const withOnlyNewSelected = (ns: Node[]) => ns.map((n) => ({ ...n, selected: n.id === newNodeId }));
+      const spawnDefaultFormPage = (parentId: string) => {
+        const pageId = `node-${nodeIdCounter + 1}`;
+
+        const pageNode: Node = {
+          id: pageId,
+          type: 'form',
+          parentId,
+          extent: 'parent',
+          expandParent: true,
+          position: { x: 30, y: 90 },
+          data: {
+            label: NODE_TYPE_REGISTRY.form?.name || 'Form',
+            status: 'draft',
+            fields: [],
+            ...getDefaultNodeData('form'),
+          },
+          selected: true,
+        };
+
+        const edge: Edge = {
+          id: `edge-${parentId}-${pageId}`,
+          source: parentId,
+          target: pageId,
+          type: 'insert',
+        };
+
+        return { pageNode, edge, pageId };
+      };
+
+      const selectOnly = (ns: Node[], selectedId: string) => ns.map((n) => ({ ...n, selected: n.id === selectedId }));
 
       // If we're in "insert between edge" mode, split the target edge
       if (insertEdge) {
@@ -3353,7 +3333,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           };
         }
 
-        const nextNodes = withOnlyNewSelected([...nodes, newNode]);
         const nextEdges: Edge[] = [
           ...edges.filter((e) => e.id !== insertEdge.id),
           {
@@ -3370,9 +3349,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           },
         ];
 
-        setNodeIdCounter((prev) => prev + 1);
+        const nodesToAdd: Node[] = [newNode];
+        let selectedId = newNodeId;
+        let counterDelta = 1;
+
+        if (isNewContainer) {
+          const { pageNode, edge, pageId } = spawnDefaultFormPage(newNodeId);
+          nodesToAdd.push(pageNode);
+          nextEdges.push(edge);
+          selectedId = pageId;
+          counterDelta = 2;
+        }
+
+        const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
+
+        setNodeIdCounter((prev) => prev + counterDelta);
         setPendingInsertEdgeId(null);
-        setSelectedNodeId(newNodeId);
+        setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
         applyAutoLayoutImmediate(nextNodes, nextEdges);
@@ -3400,7 +3393,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           y: anchor.position.y + 150,
         };
 
-        const nextNodes = withOnlyNewSelected([...nodes, newNode]);
         const nextEdges: Edge[] = [
           ...edges,
           {
@@ -3411,19 +3403,47 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           },
         ];
 
-        setNodeIdCounter((prev) => prev + 1);
-        setSelectedNodeId(newNodeId);
+        const nodesToAdd: Node[] = [newNode];
+        let selectedId = newNodeId;
+        let counterDelta = 1;
+
+        if (isNewContainer) {
+          const { pageNode, edge, pageId } = spawnDefaultFormPage(newNodeId);
+          nodesToAdd.push(pageNode);
+          nextEdges.push(edge);
+          selectedId = pageId;
+          counterDelta = 2;
+        }
+
+        const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
+
+        setNodeIdCounter((prev) => prev + counterDelta);
+        setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
         applyAutoLayoutImmediate(nextNodes, nextEdges);
       } else {
-        const nextNodes = withOnlyNewSelected([newNode]);
+        const nextEdges: Edge[] = [...edges];
 
-        setNodeIdCounter((prev) => prev + 1);
-        setSelectedNodeId(newNodeId);
+        const nodesToAdd: Node[] = [newNode];
+        let selectedId = newNodeId;
+        let counterDelta = 1;
+
+        if (isNewContainer) {
+          const { pageNode, edge, pageId } = spawnDefaultFormPage(newNodeId);
+          nodesToAdd.push(pageNode);
+          nextEdges.push(edge);
+          selectedId = pageId;
+          counterDelta = 2;
+        }
+
+        const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
+
+        setNodeIdCounter((prev) => prev + counterDelta);
+        setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
-        applyAutoLayoutImmediate(nextNodes, edges);
+        applyAutoLayoutImmediate(nextNodes, nextEdges);
       }
     },
     [
@@ -3914,9 +3934,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
       
       // Normal drop on main canvas
-      const insertEdge = pendingInsertEdgeId
-        ? edges.find((e) => e.id === pendingInsertEdgeId)
-        : null;
+      const insertEdge = pendingInsertEdgeId ? edges.find((e) => e.id === pendingInsertEdgeId) : null;
 
       if (insertEdge) {
         const sourceNode = nodes.find((n) => n.id === insertEdge.source);
@@ -3930,13 +3948,43 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         }
       }
 
-      const updatedNodes = nodes.concat(newNode);
-      setNodes(updatedNodes);
-      setNodeIdCounter((prev) => prev + 1);
-      
+      const nodesToAdd: Node[] = [newNode];
+      const edgesToAdd: Edge[] = [];
+      let counterDelta = 1;
+
+      // Phase 10: Auto-spawn a default Form page inside a new formProcessGroup
+      if (isContainerNode && newNode.type === 'formProcessGroup') {
+        const pageId = `node-${nodeIdCounter + 1}`;
+        const pageNode: Node = {
+          id: pageId,
+          type: 'form',
+          parentId: newNode.id,
+          extent: 'parent',
+          expandParent: true,
+          position: { x: 30, y: 90 },
+          data: {
+            label: NODE_TYPE_REGISTRY.form?.name || 'Form',
+            status: 'draft',
+            fields: [],
+            ...getDefaultNodeData('form'),
+          },
+        };
+
+        nodesToAdd.push(pageNode);
+        edgesToAdd.push({
+          id: `edge-${newNode.id}-${pageId}`,
+          source: newNode.id,
+          target: pageId,
+          type: 'insert',
+        });
+        counterDelta = 2;
+      }
+
+      const updatedNodes = nodes.concat(nodesToAdd);
+
       // Mark drop as succeeded
       dropSucceededRef.current = true;
-      
+
       // Auto-connect to nearby node if found (only for main canvas drops)
       let updatedEdges = edges;
       if (insertEdge && !targetContainer) {
@@ -3956,7 +4004,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             type: 'insert',
           },
         ];
-        setEdges(updatedEdges);
         setPendingInsertEdgeId(null);
       } else if (nearby && !targetContainer) {
         const newEdge = {
@@ -3966,14 +4013,36 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           type: 'insert',
         };
         updatedEdges = [...edges, newEdge];
-        setEdges(updatedEdges);
       }
-      
+
+      updatedEdges = [...updatedEdges, ...edgesToAdd];
+
+      if (isContainerNode && newNode.type === 'formProcessGroup') {
+        applyAutoLayoutImmediate(updatedNodes, updatedEdges);
+      } else {
+        setNodes(updatedNodes);
+        setEdges(updatedEdges);
+        setHasUnsavedChanges(true);
+      }
+
+      setNodeIdCounter((prev) => prev + counterDelta);
+
       // Clear nearby node state
       setNearbyNode(null);
       setPendingInsertEdgeId(null);
     },
-    [nodeIdCounter, setNodes, reactFlowInstance, nodes, edges, findNearbyNode, setEdges, findContainerAtPosition, pendingInsertEdgeId]
+    [
+      nodeIdCounter,
+      setNodes,
+      reactFlowInstance,
+      nodes,
+      edges,
+      findNearbyNode,
+      setEdges,
+      findContainerAtPosition,
+      pendingInsertEdgeId,
+      applyAutoLayoutImmediate,
+    ]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -4583,14 +4652,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    * Phase 2: UI/UX Enhancements
    */
   const handleAutoLayout = useCallback(() => {
-    const hasFormProcessContainer = nodes.some((n) => isFormProcessContainerType(n.type));
-    const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
-    
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-      nodes,
-      edges,
-      { direction: layoutDirection, nodeSpacing: 60, rankSpacing: 120 }
-    );
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, {
+      direction: 'TB',
+      nodeSpacing: 60,
+      rankSpacing: 120,
+    });
     setNodes(layoutedNodes);
     setHasUnsavedChanges(true);
     toast.success('Layout applied successfully');
@@ -4611,14 +4677,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       e => selectedNodeIds.includes(e.source) && selectedNodeIds.includes(e.target)
     );
 
-    const hasFormProcessContainer = selectedNodes.some((n) => isFormProcessContainerType(n.type));
-    const layoutDirection: 'TB' | 'LR' = hasFormProcessContainer ? 'LR' : 'TB';
-
-    const { nodes: layoutedSelected } = getLayoutedElements(
-      selectedNodes,
-      relevantEdges,
-      { direction: layoutDirection }
-    );
+    const { nodes: layoutedSelected } = getLayoutedElements(selectedNodes, relevantEdges, {
+      direction: 'TB',
+    });
 
     // Merge layouted nodes back
     const updatedNodes = nodes.map(node => {

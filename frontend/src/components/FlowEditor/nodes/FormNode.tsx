@@ -1,292 +1,222 @@
 /**
- * Form Node Component
- * 
- * Single-page form for data collection and entity interaction.
- * Displays field summary and validation status.
- * Can be used standalone or inside Form Process containers.
- * 
- * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
- * Updated: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
- * Renamed: 2026-02-14 - Phase 2: FormStep → FormStepSingle
- * Renamed: 2026-02-19 - Phase E: FormStepSingle → Form (simplified naming)
+ * Form Node Component (Phase 10: WYSIWYG Form Flow)
+ *
+ * Visual metaphor: a "ripped page" that can live inside a "book" (formProcessGroup).
+ * This intentionally does NOT rely on BaseNode so we can fully customize the UI.
  */
+
 import React from 'react';
 import styled from 'styled-components';
-import { NodeProps } from '@xyflow/react';
-import { BaseNode, BaseNodeData } from './BaseNode';
-import { getNodeTypeDefinition } from '../nodeTypes';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
 
-// ============================================================================
-// TypeScript Interfaces (Updated for Phase 5)
-// ============================================================================
-
-export type FormFieldType = 
-  | 'text'
-  | 'textarea'
-  | 'number'
-  | 'email'
-  | 'phone'
-  | 'url'
-  | 'date'
-  | 'datetime'
-  | 'select'
-  | 'multi-select'
-  | 'checkbox'
-  | 'radio'
-  | 'file';
-
-export interface ValidationRule {
+type PreviewField = {
   id: string;
-  type: string;
-  value?: any;
-  errorMessage?: string;
-}
+  label?: string;
+  type?: string;
+  required?: boolean;
+};
 
-export interface ConditionRule {
-  id: string;
-  field: string;
-  operator: string;
-  value?: any;
-}
-
-export interface FormField {
-  id: string;
-  type: FormFieldType;
-  label: string;
-  required: boolean;
-  placeholder?: string;
-  defaultValue?: any;
-  helpText?: string;
-  validationRules: ValidationRule[];
-  visibility?: {
-    mode: 'always' | 'conditional';
-    conditions?: ConditionRule[];
-    logic?: 'and' | 'or';
-  };
-  options?: {
-    source: 'manual' | 'tenant-list' | 'entity';
-    manualOptions?: string[];
-    tenantListId?: string;
-    entityType?: string;
-    entityField?: string;
-  };
-  dependencies?: Array<{
-    field: string;
-    action: 'enable' | 'disable' | 'show' | 'hide';
-    condition: ConditionRule;
-  }>;
-}
-
-export interface FieldMapping {
-  id: string;
-  formFieldId: string;
-  entityField: string;
-  transformation: {
-    type: 'direct' | 'lookup' | 'format' | 'calculated';
-    format?: string;
-    formula?: string;
-    lookupEntity?: string;
-  };
-  autoPopulate?: {
-    sourceStep: string;
-    sourceField: string;
-    mode: 'copy' | 'lookup';
-  };
-}
-
-export interface FormStepNodeData extends BaseNodeData {
+export type FormNodeData = {
+  label?: string;
   stepTitle?: string;
-  stepDescription?: string;
-  fields?: FormField[];
-  visibility?: {
-    mode: 'always' | 'conditional';
-    conditions?: ConditionRule[];
-    logic?: 'and' | 'or';
-  };
-  navigation?: {
-    allowBack: boolean;
-    allowSkip: boolean;
-    autoAdvance: boolean;
-    backLabel?: string;
-    nextLabel?: string;
-    skipLabel?: string;
-  };
-  validation?: {
-    mode: 'all' | 'minimum';
-    minimumRequired?: number;
-    customMessage?: string;
-  };
-  fieldMappings?: FieldMapping[];
-  targetEntity?: string;
-  validationRules?: Record<string, any>; // Legacy - kept for backward compatibility
-}
+  fields?: PreviewField[];
+  entityType?: string;
+} & Record<string, unknown>;
 
-// ============================================================================
-// Styled Components
-// ============================================================================
+const Page = styled.div<{ $selected: boolean }>`
+  position: relative;
+  min-width: 220px;
+  max-width: 320px;
+  background: rgb(var(--color-surface));
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 4px 14px rgb(var(--color-text-primary) / 0.08);
+  overflow: hidden;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
 
-const FieldList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+  ${(p) =>
+    p.$selected
+      ? `
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 6px 18px rgb(var(--color-text-primary) / 0.12);
+  `
+      : ''}
+
+  &:hover {
+    box-shadow: 0 6px 18px rgb(var(--color-text-primary) / 0.12);
+  }
 `;
 
-const FieldItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+const Header = styled.div`
+  padding: 10px 12px;
   background: rgb(var(--color-background));
-  border-radius: var(--radius-sm);
-  font-size: 11px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  border-top: 4px solid rgb(var(--color-primary));
+
+  /* Drag handle for ReactFlow: configured via nodeDragHandle in UnifiedFlowEditor */
+  &.custom-drag-handle {
+    cursor: grab;
+  }
+  &.custom-drag-handle:active {
+    cursor: grabbing;
+  }
 `;
 
-const FieldIcon = styled.span`
-  font-size: 14px;
+const TitleRow = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
 `;
 
-const FieldLabel = styled.span`
-  flex: 1;
+const Title = styled.div`
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  color: rgb(var(--color-text-primary));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: rgb(var(--color-text-primary));
 `;
 
-const RequiredBadge = styled.span`
-  color: rgb(239, 68, 68);
-  font-weight: 700;
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 12px;
-  color: rgb(var(--color-text-tertiary));
-  font-size: 11px;
-  font-style: italic;
-`;
-
-const FieldCount = styled.div`
-  margin-top: 8px;
-  text-align: center;
+const Meta = styled.div`
+  margin-top: 4px;
   font-size: 11px;
   color: rgb(var(--color-text-secondary));
-  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
-// ============================================================================
-// Field Type Icons (Updated for Phase 5)
-// ============================================================================
+const Body = styled.div`
+  padding: 10px 12px 12px;
+  background: rgb(var(--color-surface));
+`;
 
-const FIELD_TYPE_ICONS: Record<FormFieldType, string> = {
-  text: '📝',
-  number: '🔢',
-  email: '📧',
-  select: '📋',
-  textarea: '📄',
-  checkbox: '☑️',
-  radio: '🔘',
-  date: '📅',
-  file: '📎',
-  phone: '📱',
-  url: '🔗',
-  datetime: '🕐',
-  'multi-select': '✅',
-};
+const FieldPreview = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
 
-// ============================================================================
-// Component
-// ============================================================================
+const FieldStub = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 8px 8px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 6px;
+  background: rgb(var(--color-background));
+`;
 
-export const FormNode = React.memo<NodeProps<FormStepNodeData>>((props) => {
-  const { data, selected, id } = props;
-  const nodeTypeDef = getNodeTypeDefinition('form');
-  
-  // Safety check: provide fallback if nodeType is undefined
-  const nodeType = nodeTypeDef || {
-    id: 'form',
-    name: 'Form',
-    category: 'form' as const,
-    color: 'rgb(59, 130, 246)', // blue
-    icon: 'ListChecks',
-    maxInputs: 1,
-    maxOutputs: 1,
-    config: {},
-  };
-  
-  const { stepTitle, fields = [] } = data;
-  const title = stepTitle || (data as any).name || (data as any).displayTitle;
-  const entityType = (data as any).entityType || (data as any).targetEntity;
-  const fieldCount = fields.length;
-  const requiredCount = fields.filter(f => f.required).length;
+const FieldLabel = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const Required = styled.span`
+  font-size: 11px;
+  font-weight: 800;
+  color: rgb(var(--color-error));
+`;
+
+const InputStub = styled.div`
+  height: 10px;
+  border-radius: 4px;
+  background: rgb(var(--color-border));
+  opacity: 0.55;
+`;
+
+const Empty = styled.div`
+  padding: 10px 0;
+  font-size: 11px;
+  color: rgb(var(--color-text-tertiary));
+  font-style: italic;
+  text-align: center;
+`;
+
+const StyledHandle = styled(Handle)<{ $role: 'in' | 'out' }>`
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 2px solid rgb(var(--color-surface));
+  background: ${(p) => (p.$role === 'in' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-success))')};
+  z-index: 20;
+
+  &.react-flow__handle-top {
+    top: -14px;
+  }
+  &.react-flow__handle-bottom {
+    bottom: -14px;
+  }
+`;
+
+export const FormNode: React.FC<NodeProps<FormNodeData>> = React.memo(({ id, data, selected }) => {
+  const fields = (data?.fields as PreviewField[] | undefined) ?? [];
+  const title =
+    (data?.stepTitle as string | undefined) ||
+    (data?.label as string | undefined) ||
+    'Form';
+
+  const entityType = (data?.entityType as string | undefined) || '';
+
+  const preview = fields.slice(0, 5);
 
   return (
-    <BaseNode
-      id={id}
-      data={data}
-      selected={selected}
-      nodeType={nodeType}
-    >
-      <div>
-        {title && (
-          <div style={{ 
-            fontWeight: 600, 
-            marginBottom: 6,
-            color: 'rgb(var(--color-text-primary))',
-          }}>
-            {title}
-          </div>
-        )}
+    <Page $selected={Boolean(selected)} role="article" aria-label={`Form node: ${title}`} aria-selected={selected}>
+      <StyledHandle id="input" type="target" position={Position.Top} $role="in" aria-label="Input handle" />
 
-        {entityType && (
-          <div style={{
-            marginBottom: 8,
-            fontSize: 11,
-            color: 'rgb(var(--color-text-secondary))',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>
-            Entity: {String(entityType)}
+      <Header className="custom-drag-handle">
+        <TitleRow>
+          <Title title={title}>{title}</Title>
+          <div style={{ fontSize: 11, color: 'rgb(var(--color-text-secondary))', fontWeight: 700 }}>
+            {fields.length} field{fields.length === 1 ? '' : 's'}
           </div>
-        )}
-        
-        {fields.length === 0 ? (
-          <EmptyState>
-            Click to add fields
-          </EmptyState>
+        </TitleRow>
+        {entityType && <Meta>Entity: {entityType}</Meta>}
+      </Header>
+
+      <Body className="nodrag">
+        {preview.length === 0 ? (
+          <Empty>Click “Fields” in the config panel to add fields</Empty>
         ) : (
-          <>
-            <FieldList>
-              {fields.slice(0, 3).map(field => (
-                <FieldItem key={field.id}>
-                  <FieldIcon>
-                    {FIELD_TYPE_ICONS[field.type] || '📝'}
-                  </FieldIcon>
-                  <FieldLabel>{field.label}</FieldLabel>
-                  {field.required && <RequiredBadge>*</RequiredBadge>}
-                </FieldItem>
-              ))}
-            </FieldList>
-            
-            {fields.length > 3 && (
-              <FieldCount>
-                +{fields.length - 3} more field{fields.length - 3 > 1 ? 's' : ''}
-              </FieldCount>
-            )}
-            
-            <FieldCount>
-              {fieldCount} field{fieldCount !== 1 ? 's' : ''}
-              {requiredCount > 0 && ` • ${requiredCount} required`}
-            </FieldCount>
-          </>
+          <FieldPreview>
+            {preview.map((f) => (
+              <FieldStub key={f.id}>
+                <FieldLabel title={f.label || f.id}>
+                  <span>{f.label || 'Untitled field'}</span>
+                  {f.required ? <Required>*</Required> : null}
+                </FieldLabel>
+                <InputStub />
+              </FieldStub>
+            ))}
+            {fields.length > preview.length ? (
+              <div style={{ fontSize: 11, color: 'rgb(var(--color-text-tertiary))', textAlign: 'center' }}>
+                +{fields.length - preview.length} more
+              </div>
+            ) : null}
+          </FieldPreview>
         )}
+      </Body>
+
+      <StyledHandle id="output" type="source" position={Position.Bottom} $role="out" aria-label="Output handle" />
+
+      {/* Keep node identity stable for debugging */}
+      <div style={{ position: 'absolute', bottom: 6, right: 10, fontSize: 10, color: 'rgb(var(--color-text-tertiary))' }}>
+        {id}
       </div>
-    </BaseNode>
+    </Page>
   );
 });
 
-// Export with both names for backward compatibility during migration
-export { FormNode as FormStepSingleNode };
+FormNode.displayName = 'FormNode';
+
 export default FormNode;
