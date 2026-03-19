@@ -250,7 +250,8 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
   // Close on outside click (passive listener for performance)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as globalThis.Node | null;
+      if (menuRef.current && target && !menuRef.current.contains(target)) {
         onClose();
       }
     };

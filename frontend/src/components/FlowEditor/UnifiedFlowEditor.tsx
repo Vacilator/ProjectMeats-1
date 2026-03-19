@@ -1639,7 +1639,9 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // ============================================================================
 
 // Static node types (not containers that need node access)
-const staticNodeTypes: NodeTypes = {
+// NOTE: NodeTypes typing is overly strict with mixed memo/FC node components;
+// we cast here to keep editor typing stable while runtime behavior remains unchanged.
+const staticNodeTypes = {
   // Form nodes (Phase E - 2026-02-19)
   form: FormNode,  // NEW: Primary form node name
   formStepSingle: FormStepSingleNode,  // Backward compatibility
@@ -1657,7 +1659,7 @@ const staticNodeTypes: NodeTypes = {
   document: DocumentNode,
   utility: UtilityNode,
   terminal: TerminalNode,
-};
+} as unknown as NodeTypes;
 
 // Dynamically build the full registry map statically ONCE outside the component.
 // This avoids TDZ / initialization crashes seen when building nodeTypes inside hooks.
@@ -1677,7 +1679,7 @@ Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
 
 
 // Static edge types (no useMemo needed - these are constant)
-const staticEdgeTypes: EdgeTypes = {
+const staticEdgeTypes = {
   custom: CustomEdge,
   conditional: ConditionalEdge,
   error: ErrorEdge,
@@ -1685,7 +1687,7 @@ const staticEdgeTypes: EdgeTypes = {
   enhanced: EnhancedConnectionEdge,
   insert: InsertNodeEdge,
   default: CustomEdge, // Fallback to custom for untyped edges
-};
+} as unknown as EdgeTypes;
 
 // Phase 9.4: Render-time execution tracing (no mutations to saved workflow graph)
 const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (props) => {
