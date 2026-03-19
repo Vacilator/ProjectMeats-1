@@ -31,17 +31,17 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { 
-  PlusIcon, 
-  TrashIcon, 
-  PencilIcon,
-  GripVerticalIcon,
-  EyeOffIcon,
-  EyeIcon,
-  CheckIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
-import axios from 'axios';
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  GripVertical,
+  EyeOff,
+  Eye,
+  Check,
+  X,
+} from 'lucide-react';
+import { apiClient } from '@/services/apiService';
 
 interface ChoiceItem {
   id: string;
@@ -109,7 +109,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
           {...listeners}
           className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
         >
-          <GripVerticalIcon className="w-5 h-5" />
+          <GripVertical className="w-5 h-5" />
         </button>
       )}
 
@@ -152,9 +152,9 @@ const SortableItem: React.FC<SortableItemProps> = ({
             title={item.is_active ? 'Hide for tenant' : 'Show for tenant'}
           >
             {item.is_active ? (
-              <EyeIcon className="w-5 h-5" />
+              <Eye className="w-5 h-5" />
             ) : (
-              <EyeOffIcon className="w-5 h-5" />
+              <EyeOff className="w-5 h-5" />
             )}
           </button>
         ) : (
@@ -165,14 +165,14 @@ const SortableItem: React.FC<SortableItemProps> = ({
               className="p-2 text-blue-600 hover:text-blue-700 rounded"
               title="Edit"
             >
-              <PencilIcon className="w-5 h-5" />
+              <Pencil className="w-5 h-5" />
             </button>
             <button
               onClick={() => onDelete(item)}
               className="p-2 text-red-600 hover:text-red-700 rounded"
               title="Delete"
             >
-              <TrashIcon className="w-5 h-5" />
+              <Trash2 className="w-5 h-5" />
             </button>
           </>
         )}
@@ -210,14 +210,14 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
   const loadChoiceList = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        `/api/v1/system/choice-lists/${choiceListSlug}/`
+      const response = await apiClient.get(
+        `/system/choice-lists/${choiceListSlug}/`
       );
       setChoiceList(response.data);
       
       // Load items with tenant filtering
-      const itemsResponse = await axios.get(
-        `/api/v1/system/choice-lists/${choiceListSlug}/items/`
+      const itemsResponse = await apiClient.get(
+        `/system/choice-lists/${choiceListSlug}/items/`
       );
       // Ensure itemsResponse.data is always an array
       const itemsData = Array.isArray(itemsResponse.data) ? itemsResponse.data : [];
@@ -251,8 +251,8 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
         order: (index + 1) * 10,
       }));
 
-      await axios.post(
-        `/api/v1/system/choice-lists/${choiceListSlug}/reorder/`,
+      await apiClient.post(
+        `/system/choice-lists/${choiceListSlug}/reorder/`,
         { items: updates }
       );
     } catch (err: any) {
@@ -268,8 +268,8 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     }
 
     try {
-      await axios.post(
-        `/api/v1/system/choice-lists/${choiceListSlug}/items/`,
+      await apiClient.post(
+        `/system/choice-lists/${choiceListSlug}/items/`,
         {
           value: newItem.value.toUpperCase(),
           label: newItem.label,
@@ -288,8 +288,8 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     if (!editingItem) return;
 
     try {
-      await axios.patch(
-        `/api/v1/system/choice-items/${editingItem.id}/`,
+      await apiClient.patch(
+        `/system/choice-items/${editingItem.id}/`,
         {
           label: editingItem.label,
           is_active: editingItem.is_active,
@@ -306,7 +306,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     if (!confirm(`Delete "${item.label}"?`)) return;
 
     try {
-      await axios.delete(`/api/v1/system/choice-items/${item.id}/`);
+      await apiClient.delete(`/system/choice-items/${item.id}/`);
       loadChoiceList();
     } catch (err: any) {
       setError('Failed to delete item');
@@ -317,7 +317,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
     // For system items, we need to use choice overrides
     // This is a simplified implementation - full version would use TenantChoiceOverride
     try {
-      await axios.patch(`/api/v1/system/choice-items/${item.id}/`, {
+      await apiClient.patch(`/system/choice-items/${item.id}/`, {
         is_active: !item.is_active,
       });
       loadChoiceList();
@@ -382,7 +382,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
             onClick={() => setIsAddingItem(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            <PlusIcon className="w-5 h-5" />
+            <Plus className="w-5 h-5" />
             Add Custom Item
           </button>
         )}
@@ -427,7 +427,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
               onClick={handleAddItem}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              <CheckIcon className="w-5 h-5" />
+              <Check className="w-5 h-5" />
               Save
             </button>
             <button
@@ -437,7 +437,7 @@ export const ChoiceListEditor: React.FC<ChoiceListEditorProps> = ({
               }}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
             >
-              <XMarkIcon className="w-5 h-5" />
+              <X className="w-5 h-5" />
               Cancel
             </button>
           </div>
