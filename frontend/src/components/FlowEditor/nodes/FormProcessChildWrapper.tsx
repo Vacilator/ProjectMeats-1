@@ -156,18 +156,6 @@ export function calculateChildXPosition(
   return baseX + (stepIndex * spacing);
 }
 
-/**
- * Calculate horizontal position for a child node based on its index
- * 
- * Book+Pages: steps flow left-to-right like pages on a track.
- */
-export function calculateChildXPosition(
-  stepIndex: number,
-  baseX: number = 20,
-  spacing: number = 350
-): number {
-  return baseX + (stepIndex * spacing);
-}
 
 /**
  * Auto-layout children within a container
