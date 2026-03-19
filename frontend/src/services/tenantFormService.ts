@@ -12,7 +12,7 @@ import { Node, Edge } from '@xyflow/react';
 import { logger } from '@/utils/logger';
 
 import { adminClient } from './apiService';
-import { FormProcessGroupData } from '../components/FlowEditor/nodes/FormProcessGroupNode';
+import type { FormProcessGroupData } from '../components/FlowEditor/nodes/FormProcessGroupNode';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -76,14 +76,47 @@ export interface SaveFormResult {
 // ============================================================================
 
 /**
- * Extract child nodes from a FormProcessGroup
+ * Extract child nodes from a FormProcessGroup.
+ *
+ * Note: xyflow uses `parentId` for grouping, but some older code paths still
+ * write `parentNode`. We support both to avoid false "0 children" saves.
  */
-function getChildNodes(groupNodeId: string, allNodes: Node[]): Node[] {
-  return allNodes.filter(node => 
-    node.parentNode === groupNodeId || 
-    node.data?.parentNode === groupNodeId ||
-    node.data?.containerNodeId === groupNodeId
-  ).sort((a, b) => a.position.y - b.position.y); // Sort by Y position for order
+function getChildNodes(groupNode: Node<FormProcessGroupData>, allNodes: Node[]): Node[] {
+  const groupNodeId = groupNode.id;
+  const pageOrder = Array.isArray(groupNode.data?.pageOrder) ? groupNode.data.pageOrder : null;
+
+  const isChild = (node: Node): boolean => {
+    const anyNode = node as any;
+    const parent =
+      anyNode.parentId ??
+      anyNode.parentNode ??
+      node.data?.parentId ??
+      node.data?.parentNode ??
+      node.data?.containerNodeId;
+
+    return parent === groupNodeId;
+  };
+
+  const isFormStepLike = (type?: string) =>
+    type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
+
+  const children = allNodes.filter((node) => isChild(node) && isFormStepLike(node.type));
+
+  // Prefer stable ordering if the container has an explicit pageOrder.
+  if (pageOrder?.length) {
+    const index = new Map(pageOrder.map((id, i) => [id, i]));
+    return [...children].sort((a, b) => {
+      const ai = index.has(a.id) ? (index.get(a.id) as number) : Number.MAX_SAFE_INTEGER;
+      const bi = index.has(b.id) ? (index.get(b.id) as number) : Number.MAX_SAFE_INTEGER;
+      if (ai !== bi) return ai - bi;
+      return (a.position?.x || 0) - (b.position?.x || 0) || (a.position?.y || 0) - (b.position?.y || 0);
+    });
+  }
+
+  // Default: horizontal ordering for the "Book + Pages" layout.
+  return [...children].sort(
+    (a, b) => (a.position?.x || 0) - (b.position?.x || 0) || (a.position?.y || 0) - (b.position?.y || 0)
+  );
 }
 
 /**
@@ -153,9 +186,9 @@ export async function saveFormProcessGroup(
 ): Promise<SaveFormResult> {
   logger.debug('[TenantFormService] Saving FormProcessGroup:', groupNode.id);
   
-  // Extract child nodes
-  const childNodes = getChildNodes(groupNode.id, allNodes);
-  
+  // Extract child nodes (form/page steps only)
+  const childNodes = getChildNodes(groupNode, allNodes);
+
   if (childNodes.length === 0) {
     throw new Error('FormProcessGroup must have at least one child step');
   }

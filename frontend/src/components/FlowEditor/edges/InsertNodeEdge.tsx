@@ -1,11 +1,10 @@
 import React from 'react';
-import { EdgeProps, getSmoothStepPath, useReactFlow } from '@xyflow/react';
+import { EdgeLabelRenderer, EdgeProps, getSmoothStepPath, useReactFlow } from '@xyflow/react';
 import { Plus } from 'lucide-react';
 import styled from 'styled-components';
 
 const EdgeContainer = styled.div`
-  position: absolute;
-  transform: translate(-50%, -50%);
+  position: relative;
   pointer-events: all;
 `;
 
@@ -87,20 +86,25 @@ export default function InsertNodeEdge({
         d={edgePath}
         markerEnd={markerEnd}
       />
-      <foreignObject
-        width={30}
-        height={30}
-        x={labelX - 15}
-        y={labelY - 15}
-        className="edgebutton-foreignobject"
-        requiredExtensions="http://www.w3.org/1999/xhtml"
-      >
-        <EdgeContainer>
-          <AddButton onClick={handleInsertClick} title="Add step here">
-            <Plus size={14} />
-          </AddButton>
-        </EdgeContainer>
-      </foreignObject>
+
+      {/* Render the insert button above nodes/containers (foreignObject can get covered/clipped) */}
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            pointerEvents: 'all',
+            zIndex: 1000,
+          }}
+          className="nodrag nopan"
+        >
+          <EdgeContainer>
+            <AddButton onClick={handleInsertClick} title="Add step here">
+              <Plus size={14} />
+            </AddButton>
+          </EdgeContainer>
+        </div>
+      </EdgeLabelRenderer>
     </>
   );
 }
