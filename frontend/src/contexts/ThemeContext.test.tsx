@@ -52,7 +52,6 @@ const TestConsumer: React.FC = () => {
 };
 
 describe('ThemeContext', () => {
-  let originalBody: HTMLElement;
   let originalMatchMedia: typeof window.matchMedia | undefined;
   let localStorageMock: { [key: string]: string };
 
@@ -84,9 +83,6 @@ describe('ThemeContext', () => {
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation((key) => {
       delete localStorageMock[key];
     });
-    
-    // Store original body reference
-    originalBody = document.body;
     
     // Mock axios responses (no auth token by default)
     mockedAxios.get.mockRejectedValue(new Error('No token'));
