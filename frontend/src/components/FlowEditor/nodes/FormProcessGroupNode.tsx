@@ -26,7 +26,7 @@ import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import { logger } from '@/utils/logger';
 
 import styled from 'styled-components';
-import { NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
+import { Handle, Position, NodeProps, Node, Edge, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import type { BaseNodeData } from './BaseNode';
 import { ChevronDown, ChevronRight, Plus, Settings, Save, Check } from 'lucide-react';
 import { calculateChildXPosition } from './FormProcessChildWrapper';
@@ -378,6 +378,15 @@ const DropZoneText = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 `;
 
+const VirtualHandle = styled(Handle)<{ $side: 'in' | 'out' }>`
+  width: 10px;
+  height: 10px;
+  border-radius: 4px;
+  border: 2px solid rgb(var(--color-surface));
+  background: ${(p) => (p.$side === 'in' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-success))')};
+  z-index: 30;
+`;
+
 
 // ============================================================================
 // Component
@@ -392,7 +401,7 @@ const DropZoneText = styled.div`
  * @param props - Node props from React Flow
  */
 export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props) => {
-  const { id, data, selected } = props;
+  const { id, data } = props;
   const { setNodes, setEdges, updateNodeInternals } = useReactFlow();
   const allNodes = useNodes();
   const allEdges = useEdges();
@@ -434,6 +443,33 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   }, [id, isExpanded, updateNodeInternals]);
   const isDropTarget = data.isDropTarget ?? false; // Phase 3: Drop zone indicator
   const sequentialExecution = data.sequentialExecution ?? true; // Phase 3: Sequential by default
+
+  const collapsedVirtualHandles = useMemo(() => {
+    if (isExpanded) return { incoming: [] as string[], outgoing: [] as string[] };
+
+    const childIdSet = new Set(childNodes.map((n) => n.id));
+
+    const incomingIds = new Set<string>();
+    const outgoingIds = new Set<string>();
+
+    allEdges.forEach((e) => {
+      const sourceIsChild = childIdSet.has(e.source);
+      const targetIsChild = childIdSet.has(e.target);
+
+      // Only care about edges crossing the container boundary.
+      if (sourceIsChild && !targetIsChild) outgoingIds.add(e.source);
+      if (targetIsChild && !sourceIsChild) incomingIds.add(e.target);
+    });
+
+    const orderedChildren = [...childNodes].sort(
+      (a, b) => (a.position?.y || 0) - (b.position?.y || 0) || (a.position?.x || 0) - (b.position?.x || 0)
+    );
+
+    return {
+      incoming: orderedChildren.filter((c) => incomingIds.has(c.id)).map((c) => c.id),
+      outgoing: orderedChildren.filter((c) => outgoingIds.has(c.id)).map((c) => c.id),
+    };
+  }, [allEdges, childNodes, isExpanded]);
   
   logger.debug(`[FormProcessGroup] ${id} rendered with ${stepCount} steps (expanded: ${isExpanded})`);
 
@@ -770,6 +806,32 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
       data-node-id={id}
       data-node-type="formProcessGroup"
     >
+      {/* Virtual handles when collapsed: edges to hidden children are proxied to these handles */}
+      {!isExpanded && (
+        <>
+          {collapsedVirtualHandles.incoming.map((childId, idx) => (
+            <VirtualHandle
+              key={`vh-in-${childId}`}
+              id={`vh:in:${childId}`}
+              type="target"
+              position={Position.Left}
+              $side="in"
+              style={{ top: 58 + idx * 18 }}
+            />
+          ))}
+          {collapsedVirtualHandles.outgoing.map((childId, idx) => (
+            <VirtualHandle
+              key={`vh-out-${childId}`}
+              id={`vh:out:${childId}`}
+              type="source"
+              position={Position.Right}
+              $side="out"
+              style={{ top: 58 + idx * 18 }}
+            />
+          ))}
+        </>
+      )}
+
       {/* Phase 3: Drop zone overlay */}
       <DropZoneOverlay show={isDropTarget && isExpanded}>
         <DropZoneText>
