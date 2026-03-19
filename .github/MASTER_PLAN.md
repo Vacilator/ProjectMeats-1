@@ -8,6 +8,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-19 — Phase 11: Data Flow Tracing — Commit: c02d4d2d (PR: #3623)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3623
+  - FlowEditor: upstream context is now derived from true graph traversal (edges), not Y-position heuristics.
+  - EnhancedConnectionEdge: hover tooltip shows Data Keys flowing across the edge (from source output schema / fields).
+  - VariablePicker: adds a scope warning indicator for variables that may not be evaluated before a step executes.
+
 - 2026-03-19 — Phase 9.5: Copy/Paste + container-aware auto-layout + memory-safe undo/redo — Commit: ba8c0d99 (PR: #3612)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3612
   - FlowEditor: Ctrl/⌘C copies selected nodes; Ctrl/⌘V pastes with fresh UUIDs, +50px offset, and selection moves to pasted nodes.
