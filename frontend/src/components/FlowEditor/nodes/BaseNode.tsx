@@ -11,8 +11,8 @@
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Handle, Position, NodeToolbar } from '@xyflow/react';
-import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock, Plus } from 'lucide-react';
+import { Handle, Position, NodeToolbar, useStore } from '@xyflow/react';
+import { Pencil, Trash2, ChevronDown, ChevronUp, Lock, Unlock, Plus } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
 import type { NodeBadgeStatus } from '../components/NodeBadge';
 import { NodeIcon, NodeIconType } from '../components/NodeIcons';
@@ -34,6 +34,10 @@ export interface BaseNodeData {
   onTitleChange?: (newTitle: string) => void; // Batch 4: Title edit handler
   /** Open the node palette in "insert after this node" context */
   onInsertAfter?: () => void;
+  /** Add a step/page inside the nearest Form container (Book) */
+  onAddStepInsideForm?: () => void;
+  /** Whether this node is considered a "sink" in its scope (root or container sub-flow) */
+  isLastInWorkflow?: boolean;
   // Phase 9.4: Breakpoints
   hasBreakpoint?: boolean;
   // Sprint 1 Task 1.2: Enhanced visuals
@@ -382,7 +386,10 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   
   // Batch 3: Expand/collapse state
   const [isExpanded, setIsExpanded] = useState(true);
-  
+
+  const [isHovered, setIsHovered] = useState(false);
+  const connectionInProcess = useStore((s: any) => Boolean(s.connectionInProcess));
+
   // Batch 4: Title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(label);
@@ -394,8 +401,10 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
-  
-  
+
+  const showButtonHandle = selected || connectionInProcess || Boolean((data as any)?.isLastInWorkflow);
+  const showToolbar = selected || isHovered;
+
   const handlePin = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onPin) onPin();
@@ -445,6 +454,8 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       $isDragging={isDragging}
       onDragStart={() => setIsDragging(true)}
       onDragEnd={() => setIsDragging(false)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       role="article"
       aria-label={`${nodeType.name} node: ${data.label || 'Untitled'}`}
       aria-selected={selected}
@@ -470,26 +481,23 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Status Indicator - REMOVED (confusing yellow dot) */}
       
-      <NodeToolbar isVisible={selected} position={Position.Top}>
-        <ToolbarCard className="nodrag">
-          {onPin && (
+      <NodeToolbar isVisible position={Position.Top}>
+        <ToolbarCard
+          className="nodrag"
+          style={{
+            opacity: showToolbar ? 1 : 0,
+            transform: `translateY(${showToolbar ? 0 : -4}px) scale(${showToolbar ? 1 : 0.98})`,
+            pointerEvents: showToolbar ? 'auto' : 'none',
+            transition: 'opacity 0.15s ease, transform 0.15s ease',
+          }}
+        >
+          {(data.onAddStepInsideForm || data.onInsertAfter) && (
             <ToolbarBtn
               onClick={(e) => {
                 e.stopPropagation();
-                handlePin(e);
+                (data.onAddStepInsideForm || data.onInsertAfter)?.();
               }}
-              title={isPinned ? 'Unlock node (allow drag)' : 'Lock node position (Cmd/Ctrl+L)'}
-            >
-              {isPinned ? <Lock size={16} /> : <Unlock size={16} />}
-            </ToolbarBtn>
-          )}
-          {data.onInsertAfter && (
-            <ToolbarBtn
-              onClick={(e) => {
-                e.stopPropagation();
-                data.onInsertAfter!();
-              }}
-              title="Add next node"
+              title={data.onAddStepInsideForm ? 'Add step inside Form' : 'Add next node'}
             >
               <Plus size={16} />
             </ToolbarBtn>
@@ -502,7 +510,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
               }}
               title="Edit Node"
             >
-              <Edit2 size={16} />
+              <Pencil size={16} />
             </ToolbarBtn>
           )}
           {data.onDelete && (
@@ -515,6 +523,17 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
               title="Delete Node"
             >
               <Trash2 size={16} />
+            </ToolbarBtn>
+          )}
+          {onPin && (
+            <ToolbarBtn
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePin(e);
+              }}
+              title={isPinned ? 'Unlock node (allow drag)' : 'Lock node position (Cmd/Ctrl+L)'}
+            >
+              {isPinned ? <Lock size={16} /> : <Unlock size={16} />}
             </ToolbarBtn>
           )}
         </ToolbarCard>
@@ -599,7 +618,11 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           id="output"
           isConnectable={true}
           aria-label="Output connection handle"
-          style={{ top: nodeType.hasErrorRoute ? '40%' : '50%' }}
+          style={{
+            top: nodeType.hasErrorRoute ? '40%' : '50%',
+            opacity: showButtonHandle ? 1 : 0,
+            pointerEvents: showButtonHandle ? 'all' : 'none',
+          }}
         />
       )}
       
