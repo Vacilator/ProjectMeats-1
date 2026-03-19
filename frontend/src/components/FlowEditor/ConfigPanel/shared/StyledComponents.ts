@@ -258,6 +258,13 @@ export const FieldLabel = styled.label`
   margin-bottom: 8px;
 `;
 
+export const Checkbox = styled.input.attrs({ type: 'checkbox' })`
+  width: 16px;
+  height: 16px;
+  accent-color: rgb(var(--color-primary));
+  cursor: pointer;
+`;
+
 /**
  * Label Container - Label with inline elements (e.g., variable button)
  * Used by: OutlookEmailConfigPanel, CreateRecordConfigPanel

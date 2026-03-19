@@ -101,17 +101,14 @@ export const highContrastTheme: ThemeConfig = {
     Button: {
       controlHeight: 44, // Larger touch targets
       fontWeight: 700,
-      borderWidth: 2,
     },
     Input: {
       controlHeight: 44,
       borderRadius: 2,
-      borderWidth: 2,
       fontWeight: 600,
     },
     Card: {
       borderRadius: 4,
-      borderWidth: 2,
       boxShadow: 'none', // Remove shadows for clarity
     },
   },

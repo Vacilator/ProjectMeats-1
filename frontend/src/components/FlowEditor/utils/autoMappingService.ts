@@ -7,7 +7,7 @@
  * Created: 2026-03-04 - Smart Auto-Map Phase 3
  */
 
-import { Node } from 'reactflow';
+import { Node } from '@xyflow/react';
 import {
   NodeOutputSchema,
   OutputFieldSchema,

@@ -8,7 +8,7 @@
  * - Secure storage helpers
  */
 
-import DOMPurify from 'dompurify';
+import DOMPurify, { type Config } from 'dompurify';
 
 /**
  * Security utility class for OWASP compliance
@@ -22,17 +22,17 @@ export class SecurityUtils {
    * @param config - Optional DOMPurify configuration
    * @returns Sanitized HTML string
    */
-  static sanitizeHTML(html: string, config?: DOMPurify.Config): string {
+  static sanitizeHTML(html: string, config?: Config): string {
     return DOMPurify.sanitize(html, {
       ALLOWED_TAGS: [
         'p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li',
         'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre',
-        'span', 'div', 'table', 'thead', 'tbody', 'tr', 'th', 'td'
+        'span', 'div', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
       ],
       ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'class', 'id'],
       ALLOW_DATA_ATTR: false,
-      ...config
-    });
+      ...config,
+    }) as string;
   }
 
   /**
@@ -51,8 +51,8 @@ export class SecurityUtils {
     // Strip all HTML tags
     const sanitized = DOMPurify.sanitize(input, {
       ALLOWED_TAGS: [],
-      ALLOWED_ATTR: []
-    });
+      ALLOWED_ATTR: [],
+    }) as string;
 
     // Remove control characters except newlines and tabs
     return sanitized

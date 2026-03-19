@@ -296,8 +296,8 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
   maxDepth = 2,
 }) => {
   const [mindMapNodes, setMindMapNodes] = useState<MindMapNode[]>([]);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(false);
   const { addStep } = useCockpitNavigation();
   
@@ -437,7 +437,7 @@ export const RelationMindMap: React.FC<RelationMindMapProps> = ({
   
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
-      const data = node.data as MindMapNode;
+      const data = node.data as unknown as MindMapNode;
       if (onEntityClick) {
         onEntityClick(data.entityType, data.entityId, data.name);
       }

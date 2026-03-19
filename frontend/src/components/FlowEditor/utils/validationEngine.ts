@@ -15,7 +15,7 @@
  * - INFO: Best practice tips
  */
 
-import { Node, Edge } from 'reactflow';
+import { Node, Edge } from '@xyflow/react';
 
 export type ValidationSeverity = 'error' | 'warning' | 'info';
 

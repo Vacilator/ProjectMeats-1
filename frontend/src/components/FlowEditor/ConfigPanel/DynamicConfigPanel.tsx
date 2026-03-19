@@ -539,7 +539,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         renderedField = (
           <ButtonFieldContainer key={field.id}>
             <Button
-              $variant={(field as any).metadata?.variant || 'secondary'}
+              variant={(field as any).metadata?.variant || 'secondary'}
               fullWidth
               onClick={() => {
                 if (!node) {
@@ -659,7 +659,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
               <AutoMapBannerTitle>Smart suggestions available</AutoMapBannerTitle>
               <AutoMapBannerSubtitle>{visibleAutoMapSuggestions.length} suggested mapping(s) detected from upstream variables</AutoMapBannerSubtitle>
             </AutoMapBannerText>
-            <Button $variant="primary" onClick={handleApplyAllAutoMap}>
+            <Button variant="primary" onClick={handleApplyAllAutoMap}>
               Apply suggested mappings
             </Button>
           </AutoMapBanner>
@@ -685,10 +685,10 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
           {!isValid && <ErrorBadge>{Object.keys(errors).filter(k => errors[k]).length} errors</ErrorBadge>}
         </FooterInfo>
         <FooterActions>
-          <Button $variant="secondary" onClick={handleDiscard} disabled={!hasChanges}>
+          <Button variant="secondary" onClick={handleDiscard} disabled={!hasChanges}>
             Discard
           </Button>
-          <Button $variant="primary" onClick={handleApply} disabled={!hasChanges || !isValid}>
+          <Button variant="primary" onClick={handleApply} disabled={!hasChanges || !isValid}>
             Apply
           </Button>
         </FooterActions>

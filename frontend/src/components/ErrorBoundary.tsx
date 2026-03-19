@@ -213,7 +213,7 @@ class ErrorBoundary extends Component<Props, State> {
               <ReportBugButton
                 error={error}
                 variant="secondary"
-                context={errorInfo?.componentStack}
+                context={errorInfo?.componentStack ?? undefined}
               />
             </ErrorActions>
 
