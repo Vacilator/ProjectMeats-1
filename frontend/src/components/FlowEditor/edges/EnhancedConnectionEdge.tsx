@@ -12,7 +12,7 @@
  * Created: 2026-02-27
  */
 
-import React, { memo, useMemo, useState } from 'react';
+import React, { memo, useMemo, useRef, useState } from 'react';
 import {
   EdgeProps,
   getSmoothStepPath,
@@ -293,6 +293,25 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
     const strokeWidth = selected ? 3 : status !== 'default' ? 2.5 : 2;
 
     const [isHovered, setIsHovered] = useState(false);
+    const hoverOffTimeoutRef = useRef<number | null>(null);
+
+    const setHoverOn = () => {
+      if (hoverOffTimeoutRef.current) {
+        window.clearTimeout(hoverOffTimeoutRef.current);
+        hoverOffTimeoutRef.current = null;
+      }
+      setIsHovered(true);
+    };
+
+    const scheduleHoverOff = () => {
+      if (hoverOffTimeoutRef.current) {
+        window.clearTimeout(hoverOffTimeoutRef.current);
+      }
+      hoverOffTimeoutRef.current = window.setTimeout(() => {
+        setIsHovered(false);
+        hoverOffTimeoutRef.current = null;
+      }, 120);
+    };
 
     const { getNode, setEdges } = useReactFlow();
 
@@ -351,8 +370,8 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
           d={edgePath}
           style={{ stroke: 'transparent', strokeWidth: 30, strokeOpacity: 0 }}
           pointerEvents="stroke"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
+          onMouseEnter={setHoverOn}
+          onMouseLeave={scheduleHoverOff}
         />
 
         {/* Base Edge */}
@@ -408,8 +427,8 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
                 opacity: isHovered ? 1 : undefined,
                 animation: isHovered ? 'none' : undefined,
               }}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
+              onMouseEnter={setHoverOn}
+              onMouseLeave={scheduleHoverOff}
             >
               {showIcon && getStatusIcon(status)}
               {label && <span>{label}</span>}
@@ -423,6 +442,8 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
               top: labelY,
               opacity: isHovered ? 1 : 0,
             }}
+            onMouseEnter={setHoverOn}
+            onMouseLeave={scheduleHoverOff}
           >
             <EdgeBtn title="Add Node Here" onClick={handleInsertHere}>
               <Plus size={14} />
