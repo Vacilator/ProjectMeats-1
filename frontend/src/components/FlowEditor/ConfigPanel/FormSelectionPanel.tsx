@@ -29,8 +29,8 @@ import {
 // ============================================================================
 
 interface FormSelectionPanelProps {
-  /** Node type: 'formStep' or 'formProcessGroup' */
-  nodeType: 'formStep' | 'formProcessGroup';
+  /** Node type: 'formStep' or container */
+  nodeType: 'formStep' | 'formProcessGroup' | 'formBook';
   
   /** Currently selected form ID (if editing existing node) */
   selectedFormId?: string;

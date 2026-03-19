@@ -254,7 +254,8 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   /* Animate container expand/collapse */
   .react-flow__node[data-type="formMultiStepContainer"],
   .react-flow__node[data-type="formProcess"],
-  .react-flow__node[data-type="formProcessGroup"] {
+  .react-flow__node[data-type="formProcessGroup"],
+  .react-flow__node[data-type="formBook"] {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 width 0.3s ease,
                 height 0.3s ease,
@@ -1643,8 +1644,9 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // we cast here to keep editor typing stable while runtime behavior remains unchanged.
 const staticNodeTypes = {
   // Form nodes (Phase E - 2026-02-19)
-  form: FormNode,  // NEW: Primary form node name
+  form: FormNode,  // Form Step (Page)
   formStepSingle: FormStepSingleNode,  // Backward compatibility
+  formBook: FormProcessGroupNode,  // NEW: Singular Form container (Book)
   formProcess: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
   formProcessGroup: FormProcessGroupNode,
   // Backward compatibility aliases
@@ -3285,18 +3287,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         selected: true,
       };
 
-      // Upgrade legacy container types to the canonical group container
+      // Canonical container type: singular Form (Book)
       if (isNewContainer) {
         newNode.style = {
           width: 600,
-          height: 400,
+          height: 450,
         };
         newNode.data = {
           ...newNode.data,
           isExpanded: true,
           isGroup: true,
         };
-        (newNode as any).type = 'formProcessGroup';
+        (newNode as any).type = 'formBook';
       }
 
       const spawnDefaultFormPage = (parentId: string) => {
@@ -3974,8 +3976,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const edgesToAdd: Edge[] = [];
       let counterDelta = 1;
 
-      // Phase 10: Auto-spawn a default Form page inside a new formProcessGroup
-      if (isContainerNode && newNode.type === 'formProcessGroup') {
+      // Auto-spawn a default Form Step (Page) inside a new Form (Book)
+      if (isContainerNode && (newNode.type === 'formBook' || newNode.type === 'formProcessGroup')) {
         const pageId = `node-${nodeIdCounter + 1}`;
         const pageNode: Node = {
           id: pageId,
@@ -4039,7 +4041,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       updatedEdges = [...updatedEdges, ...edgesToAdd];
 
-      if (isContainerNode && newNode.type === 'formProcessGroup') {
+      if (isContainerNode && (newNode.type === 'formBook' || newNode.type === 'formProcessGroup')) {
         applyAutoLayoutImmediate(updatedNodes, updatedEdges);
       } else {
         setNodes(updatedNodes);
@@ -5479,11 +5481,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       case 'formProcess': {
         // Phase 7 Stabilization: these node types are deprecated.
         // Migrate in-memory to the canonical Form Process Group node.
-        logger.debug('✏️ [EDIT BUTTON] Migrating legacy container to formProcessGroup');
+        logger.debug('✏️ [EDIT BUTTON] Migrating legacy container to formBook');
 
         const migratedNode = {
           ...node,
-          type: 'formProcessGroup',
+          type: 'formBook',
           data: {
             ...(node.data || {}),
             // Ensure group semantics are enabled
@@ -7571,12 +7573,14 @@ function getReactFlowNodeType(nodeTypeId: string): string {
 
   // Preserve specific types for all other nodes so their specific schemas load
   if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
+  if (nodeTypeId === 'formBook') return 'formBook';
   return nodeTypeId;
 }
 
 /** Returns true for all Form Process container node type IDs (current + legacy). */
 function isFormProcessContainerType(nodeType: string | undefined | null): boolean {
   return (
+    nodeType === 'formBook' ||
     nodeType === 'formProcessGroup' ||
     nodeType === 'formProcess' ||
     nodeType === 'formMultiStepContainer'
@@ -7615,7 +7619,7 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
   }
 
   // Special handling for containers
-  if (resolvedType === 'formMultiStepContainer' || resolvedType === 'formProcessGroup') {
+  if (resolvedType === 'formMultiStepContainer' || resolvedType === 'formProcessGroup' || resolvedType === 'formBook') {
     defaults.fields = [];
     defaults.containerName = 'New Container';
     defaults.isExpanded = true;

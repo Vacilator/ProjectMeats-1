@@ -78,6 +78,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
   const isContainerNode = useCallback((node: Node | null) => {
     if (!node) return false;
     return (
+      node.type === 'formBook' ||
       node.type === 'formProcessGroup' ||
       node.type === 'formProcess' ||
       node.type === 'formMultiStepContainer'

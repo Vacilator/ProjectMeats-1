@@ -103,14 +103,14 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   
   // === FORM ELEMENTS ===
   
-  // Form node (renamed from formStepSingle in Phase E - 2026-02-19)
+  // Form step node (page) (renamed from formStepSingle in Phase E - 2026-02-19)
   form: {
     id: 'form',
-    name: 'Form',
+    name: 'Form Step',
     category: 'form',
-    icon: '📋',
+    icon: '📄',
     color: '#3b82f6', // blue
-    description: 'Single-page form for data collection - works standalone or in Form Process containers',
+    description: 'Single form step (page). Use inside a Form (Book) container or standalone.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -146,17 +146,31 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     hidden: true, // Hide from node palette
   },
   
-  // Advanced Form Process with React Flow grouping
-  formProcessGroup: {
-    id: 'formProcessGroup',
-    name: 'Form Process',
+  // NEW: Singular Form container using React Flow sub-flows (Book & Pages)
+  formBook: {
+    id: 'formBook',
+    name: 'Form',
     category: 'form',
-    icon: '📂',
-    color: '#a78bfa', // lighter purple - group variant
-    description: 'Advanced form container with labeled header, automatic step sequencing, and React Flow grouping',
+    icon: '📚',
+    color: '#a78bfa',
+    description: 'Multi-step form container (Book) that groups Form Steps (Pages) using React Flow sub-flows',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+  },
+
+  // Legacy container type (kept for backward compatibility)
+  formProcessGroup: {
+    id: 'formProcessGroup',
+    name: 'Form Process (Legacy)',
+    category: 'form',
+    icon: '📂',
+    color: '#a78bfa', // lighter purple - group variant
+    description: '[DEPRECATED] Use "Form" (formBook). Existing workflows will continue to work.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hidden: true,
   },
   
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)

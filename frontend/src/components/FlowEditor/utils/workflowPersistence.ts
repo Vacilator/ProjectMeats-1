@@ -14,6 +14,7 @@
 import { Node, Edge } from '@xyflow/react';
 import { logger } from '@/utils/logger';
 
+import { sortNodesTopologically } from './nodeSorting';
 import { apiClient } from '../../../services/apiService';
 
 // ============================================================================
@@ -108,7 +109,7 @@ export const extractFormReferences = (nodes: Node[]): string[] => {
 
     // Form containers
     if (
-      (node.type === 'formMultiStepContainer' || node.type === 'formProcessGroup') &&
+      (node.type === 'formMultiStepContainer' || node.type === 'formProcessGroup' || node.type === 'formBook') &&
       nodeData.tenantFormId
     ) {
       formIds.add(nodeData.tenantFormId);
@@ -129,12 +130,16 @@ export const prepareWorkflowForSave = (
   viewport?: { x: number; y: number; zoom: number }
 ): SaveWorkflowPayload['workflow_definition'] => {
   // Make deep copies to avoid mutating original state
-  const nodesCopy = JSON.parse(JSON.stringify(nodes));
-  const edgesCopy = JSON.parse(JSON.stringify(edges));
+  const nodesCopy = JSON.parse(JSON.stringify(nodes)) as Node[];
+  const edgesCopy = JSON.parse(JSON.stringify(edges)) as Edge[];
+
+  // Ensure parents appear before children for React Flow subflows.
+  // This also prevents "disappearing" nodes when reloading persisted workflows.
+  const sortedNodes = sortNodesTopologically(nodesCopy);
   
   // Ensure all nodes have proper parentId metadata (React Flow v11+)
   // (This is already set by React Flow, but we verify it's serialized)
-  for (const node of nodesCopy) {
+  for (const node of sortedNodes) {
     if (node.parentId) {
       // Ensure extent is serialized
       if (!node.extent) {
@@ -149,7 +154,7 @@ export const prepareWorkflowForSave = (
   }
   
   return {
-    nodes: nodesCopy,
+    nodes: sortedNodes,
     edges: edgesCopy,
     viewport: viewport || { x: 0, y: 0, zoom: 1 },
   };

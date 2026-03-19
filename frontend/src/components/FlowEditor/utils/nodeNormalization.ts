@@ -25,13 +25,12 @@ export function normalizeNodeData(node: Node): Node {
   }
 
   // --------------------------------------------------------------------------
-  // Phase 7 Stabilization: canonicalize legacy Form Process container types
+  // Phase 7 Stabilization: canonicalize legacy Form container types
   // --------------------------------------------------------------------------
-  // We standardize on the React Flow group implementation (formProcessGroup).
-  // Legacy types should continue to load, but are migrated in-memory so the UI
-  // and config routing are consistent.
-  if (node.type === 'formMultiStepContainer' || node.type === 'formProcess') {
-    const canonicalType = 'formProcessGroup';
+  // We standardize on the React Flow group implementation and present it as a
+  // singular "Form" container (formBook). Legacy types continue to load.
+  if (node.type === 'formMultiStepContainer' || node.type === 'formProcess' || node.type === 'formProcessGroup') {
+    const canonicalType = 'formBook';
     const canonicalDef = NODE_TYPE_REGISTRY[canonicalType];
 
     return {
@@ -46,6 +45,15 @@ export function normalizeNodeData(node: Node): Node {
         maxOutputs: (node.data as any)?.maxOutputs ?? canonicalDef?.maxOutputs ?? 1,
       },
     };
+  }
+
+  // Ensure strict parent bounds for any node that lives inside a container
+  if (node.parentId) {
+    node = {
+      ...node,
+      extent: node.extent || 'parent',
+      expandParent: node.expandParent ?? true,
+    } as Node;
   }
 
   // Get node type definition

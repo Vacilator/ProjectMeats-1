@@ -290,7 +290,8 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
 
       {/* Inner Panel Content */}
       <PanelContent>
-        {node?.type === 'formProcessGroup' ||
+        {node?.type === 'formBook' ||
+        node?.type === 'formProcessGroup' ||
         node?.type === 'formMultiStepContainer' ||
         node?.type === 'formProcess' ? (
           /* Form Process (canonical group) - Structured config panel */

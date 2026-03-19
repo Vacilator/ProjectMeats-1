@@ -549,7 +549,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
       case 1:
         return (
           <FormSelectionPanel
-            nodeType="formProcessGroup"
+            nodeType="formBook"
             selectedFormId={state.selectedWorkflowId || undefined}
             onSelectionChange={handleContainerSelection}
             onProceed={handleProceedFromStep1}

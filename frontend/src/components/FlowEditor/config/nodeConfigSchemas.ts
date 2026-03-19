@@ -53,8 +53,8 @@ import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Z
  */
 export const formSchema: NodeConfigSchema = {
   nodeType: 'form',
-  displayName: 'Form',
-  description: 'Single-page form for data collection',
+  displayName: 'Form Step',
+  description: 'Single form step (page) for data collection',
   icon: FileText,
   version: '2.0.0',  // Updated for Phase E rename
   tags: ['form', 'data-collection', 'user-input'],
@@ -596,8 +596,8 @@ export const formProcessSchema: NodeConfigSchema = {
  */
 export const formProcessGroupSchema: NodeConfigSchema = {
   nodeType: 'formProcessGroup',
-  displayName: 'Form Process Group',
-  description: 'Labeled container with auto-layout for multi-step forms',
+  displayName: 'Form Process (Legacy)',
+  description: '[DEPRECATED] Legacy container type. Use Form (Book).',
   icon: Package,
   version: '1.0.0',
   tags: ['form', 'container', 'group', 'multi-step', 'layout'],
@@ -683,6 +683,22 @@ export const formProcessGroupSchema: NodeConfigSchema = {
       ]
     }
   ]
+};
+
+// ============================================================================
+// Singular Form (Book) Container Schema
+// ============================================================================
+
+/**
+ * Schema for the singular Form container (Book & Pages).
+ *
+ * This is the canonical container type going forward.
+ */
+export const formBookSchema: NodeConfigSchema = {
+  ...formProcessGroupSchema,
+  nodeType: 'formBook',
+  displayName: 'Form',
+  description: 'Multi-step form container (Book) that groups Form Steps (Pages)',
 };
 
 // ============================================================================
@@ -926,8 +942,9 @@ export const outlookEmailSchema: NodeConfigSchema = {
  */
 const buildAllSchemas = (): NodeConfigSchema[] => [
   // === CORE SCHEMAS (Phase 1-3) ===
-  formSchema,  // NEW: Primary form schema (Phase E - 2026-02-19)
+  formSchema,  // NEW: Primary form step schema (Phase E - 2026-02-19)
   formProcessSchema,
+  formBookSchema,
   formProcessGroupSchema,
   createRecordSchema,
   outlookEmailSchema,

@@ -31,7 +31,7 @@ describe('useContainerDragAndDrop', () => {
     mockGetNodes.mockReturnValue([
       {
         id: 'container-1',
-        type: 'formProcessGroup',
+        type: 'formBook',
         position: { x: 100, y: 100 },
         width: 300,
         height: 400,
@@ -51,7 +51,7 @@ describe('useContainerDragAndDrop', () => {
       if (id === 'container-1') {
         return {
           id: 'container-1',
-          type: 'formProcessGroup',
+          type: 'formBook',
           position: { x: 100, y: 100 },
           width: 300,
           height: 400,
@@ -86,7 +86,7 @@ describe('useContainerDragAndDrop', () => {
     it('should identify container nodes', () => {
       const { result } = renderHook(() => useContainerDragAndDrop());
 
-      const containerNode = { id: '1', type: 'formProcessGroup', position: { x: 0, y: 0 }, data: {} };
+      const containerNode = { id: '1', type: 'formBook', position: { x: 0, y: 0 }, data: {} };
       const regularNode = { id: '2', type: 'formInputField', position: { x: 0, y: 0 }, data: {} };
 
       expect(result.current.isContainer(containerNode as any)).toBe(true);
@@ -129,7 +129,7 @@ describe('useContainerDragAndDrop', () => {
 
       const containerNode = {
         id: 'container-1',
-        type: 'formProcessGroup',
+        type: 'formBook',
         position: { x: 100, y: 100 },
         data: {},
       };

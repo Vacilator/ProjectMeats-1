@@ -106,6 +106,7 @@ export function inferOutputSchema(node: Node): NodeOutputSchema | null {
   switch (node.type) {
     case 'form':
     case 'formStep':
+    case 'formBook':
     case 'formProcessGroup':
       return inferOutputSchemaFromFormNode(node);
     
