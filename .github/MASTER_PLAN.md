@@ -8,6 +8,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-19 — Fix: Dagre global layout crash + Add Step clipping — Commit: 44617749 (PR: #3627)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3627
+  - Auto-layout: isolate global dagre pass to top-level nodes only (filters child nodes with parentId) to prevent React Flow grouped-node crashes.
+  - UI: container bodies allow visible overflow when expanded so the "Add Step" button is not clipped.
+
 - 2026-03-19 — Fix: Phantom Logout (Settings/Integrations) — Commit: c267ca88 (PR: #3625)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3625
   - tenantService: removed rogue axios.create + interceptors (incl. 401 hard redirect to /login); now uses centralized JWT-aware apiClient.
