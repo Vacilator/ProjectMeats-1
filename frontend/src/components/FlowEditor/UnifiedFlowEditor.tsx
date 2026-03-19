@@ -1544,7 +1544,7 @@ const AlignmentGuide = styled.div<{ $orientation: 'horizontal' | 'vertical'; $po
 // Sprint 1 Task 1.4: Background & Grid Settings Panel
 const SettingsPanel = styled.div`
   position: absolute;
-  top: 12px;
+  bottom: 60px; /* FIX: Changed from top: 12px to pop up above the toolbar */
   left: 12px;
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
@@ -6513,6 +6513,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* Viewport Controls */}
       <ViewportToolbar>
+        {/* NEW: Explicit Node Palette Toggle */}
+        {!readOnly && normalizedEditorMode === 'visual' && (
+          <>
+            <ViewportButton 
+              onClick={() => setIsPaletteVisible(!isPaletteVisible)} 
+              title={isPaletteVisible ? 'Hide Node Palette (Tab)' : 'Show Node Palette (Tab)'}
+              style={isPaletteVisible ? {
+                background: 'rgb(var(--color-primary))',
+                color: 'white',
+                borderColor: 'rgb(var(--color-primary))'
+              } : {}}
+            >
+              <Plus />
+            </ViewportButton>
+            <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          </>
+        )}
         <ViewportButton 
           onClick={() => setIsSettingsPanelOpen(!isSettingsPanelOpen)} 
           title="Canvas Settings (Grid, Background)"
@@ -6525,7 +6542,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <Settings />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
-        <ViewportButton onClick={toggleFullscreen} title={isFullscreen ? "Exit Fullscreen (ESC)" : "Enter Fullscreen"}>
+        <ViewportButton onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen (ESC)' : 'Enter Fullscreen'}>
           {isFullscreen ? <Minimize2 /> : <Maximize2 />}
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
@@ -6541,7 +6558,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton 
           onClick={() => setIsMinimapVisible(!isMinimapVisible)} 
-          title={isMinimapVisible ? "Hide Minimap (M)" : "Show Minimap (M)"}
+          title={isMinimapVisible ? 'Hide Minimap (M)' : 'Show Minimap (M)'}
           style={isMinimapVisible ? {
             background: 'rgb(var(--color-primary))',
             color: 'white',
@@ -6551,7 +6568,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <Map />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
-        <ViewportButton onClick={() => setIsHelpModalOpen(true)} title="Help & Keyboard Shortcuts (?)">
+        {/* FIX: Wired Help button directly to Keyboard Shortcuts state */}
+        <ViewportButton onClick={() => setShowKeyboardShortcuts(true)} title="Help & Keyboard Shortcuts (?)">
           <HelpCircle />
         </ViewportButton>
       </ViewportToolbar>
