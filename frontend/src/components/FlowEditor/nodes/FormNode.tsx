@@ -292,15 +292,15 @@ const ToolbarButton = styled.button<{ $primary?: boolean }>`
   }
 `;
 
+const isFormBookStepType = (type?: string) =>
+  type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
+
 export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selected }) => {
   const allNodes = useNodes();
   const { setNodes } = useReactFlow();
 
-  const isStepType = (type?: string) =>
-    type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
-
   const childSteps = useMemo(
-    () => allNodes.filter((n) => (n as any).parentId === id && isStepType(n.type)),
+    () => allNodes.filter((n) => (n as any).parentId === id && isFormBookStepType(n.type)),
     [allNodes, id]
   );
 
@@ -365,8 +365,10 @@ export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selecte
 
     const stepsJson = JSON.stringify(stepsPayload);
 
-    setNodes((nds) =>
-      nds.map((n) => {
+    setNodes((nds) => {
+      let changed = false;
+
+      const next = nds.map((n) => {
         if (n.id === id) {
           const currentStyle: any = n.style || {};
           const widthChanged = Math.abs((currentStyle.width ?? 0) - nextWidth) > 1;
@@ -376,6 +378,7 @@ export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selecte
           const stepsChanged = existingStepsJson !== stepsJson;
 
           if (!widthChanged && !heightChanged && !stepsChanged) return n;
+          changed = true;
 
           return {
             ...n,
@@ -391,28 +394,34 @@ export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selecte
           };
         }
 
-        if ((n as any).parentId === id && isStepType(n.type)) {
+        if ((n as any).parentId === id && isFormBookStepType(n.type)) {
           const idx = sortedSteps.findIndex((s) => s.id === n.id);
-          const nextData: any = { ...(n.data || {}) };
+          const desiredOrder = idx >= 0 ? idx : (n.data as any)?.order;
 
-          // Ensure sub-flow metadata is always present
-          if (n.extent !== 'parent') nextData.extent = 'parent';
+          const orderUnchanged = (n.data as any)?.order === desiredOrder;
+          const extentUnchanged = n.extent === 'parent';
+          const expandUnchanged = (n as any).expandParent === true;
+
+          if (orderUnchanged && extentUnchanged && expandUnchanged) return n;
+          changed = true;
 
           return {
             ...n,
             extent: 'parent',
             expandParent: true,
             data: {
-              ...nextData,
-              order: idx >= 0 ? idx : (n.data as any)?.order,
+              ...(n.data || {}),
+              order: desiredOrder,
             },
           };
         }
 
         return n;
-      })
-    );
-  }, [childKey, id, isStepType, setNodes, sortedSteps]);
+      });
+
+      return changed ? next : nds;
+    });
+  }, [childKey, id, setNodes, sortedSteps]);
 
   // Step drag-to-reorder via tab bar
   const [draggingStepId, setDraggingStepId] = useState<string | null>(null);
@@ -422,24 +431,35 @@ export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selecte
       const startX = LEFT_SIDEBAR_W + PADDING;
       const y = HEADER_H + TABS_H + PADDING;
 
-      setNodes((nds) =>
-        nds.map((n) => {
+      setNodes((nds) => {
+        let changed = false;
+        const next = nds.map((n) => {
           const idx = ordered.findIndex((s) => s.id === n.id);
           if (idx === -1) return n;
 
+          const nextX = startX + idx * (STEP_W + STEP_GAP);
+          const nextY = y;
+
+          const positionUnchanged = (n.position?.x ?? 0) === nextX && (n.position?.y ?? 0) === nextY;
+          const orderUnchanged = (n.data as any)?.order === idx;
+          if (positionUnchanged && orderUnchanged) return n;
+
+          changed = true;
           return {
             ...n,
             position: {
-              x: startX + idx * (STEP_W + STEP_GAP),
-              y,
+              x: nextX,
+              y: nextY,
             },
             data: {
               ...(n.data || {}),
               order: idx,
             },
           };
-        })
-      );
+        });
+
+        return changed ? next : nds;
+      });
     },
     [setNodes]
   );
