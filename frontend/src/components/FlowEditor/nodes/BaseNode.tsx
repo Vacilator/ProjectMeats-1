@@ -9,14 +9,13 @@
  * Updated: 2026-02-17 - Added badges, icons, pinning (Sprint 1 Task 1.2)
  * Updated: 2026-02-25 - Agent C Phase 2: Live validation badges (Task polish-live-validation-badges)
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Handle, Position, useReactFlow } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
 import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
-import { NodeBadge, NodeBadgeStatus } from '../components/NodeBadge';
+import type { NodeBadgeStatus } from '../components/NodeBadge';
 import { NodeIcon, NodeIconType } from '../components/NodeIcons';
-import { validateNode, getValidationTooltip } from '../../../services/nodeValidationService';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -51,6 +50,8 @@ export interface BaseNodeProps {
   data: BaseNodeData;
   selected?: boolean;
   nodeType: NodeTypeDefinition;
+  /** Optional override for the header drag handle class */
+  dragHandleClassName?: string;
 }
 
 // ============================================================================
@@ -229,14 +230,15 @@ const ErrorMessage = styled.div`
 `;
 
 const StyledHandle = styled(Handle)<{ $color: string }>`
-  width: 10px;
-  height: 10px;
+  width: 16px;
+  height: 16px;
   background: ${props => props.$color};
   border: 2px solid rgb(var(--color-surface));
-  
+  cursor: crosshair;
+  z-index: 20;
+
   &:hover {
-    width: 14px;
-    height: 14px;
+    transform: scale(1.1);
   }
 `;
 
@@ -308,6 +310,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   data,
   selected = false,
   nodeType,
+  dragHandleClassName,
   children,
 }) => {
   const {
@@ -323,14 +326,9 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     onTitleChange,
     hasBreakpoint = false,
     // Sprint 1 Task 1.2: Enhanced visuals
-    badge,
     iconType,
     isPinned = false,
     onPin,
-    errorCount,
-    warningCount,
-    successCount,
-    isProcessing = false,
   } = data;
   
   // Phase 2: Determine if node has uncommitted changes
@@ -346,42 +344,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   // Sprint 1: Drag state
   const [isDragging, setIsDragging] = useState(false);
   
-  // Agent C Phase 2: Live validation with memoization for performance
-  const { getNodes, getEdges } = useReactFlow();
-  const [validationTooltip, setValidationTooltip] = useState<string | null>(null);
-  
-  const validationResult = useMemo(() => {
-    // Skip validation if explicitly provided errorCount/warningCount (manual override)
-    if (errorCount !== undefined || warningCount !== undefined) {
-      return null;
-    }
-    
-    try {
-      const nodes = getNodes();
-      const edges = getEdges();
-      const currentNode = nodes.find(n => n.id === id);
-      
-      if (!currentNode) return null;
-      
-      return validateNode(currentNode, nodes, edges);
-    } catch (error) {
-      console.error('[BaseNode] Validation error:', error);
-      return null;
-    }
-  }, [id, config, shadowConfig, getNodes, getEdges, errorCount, warningCount]);
-  
-  // Compute validation counts from service if not manually provided
-  const computedErrorCount = errorCount ?? (validationResult?.errors.length || 0);
-  const computedWarningCount = warningCount ?? (validationResult?.warnings.length || 0);
-  
-  // Update tooltip when hovering over validation badge
-  useEffect(() => {
-    if (validationResult && (computedErrorCount > 0 || computedWarningCount > 0)) {
-      setValidationTooltip(getValidationTooltip(validationResult));
-    } else {
-      setValidationTooltip(null);
-    }
-  }, [validationResult, computedErrorCount, computedWarningCount]);
+  const headerDragHandleClass = dragHandleClassName ?? 'custom-drag-handle';
 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
@@ -438,26 +401,6 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     }
   };
   
-  // Sprint 1 + Agent C Phase 2: Determine badge to show (priority: processing > error > warning > success)
-  // Now uses computed validation counts from nodeValidationService
-  const getBadgeToShow = () => {
-    if (badge) return badge; // Explicit badge takes precedence
-    if (isProcessing) return { status: 'processing' as NodeBadgeStatus };
-    if (computedErrorCount > 0) return { 
-      status: 'error' as NodeBadgeStatus, 
-      count: computedErrorCount,
-      message: validationTooltip || undefined 
-    };
-    if (computedWarningCount > 0) return { 
-      status: 'warning' as NodeBadgeStatus, 
-      count: computedWarningCount,
-      message: validationTooltip || undefined
-    };
-    if (successCount && successCount > 0) return { status: 'success' as NodeBadgeStatus, count: successCount };
-    return null;
-  };
-  
-  const badgeToShow = getBadgeToShow();
 
   return (
     <NodeContainer 
@@ -485,23 +428,20 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           id="input"
           $color={nodeType.color}
           aria-label="Input connection handle"
+          style={{
+            left: '18px',
+            width: '16px',
+            height: '16px',
+            cursor: 'crosshair',
+          }}
         />
       )}
       
-      {/* Sprint 1: Status Badge */}
-      {badgeToShow && (
-        <NodeBadge
-          status={badgeToShow.status}
-          count={badgeToShow.count}
-          message={badgeToShow.message}
-          position="top-right"
-        />
-      )}
 
       {/* Status Indicator - REMOVED (confusing yellow dot) */}
       
       {/* Node Controls (Batch 3 + Sprint 1 Pin) */}
-      <NodeControls>
+      <NodeControls className="nodrag">
         {onPin && (
           <ControlButton 
             $variant="pin" 
@@ -538,7 +478,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       </NodeControls>
 
       {/* Header */}
-      <NodeHeader $color={nodeType.color}>
+      <NodeHeader className={headerDragHandleClass} $color={nodeType.color}>
         <NodeIconWrapper>
           {iconType ? (
             <NodeIcon type={iconType} size={16} color="white" />
@@ -548,6 +488,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
         </NodeIconWrapper>
         {isEditingTitle ? (
           <NodeTitleInput
+            className="nodrag"
             value={editedTitle}
             onChange={handleTitleChange}
             onBlur={handleTitleBlur}
@@ -570,7 +511,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Body (collapsible) */}
       {isExpanded && (
-        <NodeBody>
+        <NodeBody className="nodrag">
           <NodeContent>
             {children || (
               <>
@@ -598,7 +539,8 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       
       {/* Expand/Collapse Button (Batch 3) */}
       {(children || config || errorMessage) && (
-        <ExpandButton 
+        <ExpandButton
+          className="nodrag"
           onClick={toggleExpand}
           title={isExpanded ? "Collapse" : "Expand"}
         >
@@ -614,6 +556,13 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           id="output"
           $color={nodeType.color}
           aria-label="Output connection handle"
+          style={{
+            left: 'unset',
+            right: '18px',
+            width: '16px',
+            height: '16px',
+            cursor: 'crosshair',
+          }}
         />
       )}
       
@@ -624,7 +573,12 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           position={Position.Right}
           id="error"
           $color="rgb(239, 68, 68)"
-          style={{ top: '50%' }}
+          style={{
+            top: '60%',
+            width: '16px',
+            height: '16px',
+            cursor: 'crosshair',
+          }}
           aria-label="Error route connection handle"
         />
       )}

@@ -48,12 +48,15 @@ export const getLayoutedElements = (
     return { width: typeof width === 'number' ? width : 280, height: typeof height === 'number' ? height : 100 };
   };
 
-  const layoutDagre = (inputNodes: Node[], inputEdges: Edge[], normalize: { x: number; y: number }) => {
-    const direction = opts.direction ?? 'TB';
-
+  const layoutDagre = (
+    inputNodes: Node[],
+    inputEdges: Edge[],
+    normalize: { x: number; y: number },
+    rankdir: 'TB' | 'LR'
+  ) => {
     const dagreGraph = new dagre.graphlib.Graph();
     dagreGraph.setGraph({
-      rankdir: direction,
+      rankdir,
       align: opts.align,
       ranker: 'longest-path',
       nodesep: opts.nodeSpacing,
@@ -133,10 +136,16 @@ export const getLayoutedElements = (
     const childEdges = edges.filter((e) => childIds.has(e.source) && childIds.has(e.target));
 
     const mergedChildren = children.map((c) => updates.get(c.id) ?? c);
-    const laidOutChildren = layoutDagre(mergedChildren, childEdges, {
-      x: PADDING_X,
-      y: HEADER_HEIGHT + PADDING_Y,
-    });
+    // Container children are laid out Left-to-Right (LR)
+    const laidOutChildren = layoutDagre(
+      mergedChildren,
+      childEdges,
+      {
+        x: PADDING_X,
+        y: HEADER_HEIGHT + PADDING_Y,
+      },
+      'LR'
+    );
 
     // Compute container bounds to fit children
     let maxRight = 0;
@@ -172,12 +181,12 @@ export const getLayoutedElements = (
     layoutContainerRecursive(containerId);
   }
 
-  // Final pass: layout top-level nodes/containers
-  const topLevel = nodes.filter((n) => !n.parentId).map((n) => updates.get(n.id) ?? n);
-  const topIds = new Set(topLevel.map((n) => n.id));
-  const topEdges = edges.filter((e) => topIds.has(e.source) && topIds.has(e.target));
+  // Final pass: layout root nodes/containers Top-to-Bottom (TB)
+  const rootNodes = nodes.filter((n) => !n.parentId).map((n) => updates.get(n.id) ?? n);
+  const rootIds = new Set(rootNodes.map((n) => n.id));
+  const rootEdges = edges.filter((e) => rootIds.has(e.source) && rootIds.has(e.target));
 
-  const laidOutTop = layoutDagre(topLevel, topEdges, { x: 50, y: 50 });
+  const laidOutTop = layoutDagre(rootNodes, rootEdges, { x: 50, y: 50 }, 'TB');
   for (const n of laidOutTop) updates.set(n.id, n);
 
   // Merge back into original order (order-preserving)
