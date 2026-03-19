@@ -15,13 +15,13 @@
 import React, { memo, useMemo, useState } from 'react';
 import {
   EdgeProps,
-  getBezierPath,
+  getSmoothStepPath,
   EdgeLabelRenderer,
   BaseEdge,
   useReactFlow,
 } from '@xyflow/react';
 import styled, { keyframes } from 'styled-components';
-import { CheckCircle, AlertCircle, XCircle, Info } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Info, Edit2, Trash2, Plus } from 'lucide-react';
 
 // ============================================================================
 // Types
@@ -113,6 +113,35 @@ const EdgeLabel = styled.div<{ $status: ConnectionStatus }>`
   @media (prefers-reduced-motion: reduce) {
     animation: none;
     opacity: 0.8;
+  }
+`;
+
+const EdgeToolbarWrapper = styled.div`
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 4px;
+  background: rgb(var(--color-surface));
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: all;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+`;
+
+const EdgeBtn = styled.button`
+  padding: 4px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: rgb(var(--color-text-secondary));
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.1);
+    color: rgb(var(--color-primary));
   }
 `;
 
@@ -238,6 +267,7 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
     targetY,
     sourcePosition,
     targetPosition,
+    markerEnd,
     data = {},
     selected,
   }) => {
@@ -249,13 +279,14 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
     } = data;
 
     // Calculate path
-    const [edgePath, labelX, labelY] = getBezierPath({
+    const [edgePath, labelX, labelY] = getSmoothStepPath({
       sourceX,
       sourceY,
       sourcePosition,
       targetX,
       targetY,
       targetPosition,
+      borderRadius: 16,
     });
 
     const edgeColor = getEdgeColor(status);
@@ -263,7 +294,26 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
 
     const [isHovered, setIsHovered] = useState(false);
 
-    const { getNode } = useReactFlow();
+    const { getNode, setEdges } = useReactFlow();
+
+    const handleInsertHere = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      window.dispatchEvent(
+        new CustomEvent('insert-node-between', {
+          detail: { edgeId: id },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent('pm:openNodePalette', {
+          detail: { insertOnEdgeId: id },
+        })
+      );
+    };
+
+    const handleDeleteEdge = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEdges((eds) => eds.filter((edge) => edge.id !== id));
+    };
 
     const dataKeys = useMemo(() => {
       const sourceNode = source ? getNode(source) : undefined;
@@ -309,6 +359,7 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
         <BaseEdge
           id={id}
           path={edgePath}
+          markerEnd={markerEnd}
           style={{
             stroke: edgeColor,
             strokeWidth,
@@ -364,6 +415,25 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
               {label && <span>{label}</span>}
             </EdgeLabel>
           )}
+
+          {/* Hover Toolbar */}
+          <EdgeToolbarWrapper
+            style={{
+              left: labelX,
+              top: labelY,
+              opacity: isHovered ? 1 : 0,
+            }}
+          >
+            <EdgeBtn title="Add Node Here" onClick={handleInsertHere}>
+              <Plus size={14} />
+            </EdgeBtn>
+            <EdgeBtn title="Edit Edge" onClick={(e) => e.stopPropagation()}>
+              <Edit2 size={14} />
+            </EdgeBtn>
+            <EdgeBtn title="Delete Edge" onClick={handleDeleteEdge}>
+              <Trash2 size={14} />
+            </EdgeBtn>
+          </EdgeToolbarWrapper>
         </EdgeLabelRenderer>
       </>
     );

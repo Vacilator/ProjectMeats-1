@@ -93,57 +93,49 @@ const spinAnimation = `
  * Adapts size based on expanded/collapsed state
  * Phase 3: Added drop zone indicator
  */
-const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; pageCount: number; isDropTarget?: boolean }>`
+const GroupContainer = styled.div<{ isExpanded: boolean; isDropTarget?: boolean }>`
   ${spinAnimation}
-  
-  /* Expand horizontally based on the number of page nodes (form pages). */
-  min-width: ${(props) => (props.isExpanded ? `${Math.max(600, 140 + props.pageCount * 360)}px` : '280px')};
-  width: ${(props) => (props.isExpanded ? `${Math.max(600, 140 + props.pageCount * 360)}px` : '280px')};
-  min-height: ${props => props.isExpanded ? '360px' : 'auto'};
-  max-width: ${props => props.isExpanded ? 'none' : '320px'};
-  
-  background: ${props => {
-    if (props.isDropTarget) return 'rgba(139, 92, 246, 0.15)'; // Highlight when dragging over
-    return props.isExpanded 
-      ? 'rgba(139, 92, 246, 0.03)' 
-      : 'rgb(var(--color-background-secondary))';
-  }};
-  
-  /* FIX: Split border shorthand to prevent disappearing during collapse */
+
+  /* Removed min-width/min-height - sizing is now controlled directly via React Flow style prop */
+  width: 100%;
+  height: 100%;
+
+  background: ${(props) =>
+    props.isDropTarget
+      ? 'rgba(var(--color-primary), 0.15)'
+      : props.isExpanded
+        ? 'rgba(var(--color-primary), 0.03)'
+        : 'rgb(var(--color-background-secondary))'};
+
   border-width: 2px;
-  border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
-  border-color: ${props => 
-    props.isDropTarget ? 'rgba(139, 92, 246, 0.8)' : 'rgba(139, 92, 246, 0.5)'
-  };
+  border-style: ${(props) => (props.isExpanded ? 'dashed' : 'solid')};
+  border-color: ${(props) =>
+    props.isDropTarget ? 'rgba(var(--color-primary), 0.8)' : 'rgba(var(--color-primary), 0.5)'};
   border-radius: 12px;
-  overflow: ${props => props.isExpanded ? 'visible' : 'hidden'};
+  overflow: ${(props) => (props.isExpanded ? 'visible' : 'hidden')};
   position: relative;
-  
-  box-shadow: ${props => {
+
+  box-shadow: ${(props) => {
     if (!props.isExpanded) return 'none';
     return props.isDropTarget
-      ? '0 8px 24px rgba(139, 92, 246, 0.3), 0 0 0 6px rgba(139, 92, 246, 0.2)'
-      : '0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(139, 92, 246, 0.1)';
+      ? '0 8px 24px rgba(var(--color-primary), 0.3), 0 0 0 6px rgba(var(--color-primary), 0.2)'
+      : '0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(var(--color-primary), 0.1)';
   }};
-  
-  /* FIX: Only transition specific properties, not all */
-  transition: 
-    min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    min-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    border-style 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   &:hover {
-    box-shadow: ${props => {
+    box-shadow: ${(props) => {
       if (!props.isExpanded) return 'none';
-      return '0 6px 16px rgba(0, 0, 0, 0.15), 0 0 0 4px rgba(139, 92, 246, 0.2)';
+      return '0 6px 16px rgba(0, 0, 0, 0.15), 0 0 0 4px rgba(var(--color-primary), 0.2)';
     }};
   }
-  
+
+  /* ONLY transition colors/shadows, NEVER dimensions */
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+
   /* Group label indicator */
-  ${props => props.isExpanded && `
+  ${(props) =>
+    props.isExpanded &&
+    `
     &::after {
       content: '${props.isDropTarget ? 'DROP HERE TO ADD' : 'FORM PROCESS GROUP'}';
       position: absolute;
@@ -151,7 +143,7 @@ const GroupContainer = styled.div<{ isExpanded: boolean; stepCount: number; page
       right: 16px;
       font-size: 10px;
       font-weight: 600;
-      color: rgba(139, 92, 246, 0.4);
+      color: rgba(var(--color-primary), 0.4);
       text-transform: uppercase;
       letter-spacing: 1px;
       pointer-events: none;
@@ -262,22 +254,15 @@ const IconButton = styled.button<{ variant?: 'primary' | 'default'; isSaving?: b
   }
 `;
 
-/**
- * Body area for children (when expanded)
- * With smooth CSS transition animation
- */
 const GroupBody = styled.div<{ isExpanded: boolean }>`
-  padding: ${props => props.isExpanded ? '20px' : '0'};
-  min-height: ${props => props.isExpanded ? '300px' : '0'};
-  max-height: ${props => props.isExpanded ? '2000px' : '0'};
-  position: relative;
-  display: ${props => props.isExpanded ? 'flex' : 'block'};
+  /* Switch to horizontal track layout for "Book and Pages" paradigm */
+  display: ${(props) => (props.isExpanded ? 'flex' : 'none')};
   flex-direction: row;
   align-items: flex-start;
+  padding: 20px;
   gap: 40px;
-  overflow: ${props => props.isExpanded ? 'visible' : 'hidden'};
-  opacity: ${props => props.isExpanded ? 1 : 0};
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 100%;
+  position: relative;
 `;
 
 /**
@@ -484,24 +469,19 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
    */
   const handleToggleExpand = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-
     const nextExpanded = !isExpanded;
 
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id === id) {
-          const expandedWidth = Math.max(600, 140 + pageCount * 360);
-          const expandedHeight = 400;
-
+          // Horizontal calculation: 350px per step + padding
+          const expandedWidth = Math.max(600, stepCount * 350 + 100);
           return {
             ...node,
-            // IMPORTANT: React Flow can cache measured node width/height.
-            // When collapsing, explicitly shrink the wrapper so the expanded outline/shadow
-            // doesn't remain visible at the old dimensions.
             style: {
               ...(node.style || {}),
-              width: nextExpanded ? expandedWidth : 280,
-              height: nextExpanded ? expandedHeight : undefined,
+              width: nextExpanded ? expandedWidth : 320,
+              height: nextExpanded ? 450 : 80,
             },
             data: {
               ...node.data,
@@ -509,20 +489,25 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
             },
           };
         }
+
         // Hide/show children
         if (node.parentId === id) {
           return {
             ...node,
-            hidden: isExpanded, // Will hide when collapsing (isExpanded is currently true)
+            hidden: !nextExpanded,
           };
         }
+
         return node;
       })
     );
 
-    // Force a re-measure so React Flow doesn't keep the previous expanded bounds.
-    requestAnimationFrame(() => updateNodeInternals(id));
-  }, [id, isExpanded, setNodes, pageCount, updateNodeInternals]);
+    requestAnimationFrame(() => {
+      if (typeof updateNodeInternals === 'function') {
+        updateNodeInternals(id);
+      }
+    });
+  }, [id, isExpanded, setNodes, stepCount, updateNodeInternals]);
   
   /**
    * Save FormProcessGroup as TenantForm to backend
@@ -800,8 +785,6 @@ export const FormProcessGroupNode = React.memo<FormProcessGroupNodeProps>((props
   return (
     <GroupContainer 
       isExpanded={isExpanded} 
-      stepCount={stepCount}
-      pageCount={pageCount}
       isDropTarget={isDropTarget}
       data-node-id={id}
       data-node-type="formProcessGroup"

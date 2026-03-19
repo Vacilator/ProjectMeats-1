@@ -118,7 +118,7 @@ import {
   UtilityNode,
   TerminalNode,
 } from './nodes';
-import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge } from './edges';
+import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
 import { ValidationDrawer } from './components/ValidationDrawer';
@@ -1682,6 +1682,7 @@ const staticEdgeTypes: EdgeTypes = {
   conditional: ConditionalEdge,
   error: ErrorEdge,
   success: SuccessEdge,
+  enhanced: EnhancedConnectionEdge,
   insert: InsertNodeEdge,
   default: CustomEdge, // Fallback to custom for untyped edges
 };
@@ -6698,13 +6699,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         elevateNodesOnSelect={nodes.length < 200}
         maxZoom={4}
         minZoom={0.1}
-        defaultEdgeOptions={{ 
-          type: 'insert',
-          pathOptions: { offset: 20 },
+        defaultEdgeOptions={{
+          type: 'enhanced',
+          style: {
+            strokeWidth: 3,
+            stroke: 'rgb(var(--color-border))',
+          },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            width: 20,
-            height: 20,
+            width: 24,
+            height: 24,
             color: 'rgb(var(--color-border))',
           },
         }}
@@ -6714,7 +6718,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           strokeDasharray: '5,5',
           animation: 'dash 0.5s linear infinite',
         }}
-        connectionLineType="step"
+        connectionLineType="smoothstep"
         fitView
         snapToGrid={snapToGrid}
         snapGrid={[gridSize, gridSize]}
