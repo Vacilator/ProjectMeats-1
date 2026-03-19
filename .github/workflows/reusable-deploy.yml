@@ -618,34 +618,39 @@ jobs:
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo "Tunnel creation attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
             
-            # Create SSH tunnel in background with keepalive options
-            # Forward local port 5433 -> remote DB host:port
-            # Using -f to fork to background AFTER authentication succeeds
-            # This ensures the tunnel is ready when the command exits
-            if sshpass -p "$SSHPASS" ssh \
+            # Create SSH tunnel in background with keepalive options.
+            # NOTE: Using ssh "-f" (fork) can be flaky in CI: the process may exit immediately even when
+            # the command returns 0. Start the tunnel ourselves, capture PID, and verify it stays alive.
+            sshpass -p "$SSHPASS" ssh \
               -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=60 \
               -o ServerAliveCountMax=3 \
               -o ExitOnForwardFailure=yes \
-              -f -N \
+              -o LogLevel=ERROR \
+              -N \
               -L 5433:$DB_HOST:$DB_PORT \
-              $BASTION_USER@$BASTION_HOST 2>/tmp/ssh_tunnel.log; then
-              echo "✓ Tunnel command executed successfully"
+              $BASTION_USER@$BASTION_HOST > /tmp/ssh_tunnel.log 2>&1 &
+
+            TUNNEL_PID=$!
+            sleep 1
+
+            if kill -0 "$TUNNEL_PID" 2>/dev/null; then
+              echo "✓ Tunnel process started (pid=$TUNNEL_PID)"
               TUNNEL_SUCCESS=true
               break
-            else
-              EXIT_CODE=$?
-              echo "✗ Tunnel creation failed with exit code $EXIT_CODE (attempt $((RETRY_COUNT + 1)))"
-              echo "SSH output:"
-              cat /tmp/ssh_tunnel.log 2>/dev/null || echo "No log available"
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              
-              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                echo "Retrying in 5 seconds..."
-                sleep 5
-                # Cleanup port before retry
-                cleanup_port
-              fi
+            fi
+
+            EXIT_CODE=$?
+            echo "✗ Tunnel process exited immediately with exit code $EXIT_CODE (attempt $((RETRY_COUNT + 1)))"
+            echo "SSH output:"
+            cat /tmp/ssh_tunnel.log 2>/dev/null || echo "No log available"
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "Retrying in 5 seconds..."
+              sleep 5
+              # Cleanup port before retry
+              cleanup_port
             fi
           done
           
@@ -694,6 +699,8 @@ jobs:
           netstat -an | grep 5433 || echo "Port 5433 not listening"
           echo "lsof check:"
           lsof -i:5433 || echo "Port 5433 not in lsof"
+          echo "SSH log output:"
+          cat /tmp/ssh_tunnel.log 2>/dev/null || echo "No log available"
           exit 1
       
       - name: Test tunnel connectivity
