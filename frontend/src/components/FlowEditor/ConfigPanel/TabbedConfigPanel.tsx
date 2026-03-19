@@ -74,6 +74,10 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
     }
   });
 
+  // Per MASTER_PLAN: raw JSON editing must not be part of the standard user flow.
+  // We only show the UI toggle in dev builds; power users can still enable via localStorage.
+  const showDevToolsToggle = import.meta.env.DEV;
+
   if (!node) return null;
 
   // Context-aware tab visibility
@@ -202,25 +206,27 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <DevToolsRow>
-                  <DevToolsLabel>
-                    <input
-                      type="checkbox"
-                      checked={developerMode}
-                      onChange={(e) => {
-                        const enabled = e.target.checked;
-                        setDeveloperMode(enabled);
-                        try {
-                          window.localStorage.setItem('pm.floweditor.devMode', String(enabled));
-                        } catch {
-                          // ignore
-                        }
-                      }}
-                    />
-                    Developer Mode
-                  </DevToolsLabel>
-                  <DevToolsHint>Shows a raw JSON escape hatch for node.data</DevToolsHint>
-                </DevToolsRow>
+                {showDevToolsToggle && (
+                  <DevToolsRow>
+                    <DevToolsLabel>
+                      <input
+                        type="checkbox"
+                        checked={developerMode}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          setDeveloperMode(enabled);
+                          try {
+                            window.localStorage.setItem('pm.floweditor.devMode', String(enabled));
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                      />
+                      Developer Mode
+                    </DevToolsLabel>
+                    <DevToolsHint>Shows a raw JSON escape hatch for node.data</DevToolsHint>
+                  </DevToolsRow>
+                )}
 
                 {developerMode && (
                   <DeveloperJsonEditor
