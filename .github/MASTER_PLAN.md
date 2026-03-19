@@ -8,6 +8,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-19 — Fix: Workforms Editor UI/config/publish polish — Commit: 25a56157 (PR: #3629)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3629
+  - DynamicConfigPanel: handle field.type=entityType and field.type=multiSelect to prevent "Unknown field type" rendering errors.
+  - UnifiedFlowEditor: move canvas settings panel to bottom-left; add explicit node palette toggle; Help (?) opens keyboard shortcuts.
+  - WorkForms Editor: click-to-edit flow title; Publish disabled when there are unsaved changes.
+
 - 2026-03-19 — Fix: Dagre global layout crash + Add Step clipping — Commit: 44617749 (PR: #3627)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3627
   - Auto-layout: isolate global dagre pass to top-level nodes only (filters child nodes with parentId) to prevent React Flow grouped-node crashes.
