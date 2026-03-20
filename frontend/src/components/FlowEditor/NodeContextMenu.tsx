@@ -8,7 +8,6 @@
  * - React Portal rendering to document.body
  * - Smart viewport flipping (never off-screen)
  * - Zoom-aware positioning
- * - Full opacity with dark theme
  * - 120ms entrance animation
  * 
  * Based on React Flow context menu example:
@@ -67,25 +66,23 @@ const MenuContainer = styled.div<{ x: number; y: number; flipX: boolean; flipY: 
   position: fixed;
   top: ${props => props.y}px;
   left: ${props => props.x}px;
-  background: #1f2937 !important;
-  border: 1px solid #374151;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
   border-radius: 12px;
-  box-shadow: 
-    0 20px 25px -5px rgba(0, 0, 0, 0.3),
-    0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.12),
+    0 10px 10px -5px rgba(0, 0, 0, 0.08);
   padding: 6px;
   min-width: 220px;
   z-index: 9999;
-  opacity: 1 !important;
-  backdrop-filter: blur(10px);
   animation: menuEntrance 0.12s cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: ${props => 
+  transform-origin: ${props =>
     props.flipX && props.flipY ? 'bottom right' :
     props.flipX ? 'top right' :
     props.flipY ? 'bottom left' :
     'top left'
   };
-  
+
   @keyframes menuEntrance {
     from {
       opacity: 0;
@@ -106,28 +103,38 @@ const MenuItem = styled.button<{ danger?: boolean }>`
   padding: 10px 14px;
   border: none;
   background: transparent;
-  color: ${props => props.danger 
-    ? 'rgb(239, 68, 68)' 
-    : 'rgb(var(--color-text-primary))'};
+  color: ${props =>
+    props.danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))'};
   font-size: 14px;
   font-family: inherit;
   text-align: left;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.1s ease-out;
-  
+
   &:hover {
-    background: ${props => props.danger 
-      ? 'rgba(239, 68, 68, 0.1)' 
-      : 'rgb(var(--color-primary) / 0.1)'};
-    color: ${props => props.danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))'};
+    background: ${props =>
+      props.danger ? 'rgba(239, 68, 68, 0.1)' : 'rgb(var(--color-primary) / 0.1)'};
+    color: ${props => (props.danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))')};
     transform: translateX(2px);
   }
-  
+
   &:active {
     transform: scale(0.98) translateX(2px);
   }
-  
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  &:disabled:hover {
+    background: transparent;
+    color: ${props =>
+      props.danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))'};
+    transform: none;
+  }
+
   svg {
     flex-shrink: 0;
     width: 16px;
@@ -135,10 +142,13 @@ const MenuItem = styled.button<{ danger?: boolean }>`
     opacity: 0.7;
     transition: opacity 0.1s ease-out;
   }
-  
+
   &:hover svg {
     opacity: 1;
   }
+
+  &:disabled svg {
+    opacity: 0.5;
   }
 `;
 
@@ -357,18 +367,6 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
     onClose();
   }, [node, getNodes, setNodes, onClose, onDuplicate]);
   
-  /**
-   * Convert container to sub-flow (placeholder)
-   */
-  const handleConvertToSubFlow = useCallback(() => {
-    if (!node) return;
-
-    // TODO: Implement sub-flow conversion logic
-    // Kept for backward compatibility with older UX copy.
-    // New canonical action is "Save as Sub-Flow Template" (Phase 9.2).
-    console.log('Convert to sub-flow:', node.id);
-    onClose();
-  }, [node, onClose]);
 
   /**
    * Save a Form Process Group as a reusable Sub-Flow Template (Phase 9.2)
@@ -539,18 +537,6 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
     onClose();
   }, [node, getNode, setNodes, onClose]);
   
-  /**
-   * Edit in FormBuilder (Phase 3)
-   */
-  const handleEditInBuilder = useCallback(() => {
-    if (!node) return;
-    
-    // TODO: Open FormBuilder modal for this container
-    console.log('Edit in FormBuilder:', node.id);
-    // This will be wired in Phase 4
-    
-    onClose();
-  }, [node, onClose]);
   
   /**
    * Expand/Collapse All children (Phase 3)
@@ -633,9 +619,16 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
       
       {isContainer && (
         <>
-          <MenuItem onClick={handleEditInBuilder} role="menuitem" aria-label="Edit container in form builder">
+          <MenuItem
+            onClick={() => {
+              toast('Open the Fields tab to edit step fields.', { duration: 2500 });
+              handleEdit();
+            }}
+            role="menuitem"
+            aria-label="Open configuration"
+          >
             <Wand2 size={16} aria-hidden="true" />
-            <span>Edit in FormBuilder</span>
+            <span>Open Builder</span>
           </MenuItem>
           <MenuItem onClick={handleAddStep} role="menuitem" aria-label="Add step to container">
             <Plus size={16} aria-hidden="true" />
@@ -650,9 +643,21 @@ export const NodeContextMenu: React.FC<ContextMenuProps> = ({ node, x, y, onClos
             <Copy size={16} aria-hidden="true" />
             <span>Duplicate Container</span>
           </MenuItem>
-          <MenuItem onClick={handleConvertToSubFlow} role="menuitem" aria-label="Convert to sub-flow">
+          <MenuItem
+            onClick={() => {
+              void handleSaveAsSubFlowTemplate();
+            }}
+            role="menuitem"
+            aria-label="Save as sub-flow template"
+            title={
+              node.type === 'formProcessGroup' || node.type === 'formBook'
+                ? 'Save this container as a reusable template'
+                : 'Only supported for Form Process Group / Form Book'
+            }
+            disabled={!(node.type === 'formProcessGroup' || node.type === 'formBook')}
+          >
             <Layers size={16} aria-hidden="true" />
-            <span>Convert to Sub-Flow</span>
+            <span>Save as Sub-Flow Template</span>
           </MenuItem>
           <MenuSeparator />
         </>
