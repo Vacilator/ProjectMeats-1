@@ -4,7 +4,7 @@ Suppliers serializers for ProjectMeats.
 Provides serialization for supplier API endpoints.
 """
 from rest_framework import serializers
-from tenant_apps.suppliers.models import Supplier
+from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem
 from tenant_apps.locations.serializers import LocationListSerializer
 
 
@@ -44,7 +44,7 @@ class SupplierSerializer(serializers.ModelSerializer):
             "origin",
             "country_origin",
             "contacts",
-            "products",
+            "plants",
             "shipping_offered",
             "how_to_book_pickup",
             "offer_contracts",
@@ -66,6 +66,24 @@ class SupplierSerializer(serializers.ModelSerializer):
             "modified_on",
         ]
         read_only_fields = ["id", "created_on", "modified_on", "locations"]
+
+
+class SupplierAvailableItemSerializer(serializers.ModelSerializer):
+    master_product_display_name = serializers.CharField(source='master_product.display_name', read_only=True)
+
+    class Meta:
+        model = SupplierAvailableItem
+        fields = [
+            'id',
+            'supplier',
+            'master_product',
+            'master_product_display_name',
+            'product_code',
+            'is_active',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = ['id', 'created_on', 'modified_on', 'master_product_display_name']
 
     def validate_name(self, value):
         """Validate supplier name is provided and is a valid string."""

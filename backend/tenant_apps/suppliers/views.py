@@ -168,9 +168,9 @@ class SupplierViewSet(viewsets.ModelViewSet):
         Returns products that have this supplier in their M2M relationship.
         Respects tenant isolation.
         """
-        from tenant_apps.products.serializers import ProductSerializer
-        
+        from tenant_apps.suppliers.serializers import SupplierAvailableItemSerializer
+
         supplier = self.get_object()
-        products = supplier.products.filter(tenant=request.tenant)
-        serializer = ProductSerializer(products, many=True)
+        items = supplier.available_items.filter(tenant=request.tenant, is_active=True).select_related('master_product')
+        serializer = SupplierAvailableItemSerializer(items, many=True)
         return Response(serializer.data)

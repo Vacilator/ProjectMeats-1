@@ -29,14 +29,24 @@ class Plant(TenantAwareModel):
         help_text="Supplier that owns/operates this plant"
     )
 
-    # Known products (Three-Tier Product Strategy)
+    # Known products (legacy: system.Product)
     associated_products = models.ManyToManyField(
         'system.Product',
         through='PlantAssociatedProduct',
         related_name='sold_by_plants',
         blank=True,
         verbose_name='Known Products Sold',
-        help_text='Products commonly sold/produced by this plant',
+        help_text='Legacy system.Product associations (deprecated).',
+    )
+
+    # Known products (new: tenant-scoped MasterProduct)
+    associated_master_products = models.ManyToManyField(
+        'products.MasterProduct',
+        through='PlantAssociatedMasterProduct',
+        related_name='known_by_plants',
+        blank=True,
+        verbose_name='Known Master Products',
+        help_text='Master products commonly sold/produced by this plant.',
     )
 
     name = models.CharField(max_length=200)
@@ -82,7 +92,7 @@ class Plant(TenantAwareModel):
 
 
 class PlantAssociatedProduct(TenantAwareModel):
-    """Tenant-safe link table for Plant ↔ system.Product affinity."""
+    """Tenant-safe link table for Plant ↔ system.Product affinity (deprecated)."""
 
     plant = models.ForeignKey(
         Plant,
@@ -107,4 +117,33 @@ class PlantAssociatedProduct(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'plant']),
             models.Index(fields=['tenant', 'product']),
+        ]
+
+
+class PlantAssociatedMasterProduct(TenantAwareModel):
+    """Tenant-safe link table for Plant ↔ products.MasterProduct affinity."""
+
+    plant = models.ForeignKey(
+        Plant,
+        on_delete=models.CASCADE,
+        related_name='associated_master_product_links',
+    )
+    master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.CASCADE,
+        related_name='plant_affinity_links',
+    )
+
+    class Meta:
+        verbose_name = 'Plant Known Master Product'
+        verbose_name_plural = 'Plant Known Master Products'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'plant', 'master_product'],
+                name='unique_plant_master_product_affinity_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'plant']),
+            models.Index(fields=['tenant', 'master_product']),
         ]
