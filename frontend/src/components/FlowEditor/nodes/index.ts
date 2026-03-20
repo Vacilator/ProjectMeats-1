@@ -50,6 +50,10 @@ export type { FormProcessGroupData } from './FormProcessGroupNode';
 export { FormProcessChildWrapper } from './FormProcessChildWrapper';
 export type { ChildWrapperProps } from './FormProcessChildWrapper';
 
+// Smart WorkForm (single-node wizard)
+export { SmartWorkFormNode } from './SmartWorkFormNode';
+export type { SmartWorkFormNodeData, SmartWorkFormStep, SmartWorkFormField } from './SmartWorkFormNode';
+
 // Phase 7.4 Advanced Node Types (2026-02-27)
 export { ParallelPathNode } from './ParallelPathNode';
 export type { ParallelPathNodeData } from './ParallelPathNode';

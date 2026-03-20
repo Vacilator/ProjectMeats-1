@@ -7,6 +7,7 @@ and AI-powered business intelligence for meat market operations.
 import logging
 import time
 
+from django.conf import settings
 from django.utils import timezone
 from pgvector.django import CosineDistance
 from rest_framework import filters, permissions, status, viewsets
@@ -32,6 +33,30 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+# -----------------------------------------------------------------------------
+# OpenAI Swarm/Widget contract
+# -----------------------------------------------------------------------------
+
+SWARM_SYSTEM_PROMPT = (
+    "You are the ProjectMeats Autonomous Swarm Orchestrator. "
+    "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
+    "You have access to the user's connected email and ERP data via tools. "
+    "Be highly analytical, concise, and proactive."
+)
+
+# Safe default tool list for agent discovery + ChatCompletions tools parameter.
+# Keep this intentionally minimal to prevent schema/introspection crashes.
+DEFAULT_OPENAI_TOOLS = [
+    {
+        'type': 'function',
+        'function': {
+            'name': 'check_unread_emails',
+            'description': "Check the user's connected Microsoft Outlook inbox for unread emails and attachments.",
+            'parameters': {'type': 'object', 'properties': {}},
+        },
+    }
+]
 
 
 class ChatSessionViewSet(viewsets.ModelViewSet):
@@ -129,13 +154,54 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 modified_by=request.user,
             )
 
-            # Generate AI response (simplified mock for now)
-            response_text = self._generate_mock_response(user_message)
+            # Generate AI response (live OpenAI)
+            if not getattr(settings, 'OPENAI_API_KEY', None):
+                return Response(
+                    {'error': 'OpenAI not configured (missing OPENAI_API_KEY)'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            try:
+                from openai import OpenAI
+            except Exception as e:
+                logger.error('OpenAI client import failed: %s', str(e), exc_info=True)
+                return Response(
+                    {'error': 'OpenAI client not available on server'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            # Prefer settings, but force a modern model as requested.
+            model_name = 'gpt-4o-mini'
+            org_id = getattr(settings, 'OPENAI_ORG_ID', None)
+
+            client = OpenAI(api_key=settings.OPENAI_API_KEY, organization=org_id or None)
+
+            try:
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {'role': 'system', 'content': SWARM_SYSTEM_PROMPT},
+                        {'role': 'user', 'content': user_message},
+                    ],
+                    tools=DEFAULT_OPENAI_TOOLS,
+                    tool_choice='auto',
+                    temperature=float(getattr(settings, 'OPENAI_TEMPERATURE', 0.7) or 0.7),
+                    max_tokens=int(getattr(settings, 'OPENAI_MAX_TOKENS', 2000) or 2000),
+                )
+
+                response_text = (completion.choices[0].message.content or '').strip()
+                tokens_used = getattr(getattr(completion, 'usage', None), 'total_tokens', None)
+
+            except Exception as e:
+                # Per requirements: return 400 with error detail for OpenAI API errors.
+                logger.warning('OpenAI chat completion failed: %s', str(e), exc_info=True)
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
             metadata = {
-                "model": "gpt-4o-mini",
-                "provider": "openai",
-                "tokens_used": len(user_message) // 4,
-                "response_type": "mock",
+                'model': model_name,
+                'provider': 'openai',
+                'tokens_used': tokens_used,
+                'response_type': 'openai',
             }
 
             # Create AI response message
@@ -177,61 +243,32 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def _generate_mock_response(self, user_message: str) -> str:
-        """Generate a mock AI response for demonstration purposes."""
-        message_lower = user_message.lower()
-
-        # Meat industry specific responses
-        if any(word in message_lower for word in ["supplier", "suppliers"]):
-            return "I can help you manage your meat suppliers. Our system tracks supplier performance, pricing, and delivery schedules. Would you like me to show you current supplier metrics or help you find new suppliers for specific meat products?"
-
-        elif any(word in message_lower for word in ["purchase order", "po", "order"]):
-            return "I can assist with purchase order management. I can help you create new POs, track existing orders, analyze spending patterns, and ensure compliance with quality standards. What specific aspect of purchase order management would you like help with?"
-
-        elif any(word in message_lower for word in ["customer", "customers", "client"]):
-            return "I can help you manage customer relationships and analyze customer data. Our system tracks customer preferences, order history, and payment patterns. Would you like to review customer performance or get insights about customer trends?"
-
-        elif any(word in message_lower for word in ["inventory", "stock"]):
-            return "I can help you monitor inventory levels, track product movements, and optimize stock management. Our system provides real-time inventory data and can suggest reorder points. What inventory information do you need?"
-
-        elif any(word in message_lower for word in ["price", "pricing", "cost"]):
-            return "I can analyze pricing trends, compare supplier costs, and help optimize your procurement strategy. Our system tracks historical pricing data and market trends. Would you like to see current price analysis or historical trends?"
-
-        elif any(
-            word in message_lower for word in ["quality", "compliance", "inspection"]
-        ):
-            return "I can help you manage quality standards and compliance requirements. Our system tracks USDA regulations, HACCP compliance, and quality inspection results. What quality management information do you need?"
-
-        elif any(
-            word in message_lower for word in ["delivery", "shipping", "logistics"]
-        ):
-            return "I can help you track deliveries, optimize logistics, and manage carrier relationships. Our system monitors delivery performance and can suggest improvements. What delivery or logistics information would you like?"
-
-        elif any(word in message_lower for word in ["report", "analytics", "analysis"]):
-            return "I can generate various reports and analytics for your meat business operations. Available reports include supplier performance, customer analysis, inventory trends, and financial summaries. What type of analysis would you like me to prepare?"
-
-        elif (
-            "hello" in message_lower or "hi" in message_lower or "help" in message_lower
-        ):
-            return "Hello! I'm your AI assistant for meat market operations. I can help you with supplier management, purchase orders, customer relationships, inventory tracking, pricing analysis, and compliance. What would you like assistance with today?"
-
-        else:
-            return f"Thank you for your message. I'm designed to help with meat market operations including supplier management, purchase orders, customer relationships, and business analytics. I understand you mentioned: '{user_message[:100]}...' - could you provide more specific details about what you'd like help with?"
 
 
 class SwarmToolsOpenAPIView(APIView):
-    """Expose an OpenAPI-ish tool schema document for PM-AS.
+    """Expose tool schemas for PM-AS.
 
-    This is intentionally read-only and staff-only to reduce the risk of
-    accidentally exposing tool invocation.
+    This endpoint is used by the AIAgentWidget to discover tools.
+
+    Reliability mandate:
+    - Always return a safe `tools` list shaped for OpenAI ChatCompletions
+    - Avoid fragile runtime introspection that could 500
     """
 
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        from .swarm.tools.registry import registry
+        payload = {'tools': DEFAULT_OPENAI_TOOLS}
 
-        return Response(registry.to_openapi(), status=status.HTTP_200_OK)
+        try:
+            # Keep legacy OpenAPI-ish document for backward compatibility.
+            from .swarm.tools.registry import registry
+
+            payload['openapi'] = registry.to_openapi()
+        except Exception as e:
+            logger.warning('tools/openapi fallback engaged: %s', str(e), exc_info=True)
+
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 class SwarmInvokeAPIView(APIView):

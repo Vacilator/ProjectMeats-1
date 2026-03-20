@@ -159,6 +159,19 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     requiresConfig: true,
   },
 
+  // Phase 7+: Smart WorkForm (single-node wizard)
+  smartWorkForm: {
+    id: 'smartWorkForm',
+    name: 'Smart WorkForm',
+    category: 'form',
+    icon: '🧠',
+    color: '#a78bfa',
+    description: 'Single-node vertical wizard with field library + cascades + live preview',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+  },
+
   // Legacy container type (kept for backward compatibility)
   formProcessGroup: {
     id: 'formProcessGroup',

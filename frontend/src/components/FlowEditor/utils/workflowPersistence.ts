@@ -109,7 +109,12 @@ export const extractFormReferences = (nodes: Node[]): string[] => {
 
     // Form containers
     if (
-      (node.type === 'formMultiStepContainer' || node.type === 'formProcessGroup' || node.type === 'formBook') &&
+      (
+        node.type === 'formMultiStepContainer' ||
+        node.type === 'formProcessGroup' ||
+        node.type === 'formBook' ||
+        node.type === 'smartWorkForm'
+      ) &&
       nodeData.tenantFormId
     ) {
       formIds.add(nodeData.tenantFormId);

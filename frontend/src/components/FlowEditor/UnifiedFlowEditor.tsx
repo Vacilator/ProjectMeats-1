@@ -110,6 +110,7 @@ import {
   FormStepNode,
   FormStepSingleNode,
   FormReferenceNode,
+  SmartWorkFormNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -1664,6 +1665,7 @@ const staticNodeTypes = {
   formBook: FormNode,  // Form container (Book)
   formProcess: FormNode,  // Legacy container types render as canonical container
   formProcessGroup: FormNode,
+  smartWorkForm: SmartWorkFormNode,
   // Backward compatibility aliases
   formStep: FormStepSingleNode,  // Deprecated
   formMultiStepContainer: FormNode,  // Legacy container alias
