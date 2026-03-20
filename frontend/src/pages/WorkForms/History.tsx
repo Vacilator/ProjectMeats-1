@@ -22,7 +22,7 @@ import {
   Eye, Filter, RefreshCw, FileText, ChevronRight, ChevronDown,
   Clock, AlertCircle
 } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { WorkflowExecution, WorkflowAuditEntry } from '../../types/workflows';
 
@@ -256,10 +256,10 @@ const StatusBadge = styled.span<{ $status: string }>`
   font-size: 12px;
   font-weight: 500;
   border-radius: 12px;
-  background: ${({ $status }) => 
-    $status === 'completed' ? 'rgb(34, 197, 94, 0.1)' : 'rgb(239, 68, 68, 0.1)'
+  background: ${({ $status }) =>
+    $status === 'completed' ? 'rgb(34 197 94 / 0.10)' : 'rgb(239 68 68 / 0.10)'
   };
-  color: ${({ $status }) => 
+  color: ${({ $status }) =>
     $status === 'completed' ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'
   };
 `;
@@ -464,7 +464,7 @@ const DurationBadge = styled.span`
   font-size: 11px;
   font-weight: 500;
   border-radius: 12px;
-  background: rgba(var(--color-primary), 0.1);
+  background: rgb(var(--color-primary) / 0.10);
   color: rgb(var(--color-primary));
   margin-left: 8px;
 `;
@@ -506,7 +506,7 @@ const FormsFlowsHistory: React.FC = () => {
       if (endDate) params.end_date = endDate;
       if (searchQuery) params.search = searchQuery;
       
-      const response = await apiClient.get('/workflows/form-submissions/', { params });
+      const response = await businessApi.get('/workflows/form-submissions/', { params });
       setSubmissions(response.data.results || response.data || []);
       setTotalCount(response.data.count || 0);
     } catch (error) {

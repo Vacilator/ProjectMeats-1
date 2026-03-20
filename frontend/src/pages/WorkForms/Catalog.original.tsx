@@ -95,7 +95,7 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.10);
   }
   
   &::placeholder {
@@ -126,7 +126,7 @@ const FilterChip = styled.button<{ $active?: boolean }>`
   gap: 0.375rem;
   padding: 0.5rem 1rem;
   border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
-  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  background: ${props => props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent'};
   color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   border-radius: var(--radius-full);
   font-size: 0.875rem;
@@ -136,7 +136,7 @@ const FilterChip = styled.button<{ $active?: boolean }>`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    background: rgba(var(--color-primary), 0.05);
+    background: rgb(var(--color-primary) / 0.05);
   }
   
   svg {
@@ -154,7 +154,7 @@ const ViewToggle = styled.div`
 
 const ViewButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 0.75rem;
-  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  background: ${props => props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent'};
   color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   border: none;
   cursor: pointer;
@@ -165,7 +165,7 @@ const ViewButton = styled.button<{ $active?: boolean }>`
   }
   
   &:hover {
-    background: rgba(var(--color-primary), 0.05);
+    background: rgb(var(--color-primary) / 0.05);
   }
   
   svg {
@@ -196,7 +196,7 @@ const FormCard = styled(Card)`
   
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgb(var(--color-text-primary) / 0.10);
   }
 `;
 
@@ -258,13 +258,13 @@ const StatusBadge = styled.span<{ $status: string }>`
   background: ${props => {
     switch (props.$status) {
       case 'active':
-        return 'rgba(34, 197, 94, 0.1)';
+        return 'rgb(34 197 94 / 0.10)';
       case 'draft':
-        return 'rgba(234, 179, 8, 0.1)';
+        return 'rgb(234 179 8 / 0.10)';
       case 'inactive':
-        return 'rgba(107, 114, 128, 0.1)';
+        return 'rgb(107 114 128 / 0.10)';
       default:
-        return 'rgba(var(--color-text-muted), 0.1)';
+        return 'rgb(var(--color-text-muted) / 0.10)';
     }
   }};
   color: ${props => {

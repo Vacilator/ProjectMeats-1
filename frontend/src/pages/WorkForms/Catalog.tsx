@@ -108,7 +108,7 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.10);
   }
   
   &::placeholder {
@@ -162,7 +162,7 @@ const Tab = styled.button<{ $active?: boolean }>`
   
   &:hover {
     color: rgb(var(--color-primary));
-    background: rgba(var(--color-primary), 0.05);
+    background: rgb(var(--color-primary) / 0.05);
   }
   
   svg {
@@ -179,7 +179,7 @@ const TabBadge = styled.span`
   height: 1.375rem;
   padding: 0 0.375rem;
   border-radius: var(--radius-full);
-  background: rgba(var(--color-primary), 0.15);
+  background: rgb(var(--color-primary) / 0.15);
   color: rgb(var(--color-primary));
   font-size: 0.6875rem;
   font-weight: 600;
@@ -191,7 +191,7 @@ const FilterChip = styled.button<{ $active?: boolean }>`
   gap: 0.375rem;
   padding: 0.5rem 1rem;
   border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
-  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  background: ${props => props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent'};
   color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   border-radius: var(--radius-full);
   font-size: 0.875rem;
@@ -201,7 +201,7 @@ const FilterChip = styled.button<{ $active?: boolean }>`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    background: rgba(var(--color-primary), 0.05);
+    background: rgb(var(--color-primary) / 0.05);
   }
   
   svg {
@@ -219,7 +219,7 @@ const ViewToggle = styled.div`
 
 const ViewButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 0.75rem;
-  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  background: ${props => props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent'};
   color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   border: none;
   cursor: pointer;
@@ -230,7 +230,7 @@ const ViewButton = styled.button<{ $active?: boolean }>`
   }
   
   &:hover {
-    background: rgba(var(--color-primary), 0.05);
+    background: rgb(var(--color-primary) / 0.05);
   }
   
   svg {
@@ -262,7 +262,7 @@ const CategorySelect = styled.select`
   padding: 0.5rem 1rem;
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-md);
-  background: white;
+  background: rgb(var(--color-surface));
   color: rgb(var(--color-text-primary));
   font-size: 0.875rem;
   cursor: pointer;
@@ -275,7 +275,7 @@ const CategorySelect = styled.select`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.10);
   }
 `;
 
@@ -286,7 +286,7 @@ const QuickRunButton = styled.button<{ $isRunning?: boolean }>`
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: ${props => props.$isRunning 
-    ? 'rgba(234, 179, 8, 0.1)' 
+    ? 'rgb(234 179 8 / 0.10)' 
     : 'linear-gradient(135deg, rgb(var(--color-success)) 0%, rgb(34, 197, 94) 100%)'
   };
   color: ${props => props.$isRunning ? 'rgb(234, 179, 8)' : 'white'};
@@ -300,7 +300,7 @@ const QuickRunButton = styled.button<{ $isRunning?: boolean }>`
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 4px 12px rgb(34 197 94 / 0.30);
   }
 
   &:disabled {
@@ -344,7 +344,7 @@ const FormCard = styled(Card)`
   
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgb(var(--color-text-primary) / 0.10);
   }
 `;
 
@@ -406,13 +406,13 @@ const StatusBadge = styled.span<{ $status: string }>`
   background: ${props => {
     switch (props.$status) {
       case 'active':
-        return 'rgba(34, 197, 94, 0.1)';
+        return 'rgb(34 197 94 / 0.10)';
       case 'draft':
-        return 'rgba(234, 179, 8, 0.1)';
+        return 'rgb(234 179 8 / 0.10)';
       case 'inactive':
-        return 'rgba(107, 114, 128, 0.1)';
+        return 'rgb(107 114 128 / 0.10)';
       default:
-        return 'rgba(var(--color-text-muted), 0.1)';
+        return 'rgb(var(--color-text-muted) / 0.10)';
     }
   }};
   color: ${props => {

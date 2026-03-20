@@ -130,7 +130,7 @@ const ModeButton = styled.button<{ $active?: boolean }>`
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
-  background: ${p => (p.$active ? 'rgba(var(--color-primary), 0.12)' : 'rgb(var(--color-surface))')};
+  background: ${p => (p.$active ? 'rgb(var(--color-primary) / 0.12)' : 'rgb(var(--color-surface))')};
   color: ${p => (p.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-primary))')};
 
   &:not(:last-child) {
@@ -156,10 +156,10 @@ const StatusBadge = styled.span<{ $status: WorkFormStatus }>`
   border: 1px solid rgb(var(--color-border));
   background: ${p =>
     p.$status === 'active'
-      ? 'rgb(34, 197, 94 / 0.10)'
+      ? 'rgb(34 197 94 / 0.10)'
       : p.$status === 'draft'
-        ? 'rgb(234, 179, 8 / 0.10)'
-        : 'rgb(148, 163, 184 / 0.10)'};
+        ? 'rgb(234 179 8 / 0.10)'
+        : 'rgb(148 163 184 / 0.10)'};
   color: ${p =>
     p.$status === 'active'
       ? 'rgb(34, 197, 94)'
