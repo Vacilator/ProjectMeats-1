@@ -296,7 +296,11 @@ export const StepManagerPanel: React.FC<StepManagerPanelProps> = ({
       label: node.data?.label || node.data?.name || `${node.type || 'Node'} ${node.id.slice(0, 8)}`,
       stepNumber,
       hasErrors: false, // TODO: Add validation logic
-      isConfigured: !!(node.data?.entityType || node.data?.selectedFields?.length > 0),
+      isConfigured: Boolean(
+        node.data?.entityType ||
+          (Array.isArray(node.data?.fields) && node.data.fields.length > 0) ||
+          (Array.isArray(node.data?.selectedFields) && node.data.selectedFields.length > 0)
+      ),
     };
   }).sort((a, b) => {
     // Sort by step number (nulls at end)
