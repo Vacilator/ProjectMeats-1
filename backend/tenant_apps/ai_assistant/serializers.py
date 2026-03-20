@@ -132,3 +132,13 @@ class SwarmInvokeResponseSerializer(serializers.Serializer):
     urgency = serializers.CharField()
     agent_chain = serializers.ListField(child=serializers.CharField())
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class PendingReviewItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    document_id = serializers.UUIDField()
+    document_type = serializers.CharField()
+    confidence_score = serializers.FloatField()
+    precision_delta = serializers.FloatField()
+    created_on = serializers.DateTimeField()
+    original_extracted_data = serializers.JSONField()

@@ -11,6 +11,7 @@ from .views import (
     ChatBotAPIViewSet,
     ChatMessageViewSet,
     ChatSessionViewSet,
+    PendingReviewAPIView,
     SwarmInvokeAPIView,
     SwarmToolsOpenAPIView,
     VectorMemorySearchAPIView,
@@ -26,5 +27,6 @@ urlpatterns = [
     path("tools/openapi/", SwarmToolsOpenAPIView.as_view(), name="ai-tools-openapi"),
     path("swarm/invoke/", SwarmInvokeAPIView.as_view(), name="ai-swarm-invoke"),
     path("memory/search/", VectorMemorySearchAPIView.as_view(), name="ai-memory-search"),
+    path("review/pending/", PendingReviewAPIView.as_view(), name="ai-review-pending"),
     path("", include(router.urls)),
 ]
