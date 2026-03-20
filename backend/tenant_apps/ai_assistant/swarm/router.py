@@ -1,25 +1,39 @@
-"""PM-AS Swarm Orchestrator (semantic router).
+"""PM-AS Swarm Orchestrator.
 
-This module routes inbound events (Email, User Chat, Webhook) to specialized worker agents.
+Phase 8.0:
+- Semantic router (email/user_chat/webhook) -> recommended agent chain.
 
-Planned worker chain (Phase 8.0):
-- Extractor  -> parse/structure inputs
-- Enricher   -> add domain context, normalize entities
-- Executor   -> perform side effects (create records, trigger workflows)
-- MeatSME    -> domain validation and safety gate (meat industry specific)
+Phase 8.1:
+- Agentic tool execution loop (LLM -> ToolExecutor -> LLM).
 
-This is scaffold-only (no runtime integration yet).
+Reliability mandate:
+- Tool execution is best-effort and must not crash requests.
+- LLM tool loop is bounded to prevent infinite recursion.
 """
 
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional
 
+from django.conf import settings
+
 from tenant_apps.ai_assistant.swarm.agents.base import AgentContext
+from tenant_apps.ai_assistant.swarm.executor import DEFAULT_OPENAI_TOOLS, ToolExecutor
+
+logger = logging.getLogger(__name__)
 
 
 EventType = Literal["email", "user_chat", "webhook"]
+
+SWARM_SYSTEM_PROMPT = (
+    "You are the ProjectMeats Autonomous Swarm Orchestrator. "
+    "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
+    "You have access to the user's connected email and ERP data via tools. "
+    "Be highly analytical, concise, and proactive."
+)
 
 
 @dataclass(frozen=True)
@@ -32,7 +46,7 @@ class SwarmDecision:
 
 
 class SwarmOrchestrator:
-    """Semantic router for PM-AS."""
+    """Router + tool-loop orchestrator for PM-AS."""
 
     def __init__(self, *, tenant_id: str):
         if not tenant_id:
@@ -74,7 +88,6 @@ class SwarmOrchestrator:
         urgency = self._estimate_urgency(text)
         intent = self._estimate_intent(event_type, payload)
 
-        # Default agent chain is always safety-first.
         chain: List[str] = ["Extractor", "Enricher", "MeatSME", "Executor"]
 
         notes = "heuristic-router"
@@ -85,3 +98,98 @@ class SwarmOrchestrator:
 
     def build_context(self, *, event_type: EventType, payload: Dict[str, Any], correlation_id: Optional[str] = None) -> AgentContext:
         return AgentContext(tenant_id=self.tenant_id, event_type=event_type, payload=payload, correlation_id=correlation_id)
+
+    def run_tool_loop(self, *, user_message: str, tenant: Any, history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """Run bounded tool loop and return final assistant response + trace.
+
+        Returns:
+            {"response": <final text>, "messages": <final history>}
+        """
+        if not getattr(settings, 'OPENAI_API_KEY', None):
+            raise ValueError('OpenAI not configured (missing OPENAI_API_KEY)')
+
+        try:
+            from openai import OpenAI
+        except Exception as e:
+            raise RuntimeError('OpenAI client not available on server') from e
+
+        client = OpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
+        )
+
+        messages: List[Dict[str, Any]] = [{'role': 'system', 'content': SWARM_SYSTEM_PROMPT}]
+        if history:
+            messages.extend(history)
+        messages.append({'role': 'user', 'content': user_message})
+
+        executor = ToolExecutor()
+
+        model_name = 'gpt-4o-mini'
+        temperature = float(getattr(settings, 'OPENAI_TEMPERATURE', 0.7) or 0.7)
+        max_tokens = int(getattr(settings, 'OPENAI_MAX_TOKENS', 2000) or 2000)
+
+        max_rounds = int(getattr(settings, 'SWARM_TOOL_MAX_ROUNDS', 3) or 3)
+        rounds = 0
+
+        while True:
+            rounds += 1
+            if rounds > max_rounds:
+                break
+
+            completion = client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                tools=DEFAULT_OPENAI_TOOLS,
+                tool_choice='auto',
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+            msg = completion.choices[0].message
+            tool_calls = getattr(msg, 'tool_calls', None)
+
+            if not tool_calls:
+                final_text = (msg.content or '').strip()
+                return {'response': final_text, 'messages': messages}
+
+            # a) Append assistant's tool call message to history
+            assistant_payload: Dict[str, Any] = {'role': 'assistant', 'content': msg.content or ''}
+            assistant_payload['tool_calls'] = []
+            for tc in tool_calls:
+                assistant_payload['tool_calls'].append(
+                    {
+                        'id': tc.id,
+                        'type': tc.type,
+                        'function': {
+                            'name': tc.function.name,
+                            'arguments': tc.function.arguments,
+                        },
+                    }
+                )
+            messages.append(assistant_payload)
+
+            # b/c) Execute each tool call, append tool results
+            for tc in tool_calls:
+                tool_name = tc.function.name
+                raw_args = tc.function.arguments or '{}'
+                try:
+                    args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+                except Exception:
+                    args = {}
+
+                result = executor.execute(tool_name, args, tenant)
+                messages.append(
+                    {
+                        'role': 'tool',
+                        'tool_call_id': tc.id,
+                        'content': result,
+                    }
+                )
+
+            # d) Loop continues; next LLM call interprets tool results (and may call more tools)
+
+        return {
+            'response': 'Tool loop exceeded max rounds; please refine your request.',
+            'messages': messages,
+        }
