@@ -15,6 +15,17 @@ class VectorMemorySearchRequestSerializer(serializers.Serializer):
         return value
 
 
+class PendingReviewResolveRequestSerializer(serializers.Serializer):
+    user_corrected_data = serializers.JSONField(required=False, allow_null=True)
+
+    def validate_user_corrected_data(self, value):
+        if value is None:
+            return value
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('user_corrected_data must be an object')
+        return value
+
+
 class ChatSessionListSerializer(serializers.ModelSerializer):
     """Serializer for chat session list view."""
 

@@ -25,6 +25,7 @@ from .serializers import (
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
     PendingReviewItemSerializer,
+    PendingReviewResolveRequestSerializer,
     SwarmInvokeRequestSerializer,
     VectorMemorySearchRequestSerializer,
 )
@@ -356,3 +357,53 @@ class PendingReviewAPIView(APIView):
 
         payload = PendingReviewItemSerializer(items, many=True).data
         return Response({'results': payload}, status=status.HTTP_200_OK)
+
+
+class PendingReviewResolveAPIView(APIView):
+    """Staff-only endpoint to resolve a HITL item.
+
+    Marks AIFeedbackLog.resolved_by and optionally stores user_corrected_data.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, feedback_id):
+        serializer = PendingReviewResolveRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        tenant = getattr(request, 'tenant', None)
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        if not tenant_id:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            row = AIFeedbackLog.objects.get(id=feedback_id, tenant_id=tenant_id)
+        except AIFeedbackLog.DoesNotExist:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if row.resolved_by_id:
+            return Response(
+                {
+                    'id': str(row.id),
+                    'resolved_by': str(row.resolved_by_id),
+                    'precision_delta': float(row.precision_delta or 0.0),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        corrected = serializer.validated_data.get('user_corrected_data')
+        if corrected is not None:
+            row.user_corrected_data = corrected
+
+        row.resolved_by = request.user
+        row.save(update_fields=['user_corrected_data', 'resolved_by', 'precision_delta', 'modified_on'])
+
+        return Response(
+            {
+                'id': str(row.id),
+                'resolved_by': str(request.user.id),
+                'precision_delta': float(row.precision_delta or 0.0),
+            },
+            status=status.HTTP_200_OK,
+        )
