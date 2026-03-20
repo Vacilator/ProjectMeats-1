@@ -34,6 +34,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Executor (side-effects)
 - Self-healing data pipeline (Auto-Tune Flywheel): nightly `process_rlhf_flywheel` aggregates `AIFeedbackLog` into JSONL instruction sets for future fine-tuning of local enrichment models.
 - Vector Memory, Tool Registry, RLHF Pipeline, and AIAgentWidget successfully scaffolded via CLI agent.
+- Added staff-only tool discovery endpoint: `GET /api/v1/ai-assistant/tools/openapi/` (PR #3689).
 
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
