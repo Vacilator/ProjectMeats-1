@@ -61,6 +61,44 @@ class SwarmOrchestrator:
             raise ValueError("tenant_id is required")
         self.tenant_id = tenant_id
 
+    def _requires_meat_sme(self, text: str) -> bool:
+        """Heuristic intent classification for deep meat/logistics questions.
+
+        This is intentionally conservative: if we detect likely yield/trim/shelf-life
+        or historical PO specifics, we route to the tenant-isolated Vector RAG agent.
+        """
+
+        t = (text or '').lower()
+        keywords = [
+            'yield',
+            'trim',
+            'shrink',
+            'net lb',
+            'shelf life',
+            'shelf-life',
+            'code date',
+            'use by',
+            'fresh',
+            'frozen',
+            'box beef',
+            'boxed beef',
+            'primal',
+            'subprimal',
+            'edible',
+            'inedible',
+            'combo',
+            'load',
+            'reefer',
+            'temp',
+            'pallet',
+            'po#',
+            'po #',
+            'purchase order',
+            'historical po',
+            'previous po',
+        ]
+        return any(k in t for k in keywords)
+
     def _estimate_urgency(self, text: str) -> str:
         t = (text or "").lower()
         if any(k in t for k in ["urgent", "asap", "immediately", "today", "failed", "down"]):
@@ -96,7 +134,12 @@ class SwarmOrchestrator:
         urgency = self._estimate_urgency(text)
         intent = self._estimate_intent(event_type, payload)
 
-        chain: List[str] = ["Extractor", "Enricher", "MeatSME", "Executor"]
+        requires_sme = self._requires_meat_sme(text) if event_type == 'user_chat' else False
+
+        chain: List[str] = ["Extractor", "Enricher"]
+        if requires_sme:
+            chain.append("MeatSME")
+        chain.append("Executor")
 
         notes = "heuristic-router"
         if urgency == "high":
@@ -118,6 +161,24 @@ class SwarmOrchestrator:
         openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
         if not openai_api_key:
             raise ValueError('OpenAI not configured (missing OPENAI_API_KEY)')
+
+        # Phase 8.2: intent classification → delegate deep meat/logistics questions to MeatSME RAG.
+        # Reliability mandate: if RAG fails for any reason, fall back to the standard tool loop.
+        if self._requires_meat_sme(user_message):
+            try:
+                from tenant_apps.ai_assistant.swarm.agents.meat_sme import MeatSMEAgent
+
+                answer = MeatSMEAgent().analyze(
+                    query=user_message,
+                    tenant_id=str(getattr(tenant, 'id', '') or self.tenant_id),
+                )
+                return {
+                    'response': answer,
+                    'messages': (history or []) + [{'role': 'user', 'content': user_message}],
+                    'notes': 'meat_sme_rag',
+                }
+            except Exception as e:
+                logger.warning('[SwarmOrchestrator] MeatSME RAG failed; falling back to tool loop: %s', str(e))
 
         try:
             from openai import OpenAI

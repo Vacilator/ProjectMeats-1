@@ -41,6 +41,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - Added staff-only swarm router preview endpoint: `POST /api/v1/ai-assistant/swarm/invoke/` (PR #3693).
 - Added staff-only VectorMemory similarity search endpoint: `POST /api/v1/ai-assistant/memory/search/` (PR #3696).
 - 2026-03-20 — MSAL dynamic authority fix (mitigates msaidpvalidate) — PR: #3731.
+- Deployed Phase 8.2: Meat SME Agent with strict Tenant-Isolated Vector RAG (Retrieval-Augmented Generation).
 
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
