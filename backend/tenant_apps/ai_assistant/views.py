@@ -24,6 +24,7 @@ from .serializers import (
     ChatMessageSerializer,
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
+    SwarmInvokeRequestSerializer,
     VectorMemorySearchRequestSerializer,
 )
 
@@ -240,19 +241,18 @@ class SwarmInvokeAPIView(APIView):
     permission_classes = [IsAdminUser]
 
     def post(self, request):
-        event_type = (request.data or {}).get('event_type')
-        payload = (request.data or {}).get('payload')
-        correlation_id = (request.data or {}).get('correlation_id')
-
-        if event_type not in {'email', 'user_chat', 'webhook'}:
-            return Response({'error': 'Unsupported event_type'}, status=status.HTTP_400_BAD_REQUEST)
-        if not isinstance(payload, dict):
-            return Response({'error': 'payload must be an object'}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = SwarmInvokeRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         tenant = getattr(request, 'tenant', None)
         tenant_id = str(getattr(tenant, 'id', '') or '')
         if not tenant_id:
             return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        event_type = serializer.validated_data['event_type']
+        payload = serializer.validated_data['payload']
+        correlation_id = serializer.validated_data.get('correlation_id')
 
         from .swarm.router import SwarmOrchestrator
 
@@ -262,6 +262,7 @@ class SwarmInvokeAPIView(APIView):
         return Response(
             {
                 'tenant_id': tenant_id,
+                'correlation_id': correlation_id,
                 'event_type': decision.event_type,
                 'intent': decision.intent,
                 'urgency': decision.urgency,
