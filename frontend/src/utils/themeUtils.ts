@@ -44,20 +44,51 @@ const getColorThiefInstance = async (): Promise<any> => {
 export const extractBrandColors = async (logoUrl: string): Promise<number[] | null> => {
   try {
     const colorThief: any = await getColorThiefInstance();
+
+    const isDataUrl = typeof logoUrl === 'string' && logoUrl.startsWith('data:');
+
+    // Hardening: logo URLs may be behind auth / on a different origin.
+    // Fetching as a blob with credentials avoids CORS/tainted-canvas issues.
+    let objectUrlToRevoke: string | null = null;
+    let src = logoUrl;
+
+    if (!isDataUrl) {
+      try {
+        const res = await fetch(logoUrl, { credentials: 'include' });
+        if (res.ok) {
+          const blob = await res.blob();
+          objectUrlToRevoke = URL.createObjectURL(blob);
+          src = objectUrlToRevoke;
+        }
+      } catch {
+        // Fall back to direct image load below
+      }
+    }
+
     const img = new Image();
+    // For same-origin or object URLs this is fine; for cross-origin it requires server CORS.
     img.crossOrigin = 'Anonymous';
-    
-    return new Promise((resolve, reject) => {
+
+    return await new Promise((resolve, reject) => {
       img.onload = () => {
         try {
           const color = colorThief.getColor(img);
           resolve(color);
         } catch (error) {
           reject(error);
+        } finally {
+          if (objectUrlToRevoke) {
+            URL.revokeObjectURL(objectUrlToRevoke);
+          }
         }
       };
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = logoUrl;
+      img.onerror = () => {
+        if (objectUrlToRevoke) {
+          URL.revokeObjectURL(objectUrlToRevoke);
+        }
+        reject(new Error('Failed to load image'));
+      };
+      img.src = src;
     });
   } catch (error) {
     console.error('Error in extractBrandColors:', error);

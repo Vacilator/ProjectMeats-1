@@ -86,8 +86,13 @@ const AdminProfilePage: React.FC = () => {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: FormData) => {
+      // IMPORTANT: Do NOT set Content-Type for FormData.
+      // Axios will attach the correct multipart boundary, and apiClient interceptor
+      // removes the default application/json header for FormData payloads.
       const response = await apiClient.patch(`/tenants/${tenant?.id}/`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          Accept: 'application/json',
+        },
       });
       return response.data;
     },
@@ -98,7 +103,12 @@ const AdminProfilePage: React.FC = () => {
       window.dispatchEvent(new Event('tenant-branding-updated'));
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to update profile';
+      const data = error?.response?.data;
+      const message =
+        data?.logo?.[0] ||
+        data?.detail ||
+        data?.message ||
+        'Failed to update profile';
       toast.error(message);
     },
   });
