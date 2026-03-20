@@ -203,23 +203,38 @@ export class AutoMappingService {
     suggestion: FieldMappingSuggestion
   ): Node {
     const { data } = node;
-    const updatedData = { ...data };
-    
-    // Initialize fieldMappings if not exists
-    if (!updatedData.fieldMappings) {
-      updatedData.fieldMappings = [];
+
+    // IMPORTANT: keep this immutable.
+    // Shadow-state relies on structural changes to detect dirtiness; in-place mutation can make
+    // "Apply" appear to do nothing and/or fail to persist.
+    const updatedData: any = { ...data };
+
+    const existing = (updatedData.fieldMappings || updatedData.field_mappings) as any[] | undefined;
+    const prevMappings = Array.isArray(existing) ? [...existing] : [];
+
+    // Avoid duplicates (same mapping id or same target+source pair)
+    const alreadyExists = prevMappings.some((m) =>
+      (m?.id && m.id === suggestion.id) ||
+      (m?.targetFieldName === suggestion.targetFieldName &&
+        m?.sourceNodeId === suggestion.sourceNodeId &&
+        m?.sourceFieldName === suggestion.sourceFieldName)
+    );
+
+    if (alreadyExists) {
+      return node;
     }
-    
-    // Add mapping
-    updatedData.fieldMappings.push({
+
+    const nextMapping = {
       id: suggestion.id,
       targetFieldName: suggestion.targetFieldName,
       sourceNodeId: suggestion.sourceNodeId,
       sourceFieldName: suggestion.sourceFieldName,
       autoPopulate: true,
       mode: 'copy',
-    });
-    
+    };
+
+    updatedData.fieldMappings = [...prevMappings, nextMapping];
+
     return {
       ...node,
       data: updatedData,

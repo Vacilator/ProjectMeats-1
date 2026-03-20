@@ -309,6 +309,13 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
     setFormData(updatedNode.data || {});
     onUpdateNode(node.id, updatedNode.data || {});
+
+    // UX: hide applied suggestions so the user gets immediate feedback.
+    setRejectedSuggestionIds((prev) => {
+      const next = new Set(prev);
+      next.add(suggestion.id);
+      return next;
+    });
   };
 
   const handleRejectAutoMap = (suggestionId: string) => {
@@ -329,6 +336,16 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
     setFormData(updatedNode.data || {});
     onUpdateNode(node.id, updatedNode.data || {});
+
+    // UX: hide the auto-applied suggestions from the list.
+    const autoAppliedIds = (autoMap.suggestions || []).filter((s) => s.autoApply).map((s) => s.id);
+    if (autoAppliedIds.length > 0) {
+      setRejectedSuggestionIds((prev) => {
+        const next = new Set(prev);
+        autoAppliedIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
   };
 
   // Apply/Discard are handled by the outer shadow-state wrapper.
