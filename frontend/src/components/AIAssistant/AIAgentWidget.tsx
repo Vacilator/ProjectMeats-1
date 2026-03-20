@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
-import { AlertTriangle, BrainCircuit, CheckCircle2, Send, X } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, CheckCircle2, Send, Wrench, X } from 'lucide-react';
 
 import { businessApi } from '../../services/businessApi';
 
@@ -304,6 +304,38 @@ export const AIAgentWidget: React.FC = () => {
         ? { text: 'Thinking', variant: 'info' as const }
         : { text: 'Idle', variant: 'ok' as const };
 
+  const handleListTools = async () => {
+    setState('thinking');
+    try {
+      const res = await businessApi.get<{ paths?: Record<string, any> }>('/ai-assistant/tools/openapi/');
+      const paths = res.data?.paths ?? {};
+      const toolNames = Object.keys(paths)
+        .map((p) => paths[p]?.post?.operationId as string | undefined)
+        .filter((x): x is string => !!x)
+        .sort();
+
+      const preview = toolNames.length ? toolNames.slice(0, 25).join(', ') : 'No tools registered.';
+      const suffix = toolNames.length > 25 ? ` (+${toolNames.length - 25} more)` : '';
+
+      setMessages((m) => [
+        ...m,
+        { id: newId(), role: 'assistant', content: `Available tools: ${preview}${suffix}`, createdAt: Date.now() },
+      ]);
+      setState('idle');
+    } catch {
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content: 'Tools list is unavailable (requires staff permissions).',
+          createdAt: Date.now(),
+        },
+      ]);
+      setState('idle');
+    }
+  };
+
   const handleSend = async () => {
     const text = draft.trim();
     if (!text) return;
@@ -387,9 +419,15 @@ export const AIAgentWidget: React.FC = () => {
             >
               <IconBtn
                 type="button"
-                title="Close"
-                onClick={() => setExpanded(false)}
+                title="Tools"
+                onClick={() => {
+                  handleListTools();
+                }}
               >
+                <Wrench size={16} />
+              </IconBtn>
+
+              <IconBtn type="button" title="Close" onClick={() => setExpanded(false)}>
                 <X size={16} />
               </IconBtn>
 
