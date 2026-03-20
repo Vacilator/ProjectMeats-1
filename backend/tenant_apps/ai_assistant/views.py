@@ -45,18 +45,7 @@ SWARM_SYSTEM_PROMPT = (
     "Be highly analytical, concise, and proactive."
 )
 
-# Safe default tool list for agent discovery + ChatCompletions tools parameter.
-# Keep this intentionally minimal to prevent schema/introspection crashes.
-DEFAULT_OPENAI_TOOLS = [
-    {
-        'type': 'function',
-        'function': {
-            'name': 'check_unread_emails',
-            'description': "Check the user's connected Microsoft Outlook inbox for unread emails and attachments.",
-            'parameters': {'type': 'object', 'properties': {}},
-        },
-    }
-]
+from tenant_apps.ai_assistant.swarm.executor import DEFAULT_OPENAI_TOOLS
 
 
 class ChatSessionViewSet(viewsets.ModelViewSet):
@@ -170,27 +159,21 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-            # Prefer settings, but force a modern model as requested.
-            model_name = 'gpt-4o-mini'
-            org_id = getattr(settings, 'OPENAI_ORG_ID', None)
+            # Use SwarmOrchestrator tool loop (Phase 8.1)
+            from .swarm.router import SwarmOrchestrator
 
-            client = OpenAI(api_key=settings.OPENAI_API_KEY, organization=org_id or None)
+            orch = SwarmOrchestrator(tenant_id=str(getattr(request.tenant, 'id', '') or ''))
 
             try:
-                completion = client.chat.completions.create(
-                    model=model_name,
-                    messages=[
-                        {'role': 'system', 'content': SWARM_SYSTEM_PROMPT},
-                        {'role': 'user', 'content': user_message},
-                    ],
-                    tools=DEFAULT_OPENAI_TOOLS,
-                    tool_choice='auto',
-                    temperature=float(getattr(settings, 'OPENAI_TEMPERATURE', 0.7) or 0.7),
-                    max_tokens=int(getattr(settings, 'OPENAI_MAX_TOKENS', 2000) or 2000),
-                )
+                tool_loop = orch.run_tool_loop(user_message=user_message, tenant=request.tenant, history=None)
+                response_text = (tool_loop.get('response') or '').strip()
+                tokens_used = None
+                model_name = 'gpt-4o-mini'
 
-                response_text = (completion.choices[0].message.content or '').strip()
-                tokens_used = getattr(getattr(completion, 'usage', None), 'total_tokens', None)
+            except Exception as e:
+                # Per requirements: return 400 with error detail for OpenAI API errors.
+                logger.warning('OpenAI swarm tool loop failed: %s', str(e), exc_info=True)
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
             except Exception as e:
                 # Per requirements: return 400 with error detail for OpenAI API errors.
