@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
-import { AlertTriangle, BrainCircuit, CheckCircle2, Send, Wrench, X } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, CheckCircle2, GitBranch, Send, Wrench, X } from 'lucide-react';
 
 import { businessApi } from '../../services/businessApi';
 
@@ -336,6 +336,72 @@ export const AIAgentWidget: React.FC = () => {
     }
   };
 
+  const handleRoutePreview = async () => {
+    const text = draft.trim();
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+    const message = text || lastUserMessage;
+
+    if (!message) {
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content: 'Add a message first (or send one) to preview routing.',
+          createdAt: Date.now(),
+        },
+      ]);
+      return;
+    }
+
+    setState('thinking');
+    try {
+      const res = await businessApi.post<{
+        tenant_id: string;
+        event_type: string;
+        intent: string;
+        urgency: string;
+        agent_chain: string[];
+        notes?: string;
+      }>('/ai-assistant/swarm/invoke/', {
+        event_type: 'user_chat',
+        payload: {
+          message,
+          session_id: sessionId ?? undefined,
+          ui_source: 'AIAgentWidget',
+        },
+        correlation_id: sessionId ?? undefined,
+      });
+
+      const chain = Array.isArray(res.data?.agent_chain) ? res.data.agent_chain.join(' → ') : '—';
+      const intent = res.data?.intent ?? '—';
+      const urgency = res.data?.urgency ?? '—';
+      const notes = res.data?.notes ? `\nNotes: ${res.data.notes}` : '';
+
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content: `Router decision: intent=${intent}, urgency=${urgency}\nAgent chain: ${chain}${notes}`,
+          createdAt: Date.now(),
+        },
+      ]);
+      setState('idle');
+    } catch {
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content: 'Routing preview is unavailable (requires staff permissions).',
+          createdAt: Date.now(),
+        },
+      ]);
+      setState('idle');
+    }
+  };
+
   const handleSend = async () => {
     const text = draft.trim();
     if (!text) return;
@@ -425,6 +491,16 @@ export const AIAgentWidget: React.FC = () => {
                 }}
               >
                 <Wrench size={16} />
+              </IconBtn>
+
+              <IconBtn
+                type="button"
+                title="Route preview"
+                onClick={() => {
+                  handleRoutePreview();
+                }}
+              >
+                <GitBranch size={16} />
               </IconBtn>
 
               <IconBtn type="button" title="Close" onClick={() => setExpanded(false)}>
