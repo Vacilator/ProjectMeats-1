@@ -226,3 +226,45 @@ class SwarmToolsOpenAPIView(APIView):
         from .swarm.tools.registry import registry
 
         return Response(registry.to_openapi(), status=status.HTTP_200_OK)
+
+
+class SwarmInvokeAPIView(APIView):
+    """Staff-only entrypoint for PM-AS routing.
+
+    This is a safe endpoint: it only runs the semantic router and returns the
+    chosen agent chain + rationale. It does NOT execute tools or mutate data.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        event_type = (request.data or {}).get('event_type')
+        payload = (request.data or {}).get('payload')
+        correlation_id = (request.data or {}).get('correlation_id')
+
+        if event_type not in {'email', 'user_chat', 'webhook'}:
+            return Response({'error': 'Unsupported event_type'}, status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(payload, dict):
+            return Response({'error': 'payload must be an object'}, status=status.HTTP_400_BAD_REQUEST)
+
+        tenant = getattr(request, 'tenant', None)
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        if not tenant_id:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from .swarm.router import SwarmOrchestrator
+
+        orch = SwarmOrchestrator(tenant_id=tenant_id)
+        decision = orch.route(event_type=event_type, payload=payload, correlation_id=correlation_id)
+
+        return Response(
+            {
+                'tenant_id': tenant_id,
+                'event_type': decision.event_type,
+                'intent': decision.intent,
+                'urgency': decision.urgency,
+                'agent_chain': decision.agent_chain,
+                'notes': decision.notes,
+            },
+            status=status.HTTP_200_OK,
+        )
