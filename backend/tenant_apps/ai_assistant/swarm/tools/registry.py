@@ -140,3 +140,15 @@ def update_claim_status(claim_id: str, status: str) -> Dict[str, Any]:
     """Update claim status (scaffold)."""
 
     return {"status": "not_implemented", "claim_id": claim_id, "new_status": status}
+
+
+@registry.register
+def search_vector_memory(embedding: List[float], top_k: int = 5) -> Dict[str, Any]:
+    """Search tenant VectorMemory by embedding.
+
+    NOTE: This is schema-only for agent discovery. Actual execution is
+    performed via the staff-only API endpoint:
+    POST /api/v1/ai-assistant/memory/search/ (expects 1536-dim embedding).
+    """
+
+    return {"status": "use_api_endpoint", "top_k": top_k}
