@@ -37,7 +37,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - Vector Memory, Tool Registry, RLHF Pipeline, and AIAgentWidget successfully scaffolded via CLI agent.
 - Added staff-only tool discovery endpoint: `GET /api/v1/ai-assistant/tools/openapi/` (PR #3689).
 - Added staff-only swarm router preview endpoint: `POST /api/v1/ai-assistant/swarm/invoke/` (PR #3693).
-- Added staff-only VectorMemory similarity search endpoint: `POST /api/v1/ai-assistant/memory/search/` (PR #TBD).
+- Added staff-only VectorMemory similarity search endpoint: `POST /api/v1/ai-assistant/memory/search/` (PR #3696).
 
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
@@ -52,6 +52,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-20 — Phase 8.0: staff-only swarm router preview endpoint (PR: #3693)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3693
   - Adds `POST /api/v1/ai-assistant/swarm/invoke/` to run SwarmOrchestrator routing (no tool execution, no side effects).
+
+- 2026-03-20 — Phase 8.0: VectorMemory similarity search endpoint (PR: #3696)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3696
+  - Adds staff-only `POST /api/v1/ai-assistant/memory/search/` for tenant-scoped cosine similarity search over VectorMemory.
 
 - 2026-03-19 — Phase 9.5: Book + Pages paradigm shift — Commit: fca3d658 (PR: #3631)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3631
