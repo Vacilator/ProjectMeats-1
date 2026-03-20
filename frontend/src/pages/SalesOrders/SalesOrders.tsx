@@ -12,8 +12,8 @@
  * 
  * Pattern: Follows Claims.tsx architecture for consistency
  */
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { ActivityFeed, CreateOrderModal } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
@@ -418,6 +418,18 @@ const DetailAmount = styled.div`
 
 export const SalesOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+
+  type CockpitPrefill = {
+    source?: string;
+    query?: string;
+    customerId?: string;
+    contextEntity?: { id?: string; type?: string; label?: string };
+  };
+
+  const cockpitPrefill = (location.state as any)?.prefill as CockpitPrefill | undefined;
+  const [createPrefill, setCreatePrefill] = useState<CockpitPrefill | null>(null);
+
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -426,14 +438,45 @@ export const SalesOrdersPage: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Auto-open modal if ?action=create in URL
+  const modalInitialValues = useMemo(() => {
+    if (!createPrefill) return undefined;
+
+    const noteParts: string[] = [];
+    if (createPrefill.query) noteParts.push(`Cockpit search: \"${createPrefill.query}\"`);
+    if (createPrefill.contextEntity?.label) noteParts.push(`Context: ${createPrefill.contextEntity.label}`);
+
+    return {
+      customer: createPrefill.customerId ?? '',
+      notes: noteParts.join('\n'),
+    };
+  }, [createPrefill]);
+
+  // Auto-open modal if ?action=create in URL (e.g., from Cockpit suggested actions)
   useEffect(() => {
-    if (searchParams.get('action') === 'create') {
-      setIsModalOpen(true);
-      searchParams.delete('action');
-      setSearchParams(searchParams);
-    }
-  }, [searchParams, setSearchParams]);
+    if (searchParams.get('action') !== 'create') return;
+
+    const customerId =
+      searchParams.get('customer_id') ??
+      cockpitPrefill?.customerId ??
+      undefined;
+
+    const cockpitQuery =
+      searchParams.get('cockpit_q') ??
+      cockpitPrefill?.query ??
+      undefined;
+
+    setCreatePrefill({
+      source: 'cockpit',
+      customerId: customerId || undefined,
+      query: cockpitQuery || undefined,
+      contextEntity: cockpitPrefill?.contextEntity,
+    });
+
+    setIsModalOpen(true);
+
+    ['action', 'customer_id', 'cockpit_q'].forEach((key) => searchParams.delete(key));
+    setSearchParams(searchParams);
+  }, [searchParams, setSearchParams, cockpitPrefill]);
 
   useEffect(() => {
     fetchOrders();
@@ -497,7 +540,7 @@ export const SalesOrdersPage: React.FC = () => {
       <PageHeader>
         <PageTitle>Sales Orders</PageTitle>
         <HeaderActions>
-          <PrimaryButton onClick={() => setIsModalOpen(true)}>
+          <PrimaryButton onClick={() => { setCreatePrefill(null); setIsModalOpen(true); }}>
             + New Sales Order
           </PrimaryButton>
         </HeaderActions>
@@ -676,6 +719,7 @@ export const SalesOrdersPage: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={fetchOrders}
+        initialValues={modalInitialValues}
       />
     </PageContainer>
   );
