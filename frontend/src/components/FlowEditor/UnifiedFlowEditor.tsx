@@ -107,6 +107,7 @@ import {
 
 import {
   FormNode,
+  FormProcessNode,
   FormStepNode,
   FormStepSingleNode,
   FormReferenceNode,
@@ -176,6 +177,8 @@ export type EditorMode = 'wizard' | 'visual' | 'expert'; // 'expert' is deprecat
 interface UnifiedFlowEditorProps {
   initialNodes?: Node[];
   initialEdges?: Edge[];
+  /** Optional initial viewport (e.g., loaded workflow_definition.viewport) */
+  initialViewport?: { x: number; y: number; zoom: number };
 
   /**
    * Legacy callback (deprecated): saving is now handled internally via tenant-workforms persistence.
@@ -217,7 +220,8 @@ const ENABLE_FULL_DYNAMIC_MODE = true;
 
 const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   width: 100%;
-  height: ${props => props.$isFullscreen ? '100vh' : '600px'};
+  /* Better default sizing on page load */
+  height: ${props => props.$isFullscreen ? '100vh' : 'clamp(640px, calc(100vh - 220px), 980px)'};
   background: rgb(var(--color-background));
   border: ${props => props.$isFullscreen ? 'none' : '1px solid rgb(var(--color-border))'};
   border-radius: ${props => props.$isFullscreen ? '0' : 'var(--radius-lg)'};
@@ -1861,6 +1865,7 @@ class ConfigPanelErrorBoundary extends React.Component<
 const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   initialNodes = [],
   initialEdges = [],
+  initialViewport,
   onSave,
   onChange, // Track changes for auto-save
   initialWorkflowId,
@@ -5097,11 +5102,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Viewport Controls
   // ============================================================================
   
-  const fitView = useCallback(() => {
-    if (reactFlowInstance?.fitView) {
-      reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
-    }
-  }, [reactFlowInstance]);
+  const fitView = useCallback(
+    (opts?: { padding?: number; duration?: number; maxZoom?: number }) => {
+      if (reactFlowInstance?.fitView) {
+        reactFlowInstance.fitView({ padding: opts?.padding ?? 0.25, duration: opts?.duration ?? 300, maxZoom: opts?.maxZoom ?? 1.15 } as any);
+      }
+    },
+    [reactFlowInstance]
+  );
   
   const zoomIn = useCallback(() => {
     if (reactFlowInstance?.zoomIn) {
