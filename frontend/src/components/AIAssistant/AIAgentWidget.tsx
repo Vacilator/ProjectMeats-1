@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
-import { AlertTriangle, Brain, CheckCircle2, X } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, CheckCircle2, Send, X } from 'lucide-react';
 
-type AgentState = 'idle' | 'learning' | 'action_required';
+type AgentState = 'idle' | 'thinking' | 'action_required';
 
 type ReviewRequiredDetail = {
   document_type?: string;
@@ -11,9 +11,26 @@ type ReviewRequiredDetail = {
   questions_for_user?: string[];
 };
 
-const pulse = keyframes`
-  0%, 100% { transform: scale(1); box-shadow: 0 6px 18px rgb(var(--color-text-primary) / 0.10); }
-  50% { transform: scale(1.03); box-shadow: 0 10px 26px rgb(var(--color-text-primary) / 0.16); }
+type ChatMessage = {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  createdAt: number;
+};
+
+const calmPulse = keyframes`
+  0%, 100% { transform: translateY(0); box-shadow: 0 10px 28px rgb(var(--color-text-primary) / 0.10); }
+  50% { transform: translateY(-1px); box-shadow: 0 12px 34px rgb(var(--color-text-primary) / 0.14); }
+`;
+
+const urgentGlow = keyframes`
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-primary), 0.0), 0 12px 34px rgb(var(--color-text-primary) / 0.14); }
+  50% { box-shadow: 0 0 0 6px rgba(var(--color-primary), 0.14), 0 16px 42px rgb(var(--color-text-primary) / 0.18); }
+`;
+
+const thinkingFlicker = keyframes`
+  0%, 100% { box-shadow: 0 12px 34px rgb(var(--color-text-primary) / 0.14); }
+  50% { box-shadow: 0 18px 52px rgb(var(--color-text-primary) / 0.20); }
 `;
 
 const WidgetShell = styled.div<{ $state: AgentState }>`
@@ -21,24 +38,36 @@ const WidgetShell = styled.div<{ $state: AgentState }>`
   right: 20px;
   bottom: 20px;
   z-index: 1000;
-  width: 320px;
+  width: 360px;
   max-width: calc(100vw - 40px);
   pointer-events: auto;
 
   ${(p) =>
     p.$state === 'action_required'
       ? css`
-          animation: ${pulse} 1.3s ease-in-out infinite;
+          animation: ${urgentGlow} 1.2s ease-in-out infinite;
         `
-      : ''}
+      : p.$state === 'thinking'
+        ? css`
+            animation: ${thinkingFlicker} 0.65s ease-in-out infinite;
+          `
+        : css`
+            animation: ${calmPulse} 3s ease-in-out infinite;
+          `}
 `;
 
-const Card = styled.div<{ $expanded: boolean }>`
+const Card = styled.div<{ $expanded: boolean; $state: AgentState }>`
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 10px 28px rgb(var(--color-text-primary) / 0.10);
+
+  ${(p) =>
+    p.$state === 'action_required'
+      ? css`
+          border-color: rgba(var(--color-primary), 0.6);
+        `
+      : ''}
 
   ${(p) =>
     !p.$expanded
@@ -47,7 +76,9 @@ const Card = styled.div<{ $expanded: boolean }>`
           height: 56px;
           border-radius: 999px;
         `
-      : ''}
+      : css`
+          height: 420px;
+        `}
 `;
 
 const HeaderBtn = styled.button<{ $state: AgentState }>`
@@ -59,10 +90,8 @@ const HeaderBtn = styled.button<{ $state: AgentState }>`
   gap: 10px;
   padding: 0 14px;
   border: none;
-  background: ${(p) =>
-    p.$state === 'action_required'
-      ? 'rgba(var(--color-primary), 0.10)'
-      : 'rgb(var(--color-surface))'};
+  background:
+    ${(p) => (p.$state === 'action_required' ? 'rgba(var(--color-primary), 0.10)' : 'rgb(var(--color-surface))')};
   color: rgb(var(--color-text-primary));
   cursor: pointer;
 
@@ -102,101 +131,200 @@ const StatusPill = styled.div<{ $variant: 'ok' | 'warn' | 'info' }>`
 `;
 
 const Body = styled.div`
-  padding: 12px 14px 14px;
+  height: calc(100% - 56px);
+  display: flex;
+  flex-direction: column;
   border-top: 1px solid rgb(var(--color-border));
 `;
 
-const Message = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-primary));
-  line-height: 1.4;
+const Messages = styled.div`
+  flex: 1;
+  overflow: auto;
+  padding: 12px 12px 0;
 `;
 
-const QuestionList = styled.ul`
-  margin: 10px 0 0;
-  padding-left: 18px;
-  color: rgb(var(--color-text-secondary));
-  font-size: 12px;
-`;
-
-const Actions = styled.div`
-  margin-top: 12px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-`;
-
-const ActionBtn = styled.button<{ $primary?: boolean }>`
+const Bubble = styled.div<{ $role: 'assistant' | 'user' }>`
+  max-width: 92%;
+  margin: 0 0 10px;
+  padding: 10px 10px;
+  border-radius: 12px;
   border: 1px solid rgb(var(--color-border));
-  background: ${(p) => (p.$primary ? 'rgb(var(--color-primary))' : 'rgb(var(--color-surface))')};
-  color: ${(p) => (p.$primary ? 'white' : 'rgb(var(--color-text-primary))')};
   font-size: 12px;
-  font-weight: 900;
-  padding: 8px 10px;
-  border-radius: 10px;
-  cursor: pointer;
+  line-height: 1.4;
 
-  &:hover {
-    filter: brightness(0.98);
+  ${(p) =>
+    p.$role === 'user'
+      ? css`
+          margin-left: auto;
+          background: rgba(var(--color-primary), 0.10);
+          color: rgb(var(--color-text-primary));
+        `
+      : css`
+          margin-right: auto;
+          background: rgb(var(--color-surface));
+          color: rgb(var(--color-text-primary));
+        `}
+`;
+
+const Composer = styled.form`
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgb(var(--color-border));
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+const Input = styled.input`
+  flex: 1;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  border-radius: 10px;
+  padding: 10px 10px;
+  font-size: 12px;
+
+  &:focus {
+    outline: none;
+    border-color: rgba(var(--color-primary), 0.65);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.15);
   }
 `;
+
+const IconBtn = styled.button<{ $danger?: boolean }>`
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.10);
+    color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))')};
+  }
+`;
+
+const newId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 export const AIAgentWidget: React.FC = () => {
   const [state, setState] = useState<AgentState>('idle');
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<ReviewRequiredDetail>({});
+  const [draft, setDraft] = useState('');
 
   const defaultActionMessage = useMemo(
-    () =>
-      'I just processed a Purchase Order from Sysco, but the delivery date is unclear. Can you verify?',
+    () => 'I just processed a Purchase Order from Sysco, but the delivery date is unclear. Can you verify?',
     []
   );
 
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
+    {
+      id: newId(),
+      role: 'assistant',
+      content: 'Hi — I\'m your ProjectMeats agent. Ask me anything, or I\'ll flag documents that need review.',
+      createdAt: Date.now(),
+    },
+  ]);
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
-    // Placeholder integration: in Phase 7.0, a websocket/polling loop would push these events.
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, expanded]);
+
+  useEffect(() => {
+    // Placeholder integration: in Phase 7/8 this is driven by websocket/polling.
     const onReviewRequired = (event: Event) => {
       const e = event as CustomEvent<ReviewRequiredDetail>;
+      const d = e.detail || {};
+
       setState('action_required');
-      setDetail(e.detail || {});
+      setDetail(d);
       setExpanded(true);
+
+      const msg = d.message || defaultActionMessage;
+      const questions = Array.isArray(d.questions_for_user) ? d.questions_for_user : [];
+      const suffix = questions.length ? `\n\nQuestions:\n- ${questions.slice(0, 6).join('\n- ')}` : '';
+
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content: `${msg}${suffix}`,
+          createdAt: Date.now(),
+        },
+      ]);
     };
 
-    const onLearning = () => {
-      setState('learning');
+    const onThinking = () => {
+      setState('thinking');
     };
 
     const onIdle = () => {
       setState('idle');
       setDetail({});
-      setExpanded(false);
     };
 
     window.addEventListener('pm:ai-review-required', onReviewRequired as EventListener);
-    window.addEventListener('pm:ai-learning', onLearning as EventListener);
+    window.addEventListener('pm:ai-thinking', onThinking as EventListener);
+    window.addEventListener('pm:ai-learning', onThinking as EventListener); // legacy alias
     window.addEventListener('pm:ai-idle', onIdle as EventListener);
 
     return () => {
       window.removeEventListener('pm:ai-review-required', onReviewRequired as EventListener);
-      window.removeEventListener('pm:ai-learning', onLearning as EventListener);
+      window.removeEventListener('pm:ai-thinking', onThinking as EventListener);
+      window.removeEventListener('pm:ai-learning', onThinking as EventListener);
       window.removeEventListener('pm:ai-idle', onIdle as EventListener);
     };
-  }, []);
+  }, [defaultActionMessage]);
 
-  const icon = state === 'action_required' ? <AlertTriangle size={18} /> : state === 'learning' ? <Brain size={18} /> : <CheckCircle2 size={18} />;
+  const icon =
+    state === 'action_required' ? <AlertTriangle size={18} /> : state === 'thinking' ? <BrainCircuit size={18} /> : <CheckCircle2 size={18} />;
+
   const pill =
     state === 'action_required'
       ? { text: 'Action required', variant: 'warn' as const }
-      : state === 'learning'
-        ? { text: 'Learning', variant: 'info' as const }
+      : state === 'thinking'
+        ? { text: 'Thinking', variant: 'info' as const }
         : { text: 'Idle', variant: 'ok' as const };
 
-  const title = state === 'action_required' ? 'AI Agent' : 'AI Agent';
-  const message = detail.message || defaultActionMessage;
-  const questions = Array.isArray(detail.questions_for_user) ? detail.questions_for_user : [];
+  const handleSend = () => {
+    const text = draft.trim();
+    if (!text) return;
+
+    setDraft('');
+    setExpanded(true);
+
+    setMessages((m) => [
+      ...m,
+      { id: newId(), role: 'user', content: text, createdAt: Date.now() },
+    ]);
+
+    // Placeholder: replace with real agent invoke.
+    setState('thinking');
+    window.setTimeout(() => {
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content:
+            'Got it. This is a scaffold — next step is wiring this to the SwarmOrchestrator + tool registry. For now, try triggering pm:ai-review-required to simulate HITL.',
+          createdAt: Date.now(),
+        },
+      ]);
+      setState('idle');
+    }, 650);
+  };
 
   return (
     <WidgetShell $state={state} aria-live="polite">
-      <Card $expanded={expanded}>
+      <Card $expanded={expanded} $state={state}>
         <HeaderBtn
           $state={state}
           onClick={() => setExpanded((v) => !v)}
@@ -205,43 +333,51 @@ export const AIAgentWidget: React.FC = () => {
         >
           <Left>
             {icon}
-            {expanded ? <Title title={title}>{title}</Title> : null}
+            {expanded ? <Title title="AIAgentWidget">AIAgentWidget</Title> : null}
           </Left>
           {expanded ? <StatusPill $variant={pill.variant}>{pill.text}</StatusPill> : null}
         </HeaderBtn>
 
         {expanded ? (
           <Body>
-            <Message>{message}</Message>
-            {questions.length > 0 ? (
-              <QuestionList>
-                {questions.slice(0, 4).map((q, idx) => (
-                  <li key={idx}>{q}</li>
-                ))}
-              </QuestionList>
-            ) : null}
+            <Messages>
+              {messages.map((m) => (
+                <Bubble key={m.id} $role={m.role}>
+                  {m.content}
+                </Bubble>
+              ))}
+              <div ref={messagesEndRef} />
+            </Messages>
 
-            <Actions>
-              <ActionBtn
-                onClick={() => {
-                  setExpanded(false);
-                }}
-                title="Dismiss"
+            <Composer
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSend();
+              }}
+            >
+              <IconBtn
+                type="button"
+                title="Close"
+                onClick={() => setExpanded(false)}
               >
-                <X size={14} style={{ marginRight: 6 }} />
-                Later
-              </ActionBtn>
-              <ActionBtn
-                $primary
-                onClick={() => {
-                  // Placeholder: open the HITL screen / settings in a later iteration.
-                  setState('learning');
-                }}
-                title="Verify"
-              >
-                Verify
-              </ActionBtn>
-            </Actions>
+                <X size={16} />
+              </IconBtn>
+
+              <Input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={
+                  state === 'action_required'
+                    ? 'Reply with the correct delivery date / fields…'
+                    : 'Ask the agent (scaffold)…'
+                }
+                aria-label="AI agent message"
+              />
+
+              <IconBtn type="submit" title="Send">
+                <Send size={16} />
+              </IconBtn>
+            </Composer>
           </Body>
         ) : null}
       </Card>

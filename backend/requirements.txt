@@ -54,6 +54,9 @@ requests>=2.31.0  # For GitHub API integration in bug reports
 # OpenAI (Phase 6.5: AI Document Understanding)
 openai>=1.0.0
 
+# Vector DB (Phase 8.0: Swarm Memory)
+pgvector>=0.2.5
+
 # Email (SendGrid Web API)
 sendgrid>=6.11.0
 django-sendgrid-v5>=1.2.3
