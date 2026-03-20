@@ -81,6 +81,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3707
   - Adds `/help`, `/pending`, and `/resolve [idPrefix] [json]` commands to AIAgentWidget for faster HITL triage/resolution.
 
+- 2026-03-20 — Phase 8.0: VectorMemory ingestion endpoint (PR: #3709)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3709
+  - Adds staff-only `POST /api/v1/ai-assistant/memory/upsert/` for ingesting/updating VectorMemory rows (caller supplies 1536-dim embedding).
+
 - 2026-03-19 — Phase 9.5: Book + Pages paradigm shift — Commit: fca3d658 (PR: #3631)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3631
   - Paradigm: Form Process Group behaves like a "book" / swimlane; Form steps render as "pages" with in-node field preview.
