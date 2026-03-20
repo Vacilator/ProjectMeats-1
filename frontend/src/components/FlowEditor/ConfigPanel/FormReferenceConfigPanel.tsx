@@ -16,9 +16,14 @@ import {
   PanelTitle,
   CloseButton,
   PanelContent,
+  PanelFooter,
   FormField,
   Label,
+  HelpText,
+  Checkbox,
+  Button,
   PrimaryButton,
+  SecondaryButton,
   EmptyState as SharedEmptyState,
   EmptyIcon as SharedEmptyIcon,
   EmptyText as SharedEmptyText,
@@ -125,55 +130,6 @@ const ActionButtons = styled.div`
   margin-top: 12px;
 `;
 
-const ActionButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgb(var(--color-text-secondary));
-  background: transparent;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  &:hover {
-    background: rgba(var(--color-primary), 0.05);
-    border-color: rgb(var(--color-primary));
-    color: rgb(var(--color-primary));
-  }
-`;
-
-
-
-
-
-
-
-const SelectButton = styled.button`
-  padding: 8px 16px;
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  &:hover {
-    opacity: 0.9;
-  }
-`;
-
-const Checkbox = styled.input`
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-`;
-
 const CheckboxLabel = styled.label`
   display: flex;
   align-items: center;
@@ -181,41 +137,6 @@ const CheckboxLabel = styled.label`
   font-size: 14px;
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-`;
-
-const HelpText = styled.p`
-  margin: 8px 0 0 0;
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary));
-  line-height: 1.4;
-`;
-
-const Footer = styled.div`
-  display: flex;
-  justify-content: space-between;
-  padding: 16px 24px;
-  border-top: 1px solid rgb(var(--color-border));
-`;
-
-const Button = styled.button<{ $variant?: 'primary' }>`
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  ${props => props.$variant === 'primary' ? `
-    background: rgb(var(--color-primary));
-    color: white;
-    &:hover { opacity: 0.9; }
-  ` : `
-    background: transparent;
-    color: rgb(var(--color-text-secondary));
-    border: 1px solid rgb(var(--color-border));
-    &:hover { background: rgb(var(--color-background)); }
-  `}
 `;
 
 // ============================================================================
@@ -307,19 +228,19 @@ export const FormReferenceConfigPanel: React.FC<FormReferenceConfigPanelProps> =
                     {localData.sectionCount} sections • {localData.fieldCount} fields
                   </div>
                   <ActionButtons>
-                    <ActionButton onClick={() => setShowFormSelector(true)}>
+                    <Button $variant="secondary" $size="sm" type="button" onClick={() => setShowFormSelector(true)}>
                       <ExternalLink size={14} />
                       Change Form
-                    </ActionButton>
+                    </Button>
                   </ActionButtons>
                 </FormCard>
               ) : (
                 <SharedEmptyState>
                   <SharedEmptyIcon>📋</SharedEmptyIcon>
                   <SharedEmptyText>No form selected</SharedEmptyText>
-                  <SelectButton onClick={() => setShowFormSelector(true)}>
+                  <PrimaryButton type="button" onClick={() => setShowFormSelector(true)}>
                     Select a Form
-                  </SelectButton>
+                  </PrimaryButton>
                 </SharedEmptyState>
               )}
             </FormField>
@@ -341,12 +262,14 @@ export const FormReferenceConfigPanel: React.FC<FormReferenceConfigPanelProps> =
             )}
           </PanelContent>
           
-          <Footer>
-            <Button onClick={onClose}>Cancel</Button>
-            <Button $variant="primary" onClick={handleSave}>
+          <PanelFooter>
+            <SecondaryButton type="button" onClick={onClose}>
+              Cancel
+            </SecondaryButton>
+            <PrimaryButton type="button" onClick={handleSave}>
               Save Configuration
-            </Button>
-          </Footer>
+            </PrimaryButton>
+          </PanelFooter>
         </Panel>
       </PanelOverlay>
       

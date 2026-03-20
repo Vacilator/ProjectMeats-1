@@ -300,40 +300,7 @@ const Divider = styled.div`
   margin: 24px 0;
 `;
 
-
-
-const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-
-  ${props => props.variant === 'primary' ? `
-    background: rgb(var(--color-primary));
-    color: white;
-
-    &:hover:not(:disabled) {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  ` : `
-    background: rgb(var(--color-surface));
-    color: rgb(var(--color-text-primary));
-    border: 1px solid rgb(var(--color-border));
-
-    &:hover {
-      background: rgb(var(--color-surface-hover));
-    }
-  `}
-`;
+// NOTE: Buttons are provided by shared StyledComponents.
 
 const WarningBox = styled.div`
   display: flex;
@@ -368,10 +335,21 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
 }) => {
   const { availableFields: ctxAvailableFields } = useFlowEditor();
 
+  const normalizeLogic = (logic: unknown): ConditionLogic => {
+    const value = typeof logic === 'string' ? logic.toLowerCase() : '';
+    return value === 'or' ? 'or' : 'and';
+  };
+
   const availableFields = (availableFieldsProp?.length
     ? availableFieldsProp
     : ctxAvailableFields.map((f) => ({ id: f.key, label: f.label, type: f.type }))
   );
+
+  const conditionAvailableFields = availableFields?.map((f) => ({
+    key: f.id,
+    label: f.label,
+    type: f.type,
+  }));
 
   const [formData, setFormData] = useState<DocumentData>({
     label: document.label || '',
@@ -383,11 +361,16 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
     uploadFolder: document.uploadFolder || 'uploads',
     enableOCR: document.enableOCR ?? false,
     required: document.required ?? true,
-    conditionalVisibility: document.conditionalVisibility || {
-      enabled: false,
-      conditions: [],
-      logic: 'AND' as ConditionLogic,
-    },
+    conditionalVisibility: document.conditionalVisibility
+      ? {
+          ...document.conditionalVisibility,
+          logic: normalizeLogic(document.conditionalVisibility.logic),
+        }
+      : {
+          enabled: false,
+          conditions: [],
+          logic: 'and',
+        },
   });
 
   const [visibilityMode, setVisibilityMode] = useState<'always' | 'conditional'>(
@@ -668,12 +651,8 @@ export const DocumentConfigPanel: React.FC<DocumentConfigPanelProps> = ({
             <div style={{ marginTop: '16px' }}>
               <ConditionBuilder
                 conditions={formData.conditionalVisibility!.conditions || []}
-                logic={formData.conditionalVisibility!.logic || 'and'}
-                availableFields={availableFields?.map((f) => ({
-                  key: f.id,
-                  label: f.label,
-                  type: f.type,
-                }))}
+                logic={normalizeLogic(formData.conditionalVisibility!.logic)}
+                availableFields={conditionAvailableFields}
                 onChange={handleConditionsChange}
               />
             </div>
