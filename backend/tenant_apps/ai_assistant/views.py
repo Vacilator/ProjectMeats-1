@@ -10,8 +10,9 @@ import time
 from django.utils import timezone
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import ChatMessage, ChatSession, MessageTypeChoices, AIConfiguration
 from .serializers import (
@@ -210,3 +211,18 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
         else:
             return f"Thank you for your message. I'm designed to help with meat market operations including supplier management, purchase orders, customer relationships, and business analytics. I understand you mentioned: '{user_message[:100]}...' - could you provide more specific details about what you'd like help with?"
+
+
+class SwarmToolsOpenAPIView(APIView):
+    """Expose an OpenAPI-ish tool schema document for PM-AS.
+
+    This is intentionally read-only and staff-only to reduce the risk of
+    accidentally exposing tool invocation.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from .swarm.tools.registry import registry
+
+        return Response(registry.to_openapi(), status=status.HTTP_200_OK)
