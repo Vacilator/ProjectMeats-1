@@ -19,7 +19,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 ### 2026-03-20 — Phase 7.0: Hybrid Agentic Workflows & Continuous Learning
 - Hybrid document pipeline (simulated): LayoutLMv3 / Docling-style OCR + layout parsing produces structured blocks/bounding boxes, then OpenAI normalizes into strict JSON.
 - HITL (Human-in-the-Loop) loop: new `AIFeedbackLog` stores original extracted payload + user corrections + confidence + derived deltas to drive continuous improvement.
-- UX: introduced `AIAgentWidget` (bottom-right) that can pulse/expand when `requires_human_review` is detected (websocket/polling hookup pending).
+- UX: `AIAgentWidget` (bottom-right) can pulse/expand when `requires_human_review` is detected (websocket/polling hookup pending).
+- UX: wired `AIAgentWidget` to backend chat endpoint (`/api/v1/ai-assistant/ai-chat/chat/`) via `businessApi` (PR #3687).
 
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 
