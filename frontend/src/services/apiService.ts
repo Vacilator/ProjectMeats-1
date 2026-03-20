@@ -77,6 +77,18 @@ const adminClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
+      // IMPORTANT: When uploading files, ensure we do NOT force application/json.
+      // Axios will set the correct multipart boundary automatically.
+      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+        // Support both AxiosHeaders and plain object.
+        try {
+          delete (config.headers as any)['Content-Type'];
+          delete (config.headers as any)['content-type'];
+        } catch {
+          // ignore
+        }
+      }
+
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
         console.debug('[API] Token needs refresh, refreshing before request...');
@@ -117,6 +129,17 @@ apiClient.interceptors.request.use(
 adminClient.interceptors.request.use(
   async (config) => {
     try {
+      // IMPORTANT: When uploading files, ensure we do NOT force application/json.
+      // Axios will set the correct multipart boundary automatically.
+      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+        try {
+          delete (config.headers as any)['Content-Type'];
+          delete (config.headers as any)['content-type'];
+        } catch {
+          // ignore
+        }
+      }
+
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
         console.debug('[Admin API] Token needs refresh, refreshing before request...');
