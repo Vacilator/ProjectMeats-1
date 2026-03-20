@@ -3192,7 +3192,34 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
-      setEdges((eds) => addEdge(params, eds));
+      const sourceHandle = params.sourceHandle;
+      const nextType =
+        sourceHandle === 'error'
+          ? 'error'
+          : sourceHandle === 'true' || sourceHandle === 'false'
+            ? 'conditional'
+            : 'step';
+
+      const nextData =
+        sourceHandle === 'error'
+          ? { label: 'Error' }
+          : sourceHandle === 'true'
+            ? { label: 'True', isTrue: true }
+            : sourceHandle === 'false'
+              ? { label: 'False', isTrue: false }
+              : undefined;
+
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...params,
+            type: nextType,
+            data: nextData,
+            interactionWidth: 28,
+          } as any,
+          eds
+        )
+      );
     },
     [nodes, edges, setEdges, isValidConnectionType, getNodeMaxConnections]
   );
@@ -6074,18 +6101,39 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
       });
 
-      // Normalize template edges so they render with consistent thickness/markers.
-      // Templates often omit type/style/markerEnd which bypasses defaultEdgeOptions.
-      let mappedEdges: Edge[] = template.edges.map((edge) => {
-        const nextType = edge.type || 'step';
+      // Normalize template edges so they render with consistent types/markers.
+      // Templates often omit type and rely on handle IDs (true/false/error).
+      const mappedEdges: Edge[] = template.edges.map((edge) => {
+        const sourceHandle = (edge as any).sourceHandle as string | undefined;
+
+        const inferredType =
+          edge.type ||
+          (sourceHandle === 'error'
+            ? 'error'
+            : sourceHandle === 'true' || sourceHandle === 'false'
+              ? 'conditional'
+              : 'step');
+
         const next: Edge = {
           ...edge,
-          type: nextType,
+          type: inferredType,
           interactionWidth: edge.interactionWidth ?? 28,
         };
 
-        // Only apply the default step styling to generic edges.
-        if (nextType === 'step') {
+        if (inferredType === 'conditional' && !(edge as any).data && (sourceHandle === 'true' || sourceHandle === 'false')) {
+          (next as any).data = {
+            label: edge.label || (sourceHandle === 'true' ? 'True' : 'False'),
+            isTrue: sourceHandle === 'true',
+          };
+        }
+
+        if (inferredType === 'error' && !(edge as any).data) {
+          (next as any).data = {
+            label: edge.label || 'Error',
+          };
+        }
+
+        if (inferredType === 'step') {
           next.style = {
             strokeWidth: 3,
             stroke: 'rgb(var(--color-text-secondary))',
@@ -6105,7 +6153,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       });
 
       // Hardening: ensure container children are inside bounds on template load.
-      // This also fixes the common "first step out of bounds" template issue.
       let layoutedNodes = mappedNodes as Node[];
       let layoutedEdges = mappedEdges;
 
@@ -6116,7 +6163,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       for (const containerId of containerIds) {
         const layoutResult = calculateContainerLayout(containerId, layoutedNodes, layoutedEdges);
 
-        // Apply computed container dimensions
         layoutedNodes = layoutResult.nodes.map((n) => {
           if (n.id !== containerId) return n;
           return {
@@ -6129,10 +6175,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           };
         });
 
-        // Re-connect sequential steps (non-destructive: won't overwrite manual edges)
         layoutedEdges = autoConnectSequentialSteps(containerId, layoutedNodes, layoutedEdges).edges;
       }
 
+      // Load into canvas
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
 
@@ -6145,7 +6191,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       ]);
       setHistoryIndex(0);
 
-      // Update node ID counter based on loaded nodes
       const maxId = Math.max(
         0,
         ...layoutedNodes.map((n) => {
