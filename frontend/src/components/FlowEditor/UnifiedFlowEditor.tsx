@@ -244,11 +244,12 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   
   /* Phase 7.2: Smart Snapping - Visual Connection Indicators */
   .react-flow__connection-path {
-    stroke: #667eea !important;
-    stroke-width: 3 !important;
+    stroke: rgb(var(--color-primary)) !important;
+    stroke-width: 2 !important;
+    vector-effect: non-scaling-stroke;
     stroke-dasharray: 5, 5;
     animation: dash 0.5s linear infinite;
-    filter: drop-shadow(0 0 4px rgba(102, 126, 234, 0.4));
+    filter: drop-shadow(0 0 4px rgb(var(--color-primary) / 0.35));
   }
   
   /* Phase 7.2: Enhanced snap feedback */
@@ -3324,7 +3325,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const reactFlowType = getReactFlowNodeType(nodeTypeId);
 
       // Ensure default dimensions upfront (prevents React Flow dimension errors)
-      const defaultDimensions = isNewContainer ? { width: 600, height: 400 } : undefined;
+      const defaultDimensions = isNewContainer ? { width: 600, height: 450 } : undefined;
 
       const newNode: Node = {
         id: newNodeId,
@@ -3339,7 +3340,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         selected: true,
       };
 
-      // Canonical container type: singular Form (Book)
+      // Canonical container type: Form Process (group container)
       if (isNewContainer) {
         newNode.style = {
           width: 600,
@@ -3350,7 +3351,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           isExpanded: true,
           isGroup: true,
         };
-        (newNode as any).type = 'formBook';
+        (newNode as any).type = 'formProcessGroup';
       }
 
       const spawnDefaultFormPage = (parentId: string) => {
@@ -3362,7 +3363,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           parentId,
           extent: 'parent',
           expandParent: true,
-          position: { x: 30, y: 90 },
+          // Keep the first step safely inside default container bounds
+          position: { x: 50, y: 80 },
           data: {
             label: NODE_TYPE_REGISTRY.form?.name || 'Form',
             status: 'draft',
@@ -3830,7 +3832,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Fix #2: Ensure default dimensions upfront (prevents React Flow dimension errors)
       const isContainerNode = isFormProcessContainerType(type);
       const defaultDimensions = isContainerNode
-        ? { width: 600, height: 400 } // Larger for containers
+        ? { width: 600, height: 450 } // Larger for containers (fits first step inside bounds)
         : undefined; // Let React Flow calculate for regular nodes
 
       const newNode: Node = {
@@ -6038,68 +6040,131 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Template Selection Handler (Phase 2.5 Integration)
   // ============================================================================
   
-  const handleTemplateSelect = useCallback((template: FlowTemplate) => {
-    logger.debug('[Template] Selected:', template.name);
-    
-    // Map template nodes to proper React Flow node types with full metadata
-    const mappedNodes = template.nodes.map(node => {
-      // Get node definition from registry for metadata (color, icon, etc.)
-      const nodeDef = getNodeTypeDefinition(node.type);
-      
-      // Ensure node has proper type mapping
-      const reactFlowType = getReactFlowNodeType(node.type);
-      
-      // Merge default data + template data + registry metadata
-      const defaultData = getDefaultNodeData(node.type);
-      
-      return {
-        ...node,
-        type: reactFlowType, // Override with React Flow node type
-        data: {
-          ...defaultData,      // Default node data (fields, actions, etc.)
-          ...node.data,        // Template-specific data
-          label: node.data.label || nodeDef?.name || node.type, // Ensure label exists
-          // Add registry metadata for proper styling
-          color: nodeDef?.color,
-          icon: nodeDef?.icon,
-          category: nodeDef?.category,
-          description: nodeDef?.description,
-        }
+  const handleTemplateSelect = useCallback(
+    (template: FlowTemplate) => {
+      logger.debug('[Template] Selected:', template.name);
+
+      const normalizeTemplateNodeType = (typeId: string) => {
+        // Consolidate legacy form types to the canonical ones (additive/back-compat)
+        if (typeId === 'formStep' || typeId === 'formStepSingle') return 'form';
+        if (typeId === 'formProcess' || typeId === 'formMultiStepContainer') return 'formProcessGroup';
+        return typeId;
       };
-    });
-    
-    // Load template nodes and edges into canvas
-    setNodes(mappedNodes);
-    setEdges(template.edges);
-    
-    // Reset history with template as initial state
-    const newHistory: HistoryState[] = [{
-      nodes: mappedNodes,
-      edges: template.edges
-    }];
-    setHistory(newHistory);
-    setHistoryIndex(0);
-    
-    // Update node ID counter based on loaded nodes
-    const maxId = Math.max(
-      0,
-      ...template.nodes.map(n => {
-        const match = n.id.match(/node-(\d+)/);
-        return match ? parseInt(match[1], 10) : 0;
-      })
-    );
-    setNodeIdCounter(maxId + 1);
-    
-    // Close modal
-    setIsTemplateModalOpen(false);
-    
-    // Fit view to show full template
-    setTimeout(() => {
-      if (reactFlowInstance?.fitView) {
-        reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+
+      const mappedNodes = template.nodes.map((node) => {
+        const normalizedTypeId = normalizeTemplateNodeType(node.type);
+
+        // Prefer metadata from normalized type, but fall back to the raw one
+        const nodeDef = getNodeTypeDefinition(normalizedTypeId) || getNodeTypeDefinition(node.type);
+        const reactFlowType = getReactFlowNodeType(normalizedTypeId);
+        const defaultData = getDefaultNodeData(normalizedTypeId);
+
+        return {
+          ...node,
+          type: reactFlowType,
+          data: {
+            ...defaultData,
+            ...node.data,
+            label: (node.data as any)?.label || nodeDef?.name || normalizedTypeId,
+            color: nodeDef?.color,
+            icon: nodeDef?.icon,
+            category: nodeDef?.category,
+            description: nodeDef?.description,
+          },
+        };
+      });
+
+      // Normalize template edges so they render with consistent thickness/markers.
+      // Templates often omit type/style/markerEnd which bypasses defaultEdgeOptions.
+      let mappedEdges: Edge[] = template.edges.map((edge) => {
+        const nextType = edge.type || 'step';
+        const next: Edge = {
+          ...edge,
+          type: nextType,
+          interactionWidth: edge.interactionWidth ?? 28,
+        };
+
+        // Only apply the default step styling to generic edges.
+        if (nextType === 'step') {
+          next.style = {
+            strokeWidth: 3,
+            stroke: 'rgb(var(--color-text-secondary))',
+            ...(edge.style || {}),
+          };
+          next.markerEnd =
+            edge.markerEnd ||
+            ({
+              type: MarkerType.ArrowClosed,
+              width: 24,
+              height: 24,
+              color: 'rgb(var(--color-text-secondary))',
+            } as any);
+        }
+
+        return next;
+      });
+
+      // Hardening: ensure container children are inside bounds on template load.
+      // This also fixes the common "first step out of bounds" template issue.
+      let layoutedNodes = mappedNodes as Node[];
+      let layoutedEdges = mappedEdges;
+
+      const containerIds = layoutedNodes
+        .filter((n) => isFormProcessContainerType(n.type))
+        .map((n) => n.id);
+
+      for (const containerId of containerIds) {
+        const layoutResult = calculateContainerLayout(containerId, layoutedNodes, layoutedEdges);
+
+        // Apply computed container dimensions
+        layoutedNodes = layoutResult.nodes.map((n) => {
+          if (n.id !== containerId) return n;
+          return {
+            ...n,
+            style: {
+              ...(n.style || {}),
+              width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 400),
+              height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 300),
+            },
+          };
+        });
+
+        // Re-connect sequential steps (non-destructive: won't overwrite manual edges)
+        layoutedEdges = autoConnectSequentialSteps(containerId, layoutedNodes, layoutedEdges).edges;
       }
-    }, 100);
-  }, [setNodes, setEdges, reactFlowInstance]);
+
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+
+      // Reset history with template as initial state
+      setHistory([
+        {
+          nodes: layoutedNodes,
+          edges: layoutedEdges,
+        },
+      ]);
+      setHistoryIndex(0);
+
+      // Update node ID counter based on loaded nodes
+      const maxId = Math.max(
+        0,
+        ...layoutedNodes.map((n) => {
+          const match = n.id.match(/node-(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+      );
+      setNodeIdCounter(maxId + 1);
+
+      setIsTemplateModalOpen(false);
+
+      setTimeout(() => {
+        if (reactFlowInstance?.fitView) {
+          reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+        }
+      }, 100);
+    },
+    [setNodes, setEdges, reactFlowInstance]
+  );
 
   const handleStartBlank = useCallback(() => {
     logger.debug('[Template] Starting blank canvas');

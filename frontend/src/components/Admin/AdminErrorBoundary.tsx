@@ -160,22 +160,22 @@ const ErrorContainer = styled.div`
   justify-content: center;
   min-height: 60vh;
   padding: 2rem;
-  background: rgb(var(--color-bg-primary));
+  background: rgb(var(--color-background));
 `;
 
 const ErrorCard = styled.div`
   max-width: 600px;
   width: 100%;
-  background: rgb(var(--color-bg-secondary));
+  background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   padding: 3rem 2rem;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 `;
 
 const ErrorIcon = styled.div`
-  color: #ef4444;
+  color: rgb(var(--color-error));
   margin-bottom: 1.5rem;
   
   svg {
@@ -206,8 +206,8 @@ const ErrorMessage = styled.p`
   margin: 0 0 2rem 0;
   
   strong {
-    color: #ef4444;
-    font-weight: 600;
+    color: rgb(var(--color-error));
+    font-weight: 700;
   }
 `;
 

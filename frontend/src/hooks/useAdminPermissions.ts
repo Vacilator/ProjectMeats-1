@@ -37,29 +37,23 @@ export function useAdminPermissions() {
   const query = useQuery<AdminPermissions>({
     queryKey: ['admin', 'permissions'],
     queryFn: async () => {
-      console.log('[useAdminPermissions] Fetching permissions...');
       try {
         const response = await apiClient.get('/tenants/admin-permissions/');
-        console.log('[useAdminPermissions] SUCCESS - Response:', response.data);
         return response.data;
       } catch (error: any) {
-        console.error('[useAdminPermissions] FAILED - Error:', {
+        // If 401, let the axios interceptor handle it
+        if (error.response?.status === 401) {
+          throw error;
+        }
+
+        console.error('[useAdminPermissions] Failed to fetch permissions:', {
           status: error.response?.status,
           data: error.response?.data,
           message: error.message,
-          error
         });
-        
-        // If 401, let the axios interceptor handle it
-        if (error.response?.status === 401) {
-          console.warn('[useAdminPermissions] 401 Unauthorized - token expired or invalid');
-          throw error;
-        }
-        
+
         // For other errors, return default permissions
-        const defaults = getDefaultPermissions();
-        console.warn('[useAdminPermissions] Returning default permissions:', defaults);
-        return defaults;
+        return getDefaultPermissions();
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - permissions don't change often
@@ -70,13 +64,6 @@ export function useAdminPermissions() {
       return failureCount < 1;
     },
     placeholderData: getDefaultPermissions(),
-  });
-
-  console.log('[useAdminPermissions] Query state:', {
-    isLoading: query.isLoading,
-    isError: query.isError,
-    data: query.data,
-    error: query.error
   });
 
   return {

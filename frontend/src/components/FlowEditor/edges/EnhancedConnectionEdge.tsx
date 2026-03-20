@@ -200,9 +200,9 @@ const EdgeEditActionBtn = styled.button<{ $primary?: boolean }>`
 `;
 
 const AnimatedPath = styled.path<{ $animated: boolean }>`
+  vector-effect: non-scaling-stroke;
   stroke-dasharray: ${(props) => (props.$animated ? '8 4' : 'none')};
-  animation: ${(props) => (props.$animated ? flowAnimation : 'none')} 1s linear
-    infinite;
+  animation: ${(props) => (props.$animated ? flowAnimation : 'none')} 1s linear infinite;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -466,7 +466,12 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
         {/* Invisible thick hitbox under the visible edge to stabilize hover/interaction */}
         <path
           d={edgePath}
-          style={{ stroke: 'transparent', strokeWidth: 44, strokeOpacity: 0 }}
+          style={{
+            stroke: 'transparent',
+            strokeWidth: 44,
+            strokeOpacity: 0,
+            vectorEffect: 'non-scaling-stroke',
+          }}
           pointerEvents="stroke"
           onMouseEnter={setHoverOn}
           onMouseLeave={scheduleHoverOff}
@@ -481,6 +486,7 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
             stroke: edgeColor,
             strokeWidth,
             transition: 'all 0.2s ease',
+            vectorEffect: 'non-scaling-stroke',
           }}
         />
 

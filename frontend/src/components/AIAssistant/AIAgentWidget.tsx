@@ -440,6 +440,17 @@ export const AIAgentWidget: React.FC = () => {
         ? { text: 'Thinking', variant: 'info' as const }
         : { text: 'Idle', variant: 'ok' as const };
 
+  const outlookLabel = (() => {
+    if (!outlookStatus) return 'Status unavailable';
+    if (outlookStatus.connected) {
+      return outlookStatus.connectedEmail
+        ? `Connected (${outlookStatus.connectedEmail})`
+        : 'Connected';
+    }
+    if (outlookStatus.expired) return 'Connected (Expired)';
+    return 'Not connected';
+  })();
+
   const handleListTools = async () => {
     setState('thinking');
     try {

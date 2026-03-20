@@ -242,6 +242,12 @@ export const adminWorkspaceNavigation: NavigationItem[] = [
     icon: '⚙️',
     children: [
       {
+        label: 'Overview',
+        icon: '🏠',
+        path: '/workspace',
+        roles: ['admin', 'superuser'],
+      },
+      {
         label: 'Configurations',
         icon: '🔧',
         path: '/workspace/configurations',

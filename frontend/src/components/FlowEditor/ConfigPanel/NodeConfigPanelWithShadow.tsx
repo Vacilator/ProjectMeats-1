@@ -20,7 +20,9 @@ import { Node, Edge } from '@xyflow/react';
 import { AlertCircle, X } from 'lucide-react';
 import { DynamicConfigPanel } from './DynamicConfigPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
-import { FormNodeConfig } from './nodes/FormNodeConfig';
+// NOTE: Form nodes use the schema-driven DynamicConfigPanel so Auto-Map/Cascade actions
+// participate in shadow-state + Apply/Discard correctly.
+
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
 import {
   PrimaryButton,
@@ -308,16 +310,10 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
             onAddStep={handleAddStep}
             onReorderSteps={handleReorderSteps}
           />
-        ) : node?.type === 'form' ? (
-          /* Hybrid config: specialized Form node panel (entity cascade must be resilient) */
-          <FormNodeConfig
-            node={virtualNode!}
-            nodes={nodes}
-            edges={edges}
-            onUpdateNode={handleShadowUpdate}
-          />
         ) : (
-          /* PHASE D/E: Dynamic Schema-Driven Config Panel (replaces hardcoded NodeConfigPanel) */
+          /* Schema-driven config panel for all non-container nodes (including Form steps).
+           * Runs inside shadow-state, so edits are staged until Apply.
+           */
           <ErrorBoundary
             componentName="Configuration Panel"
             onError={(error) => {
