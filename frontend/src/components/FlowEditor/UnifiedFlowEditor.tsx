@@ -3135,7 +3135,34 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
-      setEdges((eds) => addEdge(params, eds));
+      const sourceHandle = params.sourceHandle;
+      const nextType =
+        sourceHandle === 'error'
+          ? 'error'
+          : sourceHandle === 'true' || sourceHandle === 'false'
+            ? 'conditional'
+            : 'step';
+
+      const nextData =
+        sourceHandle === 'error'
+          ? { label: 'Error' }
+          : sourceHandle === 'true'
+            ? { label: 'True', isTrue: true }
+            : sourceHandle === 'false'
+              ? { label: 'False', isTrue: false }
+              : undefined;
+
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...params,
+            type: nextType,
+            data: nextData,
+            interactionWidth: 28,
+          } as any,
+          eds
+        )
+      );
     },
     [nodes, edges, setEdges, isValidConnectionType, getNodeMaxConnections]
   );
@@ -6007,36 +6034,116 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         }
       };
     });
-    
-    // Load template nodes and edges into canvas
-    setNodes(mappedNodes);
-    setEdges(template.edges);
-    
+
+    // Normalize template edges so they render with consistent types/markers.
+    // Templates often omit type and rely on handle IDs (true/false/error).
+    let mappedEdges: Edge[] = template.edges.map((edge) => {
+      const sourceHandle = (edge as any).sourceHandle as string | undefined;
+
+      const inferredType =
+        edge.type ||
+        (sourceHandle === 'error'
+          ? 'error'
+          : sourceHandle === 'true' || sourceHandle === 'false'
+            ? 'conditional'
+            : 'step');
+
+      const next: Edge = {
+        ...edge,
+        type: inferredType,
+        interactionWidth: edge.interactionWidth ?? 28,
+      };
+
+      if (inferredType === 'conditional' && !(edge as any).data && (sourceHandle === 'true' || sourceHandle === 'false')) {
+        (next as any).data = {
+          label: edge.label || (sourceHandle === 'true' ? 'True' : 'False'),
+          isTrue: sourceHandle === 'true',
+        };
+      }
+
+      if (inferredType === 'error' && !(edge as any).data) {
+        (next as any).data = {
+          label: edge.label || 'Error',
+        };
+      }
+
+      // Only apply the default step styling to generic edges.
+      if (inferredType === 'step') {
+        next.style = {
+          strokeWidth: 3,
+          stroke: 'rgb(var(--color-text-secondary))',
+          ...(edge.style || {}),
+        };
+        next.markerEnd =
+          edge.markerEnd ||
+          ({
+            type: MarkerType.ArrowClosed,
+            width: 24,
+            height: 24,
+            color: 'rgb(var(--color-text-secondary))',
+          } as any);
+      }
+
+      return next;
+    });
+
+    // Hardening: ensure container children are inside bounds on template load.
+    let layoutedNodes = mappedNodes as Node[];
+    let layoutedEdges = mappedEdges;
+
+    const containerIds = layoutedNodes
+      .filter((n) => isFormProcessContainerType(n.type))
+      .map((n) => n.id);
+
+    for (const containerId of containerIds) {
+      const layoutResult = calculateContainerLayout(containerId, layoutedNodes, layoutedEdges);
+
+      layoutedNodes = layoutResult.nodes.map((n) => {
+        if (n.id !== containerId) return n;
+        return {
+          ...n,
+          style: {
+            ...(n.style || {}),
+            width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 400),
+            height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 300),
+          },
+        };
+      });
+
+      layoutedEdges = autoConnectSequentialSteps(containerId, layoutedNodes, layoutedEdges).edges;
+    }
+
+    // Load into canvas
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+
     // Reset history with template as initial state
-    const newHistory: HistoryState[] = [{
-      nodes: mappedNodes,
-      edges: template.edges
-    }];
-    setHistory(newHistory);
+    setHistory([
+      {
+        nodes: layoutedNodes,
+        edges: layoutedEdges,
+      },
+    ]);
     setHistoryIndex(0);
-    
+
     // Update node ID counter based on loaded nodes
     const maxId = Math.max(
       0,
-      ...template.nodes.map(n => {
+      ...layoutedNodes.map((n) => {
         const match = n.id.match(/node-(\d+)/);
         return match ? parseInt(match[1], 10) : 0;
       })
     );
     setNodeIdCounter(maxId + 1);
-    
-    // Close modal
+
     setIsTemplateModalOpen(false);
-    
+
     // Fit view to show full template
     setTimeout(() => {
       if (reactFlowInstance?.fitView) {
         reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
+      }
+    }, 100);
       }
     }, 100);
   }, [setNodes, setEdges, reactFlowInstance]);
