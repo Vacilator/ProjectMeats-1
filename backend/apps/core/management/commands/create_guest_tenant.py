@@ -204,7 +204,7 @@ class Command(BaseCommand):
         from tenant_apps.customers.models import Customer
         from tenant_apps.suppliers.models import Supplier
         from tenant_apps.contacts.models import Contact
-        from tenant_apps.products.models import Product
+        from tenant_apps.products.models import MasterProduct
         from tenant_apps.purchase_orders.models import PurchaseOrder
         from tenant_apps.sales_orders.models import SalesOrder
         from tenant_apps.invoices.models import Invoice
@@ -217,7 +217,7 @@ class Command(BaseCommand):
             Customer,
             Supplier,
             Contact,
-            Product,
+            MasterProduct,
             PurchaseOrder,
             SalesOrder,
             Invoice,

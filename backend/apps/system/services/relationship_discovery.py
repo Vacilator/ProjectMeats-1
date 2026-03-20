@@ -83,7 +83,7 @@ class RelationshipDiscoveryService:
         """Get entity by type and ID."""
         model_map = {
             'customer': 'customers.Customer',
-            'product': 'products.Product',
+            'product': 'products.MasterProduct',
             'order': 'orders.Order',
             'invoice': 'invoices.Invoice',
         }

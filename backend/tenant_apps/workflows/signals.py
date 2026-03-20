@@ -256,7 +256,7 @@ def register_entity_signals():
     from tenant_apps.purchase_orders.models import PurchaseOrder
     from tenant_apps.sales_orders.models import SalesOrder
     from tenant_apps.invoices.models import Invoice
-    from tenant_apps.products.models import Product
+    from tenant_apps.products.models import MasterProduct
     
     entity_models = [
         Supplier,
@@ -264,7 +264,7 @@ def register_entity_signals():
         PurchaseOrder,
         SalesOrder,
         Invoice,
-        Product,
+        MasterProduct,
     ]
     
     for model in entity_models:
