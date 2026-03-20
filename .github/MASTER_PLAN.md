@@ -57,6 +57,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3696
   - Adds staff-only `POST /api/v1/ai-assistant/memory/search/` for tenant-scoped cosine similarity search over VectorMemory.
 
+- 2026-03-20 — Phase 8.0: Swarm invoke contract hardening (PR: #3697)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3697
+  - Swarm invoke now uses DRF serializer validation and returns a consistent contract including correlation_id.
+
 - 2026-03-19 — Phase 9.5: Book + Pages paradigm shift — Commit: fca3d658 (PR: #3631)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3631
   - Paradigm: Form Process Group behaves like a "book" / swimlane; Form steps render as "pages" with in-node field preview.
