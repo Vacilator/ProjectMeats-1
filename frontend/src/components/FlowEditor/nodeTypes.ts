@@ -147,43 +147,46 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   },
   
   // NEW: Singular Form container using React Flow sub-flows (Book & Pages)
+  // Temporarily hidden while we revert to the purple FormProcess container UX.
   formBook: {
     id: 'formBook',
-    name: 'Form',
+    name: 'Form (Book - Hidden)',
     category: 'form',
     icon: '📚',
     color: '#a78bfa',
-    description: 'Multi-step form container (Book) that groups Form Steps (Pages) using React Flow sub-flows',
-    maxInputs: 1,
-    maxOutputs: 1,
-    requiresConfig: true,
-  },
-
-  // Phase 7+: Smart WorkForm (single-node wizard)
-  smartWorkForm: {
-    id: 'smartWorkForm',
-    name: 'Smart WorkForm',
-    category: 'form',
-    icon: '🧠',
-    color: '#a78bfa',
-    description: 'Single-node vertical wizard with field library + cascades + live preview',
-    maxInputs: 1,
-    maxOutputs: 1,
-    requiresConfig: true,
-  },
-
-  // Legacy container type (kept for backward compatibility)
-  formProcessGroup: {
-    id: 'formProcessGroup',
-    name: 'Form Process (Legacy)',
-    category: 'form',
-    icon: '📂',
-    color: '#a78bfa', // lighter purple - group variant
-    description: '[DEPRECATED] Use "Form" (formBook). Existing workflows will continue to work.',
+    description: '[HIDDEN] Book-style form container. Use Form Process instead.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
     hidden: true,
+  },
+
+  // Phase 7+: Smart WorkForm (single-node wizard)
+  // Kept for backward compatibility, but hidden from the palette for now.
+  smartWorkForm: {
+    id: 'smartWorkForm',
+    name: 'Smart WorkForm (Hidden)',
+    category: 'form',
+    icon: '🧠',
+    color: '#a78bfa',
+    description: '[HIDDEN] Kept for backward compatibility. Use Form Process instead.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hidden: true,
+  },
+
+  // Purple multi-step container (restored as primary)
+  formProcessGroup: {
+    id: 'formProcessGroup',
+    name: 'Form Process',
+    category: 'form',
+    icon: '📦',
+    color: '#8b5cf6',
+    description: 'Multi-step container that keeps child form steps constrained and arranged horizontally.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
   },
   
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)

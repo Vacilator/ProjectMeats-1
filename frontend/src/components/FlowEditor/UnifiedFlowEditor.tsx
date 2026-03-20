@@ -1663,12 +1663,13 @@ const staticNodeTypes = {
   form: FormStepNode,  // Form Step (Page)
   formStepSingle: FormStepSingleNode,  // Backward compatibility
   formBook: FormNode,  // Form container (Book)
-  formProcess: FormNode,  // Legacy container types render as canonical container
-  formProcessGroup: FormNode,
+  // Restore legacy purple FormProcess container renderer (kept stable for business users)
+  formProcess: FormProcessNode,
+  formProcessGroup: FormProcessNode,
   smartWorkForm: SmartWorkFormNode,
   // Backward compatibility aliases
   formStep: FormStepSingleNode,  // Deprecated
-  formMultiStepContainer: FormNode,  // Legacy container alias
+  formMultiStepContainer: FormProcessNode,  // Legacy container alias (render as purple process container)
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -6181,6 +6182,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         const baseOrder = [...normalizedExisting, ...missing];
         const insertIndex = afterNodeId && baseOrder.includes(afterNodeId) ? baseOrder.indexOf(afterNodeId) + 1 : baseOrder.length;
 
+        const enforceStrictPages = container.type === 'formProcessGroup' || container.type === 'formProcess' || container.type === 'formMultiStepContainer';
+
         const newPageId = `page-${uuidv4()}`;
         const nextOrder = [...baseOrder.slice(0, insertIndex), newPageId, ...baseOrder.slice(insertIndex)];
 
@@ -6189,28 +6192,61 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           id: newPageId,
           type: 'form',
           position: {
-            x: 30 + insertIndex * 360,
-            y: 90,
+            x: 50 + insertIndex * 350,
+            y: 80,
           },
+          style: enforceStrictPages ? { width: 320, height: 320, overflow: 'hidden' } : undefined,
           data: {
             stepTitle: `Page ${newPageNumber}`,
             label: `Page ${newPageNumber}`,
             fields: [],
+            order: insertIndex,
           },
           parentId: containerId,
           extent: 'parent',
           expandParent: true,
-          draggable: true,
+          draggable: enforceStrictPages ? false : true,
         };
 
         const nextNodes = prev.map((n) => {
-          if (n.id !== containerId) return n;
+          if (n.id === containerId) {
+            return {
+              ...n,
+              data: {
+                ...(n.data || {}),
+                pageOrder: nextOrder,
+                isExpanded: true,
+              },
+            };
+          }
+
+          if (n.parentId !== containerId) return n;
+
+          const isPageNodeType = (type?: string) =>
+            type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
+          if (!isPageNodeType(n.type)) return n;
+
+          const idx = nextOrder.indexOf(n.id);
+          if (idx === -1) return n;
+
           return {
             ...n,
+            position: {
+              x: 50 + idx * 350,
+              y: 80,
+            },
+            draggable: enforceStrictPages ? false : n.draggable,
+            style: enforceStrictPages
+              ? {
+                  ...(n.style || {}),
+                  width: 320,
+                  height: 320,
+                  overflow: 'hidden',
+                }
+              : n.style,
             data: {
               ...(n.data || {}),
-              pageOrder: nextOrder,
-              isExpanded: true,
+              order: idx,
             },
           };
         });
