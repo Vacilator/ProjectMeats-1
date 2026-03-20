@@ -15,6 +15,24 @@ class VectorMemorySearchRequestSerializer(serializers.Serializer):
         return value
 
 
+class VectorMemoryUpsertRequestSerializer(serializers.Serializer):
+    embedding = serializers.ListField(child=serializers.FloatField(), allow_empty=False)
+    source_type = serializers.CharField(required=False, default='context', max_length=64)
+    document_id = serializers.UUIDField(required=False, allow_null=True)
+    content = serializers.CharField(required=False, allow_blank=True, default='')
+    metadata = serializers.JSONField(required=False, default=dict)
+
+    def validate_embedding(self, value):
+        if len(value) != 1536:
+            raise serializers.ValidationError('embedding must be a 1536-length float array')
+        return value
+
+    def validate_metadata(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('metadata must be an object')
+        return value
+
+
 class PendingReviewResolveRequestSerializer(serializers.Serializer):
     user_corrected_data = serializers.JSONField(required=False, allow_null=True)
 

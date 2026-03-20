@@ -16,6 +16,7 @@ from .views import (
     SwarmInvokeAPIView,
     SwarmToolsOpenAPIView,
     VectorMemorySearchAPIView,
+    VectorMemoryUpsertAPIView,
 )
 
 # Create router for ViewSets
@@ -28,6 +29,7 @@ urlpatterns = [
     path("tools/openapi/", SwarmToolsOpenAPIView.as_view(), name="ai-tools-openapi"),
     path("swarm/invoke/", SwarmInvokeAPIView.as_view(), name="ai-swarm-invoke"),
     path("memory/search/", VectorMemorySearchAPIView.as_view(), name="ai-memory-search"),
+    path("memory/upsert/", VectorMemoryUpsertAPIView.as_view(), name="ai-memory-upsert"),
     path("review/pending/", PendingReviewAPIView.as_view(), name="ai-review-pending"),
     path("review/<uuid:feedback_id>/resolve/", PendingReviewResolveAPIView.as_view(), name="ai-review-resolve"),
     path("", include(router.urls)),

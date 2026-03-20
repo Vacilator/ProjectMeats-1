@@ -28,6 +28,7 @@ from .serializers import (
     PendingReviewResolveRequestSerializer,
     SwarmInvokeRequestSerializer,
     VectorMemorySearchRequestSerializer,
+    VectorMemoryUpsertRequestSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -317,6 +318,64 @@ class VectorMemorySearchAPIView(APIView):
             )
 
         return Response({'results': results}, status=status.HTTP_200_OK)
+
+
+class VectorMemoryUpsertAPIView(APIView):
+    """Staff-only ingestion endpoint for VectorMemory.
+
+    Caller must supply a 1536-dim embedding (no OpenAI dependency here).
+    If document_id is provided, best-effort upsert keyed by (tenant, source_type, document_id).
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = VectorMemoryUpsertRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        tenant = getattr(request, 'tenant', None)
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        if not tenant_id:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        embedding = serializer.validated_data['embedding']
+        source_type = serializer.validated_data['source_type']
+        document_id = serializer.validated_data.get('document_id')
+        content = serializer.validated_data.get('content', '')
+        metadata = serializer.validated_data.get('metadata', {})
+
+        if document_id:
+            obj, created = VectorMemory.objects.update_or_create(
+                tenant_id=tenant_id,
+                source_type=source_type,
+                document_id=document_id,
+                defaults={
+                    'content': content,
+                    'metadata': metadata,
+                    'embedding': embedding,
+                },
+            )
+        else:
+            obj = VectorMemory.objects.create(
+                tenant_id=tenant_id,
+                source_type=source_type,
+                document_id=None,
+                content=content,
+                metadata=metadata,
+                embedding=embedding,
+            )
+            created = True
+
+        return Response(
+            {
+                'id': str(obj.id),
+                'created': created,
+                'source_type': obj.source_type,
+                'document_id': str(obj.document_id) if obj.document_id else None,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class PendingReviewAPIView(APIView):
