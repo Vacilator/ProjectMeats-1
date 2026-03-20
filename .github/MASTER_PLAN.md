@@ -21,6 +21,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - HITL (Human-in-the-Loop) loop: new `AIFeedbackLog` stores original extracted payload + user corrections + confidence + derived deltas to drive continuous improvement.
 - UX: `AIAgentWidget` (bottom-right) can pulse/expand when `requires_human_review` is detected (websocket/polling hookup pending).
 - UX: wired `AIAgentWidget` to backend chat endpoint (`/api/v1/ai-assistant/ai-chat/chat/`) via `businessApi` (PR #3687).
+- UX: added a Tools button in `AIAgentWidget` to list tool operationIds via `GET /api/v1/ai-assistant/tools/openapi/` (PR #3691).
 
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 
