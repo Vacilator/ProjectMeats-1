@@ -37,6 +37,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - Vector Memory, Tool Registry, RLHF Pipeline, and AIAgentWidget successfully scaffolded via CLI agent.
 - Added staff-only tool discovery endpoint: `GET /api/v1/ai-assistant/tools/openapi/` (PR #3689).
 - Added staff-only swarm router preview endpoint: `POST /api/v1/ai-assistant/swarm/invoke/` (PR #3693).
+- Added staff-only VectorMemory similarity search endpoint: `POST /api/v1/ai-assistant/memory/search/` (PR #TBD).
 
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 

@@ -13,6 +13,7 @@ from .views import (
     ChatSessionViewSet,
     SwarmInvokeAPIView,
     SwarmToolsOpenAPIView,
+    VectorMemorySearchAPIView,
 )
 
 # Create router for ViewSets
@@ -24,5 +25,6 @@ router.register(r"ai-chat", ChatBotAPIViewSet, basename="ai-chatbot")
 urlpatterns = [
     path("tools/openapi/", SwarmToolsOpenAPIView.as_view(), name="ai-tools-openapi"),
     path("swarm/invoke/", SwarmInvokeAPIView.as_view(), name="ai-swarm-invoke"),
+    path("memory/search/", VectorMemorySearchAPIView.as_view(), name="ai-memory-search"),
     path("", include(router.urls)),
 ]

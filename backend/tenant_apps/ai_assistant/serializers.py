@@ -5,6 +5,16 @@ from rest_framework import serializers
 from .models import AIConfiguration, ChatMessage, ChatSession
 
 
+class VectorMemorySearchRequestSerializer(serializers.Serializer):
+    embedding = serializers.ListField(child=serializers.FloatField(), allow_empty=False)
+    top_k = serializers.IntegerField(required=False, default=5, min_value=1, max_value=50)
+
+    def validate_embedding(self, value):
+        if len(value) != 1536:
+            raise serializers.ValidationError('embedding must be a 1536-length float array')
+        return value
+
+
 class ChatSessionListSerializer(serializers.ModelSerializer):
     """Serializer for chat session list view."""
 
@@ -91,3 +101,12 @@ class AIConfigurationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIConfiguration
         fields = ["id", "name", "provider", "model_name", "is_default"]
+
+
+class VectorMemorySearchResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    source_type = serializers.CharField()
+    document_id = serializers.UUIDField(allow_null=True, required=False)
+    distance = serializers.FloatField()
+    content_preview = serializers.CharField()
+    metadata = serializers.JSONField()

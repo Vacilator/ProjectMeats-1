@@ -8,21 +8,23 @@ import logging
 import time
 
 from django.utils import timezone
+from pgvector.django import CosineDistance
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import ChatMessage, ChatSession, MessageTypeChoices, AIConfiguration
+from .models import AIConfiguration, ChatMessage, ChatSession, MessageTypeChoices, VectorMemory
 from .serializers import (
+    AIConfigurationSerializer,
     ChatBotRequestSerializer,
     ChatBotResponseSerializer,
     ChatMessageCreateSerializer,
     ChatMessageSerializer,
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
-    AIConfigurationSerializer,
+    VectorMemorySearchRequestSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -268,3 +270,47 @@ class SwarmInvokeAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class VectorMemorySearchAPIView(APIView):
+    """Staff-only vector similarity search over tenant VectorMemory.
+
+    Read-only: this endpoint performs a nearest-neighbor query and returns
+    matching records with their distance score.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = VectorMemorySearchRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        tenant = getattr(request, 'tenant', None)
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        if not tenant_id:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        embedding = serializer.validated_data['embedding']
+        top_k = serializer.validated_data['top_k']
+
+        qs = (
+            VectorMemory.objects.filter(tenant_id=tenant_id)
+            .annotate(distance=CosineDistance('embedding', embedding))
+            .order_by('distance')
+        )
+        results = []
+        for row in qs[:top_k]:
+            content = row.content or ''
+            results.append(
+                {
+                    'id': row.id,
+                    'source_type': row.source_type,
+                    'document_id': row.document_id,
+                    'distance': float(getattr(row, 'distance', 0.0) or 0.0),
+                    'content_preview': content[:500],
+                    'metadata': row.metadata or {},
+                }
+            )
+
+        return Response({'results': results}, status=status.HTTP_200_OK)
