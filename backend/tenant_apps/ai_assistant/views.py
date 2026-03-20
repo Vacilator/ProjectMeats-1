@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 SWARM_SYSTEM_PROMPT = (
     "You are the ProjectMeats Autonomous Swarm Orchestrator. "
     "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
-    "You have access to the user's connected email and ERP data via tools. "
+    "Use tools only when they are available for the tenant (e.g., Outlook connection). "
     "Be highly analytical, concise, and proactive."
 )
 
@@ -146,7 +146,14 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             # Generate AI response (live OpenAI)
             if not getattr(settings, 'OPENAI_API_KEY', None):
                 return Response(
-                    {'error': 'OpenAI not configured (missing OPENAI_API_KEY)'},
+                    {
+                        'error': 'OpenAI not configured (missing OPENAI_API_KEY)',
+                        'detail': (
+                            'Backend container is missing OPENAI_API_KEY. '
+                            'Verify the GitHub Environment secret OPENAI_API_KEY is set for this <env>-backend '
+                            'and that the deploy-backend job writes it into backend.env.'
+                        ),
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -173,11 +180,6 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             except Exception as e:
                 # Per requirements: return 400 with error detail for OpenAI API errors.
                 logger.warning('OpenAI swarm tool loop failed: %s', str(e), exc_info=True)
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-            except Exception as e:
-                # Per requirements: return 400 with error detail for OpenAI API errors.
-                logger.warning('OpenAI chat completion failed: %s', str(e), exc_info=True)
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
             metadata = {
@@ -236,12 +238,45 @@ class SwarmToolsOpenAPIView(APIView):
     Reliability mandate:
     - Always return a safe `tools` list shaped for OpenAI ChatCompletions
     - Avoid fragile runtime introspection that could 500
+
+    UX mandate:
+    - Do not advertise email tools unless the tenant is actually connected.
     """
 
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        payload = {'tools': DEFAULT_OPENAI_TOOLS}
+        from apps.integrations.models import ExternalAuthProvider
+
+        outlook = {
+            'connected': False,
+            'expired': False,
+            'connected_email': None,
+            'connected_name': None,
+        }
+
+        try:
+            provider = (
+                ExternalAuthProvider.objects.filter(
+                    tenant=request.tenant,
+                    provider_type='microsoft',
+                    is_active=True,
+                )
+                .select_related('tenant')
+                .first()
+            )
+            if provider:
+                outlook['expired'] = bool(provider.is_token_expired())
+                outlook['connected_email'] = provider.connected_email
+                outlook['connected_name'] = provider.connected_name
+                outlook['connected'] = bool(not outlook['expired'])
+        except Exception:
+            logger.warning('tools/openapi: failed to load outlook connection status', exc_info=True)
+
+        payload = {
+            'tools': DEFAULT_OPENAI_TOOLS if outlook['connected'] else [],
+            'capabilities': {'outlook': outlook},
+        }
 
         try:
             # Keep legacy OpenAPI-ish document for backward compatibility.

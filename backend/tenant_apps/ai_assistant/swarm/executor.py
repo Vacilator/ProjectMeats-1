@@ -24,7 +24,7 @@ DEFAULT_OPENAI_TOOLS = [
         'type': 'function',
         'function': {
             'name': 'check_unread_emails',
-            'description': "Check the user's connected Microsoft Outlook inbox for unread emails and attachments.",
+            'description': 'Check the tenant\'s connected Microsoft Outlook inbox for unread emails and attachments.',
             'parameters': {'type': 'object', 'properties': {}},
         },
     }
@@ -62,6 +62,25 @@ class ToolExecutor:
             return json.dumps({'ok': False, 'tool': tool_name, 'error': str(e)}, default=str)
 
     def _check_unread_emails(self, arguments: Dict[str, Any], tenant: Any) -> Any:
+        from apps.integrations.models import ExternalAuthProvider
         from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
+
+        tenant_id = getattr(tenant, 'id', None)
+        if not tenant_id:
+            raise ValueError('Tenant not resolved; cannot access email tools')
+
+        provider = (
+            ExternalAuthProvider.objects.filter(
+                tenant=tenant,
+                provider_type='microsoft',
+                is_active=True,
+            )
+            .select_related('tenant')
+            .first()
+        )
+        if not provider:
+            raise ValueError('Outlook not connected. Connect it in Settings → Email Integrations.')
+        if provider.is_token_expired():
+            raise ValueError('Outlook connection expired. Reconnect in Settings → Email Integrations.')
 
         return EmailIngestionService(tenant).fetch_unread_actionable_emails()
