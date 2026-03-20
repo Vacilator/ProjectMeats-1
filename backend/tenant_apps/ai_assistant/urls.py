@@ -7,7 +7,13 @@ and AI-powered business intelligence.
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import ChatBotAPIViewSet, ChatMessageViewSet, ChatSessionViewSet, SwarmToolsOpenAPIView
+from .views import (
+    ChatBotAPIViewSet,
+    ChatMessageViewSet,
+    ChatSessionViewSet,
+    SwarmInvokeAPIView,
+    SwarmToolsOpenAPIView,
+)
 
 # Create router for ViewSets
 router = DefaultRouter()
@@ -17,5 +23,6 @@ router.register(r"ai-chat", ChatBotAPIViewSet, basename="ai-chatbot")
 
 urlpatterns = [
     path("tools/openapi/", SwarmToolsOpenAPIView.as_view(), name="ai-tools-openapi"),
+    path("swarm/invoke/", SwarmInvokeAPIView.as_view(), name="ai-swarm-invoke"),
     path("", include(router.urls)),
 ]
