@@ -10,8 +10,9 @@ This intentionally avoids new dependencies (pydantic, drf-spectacular, etc.).
 from __future__ import annotations
 
 import inspect
+import types
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, get_args, get_origin
+from typing import Any, Callable, Dict, List, Optional, Union, get_args, get_origin
 
 
 def _json_schema_for_type(tp: Any) -> Dict[str, Any]:
@@ -35,9 +36,9 @@ def _json_schema_for_type(tp: Any) -> Dict[str, Any]:
     if origin in (dict, Dict):
         return {"type": "object"}
 
-    # Optional[T] / Union[T, None]
-    if origin is Optional or (origin is Union := getattr(__import__('typing'), 'Union', None)):
-        # best-effort
+    # Optional[T] / Union[T, None] / T | None
+    union_type = getattr(types, 'UnionType', None)
+    if origin in {Union, union_type}:
         non_null = [a for a in args if a is not type(None)]  # noqa: E721
         if non_null:
             return _json_schema_for_type(non_null[0])
