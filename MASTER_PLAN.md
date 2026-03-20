@@ -1,7 +1,7 @@
 # ProjectMeats Master Plan - Phase Tracking & Technical Debt
 
 **Status**: 🔄 LIVING DOCUMENT  
-**Last Updated**: March 18, 2026  
+**Last Updated**: March 20, 2026  
 **Current Focus**: Phase 7 Stabilization + Production Credential Configuration 🚀  
 **Overall Progress**: 100% (all 9 phases complete) — external secrets required for UAT/Production activation  
 **Infrastructure Status**: All phases fully operational in dev
@@ -14,6 +14,8 @@
 - Deploy unblock: add missing integrations EmailLog migration + RLS policy (PR #3561) — dev pipeline green; dev site/health now 200.
 - Ops: harden migration validation script to match shared-schema and validate tenant_apps too (PR #3563).
 - Docs: clean up remaining django-tenants/migrate_schemas guidance in backend readmes (PR #3565).
+- Phase 8 (PM-AS): added staff-only swarm router preview endpoint `POST /api/v1/ai-assistant/swarm/invoke/` (PR #3693).
+- Phase 8 (PM-AS): added AIAgentWidget “Route preview” button to display router decision (PR #3694).
 
 ---
 
