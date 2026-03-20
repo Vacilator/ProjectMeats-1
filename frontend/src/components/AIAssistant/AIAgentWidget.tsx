@@ -296,6 +296,7 @@ export const AIAgentWidget: React.FC = () => {
 
   const seenPendingReviewIdsRef = useRef<Set<string>>(new Set());
   const pendingReviewPollingDisabledRef = useRef(false);
+  const latestPendingReviewRef = useRef<{ id: string; document_type: string } | null>(null);
 
   useEffect(() => {
     if (!expanded) return;
@@ -322,6 +323,11 @@ export const AIAgentWidget: React.FC = () => {
         newItems.forEach((i) => seenPendingReviewIdsRef.current.add(i.id));
 
         if (newItems.length) {
+          latestPendingReviewRef.current = {
+            id: newItems[0].id,
+            document_type: newItems[0].document_type,
+          };
+
           setState('action_required');
           setDetail({
             document_type: newItems[0].document_type,
@@ -397,6 +403,44 @@ export const AIAgentWidget: React.FC = () => {
           id: newId(),
           role: 'assistant',
           content: 'Tools list is unavailable (requires staff permissions).',
+          createdAt: Date.now(),
+        },
+      ]);
+      setState('idle');
+    }
+  };
+
+  const handleResolveLatest = async () => {
+    const latest = latestPendingReviewRef.current;
+    if (!latest) {
+      setMessages((m) => [
+        ...m,
+        { id: newId(), role: 'assistant', content: 'No pending review item found to resolve yet.', createdAt: Date.now() },
+      ]);
+      return;
+    }
+
+    setState('thinking');
+    try {
+      await businessApi.post(`/ai-assistant/review/${latest.id}/resolve/`, {});
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content: `Resolved: ${latest.document_type} (${latest.id.slice(0, 8)}…)`,
+          createdAt: Date.now(),
+        },
+      ]);
+      latestPendingReviewRef.current = null;
+      setState('idle');
+    } catch {
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content: 'Resolve action is unavailable (requires staff permissions).',
           createdAt: Date.now(),
         },
       ]);
