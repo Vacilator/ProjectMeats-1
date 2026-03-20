@@ -14,6 +14,13 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - Meat-Industry Specific LLM Document Classification
 - Smart Workflow Triggers based on AI Intents
 
+**Phase 7.0: Hybrid Agentic Workflows & Continuous Learning**
+
+### 2026-03-20 — Phase 7.0: Hybrid Agentic Workflows & Continuous Learning
+- Hybrid document pipeline (simulated): LayoutLMv3 / Docling-style OCR + layout parsing produces structured blocks/bounding boxes, then OpenAI normalizes into strict JSON.
+- HITL (Human-in-the-Loop) loop: new `AIFeedbackLog` stores original extracted payload + user corrections + confidence + derived deltas to drive continuous improvement.
+- UX: introduced `AIAgentWidget` (bottom-right) that can pulse/expand when `requires_human_review` is detected (websocket/polling hookup pending).
+
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
 ### PR Log (append-only)

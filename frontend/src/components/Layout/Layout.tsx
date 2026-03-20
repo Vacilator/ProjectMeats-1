@@ -7,7 +7,7 @@ import { PinnedToolsBar } from '../Cockpit/PinnedToolsBar';
 import Breadcrumb from '../Navigation/Breadcrumb';
 import Omnibox from '../AIAssistant/Omnibox';
 import { CommandPalette } from '../Navigation/CommandPalette';
-import FloatingAssistButton from '../FloatingAssistButton';
+import { AIAgentWidget } from '../AIAssistant/AIAgentWidget';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
@@ -79,7 +79,7 @@ const Layout: React.FC = () => {
         isOpen={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
       />
-      <FloatingAssistButton />
+      <AIAgentWidget />
       <KeyboardShortcutHint $theme={theme}>
         Press <kbd>/</kbd> or <kbd>Ctrl+K</kbd> to search • <kbd>Ctrl+Shift+K</kbd> for AI commands
       </KeyboardShortcutHint>

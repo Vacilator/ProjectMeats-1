@@ -88,7 +88,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ---
 
-## Support Module (4 tables) - ✅ 100% COMPLIANT
+## Support Module (5 tables) - ✅ 100% COMPLIANT
 
 | Table Name | RLS Enabled | Migration | Deployment Date |
 |------------|-------------|-----------|-----------------|
@@ -96,6 +96,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `cockpit_scheduledcall` | ✅ | `cockpit/0006_add_rls_policies_batch` | Mar 18, 2026 |
 | `bug_reports_bugreport` | ✅ | `bug_reports/0005_add_rls_policies_batch` | Mar 18, 2026 |
 | `ai_assistant_configurations` | ✅ | `ai_assistant/0005_add_rls_policies_batch` | Mar 18, 2026 |
+| `ai_assistant_feedback_logs` | ✅ | `ai_assistant/0006_aifeedbacklog` | Mar 20, 2026 |
 
 ---
 
@@ -107,8 +108,8 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | **Financial** | 7 | 14 (2 per table) | ✅ COMPLIANT |
 | **Logistics** | 8 | 16 (2 per table) | ✅ COMPLIANT |
 | **Core Business** | 4 | 8 (2 per table) | ✅ COMPLIANT |
-| **Support** | 4 | 4 | ✅ COMPLIANT |
-| **TOTAL** | **40** | **59** | ✅ **100% COMPLIANT** |
+| **Support** | 5 | 5 | ✅ COMPLIANT |
+| **TOTAL** | **41** | **60** | ✅ **100% COMPLIANT** |
 
 ---
 

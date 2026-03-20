@@ -273,9 +273,20 @@ Respond in JSON format:
 
         self.document_system_prompt = (
             "You are an AI data extraction specialist for a wholesale meat logistics platform.\n\n"
+            "HYBRID PIPELINE CONTEXT (Phase 7.0):\n"
+            "- Upstream, an open-source document model (e.g., LayoutLMv3 / Docling) performs OCR + layout parsing\n"
+            "  and yields structured text blocks with bounding boxes.\n"
+            "- This step is NOT implemented here yet; this service receives the resulting structured text summary\n"
+            "  and produces normalized JSON for automation.\n\n"
             "Task:\n"
             "1) Classify the document_type: Purchase Order | Invoice | Claim | Bill of Lading | Inquiry\n"
             "2) Extract key metadata into JSON for automation.\n\n"
+            "Output requirements:\n"
+            "- MUST return valid JSON.\n"
+            "- MUST include these root keys:\n"
+            "  - confidence_score: number 0.0-1.0\n"
+            "  - requires_human_review: boolean (true if confidence_score < 0.85)\n"
+            "  - questions_for_user: array of strings (include when specific fields are ambiguous)\n\n"
             "Extraction requirements (include null/empty if missing):\n"
             "- urgency: low|medium|high\n"
             "- sender_intent: place_order|send_invoice|file_claim|provide_shipping_docs|general_inquiry|unknown\n"
@@ -284,12 +295,18 @@ Respond in JSON format:
             "- ship_to, bill_to, requested_delivery_date\n\n"
             "Rules:\n"
             "- Do not hallucinate identifiers; only extract what exists.\n"
-            "- If uncertain, set document_type=Inquiry and confidence<0.6.\n"
-            "- Output MUST be valid JSON."
+            "- If uncertain, set document_type=Inquiry and confidence_score<0.6 and ask questions_for_user.\n"
+            "- If delivery date, address, or key identifiers are missing/ambiguous, set requires_human_review=true\n"
+            "  and ask a targeted question in questions_for_user."
         )
 
     def analyze_document(self, email_body: str, attachments: List[Dict[str, Any]], subject: str | None = None, sender_email: str | None = None) -> Dict[str, Any]:
-        """Analyze an email + attachments and return structured JSON for triggers."""
+        """Analyze an email + attachments and return structured JSON for triggers.
+
+        Phase 7.0: Hybrid Agentic Architecture (simulated)
+        - Upstream: Layout-aware extraction (LayoutLMv3 / Docling) would produce structured blocks + bboxes.
+        - Here: we only handle lightweight text extraction, then rely on OpenAI for schema-normalized JSON.
+        """
 
         def _extract_attachment_text(att: Dict[str, Any]) -> str:
             name = att.get('name')
@@ -335,13 +352,41 @@ Respond in JSON format:
 
             return ''
 
+        def _normalize_result(payload: Dict[str, Any]) -> Dict[str, Any]:
+            if not isinstance(payload, dict):
+                payload = {'raw': payload}
+
+            # Backward compatibility: allow `confidence` but standardize to `confidence_score`
+            score = payload.get('confidence_score', payload.get('confidence', 0.0))
+            try:
+                score_f = float(score)
+            except Exception:
+                score_f = 0.0
+
+            score_f = max(0.0, min(1.0, score_f))
+            payload['confidence_score'] = score_f
+
+            if 'requires_human_review' not in payload:
+                payload['requires_human_review'] = score_f < 0.85
+            else:
+                payload['requires_human_review'] = bool(payload.get('requires_human_review'))
+
+            q = payload.get('questions_for_user')
+            payload['questions_for_user'] = q if isinstance(q, list) else []
+
+            return payload
+
         # Fallback if OpenAI not configured
         if not self.api_key:
-            return {
-                'document_type': 'Inquiry',
-                'confidence': 0.0,
-                'error': 'OpenAI not configured',
-            }
+            return _normalize_result(
+                {
+                    'document_type': 'Inquiry',
+                    'confidence_score': 0.0,
+                    'requires_human_review': True,
+                    'questions_for_user': ['AI is not configured for document understanding in this environment.'],
+                    'error': 'OpenAI not configured',
+                }
+            )
 
         # Build bounded prompt
         attachment_texts: List[str] = []
@@ -379,13 +424,29 @@ Respond in JSON format:
                 response_format={'type': 'json_object'},
             )
             text = response.choices[0].message.content
-            return json.loads(text)
+            return _normalize_result(json.loads(text))
         except ImportError:
             logger.error('openai package not installed')
-            return {'document_type': 'Inquiry', 'confidence': 0.0, 'error': 'openai package not installed'}
+            return _normalize_result(
+                {
+                    'document_type': 'Inquiry',
+                    'confidence_score': 0.0,
+                    'requires_human_review': True,
+                    'questions_for_user': ['OpenAI package is not installed on this backend image.'],
+                    'error': 'openai package not installed',
+                }
+            )
         except Exception as e:
             logger.warning('OpenAI document analysis failed: %s', str(e), exc_info=True)
-            return {'document_type': 'Inquiry', 'confidence': 0.0, 'error': str(e)}
+            return _normalize_result(
+                {
+                    'document_type': 'Inquiry',
+                    'confidence_score': 0.0,
+                    'requires_human_review': True,
+                    'questions_for_user': ['Document analysis failed. Please verify extracted fields manually.'],
+                    'error': str(e),
+                }
+            )
 
     def recognize_intent(self, email_body: str, sender_email: str = None) -> IntentResult:
         """

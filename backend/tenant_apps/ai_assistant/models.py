@@ -7,6 +7,7 @@ for purchase orders, suppliers, customers, and other business entities.
 """
 import uuid
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import FileExtensionValidator
 from django.db import models
@@ -124,7 +125,7 @@ class ChatMessage(OwnedModel):
 
 class AIConfiguration(TenantAwareModel):
     """Configuration settings for AI providers and models."""
-    
+
     name = models.CharField(max_length=100)
     provider = models.CharField(max_length=50, default="openai")
     model_name = models.CharField(max_length=100, default="gpt-4o-mini")
@@ -139,3 +140,57 @@ class AIConfiguration(TenantAwareModel):
 
     def __str__(self):
         return f"{self.name} ({self.provider} - {self.model_name})"
+
+
+class AIFeedbackLog(TenantAwareModel):
+    """Human-in-the-loop feedback for extracted document data.
+
+    This is the core reinforcement flywheel: store what the AI extracted, what the user corrected,
+    and derived quality signals.
+
+    NOTE: `precision_delta` is stored for reporting; the exact scoring algorithm can evolve.
+    """
+
+    document_id = models.UUIDField(help_text="Upstream document identifier")
+    document_type = models.CharField(max_length=64, help_text="Classified document type")
+
+    original_extracted_data = models.JSONField(default=dict, blank=True)
+    user_corrected_data = models.JSONField(default=dict, blank=True)
+
+    confidence_score = models.FloatField(default=0.0, help_text="Model confidence from 0.0 to 1.0")
+    precision_delta = models.FloatField(default=0.0, help_text="Derived change ratio between original and corrected")
+
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_feedback_resolutions",
+    )
+
+    class Meta:
+        db_table = "ai_assistant_feedback_logs"
+        verbose_name = "AI Feedback Log"
+        verbose_name_plural = "AI Feedback Logs"
+        indexes = [
+            models.Index(fields=["tenant", "document_id"], name="ai_fb_tenant_doc_idx"),
+            models.Index(fields=["tenant", "document_type"], name="ai_fb_tenant_type_idx"),
+        ]
+
+    def _calculate_precision_delta(self) -> float:
+        orig = self.original_extracted_data or {}
+        corr = self.user_corrected_data or {}
+
+        if not isinstance(orig, dict) or not isinstance(corr, dict):
+            return 1.0
+
+        keys = set(orig.keys()) | set(corr.keys())
+        if not keys:
+            return 0.0
+
+        changed = sum(1 for k in keys if orig.get(k) != corr.get(k))
+        return changed / max(1, len(keys))
+
+    def save(self, *args, **kwargs):
+        self.precision_delta = float(self._calculate_precision_delta())
+        super().save(*args, **kwargs)
