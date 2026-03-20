@@ -13,6 +13,8 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from apps.tenants.models import Tenant
 
+from pgvector.django import VectorField
+
 from apps.core.models import OwnedModel, StatusModel, TenantAwareModel, TenantManager
 
 
@@ -194,3 +196,25 @@ class AIFeedbackLog(TenantAwareModel):
     def save(self, *args, **kwargs):
         self.precision_delta = float(self._calculate_precision_delta())
         super().save(*args, **kwargs)
+
+
+class VectorMemory(TenantAwareModel):
+    """Tenant-scoped vector memory for PM-AS.
+
+    Stores embeddings for historical purchase orders and industry context snippets.
+    """
+
+    source_type = models.CharField(max_length=64, default='context', help_text='context|purchase_order|other')
+    document_id = models.UUIDField(null=True, blank=True)
+    content = models.TextField(blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+
+    embedding = VectorField(dimensions=1536)
+
+    class Meta:
+        db_table = 'ai_assistant_vector_memory'
+        verbose_name = 'Vector Memory'
+        verbose_name_plural = 'Vector Memory'
+        indexes = [
+            models.Index(fields=['tenant', 'source_type'], name='ai_vec_tenant_src_idx'),
+        ]

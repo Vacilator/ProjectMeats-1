@@ -130,7 +130,7 @@ const CenteredContainer = styled.div`
 const KeyboardShortcutHint = styled.div<{ $theme: Theme }>`
   position: fixed;
   bottom: 20px;
-  right: 20px;
+  left: 20px;
   background: ${(props) =>
     props.$theme.name === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.7)'};
   color: white;
