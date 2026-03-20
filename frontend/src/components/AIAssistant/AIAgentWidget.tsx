@@ -752,6 +752,15 @@ export const AIAgentWidget: React.FC = () => {
     }
   };
 
+  const outlookBannerText = (() => {
+    if (!outlookStatus) return 'Status unavailable';
+    if (outlookStatus.connected) {
+      return `Connected${outlookStatus.connectedEmail ? ` (${outlookStatus.connectedEmail})` : ''}`;
+    }
+    if (outlookStatus.expired) return 'Connected (Expired)';
+    return 'Not connected';
+  })();
+
   return (
     <WidgetShell $state={state} aria-live="polite">
       <Card $expanded={expanded} $state={state}>
@@ -780,13 +789,7 @@ export const AIAgentWidget: React.FC = () => {
               <IntegrationDot $connected={Boolean(outlookStatus?.connected)} />
               <span>
                 Outlook:{' '}
-                {outlookStatus
-                  ? outlookStatus.connected
-                    ? `Connected${outlookStatus.connectedEmail ? ` (${outlookStatus.connectedEmail})` : ''}`
-                    : outlookStatus.expired
-                      ? 'Connected (Expired)'
-                      : 'Not connected'}
-                  : 'Status unavailable'}
+                {outlookBannerText}
               </span>
               <IntegrationLink href="/settings/email-integrations">
                 {outlookStatus?.connected ? 'Manage' : 'Connect'}
