@@ -14,7 +14,7 @@ import styled from 'styled-components';
 import { ConfigField, FieldRenderProps } from '../types';
 import EntityFieldPicker, { SelectedField } from '../../ConfigPanel/EntityFieldPicker';
 import FieldMappingPanel from '../../ConfigPanel/FieldMappingPanel';
-import VariablePickerWithUpstream from '../../ConfigPanel/VariablePickerWithUpstream';
+import { VariablePicker, Variable as PickerVariable } from '../../components/VariablePicker';
 import ValidationRuleBuilder from '../../ConfigPanel/ValidationRuleBuilder';
 
 // ============================================================================
@@ -165,24 +165,41 @@ export function renderFieldMapping(props: FieldRenderProps): React.ReactElement 
 // ============================================================================
 
 /**
- * Renders the VariablePickerWithUpstream for selecting variables from upstream nodes
- * Used for expression fields, conditional logic, and anywhere variables are needed
+ * Renders a VariablePicker that can select from upstream variables.
+ * This renderer uses precomputed upstream variables injected by DynamicConfigPanel.
  */
 export function renderVariablePicker(props: FieldRenderProps): React.ReactElement {
   const { field, value, onChange, error, data } = props;
-  
+
   const selectedVariable = value as string | undefined;
-  
-  const handleVariableSelect = (variablePath: string) => {
-    onChange(variablePath);
+  const upstreamVariables = (data?._upstreamVariables as any[]) || [];
+
+  const variables: PickerVariable[] = upstreamVariables.map((v: any) => ({
+    id: `${String(v.nodeId)}.${String(v.fieldName)}`,
+    name: String(v.fieldName),
+    displayName: String(v.fieldLabel || v.fieldName),
+    type: String(v.fieldType || 'string'),
+    nodeId: String(v.nodeId),
+    nodeName: String(v.nodeName || v.nodeId),
+    nodeType: String(v.nodeType || 'unknown'),
+    path: String(v.template || `{{${String(v.nodeId)}.${String(v.fieldName)}}}`),
+    description: v.required ? 'Required' : undefined,
+  }));
+
+  const selectedVariables: PickerVariable[] = selectedVariable
+    ? variables.filter((v) => v.path === selectedVariable)
+    : [];
+
+  const handleVariableSelect = (variable: PickerVariable) => {
+    onChange(variable.path);
   };
-  
+
   return (
     <FieldContainer>
-      <VariablePickerWithUpstream
-        selectedVariable={selectedVariable}
+      <VariablePicker
+        variables={variables}
         onSelect={handleVariableSelect}
-        upstreamVariables={data?._upstreamVariables || []}
+        selectedVariables={selectedVariables}
         placeholder={field.placeholder || 'Select a variable...'}
       />
       {error && <ErrorMessage>{error}</ErrorMessage>}
