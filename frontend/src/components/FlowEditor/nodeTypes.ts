@@ -106,11 +106,11 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   // Form step node (page) (renamed from formStepSingle in Phase E - 2026-02-19)
   form: {
     id: 'form',
-    name: 'Form Step',
+    name: 'Form',
     category: 'form',
     icon: '📄',
     color: '#3b82f6', // blue
-    description: 'Single form step (page). Use inside a Form (Book) container or standalone.',
+    description: 'Single form step. Use inside a Form Process or standalone.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -218,40 +218,45 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   },
   
   // OTHER FORM ELEMENTS
+  // Consolidation: keep the palette focused on just Form + Form Process.
+  // These node types remain supported for backward compatibility.
   formReference: {
     id: 'formReference',
-    name: 'Form Reference',
+    name: 'Form Reference (Hidden)',
     category: 'form',
     icon: '📄',
     color: '#3b82f6',
-    description: 'Reference a reusable form from the library',
+    description: '[HIDDEN] Backward compatible. Use Form steps inside a Form Process instead.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true,
   },
   
   formSignature: {
     id: 'formSignature',
-    name: 'Signature Field',
+    name: 'Signature Field (Hidden)',
     category: 'form',
     icon: '✍️',
     color: '#3b82f6',
-    description: 'Electronic signature capture',
+    description: '[HIDDEN] Backward compatible.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true,
   },
   
   formFileUpload: {
     id: 'formFileUpload',
-    name: 'File Upload',
+    name: 'File Upload (Hidden)',
     category: 'form',
     icon: '📎',
     color: '#3b82f6',
-    description: 'Document/file upload field',
+    description: '[HIDDEN] Backward compatible.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true,
   },
   
   // REMOVED: formMultiStepContainer moved above as deprecated alias

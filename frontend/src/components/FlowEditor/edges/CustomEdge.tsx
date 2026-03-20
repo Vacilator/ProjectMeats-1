@@ -177,7 +177,12 @@ export const CustomEdge = React.memo<EdgeProps<CustomEdgeData>>(({
       <path
         d={edgePath}
         className="react-flow__edge-path"
-        style={{ stroke: 'transparent', strokeWidth: 30, strokeOpacity: 0 }}
+        style={{
+          stroke: 'transparent',
+          strokeWidth: 30,
+          strokeOpacity: 0,
+          vectorEffect: 'non-scaling-stroke',
+        }}
         pointerEvents="stroke"
       />
 
@@ -186,7 +191,10 @@ export const CustomEdge = React.memo<EdgeProps<CustomEdgeData>>(({
         id={id}
         className="react-flow__edge-path"
         d={edgePath}
-        style={edgeStyle}
+        style={{
+          ...edgeStyle,
+          vectorEffect: 'non-scaling-stroke',
+        }}
         markerEnd={markerEnd}
       />
 
