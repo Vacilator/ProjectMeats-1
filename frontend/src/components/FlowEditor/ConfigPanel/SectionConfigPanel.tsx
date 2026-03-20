@@ -25,7 +25,8 @@ import {
   TextArea,
   HelpText,
   PanelFooter,
-  Button,
+  PrimaryButton,
+  SecondaryButton,
 } from './shared/StyledComponents';
 
 // ============================================================================
@@ -264,42 +265,7 @@ const RadioDescription = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
-
-
-
-
-const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-
-  ${props => props.variant === 'primary' ? `
-    background: rgb(var(--color-primary));
-    color: white;
-
-    &:hover:not(:disabled) {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  ` : `
-    background: rgb(var(--color-surface));
-    color: rgb(var(--color-text-primary));
-    border: 1px solid rgb(var(--color-border));
-
-    &:hover {
-      background: rgb(var(--color-surface-hover));
-    }
-  `}
-`;
+// NOTE: Use shared PrimaryButton/SecondaryButton for consistency across config panels.
 
 // ============================================================================
 // Main Component
@@ -311,17 +277,33 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
   onClose,
   availableFields = [],
 }) => {
+  const normalizeLogic = (logic: unknown): ConditionLogic => {
+    const value = typeof logic === 'string' ? logic.toLowerCase() : '';
+    return value === 'or' ? 'or' : 'and';
+  };
+
+  const conditionAvailableFields = availableFields.map(field => ({
+    key: field.id,
+    label: field.label,
+    type: field.type,
+  }));
+
   const [formData, setFormData] = useState<SectionData>({
     title: section.title || '',
     description: section.description || '',
     icon: section.icon || '📋',
     isCollapsible: section.isCollapsible ?? false,
     defaultCollapsed: section.defaultCollapsed ?? false,
-    conditionalVisibility: section.conditionalVisibility || {
-      enabled: false,
-      conditions: [],
-      logic: 'AND' as ConditionLogic,
-    },
+    conditionalVisibility: section.conditionalVisibility
+      ? {
+          ...section.conditionalVisibility,
+          logic: normalizeLogic(section.conditionalVisibility.logic),
+        }
+      : {
+          enabled: false,
+          conditions: [],
+          logic: 'and',
+        },
   });
 
   const [visibilityMode, setVisibilityMode] = useState<'always' | 'conditional'>(
@@ -497,8 +479,8 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
             <div style={{ marginTop: '16px' }}>
               <ConditionBuilder
                 conditions={formData.conditionalVisibility!.conditions || []}
-                logic={formData.conditionalVisibility!.logic || 'AND'}
-                availableFields={availableFields}
+                logic={normalizeLogic(formData.conditionalVisibility!.logic)}
+                availableFields={conditionAvailableFields}
                 onChange={handleConditionsChange}
               />
             </div>
@@ -507,12 +489,12 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
       </PanelContent>
 
       <PanelFooter>
-        <Button variant="secondary" onClick={onClose}>
+        <SecondaryButton onClick={onClose}>
           Cancel
-        </Button>
-        <Button variant="primary" onClick={handleSave} disabled={!isValid}>
+        </SecondaryButton>
+        <PrimaryButton onClick={handleSave} disabled={!isValid}>
           Save Section
-        </Button>
+        </PrimaryButton>
       </PanelFooter>
     </Container>
   );

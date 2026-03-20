@@ -11,6 +11,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { Search, X, Download, Upload, Trash2, Copy, FileText, Tag } from 'lucide-react';
+import { PanelFooter, PrimaryButton, SecondaryButton } from './shared/StyledComponents';
 import {
   getAllTemplates,
   searchTemplates,
@@ -263,37 +264,6 @@ const EmptyStateHint = styled.div`
   opacity: 0.7;
 `;
 
-const Footer = styled.div`
-  padding: 16px 24px;
-  border-top: 1px solid rgb(var(--color-border));
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-`;
-
-const Button = styled.button<{ $primary?: boolean }>`
-  padding: 10px 20px;
-  border: ${props => props.$primary ? 'none' : '1px solid rgb(var(--color-border))'};
-  border-radius: var(--radius-md);
-  background: ${props => props.$primary ? 'rgb(var(--color-primary))' : 'rgb(var(--color-background-secondary))'};
-  color: ${props => props.$primary ? 'white' : 'rgb(var(--color-text-primary))'};
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
-`;
 
 // ============================================================================
 // Component
@@ -463,15 +433,15 @@ export const SubFlowLibraryDialog: React.FC<SubFlowLibraryDialogProps> = ({
           )}
         </Content>
 
-        <Footer>
-          <Button onClick={handleImport}>
+        <PanelFooter>
+          <PrimaryButton type="button" onClick={handleImport}>
             <Upload size={16} />
             Import Template
-          </Button>
-          <Button onClick={onClose}>
+          </PrimaryButton>
+          <SecondaryButton type="button" onClick={onClose}>
             Close
-          </Button>
-        </Footer>
+          </SecondaryButton>
+        </PanelFooter>
       </Dialog>
     </Overlay>
   );

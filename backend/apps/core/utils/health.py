@@ -65,9 +65,11 @@ def check_openai() -> dict:
             'note': str
         }
     """
-    api_key = getattr(settings, 'OPENAI_API_KEY', None)
-    model = getattr(settings, 'OPENAI_MODEL', 'not-configured')
-    
+    import os
+
+    api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
+    model = getattr(settings, 'OPENAI_MODEL', None) or os.environ.get('OPENAI_MODEL') or 'not-configured'
+
     return {
         'configured': api_key is not None,
         'api_key_set': bool(api_key),

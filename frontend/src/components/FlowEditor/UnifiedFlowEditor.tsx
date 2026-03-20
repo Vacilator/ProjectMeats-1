@@ -41,6 +41,7 @@ import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
 import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
+import { useVirtualizedNodes } from './hooks/useVirtualizedNodes';
 import { 
   useOnboardingTour, 
   workflowEditorTourSteps, 
@@ -63,6 +64,7 @@ import {
   OnSelectionChangeParams,
   useReactFlow,
   MarkerType,
+  type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './UnifiedFlowEditor.responsive.css'; // Gap Analysis Phase 1.2
@@ -1990,6 +1992,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // React Flow instance for viewport controls
   const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
+
+  // Phase 7.5/Vanguard 1: track viewport for optional strict node/edge list virtualization
+  const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
+  const didInitViewportRef = useRef(false);
+  useEffect(() => {
+    if (didInitViewportRef.current) return;
+    if (!reactFlowInstance?.getViewport) return;
+    didInitViewportRef.current = true;
+    setViewport(reactFlowInstance.getViewport());
+  }, [reactFlowInstance]);
   
   // ============================================================================
   // CONFIG PANEL PORTAL - Enhanced with full styling (2026-02-24)
@@ -6372,6 +6384,38 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     });
   }, [addFormStepInsideContainer, handleNodeDelete, handleNodeEdit, handleNodeTitleChange, handleSaveWorkflow, lastNodeIdSet, nodes]);
 
+  // Vanguard 1: Optional strict render-list virtualization for very large workflows.
+  // React Flow already does viewport culling (onlyRenderVisibleElements); this additionally reduces
+  // the nodes/edges arrays passed into React Flow to shrink reconciliation work.
+  const virtualizedNodes = useVirtualizedNodes(nodesWithHandlers, viewport, {
+    threshold: 180,
+    bufferPx: 320,
+    debounceMs: 50,
+    enabled: true,
+  });
+
+  const renderedNodesForCanvas = useMemo(() => {
+    if (!virtualizedNodes.isVirtualized) return nodesWithHandlers;
+
+    const byId = new Map(nodesWithHandlers.map((n) => [n.id, n] as const));
+    const renderIdSet = new Set(virtualizedNodes.visibleNodes.map((n) => n.id));
+
+    const includeNodeAndAncestors = (nodeId: string) => {
+      let cur: string | undefined = nodeId;
+      while (cur) {
+        if (renderIdSet.has(cur)) break;
+        renderIdSet.add(cur);
+        const node = byId.get(cur);
+        cur = node?.parentId;
+      }
+    };
+
+    if (selectedNodeId) includeNodeAndAncestors(selectedNodeId);
+
+    // Preserve ordering + include parents before children (React Flow stability)
+    return nodesWithHandlers.filter((n) => renderIdSet.has(n.id));
+  }, [nodesWithHandlers, selectedNodeId, virtualizedNodes.isVirtualized, virtualizedNodes.visibleNodes]);
+
   // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
   // are re-targeted to virtual handles on the container boundary so connectivity remains visible.
   const edgesForCanvas = useMemo(() => {
@@ -6434,6 +6478,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     return derived;
   }, [edges, nodesWithHandlers]);
+
+  const renderedEdgesForCanvas = useMemo(() => {
+    if (!virtualizedNodes.isVirtualized) return edgesForCanvas;
+
+    const renderedIdSet = new Set(renderedNodesForCanvas.map((n) => n.id));
+    return edgesForCanvas.filter((e) => renderedIdSet.has(e.source) && renderedIdSet.has(e.target));
+  }, [edgesForCanvas, renderedNodesForCanvas, virtualizedNodes.isVirtualized]);
 
   return (
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
@@ -6897,11 +6948,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* React Flow Canvas - Visual Mode */}
       {normalizedEditorMode === 'visual' && (
         <DebugAwareReactFlow
-        nodes={nodesWithHandlers}
-        edges={edgesForCanvas}
+        nodes={renderedNodesForCanvas}
+        edges={renderedEdgesForCanvas}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onMoveEnd={(_, vp) => setViewport(vp)}
         onNodesDelete={onNodesDelete}
         nodesDraggable={true}
         nodeDragHandle=".custom-drag-handle"
