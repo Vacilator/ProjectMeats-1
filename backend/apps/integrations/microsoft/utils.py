@@ -83,16 +83,20 @@ def get_microsoft_auth_url(
     redirect_uri = get_microsoft_redirect_uri(request)
     
     # Build authorization URL
-    tenant_id = getattr(settings, 'MICROSOFT_TENANT_ID', 'common')
+    tenant_id = getattr(settings, 'MICROSOFT_TENANT_ID', None)
+    if not tenant_id:
+        tenant_id = 'common'
+
     authority = f"https://login.microsoftonline.com/{tenant_id}"
     authorize_endpoint = f"{authority}/oauth2/v2.0/authorize"
-    
+
     params = {
         "client_id": client_id,
         "response_type": "code",
         "redirect_uri": redirect_uri,
         "response_mode": "query",
         "scope": " ".join(scopes),
+        "prompt": "select_account",
     }
     
     if state:

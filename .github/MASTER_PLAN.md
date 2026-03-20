@@ -862,3 +862,5 @@ Deliverables:
 - PR: TBD (refactor/workforms): Phase 9.7 hardening & state sync
 
 
+
+- 2026-03-20 — MSAL common authority restoration (B2B/B2C support) & prompt enforcement — PR: #TBD.
