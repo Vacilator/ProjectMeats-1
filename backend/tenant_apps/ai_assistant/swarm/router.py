@@ -113,7 +113,10 @@ class SwarmOrchestrator:
         Returns:
             {"response": <final text>, "messages": <final history>}
         """
-        if not getattr(settings, 'OPENAI_API_KEY', None):
+        import os
+
+        openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
+        if not openai_api_key:
             raise ValueError('OpenAI not configured (missing OPENAI_API_KEY)')
 
         try:
@@ -122,8 +125,8 @@ class SwarmOrchestrator:
             raise RuntimeError('OpenAI client not available on server') from e
 
         client = OpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
+            api_key=openai_api_key,
+            organization=(getattr(settings, 'OPENAI_ORG_ID', None) or os.environ.get('OPENAI_ORG_ID') or None),
         )
 
         from apps.integrations.models import ExternalAuthProvider
