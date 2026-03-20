@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { AlertTriangle, BrainCircuit, CheckCircle2, Send, X } from 'lucide-react';
 
+import { businessApi } from '../../services/businessApi';
+
 type AgentState = 'idle' | 'thinking' | 'action_required';
 
 type ReviewRequiredDetail = {
@@ -24,8 +26,16 @@ const calmPulse = keyframes`
 `;
 
 const urgentGlow = keyframes`
-  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-primary), 0.0), 0 12px 34px rgb(var(--color-text-primary) / 0.14); }
-  50% { box-shadow: 0 0 0 6px rgba(var(--color-primary), 0.14), 0 16px 42px rgb(var(--color-text-primary) / 0.18); }
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 rgb(var(--color-primary) / 0.00),
+      0 12px 34px rgb(var(--color-text-primary) / 0.14);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px rgb(var(--color-primary) / 0.14),
+      0 16px 42px rgb(var(--color-text-primary) / 0.18);
+  }
 `;
 
 const thinkingFlicker = keyframes`
@@ -65,7 +75,7 @@ const Card = styled.div<{ $expanded: boolean; $state: AgentState }>`
   ${(p) =>
     p.$state === 'action_required'
       ? css`
-          border-color: rgba(var(--color-primary), 0.6);
+          border-color: rgb(var(--color-primary) / 0.60);
         `
       : ''}
 
@@ -91,12 +101,12 @@ const HeaderBtn = styled.button<{ $state: AgentState }>`
   padding: 0 14px;
   border: none;
   background:
-    ${(p) => (p.$state === 'action_required' ? 'rgba(var(--color-primary), 0.10)' : 'rgb(var(--color-surface))')};
+    ${(p) => (p.$state === 'action_required' ? 'rgb(var(--color-primary) / 0.10)' : 'rgb(var(--color-surface))')};
   color: rgb(var(--color-text-primary));
   cursor: pointer;
 
   &:hover {
-    background: rgba(var(--color-primary), 0.12);
+    background: rgb(var(--color-primary) / 0.12);
   }
 `;
 
@@ -127,7 +137,7 @@ const StatusPill = styled.div<{ $variant: 'ok' | 'warn' | 'info' }>`
     if (p.$variant === 'ok') return 'rgb(34, 197, 94)';
     return 'rgb(var(--color-text-secondary))';
   }};
-  background: rgba(var(--color-primary), 0.06);
+  background: rgb(var(--color-primary) / 0.06);
 `;
 
 const Body = styled.div`
@@ -156,7 +166,7 @@ const Bubble = styled.div<{ $role: 'assistant' | 'user' }>`
     p.$role === 'user'
       ? css`
           margin-left: auto;
-          background: rgba(var(--color-primary), 0.10);
+          background: rgb(var(--color-primary) / 0.10);
           color: rgb(var(--color-text-primary));
         `
       : css`
@@ -185,8 +195,8 @@ const Input = styled.input`
 
   &:focus {
     outline: none;
-    border-color: rgba(var(--color-primary), 0.65);
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.15);
+    border-color: rgb(var(--color-primary) / 0.65);
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.15);
   }
 `;
 
@@ -203,7 +213,7 @@ const IconBtn = styled.button<{ $danger?: boolean }>`
   color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
 
   &:hover {
-    background: rgba(var(--color-primary), 0.10);
+    background: rgb(var(--color-primary) / 0.10);
     color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-primary))')};
   }
 `;
@@ -215,6 +225,7 @@ export const AIAgentWidget: React.FC = () => {
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<ReviewRequiredDetail>({});
   const [draft, setDraft] = useState('');
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const defaultActionMessage = useMemo(
     () => 'I just processed a Purchase Order from Sysco, but the delivery date is unclear. Can you verify?',
@@ -293,33 +304,46 @@ export const AIAgentWidget: React.FC = () => {
         ? { text: 'Thinking', variant: 'info' as const }
         : { text: 'Idle', variant: 'ok' as const };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = draft.trim();
     if (!text) return;
 
     setDraft('');
     setExpanded(true);
 
-    setMessages((m) => [
-      ...m,
-      { id: newId(), role: 'user', content: text, createdAt: Date.now() },
-    ]);
+    setMessages((m) => [...m, { id: newId(), role: 'user', content: text, createdAt: Date.now() }]);
 
-    // Placeholder: replace with real agent invoke.
     setState('thinking');
-    window.setTimeout(() => {
+    try {
+      const res = await businessApi.post<{
+        response: string;
+        session_id: string;
+      }>('/ai-assistant/ai-chat/chat/', {
+        message: text,
+        session_id: sessionId ?? undefined,
+        context: {
+          ui_source: 'AIAgentWidget',
+        },
+      });
+
+      const responseText = res.data?.response ?? '—';
+      const nextSessionId = res.data?.session_id ?? null;
+      if (nextSessionId) setSessionId(nextSessionId);
+
+      setMessages((m) => [...m, { id: newId(), role: 'assistant', content: responseText, createdAt: Date.now() }]);
+      setState('idle');
+    } catch (err) {
       setMessages((m) => [
         ...m,
         {
           id: newId(),
           role: 'assistant',
-          content:
-            'Got it. This is a scaffold — next step is wiring this to the SwarmOrchestrator + tool registry. For now, try triggering pm:ai-review-required to simulate HITL.',
+          content: 'Sorry — I couldn\'t reach the AI service. Please try again.',
           createdAt: Date.now(),
         },
       ]);
-      setState('idle');
-    }, 650);
+      setState('action_required');
+    }
   };
 
   return (
@@ -333,7 +357,13 @@ export const AIAgentWidget: React.FC = () => {
         >
           <Left>
             {icon}
-            {expanded ? <Title title="AIAgentWidget">AIAgentWidget</Title> : null}
+            {expanded ? (
+              <Title title="AIAgentWidget">
+                {state === 'action_required' && (detail.document_type || detail.vendor)
+                  ? `AIAgentWidget • ${detail.document_type ?? 'Review'}${detail.vendor ? ` (${detail.vendor})` : ''}`
+                  : 'AIAgentWidget'}
+              </Title>
+            ) : null}
           </Left>
           {expanded ? <StatusPill $variant={pill.variant}>{pill.text}</StatusPill> : null}
         </HeaderBtn>
@@ -369,7 +399,7 @@ export const AIAgentWidget: React.FC = () => {
                 placeholder={
                   state === 'action_required'
                     ? 'Reply with the correct delivery date / fields…'
-                    : 'Ask the agent (scaffold)…'
+                    : 'Ask the agent…'
                 }
                 aria-label="AI agent message"
               />
