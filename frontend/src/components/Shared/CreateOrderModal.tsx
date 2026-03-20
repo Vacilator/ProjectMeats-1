@@ -33,6 +33,15 @@ interface CreateOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** Optional prefill values (e.g., from Cockpit suggested actions) */
+  initialValues?: Partial<{
+    customer: string;
+    supplier: string;
+    product: string;
+    total_amount: string;
+    order_date: string;
+    notes: string;
+  }>;
 }
 
 interface Customer {
@@ -229,6 +238,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  initialValues,
 }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -247,23 +257,31 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     notes: '',
   });
 
+  const buildDefaultFormData = () => ({
+    customer: '',
+    supplier: '',
+    product: '',
+    total_amount: '',
+    order_date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+
   // Load dropdown data when modal opens
   useEffect(() => {
-    if (isOpen) {
-      loadDropdownData();
-      // Reset form
-      setFormData({
-        customer: '',
-        supplier: '',
-        product: '',
-        total_amount: '',
-        order_date: new Date().toISOString().split('T')[0],
-        notes: '',
-      });
-      setError(null);
-      setFilteredProducts([]);
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
+
+    loadDropdownData();
+
+    const defaults = buildDefaultFormData();
+    setFormData({
+      ...defaults,
+      ...(initialValues ?? {}),
+      order_date: initialValues?.order_date ?? defaults.order_date,
+    });
+
+    setError(null);
+    setFilteredProducts([]);
+  }, [isOpen, initialValues]);
 
   // Reactive filtering: Update products when customer or supplier changes
   useEffect(() => {

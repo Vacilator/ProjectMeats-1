@@ -673,17 +673,43 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    */
   const handleQuickAction = useCallback((action: SearchEntity) => {
     const actionType = action.metadata?.action as string | undefined;
-    const entityId = action.metadata?.entityId;
+    const entityId = (action.metadata?.entityId as string | number | undefined) ?? action.id;
 
     if (!actionType) {
       console.warn('[SmartSearch] Quick action missing actionType', action);
       return;
     }
 
+    const activeContext = navigation.path[navigation.path.length - 1];
+    const prefillBase = {
+      source: 'cockpit',
+      query,
+      contextEntity: activeContext
+        ? {
+            id: activeContext.id,
+            type: activeContext.type,
+            label: activeContext.label,
+          }
+        : undefined,
+    };
+
     switch (actionType) {
-      case 'create_po':
-        navigate(`/purchase-orders?action=create&supplier_id=${entityId}`);
+      case 'create_po': {
+        const supplierId = entityId ? String(entityId) : '';
+        const params = new URLSearchParams({ action: 'create' });
+        if (supplierId) params.set('supplier_id', supplierId);
+        if (query) params.set('cockpit_q', query);
+
+        navigate(`/purchase-orders?${params.toString()}`, {
+          state: {
+            prefill: {
+              ...prefillBase,
+              supplierId,
+            },
+          },
+        });
         break;
+      }
       case 'view_purchase_history':
       case 'view_history':
         navigate(`/purchase-orders?supplier_id=${entityId}`);
@@ -691,16 +717,29 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       case 'send_email':
         window.dispatchEvent(new CustomEvent('pm:open-tool', { detail: { toolId: 'tool:email' } }));
         break;
-      case 'create_so':
-        navigate(`/sales-orders?action=create&customer_id=${entityId}`);
+      case 'create_so': {
+        const customerId = entityId ? String(entityId) : '';
+        const params = new URLSearchParams({ action: 'create' });
+        if (customerId) params.set('customer_id', customerId);
+        if (query) params.set('cockpit_q', query);
+
+        navigate(`/sales-orders?${params.toString()}`, {
+          state: {
+            prefill: {
+              ...prefillBase,
+              customerId,
+            },
+          },
+        });
         break;
+      }
       case 'view_sales_history':
         navigate(`/sales-orders?customer_id=${entityId}`);
         break;
       default:
         console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
     }
-  }, [navigate]);
+  }, [navigate, navigation.path, query]);
 
   /**
    * Toggle favorite
