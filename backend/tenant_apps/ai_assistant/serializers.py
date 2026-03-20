@@ -110,3 +110,25 @@ class VectorMemorySearchResultSerializer(serializers.Serializer):
     distance = serializers.FloatField()
     content_preview = serializers.CharField()
     metadata = serializers.JSONField()
+
+
+class SwarmInvokeRequestSerializer(serializers.Serializer):
+    event_type = serializers.ChoiceField(choices=['email', 'user_chat', 'webhook'])
+    payload = serializers.JSONField()
+    correlation_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate_payload(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('payload must be an object')
+        return value
+
+
+class SwarmInvokeResponseSerializer(serializers.Serializer):
+    tenant_id = serializers.UUIDField()
+    correlation_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    event_type = serializers.CharField()
+    intent = serializers.CharField()
+    urgency = serializers.CharField()
+    agent_chain = serializers.ListField(child=serializers.CharField())
+    notes = serializers.CharField(required=False, allow_blank=True)
