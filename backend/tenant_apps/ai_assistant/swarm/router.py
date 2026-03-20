@@ -28,12 +28,20 @@ logger = logging.getLogger(__name__)
 
 EventType = Literal["email", "user_chat", "webhook"]
 
-SWARM_SYSTEM_PROMPT = (
-    "You are the ProjectMeats Autonomous Swarm Orchestrator. "
-    "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
-    "You have access to the user's connected email and ERP data via tools. "
-    "Be highly analytical, concise, and proactive."
-)
+def build_swarm_system_prompt(*, outlook_connected: bool, outlook_email: str | None, outlook_expired: bool) -> str:
+    base = (
+        "You are the ProjectMeats Autonomous Swarm Orchestrator. "
+        "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
+        "Be highly analytical, concise, and proactive. "
+    )
+
+    if outlook_connected:
+        return base + f"Outlook: CONNECTED ({outlook_email or 'unknown'}). You may use email tools when relevant."
+
+    if outlook_expired:
+        return base + "Outlook: CONNECTED but EXPIRED. Do not claim you can read email; instruct user to reconnect."
+
+    return base + "Outlook: NOT CONNECTED. Do not claim you can read email; instruct user to connect Outlook."
 
 
 @dataclass(frozen=True)
@@ -118,7 +126,33 @@ class SwarmOrchestrator:
             organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
         )
 
-        messages: List[Dict[str, Any]] = [{'role': 'system', 'content': SWARM_SYSTEM_PROMPT}]
+        from apps.integrations.models import ExternalAuthProvider
+
+        provider = (
+            ExternalAuthProvider.objects.filter(
+                tenant=tenant,
+                provider_type='microsoft',
+                is_active=True,
+            )
+            .select_related('tenant')
+            .first()
+        )
+        outlook_email = getattr(provider, 'connected_email', None) if provider else None
+        outlook_expired = bool(provider.is_token_expired()) if provider else False
+        outlook_connected = bool(provider and not outlook_expired)
+
+        tools = DEFAULT_OPENAI_TOOLS if outlook_connected else []
+
+        messages: List[Dict[str, Any]] = [
+            {
+                'role': 'system',
+                'content': build_swarm_system_prompt(
+                    outlook_connected=outlook_connected,
+                    outlook_email=outlook_email,
+                    outlook_expired=outlook_expired,
+                ),
+            }
+        ]
         if history:
             messages.extend(history)
         messages.append({'role': 'user', 'content': user_message})
@@ -137,14 +171,17 @@ class SwarmOrchestrator:
             if rounds > max_rounds:
                 break
 
-            completion = client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                tools=DEFAULT_OPENAI_TOOLS,
-                tool_choice='auto',
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+            create_kwargs: Dict[str, Any] = {
+                'model': model_name,
+                'messages': messages,
+                'temperature': temperature,
+                'max_tokens': max_tokens,
+            }
+            if tools:
+                create_kwargs['tools'] = tools
+                create_kwargs['tool_choice'] = 'auto'
+
+            completion = client.chat.completions.create(**create_kwargs)
 
             msg = completion.choices[0].message
             tool_calls = getattr(msg, 'tool_calls', None)

@@ -20,6 +20,13 @@ type ChatMessage = {
   createdAt: number;
 };
 
+type OutlookStatus = {
+  connected: boolean;
+  expired: boolean;
+  connectedEmail?: string;
+  connectedName?: string;
+};
+
 const calmPulse = keyframes`
   0%, 100% { transform: translateY(0); box-shadow: 0 10px 28px rgb(var(--color-text-primary) / 0.10); }
   50% { transform: translateY(-1px); box-shadow: 0 12px 34px rgb(var(--color-text-primary) / 0.14); }
@@ -147,6 +154,35 @@ const Body = styled.div`
   border-top: 1px solid rgb(var(--color-border));
 `;
 
+const IntegrationBanner = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const IntegrationDot = styled.span<{ $connected: boolean }>`
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: ${(p) => (p.$connected ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)')};
+`;
+
+const IntegrationLink = styled.a`
+  margin-left: auto;
+  color: rgb(var(--color-primary));
+  font-weight: 800;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 const Messages = styled.div`
   flex: 1;
   overflow: auto;
@@ -226,6 +262,7 @@ export const AIAgentWidget: React.FC = () => {
   const [detail, setDetail] = useState<ReviewRequiredDetail>({});
   const [draft, setDraft] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [outlookStatus, setOutlookStatus] = useState<OutlookStatus | null>(null);
 
   const defaultActionMessage = useMemo(
     () => 'I just processed a Purchase Order from Sysco, but the delivery date is unclear. Can you verify?',
@@ -300,6 +337,31 @@ export const AIAgentWidget: React.FC = () => {
 
   useEffect(() => {
     if (!expanded) return;
+
+    const loadOutlookStatus = async () => {
+      try {
+        const res = await businessApi.get<{ connections?: any[] }>('/integrations/oauth/status/');
+        const connections = Array.isArray(res.data?.connections) ? res.data.connections : [];
+        const outlook = connections.find((c) => c?.provider === 'microsoft');
+        if (!outlook) {
+          setOutlookStatus({ connected: false, expired: false });
+          return;
+        }
+
+        setOutlookStatus({
+          connected: !outlook.is_expired,
+          expired: Boolean(outlook.is_expired),
+          connectedEmail: outlook.connected_email,
+          connectedName: outlook.connected_name,
+        });
+      } catch {
+        // Don’t block chat UX on integration status.
+        setOutlookStatus(null);
+      }
+    };
+
+    void loadOutlookStatus();
+
     if (pendingReviewPollingDisabledRef.current) return;
 
     let isCancelled = false;
@@ -381,14 +443,22 @@ export const AIAgentWidget: React.FC = () => {
   const handleListTools = async () => {
     setState('thinking');
     try {
-      const res = await businessApi.get<{ paths?: Record<string, any> }>('/ai-assistant/tools/openapi/');
-      const paths = res.data?.paths ?? {};
-      const toolNames = Object.keys(paths)
-        .map((p) => paths[p]?.post?.operationId as string | undefined)
-        .filter((x): x is string => !!x)
-        .sort();
+      const res = await businessApi.get<any>('/ai-assistant/tools/openapi/');
 
-      const preview = toolNames.length ? toolNames.slice(0, 25).join(', ') : 'No tools registered.';
+      const tools = Array.isArray(res.data?.tools) ? res.data.tools : [];
+      const toolNamesFromTools = tools
+        .map((t: any) => t?.function?.name as string | undefined)
+        .filter((x: any): x is string => typeof x === 'string' && x.length > 0);
+
+      const openapi = res.data?.openapi ?? res.data;
+      const paths = openapi?.paths ?? {};
+      const toolNamesFromOpenApi = Object.keys(paths)
+        .map((p) => paths[p]?.post?.operationId as string | undefined)
+        .filter((x): x is string => !!x);
+
+      const toolNames = Array.from(new Set([...toolNamesFromTools, ...toolNamesFromOpenApi])).sort();
+
+      const preview = toolNames.length ? toolNames.slice(0, 25).join(', ') : 'No tools available.';
       const suffix = toolNames.length > 25 ? ` (+${toolNames.length - 25} more)` : '';
 
       setMessages((m) => [
@@ -402,7 +472,7 @@ export const AIAgentWidget: React.FC = () => {
         {
           id: newId(),
           role: 'assistant',
-          content: 'Tools list is unavailable (requires staff permissions).',
+          content: 'Tools list is unavailable right now. Please try again.',
           createdAt: Date.now(),
         },
       ]);
@@ -662,13 +732,19 @@ export const AIAgentWidget: React.FC = () => {
 
       setMessages((m) => [...m, { id: newId(), role: 'assistant', content: responseText, createdAt: Date.now() }]);
       setState('idle');
-    } catch (err) {
+    } catch (err: any) {
+      const serverError = err?.response?.data?.error || err?.response?.data?.detail;
+      const message =
+        typeof serverError === 'string' && serverError.length
+          ? serverError
+          : 'Sorry — I couldn\'t reach the AI service. Please try again.';
+
       setMessages((m) => [
         ...m,
         {
           id: newId(),
           role: 'assistant',
-          content: 'Sorry — I couldn\'t reach the AI service. Please try again.',
+          content: message,
           createdAt: Date.now(),
         },
       ]);
@@ -700,6 +776,23 @@ export const AIAgentWidget: React.FC = () => {
 
         {expanded ? (
           <Body>
+            <IntegrationBanner>
+              <IntegrationDot $connected={Boolean(outlookStatus?.connected)} />
+              <span>
+                Outlook:{' '}
+                {outlookStatus
+                  ? outlookStatus.connected
+                    ? `Connected${outlookStatus.connectedEmail ? ` (${outlookStatus.connectedEmail})` : ''}`
+                    : outlookStatus.expired
+                      ? 'Connected (Expired)'
+                      : 'Not connected'}
+                  : 'Status unavailable'}
+              </span>
+              <IntegrationLink href="/settings/email-integrations">
+                {outlookStatus?.connected ? 'Manage' : 'Connect'}
+              </IntegrationLink>
+            </IntegrationBanner>
+
             <Messages>
               {messages.map((m) => (
                 <Bubble key={m.id} $role={m.role}>
