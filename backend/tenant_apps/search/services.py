@@ -46,7 +46,7 @@ class SearchIntelligenceService:
     def _get_model_class(entity_type: str):
         """Import model class."""
         mapping = {
-            'product': ('tenant_apps.products.models', 'Product'),
+            'product': ('tenant_apps.products.models', 'MasterProduct'),
             'supplier': ('tenant_apps.suppliers.models', 'Supplier'),
             'customer': ('tenant_apps.customers.models', 'Customer'),
         }

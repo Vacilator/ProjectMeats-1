@@ -119,11 +119,13 @@ class Supplier(TenantAwareModel):
         blank=True,
         help_text="Multiple contacts associated with this supplier",
     )
-    products = models.ManyToManyField(
-        'system.Product',
-        related_name="suppliers",
+
+    plants = models.ManyToManyField(
+        'plants.Plant',
+        through='SupplierPlant',
+        related_name='suppliers',
         blank=True,
-        help_text="Products available from this supplier",
+        help_text='Plants associated with this supplier (used for active item filtering).',
     )
     shipping_offered = models.CharField(
         max_length=100,
@@ -228,3 +230,67 @@ class Supplier(TenantAwareModel):
 
     def __str__(self):
         return self.name
+
+
+class SupplierPlant(TenantAwareModel):
+    """Tenant-aware Supplier ↔ Plant association (explicit through table for RLS)."""
+
+    supplier = models.ForeignKey(
+        'Supplier',
+        on_delete=models.CASCADE,
+        related_name='plant_links',
+    )
+    plant = models.ForeignKey(
+        'plants.Plant',
+        on_delete=models.CASCADE,
+        related_name='supplier_links',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'supplier', 'plant'],
+                name='unique_supplier_plant_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'supplier']),
+            models.Index(fields=['tenant', 'plant']),
+        ]
+
+    def __str__(self):
+        return f"{self.supplier} - {self.plant}"
+
+
+class SupplierAvailableItem(TenantAwareModel):
+    """Supplier-specific availability for a MasterProduct."""
+
+    supplier = models.ForeignKey(
+        'Supplier',
+        on_delete=models.CASCADE,
+        related_name='available_items',
+    )
+    master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.PROTECT,
+        related_name='supplier_variants',
+    )
+
+    product_code = models.CharField(max_length=100, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['supplier', 'master_product__display_name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'supplier', 'master_product'],
+                name='unique_supplier_master_product_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'supplier']),
+            models.Index(fields=['tenant', 'master_product']),
+        ]
+
+    def __str__(self):
+        return f"{self.supplier} - {self.master_product.display_name}"
