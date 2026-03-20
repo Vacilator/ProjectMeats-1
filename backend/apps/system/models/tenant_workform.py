@@ -232,7 +232,7 @@ class TenantWorkForm(models.Model):
                 form_ids.add(coerced)
 
             # Form containers (legacy + canonical)
-            if node_type in {'formMultiStepContainer', 'formProcessGroup', 'formProcess'}:
+            if node_type in {'formMultiStepContainer', 'formProcessGroup', 'formProcess', 'formBook', 'smartWorkForm'}:
                 form_ids.add(coerced)
 
         return list(form_ids)

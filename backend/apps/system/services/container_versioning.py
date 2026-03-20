@@ -213,6 +213,7 @@ def extract_container_definitions(nodes: list[dict]) -> list[dict]:
         'formProcessGroup',
         'formProcess',
         'formMultiStepContainer',
+        'smartWorkForm',
     }
 
     step_types = {

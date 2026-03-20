@@ -36,6 +36,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - Self-healing data pipeline (Auto-Tune Flywheel): nightly `process_rlhf_flywheel` aggregates `AIFeedbackLog` into JSONL instruction sets for future fine-tuning of local enrichment models.
 - Vector Memory, Tool Registry, RLHF Pipeline, and AIAgentWidget successfully scaffolded via CLI agent.
 - Added staff-only tool discovery endpoint: `GET /api/v1/ai-assistant/tools/openapi/` (PR #3689).
+- Replaced scaffolded mock AI responses with live OpenAI API integration and fixed Tools Registry 500 error.
 - Added staff-only swarm router preview endpoint: `POST /api/v1/ai-assistant/swarm/invoke/` (PR #3693).
 - Added staff-only VectorMemory similarity search endpoint: `POST /api/v1/ai-assistant/memory/search/` (PR #3696).
 
