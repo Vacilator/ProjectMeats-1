@@ -72,7 +72,7 @@ const DirtyIndicatorBanner = styled.div<{ $show: boolean }>`
 `;
 
 const ActionBar = styled.div<{ $show: boolean }>`
-  display: ${props => props.$show ? 'flex' : 'none'};
+  display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
@@ -80,6 +80,9 @@ const ActionBar = styled.div<{ $show: boolean }>`
   border-top: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 `;
 
 const ConfirmationModal = styled.div<{ $show: boolean }>`
@@ -233,11 +236,11 @@ export const TabbedConfigPanelWithShadow: React.FC<TabbedConfigPanelWithShadowPr
         </PanelContent>
 
         {/* Action Bar (Apply/Discard) */}
-        <ActionBar $show={isDirty}>
-          <SecondaryButton onClick={handleDiscard}>
+        <ActionBar $show={true}>
+          <SecondaryButton onClick={handleDiscard} disabled={!isDirty}>
             Discard Changes
           </SecondaryButton>
-          <PrimaryButton onClick={handleApply}>
+          <PrimaryButton onClick={handleApply} disabled={!isDirty}>
             Apply Changes
           </PrimaryButton>
         </ActionBar>

@@ -23,6 +23,20 @@ To reach an **Enterprise-Grade, AI-Assisted Multiplayer Engine**, remaining work
 - 150+ node workflows remain responsive while panning/zooming.
 - Error handling contract is defined and usable by the runtime.
 
+**Draft: Error Edge + Retry JSON contract**
+```json
+{
+  "type": "error",
+  "label": "On Error",
+  "errorType": "timeout",
+  "retry": {
+    "maxAttempts": 3,
+    "backoffMs": 2000,
+    "strategy": "exponential"
+  }
+}
+```
+
 ### 🧩 Vanguard 2: Advanced Orchestration (Power & Reusability)
 **Goal**: upgrade from linear flow builder → reusable, composable programming interface.
 

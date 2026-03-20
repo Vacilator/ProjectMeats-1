@@ -5,6 +5,7 @@ Provides helper functions for constructing OAuth redirect URIs
 and handling Microsoft Graph API integration.
 """
 
+from django.conf import settings
 from django.http import HttpRequest
 from typing import Optional
 
@@ -82,7 +83,8 @@ def get_microsoft_auth_url(
     redirect_uri = get_microsoft_redirect_uri(request)
     
     # Build authorization URL
-    authority = "https://login.microsoftonline.com/common"
+    tenant_id = getattr(settings, 'MICROSOFT_TENANT_ID', 'common')
+    authority = f"https://login.microsoftonline.com/{tenant_id}"
     authorize_endpoint = f"{authority}/oauth2/v2.0/authorize"
     
     params = {

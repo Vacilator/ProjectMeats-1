@@ -144,14 +144,19 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             )
 
             # Generate AI response (live OpenAI)
-            if not getattr(settings, 'OPENAI_API_KEY', None):
+            # Use both Django settings and environment variables to avoid false negatives
+            # if env is loaded after settings import in some deployment setups.
+            import os
+
+            openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
+            if not openai_api_key:
                 return Response(
                     {
                         'error': 'OpenAI not configured (missing OPENAI_API_KEY)',
                         'detail': (
                             'Backend container is missing OPENAI_API_KEY. '
-                            'Verify the GitHub Environment secret OPENAI_API_KEY is set for this <env>-backend '
-                            'and that the deploy-backend job writes it into backend.env.'
+                            'Verify the GitHub Environment secret OPENAI_API_KEY is set for the active backend environment '
+                            'and that the deploy-backend job writes it into backend.env / passes it to docker run.'
                         ),
                     },
                     status=status.HTTP_400_BAD_REQUEST,

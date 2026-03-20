@@ -307,7 +307,11 @@ export const StepManagerPanel: React.FC<StepManagerPanelProps> = ({
       label,
       stepNumber,
       hasErrors: false, // TODO: Add validation logic
-      isConfigured: Boolean(nodeData.entityType || selectedFieldsCount > 0 || fieldsCount > 0),
+      isConfigured: Boolean(
+        nodeData.entityType ||
+          (Array.isArray(nodeData.fields) && nodeData.fields.length > 0) ||
+          (Array.isArray(nodeData.selectedFields) && nodeData.selectedFields.length > 0)
+      ),
     };
   }).sort((a, b) => {
     // Sort by step number (nulls at end)

@@ -41,9 +41,12 @@ def outlook_auth_init(request):
         client_secret = settings.MICROSOFT_CLIENT_SECRET
         redirect_uri = settings.MICROSOFT_REDIRECT_URI
         
+        tenant_id = getattr(settings, 'MICROSOFT_TENANT_ID', 'common')
+        authority = f"https://login.microsoftonline.com/{tenant_id}"
+
         msal_app = ConfidentialClientApplication(
             client_id,
-            authority=f"https://login.microsoftonline.com/common",
+            authority=authority,
             client_credential=client_secret,
         )
         
@@ -109,9 +112,12 @@ def outlook_auth_callback(request):
         client_secret = settings.MICROSOFT_CLIENT_SECRET
         redirect_uri = settings.MICROSOFT_REDIRECT_URI
         
+        tenant_id = getattr(settings, 'MICROSOFT_TENANT_ID', 'common')
+        authority = f"https://login.microsoftonline.com/{tenant_id}"
+
         msal_app = ConfidentialClientApplication(
             client_id,
-            authority="https://login.microsoftonline.com/common",
+            authority=authority,
             client_credential=client_secret,
         )
         

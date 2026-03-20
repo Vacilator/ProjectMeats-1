@@ -11,13 +11,13 @@ import React from 'react';
 import { EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType } from '@xyflow/react';
 import styled from 'styled-components';
 
+import type { ErrorEdgeContract } from '../types/errorHandling';
+
 // ============================================================================
 // Types
 // ============================================================================
 
-interface ErrorEdgeData {
-  label?: string;
-  errorType?: string;
+interface ErrorEdgeData extends ErrorEdgeContract {
   animated?: boolean;
   errorCount?: number;
 }
