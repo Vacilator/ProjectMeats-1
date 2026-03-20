@@ -16,6 +16,7 @@
  */
 import React from 'react';
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 import { BarChart3, Package, DollarSign, Users, Building } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
 import { useCockpitStats } from '../../hooks/useCockpitStats';
@@ -46,13 +47,31 @@ const StatsGrid = styled.div`
   gap: 16px;
 `;
 
-const StatCard = styled.div<{ $color: string }>`
+const StatButton = styled.button<{ $color: string }>`
   display: flex;
   flex-direction: column;
   padding: 12px;
   border-radius: var(--radius-md, 8px);
   background: rgb(var(--color-background));
   border: 1px solid rgb(var(--color-border));
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: ${props => props.$color};
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.8;
+  }
 `;
 
 const StatHeader = styled.div`
@@ -94,15 +113,17 @@ const StatValue = styled.span`
 
 export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
   const { stats, isLoading, error, refetch } = useCockpitStats();
+  const navigate = useNavigate();
 
   // Format stats for display
-  const statItems: StatItem[] = stats ? [
+  const statItems: Array<StatItem & { href?: string }> = stats ? [
     {
       id: 'total_orders',
       label: 'Total Orders',
       value: stats.quick_stats.total_orders.toLocaleString(),
       icon: <Package size={16} />,
       color: 'rgb(59, 130, 246)',
+      href: '/purchase-orders',
     },
     {
       id: 'total_revenue',
@@ -110,6 +131,7 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
       value: `$${stats.quick_stats.total_revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       icon: <DollarSign size={16} />,
       color: 'rgb(34, 197, 94)',
+      href: '/dashboard',
     },
     {
       id: 'total_customers',
@@ -117,6 +139,7 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
       value: stats.quick_stats.total_customers.toLocaleString(),
       icon: <Users size={16} />,
       color: 'rgb(168, 85, 247)',
+      href: '/customers',
     },
     {
       id: 'total_suppliers',
@@ -124,8 +147,14 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
       value: stats.quick_stats.total_suppliers.toLocaleString(),
       icon: <Building size={16} />,
       color: 'rgb(234, 179, 8)',
+      href: '/suppliers',
     },
   ] : [];
+
+  const handleStatClick = (href?: string) => {
+    if (!href) return;
+    navigate(href);
+  };
 
   return (
     <WidgetCard
@@ -137,7 +166,14 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
     >
       <StatsGrid>
         {statItems.map(stat => (
-          <StatCard key={stat.id} $color={stat.color}>
+          <StatButton
+            key={stat.id}
+            type="button"
+            $color={stat.color}
+            onClick={() => handleStatClick(stat.href)}
+            disabled={!stat.href}
+            aria-label={stat.href ? `Open ${stat.label}` : undefined}
+          >
             <StatHeader>
               <StatIconWrapper $color={stat.color}>
                 {stat.icon}
@@ -145,7 +181,7 @@ export const QuickStatsWidget: React.FC<QuickStatsWidgetProps> = () => {
               <StatLabel>{stat.label}</StatLabel>
             </StatHeader>
             <StatValue>{stat.value}</StatValue>
-          </StatCard>
+          </StatButton>
         ))}
       </StatsGrid>
     </WidgetCard>

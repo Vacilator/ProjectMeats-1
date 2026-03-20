@@ -14,12 +14,13 @@
  * Theme Compliance:
  * - Uses CSS custom properties
  */
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Phone, Clock, User, Calendar } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
-import { useCockpitStats } from '../../hooks/useCockpitStats';
+import { useCockpitStats, UpcomingCall } from '../../hooks/useCockpitStats';
 import { format, formatDistanceToNow } from 'date-fns';
+import { EntityDetailModal } from '../Shared/EntityDetailModal';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -42,18 +43,25 @@ const CallsList = styled.div`
   padding: 4px;
 `;
 
-const CallItem = styled.div`
+const CallItemButton = styled.button`
   display: flex;
   flex-direction: column;
   padding: 12px;
   border-radius: var(--radius-md, 8px);
   border: 1px solid rgb(var(--color-border));
+  background: transparent;
+  text-align: left;
   transition: all 0.15s ease;
   cursor: pointer;
 
   &:hover {
     background: rgb(var(--color-background-hover));
     border-color: rgb(var(--color-primary));
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
   }
 `;
 
@@ -110,6 +118,39 @@ const EmptyState = styled.div`
 
 export const UpcomingCallsWidget: React.FC<UpcomingCallsWidgetProps> = () => {
   const { stats, isLoading, error, refetch } = useCockpitStats();
+  const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: number } | null>(null);
+
+  const calls = useMemo(() => stats?.upcoming_calls ?? [], [stats]);
+
+  const normalizeEntityTypeForModal = (raw: string): string | null => {
+    const value = (raw ?? '').toString().trim().toLowerCase();
+    if (!value) return null;
+
+    const compact = value.replace(/\s+/g, '').replace(/_/g, '');
+    if (compact === 'purchaseorder') return 'purchase_order';
+    if (compact === 'salesorder') return 'sales_order';
+
+    const normalized = value.replace(/\s+/g, '_');
+    return [
+      'supplier',
+      'customer',
+      'contact',
+      'purchase_order',
+      'sales_order',
+      'product',
+      'carrier',
+      'plant',
+      'invoice',
+    ].includes(normalized)
+      ? normalized
+      : null;
+  };
+
+  const handleCallClick = (call: UpcomingCall) => {
+    const type = normalizeEntityTypeForModal(call.entity_type);
+    if (!type) return;
+    setSelectedEntity({ type, id: call.entity_id });
+  };
 
   return (
     <WidgetCard
@@ -119,38 +160,61 @@ export const UpcomingCallsWidget: React.FC<UpcomingCallsWidgetProps> = () => {
       error={error || undefined}
       onRefresh={refetch}
     >
-      {stats && stats.upcoming_calls.length > 0 ? (
-        <CallsList>
-          {stats.upcoming_calls.map(call => (
-            <CallItem key={call.id}>
-              <CallHeader>
-                <CallTitle>{call.title}</CallTitle>
-                <CallTime>
-                  <Clock size={12} />
-                  {formatDistanceToNow(new Date(call.scheduled_for), { addSuffix: true })}
-                </CallTime>
-              </CallHeader>
-              <CallMeta>
-                <MetaItem>
-                  <Calendar size={12} />
-                  {format(new Date(call.scheduled_for), 'MMM d, h:mm a')}
-                </MetaItem>
-                {call.duration_minutes && (
-                  <MetaItem>
-                    <Clock size={12} />
-                    {call.duration_minutes} min
-                  </MetaItem>
-                )}
-                {call.assigned_to && (
-                  <MetaItem>
-                    <User size={12} />
-                    {call.assigned_to}
-                  </MetaItem>
-                )}
-              </CallMeta>
-            </CallItem>
-          ))}
-        </CallsList>
+      {calls.length > 0 ? (
+        <>
+          <CallsList>
+            {calls.map(call => {
+              const modalType = normalizeEntityTypeForModal(call.entity_type);
+              const isClickable = !!modalType;
+
+              return (
+                <CallItemButton
+                  key={call.id}
+                  type="button"
+                  onClick={() => handleCallClick(call)}
+                  aria-label={isClickable ? `Open ${call.entity_type} details` : undefined}
+                  style={{ cursor: isClickable ? 'pointer' : 'default', opacity: isClickable ? 1 : 0.75 }}
+                  disabled={!isClickable}
+                >
+                  <CallHeader>
+                    <CallTitle>{call.title}</CallTitle>
+                    <CallTime>
+                      <Clock size={12} />
+                      {formatDistanceToNow(new Date(call.scheduled_for), { addSuffix: true })}
+                    </CallTime>
+                  </CallHeader>
+                  <CallMeta>
+                    <MetaItem>
+                      <Calendar size={12} />
+                      {format(new Date(call.scheduled_for), 'MMM d, h:mm a')}
+                    </MetaItem>
+                    {call.duration_minutes && (
+                      <MetaItem>
+                        <Clock size={12} />
+                        {call.duration_minutes} min
+                      </MetaItem>
+                    )}
+                    {call.assigned_to && (
+                      <MetaItem>
+                        <User size={12} />
+                        {call.assigned_to}
+                      </MetaItem>
+                    )}
+                  </CallMeta>
+                </CallItemButton>
+              );
+            })}
+          </CallsList>
+
+          {selectedEntity && (
+            <EntityDetailModal
+              isOpen={!!selectedEntity}
+              onClose={() => setSelectedEntity(null)}
+              entityType={selectedEntity.type}
+              entityId={selectedEntity.id}
+            />
+          )}
+        </>
       ) : (
         <EmptyState>
           <Phone size={32} style={{ marginBottom: '8px', opacity: 0.3 }} />
