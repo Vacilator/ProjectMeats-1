@@ -18,10 +18,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Play, Clock, Filter, RefreshCw, FileText, X } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 import { useQuickActions } from '../../contexts/QuickActionsContext';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
-import { WorkflowExecution } from '../../types/workflows';
 
 // ============================================================================
 // Types
@@ -171,7 +170,7 @@ const Card = styled.div`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgb(var(--color-text-primary) / 0.10);
   }
 `;
 
@@ -201,15 +200,19 @@ const StatusBadge = styled.span<{ $status: string }>`
   font-size: 12px;
   font-weight: 500;
   border-radius: 12px;
-  background: ${({ $status }) => 
-    $status === 'in_progress' ? 'rgb(59, 130, 246, 0.1)' :
-    $status === 'draft' ? 'rgb(var(--color-text-tertiary) / 0.1)' :
-    'rgb(234, 179, 8, 0.1)'
+  background: ${({ $status }) =>
+    $status === 'in_progress'
+      ? 'rgb(59 130 246 / 0.10)'
+      : $status === 'draft'
+        ? 'rgb(var(--color-text-tertiary) / 0.10)'
+        : 'rgb(234 179 8 / 0.10)'
   };
-  color: ${({ $status }) => 
-    $status === 'in_progress' ? 'rgb(59, 130, 246)' :
-    $status === 'draft' ? 'rgb(var(--color-text-secondary))' :
-    'rgb(234, 179, 8)'
+  color: ${({ $status }) =>
+    $status === 'in_progress'
+      ? 'rgb(59, 130, 246)'
+      : $status === 'draft'
+        ? 'rgb(var(--color-text-secondary))'
+        : 'rgb(234, 179, 8)'
   };
 `;
 
@@ -351,7 +354,7 @@ const CancelButton = styled.button`
   transition: all 0.15s ease;
   
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgb(239 68 68 / 0.10);
   }
   
   &:disabled {
@@ -367,7 +370,7 @@ const Modal = styled.div<{ $isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgb(var(--color-text-primary) / 0.50);
   align-items: center;
   justify-content: center;
   z-index: 1000;
@@ -452,7 +455,7 @@ const FormsFlowsInProgress: React.FC = () => {
         params.assigned_to = 'me';
       }
       
-      const response = await apiClient.get('/workflows/form-submissions/', { params });
+      const response = await businessApi.get('/workflows/form-submissions/', { params });
       setSubmissions(response.data.results || response.data || []);
       setLastUpdated(new Date());
     } catch (error) {
