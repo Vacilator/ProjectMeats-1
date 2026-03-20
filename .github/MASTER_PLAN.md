@@ -40,6 +40,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - Implemented recursive Agentic Tool Execution Loop (LLM -> ToolExecutor -> LLM). Orchestrator can now autonomously trigger internal Python services based on user intent.
 - Added staff-only swarm router preview endpoint: `POST /api/v1/ai-assistant/swarm/invoke/` (PR #3693).
 - Added staff-only VectorMemory similarity search endpoint: `POST /api/v1/ai-assistant/memory/search/` (PR #3696).
+- 2026-03-20 — MSAL dynamic authority fix (mitigates msaidpvalidate) — PR: #3731.
 
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
