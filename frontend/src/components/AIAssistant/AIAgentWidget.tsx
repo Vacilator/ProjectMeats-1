@@ -787,10 +787,7 @@ export const AIAgentWidget: React.FC = () => {
           <Body>
             <IntegrationBanner>
               <IntegrationDot $connected={Boolean(outlookStatus?.connected)} />
-              <span>
-                Outlook:{' '}
-                {outlookBannerText}
-              </span>
+              <span>Outlook: {outlookBannerText}</span>
               <IntegrationLink href="/settings/email-integrations">
                 {outlookStatus?.connected ? 'Manage' : 'Connect'}
               </IntegrationLink>

@@ -40,7 +40,7 @@ import {
 // TypeScript Interfaces
 // ============================================================================
 
-interface FieldWithContextProps {
+export interface FieldWithContextProps {
   /** Field label */
   label: string;
   
