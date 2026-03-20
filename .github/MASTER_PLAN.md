@@ -73,6 +73,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3703
   - Registers schema-only `search_vector_memory` so it appears in tools/openapi for agent discovery (execution remains via staff-only API).
 
+- 2026-03-20 — Phase 7.0/8.0: Resolve HITL review items (PR: #3705)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3705
+  - Adds staff-only `POST /api/v1/ai-assistant/review/<feedback_id>/resolve/` and a minimal widget action to resolve the latest pending item.
+
 - 2026-03-19 — Phase 9.5: Book + Pages paradigm shift — Commit: fca3d658 (PR: #3631)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3631
   - Paradigm: Form Process Group behaves like a "book" / swimlane; Form steps render as "pages" with in-node field preview.
