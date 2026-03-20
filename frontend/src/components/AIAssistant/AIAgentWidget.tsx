@@ -523,6 +523,126 @@ export const AIAgentWidget: React.FC = () => {
 
     setMessages((m) => [...m, { id: newId(), role: 'user', content: text, createdAt: Date.now() }]);
 
+    // Slash commands (local, staff-only endpoints)
+    if (text === '/help') {
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content:
+            'Commands:\n' +
+            '- /pending — list pending review items\n' +
+            '- /resolve [idPrefix] [json] — resolve item (optional corrected JSON)\n' +
+            '- /resolve — resolves latest pending item\n',
+          createdAt: Date.now(),
+        },
+      ]);
+      return;
+    }
+
+    if (text === '/pending') {
+      setState('thinking');
+      try {
+        const res = await businessApi.get<{
+          results?: Array<{ id: string; document_type: string; confidence_score: number }>;
+        }>('/ai-assistant/review/pending/');
+
+        const items = Array.isArray(res.data?.results) ? res.data.results : [];
+        if (!items.length) {
+          setMessages((m) => [
+            ...m,
+            { id: newId(), role: 'assistant', content: 'No pending review items found.', createdAt: Date.now() },
+          ]);
+          setState('idle');
+          return;
+        }
+
+        latestPendingReviewRef.current = { id: items[0].id, document_type: items[0].document_type };
+
+        const lines = items
+          .slice(0, 10)
+          .map((i) => `- ${i.document_type} (${Math.round((i.confidence_score ?? 0) * 100)}%) id=${i.id.slice(0, 8)}…`)
+          .join('\n');
+        const suffix = items.length > 10 ? `\n(+${items.length - 10} more)` : '';
+
+        setMessages((m) => [
+          ...m,
+          { id: newId(), role: 'assistant', content: `Pending review items:\n${lines}${suffix}`, createdAt: Date.now() },
+        ]);
+        setState('idle');
+      } catch {
+        setMessages((m) => [
+          ...m,
+          { id: newId(), role: 'assistant', content: 'Pending list is unavailable (requires staff permissions).', createdAt: Date.now() },
+        ]);
+        setState('idle');
+      }
+      return;
+    }
+
+    if (text.startsWith('/resolve')) {
+      const rest = text.replace('/resolve', '').trim();
+      const parts = rest ? rest.split(' ') : [];
+      const idPrefix = parts.length ? parts[0] : '';
+      const jsonPart = parts.length > 1 ? rest.slice(idPrefix.length).trim() : '';
+
+      let targetId = latestPendingReviewRef.current?.id ?? '';
+      if (idPrefix) {
+        // Accept full UUID or prefix (first 8 chars) - best effort.
+        if (idPrefix.length >= 8) targetId = idPrefix;
+      }
+
+      if (!targetId) {
+        setMessages((m) => [
+          ...m,
+          { id: newId(), role: 'assistant', content: 'No target id to resolve. Try /pending first.', createdAt: Date.now() },
+        ]);
+        return;
+      }
+
+      let corrected: unknown = undefined;
+      if (jsonPart) {
+        try {
+          corrected = JSON.parse(jsonPart);
+          if (typeof corrected !== 'object' || corrected === null || Array.isArray(corrected)) {
+            throw new Error('user_corrected_data must be an object');
+          }
+        } catch {
+          setMessages((m) => [
+            ...m,
+            {
+              id: newId(),
+              role: 'assistant',
+              content: 'Invalid JSON. Usage: /resolve <idPrefix?> {"field":"value"}',
+              createdAt: Date.now(),
+            },
+          ]);
+          return;
+        }
+      }
+
+      setState('thinking');
+      try {
+        await businessApi.post(`/ai-assistant/review/${targetId}/resolve/`, {
+          user_corrected_data: corrected,
+        });
+        setMessages((m) => [
+          ...m,
+          { id: newId(), role: 'assistant', content: `Resolved review item: ${targetId.slice(0, 8)}…`, createdAt: Date.now() },
+        ]);
+        latestPendingReviewRef.current = null;
+        setState('idle');
+      } catch {
+        setMessages((m) => [
+          ...m,
+          { id: newId(), role: 'assistant', content: 'Resolve failed or unavailable (requires staff permissions).', createdAt: Date.now() },
+        ]);
+        setState('idle');
+      }
+      return;
+    }
+
     setState('thinking');
     try {
       const res = await businessApi.post<{
