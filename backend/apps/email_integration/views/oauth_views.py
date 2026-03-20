@@ -61,7 +61,8 @@ def outlook_auth_init(request):
         auth_url = msal_app.get_authorization_request_url(
             scopes=scopes,
             redirect_uri=redirect_uri,
-            state=state
+            state=state,
+            prompt="select_account",  # Mitigates msaidpvalidate 400 errors and enforces clean session selection
         )
         
         return JsonResponse({

@@ -45,6 +45,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-20 — Outlook OAuth canary validation fix (prompt=select_account) — PR: #TBD
+
 - 2026-03-20 — WorkForms: align pages with service layer + monitoring dedupe (PR: #3685)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3685
   - WorkForms InProgress/History now use `businessApi` (no legacy `apiClient`).
