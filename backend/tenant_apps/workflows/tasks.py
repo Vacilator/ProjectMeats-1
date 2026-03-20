@@ -255,7 +255,7 @@ def _get_entity_data(entity_type: str, entity_id: int, tenant):
     from tenant_apps.purchase_orders.models import PurchaseOrder
     from tenant_apps.sales_orders.models import SalesOrder
     from tenant_apps.invoices.models import Invoice
-    from tenant_apps.products.models import Product
+    from tenant_apps.products.models import MasterProduct
     
     model_map = {
         'supplier': Supplier,
@@ -263,7 +263,7 @@ def _get_entity_data(entity_type: str, entity_id: int, tenant):
         'purchase_order': PurchaseOrder,
         'sales_order': SalesOrder,
         'invoice': Invoice,
-        'product': Product,
+        'product': MasterProduct,
     }
     
     model = model_map.get(entity_type)

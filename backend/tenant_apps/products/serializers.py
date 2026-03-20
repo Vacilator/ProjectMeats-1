@@ -11,48 +11,27 @@ from rest_framework import serializers
 
 from apps.system.models import Product as SystemProduct
 
-from .models import Product
+from .models import MasterProduct
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    """Legacy serializer for tenant-level Product model (deprecated)."""
-
-    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    """Serializer for tenant-scoped MasterProduct."""
 
     class Meta:
-        model = Product
+        model = MasterProduct
         fields = [
-            "id",
-            "tenant",
-            "product_code",
-            "description_of_product_item",
-            "type_of_protein",
-            "fresh_or_frozen",
-            "package_type",
-            "net_or_catch",
-            "edible_or_inedible",
-            "tested_product",
-            "supplier",
-            "supplier_name",
-            "supplier_item_number",
-            "plants_available",
-            "origin",
-            "carton_type",
-            "pcs_per_carton",
-            "uom",
-            "namp",
-            "usda",
-            "ub",
-            "unit_weight",
-            "is_active",
-            "created_on",
-            "modified_on",
+            'id',
+            'tenant',
+            'protein',
+            'item_name',
+            'type',
+            'trim',
+            'display_name',
+            'is_active',
+            'created_on',
+            'modified_on',
         ]
-        read_only_fields = ["id", "tenant", "created_on", "modified_on"]
-        extra_kwargs = {
-            "product_code": {"required": True},
-            "description_of_product_item": {"required": True},
-        }
+        read_only_fields = ['id', 'tenant', 'display_name', 'created_on', 'modified_on']
 
 
 class LegacySystemProductSerializer(serializers.ModelSerializer):
