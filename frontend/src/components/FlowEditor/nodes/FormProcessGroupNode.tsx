@@ -1,14 +1,15 @@
 /**
  * Legacy FormProcessGroupNode
  *
- * Kept for backward compatibility. The canonical Form container is `FormNode`.
+ * Kept for backward compatibility.
+ * Restored to the purple multi-step container renderer (FormProcessNode).
  */
 
-import { FormNode, type FormNodeData } from './FormNode';
+import { FormProcessNode, type ContainerNodeData } from './FormProcessNode';
 
-export type FormProcessGroupData = FormNodeData;
+export type FormProcessGroupData = ContainerNodeData;
 
 // Deprecated alias
-export const FormProcessGroupNode = FormNode;
+export const FormProcessGroupNode = FormProcessNode;
 
-export default FormNode;
+export default FormProcessNode;
