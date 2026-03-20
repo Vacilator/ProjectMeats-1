@@ -294,6 +294,74 @@ export const AIAgentWidget: React.FC = () => {
     };
   }, [defaultActionMessage]);
 
+  const seenPendingReviewIdsRef = useRef<Set<string>>(new Set());
+  const pendingReviewPollingDisabledRef = useRef(false);
+
+  useEffect(() => {
+    if (!expanded) return;
+    if (pendingReviewPollingDisabledRef.current) return;
+
+    let isCancelled = false;
+    let intervalId: number | undefined;
+
+    type PendingReviewItem = {
+      id: string;
+      document_id: string;
+      document_type: string;
+      confidence_score: number;
+      created_on: string;
+    };
+
+    const poll = async () => {
+      if (isCancelled) return;
+      try {
+        const res = await businessApi.get<{ results?: PendingReviewItem[] }>('/ai-assistant/review/pending/');
+        const items = Array.isArray(res.data?.results) ? res.data.results : [];
+
+        const newItems = items.filter((i) => !seenPendingReviewIdsRef.current.has(i.id));
+        newItems.forEach((i) => seenPendingReviewIdsRef.current.add(i.id));
+
+        if (newItems.length) {
+          setState('action_required');
+          setDetail({
+            document_type: newItems[0].document_type,
+            message: `I found ${newItems.length} document(s) that need review.`,
+          });
+
+          const lines = newItems
+            .slice(0, 5)
+            .map((i) => `- ${i.document_type} (${Math.round((i.confidence_score ?? 0) * 100)}% confidence)`)
+            .join('\n');
+
+          const suffix = newItems.length > 5 ? `\n(+${newItems.length - 5} more)` : '';
+
+          setMessages((m) => [
+            ...m,
+            {
+              id: newId(),
+              role: 'assistant',
+              content: `Pending review detected:\n${lines}${suffix}`,
+              createdAt: Date.now(),
+            },
+          ]);
+        }
+      } catch {
+        // Non-staff users will typically get a 403; disable polling silently.
+        pendingReviewPollingDisabledRef.current = true;
+        if (intervalId) window.clearInterval(intervalId);
+      }
+    };
+
+    // kick immediately, then poll
+    void poll();
+    intervalId = window.setInterval(poll, 30000);
+
+    return () => {
+      isCancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [expanded]);
+
   const icon =
     state === 'action_required' ? <AlertTriangle size={18} /> : state === 'thinking' ? <BrainCircuit size={18} /> : <CheckCircle2 size={18} />;
 
