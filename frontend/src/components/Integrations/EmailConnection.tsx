@@ -14,7 +14,9 @@ interface EmailConnectionProps {
   isConnected: boolean;
   connectedEmail?: string;
   connectedName?: string;
+  connectedAt?: string;
   isExpired?: boolean;
+  lastCheckedAt?: string;
   onRefresh?: () => void;
 }
 
@@ -39,7 +41,9 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
   isConnected,
   connectedEmail,
   connectedName,
+  connectedAt,
   isExpired = false,
+  lastCheckedAt,
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const config = providerConfig[provider];
@@ -79,7 +83,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
             {isExpired ? (
               <>
                 <AlertCircle size={14} />
-                <span>Token Expired</span>
+                <span>Connected (Expired)</span>
               </>
             ) : (
               <>
@@ -91,7 +95,13 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
           
           <ConnectionInfo>
             {connectedName && <InfoRow><strong>{connectedName}</strong></InfoRow>}
-            {connectedEmail && <InfoRow>{connectedEmail}</InfoRow>}
+            <InfoRow>{connectedEmail || 'Mailbox connected (email unavailable)'}</InfoRow>
+            {connectedAt && (
+              <MetaRow>Connected on {new Date(connectedAt).toLocaleDateString()}</MetaRow>
+            )}
+            {lastCheckedAt && (
+              <MetaRow>Last checked {new Date(lastCheckedAt).toLocaleTimeString()}</MetaRow>
+            )}
           </ConnectionInfo>
 
           {isExpired && (
@@ -102,6 +112,16 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
         </ConnectedSection>
       ) : (
         <DisconnectedSection>
+          <StatusBadge status="danger">
+            <AlertCircle size={14} />
+            <span>Not Connected</span>
+          </StatusBadge>
+
+          <HelpCopy>
+            Click “Connect” to authorize your Outlook mailbox. You’ll be redirected back here and this card will show
+            the connected account.
+          </HelpCopy>
+
           {config.comingSoon ? (
             <ComingSoonBadge>Coming Soon</ComingSoonBadge>
           ) : (
@@ -194,7 +214,7 @@ const DisconnectedSection = styled.div`
   gap: 12px;
 `;
 
-const StatusBadge = styled.div<{ status: 'success' | 'warning' }>`
+const StatusBadge = styled.div<{ status: 'success' | 'warning' | 'danger' }>`
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -213,6 +233,11 @@ const StatusBadge = styled.div<{ status: 'success' | 'warning' }>`
     background: rgb(234, 179, 8, 0.1);
     color: rgb(234, 179, 8);
   `}
+
+  ${props => props.status === 'danger' && `
+    background: rgb(239, 68, 68, 0.1);
+    color: rgb(239, 68, 68);
+  `}
   
   svg {
     flex-shrink: 0;
@@ -226,6 +251,18 @@ const ConnectionInfo = styled.div`
   padding: 12px;
   background: rgb(var(--color-background));
   border-radius: 8px;
+`;
+
+const MetaRow = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const HelpCopy = styled.p`
+  margin: 0;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+  line-height: 1.4;
 `;
 
 const InfoRow = styled.div`

@@ -19,11 +19,13 @@ export const IntegrationsSection: React.FC = () => {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDisconnecting, setIsDisconnecting] = useState<string | null>(null);
+  const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
 
   const loadConnections = useCallback(async () => {
     try {
       const response = await apiClient.get('/integrations/oauth/status/'); // FIX: Use apiClient
       setConnections(response.data.connections || []);
+      setLastCheckedAt(new Date().toISOString());
     } catch (error: any) {
       console.error('[IntegrationsSection] Failed to load connections:', error);
       toast.error('Failed to load integrations');
@@ -101,14 +103,18 @@ export const IntegrationsSection: React.FC = () => {
           isConnected={!!microsoftConnection}
           connectedEmail={microsoftConnection?.connected_email}
           connectedName={microsoftConnection?.connected_name}
+          connectedAt={microsoftConnection?.connected_at}
           isExpired={microsoftConnection?.is_expired}
+          lastCheckedAt={lastCheckedAt || undefined}
         />
         <EmailConnection
           provider="google"
           isConnected={!!gmailConnection}
           connectedEmail={gmailConnection?.connected_email}
           connectedName={gmailConnection?.connected_name}
+          connectedAt={gmailConnection?.connected_at}
           isExpired={gmailConnection?.is_expired}
+          lastCheckedAt={lastCheckedAt || undefined}
         />
       </IntegrationGrid>
 
