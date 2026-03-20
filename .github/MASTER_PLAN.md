@@ -38,6 +38,12 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-20 — WorkForms: align pages with service layer + monitoring dedupe (PR: #3685)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3685
+  - WorkForms InProgress/History now use `businessApi` (no legacy `apiClient`).
+  - WorkForms /monitoring now reuses Cockpit ProcessMonitor (single source of truth).
+  - Normalized invalid rgba/rgb color strings in WorkForms pages.
+
 - 2026-03-19 — Phase 9.5: Book + Pages paradigm shift — Commit: fca3d658 (PR: #3631)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3631
   - Paradigm: Form Process Group behaves like a "book" / swimlane; Form steps render as "pages" with in-node field preview.
