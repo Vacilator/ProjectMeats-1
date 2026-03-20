@@ -65,6 +65,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3699
   - Adds staff-only `GET /api/v1/ai-assistant/review/pending/` backed by AIFeedbackLog (unresolved, confidence_score < 0.85).
 
+- 2026-03-20 — Phase 7.0/8.0: Widget polls pending review queue (PR: #3701)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3701
+  - AIAgentWidget polls the staff-only pending-review endpoint while expanded and switches to action_required when new items appear (403 disables polling silently).
+
 - 2026-03-19 — Phase 9.5: Book + Pages paradigm shift — Commit: fca3d658 (PR: #3631)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3631
   - Paradigm: Form Process Group behaves like a "book" / swimlane; Form steps render as "pages" with in-node field preview.
