@@ -21,6 +21,18 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - HITL (Human-in-the-Loop) loop: new `AIFeedbackLog` stores original extracted payload + user corrections + confidence + derived deltas to drive continuous improvement.
 - UX: introduced `AIAgentWidget` (bottom-right) that can pulse/expand when `requires_human_review` is detected (websocket/polling hookup pending).
 
+**Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
+
+### 2026-03-20 — Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF
+- Milestone: PM-AS (ProjectMeats Multi-Agent Swarm) scaffolding.
+- Specialized agents:
+  - Orchestrator (semantic router)
+  - Extractor
+  - Enricher
+  - Meat SME (domain validator / safety gate)
+  - Executor (side-effects)
+- Self-healing data pipeline (Auto-Tune Flywheel): nightly `process_rlhf_flywheel` aggregates `AIFeedbackLog` into JSONL instruction sets for future fine-tuning of local enrichment models.
+
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
 ### PR Log (append-only)
