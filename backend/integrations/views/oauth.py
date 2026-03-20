@@ -5,6 +5,8 @@ import secrets
 from datetime import timedelta
 from urllib.parse import urlencode, quote
 
+from django.conf import settings
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -18,6 +20,47 @@ from apps.integrations.providers.base import EmailProviderError, AuthenticationE
 from apps.tenants.models import Tenant
 
 logger = logging.getLogger(__name__)
+
+_OAUTH_COOKIE_PREFIX = 'pm_oauth'
+_OAUTH_COOKIE_MAX_AGE_SECONDS = 15 * 60
+_OAUTH_COOKIE_PATH = '/api/v1/integrations/oauth/'
+_SIGNER = TimestampSigner(salt='pm.integrations.oauth')
+
+
+def _oauth_cookie_name(key: str, provider: str) -> str:
+    return f'{_OAUTH_COOKIE_PREFIX}_{key}_{provider}'
+
+
+def _set_signed_oauth_cookie(response: HttpResponseRedirect, *, name: str, value: str, request) -> None:
+    secure = bool(getattr(settings, 'SESSION_COOKIE_SECURE', False))
+    if not secure:
+        secure = request.is_secure()
+
+    response.set_cookie(
+        name,
+        _SIGNER.sign(value),
+        max_age=_OAUTH_COOKIE_MAX_AGE_SECONDS,
+        httponly=True,
+        secure=secure,
+        samesite='Lax',
+        path=_OAUTH_COOKIE_PATH,
+    )
+
+
+def _get_signed_oauth_cookie(request, *, name: str) -> str | None:
+    signed = request.COOKIES.get(name)
+    if not signed:
+        return None
+
+    try:
+        return _SIGNER.unsign(signed, max_age=_OAUTH_COOKIE_MAX_AGE_SECONDS)
+    except (BadSignature, SignatureExpired):
+        return None
+
+
+def _clear_oauth_cookies(response, provider: str) -> None:
+    response.delete_cookie(_oauth_cookie_name('state', provider), path=_OAUTH_COOKIE_PATH)
+    response.delete_cookie(_oauth_cookie_name('tenant', provider), path=_OAUTH_COOKIE_PATH)
 
 
 class OAuthAuthorizeView(APIView):
@@ -48,8 +91,14 @@ class OAuthAuthorizeView(APIView):
         if not tenant:
             return HttpResponse('Tenant not resolved for this request.', status=400, content_type='text/plain')
 
-        # Generate CSRF state and persist in session.
+        # Generate CSRF state.
         state = secrets.token_urlsafe(32)
+
+        # Persist state/tenant for callback verification.
+        #
+        # Why cookies too?
+        # Production uses SESSION_COOKIE_SAMESITE=Strict, which prevents the session cookie
+        # from being sent on cross-site redirects back from Microsoft.
         request.session[f'oauth_state_{provider}'] = state
         request.session[f'oauth_tenant_{provider}'] = str(tenant.id)
 
@@ -87,7 +136,21 @@ class OAuthAuthorizeView(APIView):
         }
 
         auth_url = f'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?{urlencode(params)}'
-        return HttpResponseRedirect(auth_url)
+
+        response = HttpResponseRedirect(auth_url)
+        _set_signed_oauth_cookie(
+            response,
+            name=_oauth_cookie_name('state', provider),
+            value=state,
+            request=request,
+        )
+        _set_signed_oauth_cookie(
+            response,
+            name=_oauth_cookie_name('tenant', provider),
+            value=str(tenant.id),
+            request=request,
+        )
+        return response
 
 
 class OAuthCallbackView(APIView):
@@ -104,38 +167,62 @@ class OAuthCallbackView(APIView):
         error = request.query_params.get('error')
         if error:
             error_description = request.query_params.get('error_description', 'Unknown error')
-            return redirect(f"/settings/email-integrations?error={quote(error)}&message={quote(error_description)}")
+            response = redirect(
+                f"/settings/email-integrations?error={quote(error)}&message={quote(error_description)}"
+            )
+            _clear_oauth_cookies(response, provider)
+            return response
 
         code = request.query_params.get('code')
         if not code:
-            return redirect('/settings/email-integrations?error=no_code')
+            response = redirect('/settings/email-integrations?error=no_code')
+            _clear_oauth_cookies(response, provider)
+            return response
 
         state = request.query_params.get('state')
-        expected_state = request.session.get(f'oauth_state_{provider}')
+        expected_state = request.session.get(f'oauth_state_{provider}') or _get_signed_oauth_cookie(
+            request,
+            name=_oauth_cookie_name('state', provider),
+        )
         if not state or state != expected_state:
-            return redirect('/settings/email-integrations?error=invalid_state')
+            response = redirect('/settings/email-integrations?error=invalid_state')
+            _clear_oauth_cookies(response, provider)
+            return response
 
-        tenant_id = request.session.get(f'oauth_tenant_{provider}')
+        tenant_id = request.session.get(f'oauth_tenant_{provider}') or _get_signed_oauth_cookie(
+            request,
+            name=_oauth_cookie_name('tenant', provider),
+        )
         if not tenant_id:
-            return redirect('/settings/email-integrations?error=no_tenant')
+            response = redirect('/settings/email-integrations?error=no_tenant')
+            _clear_oauth_cookies(response, provider)
+            return response
         tenant_id = str(tenant_id)
 
         try:
             tenant = Tenant.objects.get(id=tenant_id)
         except Tenant.DoesNotExist:
-            return redirect('/settings/email-integrations?error=tenant_not_found')
+            response = redirect('/settings/email-integrations?error=tenant_not_found')
+            _clear_oauth_cookies(response, provider)
+            return response
 
         # Must exactly match what was used in the authorize redirect.
         callback_path = f'/api/v1/integrations/oauth/callback/{provider}/'
         redirect_uri = get_microsoft_redirect_uri(request, callback_path=callback_path)
 
         if provider != 'microsoft':
-            return redirect('/settings/email-integrations?error=provider_not_supported')
+            response = redirect('/settings/email-integrations?error=provider_not_supported')
+            _clear_oauth_cookies(response, provider)
+            return response
 
         try:
             provider_client = MicrosoftGraphProvider(tenant.id)
         except EmailProviderError as e:
-            return redirect(f"/settings/email-integrations?error=provider_not_configured&message={quote(str(e))}")
+            response = redirect(
+                f"/settings/email-integrations?error=provider_not_configured&message={quote(str(e))}"
+            )
+            _clear_oauth_cookies(response, provider)
+            return response
 
         try:
             token_response = provider_client.exchange_code(code, redirect_uri)
@@ -160,11 +247,17 @@ class OAuthCallbackView(APIView):
             request.session.pop(f'oauth_state_{provider}', None)
             request.session.pop(f'oauth_tenant_{provider}', None)
 
-            return redirect('/settings/email-integrations?success=connected')
+            response = redirect('/settings/email-integrations?success=connected')
+            _clear_oauth_cookies(response, provider)
+            return response
 
         except (AuthenticationError, EmailProviderError, ValueError) as e:
             logger.exception('[OAuthCallbackView] token exchange failed provider=%s tenant_id=%s', provider, tenant_id)
-            return redirect(f"/settings/email-integrations?error=exchange_failed&message={quote(str(e))}")
+            response = redirect(f"/settings/email-integrations?error=exchange_failed&message={quote(str(e))}")
+            _clear_oauth_cookies(response, provider)
+            return response
         except Exception:
             logger.exception('[OAuthCallbackView] unexpected failure provider=%s tenant_id=%s', provider, tenant_id)
-            return redirect('/settings/email-integrations?error=exchange_failed')
+            response = redirect('/settings/email-integrations?error=exchange_failed')
+            _clear_oauth_cookies(response, provider)
+            return response
