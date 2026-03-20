@@ -282,15 +282,10 @@ export const TabbedConfigPanel: React.FC<TabbedConfigPanelProps> = ({
           </AnimatePresence>
         </PanelContent>
 
-        {/* Footer with Actions */}
-        <PanelFooter>
-          <FooterButton onClick={onDiscard} variant="secondary">
-            Discard
-          </FooterButton>
-          <FooterButton onClick={onApply} variant="primary">
-            Apply Changes
-          </FooterButton>
-        </PanelFooter>
+        {/*
+          Apply/Discard controls are provided by the outer *WithShadow wrapper.
+          Avoid duplicate "Apply" actions inside the panel.
+        */}
       </PanelContainer>
     </AnimatePresence>
   );

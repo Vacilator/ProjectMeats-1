@@ -15,7 +15,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { Node, Edge } from '@xyflow/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { debounce } from 'lodash';
 
 // Smart Auto-Map (Phase 7 stabilization)
 import { AutoMappingService, FieldMappingSuggestion } from '../utils/autoMappingService';
@@ -238,45 +237,29 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
   }, [schema, formData]);
 
   // Handle field value change
+  // NOTE: This panel runs inside a shadow-state wrapper (TabbedConfigPanelWithShadow).
+  // We stage changes immediately into the wrapper via onUpdateNode and rely on the
+  // wrapper's single Apply/Discard bar to commit/revert.
   const handleFieldChange = (fieldId: string, value: any) => {
-    setFormData(prev => ({ ...prev, [fieldId]: value }));
-    
-    // Validate field immediately
+    if (!node?.id) return;
+
     const field = findFieldById(schema, fieldId);
-    if (field) {
-      const error = validateField(field, value, formData);
-      setErrors(prev => ({
-        ...prev,
-        [fieldId]: error || ''
-      }));
-    }
-    
-    // AUTO-SAVE: Debounced auto-save after field change (Phase 4: Advanced Config)
-    debouncedAutoSave(fieldId, value);
+
+    setFormData((prev) => {
+      const next = { ...prev, [fieldId]: value };
+      onUpdateNode(node.id, next);
+
+      if (field) {
+        const error = validateField(field, value, next);
+        setErrors((errs) => ({
+          ...errs,
+          [fieldId]: error || '',
+        }));
+      }
+
+      return next;
+    });
   };
-
-  // Auto-save functionality (debounced to avoid excessive updates)
-  const debouncedAutoSave = useMemo(
-    () =>
-      debounce((fieldId: string, value: any) => {
-        if (!node?.id) return;
-        
-        // Only auto-save if no errors
-        const hasErrors = Object.values(errors).some(error => error);
-        if (!hasErrors) {
-          console.log(`[DynamicConfigPanel] Auto-saving field: ${fieldId}`);
-          onUpdateNode(node.id, { ...formData, [fieldId]: value });
-        }
-      }, 1000), // 1 second debounce
-    [node?.id, formData, errors, onUpdateNode]
-  );
-
-  // Cleanup debounced function on unmount
-  useEffect(() => {
-    return () => {
-      debouncedAutoSave.cancel();
-    };
-  }, [debouncedAutoSave]);
 
   // Toggle section collapse
   const toggleSection = (sectionId: string) => {
@@ -348,36 +331,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     onUpdateNode(node.id, updatedNode.data || {});
   };
 
-  // Handle Apply button
-  const handleApply = () => {
-    if (!node?.id) {
-      console.warn('[DynamicConfigPanel] Cannot apply changes: node ID is missing');
-      return;
-    }
-    // Update node with form data
-    onUpdateNode(node.id, formData);
-    if (onApply) {
-      onApply();
-    }
-  };
-
-  // Handle Discard button
-  const handleDiscard = () => {
-    // Reset form data to node data
-    if (node?.data) {
-      setFormData(node.data);
-      setErrors({});
-    }
-    if (onDiscard) {
-      onDiscard();
-    }
-  };
-
-  // Check if form has changes
-  const hasChanges = useMemo(() => {
-    if (!node?.data) return false;
-    return JSON.stringify(formData) !== JSON.stringify(node.data);
-  }, [formData, node?.data]);
+  // Apply/Discard are handled by the outer shadow-state wrapper.
 
   // Check if form is valid
   const isValid = useMemo(() => {
@@ -689,17 +643,8 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       
       <Footer>
         <FooterInfo>
-          {hasChanges && <UnsavedBadge>Unsaved changes</UnsavedBadge>}
-          {!isValid && <ErrorBadge>{Object.keys(errors).filter(k => errors[k]).length} errors</ErrorBadge>}
+          {!isValid && <ErrorBadge>{Object.keys(errors).filter((k) => errors[k]).length} errors</ErrorBadge>}
         </FooterInfo>
-        <FooterActions>
-          <Button variant="secondary" onClick={handleDiscard} disabled={!hasChanges}>
-            Discard
-          </Button>
-          <Button variant="primary" onClick={handleApply} disabled={!hasChanges || !isValid}>
-            Apply
-          </Button>
-        </FooterActions>
       </Footer>
     </Container>
   );
