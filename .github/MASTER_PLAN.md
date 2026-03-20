@@ -69,6 +69,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3701
   - AIAgentWidget polls the staff-only pending-review endpoint while expanded and switches to action_required when new items appear (403 disables polling silently).
 
+- 2026-03-20 — Phase 8.0: ToolRegistry includes VectorMemory search (PR: #3703)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3703
+  - Registers schema-only `search_vector_memory` so it appears in tools/openapi for agent discovery (execution remains via staff-only API).
+
 - 2026-03-19 — Phase 9.5: Book + Pages paradigm shift — Commit: fca3d658 (PR: #3631)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3631
   - Paradigm: Form Process Group behaves like a "book" / swimlane; Form steps render as "pages" with in-node field preview.
