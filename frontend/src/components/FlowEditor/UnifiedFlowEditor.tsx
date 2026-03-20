@@ -5105,11 +5105,43 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const fitView = useCallback(
     (opts?: { padding?: number; duration?: number; maxZoom?: number }) => {
       if (reactFlowInstance?.fitView) {
-        reactFlowInstance.fitView({ padding: opts?.padding ?? 0.25, duration: opts?.duration ?? 300, maxZoom: opts?.maxZoom ?? 1.15 } as any);
+        reactFlowInstance.fitView({
+          padding: opts?.padding ?? 0.28,
+          duration: opts?.duration ?? 300,
+          maxZoom: opts?.maxZoom ?? 1.1,
+        } as any);
       }
     },
     [reactFlowInstance]
   );
+
+  const didApplyInitialViewportRef = useRef(false);
+
+  // On first load: restore saved viewport (if provided) else fit-to-content.
+  useEffect(() => {
+    if (didApplyInitialViewportRef.current) return;
+    if (!reactFlowInstance) return;
+
+    const hasGraph = nodes.length > 0 || edges.length > 0;
+    if (!hasGraph) return;
+
+    didApplyInitialViewportRef.current = true;
+
+    requestAnimationFrame(() => {
+      if (initialViewport && reactFlowInstance?.setViewport) {
+        reactFlowInstance.setViewport(initialViewport);
+        return;
+      }
+
+      fitView({ padding: 0.32, duration: 350, maxZoom: 1.05 });
+
+      // Nudge the fitted view so the default left palette doesn't occlude the first nodes.
+      if (isPaletteVisible && reactFlowInstance?.getViewport && reactFlowInstance?.setViewport) {
+        const vp = reactFlowInstance.getViewport();
+        reactFlowInstance.setViewport({ ...vp, x: vp.x + 140 });
+      }
+    });
+  }, [edges.length, fitView, initialViewport, isPaletteVisible, nodes.length, reactFlowInstance]);
   
   const zoomIn = useCallback(() => {
     if (reactFlowInstance?.zoomIn) {
@@ -6921,7 +6953,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           animation: 'dash 0.5s linear infinite',
         }}
         connectionLineType="step"
-        fitView
         snapToGrid={snapToGrid}
         snapGrid={[gridSize, gridSize]}
         connectionRadius={20}

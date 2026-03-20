@@ -32,6 +32,14 @@ import {
 
 export type EditorMode = 'wizard' | 'visual' | 'expert';
 
+type Viewport = { x: number; y: number; zoom: number };
+
+const isViewport = (value: unknown): value is Viewport => {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as any;
+  return typeof v.x === 'number' && typeof v.y === 'number' && typeof v.zoom === 'number';
+};
+
 interface EditorModeConfig {
   id: EditorMode;
   label: string;
@@ -67,7 +75,12 @@ type WorkFormStatus = 'draft' | 'active' | 'archived';
 // ============================================================================
 
 const PageContainer = styled.div`
-  padding: 20px;
+  /* Use screen real-estate: header + editor fill the page */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  height: calc(100vh - 60px);
   min-height: calc(100vh - 60px);
 `;
 
@@ -75,9 +88,17 @@ const PageHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
   flex-wrap: wrap;
   gap: 12px;
+
+  /* Keep core controls visible while editing */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
 `;
 
 const HeaderLeft = styled.div`
@@ -171,8 +192,12 @@ const StatusBadge = styled.span<{ $status: WorkFormStatus }>`
 const EditorWrapper = styled.div`
   background: rgb(var(--color-surface));
   border-radius: var(--radius-lg);
-  padding: 16px;
   border: 1px solid rgb(var(--color-border));
+
+  /* Fill remaining height under sticky header */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 `;
 
 // ============================================================================
@@ -196,6 +221,7 @@ export const WorkFormsEditor: React.FC = () => {
   const [initialNodes, setInitialNodes] = useState<Node[]>([]);
   const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
   const [initialWorkflowId, setInitialWorkflowId] = useState<string | undefined>(undefined);
+  const [initialViewport, setInitialViewport] = useState<Viewport | undefined>(undefined);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isCloneMode, setIsCloneMode] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -237,6 +263,7 @@ export const WorkFormsEditor: React.FC = () => {
       setStatus('draft');
       setInitialNodes(clone.workflow_definition?.nodes || []);
       setInitialEdges(clone.workflow_definition?.edges || []);
+      setInitialViewport(isViewport(clone.workflow_definition?.viewport) ? clone.workflow_definition?.viewport : undefined);
       setInitialWorkflowId(undefined);
       setIsCloneMode(true);
       setIsInitialized(true);
@@ -249,6 +276,7 @@ export const WorkFormsEditor: React.FC = () => {
       setStatus((existing.status as WorkFormStatus) || 'draft');
       setInitialNodes(existing.workflow_definition?.nodes || []);
       setInitialEdges(existing.workflow_definition?.edges || []);
+      setInitialViewport(isViewport(existing.workflow_definition?.viewport) ? existing.workflow_definition?.viewport : undefined);
       setInitialWorkflowId(existing.id);
       setIsInitialized(true);
       return;
@@ -271,6 +299,7 @@ export const WorkFormsEditor: React.FC = () => {
       setStatus('draft');
       setInitialNodes([]);
       setInitialEdges([]);
+      setInitialViewport(undefined);
       setInitialWorkflowId(undefined);
       setIsInitialized(true);
     }
@@ -368,6 +397,7 @@ export const WorkFormsEditor: React.FC = () => {
           <UnifiedFlowEditor
             initialNodes={initialNodes}
             initialEdges={initialEdges}
+            initialViewport={initialViewport}
             initialWorkflowId={initialWorkflowId}
             initialWorkflowName={flowName}
             initialWorkflowStatus={status}
