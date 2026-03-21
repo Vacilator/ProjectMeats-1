@@ -65,7 +65,11 @@ const UsersPage: React.FC = () => {
   const [inviteRole, setInviteRole] = useState<string>('user');
   const [editRole, setEditRole] = useState<string>('user');
 
-  const { data: users = [], isLoading: usersLoading } = useQuery<TenantUser[]>({
+  const {
+    data: users = [],
+    isLoading: usersLoading,
+    isError: usersIsError,
+  } = useQuery<TenantUser[]>({
     queryKey: ['tenant-users'],
     enabled: canAccess,
     queryFn: async () => {
@@ -75,7 +79,11 @@ const UsersPage: React.FC = () => {
     },
   });
 
-  const { data: invitations = [] } = useQuery<Invitation[]>({
+  const {
+    data: invitations = [],
+    isLoading: invitationsLoading,
+    isError: invitationsIsError,
+  } = useQuery<Invitation[]>({
     queryKey: ['tenant-invitations'],
     enabled: canAccess,
     queryFn: async () => {
@@ -257,7 +265,13 @@ const UsersPage: React.FC = () => {
         hidden: (row: TenantUser) => !permissions.can_manage_users || row.is_active,
       },
     ],
-    [permissions.can_change_roles, permissions.can_manage_users, currentUser?.id, toast]
+    [
+      permissions.can_change_roles,
+      permissions.can_manage_users,
+      currentUser?.id,
+      reactivateMutation,
+      toast,
+    ]
   );
 
   return (
@@ -295,6 +309,14 @@ const UsersPage: React.FC = () => {
         loadingFallback={<LoadingSkeleton type="table" rows={6} columns={4} />}
       >
         <>
+          {(usersIsError || invitationsIsError) && (
+            <AdminSection>
+              <InlineError role="alert">
+                Failed to load admin user data. Please refresh and try again.
+              </InlineError>
+            </AdminSection>
+          )}
+
           <AdminSection title={`Active Users (${activeUsers.length})`}>
             <AdminTable
               columns={columns as any}
@@ -304,7 +326,17 @@ const UsersPage: React.FC = () => {
               emptyState={{
                 icon: '👥',
                 title: 'No users',
-                message: 'Invite team members to get started.',
+                message: permissions.can_invite_users
+                  ? 'Invite team members to get started.'
+                  : 'No users were returned for this tenant.',
+                ...(permissions.can_invite_users
+                  ? {
+                      action: {
+                        label: 'Invite User',
+                        onClick: () => setShowInviteModal(true),
+                      },
+                    }
+                  : {}),
               }}
             />
           </AdminSection>
@@ -325,8 +357,28 @@ const UsersPage: React.FC = () => {
             </AdminSection>
           )}
 
-          {pendingInvitations.length > 0 && (
-            <AdminSection title={`Pending Invitations (${pendingInvitations.length})`}>
+          <AdminSection title={`Pending Invitations (${pendingInvitations.length})`}>
+            {invitationsLoading ? (
+              <LoadingSkeleton type="list" rows={3} />
+            ) : pendingInvitations.length === 0 ? (
+              <EmptyInvites>
+                <div style={{ fontWeight: 650 }}>No pending invitations</div>
+                <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+                  {normalizedQuery
+                    ? 'Try clearing your search to see invitations.'
+                    : permissions.can_invite_users
+                      ? 'Invite a teammate to get started.'
+                      : 'You don’t have permission to invite users.'}
+                </div>
+                {permissions.can_invite_users && (
+                  <div>
+                    <Button variant="primary" size="sm" onClick={() => setShowInviteModal(true)}>
+                      ✉️ Invite User
+                    </Button>
+                  </div>
+                )}
+              </EmptyInvites>
+            ) : (
               <InvitationList role="list">
                 {pendingInvitations.map((inv) => (
                   <InvitationRow key={inv.id} role="listitem">
@@ -358,8 +410,8 @@ const UsersPage: React.FC = () => {
                   </InvitationRow>
                 ))}
               </InvitationList>
-            </AdminSection>
-          )}
+            )}
+          </AdminSection>
         </>
       </AdminGuard>
 
@@ -454,6 +506,25 @@ const UsersPage: React.FC = () => {
     </AdminPage>
   );
 };
+
+const InlineError = styled.div`
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-error) / 0.08);
+  border: 1px solid rgb(var(--color-error) / 0.25);
+  color: rgb(var(--color-error));
+  font-size: 14px;
+`;
+
+const EmptyInvites = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+`;
 
 const InvitationList = styled.div`
   display: flex;
