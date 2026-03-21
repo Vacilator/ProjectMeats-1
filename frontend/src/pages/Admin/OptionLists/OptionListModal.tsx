@@ -33,6 +33,7 @@ interface OptionListModalProps {
   listSlug: string;
   listName: string;
   isExtensible: boolean;
+  isReorderable: boolean;
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
@@ -86,6 +87,13 @@ const CloseButton = styled.button`
     width: 18px;
     height: 18px;
   }
+`;
+
+const SectionTitle = styled.h3`
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
 `;
 
 const ItemsList = styled.div`
@@ -332,6 +340,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   listSlug,
   listName,
   isExtensible,
+  isReorderable,
   isOpen,
   onClose,
   onSave,
@@ -366,6 +375,11 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   };
 
   const handleAddItem = () => {
+    if (!isExtensible) return;
+
+    const systemItems = items.filter((i) => i.is_system_defined);
+    const tenantItems = items.filter((i) => !i.is_system_defined);
+
     const newItem: SystemChoiceItem = {
       id: `temp-${Date.now()}`,
       choice_list: listSlug,
@@ -373,14 +387,15 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
       value: '',
       label: '',
       extra_data: {},
-      order: items.length,
+      order: tenantItems.length,
       is_active: true,
       is_default: false,
       is_system_defined: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    setItems([...items, newItem]);
+
+    setItems([...systemItems, ...tenantItems, newItem]);
     setHasChanges(true);
   };
 
@@ -389,19 +404,28 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
     setHasChanges(true);
   };
 
-  const moveItem = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= items.length) return;
-    const item = items[fromIndex];
-    if (!item || item.is_system_defined) return;
+  const moveTenantItem = (fromIndex: number, toIndex: number) => {
+    if (!isExtensible || !isReorderable) return;
 
-    const next = [...items];
-    next.splice(fromIndex, 1);
-    next.splice(toIndex, 0, item);
-    setItems(next);
+    const systemItems = items.filter((i) => i.is_system_defined);
+    const tenantItems = items.filter((i) => !i.is_system_defined);
+
+    if (toIndex < 0 || toIndex >= tenantItems.length) return;
+
+    const item = tenantItems[fromIndex];
+    if (!item) return;
+
+    const nextTenant = [...tenantItems];
+    nextTenant.splice(fromIndex, 1);
+    nextTenant.splice(toIndex, 0, item);
+
+    setItems([...systemItems, ...nextTenant]);
     setHasChanges(true);
   };
 
   const handleDeleteItem = async (id: string) => {
+    if (!isExtensible) return;
+
     if (!window.confirm('Are you sure you want to delete this item?')) {
       return;
     }
@@ -424,31 +448,68 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
     }
   };
 
+  const validateTenantItems = (tenantItems: SystemChoiceItem[], systemItems: SystemChoiceItem[]) => {
+    const errors: string[] = [];
+    const systemValues = new Set(systemItems.map((i) => i.value.trim().toLowerCase()).filter(Boolean));
+    const seenTenantValues = new Set<string>();
+
+    for (const item of tenantItems) {
+      const value = item.value.trim();
+      const label = item.label.trim();
+
+      if (!value || !label) {
+        errors.push('All custom items must have both a Value and a Label.');
+        break;
+      }
+
+      const normalized = value.toLowerCase();
+      if (systemValues.has(normalized)) {
+        errors.push(`Custom value "${value}" conflicts with a system item.`);
+        break;
+      }
+
+      if (seenTenantValues.has(normalized)) {
+        errors.push(`Duplicate custom value "${value}".`);
+        break;
+      }
+
+      seenTenantValues.add(normalized);
+    }
+
+    return errors;
+  };
+
   const handleSave = async () => {
+    if (!isExtensible) return;
+
+    const itemsArray = Array.isArray(items) ? items : [];
+    const systemItems = itemsArray.filter((i) => i.is_system_defined);
+    const tenantItems = itemsArray.filter((i) => !i.is_system_defined);
+
+    const validation = validateTenantItems(tenantItems, systemItems);
+    if (validation.length > 0) {
+      toast.error(validation[0]);
+      return;
+    }
+
     setSaving(true);
     try {
-      // Ensure items is an array before processing
-      const itemsArray = Array.isArray(items) ? items : [];
-      
-      // Process items one by one
-      const promises = itemsArray
-        .filter(item => !item.is_system_defined)
-        .map(async (item, index) => {
-          const itemData = {
-            value: item.value,
-            label: item.label,
-            order: index,
-            is_active: item.is_active,
-          };
+      const baseOrder = systemItems.reduce((max, i) => Math.max(max, i.order), -1) + 1;
 
-          if (item.id.startsWith('temp-')) {
-            // Create new item
-            return adminClient.post(`/system/choice-lists/${listSlug}/items/`, itemData);
-          } else {
-            // Update existing item
-            return adminClient.patch(`/system/choice-items/${item.id}/`, itemData);
-          }
-        });
+      const promises = tenantItems.map(async (item, index) => {
+        const itemData = {
+          value: item.value,
+          label: item.label,
+          order: baseOrder + index,
+          is_active: item.is_active,
+        };
+
+        if (item.id.startsWith('temp-')) {
+          return adminClient.post(`/system/choice-lists/${listSlug}/items/`, itemData);
+        }
+
+        return adminClient.patch(`/system/choice-items/${item.id}/`, itemData);
+      });
 
       await Promise.all(promises);
 
@@ -488,62 +549,108 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
           <LoadingState>Loading items...</LoadingState>
         ) : (
           <>
+            <SectionTitle>System items</SectionTitle>
             <ItemsList>
-              {items.map((item, index) => (
-                <ItemRow key={item.id} $isSystem={item.is_system_defined}>
-                  <ReorderControls>
-                    <ReorderButton
-                      type="button"
-                      onClick={() => moveItem(index, index - 1)}
-                      disabled={!isExtensible || item.is_system_defined || index === 0}
-                      aria-label="Move item up"
-                      title="Move up"
+              {items
+                .filter((i) => i.is_system_defined)
+                .map((item) => (
+                  <ItemRow key={item.id} $isSystem={true}>
+                    <ReorderControls>
+                      <ReorderButton type="button" disabled aria-label="Move item up" title="System items cannot be reordered">
+                        <ChevronUp />
+                      </ReorderButton>
+                      <ReorderButton type="button" disabled aria-label="Move item down" title="System items cannot be reordered">
+                        <ChevronDown />
+                      </ReorderButton>
+                    </ReorderControls>
+
+                    <ItemIcon $isSystem={true}>
+                      <Globe />
+                    </ItemIcon>
+
+                    <ItemInputs>
+                      <Input
+                        type="text"
+                        value={item.value}
+                        disabled
+                        $readOnly
+                        aria-label="System item value"
+                      />
+                      <Input
+                        type="text"
+                        value={item.label}
+                        disabled
+                        $readOnly
+                        aria-label="System item label"
+                      />
+                    </ItemInputs>
+
+                    <DeleteButton disabled title="System item - cannot delete">
+                      <Lock />
+                    </DeleteButton>
+                  </ItemRow>
+                ))}
+            </ItemsList>
+
+            <SectionTitle>Custom items</SectionTitle>
+            <ItemsList>
+              {items
+                .filter((i) => !i.is_system_defined)
+                .map((item, index, tenantItems) => (
+                  <ItemRow key={item.id} $isSystem={false}>
+                    <ReorderControls>
+                      <ReorderButton
+                        type="button"
+                        onClick={() => moveTenantItem(index, index - 1)}
+                        disabled={!isExtensible || !isReorderable || index === 0 || saving}
+                        aria-label="Move item up"
+                        title={!isReorderable ? 'Reordering disabled for this list' : 'Move up'}
+                      >
+                        <ChevronUp />
+                      </ReorderButton>
+                      <ReorderButton
+                        type="button"
+                        onClick={() => moveTenantItem(index, index + 1)}
+                        disabled={!isExtensible || !isReorderable || index === tenantItems.length - 1 || saving}
+                        aria-label="Move item down"
+                        title={!isReorderable ? 'Reordering disabled for this list' : 'Move down'}
+                      >
+                        <ChevronDown />
+                      </ReorderButton>
+                    </ReorderControls>
+
+                    <ItemIcon $isSystem={false}>
+                      <Building />
+                    </ItemIcon>
+
+                    <ItemInputs>
+                      <Input
+                        type="text"
+                        placeholder="Value (e.g., 'WAGYU')"
+                        value={item.value}
+                        onChange={(e) => handleUpdateItem(item.id, 'value', e.target.value)}
+                        disabled={!isExtensible || saving}
+                        $readOnly={!isExtensible}
+                      />
+                      <Input
+                        type="text"
+                        placeholder="Label (e.g., 'Wagyu')"
+                        value={item.label}
+                        onChange={(e) => handleUpdateItem(item.id, 'label', e.target.value)}
+                        disabled={!isExtensible || saving}
+                        $readOnly={!isExtensible}
+                      />
+                    </ItemInputs>
+
+                    <DeleteButton
+                      onClick={() => handleDeleteItem(item.id)}
+                      disabled={!isExtensible || saving}
+                      title={!isExtensible ? 'This list is locked' : 'Delete item'}
                     >
-                      <ChevronUp />
-                    </ReorderButton>
-                    <ReorderButton
-                      type="button"
-                      onClick={() => moveItem(index, index + 1)}
-                      disabled={!isExtensible || item.is_system_defined || index === items.length - 1}
-                      aria-label="Move item down"
-                      title="Move down"
-                    >
-                      <ChevronDown />
-                    </ReorderButton>
-                  </ReorderControls>
-                  
-                  <ItemIcon $isSystem={item.is_system_defined}>
-                    {item.is_system_defined ? <Globe /> : <Building />}
-                  </ItemIcon>
-                  
-                  <ItemInputs>
-                    <Input
-                      type="text"
-                      placeholder="Value (e.g., 'BEEF')"
-                      value={item.value}
-                      onChange={(e) => handleUpdateItem(item.id, 'value', e.target.value)}
-                      disabled={item.is_system_defined}
-                      $readOnly={item.is_system_defined}
-                    />
-                    <Input
-                      type="text"
-                      placeholder="Label (e.g., 'Beef')"
-                      value={item.label}
-                      onChange={(e) => handleUpdateItem(item.id, 'label', e.target.value)}
-                      disabled={item.is_system_defined}
-                      $readOnly={item.is_system_defined}
-                    />
-                  </ItemInputs>
-                  
-                  <DeleteButton
-                    onClick={() => handleDeleteItem(item.id)}
-                    disabled={item.is_system_defined}
-                    title={item.is_system_defined ? 'System item - cannot delete' : 'Delete item'}
-                  >
-                    {item.is_system_defined ? <Lock /> : <Trash2 />}
-                  </DeleteButton>
-                </ItemRow>
-              ))}
+                      <Trash2 />
+                    </DeleteButton>
+                  </ItemRow>
+                ))}
             </ItemsList>
 
             {isExtensible && (
@@ -564,10 +671,11 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
             <Button $variant="secondary" onClick={handleClose} disabled={saving}>
               Cancel
             </Button>
-            <Button 
-              $variant="primary" 
-              onClick={handleSave} 
+            <Button
+              $variant="primary"
+              onClick={handleSave}
               disabled={!hasChanges || saving || !isExtensible}
+              title={!isExtensible ? 'This list is system-locked' : undefined}
             >
               <Save /> {saving ? 'Saving...' : 'Save Changes'}
             </Button>

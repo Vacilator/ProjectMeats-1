@@ -278,6 +278,7 @@ const OptionListsPage: React.FC = () => {
           listSlug={editingList.slug}
           listName={editingList.name}
           isExtensible={editingList.is_extensible}
+          isReorderable={editingList.is_reorderable}
           isOpen={true}
           onClose={handleModalClose}
           onSave={handleModalSave}

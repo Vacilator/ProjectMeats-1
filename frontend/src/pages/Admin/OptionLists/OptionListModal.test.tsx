@@ -10,6 +10,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { OptionListModal } from './OptionListModal';
 import * as apiService from '../../../services/apiService';
 
+vi.mock('../../../hooks/useToast', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  }),
+}));
+
 // Mock the API service
 vi.mock('../../../services/apiService', () => ({
   adminClient: {
@@ -30,6 +39,7 @@ describe('OptionListModal', () => {
     listSlug: 'test-list',
     listName: 'Test List',
     isExtensible: true,
+    isReorderable: true,
     isOpen: true,
     onClose: vi.fn(),
     onSave: vi.fn(),
