@@ -33,7 +33,7 @@
  * ```
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import styled from 'styled-components';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { EmptyState } from './EmptyState';
@@ -112,21 +112,37 @@ export function AdminTable<T extends Record<string, any>>({
     }
   };
 
+  const resolveValue = useCallback((row: T, key: Column<T>['key']): any => {
+    const rawKey = String(key);
+    if (!rawKey.includes('.')) {
+      return row[key as keyof T];
+    }
+
+    // Support dot-path keys like "user.email" for nested objects.
+    return rawKey.split('.').reduce<any>((acc, part) => {
+      if (acc == null) return undefined;
+      return acc[part];
+    }, row);
+  }, []);
+
   // Sort data based on current sort column and direction
   const sortedData = useMemo(() => {
     if (!sortColumn || !sortDirection) return data;
 
     return [...data].sort((a, b) => {
-      const aValue = a[sortColumn];
-      const bValue = b[sortColumn];
+      const aValue = resolveValue(a, sortColumn);
+      const bValue = resolveValue(b, sortColumn);
 
       if (aValue == null) return 1;
       if (bValue == null) return -1;
 
-      const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      const aComparable = typeof aValue === 'string' ? aValue.toLowerCase() : aValue;
+      const bComparable = typeof bValue === 'string' ? bValue.toLowerCase() : bValue;
+
+      const comparison = aComparable < bComparable ? -1 : aComparable > bComparable ? 1 : 0;
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [data, sortColumn, sortDirection]);
+  }, [data, sortColumn, sortDirection, resolveValue]);
 
   // Handle row selection
   const handleSelectRow = (id: string | number) => {
@@ -247,8 +263,8 @@ export function AdminTable<T extends Record<string, any>>({
                 {columns.map((column) => (
                   <TableCell key={String(column.key)}>
                     {column.render
-                      ? column.render(row[column.key as keyof T], row)
-                      : row[column.key as keyof T]}
+                      ? column.render(resolveValue(row, column.key), row)
+                      : resolveValue(row, column.key)}
                   </TableCell>
                 ))}
                 {actions && Array.isArray(actions) && (
