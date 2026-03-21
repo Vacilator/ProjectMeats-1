@@ -1673,17 +1673,20 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // NOTE: NodeTypes typing is overly strict with mixed memo/FC node components;
 // we cast here to keep editor typing stable while runtime behavior remains unchanged.
 const staticNodeTypes = {
-  // Form nodes (Phase E - 2026-02-19)
-  form: FormStepNode,  // Form Step (Page)
-  formStepSingle: FormStepSingleNode,  // Backward compatibility
-  formBook: FormNode,  // Form container (Book)
-  // Restore legacy purple FormProcess container renderer (kept stable for business users)
+  // Canonical Form nodes
+  form: FormStepNode, // Form step
+  formProcessGroup: FormProcessNode, // Form Process container
+
+  // Backward compatibility aliases (render with canonical components)
+  formStepSingle: FormStepNode,
+  formStep: FormStepNode,
   formProcess: FormProcessNode,
-  formProcessGroup: FormProcessNode,
+  formMultiStepContainer: FormProcessNode,
+  formBook: FormProcessNode,
+
+  // Kept for backward compatibility (hidden from palette)
   smartWorkForm: SmartWorkFormNode,
-  // Backward compatibility aliases
-  formStep: FormStepSingleNode,  // Deprecated
-  formMultiStepContainer: FormProcessNode,  // Legacy container alias (render as purple process container)
+
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -7955,19 +7958,27 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   // Force all triggers to use the rich Unified Trigger node & schema
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
 
-  // Preserve specific types for all other nodes so their specific schemas load
-  if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
-  if (nodeTypeId === 'formBook') return 'formBook';
+  // Consolidate legacy form types down to two canonical renderers.
+  if (nodeTypeId === 'formStep' || nodeTypeId === 'formStepSingle') return 'form';
+
+  if (
+    nodeTypeId === 'formProcess' ||
+    nodeTypeId === 'formMultiStepContainer' ||
+    nodeTypeId === 'formBook'
+  ) {
+    return 'formProcessGroup';
+  }
+
   return nodeTypeId;
 }
 
 /** Returns true for all Form Process container node type IDs (current + legacy). */
 function isFormProcessContainerType(nodeType: string | undefined | null): boolean {
   return (
-    nodeType === 'formBook' ||
     nodeType === 'formProcessGroup' ||
     nodeType === 'formProcess' ||
-    nodeType === 'formMultiStepContainer'
+    nodeType === 'formMultiStepContainer' ||
+    nodeType === 'formBook'
   );
 }
 
@@ -8002,8 +8013,8 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
     defaults.maxInputs = 0;
   }
 
-  // Special handling for containers
-  if (resolvedType === 'formMultiStepContainer' || resolvedType === 'formProcessGroup' || resolvedType === 'formBook') {
+  // Special handling for Form Process containers
+  if (resolvedType === 'formProcessGroup') {
     defaults.fields = [];
     defaults.containerName = 'New Container';
     defaults.isExpanded = true;
