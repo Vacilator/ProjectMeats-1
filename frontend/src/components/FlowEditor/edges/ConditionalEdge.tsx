@@ -105,12 +105,15 @@ export const ConditionalEdge = React.memo<EdgeProps<ConditionalEdgeData>>(({
   const animated = data?.animated || false;
   const isTrue = data?.isTrue;
 
+  const { strokeWidth: _strokeWidth, vectorEffect: _vectorEffect, ...safeStyle } = (style || {}) as any;
+
   const edgeStyle: React.CSSProperties = {
+    ...safeStyle,
     stroke: 'rgb(245, 158, 11)', // Orange
     strokeWidth: 2.5,
     strokeDasharray: animated ? '8,4' : undefined,
+    vectorEffect: 'non-scaling-stroke',
     transition: 'all 0.3s ease',
-    ...style,
   };
 
   // Custom diamond marker for conditional edges
