@@ -73,7 +73,7 @@ export const IngestionMonitor: React.FC = () => {
     setLoading(true);
     try {
       const response = await businessApi.get<EmailLogsResponse>(
-        `/tenants/${tenantId}/integrations/email/logs/?limit=10`
+        `/integrations/email/logs/?limit=10`
       );
       setEmails(response.data.emails);
     } catch (error) {
@@ -93,7 +93,7 @@ export const IngestionMonitor: React.FC = () => {
 
     setSyncing(true);
     try {
-      await businessApi.post(`/tenants/${tenantId}/integrations/email/sync/`);
+      await businessApi.post(`/integrations/email/sync/`);
       message.success('Email sync started. This may take a few moments...');
       
       // Refresh logs after 3 seconds

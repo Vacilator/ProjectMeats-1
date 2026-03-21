@@ -253,7 +253,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
     setLoading(true);
     try {
       const response = await businessApi.get<EmailLogsResponse>(
-        `/tenants/${tenantId}/integrations/email/logs/?limit=5`
+        `/integrations/email/logs/?limit=5`
       );
       setEmails(response.data.emails);
     } catch (error) {
@@ -272,7 +272,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
 
     setSyncing(true);
     try {
-      await businessApi.post(`/tenants/${tenantId}/integrations/email/sync/`);
+      await businessApi.post(`/integrations/email/sync/`);
       
       // Refresh logs after 2 seconds
       setTimeout(() => {
