@@ -19,6 +19,7 @@ import { adminClient } from '@/services/apiService';
 import { AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { OptionListModal } from './OptionListModal';
 
 interface SystemChoiceList {
@@ -51,6 +52,8 @@ interface SystemChoiceItem {
 
 const OptionListsPage: React.FC = () => {
   const toast = useToast();
+  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const canManage = permissions.can_manage_option_lists;
 
   const [lists, setLists] = useState<SystemChoiceList[]>([]);
   const [expandedList, setExpandedList] = useState<string | null>(null);
@@ -61,8 +64,9 @@ const OptionListsPage: React.FC = () => {
   const [editingList, setEditingList] = useState<SystemChoiceList | null>(null);
 
   useEffect(() => {
+    if (!canManage) return;
     loadChoiceLists();
-  }, []);
+  }, [canManage]);
 
   const loadChoiceLists = async () => {
     setLoading(true);
@@ -154,7 +158,15 @@ const OptionListsPage: React.FC = () => {
         </SearchBar>
       }
     >
-      {loading ? (
+      {permissionsLoading ? (
+        <LoadingSkeleton type="card" rows={2} />
+      ) : !canManage ? (
+        <EmptyState
+          icon="🔒"
+          title="Access restricted"
+          message="Only tenant administrators can manage option lists."
+        />
+      ) : loading ? (
         <LoadingSkeleton type="card" rows={3} />
       ) : filteredLists.length === 0 ? (
         <EmptyState
@@ -242,7 +254,15 @@ const OptionListsPage: React.FC = () => {
                               </ItemDetails>
                             </ItemLeft>
 
-
+                            <ItemBadges>
+                              {item.is_system_defined ? (
+                                <Badge $tone="system">System</Badge>
+                              ) : (
+                                <Badge $tone="tenant">Tenant</Badge>
+                              )}
+                              {item.is_default && <Badge $tone="default">Default</Badge>}
+                              {!item.is_active && <Badge $tone="inactive">Inactive</Badge>}
+                            </ItemBadges>
                           </ItemRow>
                         ))}
                       </ItemsList>
@@ -549,5 +569,47 @@ const ItemValue = styled.div`
   white-space: nowrap;
 `;
 
+const ItemBadges = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+`;
+
+const Badge = styled.span<{ $tone: 'system' | 'tenant' | 'default' | 'inactive' }>`
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 650;
+
+  ${(props) =>
+    props.$tone === 'system' &&
+    `
+      background: rgba(var(--color-info), 0.12);
+      color: rgb(var(--color-info));
+    `}
+
+  ${(props) =>
+    props.$tone === 'tenant' &&
+    `
+      background: rgba(var(--color-success), 0.12);
+      color: rgb(var(--color-success));
+    `}
+
+  ${(props) =>
+    props.$tone === 'default' &&
+    `
+      background: rgba(var(--color-primary), 0.12);
+      color: rgb(var(--color-primary));
+    `}
+
+  ${(props) =>
+    props.$tone === 'inactive' &&
+    `
+      background: rgba(var(--color-danger), 0.12);
+      color: rgb(var(--color-danger));
+    `}
+`;
 
 export default OptionListsPage;

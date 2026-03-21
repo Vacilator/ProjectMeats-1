@@ -6,6 +6,7 @@ import { apiClient } from '@/services/apiService';
 import { AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 
 interface Tenant {
   id: string;
@@ -42,12 +43,15 @@ const DEFAULT_DARK = '#' + '3498DB';
 const AdminProfilePage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const canManage = permissions.can_manage_profile;
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const { data: tenant, isLoading } = useQuery<Tenant>({
     queryKey: ['tenant'],
+    enabled: canManage,
     queryFn: async () => {
       const response = await apiClient.get('/tenants/current/');
       return response.data;
@@ -198,6 +202,34 @@ const AdminProfilePage: React.FC = () => {
 
     updateProfileMutation.mutate(formDataToSubmit);
   };
+
+  if (permissionsLoading) {
+    return (
+      <AdminPage
+        title="Organization Profile"
+        description="Manage your organization’s information and branding."
+        icon={<Building2 size={18} />}
+      >
+        <LoadingSkeleton type="card" rows={2} />
+      </AdminPage>
+    );
+  }
+
+  if (!canManage) {
+    return (
+      <AdminPage
+        title="Organization Profile"
+        description="Manage your organization’s information and branding."
+        icon={<Building2 size={18} />}
+      >
+        <EmptyState
+          icon="🔒"
+          title="Access restricted"
+          message="Only tenant administrators and owners can manage organization profile."
+        />
+      </AdminPage>
+    );
+  }
 
   if (isLoading) {
     return (

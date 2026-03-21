@@ -5,6 +5,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
+import { Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/apiService';
 import {
@@ -18,6 +19,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAuth } from '@/contexts/AuthContext';
 import Modal from '@/components/Modal/Modal';
 
 interface TenantUser {
@@ -47,8 +49,12 @@ interface Invitation {
 const UsersPage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
   const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const canAccess =
+    permissions.can_manage_users || permissions.can_invite_users || permissions.can_change_roles;
 
+  const [searchQuery, setSearchQuery] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
@@ -59,6 +65,7 @@ const UsersPage: React.FC = () => {
 
   const { data: users = [], isLoading: usersLoading } = useQuery<TenantUser[]>({
     queryKey: ['tenant-users'],
+    enabled: canAccess,
     queryFn: async () => {
       const response = await apiClient.get('/tenant-users/');
       const data = response.data.results || response.data;
@@ -68,6 +75,7 @@ const UsersPage: React.FC = () => {
 
   const { data: invitations = [] } = useQuery<Invitation[]>({
     queryKey: ['tenant-invitations'],
+    enabled: canAccess,
     queryFn: async () => {
       const response = await apiClient.get('/invitations/?status=pending');
       const data = response.data.results || response.data;
@@ -75,7 +83,29 @@ const UsersPage: React.FC = () => {
     },
   });
 
-  const activeUsers = useMemo(() => users.filter((u) => u.is_active), [users]);
+  const normalizedQuery = useMemo(() => searchQuery.trim().toLowerCase(), [searchQuery]);
+
+  const matchesUser = (row: TenantUser) => {
+    if (!normalizedQuery) return true;
+    const name = `${row.user.first_name || ''} ${row.user.last_name || ''}`.trim().toLowerCase();
+    return (
+      row.user.username.toLowerCase().includes(normalizedQuery) ||
+      row.user.email.toLowerCase().includes(normalizedQuery) ||
+      name.includes(normalizedQuery)
+    );
+  };
+
+  const matchesInvitation = (row: Invitation) => {
+    if (!normalizedQuery) return true;
+    return row.email.toLowerCase().includes(normalizedQuery) || (row.role || '').toLowerCase().includes(normalizedQuery);
+  };
+
+  const activeUsers = useMemo(() => users.filter((u) => u.is_active).filter(matchesUser), [users, normalizedQuery]);
+  const inactiveUsers = useMemo(() => users.filter((u) => !u.is_active).filter(matchesUser), [users, normalizedQuery]);
+  const pendingInvitations = useMemo(
+    () => invitations.filter((inv) => inv.status === 'pending' || !inv.status).filter(matchesInvitation),
+    [invitations, normalizedQuery]
+  );
 
   const inviteMutation = useMutation({
     mutationFn: async (data: { email: string; role: string }) => apiClient.post('/invitations/', data),
@@ -115,6 +145,17 @@ const UsersPage: React.FC = () => {
     },
   });
 
+  const reactivateMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.patch(`/tenant-users/${id}/`, { is_active: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+      toast.success('User reactivated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to reactivate');
+    },
+  });
+
   const revokeMutation = useMutation({
     mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/revoke/`),
     onSuccess: () => {
@@ -123,6 +164,17 @@ const UsersPage: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to revoke invitation');
+    },
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/resend/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      toast.success('Invitation resent');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to resend invitation');
     },
   });
 
@@ -183,14 +235,27 @@ const UsersPage: React.FC = () => {
         label: 'Deactivate',
         icon: '🚫',
         onClick: (user: TenantUser) => {
+          if (currentUser?.id && user.user.id === currentUser.id) {
+            toast.error('You cannot deactivate yourself');
+            return;
+          }
           setSelectedUser(user);
           setShowDeactivateConfirm(true);
         },
         variant: 'danger' as const,
-        hidden: (row: TenantUser) => !permissions.can_manage_users || !row.is_active,
+        hidden: (row: TenantUser) =>
+          !permissions.can_manage_users ||
+          !row.is_active ||
+          (currentUser?.id ? row.user.id === currentUser.id : false),
+      },
+      {
+        label: 'Reactivate',
+        icon: '✅',
+        onClick: (user: TenantUser) => reactivateMutation.mutate(user.id),
+        hidden: (row: TenantUser) => !permissions.can_manage_users || row.is_active,
       },
     ],
-    [permissions.can_change_roles, permissions.can_manage_users]
+    [permissions.can_change_roles, permissions.can_manage_users, currentUser?.id, toast]
   );
 
   return (
@@ -207,10 +272,30 @@ const UsersPage: React.FC = () => {
           )}
         </>
       }
+      headerExtras={
+        canAccess ? (
+          <SearchRow>
+            <SearchIcon aria-hidden="true" />
+            <SearchInput
+              type="text"
+              value={searchQuery}
+              placeholder="Search users and invitations…"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search users and invitations"
+            />
+          </SearchRow>
+        ) : null
+      }
     >
       {permissionsLoading ? (
         <AdminSection>
           <div>Loading…</div>
+        </AdminSection>
+      ) : !canAccess ? (
+        <AdminSection>
+          <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
+            Access restricted. Contact your tenant owner/admin for access.
+          </div>
         </AdminSection>
       ) : (
         <>
@@ -228,28 +313,52 @@ const UsersPage: React.FC = () => {
             />
           </AdminSection>
 
-          {invitations.length > 0 && (
-            <AdminSection title={`Pending Invitations (${invitations.length})`}>
+          {inactiveUsers.length > 0 && (
+            <AdminSection title={`Inactive Users (${inactiveUsers.length})`}>
+              <AdminTable
+                columns={columns as any}
+                data={inactiveUsers}
+                actions={actions as any}
+                loading={usersLoading}
+                emptyState={{
+                  icon: '👥',
+                  title: 'No inactive users',
+                  message: 'Deactivated users will appear here.',
+                }}
+              />
+            </AdminSection>
+          )}
+
+          {pendingInvitations.length > 0 && (
+            <AdminSection title={`Pending Invitations (${pendingInvitations.length})`}>
               <InvitationList role="list">
-                {invitations.map((inv) => (
+                {pendingInvitations.map((inv) => (
                   <InvitationRow key={inv.id} role="listitem">
                     <div>
                       <div style={{ fontWeight: 600 }}>{inv.email}</div>
                       <MetaRow>
                         <RoleBadge role={inv.role as any} />
-                        <MetaText>
-                          Expires {new Date(inv.expires_at).toLocaleDateString()}
-                        </MetaText>
+                        <MetaText>Expires {new Date(inv.expires_at).toLocaleDateString()}</MetaText>
                       </MetaRow>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => revokeMutation.mutate(inv.id)}
-                      disabled={revokeMutation.isPending}
-                    >
-                      Revoke
-                    </Button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => resendMutation.mutate(inv.id)}
+                        disabled={resendMutation.isPending}
+                      >
+                        Resend
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => revokeMutation.mutate(inv.id)}
+                        disabled={revokeMutation.isPending}
+                      >
+                        Revoke
+                      </Button>
+                    </div>
                   </InvitationRow>
                 ))}
               </InvitationList>
@@ -282,7 +391,9 @@ const UsersPage: React.FC = () => {
               <option value="readonly">Read Only</option>
               <option value="user">User</option>
               <option value="manager">Manager</option>
-              {permissions.role === 'owner' && <option value="admin">Admin</option>}
+              {(permissions.role === 'owner' || permissions.role === 'superuser') && (
+                <option value="admin">Admin</option>
+              )}
             </Select>
           </FormGroup>
           <ButtonGroup>
@@ -311,7 +422,9 @@ const UsersPage: React.FC = () => {
               <option value="readonly">Read Only</option>
               <option value="user">User</option>
               <option value="manager">Manager</option>
-              {permissions.role === 'owner' && <option value="admin">Admin</option>}
+              {(permissions.role === 'owner' || permissions.role === 'superuser') && (
+                <option value="admin">Admin</option>
+              )}
             </Select>
           </FormGroup>
           <ButtonGroup>
@@ -328,7 +441,15 @@ const UsersPage: React.FC = () => {
       <ConfirmDialog
         isOpen={showDeactivateConfirm}
         onClose={() => setShowDeactivateConfirm(false)}
-        onConfirm={() => selectedUser && deactivateMutation.mutate(selectedUser.id)}
+        onConfirm={() => {
+          if (!selectedUser) return;
+          if (currentUser?.id && selectedUser.user.id === currentUser.id) {
+            toast.error('You cannot deactivate yourself');
+            setShowDeactivateConfirm(false);
+            return;
+          }
+          deactivateMutation.mutate(selectedUser.id);
+        }}
         title="Deactivate User"
         message={`Deactivate ${selectedUser?.user.username}? They will lose access.`}
         confirmText="Deactivate"
@@ -365,6 +486,36 @@ const MetaRow = styled.div`
 const MetaText = styled.span`
   font-size: 12px;
   color: rgb(var(--color-text-secondary));
+`;
+
+const SearchRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-surface));
+  min-width: 320px;
+`;
+
+const SearchIcon = styled(Search)`
+  width: 18px;
+  height: 18px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  font-size: 14px;
+
+  &::placeholder {
+    color: rgb(var(--color-text-secondary));
+  }
 `;
 
 const Form = styled.form`

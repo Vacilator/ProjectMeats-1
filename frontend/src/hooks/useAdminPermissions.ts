@@ -104,7 +104,15 @@ export function isAdminOrOwner(permissions: AdminPermissions | undefined): boole
  * Helper function to get upgrade message for restricted features.
  */
 export function getAdminUpgradeMessage(
-  feature: 'manage_users' | 'billing' | 'configurations' | 'audit_logs',
+  feature:
+    | 'manage_users'
+    | 'billing'
+    | 'configurations'
+    | 'audit_logs'
+    | 'option_lists'
+    | 'profile'
+    | 'customizations'
+    | 'workspace',
   currentRole: string
 ): string {
   const messages: Record<string, string> = {
@@ -112,6 +120,10 @@ export function getAdminUpgradeMessage(
     billing: 'Only tenant owners can manage billing and subscriptions',
     configurations: 'Only tenant administrators can manage configurations',
     audit_logs: 'Only tenant administrators can view audit logs',
+    option_lists: 'Only tenant administrators can manage option lists',
+    profile: 'Only tenant administrators and owners can manage organization profile',
+    customizations: 'Only tenant administrators can manage customizations',
+    workspace: 'Only tenant administrators and owners can access the Admin Workspace',
   };
 
   if (currentRole === 'user') {

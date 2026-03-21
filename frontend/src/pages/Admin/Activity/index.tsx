@@ -22,6 +22,7 @@ import {
 import { apiClient } from '@/services/apiService';
 import { AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 
 interface ActivityLog {
   id: number;
@@ -85,6 +86,9 @@ const getActionTone = (action: string): Tone => {
 };
 
 const ActivityPage: React.FC = () => {
+  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const canView = permissions.can_view_audit_logs;
+
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -195,8 +199,9 @@ const ActivityPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!canView) return;
     loadLogs(1, false);
-  }, []);
+  }, [canView]);
 
   const formatDateTime = (isoString: string) => {
     const date = new Date(isoString);
@@ -226,6 +231,34 @@ const ActivityPage: React.FC = () => {
     if (action.includes('update') || action.includes('change') || action.includes('role')) return <Info size={16} />;
     return <FileText size={16} />;
   };
+
+  if (permissionsLoading) {
+    return (
+      <AdminPage
+        title="Activity & Audit Logs"
+        description="Complete audit trail of admin actions for your tenant."
+        icon="🕒"
+      >
+        <LoadingSkeleton type="list" rows={8} />
+      </AdminPage>
+    );
+  }
+
+  if (!canView) {
+    return (
+      <AdminPage
+        title="Activity & Audit Logs"
+        description="Complete audit trail of admin actions for your tenant."
+        icon="🕒"
+      >
+        <EmptyState
+          icon="🔒"
+          title="Access restricted"
+          message="Only tenant administrators can view audit logs."
+        />
+      </AdminPage>
+    );
+  }
 
   return (
     <AdminPage
