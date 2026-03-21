@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '@/services/apiService';
-import { AdminPage, AdminSection, ConfirmDialog, EmptyState, LoadingSkeleton } from '@/components/Admin';
+import { AdminGuard, AdminPage, AdminSection, ConfirmDialog, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -40,7 +40,7 @@ const CATEGORIES: Array<{ key: Category; label: string; icon: string }> = [
 
 const ConfigurationsPage: React.FC = () => {
   const toast = useToast();
-  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const { permissions } = useAdminPermissions();
   const canManage = permissions.can_manage_configurations;
 
   const [activeCategory, setActiveCategory] = useState<Category>('general');
@@ -168,15 +168,11 @@ const ConfigurationsPage: React.FC = () => {
         </CategoryTabs>
       }
     >
-      {permissionsLoading ? (
-        <LoadingSkeleton type="list" rows={6} />
-      ) : !canManage ? (
-        <EmptyState
-          icon="🔒"
-          title="Access restricted"
-          message="Only tenant administrators can manage configurations."
-        />
-      ) : (
+      <AdminGuard
+        feature="configurations"
+        allow={(p) => p.can_manage_configurations}
+        loadingFallback={<LoadingSkeleton type="list" rows={6} />}
+      >
         <>
           <AdminSection
             title={CATEGORIES.find((c) => c.key === activeCategory)?.label || 'Category'}
@@ -265,7 +261,7 @@ const ConfigurationsPage: React.FC = () => {
             confirmVariant="danger"
           />
         </>
-      )}
+      </AdminGuard>
     </AdminPage>
   );
 };

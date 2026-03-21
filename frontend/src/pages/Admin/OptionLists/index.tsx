@@ -16,7 +16,7 @@ import {
   Unlock,
 } from 'lucide-react';
 import { adminClient } from '@/services/apiService';
-import { AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
+import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -52,7 +52,7 @@ interface SystemChoiceItem {
 
 const OptionListsPage: React.FC = () => {
   const toast = useToast();
-  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const { permissions } = useAdminPermissions();
   const canManage = permissions.can_manage_option_lists;
 
   const [lists, setLists] = useState<SystemChoiceList[]>([]);
@@ -158,15 +158,12 @@ const OptionListsPage: React.FC = () => {
         </SearchBar>
       }
     >
-      {permissionsLoading ? (
-        <LoadingSkeleton type="card" rows={2} />
-      ) : !canManage ? (
-        <EmptyState
-          icon="🔒"
-          title="Access restricted"
-          message="Only tenant administrators can manage option lists."
-        />
-      ) : loading ? (
+      <AdminGuard
+        feature="option_lists"
+        allow={(p) => p.can_manage_option_lists}
+        loadingFallback={<LoadingSkeleton type="card" rows={2} />}
+      >
+        {loading ? (
         <LoadingSkeleton type="card" rows={3} />
       ) : filteredLists.length === 0 ? (
         <EmptyState
@@ -174,8 +171,8 @@ const OptionListsPage: React.FC = () => {
           title={searchQuery ? 'No matches' : 'No option lists'}
           message={searchQuery ? 'No option lists match your search.' : 'No option lists were returned.'}
         />
-      ) : (
-        <ListsGrid>
+        ) : (
+          <ListsGrid>
           {filteredLists.map((list) => {
             const isExpanded = expandedList === list.slug;
             const items = listItems[list.slug] || [];
@@ -272,8 +269,9 @@ const OptionListsPage: React.FC = () => {
               </ListCard>
             );
           })}
-        </ListsGrid>
-      )}
+          </ListsGrid>
+        )}
+      </AdminGuard>
 
       {editingList && (
         <OptionListModal

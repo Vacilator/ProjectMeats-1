@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Image as ImageIcon, X } from 'lucide-react';
 import { apiClient } from '@/services/apiService';
-import { AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
+import { AdminGuard, AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
@@ -43,7 +43,7 @@ const DEFAULT_DARK = '#' + '3498DB';
 const AdminProfilePage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const { permissions } = useAdminPermissions();
   const canManage = permissions.can_manage_profile;
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -203,77 +203,37 @@ const AdminProfilePage: React.FC = () => {
     updateProfileMutation.mutate(formDataToSubmit);
   };
 
-  if (permissionsLoading) {
-    return (
-      <AdminPage
-        title="Organization Profile"
-        description="Manage your organization’s information and branding."
-        icon={<Building2 size={18} />}
-      >
-        <LoadingSkeleton type="card" rows={2} />
-      </AdminPage>
-    );
-  }
-
-  if (!canManage) {
-    return (
-      <AdminPage
-        title="Organization Profile"
-        description="Manage your organization’s information and branding."
-        icon={<Building2 size={18} />}
-      >
-        <EmptyState
-          icon="🔒"
-          title="Access restricted"
-          message="Only tenant administrators and owners can manage organization profile."
-        />
-      </AdminPage>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <AdminPage
-        title="Organization Profile"
-        description="Manage your organization’s information and branding."
-        icon={<Building2 size={18} />}
-      >
-        <LoadingSkeleton type="card" rows={2} />
-      </AdminPage>
-    );
-  }
-
-  if (!tenant) {
-    return (
-      <AdminPage
-        title="Organization Profile"
-        description="Manage your organization’s information and branding."
-        icon={<Building2 size={18} />}
-      >
-        <EmptyState icon="🏢" title="Not available" message="Unable to load tenant information." />
-      </AdminPage>
-    );
-  }
-
   return (
     <AdminPage
       title="Organization Profile"
       description="Update company information, logo, and tenant branding."
       icon={<Building2 size={18} />}
       actions={
-        <Button
-          variant="primary"
-          size="sm"
-          form="tenant-profile-form"
-          type="submit"
-          disabled={!isDirty || updateProfileMutation.isPending}
-          title={!isDirty ? 'No changes to save' : undefined}
-        >
-          {updateProfileMutation.isPending ? 'Saving…' : 'Save Changes'}
-        </Button>
+        tenant ? (
+          <Button
+            variant="primary"
+            size="sm"
+            form="tenant-profile-form"
+            type="submit"
+            disabled={!isDirty || updateProfileMutation.isPending}
+            title={!isDirty ? 'No changes to save' : undefined}
+          >
+            {updateProfileMutation.isPending ? 'Saving…' : 'Save Changes'}
+          </Button>
+        ) : undefined
       }
     >
-      <form id="tenant-profile-form" onSubmit={handleSubmit}>
+      <AdminGuard
+        feature="profile"
+        allow={(p) => p.can_manage_profile}
+        loadingFallback={<LoadingSkeleton type="card" rows={2} />}
+      >
+        {isLoading ? (
+          <LoadingSkeleton type="card" rows={2} />
+        ) : !tenant ? (
+          <EmptyState icon="🏢" title="Not available" message="Unable to load tenant information." />
+        ) : (
+          <form id="tenant-profile-form" onSubmit={handleSubmit}>
         <Stack>
           <AdminSection title="Basic Information" description="How your organization appears across the app.">
             <FormGrid>
@@ -447,7 +407,9 @@ const AdminProfilePage: React.FC = () => {
             </BrandingGrid>
           </AdminSection>
         </Stack>
-      </form>
+          </form>
+        )}
+      </AdminGuard>
     </AdminPage>
   );
 };

@@ -20,7 +20,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { apiClient } from '@/services/apiService';
-import { AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
+import { AdminGuard, AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 
@@ -86,7 +86,7 @@ const getActionTone = (action: string): Tone => {
 };
 
 const ActivityPage: React.FC = () => {
-  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const { permissions } = useAdminPermissions();
   const canView = permissions.can_view_audit_logs;
 
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -232,42 +232,15 @@ const ActivityPage: React.FC = () => {
     return <FileText size={16} />;
   };
 
-  if (permissionsLoading) {
-    return (
-      <AdminPage
-        title="Activity & Audit Logs"
-        description="Complete audit trail of admin actions for your tenant."
-        icon="🕒"
-      >
-        <LoadingSkeleton type="list" rows={8} />
-      </AdminPage>
-    );
-  }
-
-  if (!canView) {
-    return (
-      <AdminPage
-        title="Activity & Audit Logs"
-        description="Complete audit trail of admin actions for your tenant."
-        icon="🕒"
-      >
-        <EmptyState
-          icon="🔒"
-          title="Access restricted"
-          message="Only tenant administrators can view audit logs."
-        />
-      </AdminPage>
-    );
-  }
-
   return (
     <AdminPage
       title="Activity & Audit Logs"
       description="Complete audit trail of admin actions for your tenant."
       icon="🕒"
       actions={
-        <>
-          <Button
+        canView ? (
+          <>
+            <Button
             variant={showFilters ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setShowFilters((s) => !s)}
@@ -284,7 +257,8 @@ const ActivityPage: React.FC = () => {
             {exporting ? <Loader size={16} /> : <Download size={16} />}
             Export CSV
           </Button>
-        </>
+          </>
+        ) : undefined
       }
       headerExtras={
         showFilters ? (
@@ -366,7 +340,12 @@ const ActivityPage: React.FC = () => {
         ) : null
       }
     >
-      {error && (
+      <AdminGuard
+        feature="audit_logs"
+        allow={(p) => p.can_view_audit_logs}
+        loadingFallback={<LoadingSkeleton type="list" rows={8} />}
+      >
+        {error && (
         <ErrorBanner role="alert">
           <AlertCircle size={18} />
           {error}
@@ -446,6 +425,7 @@ const ActivityPage: React.FC = () => {
           </Timeline>
         )}
       </AdminSection>
+      </AdminGuard>
     </AdminPage>
   );
 };
