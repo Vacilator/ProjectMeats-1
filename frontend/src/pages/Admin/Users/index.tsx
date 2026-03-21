@@ -9,10 +9,12 @@ import { Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/apiService';
 import {
+  AdminGuard,
   AdminPage,
   AdminSection,
   AdminTable,
   ConfirmDialog,
+  LoadingSkeleton,
   RoleBadge,
   StatusBadge,
 } from '@/components/Admin';
@@ -50,7 +52,7 @@ const UsersPage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
-  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const { permissions } = useAdminPermissions();
   const canAccess =
     permissions.can_manage_users || permissions.can_invite_users || permissions.can_change_roles;
 
@@ -287,17 +289,11 @@ const UsersPage: React.FC = () => {
         ) : null
       }
     >
-      {permissionsLoading ? (
-        <AdminSection>
-          <div>Loading…</div>
-        </AdminSection>
-      ) : !canAccess ? (
-        <AdminSection>
-          <div style={{ color: 'rgb(var(--color-text-secondary))' }}>
-            Access restricted. Contact your tenant owner/admin for access.
-          </div>
-        </AdminSection>
-      ) : (
+      <AdminGuard
+        feature="manage_users"
+        allow={(p) => p.can_manage_users || p.can_invite_users || p.can_change_roles}
+        loadingFallback={<LoadingSkeleton type="table" rows={6} columns={4} />}
+      >
         <>
           <AdminSection title={`Active Users (${activeUsers.length})`}>
             <AdminTable
@@ -365,7 +361,7 @@ const UsersPage: React.FC = () => {
             </AdminSection>
           )}
         </>
-      )}
+      </AdminGuard>
 
       <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Invite User">
         <Form
