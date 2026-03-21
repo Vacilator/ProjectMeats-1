@@ -316,6 +316,12 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
       next.add(suggestion.id);
       return next;
     });
+
+    // The user clicked "Apply" in the auto-map UI; commit immediately so it persists.
+    // Delay to ensure shadow-state updates have been written before commit.
+    if (onApply) {
+      setTimeout(() => onApply(), 0);
+    }
   };
 
   const handleRejectAutoMap = (suggestionId: string) => {
@@ -345,6 +351,11 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         autoAppliedIds.forEach((id) => next.add(id));
         return next;
       });
+    }
+
+    // "Apply suggested mappings" should actually persist (commit shadow state).
+    if (onApply) {
+      setTimeout(() => onApply(), 0);
     }
   };
 
