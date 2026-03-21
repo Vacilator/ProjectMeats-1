@@ -138,7 +138,7 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization'; // Fix test imports
-import { NodeConfigPanelWithShadow, TabbedConfigPanelWithShadow } from './ConfigPanel';
+import { TabbedConfigPanelWithShadow } from './ConfigPanel';
 import { getLayoutedElements, alignNodesHorizontally, alignNodesVertically, distributeNodesHorizontally, distributeNodesVertically } from './utils/autoLayout'; // Phase 2: UI/UX
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2: UI/UX
 import { useCollaboration } from './hooks/useCollaboration'; // Phase 9.2
@@ -152,13 +152,9 @@ import { FlowEditorProvider, useFlowEditor } from './context';
 
 // Error Boundary (2026-02-21 Comprehensive Enhancements)
 import { ErrorBoundary } from './ErrorBoundary';
-// NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
-import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel'; // Phase 7: Re-enabled for Smart Auto-Map
-// import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
-// import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
-// import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
-// import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
-// import { FormReferenceConfigPanel } from './ConfigPanel/FormReferenceConfigPanel';
+
+// NUCLEAR CLEANUP: Node configuration is handled by TabbedConfigPanelWithShadow (schema-driven).
+// Legacy specialized panels are kept only for nested/internal editing flows.
 import Fuse from 'fuse.js'; // PROMPT 2: Added fuzzy search
 import { HelpModal } from './HelpModal'; // Workform Editor Enhancements
 import { TemplateSelector } from './templates/TemplateSelector';
@@ -1700,7 +1696,9 @@ const staticNodeTypes = {
 
 // Dynamically build the full registry map statically ONCE outside the component.
 // This avoids TDZ / initialization crashes seen when building nodeTypes inside hooks.
-const dynamicNodeTypes: NodeTypes = { ...staticNodeTypes };
+// NOTE: NodeTypes typing is contravariant in node data and can get noisy with typed/memoized components;
+// keep the runtime registry correct and cast at the ReactFlow boundary.
+const dynamicNodeTypes: Record<string, any> = { ...staticNodeTypes };
 Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   if (dynamicNodeTypes[typeId]) return;
 
@@ -1815,14 +1813,14 @@ class ConfigPanelErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
 > {
-  state = { hasError: false, error: null };
+  state: { hasError: boolean; error: Error | null } = { hasError: false, error: null };
   
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
   
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    logger.error('[Config Panel] Error caught:', error, errorInfo);
+    logger.error('[Config Panel] Error caught:', { error, errorInfo });
     
     // Send to Sentry for monitoring
     Sentry.captureException(error, {
@@ -2122,9 +2120,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const containerIds = new Set(containerNodes.map(c => c.id));
       
       // Check for orphaned nodes (containerNodeId pointing to non-existent container)
-      const orphanedNodes = normalizedInitialNodes.filter(
-        n => n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)
-      );
+      const orphanedNodes = normalizedInitialNodes.filter((n) => {
+        const containerNodeId = (n.data as any)?.containerNodeId;
+        return typeof containerNodeId === 'string' && containerNodeId.length > 0 && !containerIds.has(containerNodeId);
+      });
       
       if (orphanedNodes.length > 0) {
         logger.warn(
@@ -2133,9 +2132,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         );
         
         // Clean up orphaned nodes by removing their containerNodeId
-        setNodes((nds) => nds.map(n => {
-          if (n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)) {
-            const cleanedData = { ...n.data };
+        setNodes((nds) => nds.map((n) => {
+          const containerNodeId = (n.data as any)?.containerNodeId;
+          if (typeof containerNodeId === 'string' && containerNodeId.length > 0 && !containerIds.has(containerNodeId)) {
+            const cleanedData = { ...(n.data as any) };
             delete cleanedData.containerNodeId;
             logger.debug(`[Container Restore] Cleaned orphaned node ${n.id}`);
             return { ...n, data: cleanedData };
@@ -2162,11 +2162,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             nodeTypeBreakdown[nodeType] = (nodeTypeBreakdown[nodeType] || 0) + 1;
             
             // Collect form references
-            if (node.data?.formId) {
-              formReferences.push(node.data.formId);
+            const formId = (node.data as any)?.formId;
+            if (typeof formId === 'string' && formId.length > 0) {
+              formReferences.push(formId);
             }
-            if (node.data?.tenantFormId) {
-              formReferences.push(node.data.tenantFormId);
+
+            const tenantFormId = (node.data as any)?.tenantFormId;
+            if (typeof tenantFormId === 'string' && tenantFormId.length > 0) {
+              formReferences.push(tenantFormId);
             }
           });
           
@@ -5887,54 +5890,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setHasUnsavedChanges(true);
   }, [setEdges, setNodes]);
 
-  // Phase 4.2.B: FormStep-specific handlers
-  const handleFormStepUpdate = useCallback((updatedStepData: any) => {
-    if (!selectedFormStep) return;
-    
-    handleNodeUpdate(selectedFormStep.id, updatedStepData);
-    setFormStepModalOpen(false);
-    setSelectedFormStep(null);
-  }, [selectedFormStep, handleNodeUpdate]);
-  
-  // Convert node data to EntityFormStepModal format (Phase 3 - WF-ENH-2026-Q1)
-  const convertNodeDataToFormStepData = useCallback((node: Node): FormStepData | undefined => {
-    if (!node.data) return undefined;
-    
-    return {
-      formId: node.data.formId,
-      formName: node.data.formName || node.data.stepTitle || node.data.label || 'Untitled Form',
-      entityType: node.data.entityType || 'supplier',
-      fields: node.data.fields || [],
-      mode: node.data.formId ? 'existing' : 'new',
-    };
-  }, []);
-  
-  // Handle EntityFormStepModal save (Phase 3 - WF-ENH-2026-Q1)
-  const handleEntityFormStepSave = useCallback((formData: FormStepData) => {
-    if (!selectedFormStep) return;
-    
-    logger.debug('[UnifiedFlowEditor] Saving EntityFormStep:', formData);
-    
-    // Update node data with form configuration
-    const updatedNodeData = {
-      ...selectedFormStep.data,
-      formId: formData.formId,
-      formName: formData.formName,
-      stepTitle: formData.formName,
-      label: formData.formName,
-      entityType: formData.entityType,
-      fields: formData.fields,
-      mode: formData.mode,
-      // Visual metadata for the node
-      configured: true,
-      fieldCount: formData.fields.length,
-    };
-    
-    handleNodeUpdate(selectedFormStep.id, updatedNodeData);
-    setFormStepModalOpen(false);
-    setSelectedFormStep(null);
-  }, [selectedFormStep, handleNodeUpdate]);
-  
+  // Form step configuration is handled by TabbedConfigPanelWithShadow + schema-driven DynamicConfigPanel.
+  // selectedFormStep is still used for nested field editing and mapping context.
+
   // Convert node data to ContainerData format (Phase 4.3)
   const convertNodeDataToContainerData = useCallback((node: Node): ContainerData | undefined => {
     if (!node.data) return undefined;
@@ -7111,7 +7069,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           collabSendCursorDebounced(pos);
         }}
         onSelectionChange={handleSelectionChange}
-        nodeTypes={dynamicNodeTypes}
+        nodeTypes={dynamicNodeTypes as unknown as NodeTypes}
         edgeTypes={staticEdgeTypes}
         // Phase 7.5/9: Always render only visible elements for large-editor performance
         onlyRenderVisibleElements={true}
@@ -7622,37 +7580,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onStartBlank={handleStartBlank}
       />
       
-      {/* 
-        NUCLEAR CLEANUP: All hardcoded config panels removed
-        NodeConfigPanelWithShadow (DynamicConfigPanel) is now the ONLY renderer
-        These SidePanel modals are no longer needed - all config handled by the main panel
-      
-      {/* FormStep Configuration Panel (using SidePanel instead of EntityFormStepModal) */}
-      {/* <SidePanel
-        isOpen={formStepModalOpen && !!selectedFormStep}
-        onClose={() => {
-          setFormStepModalOpen(false);
-          setSelectedFormStep(null);
-        }}
-      >
-        {selectedFormStep && (
-          <FormStepConfigPanel
-            step={selectedFormStep.data}
-            nodeId={selectedFormStep.id}
-            onChange={(updatedStepData) => {
-              handleNodeUpdate(selectedFormStep.id, updatedStepData);
-              setFormStepModalOpen(false);
-              setSelectedFormStep(null);
-            }}
-            onClose={() => {
-              setFormStepModalOpen(false);
-              setSelectedFormStep(null);
-            }}
-            availableFields={getPreviousStepFields(selectedFormStep.id)}
-          />
-        )}
-      </SidePanel> */}
-      
+      {/* Config is handled by the main TabbedConfigPanelWithShadow (schema-driven). */}
       {/* FormMultiStepContainer Configuration Modal (Phase 4.3) - KEEPING THIS */}
       <FormProcessModal
         isOpen={containerModalOpen && !!selectedContainer}

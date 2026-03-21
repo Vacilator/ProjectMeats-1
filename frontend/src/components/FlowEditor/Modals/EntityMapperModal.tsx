@@ -21,6 +21,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal, Select, Table, Button, Space, Typography, Alert, message, Tag } from 'antd';
+import type { TableColumnsType } from 'antd';
 import { PlusOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { businessApi } from '@/services/businessApi';
 import styled from 'styled-components';
@@ -47,6 +48,8 @@ interface FieldMapping {
   transformationType?: string;
 }
 
+type FieldMappingRow = FieldMapping & { key: number };
+
 interface EntityMapperModalProps {
   open: boolean;
   onClose: () => void;
@@ -62,7 +65,7 @@ const StyledModal = styled(Modal)`
   }
 `;
 
-const MappingTable = styled(Table)`
+const MappingTable = styled(Table<FieldMappingRow>)`
   .mapping-row {
     &:hover {
       background-color: rgba(var(--color-primary), 0.05);
@@ -217,13 +220,13 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
     return field ? field.label : fieldId;
   };
 
-  const columns = [
+  const columns: TableColumnsType<FieldMappingRow> = [
     {
       title: 'Form Field',
       dataIndex: 'formFieldId',
       key: 'formFieldId',
       width: '40%',
-      render: (value: string, record: FieldMapping, index: number) => (
+      render: (value: string, _record: FieldMappingRow, index: number) => (
         <Select
           style={{ width: '100%' }}
           placeholder="Select form field"
@@ -250,7 +253,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
       dataIndex: 'entityAttribute',
       key: 'entityAttribute',
       width: '40%',
-      render: (value: string, record: FieldMapping, index: number) => (
+      render: (value: string, _record: FieldMappingRow, index: number) => (
         <Select
           style={{ width: '100%' }}
           placeholder="Select entity attribute"
@@ -273,7 +276,7 @@ export const EntityMapperModal: React.FC<EntityMapperModalProps> = ({
       key: 'actions',
       width: '15%',
       align: 'center' as const,
-      render: (_: any, record: FieldMapping, index: number) => (
+      render: (_: any, _record: FieldMappingRow, index: number) => (
         <Button
           type="text"
           danger
