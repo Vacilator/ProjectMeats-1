@@ -5,6 +5,7 @@ import secrets
 from datetime import timedelta
 from urllib.parse import quote
 
+from django.core import signing
 from django.shortcuts import redirect
 from django.utils import timezone
 from rest_framework import status
@@ -35,18 +36,39 @@ def get_auth_url(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    if not request.tenant:
-        return Response(
-            {"error": "Tenant not found"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Generate CSRF state token
-    state = secrets.token_urlsafe(32)
-    
-    # Store state in session for validation
+    # Resolve tenant context.
+    # IMPORTANT: This endpoint is often reached via full-page navigation (not XHR),
+    # so X-Tenant-ID header may be missing. Allow explicit tenant_id query param.
+    tenant_id = request.GET.get('tenant_id')
+    tenant = getattr(request, 'tenant', None)
+
+    if tenant_id:
+        from apps.tenants.models import Tenant, TenantUser
+
+        if not (
+            request.user.is_superuser
+            or TenantUser.objects.filter(tenant_id=tenant_id, user=request.user, is_active=True).exists()
+        ):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+        except Tenant.DoesNotExist:
+            return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not tenant:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Generate signed state token (fallback when session cookies are blocked).
+    nonce = secrets.token_urlsafe(16)
+    state = signing.dumps(
+        {"tenant_id": str(tenant.id), "provider": provider_type, "nonce": nonce},
+        salt='integrations.oauth.state',
+    )
+
+    # Store state + tenant in session for strict validation where possible.
     request.session[f'oauth_state_{provider_type}'] = state
-    request.session[f'oauth_tenant_{provider_type}'] = str(request.tenant.id)
+    request.session[f'oauth_tenant_{provider_type}'] = str(tenant.id)
     
     # Build redirect URI (must match callback path and include /api/v1 sub-path routing)
     callback_path = f'/api/v1/integrations/oauth/callback/{provider_type}/'
@@ -55,7 +77,7 @@ def get_auth_url(request):
     # Get provider instance
     if provider_type == 'microsoft':
         try:
-            provider = MicrosoftGraphProvider(request.tenant.id)
+            provider = MicrosoftGraphProvider(tenant.id)
         except EmailProviderError as e:
             return Response(
                 {
@@ -121,12 +143,23 @@ def oauth_callback(request, provider_type):
     # Validate state for CSRF protection
     state = request.GET.get('state')
     expected_state = request.session.get(f'oauth_state_{provider_type}')
-    
-    if not state or state != expected_state:
-        return redirect('/settings?error=invalid_state')
-    
-    # Get tenant from session
-    tenant_id = request.session.get(f'oauth_tenant_{provider_type}')
+
+    state_payload = None
+    if state and expected_state and state == expected_state:
+        # Session-based validation succeeded
+        state_payload = None
+    else:
+        # Fallback: allow signed state when session cookies are not preserved
+        try:
+            state_payload = signing.loads(state or '', salt='integrations.oauth.state', max_age=15 * 60)
+        except Exception:
+            state_payload = None
+
+        if not state_payload or state_payload.get('provider') != provider_type:
+            return redirect('/settings?error=invalid_state')
+
+    # Get tenant from session or signed payload
+    tenant_id = request.session.get(f'oauth_tenant_{provider_type}') or (state_payload or {}).get('tenant_id')
     if not tenant_id:
         return redirect('/settings?error=no_tenant')
     
