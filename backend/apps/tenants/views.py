@@ -173,6 +173,29 @@ class TenantViewSet(viewsets.ModelViewSet):
 
         serializer = UserTenantSerializer(tenant_users, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def current(self, request):
+        """Return the current active tenant.
+
+        Prefers `request.tenant` (TenantMiddleware) and falls back to the first
+        active tenant membership for the user.
+        """
+        tenant = getattr(request, 'tenant', None)
+
+        if not tenant:
+            tenant_user = TenantUser.objects.filter(
+                user=request.user, is_active=True
+            ).select_related('tenant').first()
+            tenant = tenant_user.tenant if tenant_user else None
+
+        if not tenant:
+            return Response(
+                {"error": "User not associated with any tenant"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(TenantSerializer(tenant).data)
     
     @action(detail=False, methods=["get"])
     def current_theme(self, request):
@@ -525,19 +548,25 @@ class TenantUserViewSet(viewsets.ModelViewSet):
 class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for viewing activity logs (audit trail).
-    
+
     Read-only - logs are created automatically by the system.
     Only admins and owners can view activity logs.
-    
+
     Additional Actions:
     - export: Export activity logs to CSV
     """
-    
+
     queryset = ActivityLog.objects.all()
     serializer_class = ActivityLogSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["tenant", "user", "action", "entity_type"]
+    filterset_fields = {
+        'tenant': ['exact'],
+        'user': ['exact'],
+        'action': ['exact'],
+        'entity_type': ['exact'],
+        'created_at': ['gte', 'lte'],
+    }
     search_fields = ["description", "entity_type", "entity_id"]
     ordering_fields = ["created_at"]
     ordering = ["-created_at"]

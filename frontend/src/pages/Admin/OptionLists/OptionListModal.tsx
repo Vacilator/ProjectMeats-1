@@ -5,9 +5,10 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { X, Plus, Save, Trash2, GripVertical, Lock, Globe, Building } from 'lucide-react';
-import Modal from '../../../components/Modal/Modal';
-import { adminClient } from '../../../services/apiService';
+import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, Lock, Globe, Building } from 'lucide-react';
+import Modal from '@/components/Modal/Modal';
+import { adminClient } from '@/services/apiService';
+import { useToast } from '@/hooks/useToast';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -96,40 +97,53 @@ const ItemsList = styled.div`
   padding: 4px;
 `;
 
-const ItemRow = styled.div<{ $isSystem: boolean; $isDragging?: boolean }>`
+const ItemRow = styled.div<{ $isSystem: boolean }>`
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: ${props => props.$isSystem 
-    ? 'rgba(var(--color-surface), 0.5)' 
-    : 'rgb(var(--color-background))'};
+  background: ${(props) => (props.$isSystem ? 'rgba(var(--color-surface), 0.5)' : 'rgb(var(--color-background))')};
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
-  opacity: ${props => props.$isDragging ? 0.5 : 1};
   
   &:hover {
-    border-color: ${props => props.$isSystem 
-      ? 'rgb(var(--color-border))' 
-      : 'rgb(var(--color-primary))'};
+    border-color: ${(props) => (props.$isSystem ? 'rgb(var(--color-border))' : 'rgba(var(--color-primary), 0.65)')};
   }
 `;
 
-const DragHandle = styled.div<{ $disabled: boolean }>`
-  cursor: ${props => props.$disabled ? 'not-allowed' : 'grab'};
-  color: ${props => props.$disabled 
-    ? 'rgb(var(--color-text-tertiary))' 
-    : 'rgb(var(--color-text-secondary))'};
-  opacity: ${props => props.$disabled ? 0.3 : 1};
-  
-  &:active {
-    cursor: ${props => props.$disabled ? 'not-allowed' : 'grabbing'};
+const ReorderControls = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const ReorderButton = styled.button`
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgb(var(--color-text-secondary));
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(var(--color-primary), 0.55);
+    color: rgb(var(--color-primary));
   }
-  
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 `;
 
@@ -141,14 +155,13 @@ const ItemIcon = styled.div<{ $isSystem: boolean }>`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: ${props => props.$isSystem 
-    ? 'rgba(239, 68, 68, 0.1)' 
-    : 'rgba(34, 197, 94, 0.1)'};
+  background: ${(props) =>
+    props.$isSystem ? 'rgba(var(--color-danger), 0.12)' : 'rgba(var(--color-success), 0.12)'};
   
   svg {
     width: 12px;
     height: 12px;
-    color: ${props => props.$isSystem ? 'rgb(239, 68, 68)' : 'rgb(34, 197, 94)'};
+    color: ${(props) => (props.$isSystem ? 'rgb(var(--color-danger))' : 'rgb(var(--color-success))')};
   }
 `;
 
@@ -323,6 +336,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const toast = useToast();
   const [items, setItems] = useState<SystemChoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -344,6 +358,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
       setHasChanges(false);
     } catch (error) {
       console.error('Failed to load items:', error);
+      toast.error('Failed to load option list items');
       setItems([]); // Reset to empty array on error
     } finally {
       setLoading(false);
@@ -370,9 +385,19 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   };
 
   const handleUpdateItem = (id: string, field: 'value' | 'label', value: string) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
+    setItems(items.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
+    setHasChanges(true);
+  };
+
+  const moveItem = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= items.length) return;
+    const item = items[fromIndex];
+    if (!item || item.is_system_defined) return;
+
+    const next = [...items];
+    next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, item);
+    setItems(next);
     setHasChanges(true);
   };
 
@@ -395,7 +420,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
       setHasChanges(true);
     } catch (error) {
       console.error('Failed to delete item:', error);
-      alert('Failed to delete item. It may still be in use.');
+      toast.error('Failed to delete item. It may still be in use.');
     }
   };
 
@@ -426,13 +451,14 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
         });
 
       await Promise.all(promises);
-      
+
+      toast.success('Option list updated');
       setHasChanges(false);
       onSave();
       onClose();
     } catch (error) {
       console.error('Failed to save items:', error);
-      alert('Failed to save changes. Please try again.');
+      toast.error('Failed to save changes. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -463,11 +489,28 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
         ) : (
           <>
             <ItemsList>
-              {items.map(item => (
+              {items.map((item, index) => (
                 <ItemRow key={item.id} $isSystem={item.is_system_defined}>
-                  <DragHandle $disabled={item.is_system_defined}>
-                    <GripVertical />
-                  </DragHandle>
+                  <ReorderControls>
+                    <ReorderButton
+                      type="button"
+                      onClick={() => moveItem(index, index - 1)}
+                      disabled={!isExtensible || item.is_system_defined || index === 0}
+                      aria-label="Move item up"
+                      title="Move up"
+                    >
+                      <ChevronUp />
+                    </ReorderButton>
+                    <ReorderButton
+                      type="button"
+                      onClick={() => moveItem(index, index + 1)}
+                      disabled={!isExtensible || item.is_system_defined || index === items.length - 1}
+                      aria-label="Move item down"
+                      title="Move down"
+                    >
+                      <ChevronDown />
+                    </ReorderButton>
+                  </ReorderControls>
                   
                   <ItemIcon $isSystem={item.is_system_defined}>
                     {item.is_system_defined ? <Globe /> : <Building />}
