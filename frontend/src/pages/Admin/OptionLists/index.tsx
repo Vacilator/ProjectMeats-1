@@ -13,12 +13,12 @@ import {
   Globe,
   Lock,
   Search,
-  Trash2,
   Unlock,
 } from 'lucide-react';
 import { adminClient } from '@/services/apiService';
 import { AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/hooks/useToast';
 import { OptionListModal } from './OptionListModal';
 
 interface SystemChoiceList {
@@ -50,6 +50,8 @@ interface SystemChoiceItem {
 }
 
 const OptionListsPage: React.FC = () => {
+  const toast = useToast();
+
   const [lists, setLists] = useState<SystemChoiceList[]>([]);
   const [expandedList, setExpandedList] = useState<string | null>(null);
   const [listItems, setListItems] = useState<Record<string, SystemChoiceItem[]>>({});
@@ -66,9 +68,12 @@ const OptionListsPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await adminClient.get('/system/choice-lists/');
-      setLists(Array.isArray(response.data) ? response.data : []);
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setLists(data);
     } catch (error) {
       console.error('Failed to load choice lists:', error);
+      toast.error('Failed to load option lists');
       setLists([]);
     } finally {
       setLoading(false);
@@ -83,6 +88,7 @@ const OptionListsPage: React.FC = () => {
       setListItems((prev) => ({ ...prev, [slug]: itemsData }));
     } catch (error) {
       console.error(`Failed to load items for ${slug}:`, error);
+      toast.error('Failed to load option list items');
       setListItems((prev) => ({ ...prev, [slug]: [] }));
     } finally {
       setLoadingItems(null);
@@ -236,24 +242,7 @@ const OptionListsPage: React.FC = () => {
                               </ItemDetails>
                             </ItemLeft>
 
-                            <ItemActions>
-                              <IconButton
-                                type="button"
-                                disabled={item.is_system_defined}
-                                aria-label={item.is_system_defined ? 'System item cannot be edited' : 'Edit item'}
-                                title={item.is_system_defined ? 'System item - cannot edit' : 'Edit item'}
-                              >
-                                <Edit2 />
-                              </IconButton>
-                              <IconButton
-                                type="button"
-                                disabled={item.is_system_defined}
-                                aria-label={item.is_system_defined ? 'System item cannot be deleted' : 'Delete item'}
-                                title={item.is_system_defined ? 'System item - cannot delete' : 'Delete item'}
-                              >
-                                <Trash2 />
-                              </IconButton>
-                            </ItemActions>
+
                           </ItemRow>
                         ))}
                       </ItemsList>
@@ -560,38 +549,5 @@ const ItemValue = styled.div`
   white-space: nowrap;
 `;
 
-const ItemActions = styled.div`
-  display: flex;
-  gap: 4px;
-`;
-
-const IconButton = styled.button`
-  width: 30px;
-  height: 30px;
-  border: none;
-  background: transparent;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: rgb(var(--color-text-secondary));
-  transition: all 0.15s ease;
-
-  &:hover:not(:disabled) {
-    background: rgba(var(--color-primary), 0.12);
-    color: rgb(var(--color-primary));
-  }
-
-  &:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-`;
 
 export default OptionListsPage;

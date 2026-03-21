@@ -54,7 +54,8 @@ const ConfigurationsPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiClient.get('/configurations/');
-      const data = Array.isArray(response.data) ? response.data : [];
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setConfigurations(data);
     } catch (error) {
       console.error('Failed to load configurations:', error);

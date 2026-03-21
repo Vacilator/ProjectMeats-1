@@ -7,18 +7,21 @@ from .activity_models import ActivityLog
 
 
 class ActivityLogSerializer(serializers.ModelSerializer):
-    """Serializer for ActivityLog model."""
-    
-    user_name = serializers.SerializerMethodField()
+    """Serializer for ActivityLog model.
+
+    Frontend Admin Workspace expects nested user + tenant objects.
+    """
+
+    tenant = serializers.SerializerMethodField()
+    user = serializers.SerializerMethodField()
     action_display = serializers.CharField(source='get_action_display', read_only=True)
-    
+
     class Meta:
         model = ActivityLog
         fields = [
             'id',
             'tenant',
             'user',
-            'user_name',
             'action',
             'action_display',
             'entity_type',
@@ -29,7 +32,20 @@ class ActivityLogSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = fields
-    
-    def get_user_name(self, obj):
-        """Get username or 'System' if user is None."""
-        return obj.user.username if obj.user else 'System'
+
+    def get_user(self, obj):
+        if not obj.user:
+            return None
+
+        return {
+            'id': obj.user.id,
+            'username': obj.user.username,
+            'first_name': obj.user.first_name,
+            'last_name': obj.user.last_name,
+        }
+
+    def get_tenant(self, obj):
+        return {
+            'id': obj.tenant_id,
+            'name': obj.tenant.name,
+        }

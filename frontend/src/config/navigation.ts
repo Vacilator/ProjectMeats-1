@@ -283,6 +283,12 @@ export const adminWorkspaceNavigation: NavigationItem[] = [
         path: '/workspace/option-lists',
         roles: ['admin', 'superuser'],
       },
+      {
+        label: 'Activity & Audit Logs',
+        icon: '🕒',
+        path: '/workspace/activity',
+        roles: ['admin', 'superuser'],
+      },
     ],
   },
 ];
