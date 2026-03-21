@@ -278,5 +278,10 @@ export function autoConnectSequentialSteps(
  * (Only form steps trigger auto-connection of sequential edges)
  */
 export function shouldTriggerConnection(nodeType: string): boolean {
-  return nodeType === 'formStep' || nodeType === 'formReference';
+  return (
+    nodeType === 'form' ||
+    nodeType === 'formStep' ||
+    nodeType === 'formStepSingle' ||
+    nodeType === 'formReference'
+  );
 }

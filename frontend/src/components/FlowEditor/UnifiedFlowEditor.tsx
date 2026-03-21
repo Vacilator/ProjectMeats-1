@@ -4196,7 +4196,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    */
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
     // Phase 5: If node is inside a container and it's a form step, check for significant movement
-    if (node.parentId && (node.type === 'formStep' || node.type === 'formReference')) {
+    if (
+      node.parentId &&
+      (node.type === 'form' || node.type === 'formStep' || node.type === 'formStepSingle' || node.type === 'formReference')
+    ) {
       // Check if position changed significantly (more than 30px horizontally)
       const dragStart = dragStartPositionRef.current;
       const SIGNIFICANT_MOVEMENT_THRESHOLD = 30; // pixels

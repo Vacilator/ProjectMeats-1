@@ -221,32 +221,46 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
   
   const handleAddStep = useCallback(() => {
     if (!node) return;
-    
-    // Create a new formStep node inside the container
+
+    const isStrictContainer =
+      node.type === 'formProcessGroup' || node.type === 'formProcess' || node.type === 'formMultiStepContainer';
+
+    const existingSteps = nodes.filter(
+      (n) => n.parentId === node.id && (n.type === 'form' || n.type === 'formStep' || n.type === 'formStepSingle')
+    );
+    const index = existingSteps.length;
+
+    // Create a new canonical Form (page) node inside the container
     const newStep: Node = {
-      id: `step-${Date.now()}`,
-      type: 'formStep',
-      position: { x: 50, y: 50 + (nodes.filter(n => n.parentId === node.id).length * 100) },
-      data: {
-        name: `Step ${nodes.filter(n => n.parentId === node.id).length + 1}`,
-        entityType: '',
-        fields: [],
-      },
+      id: `page-${Date.now()}`,
+      type: 'form',
       parentId: node.id,
+      extent: 'parent',
+      expandParent: true,
+      // Keep the first step safely inside the container bounds
+      position: { x: 50 + index * 350, y: 80 },
+      style: isStrictContainer ? { width: 320, height: 320, overflow: 'hidden' } : undefined,
+      draggable: isStrictContainer ? false : true,
+      data: {
+        stepTitle: `Page ${index + 1}`,
+        label: `Page ${index + 1}`,
+        fields: [],
+        order: index,
+      },
     };
-    
+
     setNodes((nds) => [...nds, newStep]);
   }, [node, nodes, setNodes]);
   
   const handleReorderSteps = useCallback((nodeIds: string[]) => {
-    // Reposition nodes based on new order
+    // Reposition nodes based on new order (left-to-right inside the container)
     setNodes((nds) =>
       nds.map((n) => {
         const index = nodeIds.indexOf(n.id);
         if (index !== -1) {
           return {
             ...n,
-            position: { x: 50, y: 50 + index * 100 },
+            position: { x: 50 + index * 350, y: 80 },
           };
         }
         return n;
