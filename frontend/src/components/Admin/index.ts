@@ -11,6 +11,9 @@ export { LoadingSkeleton } from './LoadingSkeleton';
 export { RoleBadge } from './RoleBadge';
 export { StatusBadge } from './StatusBadge';
 
+export { AdminGuard } from './AdminGuard';
+export type { AdminFeature } from './AdminGuard';
+
 // Phase 3: Tiered Choice Engine & Virtual Schema UI
 export { default as SystemChoiceManager } from './SystemChoiceManager';
 export { default as TenantChoiceOverride } from './TenantChoiceOverride';
