@@ -6,9 +6,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { apiClient } from '@/services/apiService';
-import { AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
+import { AdminPage, AdminSection, ConfirmDialog, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 
 interface Configuration {
   id: string;
@@ -39,16 +40,20 @@ const CATEGORIES: Array<{ key: Category; label: string; icon: string }> = [
 
 const ConfigurationsPage: React.FC = () => {
   const toast = useToast();
+  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const canManage = permissions.can_manage_configurations;
 
   const [activeCategory, setActiveCategory] = useState<Category>('general');
   const [configurations, setConfigurations] = useState<Configuration[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [changes, setChanges] = useState<Record<string, string>>({});
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   useEffect(() => {
+    if (!canManage) return;
     loadConfigurations();
-  }, []);
+  }, [canManage]);
 
   const loadConfigurations = async () => {
     try {
@@ -105,11 +110,11 @@ const ConfigurationsPage: React.FC = () => {
     }
   };
 
-  const handleReset = async () => {
-    if (!window.confirm(`Reset all configurations in "${activeCategory}" category to defaults?`)) {
-      return;
-    }
+  const handleReset = () => {
+    setShowResetConfirm(true);
+  };
 
+  const confirmReset = async () => {
     try {
       setSaving(true);
       await apiClient.post('/configurations/reset_category/', {
@@ -124,6 +129,7 @@ const ConfigurationsPage: React.FC = () => {
       toast.error('Failed to reset configurations');
     } finally {
       setSaving(false);
+      setShowResetConfirm(false);
     }
   };
 
@@ -133,7 +139,7 @@ const ConfigurationsPage: React.FC = () => {
       description="Manage tenant-specific settings organized by category."
       icon="🔧"
       actions={
-        hasChanges ? (
+        canManage && hasChanges ? (
           <>
             <Button variant="outline" size="sm" onClick={() => setChanges({})} disabled={saving}>
               Cancel
@@ -162,82 +168,104 @@ const ConfigurationsPage: React.FC = () => {
         </CategoryTabs>
       }
     >
-      <AdminSection
-        title={CATEGORIES.find((c) => c.key === activeCategory)?.label || 'Category'}
-        description={
-          hasChanges
-            ? `You have ${Object.keys(changes).length} unsaved change(s).`
-            : 'Edit values and save when ready.'
-        }
-        actions={
-          <Button variant="outline" size="sm" onClick={handleReset} disabled={saving}>
-            Reset Category
-          </Button>
-        }
-      >
-        {loading ? (
-          <LoadingSkeleton type="list" rows={6} />
-        ) : filteredConfigs.length === 0 ? (
-          <EmptyState
-            icon="📋"
-            title="No configurations"
-            message="No configurations exist in this category."
+      {permissionsLoading ? (
+        <LoadingSkeleton type="list" rows={6} />
+      ) : !canManage ? (
+        <EmptyState
+          icon="🔒"
+          title="Access restricted"
+          message="Only tenant administrators can manage configurations."
+        />
+      ) : (
+        <>
+          <AdminSection
+            title={CATEGORIES.find((c) => c.key === activeCategory)?.label || 'Category'}
+            description={
+              hasChanges
+                ? `You have ${Object.keys(changes).length} unsaved change(s).`
+                : 'Edit values and save when ready.'
+            }
+            actions={
+              <Button variant="outline" size="sm" onClick={handleReset} disabled={saving}>
+                Reset Category
+              </Button>
+            }
+          >
+            {loading ? (
+              <LoadingSkeleton type="list" rows={6} />
+            ) : filteredConfigs.length === 0 ? (
+              <EmptyState
+                icon="📋"
+                title="No configurations"
+                message="No configurations exist in this category."
+              />
+            ) : (
+              <ConfigGrid>
+                {filteredConfigs.map((config) => (
+                  <ConfigField key={config.id}>
+                    <FieldHeader>
+                      <FieldLabel>
+                        {config.display_name}
+                        {config.is_required && <Required title="Required">*</Required>}
+                      </FieldLabel>
+                      {config.is_system && <SystemBadge>System</SystemBadge>}
+                    </FieldHeader>
+
+                    {config.description && <FieldDescription>{config.description}</FieldDescription>}
+
+                    {config.data_type === 'boolean' ? (
+                      <CheckboxRow>
+                        <CheckboxInput
+                          type="checkbox"
+                          checked={
+                            changes[config.id] !== undefined
+                              ? changes[config.id] === 'true'
+                              : Boolean(config.typed_value)
+                          }
+                          onChange={(e) =>
+                            handleValueChange(config.id, e.target.checked ? 'true' : 'false')
+                          }
+                          aria-label={config.display_name}
+                        />
+                        <CheckboxLabel>{changes[config.id] !== undefined ? 'Modified' : 'Enabled'}</CheckboxLabel>
+                      </CheckboxRow>
+                    ) : config.data_type === 'json' ? (
+                      <TextArea
+                        value={changes[config.id] !== undefined ? changes[config.id] : config.value}
+                        onChange={(e) => handleValueChange(config.id, e.target.value)}
+                        rows={4}
+                      />
+                    ) : (
+                      <TextInput
+                        type={config.data_type === 'integer' || config.data_type === 'float' ? 'number' : 'text'}
+                        step={config.data_type === 'float' ? '0.01' : undefined}
+                        value={changes[config.id] !== undefined ? changes[config.id] : config.value}
+                        onChange={(e) => handleValueChange(config.id, e.target.value)}
+                      />
+                    )}
+
+                    {config.updated_by_name && (
+                      <FieldMeta>
+                        Updated by {config.updated_by_name} • {new Date(config.updated_at).toLocaleString()}
+                      </FieldMeta>
+                    )}
+                  </ConfigField>
+                ))}
+              </ConfigGrid>
+            )}
+          </AdminSection>
+
+          <ConfirmDialog
+            isOpen={showResetConfirm}
+            onClose={() => setShowResetConfirm(false)}
+            onConfirm={confirmReset}
+            title="Reset Category"
+            message={`Reset all configurations in "${CATEGORIES.find((c) => c.key === activeCategory)?.label || activeCategory}" to defaults?`}
+            confirmText="Reset"
+            confirmVariant="danger"
           />
-        ) : (
-          <ConfigGrid>
-            {filteredConfigs.map((config) => (
-              <ConfigField key={config.id}>
-                <FieldHeader>
-                  <FieldLabel>
-                    {config.display_name}
-                    {config.is_required && <Required title="Required">*</Required>}
-                  </FieldLabel>
-                  {config.is_system && <SystemBadge>System</SystemBadge>}
-                </FieldHeader>
-
-                {config.description && <FieldDescription>{config.description}</FieldDescription>}
-
-                {config.data_type === 'boolean' ? (
-                  <CheckboxRow>
-                    <CheckboxInput
-                      type="checkbox"
-                      checked={
-                        changes[config.id] !== undefined
-                          ? changes[config.id] === 'true'
-                          : Boolean(config.typed_value)
-                      }
-                      onChange={(e) =>
-                        handleValueChange(config.id, e.target.checked ? 'true' : 'false')
-                      }
-                      aria-label={config.display_name}
-                    />
-                    <CheckboxLabel>{changes[config.id] !== undefined ? 'Modified' : 'Enabled'}</CheckboxLabel>
-                  </CheckboxRow>
-                ) : config.data_type === 'json' ? (
-                  <TextArea
-                    value={changes[config.id] !== undefined ? changes[config.id] : config.value}
-                    onChange={(e) => handleValueChange(config.id, e.target.value)}
-                    rows={4}
-                  />
-                ) : (
-                  <TextInput
-                    type={config.data_type === 'integer' || config.data_type === 'float' ? 'number' : 'text'}
-                    step={config.data_type === 'float' ? '0.01' : undefined}
-                    value={changes[config.id] !== undefined ? changes[config.id] : config.value}
-                    onChange={(e) => handleValueChange(config.id, e.target.value)}
-                  />
-                )}
-
-                {config.updated_by_name && (
-                  <FieldMeta>
-                    Updated by {config.updated_by_name} • {new Date(config.updated_at).toLocaleString()}
-                  </FieldMeta>
-                )}
-              </ConfigField>
-            ))}
-          </ConfigGrid>
-        )}
-      </AdminSection>
+        </>
+      )}
     </AdminPage>
   );
 };

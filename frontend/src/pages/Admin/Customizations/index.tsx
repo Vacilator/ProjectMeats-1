@@ -1,6 +1,6 @@
 import React from 'react';
 import { Palette } from 'lucide-react';
-import { AdminPage, EmptyState } from '@/components/Admin';
+import { AdminGuard, AdminPage, EmptyState } from '@/components/Admin';
 
 const CustomizationsPage: React.FC = () => {
   return (
@@ -9,11 +9,13 @@ const CustomizationsPage: React.FC = () => {
       description="Tenant-specific UI preferences and extensibility."
       icon={<Palette size={18} />}
     >
-      <EmptyState
-        icon="🎨"
-        title="Customizations coming soon"
-        message="This area will provide tenant-level UI customization, custom fields, and template tooling."
-      />
+      <AdminGuard feature="customizations" allow={(p) => p.can_manage_customizations}>
+        <EmptyState
+          icon="🎨"
+          title="Customizations coming soon"
+          message="This area will provide tenant-level UI customization, custom fields, and template tooling."
+        />
+      </AdminGuard>
     </AdminPage>
   );
 };

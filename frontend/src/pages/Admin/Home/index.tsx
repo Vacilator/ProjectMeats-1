@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { AdminPage } from '@/components/Admin/AdminPage';
+import { AdminGuard, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 
 interface WorkspaceCard {
@@ -62,6 +63,7 @@ const CARDS: WorkspaceCard[] = [
 
 const AdminWorkspaceHome: React.FC = () => {
   const { permissions, isLoading } = useAdminPermissions();
+  const canAccess = ['admin', 'owner', 'superuser'].includes(permissions.role);
 
   const roleLabel = permissions.role === 'superuser'
     ? 'Superuser'
@@ -102,7 +104,12 @@ const AdminWorkspaceHome: React.FC = () => {
         </MetaBar>
       }
     >
-      <Grid>
+      <AdminGuard
+        feature="workspace"
+        allow={() => canAccess}
+        loadingFallback={<LoadingSkeleton type="card" rows={2} />}
+      >
+        <Grid>
         {CARDS.map((card) => (
           <CardLink
             key={card.path}
@@ -117,7 +124,8 @@ const AdminWorkspaceHome: React.FC = () => {
             <CardDescription>{card.description}</CardDescription>
           </CardLink>
         ))}
-      </Grid>
+        </Grid>
+      </AdminGuard>
     </AdminPage>
   );
 };
