@@ -121,6 +121,7 @@ import {
   DocumentNode,
   UtilityNode,
   TerminalNode,
+  LoopNode,
 } from './nodes';
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
@@ -1700,6 +1701,7 @@ Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) dynamicNodeTypes[typeId] = WaitStateNode;
   else if (typeId.startsWith('document')) dynamicNodeTypes[typeId] = DocumentNode;
   else if (typeId.startsWith('terminal') || typeId.startsWith('end')) dynamicNodeTypes[typeId] = TerminalNode;
+  else if (typeId.startsWith('loop')) dynamicNodeTypes[typeId] = LoopNode;
   else if (typeId.startsWith('form')) dynamicNodeTypes[typeId] = FormStepSingleNode;
   else dynamicNodeTypes[typeId] = UtilityNode;
 });
@@ -3202,7 +3204,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       const nextData =
         sourceHandle === 'error'
-          ? { label: 'Error' }
+          ? { label: 'Error', animated: true }
           : sourceHandle === 'true'
             ? { label: 'True', isTrue: true }
             : sourceHandle === 'false'
@@ -6130,6 +6132,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         if (inferredType === 'error' && !(edge as any).data) {
           (next as any).data = {
             label: edge.label || 'Error',
+            animated: true,
           };
         }
 

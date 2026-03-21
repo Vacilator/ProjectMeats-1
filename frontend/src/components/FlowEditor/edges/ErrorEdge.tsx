@@ -105,13 +105,14 @@ export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
   });
 
   const label = data?.label || data?.errorType || 'Error Handler';
-  const animated = data?.animated || false;
+  // Vanguard 1: Error edges are animated by default.
+  const animated = data?.animated ?? true;
   const errorCount = data?.errorCount;
 
   const edgeStyle: React.CSSProperties = {
-    stroke: 'rgb(239, 68, 68)', // Red
+    stroke: 'rgb(239, 68, 68)', // Tailwind red-500
     strokeWidth: 2.5,
-    strokeDasharray: '6,6',
+    strokeDasharray: '5,5',
     transition: 'all 0.3s ease',
     ...style,
   };
