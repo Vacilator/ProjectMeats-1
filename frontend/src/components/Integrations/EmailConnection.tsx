@@ -57,7 +57,9 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
     setIsConnecting(true);
     
     try {
-      window.location.href = `/api/v1/integrations/oauth/authorize/?provider=${encodeURIComponent(provider)}&redirect=1`;
+      const tenantId = localStorage.getItem('tenantId');
+      const tenantParam = tenantId ? `&tenant_id=${encodeURIComponent(tenantId)}` : '';
+      window.location.href = `/api/v1/integrations/oauth/authorize/?provider=${encodeURIComponent(provider)}&redirect=1${tenantParam}`;
     } catch (error: any) {
       console.error('[EmailConnection] OAuth initiation failed:', error);
       toast.error('Failed to initiate connection');

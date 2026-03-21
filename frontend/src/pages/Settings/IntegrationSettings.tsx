@@ -63,7 +63,9 @@ export const IntegrationSettings: React.FC = () => {
 
   const handleConnect = (provider: string) => {
     setError(null);
-    window.location.href = `/api/v1/integrations/oauth/authorize/?provider=${encodeURIComponent(provider)}&redirect=1`;
+    const tenantId = localStorage.getItem('tenantId');
+    const tenantParam = tenantId ? `&tenant_id=${encodeURIComponent(tenantId)}` : '';
+    window.location.href = `/api/v1/integrations/oauth/authorize/?provider=${encodeURIComponent(provider)}&redirect=1${tenantParam}`;
   };
 
   const handleDisconnect = async (provider: string) => {
