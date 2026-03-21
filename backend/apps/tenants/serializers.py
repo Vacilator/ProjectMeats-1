@@ -208,6 +208,12 @@ class TenantSerializer(serializers.ModelSerializer):
             logger.info(f"📤 Processing logo upload: {logo_file.name}")
             # Django's FileField handles the file save automatically
             instance.logo = logo_file
+        else:
+            request = self.context.get('request')
+            remove_logo_raw = getattr(request, 'data', {}).get('remove_logo') if request else None
+            if str(remove_logo_raw).lower() in ('1', 'true', 'yes', 'on'):
+                logger.info("🗑️  Removing tenant logo")
+                instance.logo = None
         
         # Handle settings atomically
         settings = validated_data.pop('settings', None)

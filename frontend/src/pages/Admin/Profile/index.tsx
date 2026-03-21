@@ -36,9 +36,30 @@ interface ProfileFormData {
   primary_color_dark: string;
 }
 
-// Avoid hardcoded hex literals (color linter) while keeping stable defaults.
-const DEFAULT_LIGHT = '#' + 'DC2626';
-const DEFAULT_DARK = '#' + '3498DB';
+const isValidHexColor = (value: string) => /^#[0-9A-Fa-f]{6}$/.test(value);
+
+const rgbTripletToHex = (rgbTriplet: string): string | null => {
+  const parts = rgbTriplet
+    .split(',')
+    .map((p) => Number(p.trim()))
+    .filter((n) => Number.isFinite(n));
+
+  if (parts.length !== 3) return null;
+
+  const [r, g, b] = parts.map((n) => Math.max(0, Math.min(255, Math.round(n))));
+  return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+};
+
+const getDefaultHexFromCssVar = (varName: string, fallbackHex: string): string => {
+  if (typeof window === 'undefined') return fallbackHex;
+
+  const raw = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(varName)
+    .trim();
+
+  return rgbTripletToHex(raw) ?? fallbackHex;
+};
 
 const AdminProfilePage: React.FC = () => {
   const toast = useToast();
@@ -46,10 +67,23 @@ const AdminProfilePage: React.FC = () => {
   const { permissions } = useAdminPermissions();
   const canManage = permissions.can_manage_profile;
 
+  const defaults = useMemo(
+    () => ({
+      light: getDefaultHexFromCssVar('--color-primary', '#3498db'),
+      dark: getDefaultHexFromCssVar('--color-primary', '#5dade2'),
+    }),
+    []
+  );
+
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
 
-  const { data: tenant, isLoading } = useQuery<Tenant>({
+  const {
+    data: tenant,
+    isLoading,
+    isError: tenantIsError,
+  } = useQuery<Tenant>({
     queryKey: ['tenant'],
     enabled: canManage,
     queryFn: async () => {
@@ -65,8 +99,8 @@ const AdminProfilePage: React.FC = () => {
     contact_phone: '',
     address: '',
     website: '',
-    primary_color_light: DEFAULT_LIGHT,
-    primary_color_dark: DEFAULT_DARK,
+    primary_color_light: defaults.light,
+    primary_color_dark: defaults.dark,
   });
 
   useEffect(() => {
@@ -79,14 +113,14 @@ const AdminProfilePage: React.FC = () => {
       contact_phone: tenant.contact_phone || '',
       address: tenant.address || '',
       website: tenant.website || '',
-      primary_color_light: tenant.branding?.primary_color_light || DEFAULT_LIGHT,
-      primary_color_dark: tenant.branding?.primary_color_dark || DEFAULT_DARK,
+      primary_color_light: tenant.branding?.primary_color_light || defaults.light,
+      primary_color_dark: tenant.branding?.primary_color_dark || defaults.dark,
     });
 
-    if (tenant.branding?.logo_url) {
-      setLogoPreview(tenant.branding.logo_url);
-    }
-  }, [tenant]);
+    setLogoPreview(tenant.branding?.logo_url || null);
+    setLogoFile(null);
+    setRemoveLogo(false);
+  }, [tenant, defaults.dark, defaults.light]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -126,16 +160,17 @@ const AdminProfilePage: React.FC = () => {
       contact_phone: tenant.contact_phone || '',
       address: tenant.address || '',
       website: tenant.website || '',
-      primary_color_light: tenant.branding?.primary_color_light || DEFAULT_LIGHT,
-      primary_color_dark: tenant.branding?.primary_color_dark || DEFAULT_DARK,
+      primary_color_light: tenant.branding?.primary_color_light || defaults.light,
+      primary_color_dark: tenant.branding?.primary_color_dark || defaults.dark,
     };
 
     return (
       JSON.stringify(current) !== JSON.stringify(formData) ||
       Boolean(logoFile) ||
+      removeLogo ||
       (tenant.branding?.logo_url || null) !== (logoPreview || null)
     );
-  }, [formData, logoFile, logoPreview, tenant]);
+  }, [defaults.dark, defaults.light, formData, logoFile, logoPreview, removeLogo, tenant]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -161,6 +196,7 @@ const AdminProfilePage: React.FC = () => {
     }
 
     setLogoFile(file);
+    setRemoveLogo(false);
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -172,6 +208,26 @@ const AdminProfilePage: React.FC = () => {
   const handleRemoveLogo = () => {
     setLogoFile(null);
     setLogoPreview(null);
+    setRemoveLogo(true);
+  };
+
+  const handleDiscard = () => {
+    if (!tenant) return;
+
+    setFormData({
+      name: tenant.name || '',
+      description: tenant.description || '',
+      contact_email: tenant.contact_email || '',
+      contact_phone: tenant.contact_phone || '',
+      address: tenant.address || '',
+      website: tenant.website || '',
+      primary_color_light: tenant.branding?.primary_color_light || defaults.light,
+      primary_color_dark: tenant.branding?.primary_color_dark || defaults.dark,
+    });
+
+    setLogoFile(null);
+    setLogoPreview(tenant.branding?.logo_url || null);
+    setRemoveLogo(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -189,19 +245,41 @@ const AdminProfilePage: React.FC = () => {
 
     if (logoFile) {
       formDataToSubmit.append('logo', logoFile);
+    } else if (removeLogo) {
+      formDataToSubmit.append('remove_logo', '1');
     }
 
     const settings = {
       theme: {
         primary_color_light: formData.primary_color_light,
         primary_color_dark: formData.primary_color_dark,
-        logo_url: logoPreview || '',
       },
     };
     formDataToSubmit.append('settings', JSON.stringify(settings));
 
     updateProfileMutation.mutate(formDataToSubmit);
   };
+
+  const colorErrors = useMemo(() => {
+    const lightError =
+      formData.primary_color_light && !isValidHexColor(formData.primary_color_light)
+        ? 'Use a valid hex color like #3498db'
+        : null;
+
+    const darkError =
+      formData.primary_color_dark && !isValidHexColor(formData.primary_color_dark)
+        ? 'Use a valid hex color like #5dade2'
+        : null;
+
+    return { light: lightError, dark: darkError };
+  }, [formData.primary_color_dark, formData.primary_color_light]);
+
+  const lightColorForPicker =
+    isValidHexColor(formData.primary_color_light) ? formData.primary_color_light : defaults.light;
+  const darkColorForPicker =
+    isValidHexColor(formData.primary_color_dark) ? formData.primary_color_dark : defaults.dark;
+
+  const canSave = isDirty && !updateProfileMutation.isPending && !colorErrors.light && !colorErrors.dark;
 
   return (
     <AdminPage
@@ -210,16 +288,23 @@ const AdminProfilePage: React.FC = () => {
       icon={<Building2 size={18} />}
       actions={
         tenant ? (
-          <Button
-            variant="primary"
-            size="sm"
-            form="tenant-profile-form"
-            type="submit"
-            disabled={!isDirty || updateProfileMutation.isPending}
-            title={!isDirty ? 'No changes to save' : undefined}
-          >
-            {updateProfileMutation.isPending ? 'Saving…' : 'Save Changes'}
-          </Button>
+          <Actions>
+            {isDirty && (
+              <Button variant="outline" size="sm" type="button" onClick={handleDiscard}>
+                Discard
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              form="tenant-profile-form"
+              type="submit"
+              disabled={!canSave}
+              title={!isDirty ? 'No changes to save' : colorErrors.light || colorErrors.dark || undefined}
+            >
+              {updateProfileMutation.isPending ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </Actions>
         ) : undefined
       }
     >
@@ -230,6 +315,8 @@ const AdminProfilePage: React.FC = () => {
       >
         {isLoading ? (
           <LoadingSkeleton type="card" rows={2} />
+        ) : tenantIsError ? (
+          <InlineError role="alert">Failed to load tenant profile. Please refresh and try again.</InlineError>
         ) : !tenant ? (
           <EmptyState icon="🏢" title="Not available" message="Unable to load tenant information." />
         ) : (
@@ -360,7 +447,7 @@ const AdminProfilePage: React.FC = () => {
                   <ColorRow>
                     <ColorInput
                       type="color"
-                      value={formData.primary_color_light}
+                      value={lightColorForPicker}
                       onChange={(e) => handleColorChange('primary_color_light', e.target.value)}
                       aria-label="Light theme primary color"
                     />
@@ -368,9 +455,11 @@ const AdminProfilePage: React.FC = () => {
                       type="text"
                       value={formData.primary_color_light}
                       onChange={(e) => handleColorChange('primary_color_light', e.target.value)}
-                      placeholder={DEFAULT_LIGHT}
+                      placeholder={defaults.light}
+                      aria-invalid={Boolean(colorErrors.light)}
                     />
                   </ColorRow>
+                  {colorErrors.light && <FieldError>{colorErrors.light}</FieldError>}
                 </ColorField>
 
                 <ColorField>
@@ -378,7 +467,7 @@ const AdminProfilePage: React.FC = () => {
                   <ColorRow>
                     <ColorInput
                       type="color"
-                      value={formData.primary_color_dark}
+                      value={darkColorForPicker}
                       onChange={(e) => handleColorChange('primary_color_dark', e.target.value)}
                       aria-label="Dark theme primary color"
                     />
@@ -386,16 +475,18 @@ const AdminProfilePage: React.FC = () => {
                       type="text"
                       value={formData.primary_color_dark}
                       onChange={(e) => handleColorChange('primary_color_dark', e.target.value)}
-                      placeholder={DEFAULT_DARK}
+                      placeholder={defaults.dark}
+                      aria-invalid={Boolean(colorErrors.dark)}
                     />
                   </ColorRow>
+                  {colorErrors.dark && <FieldError>{colorErrors.dark}</FieldError>}
                 </ColorField>
 
                 <Preview>
                   <PreviewTitle>Preview</PreviewTitle>
                   <PreviewSurface>
                     <PreviewButton
-                      style={{ background: formData.primary_color_light }}
+                      style={{ background: lightColorForPicker }}
                       aria-label="Brand preview button"
                     >
                       {logoPreview && <PreviewLogo src={logoPreview} alt="" aria-hidden="true" />}
@@ -413,6 +504,27 @@ const AdminProfilePage: React.FC = () => {
     </AdminPage>
   );
 };
+
+const InlineError = styled.div`
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-error) / 0.08);
+  border: 1px solid rgb(var(--color-error) / 0.25);
+  color: rgb(var(--color-error));
+  font-size: 14px;
+`;
+
+const Actions = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+`;
+
+const FieldError = styled.div`
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgb(var(--color-error));
+`;
 
 const Stack = styled.div`
   display: flex;
