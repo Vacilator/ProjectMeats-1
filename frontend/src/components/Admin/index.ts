@@ -4,6 +4,8 @@
  * Barrel export for all admin workspace components.
  */
 
+export { AdminPage } from './AdminPage';
+export { AdminSection } from './AdminSection';
 export { AdminTable } from './AdminTable';
 export { ConfirmDialog } from './ConfirmDialog';
 export { EmptyState } from './EmptyState';

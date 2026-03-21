@@ -82,6 +82,7 @@ import UsersPage from './pages/Admin/Users';
 import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
 import ActivityPage from './pages/Admin/Activity';
+import AdminWorkspaceHome from './pages/Admin/Home';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
 import { PerformanceOverlay } from './components/common/PerformanceOverlay';
@@ -310,6 +311,11 @@ const App: React.FC = () => {
                 <Route path="my-tasks" element={<Navigate to="/workforms/tasks" replace />} />
                 
                 {/* Admin Workspace - Wrapped with error boundary */}
+                <Route path="workspace" element={
+                  <AdminErrorBoundary fallbackTitle="Admin Workspace Error">
+                    <AdminWorkspaceHome />
+                  </AdminErrorBoundary>
+                } />
                 <Route path="workspace/option-lists" element={
                   <AdminErrorBoundary fallbackTitle="Option Lists Error">
                     <OptionListsPage />
