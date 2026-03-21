@@ -19,9 +19,30 @@ from rest_framework import permissions, viewsets
 
 from apps.system.views.product_viewset import SystemProductViewSet
 
-from .serializers import LegacySystemProductSerializer
+from .models import MasterProduct
+from .serializers import LegacySystemProductSerializer, ProductSerializer
 
 logger = logging.getLogger(__name__)
+
+
+class MasterProductViewSet(viewsets.ModelViewSet):
+    """CRUD API for tenant-scoped MasterProduct.
+
+    This is the canonical API for the tenant's product definitions used by supplier
+    availability (SupplierAvailableItem) and plant associations.
+
+    Kept separate from /api/v1/products/, which is a deprecated, read-only alias to
+    /api/v1/system/products/ (three-tier catalog).
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        return MasterProduct.objects.filter(tenant=self.request.tenant).order_by('display_name')
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
 
 
 class ProductViewSet(SystemProductViewSet):
