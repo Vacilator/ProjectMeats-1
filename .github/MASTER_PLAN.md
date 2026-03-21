@@ -49,6 +49,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 - 2026-03-20 — Deployed LoopNode, ErrorEdge, Viewport Virtualization, and Backend Try/Catch Graph Routing — PR: #3745
 
+- 2026-03-21 — Admin Workspace: restore API contracts (permissions/current tenant/activity logs/pagination) — PR: #3746
+
 - 2026-03-20 — Outlook OAuth canary validation fix (prompt=select_account) — PR: #3727
 
 - 2026-03-20 — WorkForms: align pages with service layer + monitoring dedupe (PR: #3685)
