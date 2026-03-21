@@ -95,18 +95,21 @@ const ActivityPage: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [filters, setFilters] = useState<ActivityFilters>({
+  const defaultFilters: ActivityFilters = {
     search: '',
     action: '',
     entity_type: '',
     start_date: '',
     end_date: '',
-  });
+  };
+
+  const [draftFilters, setDraftFilters] = useState<ActivityFilters>(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState<ActivityFilters>(defaultFilters);
   const [showFilters, setShowFilters] = useState(false);
 
-  const buildParams = useMemo(() => {
+  const buildParams = (filters: ActivityFilters, pageNum: number) => {
     const params: Record<string, string | number> = {
-      page,
+      page: pageNum,
       page_size: 20,
       ordering: '-created_at',
     };
@@ -118,14 +121,18 @@ const ActivityPage: React.FC = () => {
     if (filters.end_date) params.created_at__lte = filters.end_date;
 
     return params;
-  }, [filters.action, filters.end_date, filters.entity_type, filters.search, filters.start_date, page]);
+  };
 
-  const loadLogs = async (pageNum: number = 1, appendMode: boolean = false) => {
+  const loadLogs = async (
+    pageNum: number = 1,
+    appendMode: boolean = false,
+    filters: ActivityFilters = appliedFilters
+  ) => {
     try {
       setLoading(true);
       setError('');
 
-      const params = { ...buildParams, page: pageNum };
+      const params = buildParams(filters, pageNum);
       const response = await apiClient.get('/activity-logs/', { params });
       const results = Array.isArray((response.data as any)?.results) ? (response.data as any).results : [];
 
@@ -145,35 +152,35 @@ const ActivityPage: React.FC = () => {
     }
   };
 
-  const loadMore = () => loadLogs(page + 1, true);
+  const loadMore = () => loadLogs(page + 1, true, appliedFilters);
 
   const applyFilters = () => {
+    setAppliedFilters(draftFilters);
     setPage(1);
-    loadLogs(1, false);
+    setShowFilters(false);
+    loadLogs(1, false, draftFilters);
   };
 
   const resetFilters = () => {
-    setFilters({
-      search: '',
-      action: '',
-      entity_type: '',
-      start_date: '',
-      end_date: '',
-    });
+    setDraftFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
     setPage(1);
-    setTimeout(() => loadLogs(1, false), 0);
+    setShowFilters(false);
+    setTimeout(() => loadLogs(1, false, defaultFilters), 0);
   };
+
+  const refresh = () => loadLogs(1, false, appliedFilters);
 
   const exportToCsv = async () => {
     try {
       setExporting(true);
 
       const params: Record<string, string> = {};
-      if (filters.search) params.search = filters.search;
-      if (filters.action) params.action = filters.action;
-      if (filters.entity_type) params.entity_type = filters.entity_type;
-      if (filters.start_date) params.created_at__gte = filters.start_date;
-      if (filters.end_date) params.created_at__lte = filters.end_date;
+      if (appliedFilters.search) params.search = appliedFilters.search;
+      if (appliedFilters.action) params.action = appliedFilters.action;
+      if (appliedFilters.entity_type) params.entity_type = appliedFilters.entity_type;
+      if (appliedFilters.start_date) params.created_at__gte = appliedFilters.start_date;
+      if (appliedFilters.end_date) params.created_at__lte = appliedFilters.end_date;
 
       const response = await apiClient.get('/activity-logs/export/', {
         params,
@@ -200,7 +207,7 @@ const ActivityPage: React.FC = () => {
 
   useEffect(() => {
     if (!canView) return;
-    loadLogs(1, false);
+    loadLogs(1, false, appliedFilters);
   }, [canView]);
 
   const formatDateTime = (isoString: string) => {
@@ -241,13 +248,16 @@ const ActivityPage: React.FC = () => {
         canView ? (
           <>
             <Button
-            variant={showFilters ? 'primary' : 'outline'}
-            size="sm"
-            onClick={() => setShowFilters((s) => !s)}
-            aria-pressed={showFilters}
-          >
-            <Filter size={16} /> Filters
-          </Button>
+              variant={showFilters ? 'primary' : 'outline'}
+              size="sm"
+              onClick={() => setShowFilters((s) => !s)}
+              aria-pressed={showFilters}
+            >
+              <Filter size={16} /> Filters
+            </Button>
+            <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+              <Loader size={16} /> Refresh
+            </Button>
           <Button
             variant="primary"
             size="sm"
@@ -271,8 +281,8 @@ const ActivityPage: React.FC = () => {
                 <FilterInput
                   type="text"
                   placeholder="Search description, entity…"
-                  value={filters.search}
-                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  value={draftFilters.search}
+                  onChange={(e) => setDraftFilters({ ...draftFilters, search: e.target.value })}
                   onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                 />
               </FilterGroup>
@@ -280,8 +290,8 @@ const ActivityPage: React.FC = () => {
               <FilterGroup>
                 <FilterLabel>Action Type</FilterLabel>
                 <FilterSelect
-                  value={filters.action}
-                  onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+                  value={draftFilters.action}
+                  onChange={(e) => setDraftFilters({ ...draftFilters, action: e.target.value })}
                 >
                   {ACTION_TYPES.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -294,8 +304,8 @@ const ActivityPage: React.FC = () => {
               <FilterGroup>
                 <FilterLabel>Entity Type</FilterLabel>
                 <FilterSelect
-                  value={filters.entity_type}
-                  onChange={(e) => setFilters({ ...filters, entity_type: e.target.value })}
+                  value={draftFilters.entity_type}
+                  onChange={(e) => setDraftFilters({ ...draftFilters, entity_type: e.target.value })}
                 >
                   {ENTITY_TYPES.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -311,8 +321,8 @@ const ActivityPage: React.FC = () => {
                 </FilterLabel>
                 <FilterInput
                   type="date"
-                  value={filters.start_date}
-                  onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
+                  value={draftFilters.start_date}
+                  onChange={(e) => setDraftFilters({ ...draftFilters, start_date: e.target.value })}
                 />
               </FilterGroup>
 
@@ -322,8 +332,8 @@ const ActivityPage: React.FC = () => {
                 </FilterLabel>
                 <FilterInput
                   type="date"
-                  value={filters.end_date}
-                  onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
+                  value={draftFilters.end_date}
+                  onChange={(e) => setDraftFilters({ ...draftFilters, end_date: e.target.value })}
                 />
               </FilterGroup>
             </FiltersGrid>
