@@ -108,11 +108,14 @@ export const SuccessEdge = React.memo<EdgeProps<SuccessEdgeData>>(({
   const animated = data?.animated || false;
   const successCount = data?.successCount;
 
+  const { strokeWidth: _strokeWidth, vectorEffect: _vectorEffect, ...safeStyle } = (style || {}) as any;
+
   const edgeStyle: React.CSSProperties = {
+    ...safeStyle,
     stroke: 'rgb(34, 197, 94)', // Green
     strokeWidth: 3,
+    vectorEffect: 'non-scaling-stroke',
     transition: 'all 0.3s ease',
-    ...style,
   };
 
   // Custom checkmark marker for success edges

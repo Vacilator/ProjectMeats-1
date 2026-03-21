@@ -252,6 +252,12 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
     animation: dash 0.5s linear infinite;
     filter: drop-shadow(0 0 4px rgb(var(--color-primary) / 0.35));
   }
+
+  /* Keep edge stroke thickness stable across zoom/template loads */
+  .react-flow__edge-path,
+  .react-flow__edge path {
+    vector-effect: non-scaling-stroke;
+  }
   
   /* Phase 7.2: Enhanced snap feedback */
   .react-flow__node.dragging {
@@ -6103,6 +6109,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
       });
 
+      const stripStrokeWidth = (style: any) => {
+        if (!style) return style;
+        const { strokeWidth: _strokeWidth, vectorEffect: _vectorEffect, ...rest } = style;
+        return rest;
+      };
+
       // Normalize template edges so they render with consistent types/markers.
       // Templates often omit type and rely on handle IDs (true/false/error).
       const mappedEdges: Edge[] = template.edges.map((edge) => {
@@ -6120,6 +6132,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           ...edge,
           type: inferredType,
           interactionWidth: edge.interactionWidth ?? 28,
+          // Ensure templates can't accidentally persist huge stroke widths (common source of thickness distortion)
+          style: stripStrokeWidth(edge.style),
         };
 
         if (inferredType === 'conditional' && !(edge as any).data && (sourceHandle === 'true' || sourceHandle === 'false')) {
@@ -6138,9 +6152,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
         if (inferredType === 'step') {
           next.style = {
-            strokeWidth: 3,
+            ...(stripStrokeWidth(edge.style) || {}),
             stroke: 'rgb(var(--color-text-secondary))',
-            ...(edge.style || {}),
+            strokeWidth: 3,
           };
           next.markerEnd =
             edge.markerEnd ||

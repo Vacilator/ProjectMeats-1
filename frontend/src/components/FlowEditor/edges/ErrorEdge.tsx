@@ -109,12 +109,15 @@ export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
   const animated = data?.animated ?? true;
   const errorCount = data?.errorCount;
 
+  const { strokeWidth: _strokeWidth, vectorEffect: _vectorEffect, ...safeStyle } = (style || {}) as any;
+
   const edgeStyle: React.CSSProperties = {
+    ...safeStyle,
     stroke: 'rgb(239, 68, 68)', // Tailwind red-500
     strokeWidth: 2.5,
     strokeDasharray: '5,5',
+    vectorEffect: 'non-scaling-stroke',
     transition: 'all 0.3s ease',
-    ...style,
   };
 
   // Custom warning marker for error edges
