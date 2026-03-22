@@ -873,3 +873,8 @@ Deliverables:
 
 
 - 2026-03-20 — MSAL common authority restoration (B2B/B2C support) & prompt enforcement — PR: #TBD.
+
+
+## PR Log (append-only) — Workforms UI Hardening (merge-safe)
+
+- 2026-03-22T19:05:59Z — UI Hardening: Restored standard default container for 'formProcess' nodes, disabling 'formProcessGroup' purple canonicalization/styling overrides.

@@ -113,7 +113,7 @@ const ModalHeader = styled.div`
   justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid rgb(var(--color-border));
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+  background: linear-gradient(135deg, rgba(var(--color-primary), 0.1), rgba(var(--color-primary), 0.05));
 `;
 
 const HeaderLeft = styled.div`
@@ -177,19 +177,19 @@ const StepBadge = styled.div<{ $active: boolean; $completed: boolean }>`
   border-radius: 8px;
   background: ${props =>
     props.$active
-      ? 'rgba(139, 92, 246, 0.15)'
+      ? 'rgba(var(--color-primary), 0.15)'
       : props.$completed
       ? 'rgba(34, 197, 94, 0.15)'
       : 'transparent'};
   border: 1px solid ${props =>
     props.$active
-      ? 'rgb(139, 92, 246)'
+      ? 'rgb(var(--color-primary))'
       : props.$completed
       ? 'rgb(34, 197, 94)'
       : 'rgb(var(--color-border))'};
   color: ${props =>
     props.$active
-      ? 'rgb(139, 92, 246)'
+      ? 'rgb(var(--color-primary))'
       : props.$completed
       ? 'rgb(34, 197, 94)'
       : 'rgb(var(--color-text-secondary))'};
@@ -211,7 +211,7 @@ const SectionHeader = styled.div`
   margin-bottom: 16px;
   
   .icon {
-    color: rgb(139, 92, 246);
+    color: rgb(var(--color-primary));
   }
   
   h3 {
@@ -250,8 +250,8 @@ const Input = styled.input`
   
   &:focus {
     outline: none;
-    border-color: rgb(139, 92, 246);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
   
   &::placeholder {
@@ -274,8 +274,8 @@ const TextArea = styled.textarea`
   
   &:focus {
     outline: none;
-    border-color: rgb(139, 92, 246);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
   }
   
   &::placeholder {
@@ -302,8 +302,8 @@ const CheckboxLabel = styled.label`
   transition: all 0.2s ease;
   
   &:hover {
-    border-color: rgb(139, 92, 246);
-    background: rgba(139, 92, 246, 0.05);
+    border-color: rgb(var(--color-primary));
+    background: rgba(var(--color-primary), 0.05);
   }
   
   input[type="checkbox"] {
@@ -370,12 +370,12 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
   ${props => {
     if (props.$variant === 'primary') {
       return `
-        background: linear-gradient(135deg, rgb(139, 92, 246), rgb(109, 40, 217));
+        background: linear-gradient(135deg, rgb(var(--color-primary)), rgba(var(--color-primary), 0.85));
         color: white;
         
         &:hover:not(:disabled) {
           transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+          box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
         }
       `;
     } else if (props.$variant === 'secondary') {

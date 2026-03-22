@@ -118,6 +118,7 @@ import {
   UtilityNode,
   TerminalNode,
 } from './nodes';
+import FormProcessNode from './nodes/FormProcessNode';
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
@@ -1677,6 +1678,11 @@ Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   else dynamicNodeTypes[typeId] = UtilityNode;
 });
 
+// Hotfix/rollback safety: render all Form Process container variants using the stable container node
+// (avoids the purple group container regressions while keeping legacy type IDs compatible).
+dynamicNodeTypes.formProcess = FormProcessNode;
+dynamicNodeTypes.formProcessGroup = FormProcessNode;
+dynamicNodeTypes.formMultiStepContainer = FormProcessNode;
 
 // Static edge types (no useMemo needed - these are constant)
 const staticEdgeTypes = {
