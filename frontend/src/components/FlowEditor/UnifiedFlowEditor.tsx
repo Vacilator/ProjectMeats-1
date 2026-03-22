@@ -107,11 +107,9 @@ import {
 
 import {
   FormNode,
-  FormStepNode,
   FormStepSingleNode,
   FormReferenceNode,
-  FormProcessNode,
-  SmartWorkFormNode,
+  FormProcessGroupNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -120,6 +118,7 @@ import {
   UtilityNode,
   TerminalNode,
 } from './nodes';
+import FormProcessNode from './nodes/FormProcessNode';
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
@@ -1645,19 +1644,13 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // we cast here to keep editor typing stable while runtime behavior remains unchanged.
 const staticNodeTypes = {
   // Form nodes (Phase E - 2026-02-19)
-  form: FormStepNode, // Form Step (Page)
-  formStepSingle: FormStepSingleNode, // Backward compatibility
-  formBook: FormNode, // Form container (Book)
-
-  // Form Process container (rollback: disable formProcessGroup canonicalization)
-  formProcess: FormProcessNode,
-
-  smartWorkForm: SmartWorkFormNode,
-
+  form: FormNode,  // NEW: Primary form node name
+  formStepSingle: FormStepSingleNode,  // Backward compatibility
+  formProcess: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
+  formProcessGroup: FormProcessGroupNode,
   // Backward compatibility aliases
-  formStep: FormStepSingleNode, // Deprecated
-  formMultiStepContainer: FormProcessNode,
-
+  formStep: FormStepSingleNode,  // Deprecated
+  formMultiStepContainer: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -1671,7 +1664,7 @@ const staticNodeTypes = {
 
 // Dynamically build the full registry map statically ONCE outside the component.
 // This avoids TDZ / initialization crashes seen when building nodeTypes inside hooks.
-const dynamicNodeTypes: Record<string, any> = { ...staticNodeTypes };
+const dynamicNodeTypes: NodeTypes = { ...staticNodeTypes };
 Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   if (dynamicNodeTypes[typeId]) return;
 
@@ -1685,6 +1678,11 @@ Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   else dynamicNodeTypes[typeId] = UtilityNode;
 });
 
+// Hotfix/rollback safety: render all Form Process container variants using the stable container node
+// (avoids the purple group container regressions while keeping legacy type IDs compatible).
+dynamicNodeTypes.formProcess = FormProcessNode;
+dynamicNodeTypes.formProcessGroup = FormProcessNode;
+dynamicNodeTypes.formMultiStepContainer = FormProcessNode;
 
 // Static edge types (no useMemo needed - these are constant)
 const staticEdgeTypes = {
@@ -3293,7 +3291,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         selected: true,
       };
 
-      // Container nodes: ensure consistent defaults and sizing
+      // Upgrade legacy container types to the canonical group container
       if (isNewContainer) {
         newNode.style = {
           width: 600,
@@ -3302,7 +3300,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         newNode.data = {
           ...newNode.data,
           isExpanded: true,
+          isGroup: true,
         };
+        (newNode as any).type = 'formProcessGroup';
       }
 
       const spawnDefaultFormPage = (parentId: string) => {
@@ -3814,16 +3814,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
       }
       
-      // Form Process container (rollback: keep as `formProcess` and avoid formProcessGroup canonicalization)
+      // Phase 3: FormProcessGroup as true React Flow group container (2026-02-21)
       if (isFormProcessContainerType(type)) {
         newNode.style = {
-          width: 600,
-          height: 400,
+          width: 600,  // Default width for group container
+          height: 400, // Default height for child nodes
         };
         newNode.data = {
           ...newNode.data,
-          isExpanded: true,
+          isExpanded: true, // Default to expanded so children are visible
+          isGroup: true, // Mark as group for React Flow
         };
+        // Upgrade legacy formProcess to canonical formProcessGroup type
+        (newNode as any).type = 'formProcessGroup';
       }
       
       // Phase 1.4: If dropping into a container, set parent-child relationship
@@ -3977,8 +3980,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const edgesToAdd: Edge[] = [];
       let counterDelta = 1;
 
-      // Auto-spawn a default Form page inside a new container
-      if (isContainerNode && (newNode.type === 'formBook' || newNode.type === 'formProcess')) {
+      // Phase 10: Auto-spawn a default Form page inside a new formProcessGroup
+      if (isContainerNode && newNode.type === 'formProcessGroup') {
         const pageId = `node-${nodeIdCounter + 1}`;
         const pageNode: Node = {
           id: pageId,
@@ -4042,7 +4045,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       updatedEdges = [...updatedEdges, ...edgesToAdd];
 
-      if (isContainerNode && (newNode.type === 'formBook' || newNode.type === 'formProcess')) {
+      if (isContainerNode && newNode.type === 'formProcessGroup') {
         applyAutoLayoutImmediate(updatedNodes, updatedEdges);
       } else {
         setNodes(updatedNodes);
@@ -4913,13 +4916,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       // CRITICAL: Sort nodes to ensure parent-before-child ordering
       const sortedNodes = sortNodesTopologically(loadedWorkflow.workflow_definition.nodes || []);
-
-      // Normalize legacy nodes (including formProcessGroup → formProcess rollback)
-      const normalizedNodes = normalizeNodes(sortedNodes);
-      const sortedNormalizedNodes = sortNodesTopologically(normalizedNodes);
       
       // Update editor state
-      setNodes(sortedNormalizedNodes);
+      setNodes(sortedNodes);
       setEdges(loadedWorkflow.workflow_definition.edges || []);
       setCurrentWorkflowId(loadedWorkflow.id);
       setCurrentWorkflowName(loadedWorkflow.name);
@@ -5484,7 +5483,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       
       case 'formMultiStepContainer':
       case 'formProcess': {
-        logger.debug('✏️ [EDIT BUTTON] Using DynamicConfigPanel for:', node.type);
+        // Phase 7 Stabilization: these node types are deprecated.
+        // Migrate in-memory to the canonical Form Process Group node.
+        logger.debug('✏️ [EDIT BUTTON] Migrating legacy container to formProcessGroup');
+
+        const migratedNode = {
+          ...node,
+          type: 'formProcessGroup',
+          data: {
+            ...(node.data || {}),
+            // Ensure group semantics are enabled
+            isGroup: true,
+          },
+        };
+
+        setNodes((nds) => nds.map((n) => (n.id === node.id ? migratedNode : n)));
+        setSelectedNode(migratedNode);
+        // Do NOT open legacy modal
         break;
       }
         
@@ -5693,7 +5708,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
     };
 
-    const isContainer = isFormProcessContainerType(original.type);
+    const isContainer = original.type === 'formProcessGroup';
 
     const toCloneIds: string[] = [original.id];
     if (isContainer) {
@@ -6716,7 +6731,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           collabSendCursorDebounced(pos);
         }}
         onSelectionChange={handleSelectionChange}
-        nodeTypes={dynamicNodeTypes as unknown as NodeTypes}
+        nodeTypes={dynamicNodeTypes}
         edgeTypes={staticEdgeTypes}
         // Phase 7.5/9: Always render only visible elements for large-editor performance
         onlyRenderVisibleElements={true}
@@ -7560,22 +7575,17 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   // Force all triggers to use the rich Unified Trigger node & schema
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
 
-  // Preserve book container type
-  if (nodeTypeId === 'formBook') return 'formBook';
-
-  // Rollback: treat legacy + group variants as the standard `formProcess` container
-  if (nodeTypeId === 'formMultiStepContainer' || nodeTypeId === 'formProcessGroup') return 'formProcess';
-
+  // Preserve specific types for all other nodes so their specific schemas load
+  if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
   return nodeTypeId;
 }
 
 /** Returns true for all Form Process container node type IDs (current + legacy). */
 function isFormProcessContainerType(nodeType: string | undefined | null): boolean {
   return (
-    nodeType === 'formBook' ||
+    nodeType === 'formProcessGroup' ||
     nodeType === 'formProcess' ||
-    nodeType === 'formMultiStepContainer' ||
-    nodeType === 'formProcessGroup'
+    nodeType === 'formMultiStepContainer'
   );
 }
 
@@ -7611,12 +7621,7 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
   }
 
   // Special handling for containers
-  if (
-    resolvedType === 'formBook' ||
-    resolvedType === 'formProcess' ||
-    resolvedType === 'formMultiStepContainer' ||
-    resolvedType === 'formProcessGroup'
-  ) {
+  if (resolvedType === 'formMultiStepContainer' || resolvedType === 'formProcessGroup') {
     defaults.fields = [];
     defaults.containerName = 'New Container';
     defaults.isExpanded = true;

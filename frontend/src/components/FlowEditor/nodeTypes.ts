@@ -132,61 +132,31 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     hidden: true, // Deprecated - use 'form' instead
   },
   
-  // Form Process container
+  // DEPRECATED: FormProcess (Basic) - Use formProcessGroup instead
   formProcess: {
     id: 'formProcess',
-    name: 'Form Process',
+    name: 'Form Process (Basic - Deprecated)',
     category: 'form',
     icon: '📦',
-    color: '#3b82f6',
-    description: 'Container for multi-step forms. Stable default implementation (rollback: disabled formProcessGroup canonicalization).',
+    color: '#8b5cf6', // purple - distinct from regular form blue
+    description: 'DEPRECATED: Use Form Process Group node instead. This basic container has been superseded by the advanced group implementation.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true, // Hide from node palette
   },
-
-  // NEW: Singular Form container using React Flow sub-flows (Book & Pages)
-  // Temporarily hidden while we roll back to the stable Form Process container UX.
-  formBook: {
-    id: 'formBook',
-    name: 'Form (Book - Hidden)',
-    category: 'form',
-    icon: '📚',
-    color: '#a78bfa',
-    description: '[HIDDEN] Book-style form container. Use Form Process instead.',
-    maxInputs: 1,
-    maxOutputs: 1,
-    requiresConfig: true,
-    hidden: true,
-  },
-
-  // Phase 7+: Smart WorkForm (single-node wizard)
-  // Kept for backward compatibility, but hidden from the palette for now.
-  smartWorkForm: {
-    id: 'smartWorkForm',
-    name: 'Smart WorkForm (Hidden)',
-    category: 'form',
-    icon: '🧠',
-    color: '#a78bfa',
-    description: '[HIDDEN] Kept for backward compatibility. Use Form Process instead.',
-    maxInputs: 1,
-    maxOutputs: 1,
-    requiresConfig: true,
-    hidden: true,
-  },
-
-  // DEPRECATED: Group variant kept only for backward compatibility
+  
+  // Advanced Form Process with React Flow grouping
   formProcessGroup: {
     id: 'formProcessGroup',
-    name: 'Form Process (Legacy Group - Deprecated)',
+    name: 'Form Process',
     category: 'form',
     icon: '📂',
-    color: '#9ca3af',
-    description: '[DEPRECATED] Legacy alias for Form Process. Workflows will be normalized to `formProcess`.',
+    color: '#a78bfa', // lighter purple - group variant
+    description: 'Advanced form container with labeled header, automatic step sequencing, and React Flow grouping',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
-    hidden: true,
   },
   
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)

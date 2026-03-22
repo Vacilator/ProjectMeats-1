@@ -48,7 +48,6 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 ### PR Log (append-only)
 
 - 2026-03-22T16:39:58Z — EMERGENCY ROLLBACK: Reverted Workform Container UI to stable Friday baseline due to UX degradation.
-
 - 2026-03-22T19:05:59Z — UI Hardening: Restored standard default container for `formProcess` nodes, disabling `formProcessGroup` purple canonicalization/styling overrides.
 
 - 2026-03-20 — Deployed LoopNode, ErrorEdge, Viewport Virtualization, and Backend Try/Catch Graph Routing — PR: #3745

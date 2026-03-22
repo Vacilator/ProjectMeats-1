@@ -28,8 +28,8 @@ export function normalizeNodeData(node: Node): Node {
   // Canonicalize legacy Form types (additive/back-compat)
   // --------------------------------------------------------------------------
   // Canonical nodes:
-  // - Form step/page: `form`
-  // - Form Process container: `formProcess`
+  // - Form step: `form`
+  // - Form container: `formProcessGroup` ("Form Process")
   if (node.type === 'formStep' || node.type === 'formStepSingle') {
     const canonicalType = 'form';
     const canonicalDef = NODE_TYPE_REGISTRY[canonicalType];
@@ -45,8 +45,13 @@ export function normalizeNodeData(node: Node): Node {
     };
   }
 
-  if (node.type === 'formMultiStepContainer' || node.type === 'formProcess' || node.type === 'formProcessGroup') {
-    const canonicalType = 'formProcess';
+  if (
+    node.type === 'formMultiStepContainer' ||
+    node.type === 'formProcess' ||
+    node.type === 'formProcessGroup' ||
+    node.type === 'formBook'
+  ) {
+    const canonicalType = 'formProcessGroup';
     const canonicalDef = NODE_TYPE_REGISTRY[canonicalType];
 
     return {
@@ -54,7 +59,8 @@ export function normalizeNodeData(node: Node): Node {
       type: canonicalType,
       data: {
         ...(node.data || {}),
-        label: (node.data as any)?.label ?? (node.data as any)?.containerName ?? (node.data as any)?.containerTitle,
+        // Ensure group semantics are enabled
+        isGroup: true,
         maxInputs: (node.data as any)?.maxInputs ?? canonicalDef?.maxInputs ?? 1,
         maxOutputs: (node.data as any)?.maxOutputs ?? canonicalDef?.maxOutputs ?? 1,
       },
