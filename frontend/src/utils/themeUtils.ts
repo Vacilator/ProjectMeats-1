@@ -47,14 +47,20 @@ export const extractBrandColors = async (logoUrl: string): Promise<number[] | nu
 
     const isDataUrl = typeof logoUrl === 'string' && logoUrl.startsWith('data:');
 
-    // Hardening: logo URLs may be behind auth / on a different origin.
-    // Fetching as a blob with credentials avoids CORS/tainted-canvas issues.
+    // Hardening: logo URLs may be behind auth.
+    // Fetching as a blob with credentials + Authorization avoids CORS/tainted-canvas issues.
     let objectUrlToRevoke: string | null = null;
     let src = logoUrl;
 
     if (!isDataUrl) {
       try {
-        const res = await fetch(logoUrl, { credentials: 'include' });
+        const { getAuthHeader } = await import('../services/jwtService');
+        const authHeader = getAuthHeader();
+
+        const headers: HeadersInit = {};
+        if (authHeader) headers['Authorization'] = authHeader;
+
+        const res = await fetch(logoUrl, { credentials: 'include', headers });
         if (res.ok) {
           const blob = await res.blob();
           objectUrlToRevoke = URL.createObjectURL(blob);
