@@ -132,22 +132,21 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     hidden: true, // Deprecated - use 'form' instead
   },
   
-  // DEPRECATED: FormProcess (Basic) - Use formProcessGroup instead
+  // Form Process container
   formProcess: {
     id: 'formProcess',
-    name: 'Form Process (Basic - Deprecated)',
+    name: 'Form Process',
     category: 'form',
     icon: '📦',
-    color: '#8b5cf6', // purple - distinct from regular form blue
-    description: 'DEPRECATED: Use Form Process Group node instead. This basic container has been superseded by the advanced group implementation.',
+    color: '#3b82f6',
+    description: 'Container for multi-step forms. Stable default implementation (rollback: disabled formProcessGroup canonicalization).',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
-    hidden: true, // Hide from node palette
   },
-  
+
   // NEW: Singular Form container using React Flow sub-flows (Book & Pages)
-  // Temporarily hidden while we revert to the purple FormProcess container UX.
+  // Temporarily hidden while we roll back to the stable Form Process container UX.
   formBook: {
     id: 'formBook',
     name: 'Form (Book - Hidden)',
@@ -176,17 +175,18 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     hidden: true,
   },
 
-  // Purple multi-step container (restored as primary)
+  // DEPRECATED: Group variant kept only for backward compatibility
   formProcessGroup: {
     id: 'formProcessGroup',
-    name: 'Form Process',
+    name: 'Form Process (Legacy Group - Deprecated)',
     category: 'form',
-    icon: '📦',
-    color: '#8b5cf6',
-    description: 'Multi-step container that keeps child form steps constrained and arranged horizontally.',
+    icon: '📂',
+    color: '#9ca3af',
+    description: '[DEPRECATED] Legacy alias for Form Process. Workflows will be normalized to `formProcess`.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true,
   },
   
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)

@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { OptionListModal } from './OptionListModal';
 import * as apiService from '../../../services/apiService';
+import { ToastProvider } from '../../../hooks/useToast';
 
 // Mock the API service
 vi.mock('../../../services/apiService', () => ({
@@ -24,6 +25,8 @@ vi.mock('../../../services/apiService', () => ({
 vi.mock('../../../components/Modal/Modal', () => ({
   default: ({ children, isOpen }: any) => isOpen ? <div data-testid="modal">{children}</div> : null,
 }));
+
+const renderWithProviders = (ui: JSX.Element) => render(<ToastProvider>{ui}</ToastProvider>);
 
 describe('OptionListModal', () => {
   const mockProps = {
@@ -66,7 +69,7 @@ describe('OptionListModal', () => {
         config: {} as any,
       });
 
-      render(<OptionListModal {...mockProps} />);
+      renderWithProviders(<OptionListModal {...mockProps} />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading items...')).not.toBeInTheDocument();
@@ -89,7 +92,7 @@ describe('OptionListModal', () => {
         config: {} as any,
       });
 
-      render(<OptionListModal {...mockProps} />);
+      renderWithProviders(<OptionListModal {...mockProps} />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading items...')).not.toBeInTheDocument();
@@ -108,7 +111,7 @@ describe('OptionListModal', () => {
         config: {} as any,
       });
 
-      render(<OptionListModal {...mockProps} />);
+      renderWithProviders(<OptionListModal {...mockProps} />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading items...')).not.toBeInTheDocument();
@@ -127,7 +130,7 @@ describe('OptionListModal', () => {
         config: {} as any,
       });
 
-      render(<OptionListModal {...mockProps} />);
+      renderWithProviders(<OptionListModal {...mockProps} />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading items...')).not.toBeInTheDocument();
@@ -140,7 +143,7 @@ describe('OptionListModal', () => {
     it('handles error response gracefully', async () => {
       vi.mocked(apiService.adminClient.get).mockRejectedValue(new Error('Network error'));
 
-      render(<OptionListModal {...mockProps} />);
+      renderWithProviders(<OptionListModal {...mockProps} />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading items...')).not.toBeInTheDocument();
@@ -161,7 +164,7 @@ describe('OptionListModal', () => {
         config: {} as any,
       });
 
-      render(<OptionListModal {...mockProps} isExtensible={false} />);
+      renderWithProviders(<OptionListModal {...mockProps} isExtensible={false} />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading items...')).not.toBeInTheDocument();

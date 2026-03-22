@@ -59,10 +59,10 @@ const BreadcrumbItem = styled.button<{ $isLast: boolean }>`
   gap: 6px;
   padding: 4px 8px;
   background: ${props => props.$isLast 
-    ? 'rgba(139, 92, 246, 0.15)' 
+    ? 'rgba(var(--color-primary), 0.15)' 
     : 'transparent'};
   color: ${props => props.$isLast 
-    ? 'rgb(139, 92, 246)' 
+    ? 'rgb(var(--color-primary))' 
     : 'rgb(var(--color-text-secondary))'};
   border: none;
   border-radius: 4px;
@@ -72,8 +72,8 @@ const BreadcrumbItem = styled.button<{ $isLast: boolean }>`
   transition: all 0.2s ease;
   
   &:hover:not(:disabled) {
-    background: rgba(139, 92, 246, 0.1);
-    color: rgb(139, 92, 246);
+    background: rgba(var(--color-primary), 0.1);
+    color: rgb(var(--color-primary));
   }
   
   svg {
