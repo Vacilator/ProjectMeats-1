@@ -33,7 +33,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { debounce } from 'lodash';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { adminClient } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
 import * as Sentry from '@sentry/react'; // Error tracking
@@ -41,7 +41,6 @@ import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
 import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
-import { useVirtualizedNodes } from './hooks/useVirtualizedNodes';
 import { 
   useOnboardingTour, 
   workflowEditorTourSteps, 
@@ -64,7 +63,6 @@ import {
   OnSelectionChangeParams,
   useReactFlow,
   MarkerType,
-  type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './UnifiedFlowEditor.responsive.css'; // Gap Analysis Phase 1.2
@@ -109,11 +107,9 @@ import {
 
 import {
   FormNode,
-  FormProcessNode,
-  FormStepNode,
   FormStepSingleNode,
   FormReferenceNode,
-  SmartWorkFormNode,
+  FormProcessGroupNode,
   TriggerNode,
   ConditionIfNode,
   ActionNode,
@@ -121,8 +117,8 @@ import {
   DocumentNode,
   UtilityNode,
   TerminalNode,
-  LoopNode,
 } from './nodes';
+import FormProcessNode from './nodes/FormProcessNode';
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
@@ -180,32 +176,15 @@ export type EditorMode = 'wizard' | 'visual' | 'expert'; // 'expert' is deprecat
 interface UnifiedFlowEditorProps {
   initialNodes?: Node[];
   initialEdges?: Edge[];
-  /** Optional initial viewport (e.g., loaded workflow_definition.viewport) */
-  initialViewport?: { x: number; y: number; zoom: number };
-
-  /**
-   * Legacy callback (deprecated): saving is now handled internally via tenant-workforms persistence.
-   */
   onSave?: (nodes: Node[], edges: Edge[]) => void;
-
   onChange?: (nodes: Node[], edges: Edge[]) => void; // Track changes for auto-save
-
-  /**
-   * Optional initial workflow metadata (used when embedding the editor in a route-driven page).
-   */
-  initialWorkflowId?: string;
-  initialWorkflowName?: string;
-  initialWorkflowDescription?: string;
-  initialWorkflowStatus?: 'draft' | 'active' | 'archived';
-  onWorkflowSaved?: (workflow: { id: string; name: string }) => void;
-
   readOnly?: boolean;
   editorMode?: EditorMode;
   allowedNodeCategories?: string[]; // Phase 4.2: Filter nodes by permission
 
   /**
-   * Punch-In mode: read-only, focuses/highlights the active node.
-   * Intended for Monitoring views.
+   * Punch-In mode: read-only monitoring view focused on the active node.
+   * Uses FlowEditor debug tracing (no mutations to saved workflow graph).
    */
   punchIn?: {
     activeNodeId: string | null;
@@ -233,8 +212,7 @@ const ENABLE_FULL_DYNAMIC_MODE = true;
 
 const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   width: 100%;
-  /* Better default sizing on page load */
-  height: ${props => props.$isFullscreen ? '100vh' : 'clamp(640px, calc(100vh - 220px), 980px)'};
+  height: ${props => props.$isFullscreen ? '100vh' : '600px'};
   background: rgb(var(--color-background));
   border: ${props => props.$isFullscreen ? 'none' : '1px solid rgb(var(--color-border))'};
   border-radius: ${props => props.$isFullscreen ? '0' : 'var(--radius-lg)'};
@@ -254,7 +232,7 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
       0 10px 24px rgba(0, 0, 0, 0.12);
     border-radius: 12px;
   }
-
+  
   /* Phase 7.2: Smart Snapping - Connection Line Animation */
   @keyframes dash {
     to {
@@ -264,12 +242,11 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   
   /* Phase 7.2: Smart Snapping - Visual Connection Indicators */
   .react-flow__connection-path {
-    stroke: rgb(var(--color-primary)) !important;
-    stroke-width: 2 !important;
-    vector-effect: non-scaling-stroke;
+    stroke: #667eea !important;
+    stroke-width: 3 !important;
     stroke-dasharray: 5, 5;
     animation: dash 0.5s linear infinite;
-    filter: drop-shadow(0 0 4px rgb(var(--color-primary) / 0.35));
+    filter: drop-shadow(0 0 4px rgba(102, 126, 234, 0.4));
   }
   
   /* Phase 7.2: Enhanced snap feedback */
@@ -297,8 +274,7 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   /* Animate container expand/collapse */
   .react-flow__node[data-type="formMultiStepContainer"],
   .react-flow__node[data-type="formProcess"],
-  .react-flow__node[data-type="formProcessGroup"],
-  .react-flow__node[data-type="formBook"] {
+  .react-flow__node[data-type="formProcessGroup"] {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 width 0.3s ease,
                 height 0.3s ease,
@@ -1687,16 +1663,13 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // we cast here to keep editor typing stable while runtime behavior remains unchanged.
 const staticNodeTypes = {
   // Form nodes (Phase E - 2026-02-19)
-  form: FormStepNode,  // Form Step (Page)
+  form: FormNode,  // NEW: Primary form node name
   formStepSingle: FormStepSingleNode,  // Backward compatibility
-  formBook: FormNode,  // Form container (Book)
-  // Restore legacy purple FormProcess container renderer (kept stable for business users)
-  formProcess: FormProcessNode,
-  formProcessGroup: FormProcessNode,
-  smartWorkForm: SmartWorkFormNode,
+  formProcess: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
+  formProcessGroup: FormProcessGroupNode,
   // Backward compatibility aliases
   formStep: FormStepSingleNode,  // Deprecated
-  formMultiStepContainer: FormProcessNode,  // Legacy container alias (render as purple process container)
+  formMultiStepContainer: FormProcessGroupNode,  // Upgraded: legacy type now uses the group node component
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -1720,11 +1693,15 @@ Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) dynamicNodeTypes[typeId] = WaitStateNode;
   else if (typeId.startsWith('document')) dynamicNodeTypes[typeId] = DocumentNode;
   else if (typeId.startsWith('terminal') || typeId.startsWith('end')) dynamicNodeTypes[typeId] = TerminalNode;
-  else if (typeId.startsWith('loop')) dynamicNodeTypes[typeId] = LoopNode;
   else if (typeId.startsWith('form')) dynamicNodeTypes[typeId] = FormStepSingleNode;
   else dynamicNodeTypes[typeId] = UtilityNode;
 });
 
+// Hotfix/rollback safety: render all Form Process container variants using the stable container node
+// (avoids the purple group container regressions while keeping legacy type IDs compatible).
+dynamicNodeTypes.formProcess = FormProcessNode;
+dynamicNodeTypes.formProcessGroup = FormProcessNode;
+dynamicNodeTypes.formMultiStepContainer = FormProcessNode;
 
 // Static edge types (no useMemo needed - these are constant)
 const staticEdgeTypes = {
@@ -1733,7 +1710,6 @@ const staticEdgeTypes = {
   error: ErrorEdge,
   success: SuccessEdge,
   enhanced: EnhancedConnectionEdge,
-  step: EnhancedConnectionEdge, // Use enhanced edge UX (toolbar, hitbox) with step routing
   insert: InsertNodeEdge,
   default: CustomEdge, // Fallback to custom for untyped edges
 } as unknown as EdgeTypes;
@@ -1830,9 +1806,7 @@ const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (p
   );
 };
 
-const PunchInController: React.FC<{
-  punchIn: UnifiedFlowEditorProps['punchIn'] | undefined;
-}> = ({ punchIn }) => {
+const PunchInController: React.FC<{ punchIn: UnifiedFlowEditorProps['punchIn'] | undefined }> = ({ punchIn }) => {
   const { startDebugSession, setDebugActiveNodeId, markNodesExecuted } = useFlowEditor();
   const reactFlow = useReactFlow();
 
@@ -1844,7 +1818,6 @@ const PunchInController: React.FC<{
     markNodesExecuted(punchIn.executedNodeIds || []);
   }, [
     punchIn?.activeNodeId,
-    // executedNodeIds can be a new array each render; stringify to keep effect stable enough.
     JSON.stringify(punchIn?.executedNodeIds || []),
     startDebugSession,
     setDebugActiveNodeId,
@@ -1855,7 +1828,6 @@ const PunchInController: React.FC<{
     if (!punchIn?.centerOnActiveNode) return;
     if (!punchIn.activeNodeId) return;
 
-    // Allow React Flow to render nodes before centering.
     const id = window.setTimeout(() => {
       const node = reactFlow.getNode?.(punchIn.activeNodeId || '');
       if (!node) return;
@@ -1944,14 +1916,8 @@ class ConfigPanelErrorBoundary extends React.Component<
 const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   initialNodes = [],
   initialEdges = [],
-  initialViewport,
   onSave,
   onChange, // Track changes for auto-save
-  initialWorkflowId,
-  initialWorkflowName,
-  initialWorkflowDescription,
-  initialWorkflowStatus,
-  onWorkflowSaved,
   readOnly = false,
   editorMode = 'visual',
   allowedNodeCategories, // Phase 4.2: Permission-based filtering
@@ -1964,8 +1930,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeIdCounter, setNodeIdCounter] = useState(normalizedInitialNodes.length + 1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  const queryClient = useQueryClient();
   
   // Keep ref to current nodes for stable callbacks
   const nodesRef = useRef<Node[]>(nodes);
@@ -2070,16 +2034,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // React Flow instance for viewport controls
   const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
-
-  // Phase 7.5/Vanguard 1: track viewport for optional strict node/edge list virtualization
-  const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
-  const didInitViewportRef = useRef(false);
-  useEffect(() => {
-    if (didInitViewportRef.current) return;
-    if (!reactFlowInstance?.getViewport) return;
-    didInitViewportRef.current = true;
-    setViewport(reactFlowInstance.getViewport());
-  }, [reactFlowInstance]);
   
   // ============================================================================
   // CONFIG PANEL PORTAL - Enhanced with full styling (2026-02-24)
@@ -2506,6 +2460,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isTypingInInput(e)) return;
       
+      // Ctrl/Cmd + S: Save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+      
       // Ctrl/Cmd + Z: Undo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -2769,27 +2729,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Workflow Persistence State (Phase 7)
   // ============================================================================
   
-  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | undefined>(initialWorkflowId);
-  const [currentWorkflowName, setCurrentWorkflowName] = useState<string>(
-    initialWorkflowName || 'Untitled Workflow'
-  );
-  const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState<string>(
-    initialWorkflowDescription || ''
-  ); // Phase 8.2
-  const [currentWorkflowStatus, setCurrentWorkflowStatus] = useState<'draft' | 'active' | 'archived'>(
-    initialWorkflowStatus || 'draft'
-  ); // Phase 8.2
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | undefined>(undefined);
+  const [currentWorkflowName, setCurrentWorkflowName] = useState<string>('Untitled Workflow');
+  const [currentWorkflowDescription, setCurrentWorkflowDescription] = useState<string>(''); // Phase 8.2
+  const [currentWorkflowStatus, setCurrentWorkflowStatus] = useState<'draft' | 'active' | 'archived'>('draft'); // Phase 8.2
   const [workflowList, setWorkflowList] = useState<WorkflowListItem[]>([]);
   const [isLoadMenuOpen, setIsLoadMenuOpen] = useState(false);
-
-  // Keep workflow metadata in sync when the parent route/page swaps the loaded workflow.
-  useEffect(() => {
-    if (initialWorkflowId !== undefined) setCurrentWorkflowId(initialWorkflowId);
-    if (initialWorkflowName !== undefined) setCurrentWorkflowName(initialWorkflowName || 'Untitled Workflow');
-    if (initialWorkflowDescription !== undefined) setCurrentWorkflowDescription(initialWorkflowDescription || '');
-    if (initialWorkflowStatus !== undefined)
-      setCurrentWorkflowStatus(initialWorkflowStatus || 'draft');
-  }, [initialWorkflowId, initialWorkflowName, initialWorkflowDescription, initialWorkflowStatus]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false); // Phase 8.2
@@ -3269,34 +3214,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
-      const sourceHandle = params.sourceHandle;
-      const nextType =
-        sourceHandle === 'error'
-          ? 'error'
-          : sourceHandle === 'true' || sourceHandle === 'false'
-            ? 'conditional'
-            : 'step';
-
-      const nextData =
-        sourceHandle === 'error'
-          ? { label: 'Error', animated: true }
-          : sourceHandle === 'true'
-            ? { label: 'True', isTrue: true }
-            : sourceHandle === 'false'
-              ? { label: 'False', isTrue: false }
-              : undefined;
-
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...params,
-            type: nextType,
-            data: nextData,
-            interactionWidth: 28,
-          } as any,
-          eds
-        )
-      );
+      setEdges((eds) => addEdge(params, eds));
     },
     [nodes, edges, setEdges, isValidConnectionType, getNodeMaxConnections]
   );
@@ -3429,7 +3347,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const reactFlowType = getReactFlowNodeType(nodeTypeId);
 
       // Ensure default dimensions upfront (prevents React Flow dimension errors)
-      const defaultDimensions = isNewContainer ? { width: 600, height: 450 } : undefined;
+      const defaultDimensions = isNewContainer ? { width: 600, height: 400 } : undefined;
 
       const newNode: Node = {
         id: newNodeId,
@@ -3444,11 +3362,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         selected: true,
       };
 
-      // Canonical container type: Form Process (group container)
+      // Upgrade legacy container types to the canonical group container
       if (isNewContainer) {
         newNode.style = {
           width: 600,
-          height: 450,
+          height: 400,
         };
         newNode.data = {
           ...newNode.data,
@@ -3467,8 +3385,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           parentId,
           extent: 'parent',
           expandParent: true,
-          // Keep the first step safely inside default container bounds
-          position: { x: 50, y: 80 },
+          position: { x: 30, y: 90 },
           data: {
             label: NODE_TYPE_REGISTRY.form?.name || 'Form',
             status: 'draft',
@@ -3936,7 +3853,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Fix #2: Ensure default dimensions upfront (prevents React Flow dimension errors)
       const isContainerNode = isFormProcessContainerType(type);
       const defaultDimensions = isContainerNode
-        ? { width: 600, height: 450 } // Larger for containers (fits first step inside bounds)
+        ? { width: 600, height: 400 } // Larger for containers
         : undefined; // Let React Flow calculate for regular nodes
 
       const newNode: Node = {
@@ -4134,8 +4051,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const edgesToAdd: Edge[] = [];
       let counterDelta = 1;
 
-      // Auto-spawn a default Form Step (Page) inside a new Form (Book)
-      if (isContainerNode && (newNode.type === 'formBook' || newNode.type === 'formProcessGroup')) {
+      // Phase 10: Auto-spawn a default Form page inside a new formProcessGroup
+      if (isContainerNode && newNode.type === 'formProcessGroup') {
         const pageId = `node-${nodeIdCounter + 1}`;
         const pageNode: Node = {
           id: pageId,
@@ -4199,7 +4116,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       updatedEdges = [...updatedEdges, ...edgesToAdd];
 
-      if (isContainerNode && (newNode.type === 'formBook' || newNode.type === 'formProcessGroup')) {
+      if (isContainerNode && newNode.type === 'formProcessGroup') {
         applyAutoLayoutImmediate(updatedNodes, updatedEdges);
       } else {
         setNodes(updatedNodes);
@@ -4667,10 +4584,53 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [nodes, setNodes]);
 
   // ============================================================================
-  // Save Handler (Legacy compatibility)
+  // Save Handler
   // ============================================================================
-  // NOTE: The editor persists workflows via `handleSaveWorkflow` (tenant-workforms).
-  // `handleSaveRef` remains as a stable indirection for keyboard/UI triggers.
+  
+  const handleSaveImpl = useCallback(() => {
+    logger.debug('[FlowEditor] Quick save triggered');
+    
+    // SAFETY: Validate state before save
+    if (!nodes || !edges) {
+      logger.error('[FlowEditor] Cannot save: nodes or edges undefined');
+      toast.error('Cannot save workflow: Invalid state');
+      return;
+    }
+    
+    toast.success('Workflow saved');
+    
+    if (onSave) {
+      try {
+        // Log container information for debugging (Phase E)
+        const containerNodes = nodes.filter(n => n.type === 'formMultiStepContainer');
+        const nodesInContainers = nodes.filter(n => n.parentId);
+        
+        logger.debug('[Save] Workflow saved with container state:');
+        logger.debug(`  - ${containerNodes.length} container(s)`);
+        logger.debug(`  - ${nodesInContainers.length} node(s) in containers`);
+        
+        if (containerNodes.length > 0) {
+          containerNodes.forEach(container => {
+            const childNodes = nodes.filter(n => n.parentId === container.id); // Phase E: Using parentNode
+            logger.debug(`  - Container ${container.id}: ${childNodes.length} nodes`);
+          });
+        }
+        
+        onSave(nodes, edges);
+        logger.debug('Flow saved successfully!');
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        logger.error('[FlowEditor] Save failed:', error);
+        toast.error('Failed to save workflow');
+      }
+    }
+  }, [nodes, edges, onSave]);
+  
+  // Populate forward ref (CRITICAL: Must be after useCallback definition)
+  handleSaveRef.current = handleSaveImpl;
+  
+  // Alias for keyboard shortcut (now points to the forward ref wrapper)
+  const handleQuickSave = handleSave;
 
   // ============================================================================
   // Phase 7: Workflow Persistence Handlers
@@ -4684,23 +4644,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const errors: string[] = [];
     
     // Find all container nodes
-    const containerNodes = nodes.filter((n) =>
-      ['formBook', 'formProcessGroup', 'formProcess', 'formMultiStepContainer'].includes(n.type || '')
+    const containerNodes = nodes.filter(
+      n => n.type === 'formMultiStepContainer'
     );
     
     for (const container of containerNodes) {
       // Get child nodes
       const childNodes = nodes.filter(n => n.parentId === container.id);
       
-      // Check for form/page steps in the container.
-      const formSteps = childNodes.filter((n) =>
-        ['form', 'formStepSingle', 'formStep', 'formReference'].includes(n.type || '')
+      // Check for at least one form step
+      const formSteps = childNodes.filter(
+        n => n.type === 'formStep' || n.type === 'formReference'
       );
-
-      const minSteps = container.type === 'formBook' ? 3 : 1;
-      if (formSteps.length < minSteps) {
+      
+      if (formSteps.length === 0) {
         errors.push(
-          `Container "${container.data.label || container.id}" must have at least ${minSteps} step(s)`
+          `Container "${container.data.label || container.id}" must have at least one form step`
         );
       }
       
@@ -4765,12 +4724,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if (!currentWorkflowId) {
         setCurrentWorkflowId(savedWorkflow.id);
       }
-
-      onWorkflowSaved?.({ id: savedWorkflow.id, name: savedWorkflow.name });
-
-      // Refresh any UI surfaces that list available forms/workforms.
-      queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
-      queryClient.invalidateQueries({ queryKey: ['tenant-workforms'] });
       
       setHasUnsavedChanges(false);
       logger.debug('✅ Workflow saved:', savedWorkflow.name);
@@ -4791,12 +4744,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus, onWorkflowSaved, queryClient]);
-
-  // Populate forward ref now that the real save handler exists.
-  handleSaveRef.current = () => {
-    void handleSaveWorkflow();
-  };
+  }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus]);
   
   /**
    * Auto-layout: Apply dagre layout to all nodes
@@ -5220,46 +5168,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Viewport Controls
   // ============================================================================
   
-  const fitView = useCallback(
-    (opts?: { padding?: number; duration?: number; maxZoom?: number }) => {
-      if (reactFlowInstance?.fitView) {
-        reactFlowInstance.fitView({
-          padding: opts?.padding ?? 0.28,
-          duration: opts?.duration ?? 300,
-          maxZoom: opts?.maxZoom ?? 1.1,
-        } as any);
-      }
-    },
-    [reactFlowInstance]
-  );
-
-  const didApplyInitialViewportRef = useRef(false);
-
-  // On first load: restore saved viewport (if provided) else fit-to-content.
-  useEffect(() => {
-    if (didApplyInitialViewportRef.current) return;
-    if (!reactFlowInstance) return;
-
-    const hasGraph = nodes.length > 0 || edges.length > 0;
-    if (!hasGraph) return;
-
-    didApplyInitialViewportRef.current = true;
-
-    requestAnimationFrame(() => {
-      if (initialViewport && reactFlowInstance?.setViewport) {
-        reactFlowInstance.setViewport(initialViewport);
-        return;
-      }
-
-      fitView({ padding: 0.32, duration: 350, maxZoom: 1.05 });
-
-      // Nudge the fitted view so the default left palette doesn't occlude the first nodes.
-      if (isPaletteVisible && reactFlowInstance?.getViewport && reactFlowInstance?.setViewport) {
-        const vp = reactFlowInstance.getViewport();
-        reactFlowInstance.setViewport({ ...vp, x: vp.x + 140 });
-      }
-    });
-  }, [edges.length, fitView, initialViewport, isPaletteVisible, nodes.length, reactFlowInstance]);
+  const fitView = useCallback(() => {
+    if (reactFlowInstance?.fitView) {
+      reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+    }
+  }, [reactFlowInstance]);
   
   const zoomIn = useCallback(() => {
     if (reactFlowInstance?.zoomIn) {
@@ -5643,11 +5556,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       case 'formProcess': {
         // Phase 7 Stabilization: these node types are deprecated.
         // Migrate in-memory to the canonical Form Process Group node.
-        logger.debug('✏️ [EDIT BUTTON] Migrating legacy container to formBook');
+        logger.debug('✏️ [EDIT BUTTON] Migrating legacy container to formProcessGroup');
 
         const migratedNode = {
           ...node,
-          type: 'formBook',
+          type: 'formProcessGroup',
           data: {
             ...(node.data || {}),
             // Ensure group semantics are enabled
@@ -6144,150 +6057,68 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Template Selection Handler (Phase 2.5 Integration)
   // ============================================================================
   
-  const handleTemplateSelect = useCallback(
-    (template: FlowTemplate) => {
-      logger.debug('[Template] Selected:', template.name);
-
-      const normalizeTemplateNodeType = (typeId: string) => {
-        // Consolidate legacy form types to the canonical ones (additive/back-compat)
-        if (typeId === 'formStep' || typeId === 'formStepSingle') return 'form';
-        if (typeId === 'formProcess' || typeId === 'formMultiStepContainer') return 'formProcessGroup';
-        return typeId;
+  const handleTemplateSelect = useCallback((template: FlowTemplate) => {
+    logger.debug('[Template] Selected:', template.name);
+    
+    // Map template nodes to proper React Flow node types with full metadata
+    const mappedNodes = template.nodes.map(node => {
+      // Get node definition from registry for metadata (color, icon, etc.)
+      const nodeDef = getNodeTypeDefinition(node.type);
+      
+      // Ensure node has proper type mapping
+      const reactFlowType = getReactFlowNodeType(node.type);
+      
+      // Merge default data + template data + registry metadata
+      const defaultData = getDefaultNodeData(node.type);
+      
+      return {
+        ...node,
+        type: reactFlowType, // Override with React Flow node type
+        data: {
+          ...defaultData,      // Default node data (fields, actions, etc.)
+          ...node.data,        // Template-specific data
+          label: node.data.label || nodeDef?.name || node.type, // Ensure label exists
+          // Add registry metadata for proper styling
+          color: nodeDef?.color,
+          icon: nodeDef?.icon,
+          category: nodeDef?.category,
+          description: nodeDef?.description,
+        }
       };
-
-      const mappedNodes = template.nodes.map((node) => {
-        const normalizedTypeId = normalizeTemplateNodeType(node.type);
-
-        // Prefer metadata from normalized type, but fall back to the raw one
-        const nodeDef = getNodeTypeDefinition(normalizedTypeId) || getNodeTypeDefinition(node.type);
-        const reactFlowType = getReactFlowNodeType(normalizedTypeId);
-        const defaultData = getDefaultNodeData(normalizedTypeId);
-
-        return {
-          ...node,
-          type: reactFlowType,
-          data: {
-            ...defaultData,
-            ...node.data,
-            label: (node.data as any)?.label || nodeDef?.name || normalizedTypeId,
-            color: nodeDef?.color,
-            icon: nodeDef?.icon,
-            category: nodeDef?.category,
-            description: nodeDef?.description,
-          },
-        };
-      });
-
-      // Normalize template edges so they render with consistent types/markers.
-      // Templates often omit type and rely on handle IDs (true/false/error).
-      const mappedEdges: Edge[] = template.edges.map((edge) => {
-        const sourceHandle = (edge as any).sourceHandle as string | undefined;
-
-        const inferredType =
-          edge.type ||
-          (sourceHandle === 'error'
-            ? 'error'
-            : sourceHandle === 'true' || sourceHandle === 'false'
-              ? 'conditional'
-              : 'step');
-
-        const next: Edge = {
-          ...edge,
-          type: inferredType,
-          interactionWidth: edge.interactionWidth ?? 28,
-        };
-
-        if (inferredType === 'conditional' && !(edge as any).data && (sourceHandle === 'true' || sourceHandle === 'false')) {
-          (next as any).data = {
-            label: edge.label || (sourceHandle === 'true' ? 'True' : 'False'),
-            isTrue: sourceHandle === 'true',
-          };
-        }
-
-        if (inferredType === 'error' && !(edge as any).data) {
-          (next as any).data = {
-            label: edge.label || 'Error',
-            animated: true,
-          };
-        }
-
-        if (inferredType === 'step') {
-          next.style = {
-            strokeWidth: 3,
-            stroke: 'rgb(var(--color-text-secondary))',
-            ...(edge.style || {}),
-          };
-          next.markerEnd =
-            edge.markerEnd ||
-            ({
-              type: MarkerType.ArrowClosed,
-              width: 24,
-              height: 24,
-              color: 'rgb(var(--color-text-secondary))',
-            } as any);
-        }
-
-        return next;
-      });
-
-      // Hardening: ensure container children are inside bounds on template load.
-      let layoutedNodes = mappedNodes as Node[];
-      let layoutedEdges = mappedEdges;
-
-      const containerIds = layoutedNodes
-        .filter((n) => isFormProcessContainerType(n.type))
-        .map((n) => n.id);
-
-      for (const containerId of containerIds) {
-        const layoutResult = calculateContainerLayout(containerId, layoutedNodes, layoutedEdges);
-
-        layoutedNodes = layoutResult.nodes.map((n) => {
-          if (n.id !== containerId) return n;
-          return {
-            ...n,
-            style: {
-              ...(n.style || {}),
-              width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 400),
-              height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 300),
-            },
-          };
-        });
-
-        layoutedEdges = autoConnectSequentialSteps(containerId, layoutedNodes, layoutedEdges).edges;
+    });
+    
+    // Load template nodes and edges into canvas
+    setNodes(mappedNodes);
+    setEdges(template.edges);
+    
+    // Reset history with template as initial state
+    const newHistory: HistoryState[] = [{
+      nodes: mappedNodes,
+      edges: template.edges
+    }];
+    setHistory(newHistory);
+    setHistoryIndex(0);
+    
+    // Update node ID counter based on loaded nodes
+    const maxId = Math.max(
+      0,
+      ...template.nodes.map(n => {
+        const match = n.id.match(/node-(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+    );
+    setNodeIdCounter(maxId + 1);
+    
+    // Close modal
+    setIsTemplateModalOpen(false);
+    
+    // Fit view to show full template
+    setTimeout(() => {
+      if (reactFlowInstance?.fitView) {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
       }
-
-      // Load into canvas
-      setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
-
-      // Reset history with template as initial state
-      setHistory([
-        {
-          nodes: layoutedNodes,
-          edges: layoutedEdges,
-        },
-      ]);
-      setHistoryIndex(0);
-
-      const maxId = Math.max(
-        0,
-        ...layoutedNodes.map((n) => {
-          const match = n.id.match(/node-(\d+)/);
-          return match ? parseInt(match[1], 10) : 0;
-        })
-      );
-      setNodeIdCounter(maxId + 1);
-
-      setIsTemplateModalOpen(false);
-
-      setTimeout(() => {
-        if (reactFlowInstance?.fitView) {
-          reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
-        }
-      }, 100);
-    },
-    [setNodes, setEdges, reactFlowInstance]
-  );
+    }, 100);
+  }, [setNodes, setEdges, reactFlowInstance]);
 
   const handleStartBlank = useCallback(() => {
     logger.debug('[Template] Starting blank canvas');
@@ -6368,192 +6199,39 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       .map(id => NODE_TYPE_REGISTRY[id])
       .filter(Boolean);
   }, [recentNodes]);
-
-  const lastNodeIdSet = useMemo(() => {
-    const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
-    const outgoingWithinScope = new Set<string>();
-
-    edges.forEach((e) => {
-      const sourceNode = nodeById.get(e.source);
-      const targetNode = nodeById.get(e.target);
-      if (!sourceNode || !targetNode) return;
-
-      const sourceScope = sourceNode.parentId ?? '__root__';
-      const targetScope = targetNode.parentId ?? '__root__';
-
-      if (sourceScope !== targetScope) return;
-      outgoingWithinScope.add(sourceNode.id);
-    });
-
-    const sinks = new Set<string>();
-    nodes.forEach((n) => {
-      if (n.hidden) return;
-      if (!outgoingWithinScope.has(n.id)) sinks.add(n.id);
-    });
-
-    return sinks;
-  }, [edges, nodes]);
-
-  // React Flow Sub-flows reference: https://reactflow.dev/examples/nodes/sub-flows
-  // We treat Form containers as true parent nodes (parentId + extent:'parent') and insert pages within that scope.
-  const addFormStepInsideContainer = useCallback(
-    (containerId: string, afterNodeId?: string) => {
-      setNodes((prev) => {
-        const nodeById = new Map(prev.map((n) => [n.id, n] as const));
-        const container = nodeById.get(containerId);
-        if (!container) return prev;
-
-        const isPageNodeType = (type?: string) =>
-          type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
-
-        const pageNodes = prev.filter((n) => n.parentId === containerId && isPageNodeType(n.type));
-        const pageIdSet = new Set(pageNodes.map((n) => n.id));
-
-        const existingOrder = Array.isArray((container.data as any)?.pageOrder)
-          ? (((container.data as any).pageOrder as string[]) || [])
-          : [];
-
-        const normalizedExisting = existingOrder.filter((pid) => pageIdSet.has(pid));
-        const missing = pageNodes
-          .filter((n) => !normalizedExisting.includes(n.id))
-          .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0) || (a.position?.y || 0) - (b.position?.y || 0))
-          .map((n) => n.id);
-
-        const baseOrder = [...normalizedExisting, ...missing];
-        const insertIndex = afterNodeId && baseOrder.includes(afterNodeId) ? baseOrder.indexOf(afterNodeId) + 1 : baseOrder.length;
-
-        const enforceStrictPages = container.type === 'formProcessGroup' || container.type === 'formProcess' || container.type === 'formMultiStepContainer';
-
-        const newPageId = `page-${uuidv4()}`;
-        const nextOrder = [...baseOrder.slice(0, insertIndex), newPageId, ...baseOrder.slice(insertIndex)];
-
-        const newPageNumber = insertIndex + 1;
-        const newPage: Node = {
-          id: newPageId,
-          type: 'form',
-          position: {
-            x: 50 + insertIndex * 350,
-            y: 80,
-          },
-          style: enforceStrictPages ? { width: 320, height: 320, overflow: 'hidden' } : undefined,
-          data: {
-            stepTitle: `Page ${newPageNumber}`,
-            label: `Page ${newPageNumber}`,
-            fields: [],
-            order: insertIndex,
-          },
-          parentId: containerId,
-          extent: 'parent',
-          expandParent: true,
-          draggable: enforceStrictPages ? false : true,
-        };
-
-        const nextNodes = prev.map((n) => {
-          if (n.id === containerId) {
-            return {
-              ...n,
-              data: {
-                ...(n.data || {}),
-                pageOrder: nextOrder,
-                isExpanded: true,
-              },
-            };
-          }
-
-          if (n.parentId !== containerId) return n;
-
-          const isPageNodeType = (type?: string) =>
-            type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
-          if (!isPageNodeType(n.type)) return n;
-
-          const idx = nextOrder.indexOf(n.id);
-          if (idx === -1) return n;
-
-          return {
-            ...n,
-            position: {
-              x: 50 + idx * 350,
-              y: 80,
-            },
-            draggable: enforceStrictPages ? false : n.draggable,
-            style: enforceStrictPages
-              ? {
-                  ...(n.style || {}),
-                  width: 320,
-                  height: 320,
-                  overflow: 'hidden',
-                }
-              : n.style,
-            data: {
-              ...(n.data || {}),
-              order: idx,
-            },
-          };
-        });
-
-        return [...nextNodes, newPage];
-      });
-    },
-    [setNodes]
-  );
   
   // Batch 3: Inject edit/delete handlers into node data
   // Batch 4: Also inject title change handler
   const nodesWithHandlers = useMemo(() => {
-    const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
-    const isFormContainerType = (type?: string) => type === 'formBook' || type === 'formProcessGroup';
-
     return nodes.map((node) => {
       const data = node.data ?? {};
 
       const onEdit =
-        typeof (data as any).onEdit === 'function'
-          ? (data as any).onEdit
+        typeof data.onEdit === 'function'
+          ? data.onEdit
           : () => handleNodeEdit(node.id);
-
       const onDelete =
-        typeof (data as any).onDelete === 'function'
-          ? (data as any).onDelete
+        typeof data.onDelete === 'function'
+          ? data.onDelete
           : () => handleNodeDelete(node.id);
-
       const onSave =
-        typeof (data as any).onSave === 'function'
-          ? (data as any).onSave
+        typeof data.onSave === 'function'
+          ? data.onSave
           : () => handleSaveWorkflow();
-
       const onTitleChange =
-        typeof (data as any).onTitleChange === 'function'
-          ? (data as any).onTitleChange
+        typeof data.onTitleChange === 'function'
+          ? data.onTitleChange
           : (newTitle: string) => handleNodeTitleChange(node.id, newTitle);
 
       const onInsertAfter =
-        typeof (data as any).onInsertAfter === 'function'
-          ? (data as any).onInsertAfter
+        typeof data.onInsertAfter === 'function'
+          ? data.onInsertAfter
           : () => {
               window.dispatchEvent(
                 new CustomEvent('pm:openNodePalette', {
                   detail: { anchorNodeId: node.id },
                 })
               );
-            };
-
-      const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
-      const parentIsFormContainer = parent && isFormContainerType(parent.type);
-      const nodeIsFormContainer = isFormContainerType(node.type);
-
-      const onAddStepInsideForm =
-        typeof (data as any).onAddStepInsideForm === 'function'
-          ? (data as any).onAddStepInsideForm
-          : () => {
-              if (nodeIsFormContainer) {
-                addFormStepInsideContainer(node.id);
-                return;
-              }
-              if (parentIsFormContainer && node.parentId) {
-                addFormStepInsideContainer(node.parentId, node.id);
-                return;
-              }
-              onInsertAfter();
             };
 
       return {
@@ -6565,44 +6243,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           onSave,
           onTitleChange,
           onInsertAfter,
-          onAddStepInsideForm,
-          isLastInWorkflow: lastNodeIdSet.has(node.id),
         },
       };
     });
-  }, [addFormStepInsideContainer, handleNodeDelete, handleNodeEdit, handleNodeTitleChange, handleSaveWorkflow, lastNodeIdSet, nodes]);
-
-  // Vanguard 1: Optional strict render-list virtualization for very large workflows.
-  // React Flow already does viewport culling (onlyRenderVisibleElements); this additionally reduces
-  // the nodes/edges arrays passed into React Flow to shrink reconciliation work.
-  const virtualizedNodes = useVirtualizedNodes(nodesWithHandlers, viewport, {
-    threshold: 180,
-    bufferPx: 320,
-    debounceMs: 50,
-    enabled: true,
-  });
-
-  const renderedNodesForCanvas = useMemo(() => {
-    if (!virtualizedNodes.isVirtualized) return nodesWithHandlers;
-
-    const byId = new Map(nodesWithHandlers.map((n) => [n.id, n] as const));
-    const renderIdSet = new Set(virtualizedNodes.visibleNodes.map((n) => n.id));
-
-    const includeNodeAndAncestors = (nodeId: string) => {
-      let cur: string | undefined = nodeId;
-      while (cur) {
-        if (renderIdSet.has(cur)) break;
-        renderIdSet.add(cur);
-        const node = byId.get(cur);
-        cur = node?.parentId;
-      }
-    };
-
-    if (selectedNodeId) includeNodeAndAncestors(selectedNodeId);
-
-    // Preserve ordering + include parents before children (React Flow stability)
-    return nodesWithHandlers.filter((n) => renderIdSet.has(n.id));
-  }, [nodesWithHandlers, selectedNodeId, virtualizedNodes.isVirtualized, virtualizedNodes.visibleNodes]);
+  }, [nodes, handleNodeEdit, handleNodeDelete, handleNodeTitleChange, handleSaveWorkflow]);
 
   // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
   // are re-targeted to virtual handles on the container boundary so connectivity remains visible.
@@ -6666,13 +6310,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     return derived;
   }, [edges, nodesWithHandlers]);
-
-  const renderedEdgesForCanvas = useMemo(() => {
-    if (!virtualizedNodes.isVirtualized) return edgesForCanvas;
-
-    const renderedIdSet = new Set(renderedNodesForCanvas.map((n) => n.id));
-    return edgesForCanvas.filter((e) => renderedIdSet.has(e.source) && renderedIdSet.has(e.target));
-  }, [edgesForCanvas, renderedNodesForCanvas, virtualizedNodes.isVirtualized]);
 
   return (
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
@@ -7137,23 +6774,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* React Flow Canvas - Visual Mode */}
       {normalizedEditorMode === 'visual' && (
         <DebugAwareReactFlow
-        nodes={renderedNodesForCanvas}
-        edges={renderedEdgesForCanvas}
+        nodes={nodesWithHandlers}
+        edges={edgesForCanvas}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={readOnly ? undefined : onConnect}
-        onMoveEnd={(_, vp) => setViewport(vp)}
-        onNodesDelete={readOnly ? undefined : onNodesDelete}
-        nodesDraggable={!readOnly}
+        onConnect={onConnect}
+        onNodesDelete={onNodesDelete}
+        nodesDraggable={true}
         nodeDragHandle=".custom-drag-handle"
         nodesConnectable={false}
         isValidConnection={isValidConnection}
-        onDrop={readOnly ? undefined : onDrop}
-        onDragOver={readOnly ? undefined : onDragOver}
-        onNodeDragStart={readOnly ? undefined : onNodeDragStart}
-        onNodeDragStop={readOnly ? undefined : onNodeDragStop}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDragStop={onNodeDragStop}
         onNodeClick={handleNodeClick}
-        onNodeContextMenu={readOnly ? undefined : handleNodeContextMenu}
+        onNodeContextMenu={handleNodeContextMenu}
         onPaneClick={handleCloseMenu}
         onPaneMouseMove={(event) => {
           if (!currentWorkflowId) return;
@@ -7175,25 +6811,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         maxZoom={4}
         minZoom={0.1}
         defaultEdgeOptions={{
-          // Step edges with larger markers + wider interaction area.
-          // NOTE: edgeTypes.step maps to EnhancedConnectionEdge to preserve toolbars/hitbox.
-          type: 'step',
-          style: { strokeWidth: 3, stroke: 'rgb(var(--color-text-secondary))' },
-          interactionWidth: 28,
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 24,
-            height: 24,
-            color: 'rgb(var(--color-text-secondary))',
-          },
+          // Keep our enhanced edge component, but render it with thicker step-like styling.
+          type: 'enhanced',
+          style: { strokeWidth: 3, stroke: 'rgb(148, 163, 184)' },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 24, height: 24, color: 'rgb(148, 163, 184)' },
         }}
         connectionLineStyle={{
-          stroke: 'rgb(var(--color-text-secondary))',
+          stroke: 'rgb(148, 163, 184)',
           strokeWidth: 3,
           strokeDasharray: '5,5',
           animation: 'dash 0.5s linear infinite',
         }}
         connectionLineType="step"
+        fitView
         snapToGrid={snapToGrid}
         snapGrid={[gridSize, gridSize]}
         connectionRadius={20}
@@ -8019,14 +7649,12 @@ function getReactFlowNodeType(nodeTypeId: string): string {
 
   // Preserve specific types for all other nodes so their specific schemas load
   if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
-  if (nodeTypeId === 'formBook') return 'formBook';
   return nodeTypeId;
 }
 
 /** Returns true for all Form Process container node type IDs (current + legacy). */
 function isFormProcessContainerType(nodeType: string | undefined | null): boolean {
   return (
-    nodeType === 'formBook' ||
     nodeType === 'formProcessGroup' ||
     nodeType === 'formProcess' ||
     nodeType === 'formMultiStepContainer'
@@ -8065,7 +7693,7 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
   }
 
   // Special handling for containers
-  if (resolvedType === 'formMultiStepContainer' || resolvedType === 'formProcessGroup' || resolvedType === 'formBook') {
+  if (resolvedType === 'formMultiStepContainer' || resolvedType === 'formProcessGroup') {
     defaults.fields = [];
     defaults.containerName = 'New Container';
     defaults.isExpanded = true;
