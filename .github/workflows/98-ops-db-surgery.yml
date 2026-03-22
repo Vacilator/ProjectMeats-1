@@ -60,8 +60,11 @@ jobs:
         id: context
         run: |
           {
-            # Host/user vary per environment; password naming is inconsistent by design.
-            if [ "${{ inputs.environment }}" == "prod" ]; then
+            # Prefer canonical environment-scoped secrets.
+            if [ -n "${{ secrets.SSH_HOST }}" ] && [ -n "${{ secrets.SSH_USER }}" ]; then
+              echo "HOST=${{ secrets.SSH_HOST }}"
+              echo "USER=${{ secrets.SSH_USER }}"
+            elif [ "${{ inputs.environment }}" == "prod" ]; then
               echo "HOST=${{ secrets.PRODUCTION_HOST }}"
               echo "USER=${{ secrets.PRODUCTION_USER }}"
             elif [ "${{ inputs.environment }}" == "uat" ]; then
@@ -72,11 +75,13 @@ jobs:
               echo "USER=${{ secrets.DEV_USER }}"
             fi
 
-            # Password: Dev often uses DEV_SSH_PASSWORD; UAT/Prod use SSH_PASSWORD.
-            if [ "${{ inputs.environment }}" == "dev" ] && [ -n "${{ secrets.DEV_SSH_PASSWORD }}" ]; then
+            # Prefer canonical SSH_PASSWORD if set; fall back to DEV_SSH_PASSWORD for dev.
+            if [ -n "${{ secrets.SSH_PASSWORD }}" ]; then
+              echo "PASS=${{ secrets.SSH_PASSWORD }}"
+            elif [ "${{ inputs.environment }}" == "dev" ] && [ -n "${{ secrets.DEV_SSH_PASSWORD }}" ]; then
               echo "PASS=${{ secrets.DEV_SSH_PASSWORD }}"
             else
-              echo "PASS=${{ secrets.SSH_PASSWORD }}"
+              echo "PASS="
             fi
           } >> "$GITHUB_OUTPUT"
       
@@ -84,24 +89,44 @@ jobs:
         if: inputs.type == 'sql'
         env:
           SSHPASS: ${{ steps.context.outputs.PASS }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
           SQL_SCRIPT: ${{ inputs.script }}
         run: |
+          set -euo pipefail
+
           HOST="${{ steps.context.outputs.HOST }}"
           USER="${{ steps.context.outputs.USER }}"
-          
+
           echo "🔧 SQL Surgery Operation"
           echo "📍 Target: $USER@$HOST"
           echo "🌍 Environment: ${{ inputs.environment }}"
           echo "📝 Query: $SQL_SCRIPT"
-          
+
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+          if [ -n "${SSH_KEY:-}" ]; then
+            KEY_FILE="$HOME/.ssh/ops_key"
+            printf '%s\n' "$SSH_KEY" > "$KEY_FILE"
+            chmod 600 "$KEY_FILE"
+            SSH_CMD="ssh -i $KEY_FILE -o IdentitiesOnly=yes $SSH_OPTS"
+            SCP_CMD="scp -i $KEY_FILE -o IdentitiesOnly=yes $SSH_OPTS"
+          else
+            if [ -z "${SSHPASS:-}" ]; then
+              echo "::error::No SSH auth available (set SSH_PASSWORD or SSH_KEY in the environment secrets)."
+              exit 1
+            fi
+            SSH_CMD="sshpass -e ssh $SSH_OPTS"
+            SCP_CMD="sshpass -e scp $SSH_OPTS"
+          fi
+
           # Create temporary SQL file
           echo "$SQL_SCRIPT" > surgery.sql
-          
+
           # Transfer SQL file to server
-          sshpass -e scp -o StrictHostKeyChecking=no surgery.sql $USER@$HOST:/tmp/surgery.sql
-          
+          $SCP_CMD surgery.sql $USER@$HOST:/tmp/surgery.sql
+
           # Execute SQL using psql with credentials from .env
-          sshpass -e ssh -o StrictHostKeyChecking=no $USER@$HOST << 'ENDSSH'
+          $SSH_CMD $USER@$HOST << 'ENDSSH'
           set -euo pipefail
           
           # Load database credentials from backend .env (Robust parser)
@@ -135,18 +160,36 @@ jobs:
         if: inputs.type == 'shell'
         env:
           SSHPASS: ${{ steps.context.outputs.PASS }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
           SHELL_SCRIPT: ${{ inputs.script }}
         run: |
+          set -euo pipefail
+
           HOST="${{ steps.context.outputs.HOST }}"
           USER="${{ steps.context.outputs.USER }}"
-          
+
           echo "🔧 Shell Command Operation"
           echo "📍 Target: $USER@$HOST"
           echo "🌍 Environment: ${{ inputs.environment }}"
           echo "📝 Command: $SHELL_SCRIPT"
-          
+
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+          if [ -n "${SSH_KEY:-}" ]; then
+            KEY_FILE="$HOME/.ssh/ops_key"
+            printf '%s\n' "$SSH_KEY" > "$KEY_FILE"
+            chmod 600 "$KEY_FILE"
+            SSH_CMD="ssh -i $KEY_FILE -o IdentitiesOnly=yes $SSH_OPTS"
+          else
+            if [ -z "${SSHPASS:-}" ]; then
+              echo "::error::No SSH auth available (set SSH_PASSWORD or SSH_KEY in the environment secrets)."
+              exit 1
+            fi
+            SSH_CMD="sshpass -e ssh $SSH_OPTS"
+          fi
+
           # Execute shell command
-          sshpass -e ssh -o StrictHostKeyChecking=no $USER@$HOST << ENDSSH
+          $SSH_CMD $USER@$HOST << ENDSSH
           set -euo pipefail
           
           cd /root/projectmeats

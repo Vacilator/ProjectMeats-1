@@ -99,6 +99,15 @@ on:
       SENTRY_ENABLED:
         required: false
         description: "Enable/disable Sentry error tracking (from job environment)"
+      OPENAI_API_KEY:
+        required: false
+        description: "OpenAI API key (optional; Phase 8 AI features)"
+      OPENAI_ORG_ID:
+        required: false
+        description: "OpenAI org ID (optional; Phase 8 AI features)"
+      OPENAI_MODEL:
+        required: false
+        description: "OpenAI model (optional; Phase 8 AI features)"
       MICROSOFT_CLIENT_ID:
         required: false
         description: "Microsoft Azure OAuth client ID (from job environment)"

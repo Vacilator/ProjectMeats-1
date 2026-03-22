@@ -17,16 +17,16 @@ class Migration(migrations.Migration):
         ("tenants", "0010_add_tenant_configuration"),
     ]
 
-    run_before = [
-        ("integrations", "0002_emaillog"),
-        ("locations", "0002_enable_rls_locations"),
-        ("carriers", "0006_add_rls_policies_batch"),
-        ("cockpit", "0006_add_rls_policies_batch"),
-        ("ai_assistant", "0005_add_rls_policies_batch"),
-        ("bug_reports", "0005_add_rls_policies_batch"),
-        ("plants", "0008_plantassociatedproduct_plant_associated_products_and_more"),
-        ("workflows", "0022_add_tenant_to_step_models"),
-    ]
+    # NOTE:
+    # We intentionally do NOT use `run_before` here.
+    #
+    # Some environments already have historical RLS migrations applied (e.g. locations.0002).
+    # Adding `run_before` edges can create an implicit dependency and trigger
+    # `InconsistentMigrationHistory` on deploy.
+    #
+    # If a future migration truly requires these GUCs at migration-time, it should either:
+    #   1) use safe current_setting(..., true), or
+    #   2) set_config() within that migration.
 
     operations = [
         migrations.RunSQL(
