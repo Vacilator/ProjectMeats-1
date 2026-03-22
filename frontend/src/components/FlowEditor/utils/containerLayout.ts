@@ -22,22 +22,18 @@ export const LAYOUT_CONSTANTS = {
   START_X: 50,           // Starting x position for first form step
   STEP_SPACING: 350,     // Horizontal spacing between form steps
   STEP_Y: 80,            // Y position for form step row
-
-  // Fixed dimensions for Form Step nodes (keeps steps inside parent bounds)
-  STEP_W: 320,
-  STEP_H: 320,
-
+  
   // Vertical layout for action nodes
   ACTION_OFFSET_Y: 180,  // Vertical offset below form step
   ACTION_SPACING_Y: 120, // Spacing between stacked actions
-
+  
   // Container padding
   CONTAINER_PADDING_X: 20,
   CONTAINER_PADDING_Y: 20,
-
+  
   // Node dimensions (for calculating container size)
-  DEFAULT_NODE_WIDTH: 320,
-  DEFAULT_NODE_HEIGHT: 320,
+  DEFAULT_NODE_WIDTH: 200,
+  DEFAULT_NODE_HEIGHT: 100,
 } as const;
 
 // ============================================================================
@@ -73,13 +69,7 @@ export function calculateContainerLayout(
   allEdges: Edge[]
 ): LayoutResult {
   logger.debug(`[Layout] Calculating layout for container ${containerId}`);
-
-  const containerNode = allNodes.find((n) => n.id === containerId);
-  const enforceStrictPages =
-    containerNode?.type === 'formProcessGroup' ||
-    containerNode?.type === 'formProcess' ||
-    containerNode?.type === 'formMultiStepContainer';
-
+  
   // Filter child nodes (using parentId - React Flow v11+)
   const childNodes = allNodes.filter(node => node.parentId === containerId);
   
@@ -110,24 +100,15 @@ export function calculateContainerLayout(
   // Update form steps with horizontal layout
   const updatedFormSteps = formSteps.map((step, index) => {
     const newPosition: NodePosition = {
-      x: LAYOUT_CONSTANTS.START_X + index * LAYOUT_CONSTANTS.STEP_SPACING,
+      x: LAYOUT_CONSTANTS.START_X + (index * LAYOUT_CONSTANTS.STEP_SPACING),
       y: LAYOUT_CONSTANTS.STEP_Y,
     };
-
+    
     logger.debug(`[Layout] Form step \${step.id} positioned at (\${newPosition.x}, \${newPosition.y})`);
-
+    
     return {
       ...step,
       position: newPosition,
-      draggable: enforceStrictPages ? false : step.draggable,
-      style: enforceStrictPages
-        ? {
-            ...(step.style || {}),
-            width: LAYOUT_CONSTANTS.STEP_W,
-            height: LAYOUT_CONSTANTS.STEP_H,
-            overflow: 'hidden',
-          }
-        : step.style,
       data: {
         ...step.data,
         order: index, // Store order for future reordering
@@ -278,10 +259,5 @@ export function autoConnectSequentialSteps(
  * (Only form steps trigger auto-connection of sequential edges)
  */
 export function shouldTriggerConnection(nodeType: string): boolean {
-  return (
-    nodeType === 'form' ||
-    nodeType === 'formStep' ||
-    nodeType === 'formStepSingle' ||
-    nodeType === 'formReference'
-  );
+  return nodeType === 'formStep' || nodeType === 'formReference';
 }

@@ -109,7 +109,7 @@ export function calculateContainerSize(
  * @returns Icon component name (for lucide-react)
  */
 export function getContainerIcon(
-  containerType: string = 'formBook'
+  containerType: string = 'formProcessGroup'
 ): string {
   const iconMap: Record<string, string> = {
     formBook: 'Book',
