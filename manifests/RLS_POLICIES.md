@@ -1,6 +1,6 @@
 # Security Compliance & RLS Audit Log
 
-**Last Updated**: March 18, 2026  
+**Last Updated**: March 22, 2026  
 **Status**: ✅ ALL SYSTEMS COMPLIANT
 
 ---
@@ -103,14 +103,14 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 
 ## Compliance Summary
 
-| Module | Tables | RLS Policies | Status |
-|--------|--------|--------------|--------|
-| **Workflows** | 17 | 17 | ✅ COMPLIANT |
-| **Financial** | 7 | 14 (2 per table) | ✅ COMPLIANT |
-| **Logistics** | 8 | 16 (2 per table) | ✅ COMPLIANT |
-| **Core Business** | 4 | 8 (2 per table) | ✅ COMPLIANT |
-| **Support** | 6 | 6 | ✅ COMPLIANT |
-| **TOTAL** | **42** | **61** | ✅ **100% COMPLIANT** |
+**Latest Audit (2026-03-22)**:
+- `python manage.py audit_rls_compliance` → **38/38 tenant-aware models compliant** ✅
+
+**Tenant Isolation Policies** (from `pg_policies`):
+- Tables with at least one `*_tenant_isolation` policy: **45**
+- `*_tenant_isolation` policies total: **48**
+
+> Note: Some tables currently have both legacy and standardized `*_tenant_isolation` policy names during transition.
 
 ---
 
@@ -157,7 +157,7 @@ psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c \
 
 ## Policy Details
 
-**RLS Policy Pattern** (used by all 33 policies):
+**RLS Policy Pattern** (tenant isolation policies):
 
 ```sql
 DO $$
@@ -201,5 +201,8 @@ END $$;
 ---
 
 **Audit Signature**: Automated CI/CD Pipeline  
-**Verification**: PostgreSQL `pg_class.relrowsecurity` = `t` for all 25 tables  
+**Verification**:
+- `python manage.py audit_rls_compliance` = ✅ (38/38)
+- `pg_policies.policyname LIKE '%_tenant_isolation'` present on tenant-aware tables
+
 **Status**: ✅ ALL SYSTEMS COMPLIANT

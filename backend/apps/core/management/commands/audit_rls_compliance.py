@@ -116,14 +116,25 @@ class Command(BaseCommand):
     def check_policy_exists(self, policy_name, table_name):
         """
         Check if an RLS policy exists.
+
+        Note: The codebase historically used multiple naming conventions for the same intent.
+        We check both the explicit policy_name and the presence of *any* "*_tenant_isolation"
+        policy on the table as an acceptable match.
         """
         with connection.cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM pg_policies
-                WHERE policyname = %s AND tablename = %s
-            """, [policy_name, table_name])
-            
+                WHERE tablename = %s
+                  AND (
+                    policyname = %s
+                    OR policyname LIKE %s
+                  )
+                """,
+                [table_name, policy_name, '%_tenant_isolation'],
+            )
+
             result = cursor.fetchone()
             return result and result[0] > 0
     
@@ -145,9 +156,12 @@ class Command(BaseCommand):
                 
                 # Create policy if not exists
                 if not result['policy_exists']:
+                    cursor.execute(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY")
+                    cursor.execute(f"ALTER TABLE {table_name} FORCE ROW LEVEL SECURITY")
                     cursor.execute(f"""
                         CREATE POLICY {policy_name} ON {table_name}
-                        USING (tenant_id = current_setting('app.current_tenant')::uuid)
+                        FOR ALL
+                        USING (tenant_id = current_setting('app.current_tenant', true)::uuid)
                     """)
                     self.stdout.write(
                         self.style.SUCCESS(f"  ✓ Created policy {policy_name}")

@@ -546,9 +546,9 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
 
 - [x] 6.7: Workflows RLS Hardening (PostgreSQL security) - **DEPLOYED** Feb 27, 2026
   - 9 workflow models refactored to TenantAwareModel (PR #3313)
-  - 17 tables with PostgreSQL RLS policies (Migration 0015)
-  - Database-level tenant isolation for all workflow data
-  - Files: `backend/tenant_apps/workflows/models.py`, `workflows/migrations/0015_sync_workflow_rls_state.py`
+  - 17 workflow tables with PostgreSQL RLS policies (Migration 0015)
+  - **RLS Debt Cleared (2026-03-22)**: `audit_rls_compliance` now reports **38/38 tenant-aware models compliant** (MEDIUM/LOW closed).
+  - Files: `backend/tenant_apps/workflows/models.py`, `workflows/migrations/0015_sync_workflow_rls_state.py`, `manifests/RLS_POLICIES.md`
 
 ### Blocked Deliverable
 - [x] 6.4: ✅ COMPLETE Sentry Integration (error tracking, APM) 🔒
@@ -726,7 +726,8 @@ Based on the mandatory protocol, I have audited the current state of the Cockpit
    - ✅ `TenantWorkflowAction` → Refactored to inherit from `TenantAwareModel` (PR #3313)
    - ✅ `WorkflowExecutionLog` → Refactored to inherit from `TenantAwareModel` (PR #3313)
    - ✅ **RLS Policies**: All 17 workflow tables have PostgreSQL RLS enabled (Migration 0015)
-   - **Status**: 🎉 **100% COMPLETE (9/9 models + 17 RLS policies)**
+   - ✅ **System-wide RLS**: `audit_rls_compliance` = **38/38 tenant-aware models compliant** (2026-03-22)
+   - **Status**: 🎉 **100% COMPLETE**
    - **Completion**: February 27, 2026 15:30 UTC
 
 6. **backend/tenant_apps/ai_assistant/models.py** ✅ **COMPLETE - February 27, 2026**
