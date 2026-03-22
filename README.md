@@ -1,16 +1,20 @@
 # Project Meats
 
+![Progress](https://img.shields.io/badge/Progress-100%25%20%E2%80%93%20Production%20Ready%20%28secrets%20activated%29-brightgreen)
+
 **Multi-tenant meat supply-chain platform** - Shared-schema multi-tenancy with Django + React
+
+**Status**: ✅ 100% – Production Ready (secrets activated)
 
 ---
 
 ## 🎯 Quick Links (Start Here)
 
 **For All Contributors:**
-- **[ROADMAP.md](ROADMAP.md)** - 📊 High-level project progress (9 phases, 79.1% complete)
+- **[ROADMAP.md](ROADMAP.md)** - 📊 High-level project progress (9 phases, **100% complete**)
 - **[MASTER_PLAN.md](MASTER_PLAN.md)** - 📋 Granular task list & technical debt tracker
 - **[manifests/GOLDEN_FILES.md](manifests/GOLDEN_FILES.md)** - 🗂️ Source of truth registry
-- **[docs/GOLDEN_PIPELINE.md](docs/GOLDEN_PIPELINE.md)** - 🏆 Deployment standards
+- **[docs/GOLDEN_PIPELINE.md](docs/GOLDEN_PIPELINE.md)** - 🏆 Deployment standards (authoritative)
 
 **For AI Agents:**
 - **ALWAYS** reference `/manifests/GOLDEN_FILES.md` before proposing schema changes
@@ -23,33 +27,32 @@
 
 ### Quick Links
 - **Architecture**: [docs/GOLDEN_PIPELINE.md](docs/GOLDEN_PIPELINE.md) - Authoritative deployment architecture
-- **Development**: [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) - Local setup guide
-- **API Reference**: [docs/ENVIRONMENT_VARS.md](docs/ENVIRONMENT_VARS.md) - Environment variables
-- **Contributing**: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Contribution guidelines
+- **Development**: [docs/getting-started/LOCAL_DEVELOPMENT.md](docs/getting-started/LOCAL_DEVELOPMENT.md) - Local setup guide
+- **API Reference**: [docs/reference/ENVIRONMENT_VARS.md](docs/reference/ENVIRONMENT_VARS.md) - Environment variables
+- **Contributing**: [docs/getting-started/CONTRIBUTING.md](docs/getting-started/CONTRIBUTING.md) - Contribution guidelines
 
 ### Core Documentation
 | Document | Purpose |
 |----------|---------|
 | [GOLDEN_PIPELINE.md](docs/GOLDEN_PIPELINE.md) | 🏆 Deployment architecture (authoritative) |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture overview |
+| [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) | System architecture overview |
 | [CONFIGURATION_AND_SECRETS.md](docs/CONFIGURATION_AND_SECRETS.md) | Secret management guide |
-| [DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) | Developer workflow |
-| [QUICK_START.md](docs/QUICK_START.md) | Quick start guide |
+| [DEVELOPMENT_WORKFLOW.md](docs/guides/DEVELOPMENT_WORKFLOW.md) | Developer workflow |
+| [QUICK_START.md](docs/getting-started/QUICK_START.md) | Quick start guide |
 
 ### Operations
 | Document | Purpose |
 |----------|---------|
-| [ENVIRONMENT_VARS.md](docs/ENVIRONMENT_VARS.md) | Environment variable reference |
-| [TENANT_ACCESS_CONTROL.md](docs/TENANT_ACCESS_CONTROL.md) | Tenant access patterns |
+| [ENVIRONMENT_VARS.md](docs/reference/ENVIRONMENT_VARS.md) | Environment variable reference |
+| [TENANT_ACCESS_CONTROL.md](docs/features/TENANT_ACCESS_CONTROL.md) | Tenant access patterns |
 | [GUEST_MODE_IMPLEMENTATION.md](docs/GUEST_MODE_IMPLEMENTATION.md) | Guest user system |
 | [INVITE_ONLY_SYSTEM.md](docs/INVITE_ONLY_SYSTEM.md) | Invitation system |
 
 ### Setup & Configuration
 | Document | Purpose |
 |----------|---------|
-| [LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) | Local development setup |
-| [DEV_SETUP_REFERENCE.md](docs/DEV_SETUP_REFERENCE.md) | Development reference |
-| [POSTGRESQL_MIGRATION_GUIDE.md](docs/POSTGRESQL_MIGRATION_GUIDE.md) | Database migration guide |
+| [LOCAL_DEVELOPMENT.md](docs/getting-started/LOCAL_DEVELOPMENT.md) | Local development setup |
+| [MIGRATION_STANDARDS.md](docs/workforms/MIGRATION_STANDARDS.md) | Migration standards (additive-only, multi-tenant safe) |
 
 ---
 
@@ -158,7 +161,7 @@ ProjectMeats/
 
 ## 🔐 Environment Variables
 
-All environment variables are defined in `config/env.manifest.json` (single source of truth).
+All environment variables are defined in `manifests/env.manifest.json` (single source of truth).
 
 ### Audit Secrets
 
@@ -175,7 +178,7 @@ python config/manage_env.py audit
 | `SECRET_KEY` | Django secret key | (50+ random characters) |
 | `DJANGO_SETTINGS_MODULE` | Settings module | `projectmeats.settings.development` |
 
-**Full Reference:** [docs/ENVIRONMENT_VARS.md](docs/ENVIRONMENT_VARS.md)
+**Full Reference:** [docs/reference/ENVIRONMENT_VARS.md](docs/reference/ENVIRONMENT_VARS.md)
 
 ---
 
@@ -219,7 +222,7 @@ development → UAT → main (production)
 
 ## 👥 Contributing
 
-We welcome contributions! Please read our [Contributing Guide](docs/CONTRIBUTING.md).
+We welcome contributions! Please read our [Contributing Guide](docs/getting-started/CONTRIBUTING.md).
 
 ### Branch Workflow
 
@@ -250,12 +253,11 @@ gh pr create --base development
 ## 📖 Additional Resources
 
 ### Configuration
-- [config/env.manifest.json](config/env.manifest.json) - Secret definitions
+- [manifests/env.manifest.json](manifests/env.manifest.json) - Secret definitions (source of truth)
 - [config/README.md](config/README.md) - Configuration guide
 
 ### Workflows
-- [.github/workflows/](. github/workflows/) - CI/CD pipelines
-- [docs/branch-workflow-checklist.md](docs/branch-workflow-checklist.md) - Branch workflow
+- [.github/workflows/](.github/workflows/) - CI/CD pipelines
 
 ### Scripts
 - [scripts/](scripts/) - Utility scripts
@@ -277,7 +279,7 @@ Proprietary - All rights reserved
 
 ---
 
-**Last Updated**: December 29, 2025  
+**Last Updated**: March 22, 2026  
 **Status**: ✅ Active Development  
 **Architecture Version**: Golden Pipeline v1.0
 
