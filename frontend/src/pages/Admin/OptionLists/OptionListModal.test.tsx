@@ -21,7 +21,7 @@ vi.mock('../../../hooks/useToast', () => ({
 
 // Mock the API service
 vi.mock('../../../services/apiService', () => ({
-  adminClient: {
+  apiClient: {
     get: vi.fn(),
     post: vi.fn(),
     patch: vi.fn(),
@@ -68,7 +68,7 @@ describe('OptionListModal', () => {
         },
       ];
 
-      vi.mocked(apiService.adminClient.get).mockResolvedValue({
+      vi.mocked(apiService.apiClient.get).mockResolvedValue({
         data: mockItems,
         status: 200,
         statusText: 'OK',
@@ -91,7 +91,7 @@ describe('OptionListModal', () => {
       // Simulate API returning an object instead of array (the bug scenario)
       const badResponse = { message: 'Some error', items: [] };
 
-      vi.mocked(apiService.adminClient.get).mockResolvedValue({
+      vi.mocked(apiService.apiClient.get).mockResolvedValue({
         data: badResponse as any, // Not an array!
         status: 200,
         statusText: 'OK',
@@ -110,7 +110,7 @@ describe('OptionListModal', () => {
     });
 
     it('handles null response gracefully', async () => {
-      vi.mocked(apiService.adminClient.get).mockResolvedValue({
+      vi.mocked(apiService.apiClient.get).mockResolvedValue({
         data: null as any,
         status: 200,
         statusText: 'OK',
@@ -129,7 +129,7 @@ describe('OptionListModal', () => {
     });
 
     it('handles undefined response gracefully', async () => {
-      vi.mocked(apiService.adminClient.get).mockResolvedValue({
+      vi.mocked(apiService.apiClient.get).mockResolvedValue({
         data: undefined as any,
         status: 200,
         statusText: 'OK',
@@ -148,7 +148,7 @@ describe('OptionListModal', () => {
     });
 
     it('handles error response gracefully', async () => {
-      vi.mocked(apiService.adminClient.get).mockRejectedValue(new Error('Network error'));
+      vi.mocked(apiService.apiClient.get).mockRejectedValue(new Error('Network error'));
 
       render(<OptionListModal {...mockProps} />);
 
@@ -163,7 +163,7 @@ describe('OptionListModal', () => {
 
   describe('system-locked list', () => {
     it('does not show add button for non-extensible list', async () => {
-      vi.mocked(apiService.adminClient.get).mockResolvedValue({
+      vi.mocked(apiService.apiClient.get).mockResolvedValue({
         data: [],
         status: 200,
         statusText: 'OK',

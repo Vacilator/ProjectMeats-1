@@ -15,7 +15,7 @@ import {
   Search,
   Unlock,
 } from 'lucide-react';
-import { adminClient } from '@/services/apiService';
+import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
@@ -71,7 +71,7 @@ const OptionListsPage: React.FC = () => {
   const loadChoiceLists = async () => {
     setLoading(true);
     try {
-      const response = await adminClient.get('/system/choice-lists/');
+      const response = await apiClient.get('/system/choice-lists/');
       const raw = response.data as any;
       const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setLists(data);
@@ -87,7 +87,7 @@ const OptionListsPage: React.FC = () => {
   const loadListItems = async (slug: string) => {
     setLoadingItems(slug);
     try {
-      const response = await adminClient.get(`/system/choice-lists/${slug}/items/`);
+      const response = await apiClient.get(`/system/choice-lists/${slug}/items/`);
       const itemsData = Array.isArray(response.data) ? response.data : [];
       setListItems((prev) => ({ ...prev, [slug]: itemsData }));
     } catch (error) {
