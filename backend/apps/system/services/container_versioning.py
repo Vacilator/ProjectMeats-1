@@ -109,8 +109,14 @@ def has_container_changed(container_node: dict, existing_form: TenantForm) -> tu
     current_def = existing_form.form_definition
     container_data = container_node.get('data', {})
     
+    label_candidate = (
+        container_data.get('containerName')
+        or container_data.get('label')
+        or container_data.get('name')
+    )
+
     diff = {
-        'label_changed': container_data.get('label') != current_def.get('container_label'),
+        'label_changed': label_candidate != current_def.get('container_label'),
         'step_count_changed': False,
         'fields_changed': False
     }
@@ -151,12 +157,24 @@ def snapshot_container(
     container_data = container_node.get('data', {})
     
     # 1. Build form definition
+    container_label = (
+        container_data.get('containerName')
+        or container_data.get('label')
+        or container_data.get('name')
+        or 'Multi-Step Container'
+    )
+    container_description = (
+        container_data.get('containerDescription')
+        or container_data.get('description')
+        or ''
+    )
+
     definition = {
         'container_id': container_node['id'],
-        'container_label': container_data.get('label', 'Multi-Step Container'),
+        'container_label': container_label,
         'steps': [serialize_step(step) for step in child_steps],
         'layout': container_data.get('layout', {}),
-        'description': container_data.get('description', '')
+        'description': container_description,
     }
     
     definition_hash = hash_definition(definition)
@@ -178,7 +196,7 @@ def snapshot_container(
     
     new_form = TenantForm.objects.create(
         tenant=tenant,
-        name=f"Container: {container_data.get('label', 'Multi-Step Form')}",
+        name=f"Container: {container_label}",
         description=definition.get('description', ''),
         type=FormTypeChoices.MULTI_STEP,
         form_definition=definition,

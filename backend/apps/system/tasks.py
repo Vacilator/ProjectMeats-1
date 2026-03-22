@@ -153,9 +153,17 @@ def pin_workflow_versions(workflow_id):
     nodes = workflow.workflow_definition.get('nodes', [])
     pinned_forms = []
     
+    container_types = {
+        'formBook',
+        'formProcessGroup',
+        'formProcess',
+        'formMultiStepContainer',
+        'smartWorkForm',
+    }
+
     for node in nodes:
-        if node.get('type') == 'formMultiStepContainer':
-            tenant_form_id = node.get('data', {}).get('tenantFormId')
+        if node.get('type') in container_types:
+            tenant_form_id = (node.get('data') or {}).get('tenantFormId')
             
             if tenant_form_id:
                 try:

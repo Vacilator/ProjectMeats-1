@@ -232,7 +232,7 @@ class TenantWorkFormSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {
                         'workflow_definition': [
-                            f'Form "{(container_node.get("data") or {}).get("label", container_node.get("id"))}" must have at least 3 steps.'
+                            f'Form "{(container_node.get("data") or {}).get("containerName") or (container_node.get("data") or {}).get("label", container_node.get("id"))}" must have at least 3 steps.'
                         ]
                     }
                 )
