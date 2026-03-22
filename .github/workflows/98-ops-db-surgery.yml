@@ -60,17 +60,9 @@ jobs:
         id: context
         run: |
           {
-            if [ "${{ inputs.environment }}" == "prod" ]; then
-              echo "HOST=${{ secrets.PRODUCTION_HOST }}"
-              echo "USER=${{ secrets.PRODUCTION_USER }}"
-            elif [ "${{ inputs.environment }}" == "uat" ]; then
-              echo "HOST=${{ secrets.STAGING_HOST }}"
-              echo "USER=${{ secrets.STAGING_USER }}"
-            else
-              echo "HOST=${{ secrets.DEV_HOST }}"
-              echo "USER=${{ secrets.DEV_USER }}"
-            fi
-            # SSH_PASSWORD is environment-scoped (same name, different values per environment)
+            # Use environment-scoped SSH_HOST/SSH_USER/SSH_PASSWORD (single source of truth)
+            echo "HOST=${{ secrets.SSH_HOST }}"
+            echo "USER=${{ secrets.SSH_USER }}"
             echo "PASS=${{ secrets.SSH_PASSWORD }}"
           } >> "$GITHUB_OUTPUT"
       

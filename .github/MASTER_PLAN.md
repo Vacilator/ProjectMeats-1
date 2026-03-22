@@ -174,6 +174,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 > Fill in as PRs are opened/merged.
 
+- 2026-03-22T17:41:54Z — Hotfix: Corrected Ops workflows to use environment-scoped `SSH_HOST/SSH_USER` (single source of truth) and verified seeding uses `seed_system_products`, resolving pipeline crashes.
+
 - 2026-03-13 — Phase 7 Stabilization + Cockpit Navigation — Commit: 6144c189 (PR: #3447)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3447
   - Cockpit: navigation-path driven continuous browsing + breadcrumb jumping; UUID-safe relationships endpoint.
