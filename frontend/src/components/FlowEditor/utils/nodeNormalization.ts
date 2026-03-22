@@ -24,13 +24,54 @@ export function normalizeNodeData(node: Node): Node {
     return node;
   }
 
+  // Rollback: Force all legacy Form Process container variants to render as plain
+  // `react-flow__node-default` (no group semantics / purple container overrides).
+  if (
+    node.type === 'formMultiStepContainer' ||
+    node.type === 'formProcess' ||
+    node.type === 'formProcessGroup' ||
+    node.type === 'formBook'
+  ) {
+    const { parentId, extent, expandParent, ...rest } = node as any;
+
+    return {
+      ...rest,
+      type: 'default',
+      data: {
+        ...(node.data || {}),
+        label: (node.data as any)?.label ?? (node.data as any)?.containerName ?? 'Form Process',
+      },
+    } as Node;
+  }
+
   // --------------------------------------------------------------------------
-  // Phase 7 Stabilization: canonicalize legacy Form container types
+  // Canonicalize legacy Form types (additive/back-compat)
   // --------------------------------------------------------------------------
-  // We standardize on the React Flow group implementation and present it as a
-  // singular "Form" container (formBook). Legacy types continue to load.
-  if (node.type === 'formMultiStepContainer' || node.type === 'formProcess' || node.type === 'formProcessGroup') {
-    const canonicalType = 'formBook';
+  // Canonical nodes:
+  // - Form step: `form`
+  // - Form container: `formProcessGroup` ("Form Process")
+  if (node.type === 'formStep' || node.type === 'formStepSingle') {
+    const canonicalType = 'form';
+    const canonicalDef = NODE_TYPE_REGISTRY[canonicalType];
+
+    return {
+      ...node,
+      type: canonicalType,
+      data: {
+        ...(node.data || {}),
+        maxInputs: (node.data as any)?.maxInputs ?? canonicalDef?.maxInputs ?? 1,
+        maxOutputs: (node.data as any)?.maxOutputs ?? canonicalDef?.maxOutputs ?? 1,
+      },
+    };
+  }
+
+  if (
+    node.type === 'formMultiStepContainer' ||
+    node.type === 'formProcess' ||
+    node.type === 'formProcessGroup' ||
+    node.type === 'formBook'
+  ) {
+    const canonicalType = 'formProcessGroup';
     const canonicalDef = NODE_TYPE_REGISTRY[canonicalType];
 
     return {
@@ -40,7 +81,6 @@ export function normalizeNodeData(node: Node): Node {
         ...(node.data || {}),
         // Ensure group semantics are enabled
         isGroup: true,
-        // Ensure required sizing metadata exists for downstream logic
         maxInputs: (node.data as any)?.maxInputs ?? canonicalDef?.maxInputs ?? 1,
         maxOutputs: (node.data as any)?.maxOutputs ?? canonicalDef?.maxOutputs ?? 1,
       },

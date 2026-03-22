@@ -103,14 +103,14 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   
   // === FORM ELEMENTS ===
   
-  // Form step node (page) (renamed from formStepSingle in Phase E - 2026-02-19)
+  // Form node (renamed from formStepSingle in Phase E - 2026-02-19)
   form: {
     id: 'form',
     name: 'Form',
     category: 'form',
-    icon: '📄',
+    icon: '📋',
     color: '#3b82f6', // blue
-    description: 'Single form step. Use inside a Form Process or standalone.',
+    description: 'Single-page form for data collection - works standalone or in Form Process containers',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -146,44 +146,14 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     hidden: true, // Hide from node palette
   },
   
-  // NEW: Singular Form container using React Flow sub-flows (Book & Pages)
-  // Temporarily hidden while we revert to the purple FormProcess container UX.
-  formBook: {
-    id: 'formBook',
-    name: 'Form (Book - Hidden)',
-    category: 'form',
-    icon: '📚',
-    color: '#a78bfa',
-    description: '[HIDDEN] Book-style form container. Use Form Process instead.',
-    maxInputs: 1,
-    maxOutputs: 1,
-    requiresConfig: true,
-    hidden: true,
-  },
-
-  // Phase 7+: Smart WorkForm (single-node wizard)
-  // Kept for backward compatibility, but hidden from the palette for now.
-  smartWorkForm: {
-    id: 'smartWorkForm',
-    name: 'Smart WorkForm (Hidden)',
-    category: 'form',
-    icon: '🧠',
-    color: '#a78bfa',
-    description: '[HIDDEN] Kept for backward compatibility. Use Form Process instead.',
-    maxInputs: 1,
-    maxOutputs: 1,
-    requiresConfig: true,
-    hidden: true,
-  },
-
-  // Purple multi-step container (restored as primary)
+  // Advanced Form Process with React Flow grouping
   formProcessGroup: {
     id: 'formProcessGroup',
     name: 'Form Process',
     category: 'form',
-    icon: '📦',
-    color: '#8b5cf6',
-    description: 'Multi-step container that keeps child form steps constrained and arranged horizontally.',
+    icon: '📂',
+    color: '#a78bfa', // lighter purple - group variant
+    description: 'Advanced form container with labeled header, automatic step sequencing, and React Flow grouping',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -218,45 +188,40 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   },
   
   // OTHER FORM ELEMENTS
-  // Consolidation: keep the palette focused on just Form + Form Process.
-  // These node types remain supported for backward compatibility.
   formReference: {
     id: 'formReference',
-    name: 'Form Reference (Hidden)',
+    name: 'Form Reference',
     category: 'form',
     icon: '📄',
     color: '#3b82f6',
-    description: '[HIDDEN] Backward compatible. Use Form steps inside a Form Process instead.',
+    description: 'Reference a reusable form from the library',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
-    hidden: true,
   },
   
   formSignature: {
     id: 'formSignature',
-    name: 'Signature Field (Hidden)',
+    name: 'Signature Field',
     category: 'form',
     icon: '✍️',
     color: '#3b82f6',
-    description: '[HIDDEN] Backward compatible.',
+    description: 'Electronic signature capture',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
-    hidden: true,
   },
   
   formFileUpload: {
     id: 'formFileUpload',
-    name: 'File Upload (Hidden)',
+    name: 'File Upload',
     category: 'form',
     icon: '📎',
     color: '#3b82f6',
-    description: '[HIDDEN] Backward compatible.',
+    description: 'Document/file upload field',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
-    hidden: true,
   },
   
   // REMOVED: formMultiStepContainer moved above as deprecated alias

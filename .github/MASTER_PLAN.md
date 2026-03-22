@@ -47,6 +47,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-22T16:39:58Z — EMERGENCY ROLLBACK: Reverted Workform Container UI to stable Friday baseline due to UX degradation.
+
 - 2026-03-20 — Deployed LoopNode, ErrorEdge, Viewport Virtualization, and Backend Try/Catch Graph Routing — PR: #3745
 
 - 2026-03-21 — Admin Workspace: restore API contracts (permissions/current tenant/activity logs/pagination) — PR: #3746
@@ -171,6 +173,9 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 ### PR Log (append-only)
 
 > Fill in as PRs are opened/merged.
+
+- 2026-03-22T17:41:54Z — Hotfix: Corrected Ops workflows to use environment-scoped `SSH_HOST/SSH_USER` (single source of truth) and verified seeding uses `seed_system_products`, resolving pipeline crashes.
+- 2026-03-22T17:56:08Z — Hotfix: Unblocked dev deploy by removing `run_before` edges from `tenants.0011_bootstrap_rls_session_vars` (prevents `InconsistentMigrationHistory` with historical RLS migrations) and hardened Ops SSH auth (prefer `SSH_PASSWORD`, support optional `SSH_KEY`, retain legacy fallbacks).
 
 - 2026-03-13 — Phase 7 Stabilization + Cockpit Navigation — Commit: 6144c189 (PR: #3447)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3447
@@ -868,3 +873,8 @@ Deliverables:
 
 
 - 2026-03-20 — MSAL common authority restoration (B2B/B2C support) & prompt enforcement — PR: #TBD.
+
+
+## PR Log (append-only) — Workforms UI Hardening (merge-safe)
+
+- 2026-03-22T19:05:59Z — UI Hardening: Restored standard default container for 'formProcess' nodes, disabling 'formProcessGroup' purple canonicalization/styling overrides.
