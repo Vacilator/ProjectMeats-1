@@ -41,7 +41,6 @@ import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
 import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
 import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
-import { useVirtualizedNodes } from './hooks/useVirtualizedNodes';
 import { 
   useOnboardingTour, 
   workflowEditorTourSteps, 
@@ -64,7 +63,6 @@ import {
   OnSelectionChangeParams,
   useReactFlow,
   MarkerType,
-  type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './UnifiedFlowEditor.responsive.css'; // Gap Analysis Phase 1.2
@@ -121,7 +119,6 @@ import {
   DocumentNode,
   UtilityNode,
   TerminalNode,
-  LoopNode,
 } from './nodes';
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
@@ -245,12 +242,11 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   
   /* Phase 7.2: Smart Snapping - Visual Connection Indicators */
   .react-flow__connection-path {
-    stroke: rgb(var(--color-primary)) !important;
-    stroke-width: 2 !important;
-    vector-effect: non-scaling-stroke;
+    stroke: #667eea !important;
+    stroke-width: 3 !important;
     stroke-dasharray: 5, 5;
     animation: dash 0.5s linear infinite;
-    filter: drop-shadow(0 0 4px rgb(var(--color-primary) / 0.35));
+    filter: drop-shadow(0 0 4px rgba(102, 126, 234, 0.4));
   }
   
   /* Phase 7.2: Enhanced snap feedback */
@@ -1701,7 +1697,6 @@ Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) dynamicNodeTypes[typeId] = WaitStateNode;
   else if (typeId.startsWith('document')) dynamicNodeTypes[typeId] = DocumentNode;
   else if (typeId.startsWith('terminal') || typeId.startsWith('end')) dynamicNodeTypes[typeId] = TerminalNode;
-  else if (typeId.startsWith('loop')) dynamicNodeTypes[typeId] = LoopNode;
   else if (typeId.startsWith('form')) dynamicNodeTypes[typeId] = FormStepSingleNode;
   else dynamicNodeTypes[typeId] = UtilityNode;
 });
@@ -1995,16 +1990,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // React Flow instance for viewport controls
   const { setCenter: reactFlowSetCenter, ...reactFlowInstance } = useReactFlow();
-
-  // Phase 7.5/Vanguard 1: track viewport for optional strict node/edge list virtualization
-  const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
-  const didInitViewportRef = useRef(false);
-  useEffect(() => {
-    if (didInitViewportRef.current) return;
-    if (!reactFlowInstance?.getViewport) return;
-    didInitViewportRef.current = true;
-    setViewport(reactFlowInstance.getViewport());
-  }, [reactFlowInstance]);
   
   // ============================================================================
   // CONFIG PANEL PORTAL - Enhanced with full styling (2026-02-24)
@@ -3194,34 +3179,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         return;
       }
       
-      const sourceHandle = params.sourceHandle;
-      const nextType =
-        sourceHandle === 'error'
-          ? 'error'
-          : sourceHandle === 'true' || sourceHandle === 'false'
-            ? 'conditional'
-            : 'step';
-
-      const nextData =
-        sourceHandle === 'error'
-          ? { label: 'Error', animated: true }
-          : sourceHandle === 'true'
-            ? { label: 'True', isTrue: true }
-            : sourceHandle === 'false'
-              ? { label: 'False', isTrue: false }
-              : undefined;
-
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...params,
-            type: nextType,
-            data: nextData,
-            interactionWidth: 28,
-          } as any,
-          eds
-        )
-      );
+      setEdges((eds) => addEdge(params, eds));
     },
     [nodes, edges, setEdges, isValidConnectionType, getNodeMaxConnections]
   );
@@ -3354,7 +3312,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const reactFlowType = getReactFlowNodeType(nodeTypeId);
 
       // Ensure default dimensions upfront (prevents React Flow dimension errors)
-      const defaultDimensions = isNewContainer ? { width: 600, height: 450 } : undefined;
+      const defaultDimensions = isNewContainer ? { width: 600, height: 400 } : undefined;
 
       const newNode: Node = {
         id: newNodeId,
@@ -3369,7 +3327,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         selected: true,
       };
 
-      // Canonical container type: Form Process (group container)
+      // Canonical container type: singular Form (Book)
       if (isNewContainer) {
         newNode.style = {
           width: 600,
@@ -3380,7 +3338,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           isExpanded: true,
           isGroup: true,
         };
-        (newNode as any).type = 'formProcessGroup';
+        (newNode as any).type = 'formBook';
       }
 
       const spawnDefaultFormPage = (parentId: string) => {
@@ -3392,8 +3350,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           parentId,
           extent: 'parent',
           expandParent: true,
-          // Keep the first step safely inside default container bounds
-          position: { x: 50, y: 80 },
+          position: { x: 30, y: 90 },
           data: {
             label: NODE_TYPE_REGISTRY.form?.name || 'Form',
             status: 'draft',
@@ -3861,7 +3818,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       // Fix #2: Ensure default dimensions upfront (prevents React Flow dimension errors)
       const isContainerNode = isFormProcessContainerType(type);
       const defaultDimensions = isContainerNode
-        ? { width: 600, height: 450 } // Larger for containers (fits first step inside bounds)
+        ? { width: 600, height: 400 } // Larger for containers
         : undefined; // Let React Flow calculate for regular nodes
 
       const newNode: Node = {
@@ -6069,150 +6026,68 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Template Selection Handler (Phase 2.5 Integration)
   // ============================================================================
   
-  const handleTemplateSelect = useCallback(
-    (template: FlowTemplate) => {
-      logger.debug('[Template] Selected:', template.name);
-
-      const normalizeTemplateNodeType = (typeId: string) => {
-        // Consolidate legacy form types to the canonical ones (additive/back-compat)
-        if (typeId === 'formStep' || typeId === 'formStepSingle') return 'form';
-        if (typeId === 'formProcess' || typeId === 'formMultiStepContainer') return 'formProcessGroup';
-        return typeId;
+  const handleTemplateSelect = useCallback((template: FlowTemplate) => {
+    logger.debug('[Template] Selected:', template.name);
+    
+    // Map template nodes to proper React Flow node types with full metadata
+    const mappedNodes = template.nodes.map(node => {
+      // Get node definition from registry for metadata (color, icon, etc.)
+      const nodeDef = getNodeTypeDefinition(node.type);
+      
+      // Ensure node has proper type mapping
+      const reactFlowType = getReactFlowNodeType(node.type);
+      
+      // Merge default data + template data + registry metadata
+      const defaultData = getDefaultNodeData(node.type);
+      
+      return {
+        ...node,
+        type: reactFlowType, // Override with React Flow node type
+        data: {
+          ...defaultData,      // Default node data (fields, actions, etc.)
+          ...node.data,        // Template-specific data
+          label: node.data.label || nodeDef?.name || node.type, // Ensure label exists
+          // Add registry metadata for proper styling
+          color: nodeDef?.color,
+          icon: nodeDef?.icon,
+          category: nodeDef?.category,
+          description: nodeDef?.description,
+        }
       };
-
-      const mappedNodes = template.nodes.map((node) => {
-        const normalizedTypeId = normalizeTemplateNodeType(node.type);
-
-        // Prefer metadata from normalized type, but fall back to the raw one
-        const nodeDef = getNodeTypeDefinition(normalizedTypeId) || getNodeTypeDefinition(node.type);
-        const reactFlowType = getReactFlowNodeType(normalizedTypeId);
-        const defaultData = getDefaultNodeData(normalizedTypeId);
-
-        return {
-          ...node,
-          type: reactFlowType,
-          data: {
-            ...defaultData,
-            ...node.data,
-            label: (node.data as any)?.label || nodeDef?.name || normalizedTypeId,
-            color: nodeDef?.color,
-            icon: nodeDef?.icon,
-            category: nodeDef?.category,
-            description: nodeDef?.description,
-          },
-        };
-      });
-
-      // Normalize template edges so they render with consistent types/markers.
-      // Templates often omit type and rely on handle IDs (true/false/error).
-      const mappedEdges: Edge[] = template.edges.map((edge) => {
-        const sourceHandle = (edge as any).sourceHandle as string | undefined;
-
-        const inferredType =
-          edge.type ||
-          (sourceHandle === 'error'
-            ? 'error'
-            : sourceHandle === 'true' || sourceHandle === 'false'
-              ? 'conditional'
-              : 'step');
-
-        const next: Edge = {
-          ...edge,
-          type: inferredType,
-          interactionWidth: edge.interactionWidth ?? 28,
-        };
-
-        if (inferredType === 'conditional' && !(edge as any).data && (sourceHandle === 'true' || sourceHandle === 'false')) {
-          (next as any).data = {
-            label: edge.label || (sourceHandle === 'true' ? 'True' : 'False'),
-            isTrue: sourceHandle === 'true',
-          };
-        }
-
-        if (inferredType === 'error' && !(edge as any).data) {
-          (next as any).data = {
-            label: edge.label || 'Error',
-            animated: true,
-          };
-        }
-
-        if (inferredType === 'step') {
-          next.style = {
-            strokeWidth: 3,
-            stroke: 'rgb(var(--color-text-secondary))',
-            ...(edge.style || {}),
-          };
-          next.markerEnd =
-            edge.markerEnd ||
-            ({
-              type: MarkerType.ArrowClosed,
-              width: 24,
-              height: 24,
-              color: 'rgb(var(--color-text-secondary))',
-            } as any);
-        }
-
-        return next;
-      });
-
-      // Hardening: ensure container children are inside bounds on template load.
-      let layoutedNodes = mappedNodes as Node[];
-      let layoutedEdges = mappedEdges;
-
-      const containerIds = layoutedNodes
-        .filter((n) => isFormProcessContainerType(n.type))
-        .map((n) => n.id);
-
-      for (const containerId of containerIds) {
-        const layoutResult = calculateContainerLayout(containerId, layoutedNodes, layoutedEdges);
-
-        layoutedNodes = layoutResult.nodes.map((n) => {
-          if (n.id !== containerId) return n;
-          return {
-            ...n,
-            style: {
-              ...(n.style || {}),
-              width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 400),
-              height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 300),
-            },
-          };
-        });
-
-        layoutedEdges = autoConnectSequentialSteps(containerId, layoutedNodes, layoutedEdges).edges;
+    });
+    
+    // Load template nodes and edges into canvas
+    setNodes(mappedNodes);
+    setEdges(template.edges);
+    
+    // Reset history with template as initial state
+    const newHistory: HistoryState[] = [{
+      nodes: mappedNodes,
+      edges: template.edges
+    }];
+    setHistory(newHistory);
+    setHistoryIndex(0);
+    
+    // Update node ID counter based on loaded nodes
+    const maxId = Math.max(
+      0,
+      ...template.nodes.map(n => {
+        const match = n.id.match(/node-(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+    );
+    setNodeIdCounter(maxId + 1);
+    
+    // Close modal
+    setIsTemplateModalOpen(false);
+    
+    // Fit view to show full template
+    setTimeout(() => {
+      if (reactFlowInstance?.fitView) {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
       }
-
-      // Load into canvas
-      setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
-
-      // Reset history with template as initial state
-      setHistory([
-        {
-          nodes: layoutedNodes,
-          edges: layoutedEdges,
-        },
-      ]);
-      setHistoryIndex(0);
-
-      const maxId = Math.max(
-        0,
-        ...layoutedNodes.map((n) => {
-          const match = n.id.match(/node-(\d+)/);
-          return match ? parseInt(match[1], 10) : 0;
-        })
-      );
-      setNodeIdCounter(maxId + 1);
-
-      setIsTemplateModalOpen(false);
-
-      setTimeout(() => {
-        if (reactFlowInstance?.fitView) {
-          reactFlowInstance.fitView({ padding: 0.2, duration: 400 });
-        }
-      }, 100);
-    },
-    [setNodes, setEdges, reactFlowInstance]
-  );
+    }, 100);
+  }, [setNodes, setEdges, reactFlowInstance]);
 
   const handleStartBlank = useCallback(() => {
     logger.debug('[Template] Starting blank canvas');
@@ -6497,38 +6372,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     });
   }, [addFormStepInsideContainer, handleNodeDelete, handleNodeEdit, handleNodeTitleChange, handleSaveWorkflow, lastNodeIdSet, nodes]);
 
-  // Vanguard 1: Optional strict render-list virtualization for very large workflows.
-  // React Flow already does viewport culling (onlyRenderVisibleElements); this additionally reduces
-  // the nodes/edges arrays passed into React Flow to shrink reconciliation work.
-  const virtualizedNodes = useVirtualizedNodes(nodesWithHandlers, viewport, {
-    threshold: 180,
-    bufferPx: 320,
-    debounceMs: 50,
-    enabled: true,
-  });
-
-  const renderedNodesForCanvas = useMemo(() => {
-    if (!virtualizedNodes.isVirtualized) return nodesWithHandlers;
-
-    const byId = new Map(nodesWithHandlers.map((n) => [n.id, n] as const));
-    const renderIdSet = new Set(virtualizedNodes.visibleNodes.map((n) => n.id));
-
-    const includeNodeAndAncestors = (nodeId: string) => {
-      let cur: string | undefined = nodeId;
-      while (cur) {
-        if (renderIdSet.has(cur)) break;
-        renderIdSet.add(cur);
-        const node = byId.get(cur);
-        cur = node?.parentId;
-      }
-    };
-
-    if (selectedNodeId) includeNodeAndAncestors(selectedNodeId);
-
-    // Preserve ordering + include parents before children (React Flow stability)
-    return nodesWithHandlers.filter((n) => renderIdSet.has(n.id));
-  }, [nodesWithHandlers, selectedNodeId, virtualizedNodes.isVirtualized, virtualizedNodes.visibleNodes]);
-
   // Render-time edge virtualization: when a form process group is collapsed, edges to hidden child nodes
   // are re-targeted to virtual handles on the container boundary so connectivity remains visible.
   const edgesForCanvas = useMemo(() => {
@@ -6591,13 +6434,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     return derived;
   }, [edges, nodesWithHandlers]);
-
-  const renderedEdgesForCanvas = useMemo(() => {
-    if (!virtualizedNodes.isVirtualized) return edgesForCanvas;
-
-    const renderedIdSet = new Set(renderedNodesForCanvas.map((n) => n.id));
-    return edgesForCanvas.filter((e) => renderedIdSet.has(e.source) && renderedIdSet.has(e.target));
-  }, [edgesForCanvas, renderedNodesForCanvas, virtualizedNodes.isVirtualized]);
 
   return (
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
@@ -7061,12 +6897,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* React Flow Canvas - Visual Mode */}
       {normalizedEditorMode === 'visual' && (
         <DebugAwareReactFlow
-        nodes={renderedNodesForCanvas}
-        edges={renderedEdgesForCanvas}
+        nodes={nodesWithHandlers}
+        edges={edgesForCanvas}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onMoveEnd={(_, vp) => setViewport(vp)}
         onNodesDelete={onNodesDelete}
         nodesDraggable={true}
         nodeDragHandle=".custom-drag-handle"

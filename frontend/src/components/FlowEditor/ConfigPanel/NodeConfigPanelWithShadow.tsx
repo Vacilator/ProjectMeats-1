@@ -20,9 +20,7 @@ import { Node, Edge } from '@xyflow/react';
 import { AlertCircle, X } from 'lucide-react';
 import { DynamicConfigPanel } from './DynamicConfigPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
-// NOTE: Form nodes use the schema-driven DynamicConfigPanel so Auto-Map/Cascade actions
-// participate in shadow-state + Apply/Discard correctly.
-
+import { FormNodeConfig } from './nodes/FormNodeConfig';
 import { useNodeShadowState } from '../hooks/useNodeShadowState';
 import {
   PrimaryButton,
@@ -77,7 +75,7 @@ const DirtyIndicatorBanner = styled.div<{ $show: boolean }>`
 `;
 
 const ActionBar = styled.div<{ $show: boolean }>`
-  display: flex;
+  display: ${props => props.$show ? 'flex' : 'none'};
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
@@ -85,9 +83,6 @@ const ActionBar = styled.div<{ $show: boolean }>`
   border-top: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
 `;
 
 const ConfirmationModal = styled.div<{ $show: boolean }>`
@@ -310,10 +305,16 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
             onAddStep={handleAddStep}
             onReorderSteps={handleReorderSteps}
           />
+        ) : node?.type === 'form' ? (
+          /* Hybrid config: specialized Form node panel (entity cascade must be resilient) */
+          <FormNodeConfig
+            node={virtualNode!}
+            nodes={nodes}
+            edges={edges}
+            onUpdateNode={handleShadowUpdate}
+          />
         ) : (
-          /* Schema-driven config panel for all non-container nodes (including Form steps).
-           * Runs inside shadow-state, so edits are staged until Apply.
-           */
+          /* PHASE D/E: Dynamic Schema-Driven Config Panel (replaces hardcoded NodeConfigPanel) */
           <ErrorBoundary
             componentName="Configuration Panel"
             onError={(error) => {
@@ -333,11 +334,11 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
       </PanelContent>
 
       {/* Action Bar (Apply/Discard) */}
-      <ActionBar $show={true}>
-        <SecondaryButton onClick={handleDiscard} disabled={!isDirty}>
+      <ActionBar $show={isDirty}>
+        <SecondaryButton onClick={handleDiscard}>
           Discard Changes
         </SecondaryButton>
-        <PrimaryButton onClick={handleApply} disabled={!isDirty}>
+        <PrimaryButton onClick={handleApply}>
           Apply Changes
         </PrimaryButton>
       </ActionBar>

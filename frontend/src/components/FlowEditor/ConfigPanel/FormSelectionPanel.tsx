@@ -28,7 +28,7 @@ import {
 // Types
 // ============================================================================
 
-export interface FormSelectionPanelProps {
+interface FormSelectionPanelProps {
   /** Node type: 'formStep' or container */
   nodeType: 'formStep' | 'formProcessGroup' | 'formBook';
   

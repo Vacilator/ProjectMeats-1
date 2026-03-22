@@ -54,7 +54,7 @@ export interface SelectedField extends EntityField {
   cascadeFrom?: string;
 }
 
-export interface EntityFieldPickerProps {
+interface EntityFieldPickerProps {
   /** Currently selected fields */
   selectedFields: SelectedField[];
 
