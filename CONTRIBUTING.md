@@ -9,9 +9,9 @@ This file is the canonical entry point required by GitHub. It summarises the mos
 ## ⚡ Quick Start
 
 1. Read the **[full contributing guide](docs/getting-started/CONTRIBUTING.md)** before opening a PR.
-2. Run the golden-state verification script before every commit:
+2. Run the infrastructure drift gate before every commit:
    ```bash
-   bash scripts/verify_golden_state.sh
+   bash .github/scripts/check_infrastructure.sh
    ```
 3. Follow the **[branch naming convention](#branch-naming)** and **[branch hygiene policy](#branch-hygiene)**.
 
@@ -19,11 +19,13 @@ This file is the canonical entry point required by GitHub. It summarises the mos
 
 ## 🔍 Golden-State Verification (Mandatory)
 
-Every CI/CD workflow enforces golden-state compliance automatically. Developers **must** run the same check locally:
+Every CI/CD workflow enforces infrastructure drift checks automatically. Developers **must** run the same check locally:
 
 ```bash
-bash scripts/verify_golden_state.sh
+bash .github/scripts/check_infrastructure.sh
 ```
+
+(Internally, this runs `scripts/verify_golden_state.sh` plus workflow validation.)
 
 The script verifies:
 
@@ -75,6 +77,7 @@ All branches **must** follow: `<type>/<short-description>`
 | Protected branches | `development`, `uat`, `main` — **never delete** |
 
 The automated [`branch-cleanup.yml`](.github/workflows/branch-cleanup.yml) workflow runs every Monday at 02:00 UTC and:
+- Tags stale branch tips under `archive/*` (recovery path).
 - Deletes branches already merged into `development`, `uat`, or `main`.
 - Deletes feature branches with **no commits in the last 30 days**.
 - Can be triggered manually with `dry_run=true` to preview changes without deleting anything.
@@ -117,7 +120,7 @@ Before opening a pull request, verify **all** items below:
 | Full Contributing Guide | [`docs/getting-started/CONTRIBUTING.md`](docs/getting-started/CONTRIBUTING.md) |
 | Branch Workflow Checklist | [`docs/getting-started/branch-workflow-checklist.md`](docs/getting-started/branch-workflow-checklist.md) |
 | Golden Pipeline | [`docs/GOLDEN_PIPELINE.md`](docs/GOLDEN_PIPELINE.md) |
-| Architecture | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Architecture | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) |
 | Configuration & Secrets | [`docs/CONFIGURATION_AND_SECRETS.md`](docs/CONFIGURATION_AND_SECRETS.md) |
 | Design System | [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) |
 | Pipeline Final Verification | [`docs/PIPELINE_FINAL_VERIFICATION.md`](docs/PIPELINE_FINAL_VERIFICATION.md) |

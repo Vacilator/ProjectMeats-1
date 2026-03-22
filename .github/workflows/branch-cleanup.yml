@@ -34,19 +34,23 @@ permissions:
   contents: write  # Required to delete branches
 
 jobs:
-  verify-golden-state:
-    name: "Verify Golden State"
+  check_infrastructure:
+    name: "Check Infrastructure (Golden Drift Gate)"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      - name: Verify golden state
-        run: bash scripts/verify_golden_state.sh
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Run infrastructure checks
+        run: bash .github/scripts/check_infrastructure.sh
 
   cleanup-stale-branches:
     name: "Delete Stale Feature Branches (>${{ inputs.staleness_days || 30 }} days)"
     runs-on: ubuntu-latest
-    needs: [verify-golden-state]
+    needs: [check_infrastructure]
 
     env:
       DRY_RUN: ${{ inputs.dry_run || 'true' }}
@@ -127,6 +131,25 @@ jobs:
               if [ "${DRY_RUN}" = "true" ]; then
                 echo "🔎 [DRY RUN] Would delete: ${BRANCH} — ${REASON}"
               else
+                # Archive branch tip before deletion (recovery path)
+                LAST_SHA=$(git rev-parse "origin/${BRANCH}")
+                SHORT_SHA=$(echo "$LAST_SHA" | cut -c1-12)
+                SAFE_BRANCH=$(echo "$BRANCH" | tr '/' '-')
+                ARCHIVE_TAG="archive/${SAFE_BRANCH}-${SHORT_SHA}"
+
+                echo "🏷️  Archiving: ${BRANCH} -> ${ARCHIVE_TAG}"
+
+                if git show-ref --tags --quiet --verify "refs/tags/${ARCHIVE_TAG}"; then
+                  echo "ℹ️  Archive tag already exists: ${ARCHIVE_TAG}"
+                else
+                  git tag "${ARCHIVE_TAG}" "${LAST_SHA}"
+                  if ! git push origin "refs/tags/${ARCHIVE_TAG}" 2>&1; then
+                    echo "⚠️  Failed to push archive tag for ${BRANCH}; skipping deletion"
+                    SKIPPED=$((SKIPPED + 1))
+                    continue
+                  fi
+                fi
+
                 echo "🗑️  Deleting: ${BRANCH} — ${REASON}"
                 if git push origin --delete "${BRANCH}" 2>&1; then
                   DELETED=$((DELETED + 1))

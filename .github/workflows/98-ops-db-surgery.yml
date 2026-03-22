@@ -28,18 +28,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify-golden-state:
-    name: "Verify Golden State"
+  check_infrastructure:
+    name: "Check Infrastructure (Golden Drift Gate)"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      - name: Verify golden state
-        run: bash scripts/verify_golden_state.sh
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Run infrastructure checks
+        run: bash .github/scripts/check_infrastructure.sh
 
   execute:
     name: "${{ inputs.type }} on ${{ inputs.environment }}"
     runs-on: ubuntu-latest
+    needs: [check_infrastructure]
     environment: ${{ inputs.environment }}-backend
     timeout-minutes: 10
     

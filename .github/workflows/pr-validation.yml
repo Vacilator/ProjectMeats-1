@@ -23,14 +23,18 @@ permissions:
   pull-requests: write
 
 jobs:
-  verify-golden-state:
-    name: "Verify Golden State"
+  check_infrastructure:
+    name: "Check Infrastructure (Golden Drift Gate)"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      - name: Verify golden state
-        run: bash scripts/verify_golden_state.sh
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Run infrastructure checks
+        run: bash .github/scripts/check_infrastructure.sh
 
   # ============================================================================
   # Job 1: Detect Critical Changes
@@ -40,6 +44,7 @@ jobs:
     name: "Detect Critical Changes"
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'  # Only for PRs
+    needs: [check_infrastructure]
     outputs:
       has_breaking_changes: ${{ steps.detect.outputs.has_breaking_changes }}
       has_workflow_changes: ${{ steps.detect.outputs.has_workflow_changes }}
@@ -98,6 +103,7 @@ jobs:
     name: "Architectural Review"
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'  # Only for PRs
+    needs: [check_infrastructure]
     
     steps:
       - name: Checkout code
@@ -137,6 +143,7 @@ jobs:
     name: "Lint Documentation"
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'  # Only for PRs
+    needs: [check_infrastructure]
     
     steps:
       - name: Checkout code
@@ -176,6 +183,7 @@ jobs:
     name: "Validate Heredoc Syntax"
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'  # Only for PRs
+    needs: [check_infrastructure]
     
     steps:
       - name: Checkout code
@@ -209,7 +217,7 @@ jobs:
     name: "Check Lockfile Sync"
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'  # Only for PRs
-    needs: [detect-changes]
+    needs: [check_infrastructure, detect-changes]
     
     steps:
       - name: Checkout code
@@ -263,7 +271,7 @@ jobs:
     if: |
       (github.event_name == 'pull_request' && needs.detect-changes.outputs.has_workflow_changes == 'true') ||
       (github.event_name == 'push' && contains(github.event.head_commit.modified, '.github/workflows/'))
-    needs: [detect-changes]
+    needs: [check_infrastructure, detect-changes]
     
     steps:
       - name: Checkout code

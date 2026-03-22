@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-03-22: CI Governance Update
+
+- Added workflow-wide `check_infrastructure` drift gates (Golden Pipeline + workflow validation).
+- Branch cleanup now archives stale branch tips under `archive/*` tags before deletion.
+
+---
+
 ## 🎉 Summary
 
 All three Agent phases (A, B, C) have been successfully implemented, merged to development, and deployed to production. Zero errors in final deployment.
