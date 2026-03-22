@@ -202,6 +202,16 @@ interface UnifiedFlowEditorProps {
   readOnly?: boolean;
   editorMode?: EditorMode;
   allowedNodeCategories?: string[]; // Phase 4.2: Filter nodes by permission
+
+  /**
+   * Punch-In mode: read-only, focuses/highlights the active node.
+   * Intended for Monitoring views.
+   */
+  punchIn?: {
+    activeNodeId: string | null;
+    executedNodeIds?: string[];
+    centerOnActiveNode?: boolean;
+  };
 }
 
 interface HistoryState {
@@ -235,7 +245,16 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   right: ${props => props.$isFullscreen ? '0' : 'auto'};
   bottom: ${props => props.$isFullscreen ? '0' : 'auto'};
   z-index: ${props => props.$isFullscreen ? '9990' : 'auto'};
-  
+
+  /* Punch-In / debug highlighting (wrapper-level react-flow nodes) */
+  .react-flow__node.pm-active-node,
+  .react-flow__node.rf-active-node {
+    box-shadow:
+      0 0 0 3px rgb(var(--color-primary) / 0.35),
+      0 10px 24px rgba(0, 0, 0, 0.12);
+    border-radius: 12px;
+  }
+
   /* Phase 7.2: Smart Snapping - Connection Line Animation */
   @keyframes dash {
     to {
@@ -1733,7 +1752,20 @@ const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (p
     return nodes.map((n) => {
       const isActive = activeId === n.id;
       const isExecuted = executed.has(n.id);
-      if (isActive || isExecuted) return n;
+
+      if (isActive) {
+        return {
+          ...n,
+          className: [n.className, 'pm-active-node', 'rf-active-node'].filter(Boolean).join(' '),
+        };
+      }
+
+      if (isExecuted) {
+        return {
+          ...n,
+          className: [n.className, 'rf-executed-node'].filter(Boolean).join(' '),
+        };
+      }
 
       return {
         ...n,
@@ -1796,6 +1828,48 @@ const DebugAwareReactFlow: React.FC<React.ComponentProps<typeof ReactFlow>> = (p
       edges={decoratedEdges}
     />
   );
+};
+
+const PunchInController: React.FC<{
+  punchIn: UnifiedFlowEditorProps['punchIn'] | undefined;
+}> = ({ punchIn }) => {
+  const { startDebugSession, setDebugActiveNodeId, markNodesExecuted } = useFlowEditor();
+  const reactFlow = useReactFlow();
+
+  useEffect(() => {
+    if (!punchIn) return;
+
+    startDebugSession(punchIn.activeNodeId);
+    setDebugActiveNodeId(punchIn.activeNodeId);
+    markNodesExecuted(punchIn.executedNodeIds || []);
+  }, [
+    punchIn?.activeNodeId,
+    // executedNodeIds can be a new array each render; stringify to keep effect stable enough.
+    JSON.stringify(punchIn?.executedNodeIds || []),
+    startDebugSession,
+    setDebugActiveNodeId,
+    markNodesExecuted,
+  ]);
+
+  useEffect(() => {
+    if (!punchIn?.centerOnActiveNode) return;
+    if (!punchIn.activeNodeId) return;
+
+    // Allow React Flow to render nodes before centering.
+    const id = window.setTimeout(() => {
+      const node = reactFlow.getNode?.(punchIn.activeNodeId || '');
+      if (!node) return;
+
+      const x = (node.positionAbsolute?.x ?? node.position.x) + (node.width ?? 0) / 2;
+      const y = (node.positionAbsolute?.y ?? node.position.y) + (node.height ?? 0) / 2;
+
+      reactFlow.setCenter(x, y, { zoom: 1, duration: 350 });
+    }, 50);
+
+    return () => window.clearTimeout(id);
+  }, [punchIn?.centerOnActiveNode, punchIn?.activeNodeId, reactFlow]);
+
+  return null;
 };
 
 // ============================================================================
@@ -1881,6 +1955,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   readOnly = false,
   editorMode = 'visual',
   allowedNodeCategories, // Phase 4.2: Permission-based filtering
+  punchIn,
 }) => {
   // Normalize nodes to ensure all have required properties (maxInputs, maxOutputs)
   const normalizedInitialNodes = useMemo(() => normalizeNodes(initialNodes), [initialNodes]);
@@ -6607,6 +6682,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       currentNodeId={selectedFormStep?.id || null}
     >
       <EditorContainer $isFullscreen={isFullscreen}>
+        <PunchInController punchIn={punchIn} />
       {/* Deprecation Banner (Phase 6.1) */}
       {hasDeprecatedNodes && !bannerDismissed && (
         <DeprecationBanner>
@@ -7065,19 +7141,19 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         edges={renderedEdgesForCanvas}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={readOnly ? undefined : onConnect}
         onMoveEnd={(_, vp) => setViewport(vp)}
-        onNodesDelete={onNodesDelete}
-        nodesDraggable={true}
+        onNodesDelete={readOnly ? undefined : onNodesDelete}
+        nodesDraggable={!readOnly}
         nodeDragHandle=".custom-drag-handle"
         nodesConnectable={false}
         isValidConnection={isValidConnection}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onNodeDragStart={onNodeDragStart}
-        onNodeDragStop={onNodeDragStop}
+        onDrop={readOnly ? undefined : onDrop}
+        onDragOver={readOnly ? undefined : onDragOver}
+        onNodeDragStart={readOnly ? undefined : onNodeDragStart}
+        onNodeDragStop={readOnly ? undefined : onNodeDragStop}
         onNodeClick={handleNodeClick}
-        onNodeContextMenu={handleNodeContextMenu}
+        onNodeContextMenu={readOnly ? undefined : handleNodeContextMenu}
         onPaneClick={handleCloseMenu}
         onPaneMouseMove={(event) => {
           if (!currentWorkflowId) return;
