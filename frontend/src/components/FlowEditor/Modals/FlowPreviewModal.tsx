@@ -366,15 +366,8 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
    * Add log entry
    */
   const addLog = useCallback((entry: Omit<LogEntry, 'timestamp'>) => {
-    setLogs((prev) => [...prev, { ...entry, timestamp: Date.now() }]);
+    setLogs(prev => [...prev, { ...entry, timestamp: Date.now() }]);
   }, []);
-
-  const getNodeName = useCallback((node: Node): string => {
-    const label = (node.data as any)?.label;
-    if (typeof label === 'string' && label.trim().length > 0) return label;
-    return typeof node.type === 'string' && node.type.length > 0 ? node.type : 'Unknown';
-  }, []);
-
 
   /**
    * Execute a single node
@@ -392,7 +385,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
 
     addLog({
       nodeId: node.id,
-      nodeName: getNodeName(node),
+      nodeName: node.data?.label || node.type || 'Unknown',
       action: 'Executing node...',
       level: 'info',
     });
@@ -405,9 +398,9 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
     
     if (node.type?.includes('form')) {
       // Generate mock form data
-      const fields = ((node.data as any)?.fields as FormField[]) || [];
-      fields.forEach((field) => {
-        mockData[field.id] = `Mock ${field.type} value`;
+      const fields = node.data?.fields as FormField[] || [];
+      fields.forEach(field => {
+        mockData[field.name] = `Mock ${field.type} value`;
       });
     }
 
@@ -424,12 +417,12 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
 
     addLog({
       nodeId: node.id,
-      nodeName: getNodeName(node),
+      nodeName: node.data?.label || node.type || 'Unknown',
       action: 'Node completed successfully',
       data: mockData,
       level: 'success',
     });
-  }, [addLog, getNodeName]);
+  }, [addLog]);
 
   /**
    * Execute flow step by step
@@ -546,7 +539,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
                 return (
                   <PreviewNode key={node.id} status={state.status}>
                     <NodeHeader>
-                      <NodeName>{getNodeName(node)}</NodeName>
+                      <NodeName>{node.data?.label || node.type}</NodeName>
                       <StatusBadge status={state.status}>{state.status}</StatusBadge>
                     </NodeHeader>
                     {state.data && (

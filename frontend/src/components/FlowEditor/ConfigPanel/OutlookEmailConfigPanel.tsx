@@ -28,7 +28,7 @@ import {
   Input,
   TextArea,
   Select,
-  HelpText,
+  IconButton,
 } from './shared/StyledComponents';
 
 // Local styled components (email-specific)
@@ -50,31 +50,12 @@ const AddButton = styled.button`
   gap: 6px;
   padding: 6px 12px;
   border: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-surface));
+  background: white;
   color: rgb(var(--color-text-primary));
   border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
-
-  &:hover {
-    border-color: rgb(var(--color-primary));
-    color: rgb(var(--color-primary));
-  }
-`;
-
-const IconButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 6px;
-  border: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-secondary));
-  cursor: pointer;
-
+  
   &:hover {
     border-color: rgb(var(--color-primary));
     color: rgb(var(--color-primary));

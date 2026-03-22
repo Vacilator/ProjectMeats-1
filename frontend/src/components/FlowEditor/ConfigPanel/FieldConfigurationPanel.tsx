@@ -53,7 +53,7 @@ export interface FieldConfig extends SelectedField {
   lookupFilter?: string;
 }
 
-export interface FieldConfigurationPanelProps {
+interface FieldConfigurationPanelProps {
   /** Field being configured */
   field: FieldConfig;
   

@@ -284,34 +284,19 @@ export const StepManagerPanel: React.FC<StepManagerPanelProps> = ({
   const childNodes = nodes.filter(n => n.parentId === containerId);
 
   // Calculate step order
-  const stepOrder = calculateStepOrder(containerId, nodes, edges);
+  const stepOrder = calculateStepOrder(nodes, edges, containerId);
 
   // Build step info list
   const steps: StepInfo[] = childNodes.map(node => {
     const stepNumber = stepOrder.get(node.id) || null;
-    const nodeData = (node.data ?? {}) as any;
-
-    const label =
-      typeof nodeData.label === 'string'
-        ? nodeData.label
-        : typeof nodeData.name === 'string'
-          ? nodeData.name
-          : `${node.type || 'Node'} ${node.id.slice(0, 8)}`;
-
-    const selectedFieldsCount = Array.isArray(nodeData.selectedFields) ? nodeData.selectedFields.length : 0;
-    const fieldsCount = Array.isArray(nodeData.fields) ? nodeData.fields.length : 0;
-
+    
     return {
       id: node.id,
       type: node.type || 'unknown',
-      label,
+      label: node.data?.label || node.data?.name || `${node.type || 'Node'} ${node.id.slice(0, 8)}`,
       stepNumber,
       hasErrors: false, // TODO: Add validation logic
-      isConfigured: Boolean(
-        nodeData.entityType ||
-          (Array.isArray(nodeData.fields) && nodeData.fields.length > 0) ||
-          (Array.isArray(nodeData.selectedFields) && nodeData.selectedFields.length > 0)
-      ),
+      isConfigured: !!(node.data?.entityType || node.data?.selectedFields?.length > 0),
     };
   }).sort((a, b) => {
     // Sort by step number (nulls at end)

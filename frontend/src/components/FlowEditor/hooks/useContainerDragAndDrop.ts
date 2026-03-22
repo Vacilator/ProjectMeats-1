@@ -43,13 +43,13 @@ export interface ContainerDropResult {
  * - Snap preview indicators
  * - Automatic parent assignment
  * 
- * @param containerNodeTypes - Array of node types that are containers (default: ['formProcess'])
+ * @param containerNodeTypes - Array of node types that are containers (default: ['formProcessGroup'])
  * @param snapThreshold - Distance in pixels for magnetic snap (default: 30)
  * @param gridSize - Grid size for snapping (default: 20)
  * @returns Drag state and handler functions
  */
 export function useContainerDragAndDrop(
-  containerNodeTypes: string[] = ['formBook', 'formProcess'],
+  containerNodeTypes: string[] = ['formBook', 'formProcessGroup'],
   snapThreshold: number = 30,
   gridSize: number = 20
 ) {

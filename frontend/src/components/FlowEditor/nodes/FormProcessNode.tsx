@@ -64,20 +64,20 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   
   /* Phase B: Visual containment for sub-flows pattern */
   background: ${props => props.isExpanded 
-    ? 'rgba(var(--color-primary), 0.04)' // Subtle purple tint when expanded to show container area
+    ? 'rgba(139, 92, 246, 0.04)' // Subtle purple tint when expanded to show container area
     : 'rgba(var(--color-background-secondary), 0.95)'};
   
   /* FIX: Ensure border always renders, even when collapsed */
   border-width: 2px;
   border-style: ${props => props.isExpanded ? 'dashed' : 'solid'};
   border-color: ${props => props.isExpanded 
-    ? 'rgba(var(--color-primary), 0.4)' 
-    : 'rgba(var(--color-primary), 0.6)'};
+    ? 'rgba(139, 92, 246, 0.4)' 
+    : 'rgba(139, 92, 246, 0.6)'};
   
   border-radius: 12px;
   box-shadow: 
     0 4px 12px rgba(0, 0, 0, 0.12),
-    0 0 0 4px rgba(var(--color-primary), 0.15);
+    0 0 0 4px rgba(139, 92, 246, 0.15);
   
   /* FIX: Smooth transition but preserve border */
   transition: 
@@ -100,7 +100,7 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
       right: 12px;
       font-size: 10px;
       font-weight: 500;
-      color: rgba(var(--color-primary), 0.5);
+      color: rgba(139, 92, 246, 0.5);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       pointer-events: none;
@@ -110,16 +110,16 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   &:hover {
     box-shadow: 
       0 6px 16px rgba(0, 0, 0, 0.18),
-      0 0 0 4px rgba(var(--color-primary), 0.25);
+      0 0 0 4px rgba(139, 92, 246, 0.25);
   }
   
   &.selected {
     border-color: ${props => props.isExpanded 
-      ? 'rgba(var(--color-primary), 0.6)' 
-      : 'rgb(var(--color-primary))'};
+      ? 'rgba(139, 92, 246, 0.6)' 
+      : 'rgb(139, 92, 246)'};
     box-shadow: 
       0 8px 20px rgba(0, 0, 0, 0.25),
-      0 0 0 4px rgba(var(--color-primary), 0.4);
+      0 0 0 4px rgba(139, 92, 246, 0.4);
   }
   
   &.drag-over {
@@ -138,7 +138,7 @@ const ContainerHeader = styled.div`
   gap: 10px;
   padding: 12px 16px;
   /* Solid color header like regular nodes */
-  background: rgb(var(--color-primary));
+  background: rgb(139, 92, 246);
   border-bottom: none;
   border-radius: 10px 10px 0 0;
   cursor: pointer;
@@ -221,7 +221,7 @@ const ChildNodesArea = styled.div`
   position: relative;
   min-height: 300px;
   border-radius: 8px;
-  border: 1px dashed rgba(var(--color-primary), 0.2);
+  border: 1px dashed rgba(139, 92, 246, 0.2);
   background: rgba(255, 255, 255, 0.02);
   display: flex;
   align-items: center;
@@ -231,7 +231,7 @@ const ChildNodesArea = styled.div`
   
   &:empty::before {
     content: 'Drag nodes here to add steps to this form process';
-    color: rgba(var(--color-primary), 0.4);
+    color: rgba(139, 92, 246, 0.4);
     font-size: 13px;
     text-align: center;
     font-style: italic;
@@ -309,11 +309,11 @@ const EmptyState = styled.div`
   .drop-hint {
     margin-top: 12px;
     padding: 8px 12px;
-    background: rgba(var(--color-primary), 0.1);
-    border: 1px dashed rgba(var(--color-primary), 0.3);
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px dashed rgba(139, 92, 246, 0.3);
     border-radius: 6px;
     font-size: 12px;
-    color: rgb(var(--color-primary));
+    color: rgb(139, 92, 246);
     font-weight: 500;
   }
 `;
@@ -322,7 +322,7 @@ const ConfigButton = styled.button`
   width: 100%;
   padding: 10px;
   margin-top: 12px;
-  background: linear-gradient(135deg, rgb(var(--color-primary)), rgba(var(--color-primary), 0.85));
+  background: linear-gradient(135deg, rgb(139, 92, 246), rgb(109, 40, 217));
   color: white;
   border: none;
   border-radius: 6px;
@@ -335,7 +335,7 @@ const ConfigButton = styled.button`
   
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--color-primary), 0.3);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
   }
   
   &:active {
@@ -404,13 +404,13 @@ const StepItem = styled.div`
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 6px;
-  border: 1px solid rgba(var(--color-primary), 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.2);
   font-size: 12px;
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(var(--color-primary), 0.08);
-    border-color: rgba(var(--color-primary), 0.3);
+    background: rgba(139, 92, 246, 0.08);
+    border-color: rgba(139, 92, 246, 0.3);
   }
 `;
 
@@ -418,8 +418,8 @@ const StepNumber = styled.div`
   min-width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(var(--color-primary), 0.2);
-  color: rgb(var(--color-primary));
+  background: rgba(139, 92, 246, 0.2);
+  color: rgb(139, 92, 246);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -702,7 +702,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                       {stats.stepOrder.size > 5 && (
                         <div style={{ 
                           fontSize: '11px', 
-                          color: 'rgba(var(--color-primary), 0.6)',
+                          color: 'rgba(139, 92, 246, 0.6)',
                           textAlign: 'center',
                           marginTop: '4px',
                         }}>

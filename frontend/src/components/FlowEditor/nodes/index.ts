@@ -60,7 +60,3 @@ export type { ParallelPathNodeData } from './ParallelPathNode';
 
 export { SubWorkflowNode } from './SubWorkflowNode';
 export type { SubWorkflowNodeData } from './SubWorkflowNode';
-
-// Vanguard 1: Scale Phase (Loop constructs)
-export { LoopNode } from './LoopNode';
-export type { LoopNodeData } from './LoopNode';

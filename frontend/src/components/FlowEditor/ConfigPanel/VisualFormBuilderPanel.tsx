@@ -207,7 +207,7 @@ const RequiredBadge = styled.span`
   font-weight: 600;
 `;
 
-const FieldTypePill = styled.span`
+const FieldType = styled.span`
   font-size: 12px;
   color: rgb(var(--color-text-secondary));
 `;
@@ -403,7 +403,7 @@ const SortableFieldItem: React.FC<SortableFieldItemProps> = ({ field, onEdit, on
             {field.label || 'Untitled Field'}
             {field.required && <RequiredBadge>REQUIRED</RequiredBadge>}
           </FieldLabel>
-          <FieldTypePill>{fieldTypeInfo?.label || field.type}</FieldTypePill>
+          <FieldType>{fieldTypeInfo?.label || field.type}</FieldType>
         </FieldInfo>
         
         <FieldActions>

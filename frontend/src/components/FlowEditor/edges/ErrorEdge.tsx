@@ -11,13 +11,13 @@ import React from 'react';
 import { EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType } from '@xyflow/react';
 import styled from 'styled-components';
 
-import type { ErrorEdgeContract } from '../types/errorHandling';
-
 // ============================================================================
 // Types
 // ============================================================================
 
-interface ErrorEdgeData extends ErrorEdgeContract {
+interface ErrorEdgeData {
+  label?: string;
+  errorType?: string;
   animated?: boolean;
   errorCount?: number;
 }
@@ -105,19 +105,15 @@ export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
   });
 
   const label = data?.label || data?.errorType || 'Error Handler';
-  // Vanguard 1: Error edges are animated by default.
-  const animated = data?.animated ?? true;
+  const animated = data?.animated || false;
   const errorCount = data?.errorCount;
 
-  const { strokeWidth: _strokeWidth, vectorEffect: _vectorEffect, ...safeStyle } = (style || {}) as any;
-
   const edgeStyle: React.CSSProperties = {
-    ...safeStyle,
-    stroke: 'rgb(239, 68, 68)', // Tailwind red-500
+    stroke: 'rgb(239, 68, 68)', // Red
     strokeWidth: 2.5,
-    strokeDasharray: '5,5',
-    vectorEffect: 'non-scaling-stroke',
+    strokeDasharray: '6,6',
     transition: 'all 0.3s ease',
+    ...style,
   };
 
   // Custom warning marker for error edges

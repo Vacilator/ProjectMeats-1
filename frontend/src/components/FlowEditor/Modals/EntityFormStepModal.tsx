@@ -383,7 +383,7 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
   useEffect(() => {
     if (isOpen && initialData) {
       // Determine the correct step based on configuration state
-      let startStep: WizardStep = 1;
+      let startStep = 1;
       
       if (initialData.mode === 'existing' && initialData.formId) {
         // Editing an existing form - skip to preview (step 3)
@@ -441,10 +441,9 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
       try {
         const form = await workformsApi.getTenantForm(state.selectedFormId);
         
-        // Extract fields from the canonical form_definition, with legacy flow_data fallback.
-        const definition = (form as any).form_definition ?? (form as any).flow_data;
-        const fields = Array.isArray(definition?.fields)
-          ? (definition.fields as any[]).map((field: any, index: number) => ({
+        // Safely extract fields from flow_data (backend uses flow_data, not form_definition)
+        const fields = form.flow_data?.fields 
+          ? form.flow_data.fields.map((field, index) => ({
               ...field,
               fieldId: `field-${index}`,
             }))

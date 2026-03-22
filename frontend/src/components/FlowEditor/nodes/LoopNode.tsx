@@ -329,35 +329,16 @@ export const LoopNode: React.FC<LoopNodeProps> = ({ data, selected }) => {
   const loopTypeLabel = getLoopTypeLabel(data.loopType);
   const configDisplay = getLoopConfigDisplay(data);
 
-  const config = (data as any).config || {};
-  const arraySource: string | undefined =
-    data.dataSource ||
-    config.arrayVariable ||
-    config.collection ||
-    config.array_source ||
-    undefined;
-
-  const maxIterations: number | undefined =
-    data.maxIterations ??
-    (typeof config.maxIterations === 'number'
-      ? config.maxIterations
-      : typeof config.maxIterations === 'string'
-        ? parseInt(config.maxIterations, 10)
-        : typeof config.max_iterations === 'number'
-          ? config.max_iterations
-          : undefined);
-
   return (
     <NodeContainer isExecuting={isExecuting}>
-      {/* Input Array handle */}
+      {/* Input handle */}
       <Handle
         type="target"
         position={Position.Left}
         id="input"
         style={{ top: '50%' }}
-        aria-label="Input Array"
       />
-
+      
       {/* Header */}
       <NodeHeader>
         <IconWrapper isExecuting={isExecuting}>
@@ -365,62 +346,58 @@ export const LoopNode: React.FC<LoopNodeProps> = ({ data, selected }) => {
         </IconWrapper>
         <NodeTitle>
           <NodeLabel>{data.label || 'Loop'}</NodeLabel>
-          {data.description && <NodeDescription>{data.description}</NodeDescription>}
+          {data.description && (
+            <NodeDescription>{data.description}</NodeDescription>
+          )}
         </NodeTitle>
       </NodeHeader>
-
+      
       {/* Body */}
       <NodeBody>
+        {/* Loop type badge */}
         <LoopTypeBadge>{loopTypeLabel}</LoopTypeBadge>
-
-        {/* Array Source */}
-        {arraySource && (
+        
+        {/* Configuration */}
+        {configDisplay && (
+          <LoopConfig>{configDisplay}</LoopConfig>
+        )}
+        
+        {/* Max iterations */}
+        {data.maxIterations && (
           <ConfigRow>
-            <ConfigLabel>Array Source:</ConfigLabel>
-            <ConfigValue>{arraySource}</ConfigValue>
+            <ConfigLabel>Max:</ConfigLabel>
+            <ConfigValue>{data.maxIterations} iterations</ConfigValue>
           </ConfigRow>
         )}
-
-        {/* Config preview (legacy display) */}
-        {configDisplay && <LoopConfig>{configDisplay}</LoopConfig>}
-
-        {/* Max iterations badge */}
-        {maxIterations !== undefined && !Number.isNaN(maxIterations) && (
-          <ConfigRow>
-            <ConfigLabel>Max Iterations:</ConfigLabel>
-            <ConfigValue>{maxIterations}</ConfigValue>
-          </ConfigRow>
-        )}
-
+        
+        {/* Loop body indicator */}
         <LoopBody>
           Loop Body
           <br />
           <small>(Connect child nodes here)</small>
         </LoopBody>
-
+        
+        {/* Iteration counter (runtime) */}
         {data.showIterationCount && isExecuting && (
           <IterationCounter>
-            Iteration {data.currentIteration}
+            Iteration {data.currentIteration} 
             {data.totalIterations && ` of ${data.totalIterations}`}
           </IterationCounter>
         )}
       </NodeBody>
-
-      {/* Loop Body handle */}
+      
+      {/* Output handles */}
       <Handle
         type="source"
         position={Position.Right}
         id="loop-body"
         style={{ top: '50%', background: 'rgb(234, 179, 8)' }}
-        aria-label="Loop Body"
       />
-
       <Handle
         type="source"
         position={Position.Bottom}
         id="complete"
         style={{ left: '50%' }}
-        aria-label="Loop Complete"
       />
     </NodeContainer>
   );
