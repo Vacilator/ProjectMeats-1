@@ -303,91 +303,136 @@ class TenantWorkForm(models.Model):
         self.save(update_fields=['clone_count'])
     
     def get_container_nodes(self):
-        """
-        Get all container nodes in this workflow.
-        
+        """Get all form container nodes in this workflow.
+
+        Supports both canonical and legacy container types.
+
         Returns:
             list: List of container node objects
         """
         nodes = self.workflow_definition.get('nodes', [])
-        return [node for node in nodes if node.get('type') == 'formMultiStepContainer']
-    
+        if not isinstance(nodes, list):
+            return []
+
+        container_types = {
+            'formBook',
+            'formProcessGroup',
+            'formProcess',
+            'formMultiStepContainer',
+            'smartWorkForm',
+        }
+
+        return [
+            node
+            for node in nodes
+            if isinstance(node, dict) and node.get('type') in container_types
+        ]
+
     def get_nodes_in_container(self, container_id):
-        """
-        Get all nodes that belong to a specific container.
-        
+        """Get all nodes that belong to a specific container.
+
+        Backward compatible with both grouping paradigms:
+        - React Flow sub-flows: node.parentId / node.parentNode
+        - Legacy container mapping: node.data.containerNodeId
+
         Args:
             container_id (str): ID of the container node
-            
+
         Returns:
-            list: List of node objects that have containerNodeId == container_id
+            list: List of node objects inside the container
         """
         nodes = self.workflow_definition.get('nodes', [])
-        return [
-            node for node in nodes 
-            if node.get('data', {}).get('containerNodeId') == container_id
-        ]
-    
+        if not isinstance(nodes, list):
+            return []
+
+        children = []
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            if node.get('id') == container_id:
+                continue
+
+            node_data = node.get('data') or {}
+            if not isinstance(node_data, dict):
+                node_data = {}
+
+            parent_id = node.get('parentId') or node.get('parentNode') or node_data.get('containerNodeId')
+            if parent_id == container_id:
+                children.append(node)
+
+        return children
+
     def get_container_summary(self, container_id):
-        """
-        Get summary of nodes within a container.
-        
-        Args:
-            container_id (str): ID of the container node
-            
-        Returns:
-            dict: {
-                "container_name": str,
-                "total_nodes": int,
-                "node_types": {"formStep": 2, "actionEmail": 1, ...},
-                "form_references": [uuid1, uuid2, ...]
-            }
-        """
+        """Get summary of nodes within a container."""
         container_nodes = self.get_nodes_in_container(container_id)
-        container_node = next(
-            (n for n in self.workflow_definition.get('nodes', []) if n.get('id') == container_id),
-            None
+
+        nodes = self.workflow_definition.get('nodes', [])
+        container_node = None
+        if isinstance(nodes, list):
+            container_node = next(
+                (n for n in nodes if isinstance(n, dict) and n.get('id') == container_id),
+                None,
+            )
+
+        container_data = (container_node or {}).get('data') or {}
+        if not isinstance(container_data, dict):
+            container_data = {}
+
+        container_name = (
+            container_data.get('containerName')
+            or container_data.get('label')
+            or container_data.get('name')
+            or 'Unnamed Container'
         )
-        
-        # Count node types
-        node_types = {}
+
+        node_types: dict[str, int] = {}
         form_refs = set()
         for node in container_nodes:
             node_type = node.get('type', 'unknown')
             node_types[node_type] = node_types.get(node_type, 0) + 1
-            
-            # Extract form references
-            node_data = node.get('data', {})
-            if node_type in ['formStep', 'formReference'] and node_data.get('tenantFormId'):
+
+            node_data = node.get('data') or {}
+            if isinstance(node_data, dict) and node_data.get('tenantFormId'):
                 form_refs.add(node_data['tenantFormId'])
-        
+
         return {
-            "container_name": container_node.get('data', {}).get('label', 'Unnamed Container') if container_node else 'Unknown',
-            "total_nodes": len(container_nodes),
-            "node_types": node_types,
-            "form_references": list(form_refs)
+            'container_name': container_name,
+            'total_nodes': len(container_nodes),
+            'node_types': node_types,
+            'form_references': list(form_refs),
         }
-    
+
     def update_node_container(self, node_id, container_id=None):
-        """
-        Update a node's containerNodeId field.
-        
-        Args:
-            node_id (str): ID of the node to update
-            container_id (str|None): ID of container to assign (None to remove from container)
-            
+        """Update a node's container relationship (legacy + sub-flow).
+
+        This keeps older APIs working while supporting the newer parentId grouping.
+
         Returns:
             bool: True if node was found and updated, False otherwise
         """
         nodes = self.workflow_definition.get('nodes', [])
-        
+        if not isinstance(nodes, list):
+            return False
+
         for node in nodes:
-            if node.get('id') == node_id:
-                if container_id:
-                    node.setdefault('data', {})['containerNodeId'] = container_id
-                else:
-                    # Remove containerNodeId
-                    node.get('data', {}).pop('containerNodeId', None)
-                return True
-        
+            if not isinstance(node, dict):
+                continue
+            if node.get('id') != node_id:
+                continue
+
+            node_data = node.get('data')
+            if not isinstance(node_data, dict):
+                node_data = {}
+                node['data'] = node_data
+
+            if container_id:
+                node_data['containerNodeId'] = container_id
+                node['parentId'] = container_id
+            else:
+                node_data.pop('containerNodeId', None)
+                node.pop('parentId', None)
+                node.pop('parentNode', None)
+
+            return True
+
         return False
