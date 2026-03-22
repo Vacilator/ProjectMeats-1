@@ -13,8 +13,8 @@ class Migration(migrations.Migration):
         ("purchase_orders", "0013_refactor_to_tenantaware"),
     ]
 
-    run_before = [
-        ("products", "0008_masterproduct_delete_product_and_more"),
-    ]
+    # NOTE:
+    # Avoid `run_before` here. `products.0008` may already be applied in long-lived environments,
+    # and adding ordering edges can cause InconsistentMigrationHistory during deploy.
 
     operations = []

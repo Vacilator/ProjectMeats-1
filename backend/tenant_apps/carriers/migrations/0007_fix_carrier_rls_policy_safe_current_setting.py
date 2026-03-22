@@ -10,10 +10,9 @@ class Migration(migrations.Migration):
         ("carriers", "0006_add_rls_policies_batch"),
     ]
 
-    # Ensure this runs before fulfillments initial migration (which FK-checks carriers_carrier)
-    run_before = [
-        ("fulfillments", "0001_initial"),
-    ]
+    # NOTE:
+    # Avoid `run_before` here. Some environments already have fulfillments.0001 applied,
+    # and adding ordering edges can cause InconsistentMigrationHistory during deploy.
 
     operations = [
         RunSQL(
