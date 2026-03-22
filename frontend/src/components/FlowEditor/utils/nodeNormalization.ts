@@ -59,6 +59,21 @@ export function normalizeNodeData(node: Node): Node {
   // Get node type definition
   const nodeTypeDef = NODE_TYPE_REGISTRY[node.type];
 
+  // Blank-placeholder guard: if a legacy Form Process node is coerced to React Flow's `default` type,
+  // ensure it still has a visible label so the node doesn't render as an empty placeholder.
+  if (
+    node.type === 'default' &&
+    ['formProcess', 'formProcessGroup', 'formMultiStepContainer', 'formBook'].includes((node.data as any)?.nodeType)
+  ) {
+    return {
+      ...node,
+      data: {
+        ...(node.data || {}),
+        label: (node.data as any)?.label ?? (node.data as any)?.containerName ?? 'Form Process',
+      },
+    } as Node;
+  }
+
   // If unknown type, return as-is
   if (!nodeTypeDef) {
     return node;
