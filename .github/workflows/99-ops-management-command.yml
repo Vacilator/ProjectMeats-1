@@ -53,10 +53,24 @@ jobs:
         id: context
         run: |
           {
-            # Use environment-scoped SSH_HOST/SSH_USER/SSH_PASSWORD (single source of truth)
-            echo "HOST=\"${{ secrets.SSH_HOST }}\""
-            echo "USER=\"${{ secrets.SSH_USER }}\""
-            echo "PASS=\"${{ secrets.SSH_PASSWORD }}\""
+            # Host/user vary per environment; password naming is inconsistent by design.
+            if [ "${{ inputs.environment }}" == "prod" ]; then
+              echo "HOST=\"${{ secrets.PRODUCTION_HOST }}\""
+              echo "USER=\"${{ secrets.PRODUCTION_USER }}\""
+            elif [ "${{ inputs.environment }}" == "uat" ]; then
+              echo "HOST=\"${{ secrets.STAGING_HOST }}\""
+              echo "USER=\"${{ secrets.STAGING_USER }}\""
+            else
+              echo "HOST=\"${{ secrets.DEV_HOST }}\""
+              echo "USER=\"${{ secrets.DEV_USER }}\""
+            fi
+
+            # Password: Dev often uses DEV_SSH_PASSWORD; UAT/Prod use SSH_PASSWORD.
+            if [ "${{ inputs.environment }}" == "dev" ] && [ -n "${{ secrets.DEV_SSH_PASSWORD }}" ]; then
+              echo "PASS=\"${{ secrets.DEV_SSH_PASSWORD }}\""
+            else
+              echo "PASS=\"${{ secrets.SSH_PASSWORD }}\""
+            fi
           } >> "$GITHUB_OUTPUT"
 
       - name: Execute Remote Command

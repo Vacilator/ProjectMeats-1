@@ -53,9 +53,14 @@ check_required_secrets() {
     
     local required_secrets=(
         "DO_ACCESS_TOKEN"
-        "SSH_HOST"
-        "SSH_USER"
+        "DEV_HOST"
+        "DEV_USER"
+        "DEV_SSH_PASSWORD"
+        "STAGING_HOST"
+        "STAGING_USER"
         "SSH_PASSWORD"
+        "PRODUCTION_HOST"
+        "PRODUCTION_USER"
     )
     
     local missing=()
