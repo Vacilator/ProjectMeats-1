@@ -7647,6 +7647,16 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   // Force all triggers to use the rich Unified Trigger node & schema
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
 
+  // Rollback: render all legacy Form Process container variants as plain `default` nodes.
+  if (
+    nodeTypeId === 'formMultiStepContainer' ||
+    nodeTypeId === 'formProcess' ||
+    nodeTypeId === 'formProcessGroup' ||
+    nodeTypeId === 'formBook'
+  ) {
+    return 'default';
+  }
+
   // Preserve specific types for all other nodes so their specific schemas load
   if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
   return nodeTypeId;
@@ -7654,6 +7664,16 @@ function getReactFlowNodeType(nodeTypeId: string): string {
 
 /** Returns true for all Form Process container node type IDs (current + legacy). */
 function isFormProcessContainerType(nodeType: string | undefined | null): boolean {
+  // Rollback: treat legacy Form Process containers as plain nodes (no group semantics).
+  if (
+    nodeType === 'formProcessGroup' ||
+    nodeType === 'formProcess' ||
+    nodeType === 'formMultiStepContainer' ||
+    nodeType === 'formBook'
+  ) {
+    return false;
+  }
+
   return (
     nodeType === 'formProcessGroup' ||
     nodeType === 'formProcess' ||

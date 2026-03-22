@@ -24,6 +24,26 @@ export function normalizeNodeData(node: Node): Node {
     return node;
   }
 
+  // Rollback: Force all legacy Form Process container variants to render as plain
+  // `react-flow__node-default` (no group semantics / purple container overrides).
+  if (
+    node.type === 'formMultiStepContainer' ||
+    node.type === 'formProcess' ||
+    node.type === 'formProcessGroup' ||
+    node.type === 'formBook'
+  ) {
+    const { parentId, extent, expandParent, ...rest } = node as any;
+
+    return {
+      ...rest,
+      type: 'default',
+      data: {
+        ...(node.data || {}),
+        label: (node.data as any)?.label ?? (node.data as any)?.containerName ?? 'Form Process',
+      },
+    } as Node;
+  }
+
   // --------------------------------------------------------------------------
   // Canonicalize legacy Form types (additive/back-compat)
   // --------------------------------------------------------------------------
