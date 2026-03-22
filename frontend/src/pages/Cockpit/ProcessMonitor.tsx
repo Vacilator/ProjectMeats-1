@@ -371,13 +371,6 @@ function pickActiveNodeId(nodes: any[], item: ProcessMonitorItem): string | null
   return picked?.id ?? null;
 }
 
-function applyActiveNodeClass(nodes: any[], activeNodeId: string | null): any[] {
-  if (!activeNodeId) return nodes;
-  return nodes.map((n) => ({
-    ...n,
-    className: n.id === activeNodeId ? 'pm-active-node' : n.className,
-  }));
-}
 
 // ============================================================================
 // Component
@@ -424,10 +417,7 @@ const ProcessMonitor: React.FC = () => {
     return pickActiveNodeId(nodes, selected);
   }, [formQuery.data, selected]);
 
-  const highlightedNodes = useMemo(() => {
-    const nodes = formQuery.data?.flow_data?.nodes || [];
-    return applyActiveNodeClass(nodes, activeNodeId);
-  }, [formQuery.data, activeNodeId]);
+  const nodes = useMemo(() => formQuery.data?.flow_data?.nodes || [], [formQuery.data]);
 
   const edges = useMemo(() => formQuery.data?.flow_data?.edges || [], [formQuery.data]);
 
@@ -573,8 +563,12 @@ const ProcessMonitor: React.FC = () => {
               ) : (
                 <UnifiedFlowEditor
                   readOnly={true}
-                  initialNodes={highlightedNodes as any}
+                  initialNodes={nodes as any}
                   initialEdges={edges as any}
+                  punchIn={{
+                    activeNodeId,
+                    centerOnActiveNode: true,
+                  }}
                 />
               )}
             </EditorPane>

@@ -20,6 +20,20 @@ vi.mock('../../../hooks/useToast', () => ({
   }),
 }));
 
+vi.mock(import('../../../hooks/useToast'), async (importOriginal) => {
+  const actual = await importOriginal();
+
+  return {
+    ...actual,
+    useToast: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+    }),
+  };
+});
+
 // Mock the API service
 vi.mock('../../../services/apiService', () => ({
   apiClient: {
