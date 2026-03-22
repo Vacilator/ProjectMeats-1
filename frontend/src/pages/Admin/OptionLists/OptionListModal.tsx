@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, Lock, Globe, Building } from 'lucide-react';
 import Modal from '@/components/Modal/Modal';
-import { adminClient } from '@/services/apiService';
+import { apiClient } from '@/services/apiService';
 import { useToast } from '@/hooks/useToast';
 
 // ============================================================================
@@ -360,7 +360,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   const loadItems = async () => {
     setLoading(true);
     try {
-      const response = await adminClient.get(`/system/choice-lists/${listSlug}/items/`);
+      const response = await apiClient.get(`/system/choice-lists/${listSlug}/items/`);
       // Ensure response.data is always an array
       const itemsData = Array.isArray(response.data) ? response.data : [];
       setItems(itemsData);
@@ -439,7 +439,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
 
     // Otherwise, delete from backend
     try {
-      await adminClient.delete(`/system/choice-items/${id}/`);
+      await apiClient.delete(`/system/choice-items/${id}/`);
       setItems(items.filter(item => item.id !== id));
       setHasChanges(true);
     } catch (error) {
@@ -505,10 +505,10 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
         };
 
         if (item.id.startsWith('temp-')) {
-          return adminClient.post(`/system/choice-lists/${listSlug}/items/`, itemData);
+          return apiClient.post(`/system/choice-lists/${listSlug}/items/`, itemData);
         }
 
-        return adminClient.patch(`/system/choice-items/${item.id}/`, itemData);
+        return apiClient.patch(`/system/choice-items/${item.id}/`, itemData);
       });
 
       await Promise.all(promises);

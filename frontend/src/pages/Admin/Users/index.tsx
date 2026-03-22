@@ -26,7 +26,9 @@ import Modal from '@/components/Modal/Modal';
 
 interface TenantUser {
   id: number;
-  user: {
+  // Backend may return a user ID (numeric) plus flat identity fields.
+  // Some older payloads may return a nested user object.
+  user: number | {
     id: number;
     username: string;
     email: string;
@@ -35,6 +37,10 @@ interface TenantUser {
   };
   role: 'owner' | 'admin' | 'manager' | 'user' | 'readonly';
   is_active: boolean;
+  username?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -95,14 +101,35 @@ const UsersPage: React.FC = () => {
 
   const normalizedQuery = useMemo(() => searchQuery.trim().toLowerCase(), [searchQuery]);
 
+  const getUserId = (row: TenantUser): number | undefined =>
+    typeof row.user === 'number' ? row.user : row.user?.id;
+
+  const getUsername = (row: TenantUser): string =>
+    row.username ?? (typeof row.user === 'object' && row.user ? row.user.username : '');
+
+  const getEmail = (row: TenantUser): string =>
+    row.email ?? (typeof row.user === 'object' && row.user ? row.user.email : '');
+
+  const getFirstName = (row: TenantUser): string =>
+    row.first_name ?? (typeof row.user === 'object' && row.user ? row.user.first_name : '');
+
+  const getLastName = (row: TenantUser): string =>
+    row.last_name ?? (typeof row.user === 'object' && row.user ? row.user.last_name : '');
+
+  const getDisplayName = (row: TenantUser): string => {
+    const first = getFirstName(row);
+    const last = getLastName(row);
+    const full = `${first} ${last}`.trim();
+    return full || getUsername(row) || getEmail(row) || `User ${getUserId(row) ?? ''}`.trim();
+  };
+
   const matchesUser = (row: TenantUser) => {
     if (!normalizedQuery) return true;
-    const name = `${row.user.first_name || ''} ${row.user.last_name || ''}`.trim().toLowerCase();
-    return (
-      row.user.username.toLowerCase().includes(normalizedQuery) ||
-      row.user.email.toLowerCase().includes(normalizedQuery) ||
-      name.includes(normalizedQuery)
-    );
+    const name = getDisplayName(row).toLowerCase();
+    const username = getUsername(row).toLowerCase();
+    const email = getEmail(row).toLowerCase();
+
+    return username.includes(normalizedQuery) || email.includes(normalizedQuery) || name.includes(normalizedQuery);
   };
 
   const matchesInvitation = (row: Invitation) => {
@@ -191,19 +218,13 @@ const UsersPage: React.FC = () => {
   const columns = useMemo(
     () => [
       {
-        key: 'user.username',
+        key: 'username',
         label: 'User',
         sortable: true,
         render: (_: any, row: TenantUser) => (
           <div>
-            <div style={{ fontWeight: 600 }}>
-              {row.user.first_name && row.user.last_name
-                ? `${row.user.first_name} ${row.user.last_name}`
-                : row.user.username}
-            </div>
-            <div style={{ fontSize: '12px', color: 'rgb(var(--color-text-secondary))' }}>
-              {row.user.email}
-            </div>
+            <div style={{ fontWeight: 600 }}>{getDisplayName(row)}</div>
+            <div style={{ fontSize: '12px', color: 'rgb(var(--color-text-secondary))' }}>{getEmail(row)}</div>
           </div>
         ),
       },
@@ -245,7 +266,8 @@ const UsersPage: React.FC = () => {
         label: 'Deactivate',
         icon: '🚫',
         onClick: (user: TenantUser) => {
-          if (currentUser?.id && user.user.id === currentUser.id) {
+          const targetUserId = getUserId(user);
+          if (currentUser?.id && targetUserId && targetUserId === currentUser.id) {
             toast.error('You cannot deactivate yourself');
             return;
           }
@@ -253,10 +275,14 @@ const UsersPage: React.FC = () => {
           setShowDeactivateConfirm(true);
         },
         variant: 'danger' as const,
-        hidden: (row: TenantUser) =>
-          !permissions.can_manage_users ||
-          !row.is_active ||
-          (currentUser?.id ? row.user.id === currentUser.id : false),
+        hidden: (row: TenantUser) => {
+          const targetUserId = getUserId(row);
+          return (
+            !permissions.can_manage_users ||
+            !row.is_active ||
+            (currentUser?.id && targetUserId ? targetUserId === currentUser.id : false)
+          );
+        },
       },
       {
         label: 'Reactivate',
@@ -491,7 +517,8 @@ const UsersPage: React.FC = () => {
         onClose={() => setShowDeactivateConfirm(false)}
         onConfirm={() => {
           if (!selectedUser) return;
-          if (currentUser?.id && selectedUser.user.id === currentUser.id) {
+          const targetUserId = getUserId(selectedUser);
+          if (currentUser?.id && targetUserId && targetUserId === currentUser.id) {
             toast.error('You cannot deactivate yourself');
             setShowDeactivateConfirm(false);
             return;
@@ -499,7 +526,7 @@ const UsersPage: React.FC = () => {
           deactivateMutation.mutate(selectedUser.id);
         }}
         title="Deactivate User"
-        message={`Deactivate ${selectedUser?.user.username}? They will lose access.`}
+        message={`Deactivate ${selectedUser ? getDisplayName(selectedUser) : 'this user'}? They will lose access.`}
         confirmText="Deactivate"
         confirmVariant="danger"
       />
