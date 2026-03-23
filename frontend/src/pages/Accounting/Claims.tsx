@@ -18,7 +18,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { ActivityFeed, CreateClaimModal } from '../../components/Shared';
+import { ActivityFeed, UniversalEntityForm } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
@@ -753,11 +753,12 @@ export const Claims: React.FC = () => {
         )}
       </ContentContainer>
 
-      <CreateClaimModal
+      <UniversalEntityForm
+        entityType="claims"
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={fetchClaims}
-        defaultClaimType={activeTab}
+        onSuccess={() => fetchClaims()}
+        initialValues={{ claim_type: activeTab } as any}
       />
     </PageContainer>
   );

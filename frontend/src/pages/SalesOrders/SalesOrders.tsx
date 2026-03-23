@@ -15,7 +15,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { ActivityFeed, CreateOrderModal } from '../../components/Shared';
+import { ActivityFeed, UniversalEntityForm } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
@@ -715,11 +715,12 @@ export const SalesOrdersPage: React.FC = () => {
         )}
       </ContentContainer>
 
-      <CreateOrderModal
+      <UniversalEntityForm
+        entityType="sales-orders"
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={fetchOrders}
-        initialValues={modalInitialValues}
+        onSuccess={() => fetchOrders()}
+        initialValues={modalInitialValues as any}
       />
     </PageContainer>
   );
