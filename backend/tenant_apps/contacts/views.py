@@ -7,6 +7,8 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from django.core.exceptions import ValidationError
 from tenant_apps.contacts.models import Contact
 from tenant_apps.contacts.serializers import ContactSerializer
@@ -22,6 +24,11 @@ class ContactViewSet(viewsets.ModelViewSet):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["supplier", "customer", "status"]
+    search_fields = ["first_name", "last_name", "email", "company", "position"]
+    ordering_fields = ["last_name", "first_name", "created_at", "updated_at"]
+    ordering = ["last_name", "first_name"]
 
     def get_queryset(self):
         """Filter contacts by current tenant."""

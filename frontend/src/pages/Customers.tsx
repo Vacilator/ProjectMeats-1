@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
@@ -9,14 +9,62 @@ import { MultiSelect } from '../components/Shared';
 import { US_STATES } from '../utils/constants/states';
 import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
+interface CustomerLocation {
+  id: number;
+  name: string;
+  code?: string;
+  location_type?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  country?: string;
+  contact_name?: string;
+  email?: string;
+  phone?: string;
+}
+
+interface CustomerContact {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  phone?: string;
+  position?: string;
+  company?: string;
+}
+
 const Customers: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { theme } = useTheme();
   const [products, setProducts] = useState<Array<{ id: string; product_code: string; name: string; protein_type: string }>>([]);
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [customerLocations, setCustomerLocations] = useState<CustomerLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
+
+  const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [locationForm, setLocationForm] = useState({
+    name: '',
+    location_type: 'warehouse',
+    address: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    country: 'USA',
+    contact_name: '',
+    email: '',
+    phone: '',
+  });
   const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
@@ -101,6 +149,106 @@ const Customers: React.FC = () => {
       // apiClient handles 401 automatically with token refresh
     }
   };
+
+  const loadCustomerLocations = async (customerId: number) => {
+    try {
+      setLocationsLoading(true);
+      const response = await apiClient.get('locations/', {
+        params: { customer: customerId },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setCustomerLocations(data);
+    } catch (error) {
+      console.error('[Customers] Failed to load locations:', error);
+      setCustomerLocations([]);
+    } finally {
+      setLocationsLoading(false);
+    }
+  };
+
+  const loadCustomerContacts = async (customerId: number) => {
+    try {
+      setContactsLoading(true);
+      const response = await apiClient.get('contacts/', {
+        params: { customer: customerId },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setCustomerContacts(data);
+    } catch (error) {
+      console.error('[Customers] Failed to load contacts:', error);
+      setCustomerContacts([]);
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  const toggleCustomerDrilldown = async (customer: Customer) => {
+    if (selectedCustomerId === customer.id) {
+      setSelectedCustomerId(null);
+      setCustomerLocations([]);
+      setCustomerContacts([]);
+      setSelectedLocationId(null);
+      return;
+    }
+
+    setSelectedCustomerId(customer.id);
+    setSelectedLocationId(null);
+
+    await Promise.all([loadCustomerLocations(customer.id), loadCustomerContacts(customer.id)]);
+  };
+
+  const openCreateLocation = () => {
+    if (!selectedCustomerId) return;
+    setLocationForm({
+      name: '',
+      location_type: 'warehouse',
+      address: '',
+      city: '',
+      state: '',
+      zip_code: '',
+      country: 'USA',
+      contact_name: '',
+      email: '',
+      phone: '',
+    });
+    setShowLocationModal(true);
+  };
+
+  const submitLocation = async () => {
+    if (!selectedCustomerId) return;
+
+    if (!locationForm.name.trim()) {
+      alert('Location name is required');
+      return;
+    }
+
+    try {
+      await apiClient.post('locations/', {
+        customer: selectedCustomerId,
+        name: locationForm.name.trim(),
+        location_type: locationForm.location_type,
+        address: locationForm.address,
+        city: locationForm.city,
+        state: locationForm.state,
+        zip_code: locationForm.zip_code,
+        country: locationForm.country,
+        contact_name: locationForm.contact_name,
+        email: locationForm.email,
+        phone: locationForm.phone,
+      });
+      setShowLocationModal(false);
+      await loadCustomerLocations(selectedCustomerId);
+    } catch (error) {
+      console.error('[Customers] Failed to create location:', error);
+      alert('Failed to create location');
+    }
+  };
+
+  const selectedLocation = selectedLocationId
+    ? customerLocations.find((l) => l.id === selectedLocationId)
+    : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -358,6 +506,137 @@ const Customers: React.FC = () => {
         </FormOverlay>
       )}
 
+      {showLocationModal && (
+        <FormOverlay>
+          <FormContainer $theme={theme}>
+            <FormHeader $theme={theme}>
+              <FormTitle $theme={theme}>Add New Location</FormTitle>
+              <CloseButton $theme={theme} onClick={() => setShowLocationModal(false)}>×</CloseButton>
+            </FormHeader>
+
+            <Form onSubmit={(e) => { e.preventDefault(); void submitLocation(); }}>
+              <FormGrid>
+                <FormGroup>
+                  <Label $theme={theme}>Location Name *</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={locationForm.name}
+                    onChange={(e) => setLocationForm((p) => ({ ...p, name: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Type</Label>
+                  <Select
+                    value={locationForm.location_type}
+                    onChange={(value) => setLocationForm((p) => ({ ...p, location_type: value }))}
+                    options={[
+                      { value: 'warehouse', label: 'Warehouse' },
+                      { value: 'store', label: 'Store' },
+                      { value: 'distribution_center', label: 'Distribution Center' },
+                      { value: 'office', label: 'Office' },
+                      { value: 'other', label: 'Other' },
+                    ]}
+                    placeholder="Select type"
+                    aria-label="Location type"
+                  />
+                </FormGroup>
+
+                <FormGroup $fullWidth>
+                  <Label $theme={theme}>Address</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={locationForm.address}
+                    onChange={(e) => setLocationForm((p) => ({ ...p, address: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>City</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={locationForm.city}
+                    onChange={(e) => setLocationForm((p) => ({ ...p, city: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>State</Label>
+                  <Select
+                    value={locationForm.state}
+                    onChange={(value) => setLocationForm((p) => ({ ...p, state: value }))}
+                    options={US_STATES}
+                    placeholder="Select state"
+                    aria-label="State"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>ZIP Code</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={locationForm.zip_code}
+                    onChange={(e) => setLocationForm((p) => ({ ...p, zip_code: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Country</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={locationForm.country}
+                    onChange={(e) => setLocationForm((p) => ({ ...p, country: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Contact Name</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={locationForm.contact_name}
+                    onChange={(e) => setLocationForm((p) => ({ ...p, contact_name: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Contact Email</Label>
+                  <Input
+                    $theme={theme}
+                    type="email"
+                    value={locationForm.email}
+                    onChange={(e) => setLocationForm((p) => ({ ...p, email: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Contact Phone</Label>
+                  <PhoneInput
+                    value={locationForm.phone}
+                    onChange={(value) => setLocationForm((p) => ({ ...p, phone: value }))}
+                    placeholder="(XXX) XXX-XXXX"
+                    aria-label="Location phone"
+                  />
+                </FormGroup>
+              </FormGrid>
+
+              <FormActions>
+                <CancelButton type="button" onClick={() => setShowLocationModal(false)}>
+                  Cancel
+                </CancelButton>
+                <SubmitButton type="submit">Create Location</SubmitButton>
+              </FormActions>
+            </Form>
+          </FormContainer>
+        </FormOverlay>
+      )}
+
       <TableContainer $theme={theme}>
         {customers.length === 0 ? (
           <EmptyState>
@@ -379,9 +658,18 @@ const Customers: React.FC = () => {
             </TableHeader>
             <TableBody>
               {customers.map((customer) => (
+                <React.Fragment key={customer.id}>
                 <TableRow $theme={theme} key={customer.id}>
                   <TableCell $theme={theme}>
-                    <CompanyName $theme={theme}>{customer.name}</CompanyName>
+                    <CompanyButton
+                      $theme={theme}
+                      type="button"
+                      onClick={() => toggleCustomerDrilldown(customer)}
+                      aria-pressed={selectedCustomerId === customer.id}
+                    >
+                      <CompanyName $theme={theme}>{customer.name}</CompanyName>
+                      <CompanyChevron aria-hidden="true">{selectedCustomerId === customer.id ? '▾' : '▸'}</CompanyChevron>
+                    </CompanyButton>
                   </TableCell>
                   <TableCell $theme={theme}>{customer.contact_person || '-'}</TableCell>
                   <TableCell $theme={theme}>{customer.email || '-'}</TableCell>
@@ -396,6 +684,100 @@ const Customers: React.FC = () => {
                     <DeleteButton onClick={() => handleDelete(customer.id)}>Delete</DeleteButton>
                   </TableCell>
                 </TableRow>
+                {selectedCustomerId === customer.id && (
+                  <ExpandedTableRow $theme={theme}>
+                    <ExpandedTableCell $theme={theme} colSpan={6}>
+                      <ExpandedPanel>
+                        <ExpandedColumn>
+                          <ExpandedHeader>
+                            <ExpandedTitle>Locations</ExpandedTitle>
+                            <ExpandedActions>
+                              <SmallButton type="button" onClick={openCreateLocation} disabled={!selectedCustomerId}>
+                                + New Location
+                              </SmallButton>
+                              <SmallButton
+                                type="button"
+                                onClick={() => navigate('/customers/locations', { state: { customerId: customer.id } })}
+                              >
+                                Manage
+                              </SmallButton>
+                            </ExpandedActions>
+                          </ExpandedHeader>
+
+                          {locationsLoading ? (
+                            <ExpandedHint>Loading locations…</ExpandedHint>
+                          ) : customerLocations.length === 0 ? (
+                            <ExpandedHint>No locations found for this customer.</ExpandedHint>
+                          ) : (
+                            <ChildList>
+                              {customerLocations.map((loc) => (
+                                <ChildListItem
+                                  key={loc.id}
+                                  type="button"
+                                  $active={selectedLocationId === loc.id}
+                                  onClick={() => setSelectedLocationId(loc.id)}
+                                >
+                                  <ChildListName>{loc.name}</ChildListName>
+                                  <ChildListMeta>
+                                    {loc.location_type ? <span>{loc.location_type}</span> : null}
+                                    {loc.city || loc.state ? <span>• {`${loc.city || ''}${loc.city && loc.state ? ', ' : ''}${loc.state || ''}`}</span> : null}
+                                  </ChildListMeta>
+                                </ChildListItem>
+                              ))}
+                            </ChildList>
+                          )}
+                        </ExpandedColumn>
+
+                        <ExpandedColumn>
+                          <ExpandedHeader>
+                            <ExpandedTitle>Location Details & Contacts</ExpandedTitle>
+                          </ExpandedHeader>
+
+                          {selectedLocation ? (
+                            <MetaCard>
+                              <MetaRow>
+                                <MetaKey>Contact</MetaKey>
+                                <MetaValue>{selectedLocation.contact_name || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Email</MetaKey>
+                                <MetaValue>{selectedLocation.email || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Phone</MetaKey>
+                                <MetaValue>{selectedLocation.phone || '—'}</MetaValue>
+                              </MetaRow>
+                            </MetaCard>
+                          ) : (
+                            <ExpandedHint>Select a location to view details.</ExpandedHint>
+                          )}
+
+                          {contactsLoading ? (
+                            <ExpandedHint>Loading contacts…</ExpandedHint>
+                          ) : customerContacts.length === 0 ? (
+                            <ExpandedHint>No contacts found for this customer.</ExpandedHint>
+                          ) : (
+                            <ContactsList>
+                              {customerContacts.map((c) => (
+                                <ContactRow key={c.id}>
+                                  <ContactName>
+                                    {c.first_name} {c.last_name}
+                                  </ContactName>
+                                  <ContactMeta>
+                                    {c.position ? <span>{c.position}</span> : null}
+                                    {c.email ? <span>{c.email}</span> : null}
+                                    {c.phone ? <span>{c.phone}</span> : null}
+                                  </ContactMeta>
+                                </ContactRow>
+                              ))}
+                            </ContactsList>
+                          )}
+                        </ExpandedColumn>
+                      </ExpandedPanel>
+                    </ExpandedTableCell>
+                  </ExpandedTableRow>
+                )}
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
@@ -622,9 +1004,191 @@ const TableCell = styled.td<{ $theme: Theme }>`
   padding: 15px 20px;
 `;
 
+const CompanyButton = styled.button<{ $theme: Theme }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${(props) => props.$theme.colors.border};
+    background: ${(props) => props.$theme.colors.background};
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
+`;
+
 const CompanyName = styled.div<{ $theme: Theme }>`
   font-weight: 600;
   color: ${(props) => props.$theme.colors.textPrimary};
+`;
+
+const CompanyChevron = styled.span`
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+`;
+
+const ExpandedTableRow = styled.tr<{ $theme: Theme }>`
+  background: ${(props) => props.$theme.colors.surface};
+`;
+
+const ExpandedTableCell = styled.td<{ $theme: Theme }>`
+  padding: 14px 18px;
+  border-bottom: 1px solid ${(props) => props.$theme.colors.border};
+`;
+
+const ExpandedPanel = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ExpandedColumn = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 12px;
+  background: rgb(var(--color-surface));
+  padding: 12px;
+`;
+
+const ExpandedHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+`;
+
+const ExpandedTitle = styled.div`
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ExpandedActions = styled.div`
+  display: inline-flex;
+  gap: 8px;
+`;
+
+const SmallButton = styled.button`
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(var(--color-primary), 0.6);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ExpandedHint = styled.div`
+  padding: 12px;
+  color: rgb(var(--color-text-secondary));
+  font-size: 13px;
+`;
+
+const ChildList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ChildListItem = styled.button<{ $active: boolean }>`
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.7)' : 'rgb(var(--color-border))')};
+  background: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.08)' : 'rgb(var(--color-surface))')};
+  padding: 10px 12px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgba(var(--color-primary), 0.55);
+  }
+`;
+
+const ChildListName = styled.div`
+  font-weight: 650;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ChildListMeta = styled.div`
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const MetaCard = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 10px;
+  background: rgba(var(--color-surface), 0.6);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+`;
+
+const MetaRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+`;
+
+const MetaKey = styled.div`
+  font-size: 12px;
+  font-weight: 650;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const MetaValue = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ContactsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ContactRow = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgb(var(--color-surface));
+`;
+
+const ContactName = styled.div`
+  font-weight: 650;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ContactMeta = styled.div`
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 `;
 
 const ActionButton = styled.button`

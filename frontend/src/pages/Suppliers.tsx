@@ -1,24 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { logger } from '@/utils/logger';
 
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
 import { US_STATES } from '../utils/constants/states';
 import { DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
 import { apiService, apiClient, Supplier } from '../services/apiService';
+
+interface SupplierPlant {
+  id: number;
+  name: string;
+  code: string;
+  plant_type?: string;
+  manager?: string;
+  email?: string;
+  phone?: string;
+}
+
+interface SupplierContact {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  phone?: string;
+  position?: string;
+  company?: string;
+}
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 
 const Suppliers: React.FC = () => {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [products, setProducts] = useState<Array<{ id: string; product_code: string; effective_name?: string; name?: string; product_name?: string }>>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
+  const [supplierPlants, setSupplierPlants] = useState<SupplierPlant[]>([]);
+  const [plantsLoading, setPlantsLoading] = useState(false);
+  const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
+
+  const [supplierContacts, setSupplierContacts] = useState<SupplierContact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+
+  const [showPlantModal, setShowPlantModal] = useState(false);
+  const [plantForm, setPlantForm] = useState({
+    name: '',
+    code: '',
+    plant_type: 'processing',
+    manager: '',
+    email: '',
+    phone: '',
+  });
+
   const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
@@ -139,6 +178,98 @@ const Suppliers: React.FC = () => {
       setProducts([]);
     }
   };
+
+  const loadSupplierPlants = async (supplierId: number) => {
+    try {
+      setPlantsLoading(true);
+      const response = await apiClient.get('plants/', {
+        params: { supplier: supplierId },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setSupplierPlants(data);
+    } catch (error) {
+      logger.error('[Suppliers] Failed to load supplier plants:', error);
+      setSupplierPlants([]);
+    } finally {
+      setPlantsLoading(false);
+    }
+  };
+
+  const loadSupplierContacts = async (supplierId: number) => {
+    try {
+      setContactsLoading(true);
+      const response = await apiClient.get('contacts/', {
+        params: { supplier: supplierId },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setSupplierContacts(data);
+    } catch (error) {
+      logger.error('[Suppliers] Failed to load supplier contacts:', error);
+      setSupplierContacts([]);
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  const toggleSupplierDrilldown = async (supplier: Supplier) => {
+    if (selectedSupplierId === supplier.id) {
+      setSelectedSupplierId(null);
+      setSupplierPlants([]);
+      setSupplierContacts([]);
+      setSelectedPlantId(null);
+      return;
+    }
+
+    setSelectedSupplierId(supplier.id);
+    setSelectedPlantId(null);
+
+    await Promise.all([loadSupplierPlants(supplier.id), loadSupplierContacts(supplier.id)]);
+  };
+
+  const openCreatePlant = () => {
+    if (!selectedSupplierId) return;
+    setPlantForm({
+      name: '',
+      code: '',
+      plant_type: 'processing',
+      manager: '',
+      email: '',
+      phone: '',
+    });
+    setShowPlantModal(true);
+  };
+
+  const submitPlant = async () => {
+    if (!selectedSupplierId) return;
+
+    if (!plantForm.name.trim() || !plantForm.code.trim()) {
+      alert('Plant name and code are required');
+      return;
+    }
+
+    try {
+      await apiClient.post('plants/', {
+        supplier: selectedSupplierId,
+        name: plantForm.name.trim(),
+        code: plantForm.code.trim(),
+        plant_type: plantForm.plant_type,
+        manager: plantForm.manager,
+        email: plantForm.email,
+        phone: plantForm.phone,
+      });
+      setShowPlantModal(false);
+      await loadSupplierPlants(selectedSupplierId);
+    } catch (error: unknown) {
+      logger.error('[Suppliers] Failed to create plant:', error);
+      alert('Failed to create plant');
+    }
+  };
+
+  const selectedPlant = selectedPlantId
+    ? supplierPlants.find((p) => p.id === selectedPlantId)
+    : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -403,6 +534,97 @@ const Suppliers: React.FC = () => {
         </FormOverlay>
       )}
 
+      {showPlantModal && (
+        <FormOverlay>
+          <FormContainer $theme={theme}>
+            <FormHeader $theme={theme}>
+              <FormTitle $theme={theme}>Add New Plant</FormTitle>
+              <CloseButton $theme={theme} onClick={() => setShowPlantModal(false)}>×</CloseButton>
+            </FormHeader>
+
+            <Form onSubmit={(e) => { e.preventDefault(); void submitPlant(); }}>
+              <FormGrid>
+                <FormGroup>
+                  <Label $theme={theme}>Plant Name *</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.name}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, name: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Code *</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.code}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, code: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Type</Label>
+                  <Select
+                    value={plantForm.plant_type}
+                    onChange={(value) => setPlantForm((p) => ({ ...p, plant_type: value }))}
+                    options={[
+                      { value: 'processing', label: 'Processing' },
+                      { value: 'distribution', label: 'Distribution' },
+                      { value: 'warehouse', label: 'Warehouse' },
+                      { value: 'retail', label: 'Retail' },
+                      { value: 'other', label: 'Other' },
+                    ]}
+                    placeholder="Select type"
+                    aria-label="Plant type"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Manager</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.manager}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, manager: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Email</Label>
+                  <Input
+                    $theme={theme}
+                    type="email"
+                    value={plantForm.email}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, email: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Phone</Label>
+                  <PhoneInput
+                    value={plantForm.phone}
+                    onChange={(value) => setPlantForm((p) => ({ ...p, phone: value }))}
+                    placeholder="(XXX) XXX-XXXX"
+                    aria-label="Plant phone"
+                  />
+                </FormGroup>
+              </FormGrid>
+
+              <FormActions>
+                <CancelButton type="button" onClick={() => setShowPlantModal(false)}>
+                  Cancel
+                </CancelButton>
+                <SubmitButton type="submit">Create Plant</SubmitButton>
+              </FormActions>
+            </Form>
+          </FormContainer>
+        </FormOverlay>
+      )}
+
       <TableContainer $theme={theme}>
         {suppliers.length === 0 ? (
           <EmptyState>
@@ -424,9 +646,18 @@ const Suppliers: React.FC = () => {
             </TableHeader>
             <TableBody>
               {suppliers.map((supplier) => (
+                <React.Fragment key={supplier.id}>
                 <TableRow key={supplier.id} $theme={theme}>
                   <TableCell $theme={theme}>
-                    <CompanyName $theme={theme}>{supplier.name}</CompanyName>
+                    <CompanyButton
+                      $theme={theme}
+                      type="button"
+                      onClick={() => toggleSupplierDrilldown(supplier)}
+                      aria-pressed={selectedSupplierId === supplier.id}
+                    >
+                      <CompanyName $theme={theme}>{supplier.name}</CompanyName>
+                      <CompanyChevron aria-hidden="true">{selectedSupplierId === supplier.id ? '▾' : '▸'}</CompanyChevron>
+                    </CompanyButton>
                   </TableCell>
                   <TableCell $theme={theme}>{supplier.contact_person || '-'}</TableCell>
                   <TableCell $theme={theme}>{supplier.email || '-'}</TableCell>
@@ -441,6 +672,100 @@ const Suppliers: React.FC = () => {
                     <DeleteButton onClick={() => handleDelete(supplier.id)}>Delete</DeleteButton>
                   </TableCell>
                 </TableRow>
+                {selectedSupplierId === supplier.id && (
+                  <ExpandedTableRow $theme={theme}>
+                    <ExpandedTableCell $theme={theme} colSpan={6}>
+                      <ExpandedPanel>
+                        <ExpandedColumn>
+                          <ExpandedHeader>
+                            <ExpandedTitle>Plants</ExpandedTitle>
+                            <ExpandedActions>
+                              <SmallButton type="button" onClick={openCreatePlant} disabled={!selectedSupplierId}>
+                                + New Plant
+                              </SmallButton>
+                              <SmallButton
+                                type="button"
+                                onClick={() => navigate('/suppliers/plants', { state: { supplierId: supplier.id } })}
+                              >
+                                Manage
+                              </SmallButton>
+                            </ExpandedActions>
+                          </ExpandedHeader>
+
+                          {plantsLoading ? (
+                            <ExpandedHint>Loading plants…</ExpandedHint>
+                          ) : supplierPlants.length === 0 ? (
+                            <ExpandedHint>No plants found for this supplier.</ExpandedHint>
+                          ) : (
+                            <ChildList>
+                              {supplierPlants.map((plant) => (
+                                <ChildListItem
+                                  key={plant.id}
+                                  type="button"
+                                  $active={selectedPlantId === plant.id}
+                                  onClick={() => setSelectedPlantId(plant.id)}
+                                >
+                                  <ChildListName>{plant.name}</ChildListName>
+                                  <ChildListMeta>
+                                    <span>{plant.code}</span>
+                                    {plant.plant_type ? <span>• {plant.plant_type}</span> : null}
+                                  </ChildListMeta>
+                                </ChildListItem>
+                              ))}
+                            </ChildList>
+                          )}
+                        </ExpandedColumn>
+
+                        <ExpandedColumn>
+                          <ExpandedHeader>
+                            <ExpandedTitle>Plant Details & Contacts</ExpandedTitle>
+                          </ExpandedHeader>
+
+                          {selectedPlant ? (
+                            <MetaCard>
+                              <MetaRow>
+                                <MetaKey>Manager</MetaKey>
+                                <MetaValue>{selectedPlant.manager || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Email</MetaKey>
+                                <MetaValue>{selectedPlant.email || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Phone</MetaKey>
+                                <MetaValue>{selectedPlant.phone || '—'}</MetaValue>
+                              </MetaRow>
+                            </MetaCard>
+                          ) : (
+                            <ExpandedHint>Select a plant to view details.</ExpandedHint>
+                          )}
+
+                          {contactsLoading ? (
+                            <ExpandedHint>Loading contacts…</ExpandedHint>
+                          ) : supplierContacts.length === 0 ? (
+                            <ExpandedHint>No contacts found for this supplier.</ExpandedHint>
+                          ) : (
+                            <ContactsList>
+                              {supplierContacts.map((c) => (
+                                <ContactRow key={c.id}>
+                                  <ContactName>
+                                    {c.first_name} {c.last_name}
+                                  </ContactName>
+                                  <ContactMeta>
+                                    {c.position ? <span>{c.position}</span> : null}
+                                    {c.email ? <span>{c.email}</span> : null}
+                                    {c.phone ? <span>{c.phone}</span> : null}
+                                  </ContactMeta>
+                                </ContactRow>
+                              ))}
+                            </ContactsList>
+                          )}
+                        </ExpandedColumn>
+                      </ExpandedPanel>
+                    </ExpandedTableCell>
+                  </ExpandedTableRow>
+                )}
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
@@ -670,9 +995,191 @@ const TableCell = styled.td<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.textPrimary};
 `;
 
+const CompanyButton = styled.button<{ $theme: Theme }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${(props) => props.$theme.colors.border};
+    background: ${(props) => props.$theme.colors.surfaceHover};
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
+`;
+
 const CompanyName = styled.div<{ $theme: Theme }>`
   font-weight: 600;
   color: ${(props) => props.$theme.colors.textPrimary};
+`;
+
+const CompanyChevron = styled.span`
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+`;
+
+const ExpandedTableRow = styled.tr<{ $theme: Theme }>`
+  background: ${(props) => props.$theme.colors.surface};
+`;
+
+const ExpandedTableCell = styled.td<{ $theme: Theme }>`
+  padding: 14px 18px;
+  border-bottom: 1px solid ${(props) => props.$theme.colors.border};
+`;
+
+const ExpandedPanel = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ExpandedColumn = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 12px;
+  background: rgb(var(--color-surface));
+  padding: 12px;
+`;
+
+const ExpandedHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+`;
+
+const ExpandedTitle = styled.div`
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ExpandedActions = styled.div`
+  display: inline-flex;
+  gap: 8px;
+`;
+
+const SmallButton = styled.button`
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(var(--color-primary), 0.6);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ExpandedHint = styled.div`
+  padding: 12px;
+  color: rgb(var(--color-text-secondary));
+  font-size: 13px;
+`;
+
+const ChildList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ChildListItem = styled.button<{ $active: boolean }>`
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.7)' : 'rgb(var(--color-border))')};
+  background: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.08)' : 'rgb(var(--color-surface))')};
+  padding: 10px 12px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgba(var(--color-primary), 0.55);
+  }
+`;
+
+const ChildListName = styled.div`
+  font-weight: 650;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ChildListMeta = styled.div`
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const MetaCard = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 10px;
+  background: rgba(var(--color-surface), 0.6);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+`;
+
+const MetaRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+`;
+
+const MetaKey = styled.div`
+  font-size: 12px;
+  font-weight: 650;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const MetaValue = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ContactsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ContactRow = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgb(var(--color-surface));
+`;
+
+const ContactName = styled.div`
+  font-weight: 650;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ContactMeta = styled.div`
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 `;
 
 const ActionButton = styled.button`
