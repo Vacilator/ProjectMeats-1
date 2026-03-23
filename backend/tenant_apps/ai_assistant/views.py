@@ -9,6 +9,7 @@ import time
 
 from django.conf import settings
 from django.utils import timezone
+from openai import OpenAI
 from pgvector.django import CosineDistance
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -155,12 +156,8 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 modified_by=request.user,
             )
 
-            # Generate AI response (live OpenAI)
-            # Use both Django settings and environment variables to avoid false negatives
-            # if env is loaded after settings import in some deployment setups.
-            import os
-
-            openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
+            # Generate AI response (live OpenAI - direct completion call)
+            openai_api_key = getattr(settings, 'OPENAI_API_KEY', None)
             if not openai_api_key:
                 return Response(
                     {
@@ -174,29 +171,22 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            client = OpenAI(api_key=openai_api_key)
+
             try:
-                from openai import OpenAI
-            except Exception as e:
-                logger.error('OpenAI client import failed: %s', str(e), exc_info=True)
-                return Response(
-                    {'error': 'OpenAI client not available on server'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                completion = client.chat.completions.create(
+                    model='gpt-4o-mini',
+                    messages=[
+                        {'role': 'system', 'content': SWARM_SYSTEM_PROMPT},
+                        {'role': 'user', 'content': user_message},
+                    ],
                 )
-
-            # Use SwarmOrchestrator tool loop (Phase 8.1)
-            from .swarm.router import SwarmOrchestrator
-
-            orch = SwarmOrchestrator(tenant_id=str(getattr(request.tenant, 'id', '') or ''))
-
-            try:
-                tool_loop = orch.run_tool_loop(user_message=user_message, tenant=request.tenant, history=None)
-                response_text = (tool_loop.get('response') or '').strip()
-                tokens_used = None
+                response_text = ((completion.choices[0].message.content or '') if completion.choices else '').strip()
+                tokens_used = getattr(getattr(completion, 'usage', None), 'total_tokens', None)
                 model_name = 'gpt-4o-mini'
 
             except Exception as e:
-                # Per requirements: return 400 with error detail for OpenAI API errors.
-                logger.warning('OpenAI swarm tool loop failed: %s', str(e), exc_info=True)
+                logger.warning('OpenAI completion failed: %s', str(e), exc_info=True)
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
             metadata = {
@@ -567,12 +557,29 @@ class AIFeedbackViewSet(viewsets.ReadOnlyModelViewSet):
         return qs.filter(tenant_id=tenant_id)
 
 
-class ToolsOpenAPIView(SwarmToolsOpenAPIView):
-    """Alias: stable tools endpoint for clean routing."""
+class ToolsOpenAPIView(APIView):
+    """Compatibility endpoint for the frontend widget.
+
+    Returns a stable, minimal payload so polling never hard-fails if tool schemas
+    or external integrations are unavailable.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({'tools': []}, status=status.HTTP_200_OK)
 
 
-class PendingReviewView(PendingReviewAPIView):
-    """Alias: stable pending review endpoint for clean routing."""
+class PendingReviewView(APIView):
+    """Compatibility endpoint for the frontend widget.
+
+    This must be safe for non-staff users; it returns an empty queue for now.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({'pending_reviews': []}, status=status.HTTP_200_OK)
 
 
 class AIAgentChatView(APIView):

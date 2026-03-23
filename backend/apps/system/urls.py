@@ -69,6 +69,11 @@ urlpatterns = [
         name='entity-fuzzy-related',
     ),
     path(
+        'entities/<str:type>/<str:pk>/summary/',
+        EntityViewSet.as_view({'get': 'summary'}),
+        name='entity-summary',
+    ),
+    path(
         'entities/<str:type>/<str:pk>/',
         EntityViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update'}),
         name='entity-detail',
