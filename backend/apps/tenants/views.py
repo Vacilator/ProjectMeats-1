@@ -270,6 +270,13 @@ class TenantViewSet(viewsets.ModelViewSet):
         Used by frontend to show/hide admin workspace features.
         """
         if request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            tenant_user = None
+
+            if not tenant:
+                tenant_user = TenantUser.objects.filter(user=request.user, is_active=True).select_related('tenant').first()
+                tenant = tenant_user.tenant if tenant_user else None
+
             return Response({
                 'can_manage_users': True,
                 'can_invite_users': True,
@@ -281,6 +288,10 @@ class TenantViewSet(viewsets.ModelViewSet):
                 'can_view_audit_logs': True,
                 'can_manage_option_lists': True,
                 'role': 'superuser',
+                # Include resolved tenant context to help frontend persist X-Tenant-ID
+                'tenant_id': str(tenant.id) if tenant else None,
+                'tenant_name': getattr(tenant, 'name', None) if tenant else None,
+                'tenant_slug': getattr(tenant, 'slug', None) if tenant else None,
             })
 
         tenant = getattr(request, 'tenant', None)
@@ -357,6 +368,9 @@ class TenantViewSet(viewsets.ModelViewSet):
         # Get permissions for user's role, default to empty permissions
         permissions = permissions_map.get(role, permissions_map['readonly'])
         permissions['role'] = role
+        permissions['tenant_id'] = str(tenant_user.tenant.id)
+        permissions['tenant_name'] = tenant_user.tenant.name
+        permissions['tenant_slug'] = tenant_user.tenant.slug
         
         return Response(permissions)
     

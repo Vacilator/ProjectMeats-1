@@ -47,17 +47,15 @@ const CARDS: WorkspaceCard[] = [
   },
   {
     title: 'Billing',
-    description: 'Subscription, invoices, and payment methods.',
+    description: 'Subscription status and billing contact details.',
     path: '/workspace/billing',
     icon: '💳',
-    comingSoon: true,
   },
   {
     title: 'Customizations',
-    description: 'Tenant-specific UI preferences and workflow templates.',
+    description: 'Tenant-specific dropdown/choice customizations and overrides.',
     path: '/workspace/customizations',
     icon: '🎨',
-    comingSoon: true,
   },
 ];
 
