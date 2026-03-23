@@ -19,6 +19,7 @@ import { CheckCircle, Clock, AlertTriangle, ChevronRight, ListTodo } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './WidgetCard';
 import { useNotifications, ActionItem } from '../../contexts/NotificationsContext';
+import { compareTasksSmart, isAtRiskTask, isTaskOverdue } from '../../utils/taskPrioritization';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -168,11 +169,6 @@ const TaskCount = styled.span`
 // Helpers
 // ============================================================================
 
-function isOverdue(dueDate: string | null): boolean {
-  if (!dueDate) return false;
-  return new Date(dueDate) < new Date();
-}
-
 function formatDueDate(dueDate: string | null): string {
   if (!dueDate) return 'No due date';
   
@@ -198,30 +194,20 @@ export const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
   const navigate = useNavigate();
   const { actionItems, loading, fetchActionItems } = useNotifications();
 
-  // Sort by due date (overdue first, then by date)
+  // Smart sort: urgency × value (with stable tie-breakers)
   const sortedTasks = [...actionItems]
-    .sort((a, b) => {
-      const aOverdue = isOverdue(a.due_date);
-      const bOverdue = isOverdue(b.due_date);
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
-      
-      if (a.due_date && b.due_date) {
-        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-      }
-      return 0;
-    })
+    .sort(compareTasksSmart)
     .slice(0, maxItems);
 
   const handleTaskClick = (task: ActionItem) => {
     if (task.submission_id) {
-      navigate(`/my-submissions/${task.submission_id}`);
+      navigate(`/workflows/run/${task.submission_id}`);
     } else {
-      navigate('/my-tasks');
+      navigate('/workforms/tasks');
     }
   };
 
-  const overdueCount = actionItems.filter(t => isOverdue(t.due_date)).length;
+  const overdueCount = actionItems.filter(t => isTaskOverdue(t)).length;
 
   return (
     <WidgetCard
@@ -243,11 +229,14 @@ export const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
         <>
           <TaskList>
             {sortedTasks.map(task => {
-              const overdue = isOverdue(task.due_date);
+              const overdue = isTaskOverdue(task);
+              const atRisk = isAtRiskTask(task);
+              const showAlert = overdue || atRisk;
+
               return (
                 <TaskItem 
                   key={task.id} 
-                  $isOverdue={overdue}
+                  $isOverdue={showAlert}
                   onClick={() => handleTaskClick(task)}
                   role="button"
                   tabIndex={0}
@@ -260,8 +249,8 @@ export const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
                       {task.form_name && (
                         <TaskFormName>{task.form_name}</TaskFormName>
                       )}
-                      <TaskDueDate $isOverdue={overdue}>
-                        {overdue ? <AlertTriangle size={12} /> : <Clock size={12} />}
+                      <TaskDueDate $isOverdue={showAlert}>
+                        {showAlert ? <AlertTriangle size={12} /> : <Clock size={12} />}
                         {formatDueDate(task.due_date)}
                       </TaskDueDate>
                     </TaskMeta>
@@ -275,7 +264,7 @@ export const MyTasksWidget: React.FC<MyTasksWidgetProps> = ({
           </TaskList>
           
           {actionItems.length > maxItems && (
-            <ViewAllLink onClick={() => navigate('/my-tasks')}>
+            <ViewAllLink onClick={() => navigate('/workforms/tasks')}>
               View all tasks
               <TaskCount>({actionItems.length})</TaskCount>
               <ChevronRight size={14} />
