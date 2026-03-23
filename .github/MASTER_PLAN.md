@@ -48,7 +48,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
-- 2026-03-23 — AI Assistant hardened (direct OpenAI chat completion + stable tools/review compatibility endpoints + system entity summarizer action) — PR: #TBD.
+- 2026-03-23 — AI Assistant hardened (direct OpenAI chat completion + stable tools/review compatibility endpoints + system entity summarizer action) — PR: #3843.
 - 2026-03-23 — Data Architecture: Replaced scaffolded product seeds with the official Master Products (3.22.26) list, establishing the Tier 1 Golden Catalog as the single source of truth. 661 products across 40+ protein types (Beef, Pork, Chicken, Turkey, Duck, Goose, Quail, Pheasant, Squab, Guinea Fowl, Lamb, Goat, Veal, Bison, Elk, Venison, Rabbit, Kangaroo, Ostrich, Emu, Wild Boar, Camel, Yak, Antelope, Salmon, Cod, Pollock, Haddock, Tilapia, Catfish, Trout, Mahi-Mahi, Tuna, Halibut, Snapper, Grouper, Sardines, Anchovy, Whitefish, Carp, Perch, Walleye, Rendered, Pet Food, Specialty) covering primal cuts, organs, bones, by-products, and rendered goods. Each entry maps Protein → Item Name → Variations per the Master Products 3.22.26 diagram, with auto-generated product codes (e.g. BEEF-CHUCK-ROLL), category, and protein_type fields aligned to the diagram's pre-filter cascade (Protein → Item Name → Type → Trim).
 
 - 2026-03-23 — Cockpit UX: Google-style AI Overview Card (show more + graceful fallback) — PR: #3801
