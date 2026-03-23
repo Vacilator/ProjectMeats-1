@@ -644,13 +644,29 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       await apiClient.post('search/recent/', {
         entity_type: item.type,
         entity_id: item.id,
-        title: item.title
+        title: item.title,
       });
-    } catch (err) {
+    } catch {
       // Ignore tracking errors
     }
 
-    // Open entity detail modal instead of navigating
+    const rawType = String(item.type ?? '').toLowerCase();
+    const canonicalType = rawType === 'customer' || rawType === 'customers'
+      ? 'customer'
+      : rawType === 'supplier' || rawType === 'suppliers'
+        ? 'supplier'
+        : null;
+
+    // Cockpit default: open the canonical 3-column detail view for customers/suppliers.
+    if (canonicalType) {
+      onClose();
+      navigate(`/cockpit/entity/${canonicalType}/${encodeURIComponent(String(item.id))}`, {
+        state: { initialLabel: item.title },
+      });
+      return;
+    }
+
+    // Preserve existing behavior for other entity types.
     setSelectedEntity({ type: item.type, id: item.id });
   };
 
