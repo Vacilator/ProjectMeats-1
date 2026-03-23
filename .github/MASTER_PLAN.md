@@ -53,13 +53,13 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-23 — Cockpit UX: Inline create Sales Order subview (URL-driven) — PR: #3804
 - 2026-03-23 — Cockpit UX: Notes & Calls drawer (unified timeline + add note) — PR: #3805
 - 2026-03-23 — Admin Branding: reliably load tenant logo/colors after login + cache-bust on update — PR: #3807
-- 2026-03-23 — Hardened OAuth initiation flow (Removed direct API navigation to preserve JWT/Tenant context) — PR: #TBD
+- 2026-03-23 — Hardened OAuth initiation flow (Removed direct API navigation to preserve JWT/Tenant context) — PR: #3809
 - 2026-03-23 — Emergency fix applied to ai_assistant routing to resolve 502 crash. — PR: #3828
 - 2026-03-23 — Backend API endpoint for AI Overview Card (Cockpit 404 fix) — PR: #3829
 - 2026-03-23 — Cockpit inline action routing & smart contextual auto-population — PR: #3830
 - 2026-03-23 — Beautified Cockpit Entity Profile Header (Inline edit UX + Preferred Products) — PR: #3833.
 - 2026-03-23 — Product selection filtered by preferred_protein_types (Master Data compliance) — PR: #3841.
-- 2026-03-23 — Modal create flows aligned to Master Products (Cockpit quick-create + product-association modals w/ protein filtering) — PR: #TBD.
+- 2026-03-23 — Modal create flows aligned to Master Products (Cockpit quick-create + product-association modals w/ protein filtering) — PR: #3842.
 - 2026-03-23 — Admin Workspace: Configurations create/reset/delete + permissions tenant-context auto-repair (fixes missing Admin Workspace sidebar for valid users) — PR: #3844.
 - 2026-03-23 — Admin Workspace: persist resolved tenant context from admin_permissions (prevents Billing/Option Lists/Customizations/Configurations from appearing “broken” due to missing X-Tenant-ID) — PR: #3848.
 - 2026-03-23 — Email ingestion manual sync converted to synchronous execution (500 fix) — PR: #3845.
@@ -896,7 +896,7 @@ Deliverables:
 
 
 
-- 2026-03-20 — MSAL common authority restoration (B2B/B2C support) & prompt enforcement — PR: #TBD.
+- 2026-03-20 — MSAL common authority restoration (B2B/B2C support) & prompt enforcement — PR: #3741.
 
 
 ## PR Log (append-only) — Workforms UI Hardening (merge-safe)
