@@ -7,7 +7,7 @@ from urllib.parse import urlencode, quote
 
 from django.conf import settings
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 from rest_framework.permissions import AllowAny
@@ -31,7 +31,7 @@ def _oauth_cookie_name(key: str, provider: str) -> str:
     return f'{_OAUTH_COOKIE_PREFIX}_{key}_{provider}'
 
 
-def _set_signed_oauth_cookie(response: HttpResponseRedirect, *, name: str, value: str, request) -> None:
+def _set_signed_oauth_cookie(response: HttpResponse, *, name: str, value: str, request) -> None:
     secure = bool(getattr(settings, 'SESSION_COOKIE_SECURE', False))
     if not secure:
         secure = request.is_secure()
@@ -182,7 +182,21 @@ class OAuthAuthorizeView(APIView):
 
         auth_url = f'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?{urlencode(params)}'
 
-        response = HttpResponseRedirect(auth_url)
+        wants_redirect = str(request.query_params.get('redirect', '')).lower() in {'1', 'true', 'yes'}
+        accept_header = (request.META.get('HTTP_ACCEPT') or '').lower()
+        is_xhr = (request.META.get('HTTP_X_REQUESTED_WITH') or '').lower() == 'xmlhttprequest'
+
+        # IMPORTANT: If this is called from the SPA via Axios/fetch, we must NOT 302 to Microsoft.
+        # Browsers will follow as XHR and trigger CORS failures. Instead, return JSON with auth_url,
+        # and let the frontend perform a top-level navigation (window.location.href).
+        wants_json = (not wants_redirect) or ('application/json' in accept_header) or is_xhr
+
+        response: HttpResponse
+        if wants_json:
+            response = JsonResponse({'auth_url': auth_url, 'provider': provider})
+        else:
+            response = HttpResponseRedirect(auth_url)
+
         _set_signed_oauth_cookie(
             response,
             name=_oauth_cookie_name('state', provider),
