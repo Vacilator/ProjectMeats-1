@@ -296,12 +296,11 @@ export const WorkFormsEditor: React.FC = () => {
     }
 
     if (!id && !templateId && !cloneId) {
-      const defaultTemplate = FLOW_TEMPLATES.find((t) => t.id === 'meatscentral-inquiry-flow-template');
-
+      // No forced defaults. Users can start blank or explicitly choose a template.
       setStatus('draft');
-      setFlowName(defaultTemplate?.name || 'New WorkForm');
-      setInitialNodes(defaultTemplate?.nodes || []);
-      setInitialEdges(defaultTemplate?.edges || []);
+      setFlowName('New WorkForm');
+      setInitialNodes([]);
+      setInitialEdges([]);
       setInitialViewport(undefined);
       setInitialWorkflowId(undefined);
       setIsInitialized(true);

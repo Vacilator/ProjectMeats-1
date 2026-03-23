@@ -7,7 +7,7 @@
 **Infrastructure Status**: All phases fully operational in dev
 
 **Latest Progress (Power Automate UX)**  
-- Vanguard: Main Inquiry Flow Template – Complete (Meatscentral-Inquiry-Flow-Template is now the default blueprint for new workforms).
+- Vanguard: Inquiry-Flow-Template v2 – First in Use Template + Full Fields/Cascading + Aesthetic Polish.
 - Vanguard: Cockpit-Detail-View-Template – Complete.
 - Vanguard: Cockpit Customer Detail View – Complete & Whiteboard-Accurate.
 - Vanguard: Workform Editor UX Polish – Auto-realign + Line fix + Circular Add Button.
