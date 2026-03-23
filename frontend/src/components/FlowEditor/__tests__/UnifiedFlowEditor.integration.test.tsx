@@ -195,16 +195,37 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
   });
 
   describe('2. Node Palette & Canvas Interaction', () => {
-    it('should show node palette by default', () => {
+    it('should show only Trigger nodes on a blank canvas', () => {
       renderWithQuery(
         
           <UnifiedFlowEditor onSave={mockOnSave} />
         
       );
 
-      // Check for common node types
-      expect(screen.getByText(/form input/i)).toBeInTheDocument();
-      expect(screen.getByText(/choice engine/i)).toBeInTheDocument();
+      // Blank canvas UX: only trigger entrypoints should be visible in the palette
+      expect(screen.getByText(/manual trigger/i)).toBeInTheDocument();
+      expect(screen.queryByText(/form step/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/success end/i)).not.toBeInTheDocument();
+    });
+
+    it('should hide Triggers + End Points once a Trigger exists on canvas', () => {
+      renderWithQuery(
+        <UnifiedFlowEditor
+          onSave={mockOnSave}
+          initialNodes={[
+            {
+              id: 't1',
+              type: 'trigger',
+              position: { x: 0, y: 0 },
+              data: { nodeType: 'triggerManual', label: 'Manual Trigger' },
+            } as any,
+          ]}
+        />
+      );
+
+      expect(screen.queryByText(/manual trigger/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/form step/i)).toBeInTheDocument();
+      expect(screen.queryByText(/success end/i)).not.toBeInTheDocument();
     });
 
     it('should hide portal when no node is selected', () => {

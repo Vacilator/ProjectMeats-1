@@ -2569,44 +2569,76 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Filter available node types based on editor mode AND permissions (Phase 4.2)
   const availableNodeTypes = useMemo(() => {
     let filteredNodes = Object.values(NODE_TYPE_REGISTRY);
-    
+
     logger.debug('[NodePalette] Total nodes in registry:', filteredNodes.length);
     logger.debug('[NodePalette] Editor mode:', activeEditorMode);
     logger.debug('[NodePalette] Allowed categories:', allowedNodeCategories);
-    
+
     // Step 0: Filter out hidden/deprecated nodes (Phase 6)
-    filteredNodes = filteredNodes.filter(nodeType => !nodeType.hidden);
+    filteredNodes = filteredNodes.filter((nodeType) => !nodeType.hidden);
     logger.debug('[NodePalette] After hidden filtering:', filteredNodes.length);
-    
+
     // Step 1: Filter by editor mode
     if (activeEditorMode === 'wizard') {
       // Wizard mode: Limited to basic form creation nodes
-      filteredNodes = filteredNodes.filter(nodeType => 
+      filteredNodes = filteredNodes.filter((nodeType) =>
         ['formStep', 'formField', 'conditionIf', 'actionEmail', 'endSuccess'].includes(nodeType.id)
       );
     } else if (activeEditorMode === 'visual') {
       // Visual mode: Most nodes except advanced features
-      filteredNodes = filteredNodes.filter(nodeType => 
-        !['customCode', 'apiRequest', 'subflow'].includes(nodeType.id)
-      );
+      filteredNodes = filteredNodes.filter((nodeType) => !['customCode', 'apiRequest', 'subflow'].includes(nodeType.id));
     }
-    // Visual mode: filter nodes by allowed categories
-    
+
     logger.debug('[NodePalette] After mode filtering:', filteredNodes.length);
-    
+
     // Step 2: Filter by permission categories (if restricted)
     if (allowedNodeCategories && allowedNodeCategories.length > 0) {
-      filteredNodes = filteredNodes.filter(nodeType => 
-        allowedNodeCategories.includes(nodeType.category)
-      );
+      filteredNodes = filteredNodes.filter((nodeType) => allowedNodeCategories.includes(nodeType.category));
       logger.debug('[NodePalette] After permission filtering:', filteredNodes.length);
     }
-    
+
     logger.debug('[NodePalette] Final available nodes:', filteredNodes.length);
-    logger.debug('[NodePalette] Available node IDs:', filteredNodes.map(n => n.id));
-    
+    logger.debug('[NodePalette] Available node IDs:', filteredNodes.map((n) => n.id));
+
     return filteredNodes;
   }, [activeEditorMode, allowedNodeCategories]);
+
+  // Palette gating UX:
+  // - Blank canvas: show ONLY Trigger nodes (forces a clear entrypoint)
+  // - Once a Trigger exists: hide Triggers + End Points; show the rest
+  const hasTriggerOnCanvas = useMemo(() => {
+    return nodes.some((n) => {
+      const nodeTypeId = (((n.data as any)?.nodeType as string | undefined) ?? n.type ?? '').toString();
+      const def = getNodeTypeDefinition(nodeTypeId);
+      return def?.category === 'trigger';
+    });
+  }, [nodes]);
+
+  const paletteNodeTypes = useMemo(() => {
+    const isBlankCanvas = nodes.length === 0;
+
+    if (isBlankCanvas) {
+      return availableNodeTypes.filter((nt) => nt.category === 'trigger');
+    }
+
+    if (hasTriggerOnCanvas) {
+      return availableNodeTypes.filter((nt) => nt.category !== 'trigger' && nt.category !== 'terminal');
+    }
+
+    // Non-blank but no trigger (e.g., legacy/imported flows): keep everything except End Points.
+    return availableNodeTypes.filter((nt) => nt.category !== 'terminal');
+  }, [availableNodeTypes, hasTriggerOnCanvas, nodes.length]);
+
+  const paletteNodeTypeIdSet = useMemo(() => {
+    return new Set(paletteNodeTypes.map((n) => n.id));
+  }, [paletteNodeTypes]);
+
+  const paletteCategories = useMemo(() => {
+    const set = new Set<NodeCategory>();
+    paletteNodeTypes.forEach((n) => set.add(n.category));
+    return set;
+  }, [paletteNodeTypes]);
+
 
   // ============================================================================
   // Enhanced Palette Features State
@@ -2616,6 +2648,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<Set<NodeCategory>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // If canvas state changes (blank → trigger-added), clear any active filters that no longer apply.
+  useEffect(() => {
+    setActiveFilters((prev) => {
+      const next = new Set(Array.from(prev).filter((c) => paletteCategories.has(c)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [paletteCategories]);
   
   // Toggle category filter
   const toggleCategoryFilter = useCallback((category: NodeCategory) => {
@@ -6310,10 +6350,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const hasActiveFilters = activeFilters.size > 0;
     
     // PROMPT 3: Use Fuse.js for fuzzy search
-    let searchResults: typeof NODE_TYPE_REGISTRY[string][] = availableNodeTypes;
+    let searchResults: typeof NODE_TYPE_REGISTRY[string][] = paletteNodeTypes;
     
     if (query) {
-      const fuse = new Fuse(availableNodeTypes, {
+      const fuse = new Fuse(paletteNodeTypes, {
         keys: ['name', 'description', 'category'],
         threshold: 0.3, // 0 = exact match, 1 = match anything
         includeScore: true,
@@ -6334,7 +6374,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     });
 
     return grouped;
-  }, [searchQuery, activeFilters, availableNodeTypes]);
+  }, [searchQuery, activeFilters, paletteNodeTypes]);
 
   // ============================================================================
   // Get Favorite & Recent Nodes
@@ -6342,15 +6382,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   const favoriteNodesList = useMemo(() => {
     return favorites
-      .map(id => NODE_TYPE_REGISTRY[id])
-      .filter(Boolean);
-  }, [favorites]);
+      .map((id) => NODE_TYPE_REGISTRY[id])
+      .filter(Boolean)
+      .filter((n) => paletteNodeTypeIdSet.has(n.id));
+  }, [favorites, paletteNodeTypeIdSet]);
 
   const recentNodesList = useMemo(() => {
     return recentNodes
-      .map(id => NODE_TYPE_REGISTRY[id])
-      .filter(Boolean);
-  }, [recentNodes]);
+      .map((id) => NODE_TYPE_REGISTRY[id])
+      .filter(Boolean)
+      .filter((n) => paletteNodeTypeIdSet.has(n.id));
+  }, [recentNodes, paletteNodeTypeIdSet]);
 
   const lastNodeIdSet = useMemo(() => {
     const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
@@ -6726,7 +6768,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             
             {/* Category Filters */}
             <CategoryFilters>
-              {(Object.keys(CATEGORY_LABELS) as NodeCategory[]).map(category => {
+              {CATEGORY_ORDER.filter((category) => paletteCategories.has(category)).map((category) => {
                 const isActive = activeFilters.has(category);
                 const categoryColor = {
                   trigger: '#10b981',
@@ -6738,7 +6780,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                   utility: '#64748b',
                   terminal: '#059669',
                 }[category];
-                
+
                 return (
                   <FilterChip
                     key={category}
@@ -6843,7 +6885,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           )}
           
           {/* Category-Based Nodes */}
-          {CATEGORY_ORDER.map(category => {
+          {CATEGORY_ORDER.filter((category) => paletteCategories.has(category)).map((category) => {
             const categoryNodes = filteredNodesByCategory[category];
             if (categoryNodes.length === 0) return null;
             
