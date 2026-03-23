@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { Spin, Typography, message, Tag } from 'antd';
+import { Spin, Typography, message, Tag, Select } from 'antd';
 import debounce from 'lodash/debounce';
 import { businessApi } from '../../services/businessApi';
 
@@ -167,7 +167,131 @@ const isEntityReference = (value: unknown): value is EntityReference => {
   return 'id' in v && (typeof v.id === 'string' || typeof v.id === 'number');
 };
 
+type ProductListEntry = { id: string; product_code?: string; name?: string };
+
+type ProductListField = 'preferred_products' | 'active_products';
+
+const ProductListSection: React.FC<{
+  title: string;
+  field: ProductListField;
+  entries: ProductListEntry[];
+  canEdit: boolean;
+  proteinFilter: string[];
+  onSave: (field: ProductListField, value: string[]) => Promise<void>;
+}> = ({ title, field, entries, canEdit, proteinFilter, onSave }) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState<string[]>(entries.map((e) => e.id));
+  const [options, setOptions] = useState<Array<{ value: string; label: string }>>(
+    entries.map((e) => ({
+      value: e.id,
+      label: `${e.product_code ? `${e.product_code} - ` : ''}${e.name || e.id}`,
+    }))
+  );
+  const [loadingOptions, setLoadingOptions] = useState(false);
+
+  useEffect(() => {
+    setValue(entries.map((e) => e.id));
+    setOptions(
+      entries.map((e) => ({
+        value: e.id,
+        label: `${e.product_code ? `${e.product_code} - ` : ''}${e.name || e.id}`,
+      }))
+    );
+  }, [entries]);
+
+  const fetchOptions = useMemo(
+    () => debounce(async (q: string) => {
+      setLoadingOptions(true);
+      try {
+        const resp = await businessApi.get('/system/products/', {
+          params: {
+            search: q || undefined,
+            page_size: 50,
+            is_active: true,
+            ...(proteinFilter.length ? { protein: proteinFilter } : {}),
+          },
+        });
+
+        const raw = resp.data as any;
+        const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+        const next = rows.map((p: any) => ({
+          value: String(p.id),
+          label: `${p.product_code ? `${p.product_code} - ` : ''}${p.name || p.effective_name || ''}`.trim() || String(p.id),
+        }));
+
+        setOptions((prev) => {
+          const map = new Map(prev.map((o) => [o.value, o] as const));
+          next.forEach((o) => map.set(o.value, o));
+          return Array.from(map.values());
+        });
+      } catch (err) {
+        console.error('[EntityProfileHeader] Failed to search products:', err);
+      } finally {
+        setLoadingOptions(false);
+      }
+    }, 250),
+    [proteinFilter.join('|')]
+  );
+
+  useEffect(() => () => fetchOptions.cancel(), [fetchOptions]);
+
+  return (
+    <PreferredProductsSection>
+      <PreferredProductsTitle style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <span>{title}</span>
+        {canEdit && (
+          <LinkButton type="button" onClick={() => setEditing((v) => !v)}>
+            {editing ? 'Cancel' : 'Edit'}
+          </LinkButton>
+        )}
+      </PreferredProductsTitle>
+
+      {editing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Select
+            mode="multiple"
+            value={value}
+            options={options}
+            placeholder={proteinFilter.length ? 'Search products (filtered by protein types)…' : 'Search products…'}
+            showSearch
+            filterOption={false}
+            onSearch={(q) => fetchOptions(q)}
+            onChange={(vals) => setValue(vals as string[])}
+            notFoundContent={loadingOptions ? <Spin size="small" /> : null}
+            style={{ width: '100%' }}
+          />
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <LinkButton
+              type="button"
+              onClick={async () => {
+                await onSave(field, value);
+                setEditing(false);
+              }}
+            >
+              Save
+            </LinkButton>
+          </div>
+        </div>
+      ) : entries.length ? (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {entries.map((p) => {
+            const label = `${p.product_code ? `${p.product_code} - ` : ''}${p.name || ''}`.trim() || p.id;
+            return (
+              <Tag key={p.id} color="purple">
+                {label}
+              </Tag>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ color: 'rgb(var(--color-text-tertiary))', fontSize: 12 }}>—</div>
+      )}
+    </PreferredProductsSection>
+  );
+};
+
 export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
+
   entityType,
   entityId,
   onNavigateToEntity,
@@ -196,20 +320,31 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
 
   const canEdit = Boolean(data?.can_edit);
 
+  const patchField = useCallback(async (field: string, value: unknown) => {
+    try {
+      const resp = await businessApi.patch(
+        `/system/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/`,
+        { field, value }
+      );
+      setData(resp.data as EntityDetailResponse);
+      return resp.data as EntityDetailResponse;
+    } catch (err: any) {
+      console.error('[EntityProfileHeader] Failed to update field:', err);
+      message.error(err?.response?.data?.error || 'Failed to update field');
+      void load();
+      throw err;
+    }
+  }, [entityType, entityId, load]);
+
   const debouncedPatch = useMemo(
     () => debounce(async (field: string, value: unknown) => {
       try {
-        await businessApi.patch(
-          `/system/entities/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/`,
-          { field, value }
-        );
-      } catch (err: any) {
-        console.error('[EntityProfileHeader] Failed to update field:', err);
-        message.error('Failed to update field');
-        void load();
+        await patchField(field, value);
+      } catch {
+        // patchField handles toast + reload
       }
     }, 300),
-    [entityType, entityId, load]
+    [patchField]
   );
 
   useEffect(() => {
@@ -221,23 +356,54 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
     const metaAny = (data?.metadata ?? {}) as any;
     const raw = fieldsAny?.preferred_products ?? metaAny?.preferred_products;
 
-    if (!Array.isArray(raw)) return [] as string[];
+    if (!Array.isArray(raw)) return [] as ProductListEntry[];
 
     return raw
       .map((item: any) => {
-        if (typeof item === 'string') return item;
-        if (item && typeof item === 'object') {
-          return String(item.name ?? item.title ?? item.label ?? '').trim();
+        if (!item) return null;
+        if (typeof item === 'string') return { id: item, name: item };
+        if (typeof item === 'object') {
+          const id = String(item.id ?? '').trim();
+          if (!id) return null;
+          return {
+            id,
+            product_code: item.product_code ? String(item.product_code) : undefined,
+            name: item.name ? String(item.name) : undefined,
+          };
         }
-        return '';
+        return null;
       })
-      .map((v: string) => v.trim())
-      .filter(Boolean);
+      .filter(Boolean) as ProductListEntry[];
+  }, [data?.fields, data?.metadata]);
+
+  const activeProducts = useMemo(() => {
+    const fieldsAny = (data?.fields ?? {}) as any;
+    const metaAny = (data?.metadata ?? {}) as any;
+    const raw = fieldsAny?.active_products ?? metaAny?.active_products;
+
+    if (!Array.isArray(raw)) return [] as ProductListEntry[];
+
+    return raw
+      .map((item: any) => {
+        if (!item) return null;
+        if (typeof item === 'string') return { id: item, name: item };
+        if (typeof item === 'object') {
+          const id = String(item.id ?? '').trim();
+          if (!id) return null;
+          return {
+            id,
+            product_code: item.product_code ? String(item.product_code) : undefined,
+            name: item.name ? String(item.name) : undefined,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as ProductListEntry[];
   }, [data?.fields, data?.metadata]);
 
   const fieldEntries = useMemo(() => {
     const fields = data?.fields ?? {};
-    const entries = Object.entries(fields).filter(([key]) => !['id', 'preferred_products'].includes(key));
+    const entries = Object.entries(fields).filter(([key]) => !['id', 'preferred_products', 'active_products'].includes(key));
 
     if (variant !== 'compact') {
       return entries.sort(([a], [b]) => a.localeCompare(b));
@@ -339,18 +505,58 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
             })}
           </FieldsGrid>
 
-          {preferredProducts.length > 0 && (
-            <PreferredProductsSection>
-              <PreferredProductsTitle>Preferred Products</PreferredProductsTitle>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {preferredProducts.map((p) => (
-                  <Tag key={p} color="purple">
-                    {p}
-                  </Tag>
-                ))}
-              </div>
-            </PreferredProductsSection>
-          )}
+          {(() => {
+            const type = String(entityType || '').toLowerCase();
+            const isSupplier = type === 'supplier';
+            const isCustomer = type === 'customer';
+
+            const proteinTypesRaw = ((data?.fields ?? {}) as any)?.preferred_protein_types;
+            const proteinFilter = Array.isArray(proteinTypesRaw)
+              ? proteinTypesRaw.map((v: any) => String(v).toLowerCase()).filter(Boolean)
+              : [];
+
+            const preferredIds = new Set(preferredProducts.map((p) => p.id));
+            const activeIds = new Set(activeProducts.map((p) => p.id));
+            const activeIsSameAsPreferred = preferredIds.size === activeIds.size && Array.from(preferredIds).every((id) => activeIds.has(id));
+
+            const canEditProducts = canEdit && (isCustomer || isSupplier);
+
+            const showPreferred = canEditProducts || preferredProducts.length > 0;
+            const showActive = isSupplier
+              ? (canEditProducts || activeProducts.length > 0)
+              : (activeProducts.length > 0 && !activeIsSameAsPreferred);
+
+            if (!showPreferred && !showActive) return null;
+
+            return (
+              <>
+                {showPreferred && (
+                  <ProductListSection
+                    title="Preferred Products"
+                    field="preferred_products"
+                    entries={preferredProducts}
+                    canEdit={canEditProducts}
+                    proteinFilter={proteinFilter}
+                    onSave={async (field, ids) => {
+                      await patchField(field, ids);
+                    }}
+                  />
+                )}
+                {showActive && (
+                  <ProductListSection
+                    title="Active Products"
+                    field="active_products"
+                    entries={activeProducts}
+                    canEdit={canEditProducts}
+                    proteinFilter={proteinFilter}
+                    onSave={async (field, ids) => {
+                      await patchField(field, ids);
+                    }}
+                  />
+                )}
+              </>
+            );
+          })()}
         </>
       )}
     </Container>

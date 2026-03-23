@@ -729,15 +729,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
     switch (actionType) {
       case 'create_po': {
-        if (onOpenInlineCreate && activeContext) {
-          onOpenInlineCreate('purchase_order', {
-            id: String(activeContext.id),
-            type: String(activeContext.type),
-            name: String(activeContext.label ?? ''),
-            subtitle: undefined,
-          });
-          return;
-        }
 
         const supplierId = entityId ? String(entityId) : '';
         const params = new URLSearchParams({ action: 'create' });
@@ -762,15 +753,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         window.dispatchEvent(new CustomEvent('pm:open-tool', { detail: { toolId: 'tool:email' } }));
         break;
       case 'create_so': {
-        if (onOpenInlineCreate && activeContext) {
-          onOpenInlineCreate('sales_order', {
-            id: String(activeContext.id),
-            type: String(activeContext.type),
-            name: String(activeContext.label ?? ''),
-            subtitle: undefined,
-          });
-          return;
-        }
 
         const customerId = entityId ? String(entityId) : '';
         const params = new URLSearchParams({ action: 'create' });
@@ -1104,11 +1086,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         <Button
           type="primary"
           onClick={() => {
-            if (onOpenInlineCreate) {
-              onOpenInlineCreate(targetType, activeEntity);
-              return;
-            }
-
             const actionType = isSupplier ? 'create_po' : 'create_so';
             handleQuickAction({
               id: `action:${actionType}`,
@@ -1131,11 +1108,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         <Button
           type="primary"
           onClick={() => {
-            if (onOpenInlineCreate) {
-              onOpenInlineCreate('inquiry', activeEntity);
-              return;
-            }
-
             const type = String(activeEntity.type).toLowerCase();
             const entityType = type === 'supplier' ? 'supplier' : 'customer';
             navigate('/inquiries', {
