@@ -85,9 +85,7 @@ import ActivityPage from './pages/Admin/Activity';
 import AdminWorkspaceHome from './pages/Admin/Home';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
 import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
-import { PerformanceOverlay } from './components/common/PerformanceOverlay';
 import { logger } from './utils/logger';
-import { ReportBugButton } from './components/ReportBugButton';
 import CockpitPage from './pages/Cockpit';
 import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
 import CockpitDetailViewPage from './pages/Cockpit/CockpitDetailView';
@@ -361,12 +359,6 @@ const App: React.FC = () => {
             </Routes>
             {/* Form Submission Modal - rendered at app level */}
             <FormSubmissionWrapper />
-            
-            {/* Performance Monitoring Overlay (dev mode only) */}
-            <PerformanceOverlay />
-            
-            {/* Global floating bug report button - always available */}
-            <ReportBugButton variant="floating" />
                           </NavigationProvider>
                         </SessionManagerProvider>
                       </Router>

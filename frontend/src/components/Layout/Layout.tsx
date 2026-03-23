@@ -80,9 +80,6 @@ const Layout: React.FC = () => {
         onClose={() => setShowCommandPalette(false)}
       />
       <AIAgentWidget />
-      <KeyboardShortcutHint $theme={theme}>
-        Press <kbd>/</kbd> or <kbd>Ctrl+K</kbd> to search • <kbd>Ctrl+Shift+K</kbd> for AI commands
-      </KeyboardShortcutHint>
     </LayoutContainer>
   );
 };
@@ -124,33 +121,6 @@ const CenteredContainer = styled.div`
 
   @media (max-width: 768px) {
     padding: 0;
-  }
-`;
-
-const KeyboardShortcutHint = styled.div<{ $theme: Theme }>`
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-  background: ${(props) =>
-    props.$theme.name === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.7)'};
-  color: white;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-
-  &:hover {
-    opacity: 1;
-  }
-
-  kbd {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    padding: 2px 4px;
-    font-family: inherit;
-    font-size: 11px;
   }
 `;
 
