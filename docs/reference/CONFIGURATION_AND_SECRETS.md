@@ -52,7 +52,7 @@ ProjectMeats uses a **manifest-based configuration system** to eliminate secret 
 
 ## The Authority: env.manifest.json
 
-**Location**: [`config/env.manifest.json`](../config/env.manifest.json)
+**Location**: [`manifests/env.manifest.json`](../manifests/env.manifest.json)
 
 This file defines:
 - **Environments**: All 6 deployment targets (dev, uat, prod × backend, frontend)
@@ -87,7 +87,7 @@ Used by **all environments** for SSH access:
 
 **CRITICAL: SSH Password Pattern**
 ProjectMeats uses GitHub Environments to scope secrets. The `SSH_PASSWORD` secret:
-- Has the **same name** in all 6 environments (dev-backend, dev-frontend, uat2-backend, uat2-frontend, prod2-backend, prod2-frontend)
+- Has the **same name** in all 6 environments (dev-backend, dev-frontend, uat-backend, uat-frontend, production-backend, production-frontend)
 - Contains **different values** per environment (dev has one password, uat has another, etc.)
 - Workflows reference `${{ secrets.SSH_PASSWORD }}` and GitHub injects the correct value based on the `environment:` tag
 
@@ -124,16 +124,53 @@ Used by React at build time:
 
 The manifest defines **6 environments** matching our deployment architecture:
 
-| Environment | Type | Prefix | GitHub Environment | Purpose |
-|-------------|------|--------|-------------------|---------|
-| `dev-backend` | backend | `DEV` | `dev-backend` | Development Django API |
-| `dev-frontend` | frontend | `DEV` | `dev-frontend` | Development React UI |
-| `uat2-backend` | backend | `UAT` | `uat2-backend` | Staging Django API |
-| `uat2` | frontend | `STAGING` | `uat2` | Staging React UI ⚠️ |
-| `prod2-backend` | backend | `PROD` | `prod2-backend` | Production Django API |
-| `prod2-frontend` | frontend | `PROD` | `prod2-frontend` | Production React UI |
+| Environment | Type | GitHub Environment | Purpose |
+|-------------|------|-------------------|---------|
+| `dev-backend` | backend | `dev-backend` | Development Django API |
+| `dev-frontend` | frontend | `dev-frontend` | Development React UI |
+| `uat-backend` | backend | `uat-backend` | UAT/Staging Django API |
+| `uat-frontend` | frontend | `uat-frontend` | UAT/Staging React UI |
+| `production-backend` | backend | `production-backend` | Production Django API |
+| `production-frontend` | frontend | `production-frontend` | Production React UI |
 
-⚠️ **Note**: `uat2` uses `STAGING` prefix due to legacy naming (see [Legacy Exceptions](#legacy-exceptions))
+---
+
+## Activating External Services (UAT/Production)
+
+All features are **code-complete** in `development`. The remaining work to activate them in UAT/Production is **environment-scoped secrets**.
+
+### 1) Audit what’s missing (source of truth)
+
+```bash
+python config/manage_env.py audit
+```
+
+This compares GitHub Secrets (repo + environment) to `manifests/env.manifest.json` and reports **missing** and **zombie** secret names.
+
+### 2) Set required secrets in the correct GitHub Environment
+
+Set these as **Environment Secrets** (not repo secrets), typically in `uat-backend` and `production-backend`:
+
+- `OPENAI_API_KEY` → AI suggestions + embeddings/RAG
+- `REDIS_URL` → caching, Celery workers, real-time features
+- `SENTRY_DSN` + `SENTRY_ENABLED=true` → error tracking/APM
+- `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_TENANT_ID` → Outlook/365 integration
+
+Example (CLI):
+```bash
+# UAT backend
+gh secret set OPENAI_API_KEY --env uat-backend --body "$OPENAI_API_KEY"
+
+# Production backend
+gh secret set OPENAI_API_KEY --env production-backend --body "$OPENAI_API_KEY"
+```
+
+### 3) Re-run audit, then deploy
+
+```bash
+python config/manage_env.py audit
+# then trigger the deploy workflow for uat / main
+```
 
 ---
 
