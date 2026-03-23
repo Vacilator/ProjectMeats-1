@@ -16,11 +16,14 @@ Usage:
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class AIPrompter:
@@ -152,11 +155,70 @@ class AIPrompter:
                 "last_node_type": last_node.get('type') if last_node else None
             },
             "available_entities": available_entities,
-            "user_request": user_request
+            "user_request": user_request,
+            "tenant_knowledge_facts": self._retrieve_relevant_facts(tenant, current_flow, user_request),
         }
-        
+
         return context
     
+    def _retrieve_relevant_facts(
+        self,
+        tenant: Any,
+        current_flow: Dict[str, Any],
+        user_request: str,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve top-k tenant knowledge facts via semantic similarity.
+
+        Safe-by-default: if OpenAI or pgvector are unavailable/misconfigured, this returns [].
+        """
+
+        if not getattr(settings, 'OPENAI_API_KEY', None):
+            return []
+
+        try:
+            from openai import OpenAI
+            from pgvector.django import L2Distance
+
+            from tenant_apps.ai_assistant.models import TenantKnowledgeFact
+        except Exception:
+            return []
+
+        try:
+            client = OpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
+            )
+
+            # Convert user's context/question to vector
+            query_input = f"{user_request}\n\ncurrent_flow={json.dumps(current_flow, ensure_ascii=False)}"
+            query_response = client.embeddings.create(
+                input=query_input,
+                model='text-embedding-3-small',
+            )
+            query_vector = query_response.data[0].embedding
+
+            # Retrieve top 5 most semantically relevant facts
+            facts = list(
+                TenantKnowledgeFact.objects.filter(
+                    tenant=tenant,
+                    is_active=True,
+                    embedding__isnull=False,
+                )
+                .annotate(distance=L2Distance('embedding', query_vector))
+                .order_by('distance')[:5]
+            )
+
+            return [
+                {
+                    'domain_category': f.domain_category,
+                    'fact_text': f.fact_text,
+                }
+                for f in facts
+            ]
+        except Exception as e:
+            logger.warning('Failed to retrieve tenant knowledge facts: %s', str(e), exc_info=True)
+            return []
+
     def parse_ai_response(self, raw_response: str) -> Dict[str, Any]:
         """
         Parse OpenAI response and validate structure.

@@ -220,6 +220,37 @@ class VectorMemory(TenantAwareModel):
         ]
 
 
+class TenantKnowledgeFact(TenantAwareModel):
+    """Tenant-scoped knowledge facts for RAG.
+
+    These are short, durable facts learned from interactions and gatekept extraction.
+    Retrieval is done via pgvector similarity search.
+    """
+
+    domain_category = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Optional domain label (e.g. ordering, invoicing, cold_storage)',
+    )
+    fact_text = models.TextField(help_text='Canonical tenant fact text')
+    embedding = VectorField(
+        dimensions=1536,
+        null=True,
+        blank=True,
+        help_text='OpenAI text-embedding-3-small vector',
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'ai_assistant_tenant_knowledge_facts'
+        verbose_name = 'Tenant Knowledge Fact'
+        verbose_name_plural = 'Tenant Knowledge Facts'
+        indexes = [
+            models.Index(fields=['tenant', 'domain_category'], name='ai_kf_tenant_domain_idx'),
+        ]
+
+
 class AIDocument(TenantAwareModel):
     """Tenant + user-scoped document uploads for the AI assistant."""
 
