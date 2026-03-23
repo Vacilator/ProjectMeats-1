@@ -28,7 +28,7 @@ import { Tabs, Spin, Button } from 'antd';
 import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
-import { CreateOrderModal } from '../Shared';
+import UniversalEntityForm from '../Shared/UniversalEntityForm';
 import QuickCreateModal from '../FormSubmission/QuickCreateModal';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
@@ -1194,11 +1194,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         )}
 
         {isInlineCreateSalesOrderOpen && activeEntity && String(activeEntity.type).toLowerCase() === 'customer' && (
-          <CreateOrderModal
+          <UniversalEntityForm
+            entityType="sales-orders"
             isOpen={true}
             onClose={closeInlineSubview}
-            onSuccess={closeInlineSubview}
-            initialValues={{ customer: String(activeEntity.id) }}
+            onSuccess={() => closeInlineSubview()}
+            initialValues={{ customer: String(activeEntity.id) } as any}
           />
         )}
 

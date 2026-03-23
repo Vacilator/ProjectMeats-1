@@ -155,6 +155,29 @@ const LinkButton = styled.button`
 
 const formatScalar = (value: unknown): string => {
   if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => {
+        if (v === null || v === undefined) return '';
+        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
+        if (v instanceof Date) return v.toISOString();
+        if (typeof v === 'object') {
+          const anyV = v as any;
+          return String(
+            anyV.name ??
+              anyV.title ??
+              anyV.label ??
+              anyV.product_code ??
+              anyV.id ??
+              ''
+          );
+        }
+        return String(v);
+      })
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(', ');
+  }
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (value instanceof Date) return value.toISOString();
@@ -299,6 +322,8 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
 }) => {
   const [data, setData] = useState<EntityDetailResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [editingArrayField, setEditingArrayField] = useState<string | null>(null);
+  const [arrayDraft, setArrayDraft] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -319,6 +344,28 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
   }, [load]);
 
   const canEdit = Boolean(data?.can_edit);
+
+  useEffect(() => {
+    setEditingArrayField(null);
+    setArrayDraft([]);
+  }, [entityType, entityId]);
+
+  const normalizeArrayStrings = useCallback((value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((v) => {
+        if (v === null || v === undefined) return '';
+        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
+        if (v instanceof Date) return v.toISOString();
+        if (typeof v === 'object') {
+          const anyV = v as any;
+          return String(anyV.name ?? anyV.title ?? anyV.label ?? anyV.id ?? '');
+        }
+        return String(v);
+      })
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, []);
 
   const patchField = useCallback(async (field: string, value: unknown) => {
     try {
@@ -478,15 +525,89 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
               }
 
               const scalar = formatScalar(value);
-              const isEditable = canEdit && typeof value === 'string' && scalar.length <= 200;
+              const lowerKey = String(key).toLowerCase();
+              const isMultiValue = Array.isArray(value) || lowerKey.includes('products');
+              const isEditingMulti = editingArrayField === key;
+              const isEditableText = canEdit && !isMultiValue && typeof value === 'string' && scalar.length <= 200;
+
+              const renderMultiValue = () => {
+                const values = Array.isArray(value) ? normalizeArrayStrings(value) : [];
+
+                if (isEditingMulti) {
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <Select
+                        mode="tags"
+                        value={arrayDraft}
+                        options={Array.from(new Set([...values, ...arrayDraft])).map((v) => ({ value: v, label: v }))}
+                        placeholder="Add values…"
+                        tokenSeparators={[',']}
+                        onChange={(vals) => setArrayDraft(vals as string[])}
+                        style={{ width: '100%' }}
+                      />
+                      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                        <LinkButton
+                          type="button"
+                          onClick={() => {
+                            setEditingArrayField(null);
+                            setArrayDraft([]);
+                          }}
+                        >
+                          Cancel
+                        </LinkButton>
+                        <LinkButton
+                          type="button"
+                          onClick={async () => {
+                            await patchField(key, arrayDraft);
+                            setEditingArrayField(null);
+                            setArrayDraft([]);
+                          }}
+                        >
+                          Save
+                        </LinkButton>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    {values.length ? (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {values.map((v) => (
+                          <Tag key={`${key}:${v}`} color="geekblue">
+                            {v}
+                          </Tag>
+                        ))}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
+                    )}
+
+                    {canEdit && (
+                      <LinkButton
+                        type="button"
+                        onClick={() => {
+                          setEditingArrayField(key);
+                          setArrayDraft(values);
+                        }}
+                      >
+                        Edit
+                      </LinkButton>
+                    )}
+                  </div>
+                );
+              };
 
               return (
                 <FieldRow key={key}>
                   <FieldLabel>{key}</FieldLabel>
-                  <FieldValue $editable={isEditable}>
+                  <FieldValue $editable={isEditableText}>
                     {typeof value === 'boolean' ? (
                       <Tag color={value ? 'success' : 'default'}>{value ? 'Yes' : 'No'}</Tag>
-                    ) : isEditable ? (
+                    ) : isMultiValue ? (
+                      renderMultiValue()
+                    ) : isEditableText ? (
                       <Text
                         editable={{
                           onChange: (next) => debouncedPatch(key, next),

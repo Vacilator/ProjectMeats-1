@@ -34,6 +34,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - Key ops note: Increased Nginx `client_max_body_size` to **50M** across proxies to support AI document uploads.
 - Historical Phase 8.0 execution details remain in the **PR Log** below.
 
+### 2026-03-23 — Phase 8.4: Universal Metadata-Driven UI
+- Transition away from hardcoded modals toward a schema-driven `UniversalEntityForm` container.
+- Searchable Foreign Key selectors (entity + contact) via `SearchableSelect` to avoid massive dropdown scrolling.
+- Cockpit key-field renderer now supports array fields with a dedicated multi-select edit mode (no AntD `<Text editable>` for arrays/products).
+
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
 ### PR Log (append-only)
@@ -59,6 +64,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-23 — Email ingestion manual sync converted to synchronous execution (500 fix) — PR: #3845.
 - 2026-03-23 — Suppliers/Customers: punch-in drill-down navigation (Suppliers→Plants + details + Contacts; Customers→Locations + details + Contacts) — PR: #3846.
 - 2026-03-23 — Cockpit: Preferred/Active Products sections (editable, searchable multi-select) + “New Inquiry/PO/SO” CTAs open full create forms — PR: #3847.
+- 2026-03-23 — V3 Phase 1 DRY Purge: UniversalEntityForm replaces legacy Create* modals (CreateOrder/CreateClaim/CreateInquiry removed) — PR: #3850.
 
 - 2026-03-22T16:39:58Z — EMERGENCY ROLLBACK: Reverted Workform Container UI to stable Friday baseline due to UX degradation.
 
