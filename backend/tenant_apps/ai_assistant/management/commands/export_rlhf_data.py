@@ -72,9 +72,8 @@ class Command(BaseCommand):
         written = 0
         with open(out_path, 'w', encoding='utf-8') as f:
             for row in qs[:limit]:
+                # Redaction baseline: do not emit tenant-identifying IDs into the export.
                 user_payload = {
-                    'tenant_id': str(row.tenant_id),
-                    'document_id': str(row.document_id),
                     'document_type': row.document_type,
                     'confidence_score': float(row.confidence_score or 0.0),
                     'original_extracted_data': row.original_extracted_data or {},
