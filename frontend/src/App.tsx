@@ -90,6 +90,7 @@ import { logger } from './utils/logger';
 import { ReportBugButton } from './components/ReportBugButton';
 import CockpitPage from './pages/Cockpit';
 import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
+import CockpitDetailViewPage from './pages/Cockpit/CockpitDetailView';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
 import WorkFormsLayout from './pages/WorkForms';
@@ -354,6 +355,7 @@ const App: React.FC = () => {
                 {/* Cockpit (Command Center Dashboard) */}
                 <Route path="cockpit" element={<CockpitPage />} />
                 <Route path="cockpit/process-monitor" element={<ProcessMonitor />} />
+                <Route path="cockpit/entity/:entityType/:entityId" element={<CockpitDetailViewPage />} />
                 {/* Note: /workspace now points to Admin Workspace, not Cockpit */}
               </Route>
             </Routes>

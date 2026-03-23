@@ -15,6 +15,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { 
   Layers, Package, Users, Building2, FileText, 
   ChevronRight, Star, Clock
@@ -229,6 +230,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
   tenantId,
 }) => {
   const navigate = useNavigate();
+  const cockpitNavigation = useCockpitNavigation();
   const [activeTab, setActiveTab] = useState<EntityType>('suppliers');
   const [entities, setEntities] = useState<Record<EntityType, RecentEntity[]>>({
     suppliers: [],
@@ -311,7 +313,30 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
   }, [fetchEntities]);
 
   const handleEntityClick = (entity: RecentEntity) => {
-    // Open entity detail modal instead of navigating
+    const rawType = String(entity.type ?? '').toLowerCase();
+    const canonicalType = rawType === 'customers' || rawType === 'customer'
+      ? 'customer'
+      : rawType === 'suppliers' || rawType === 'supplier'
+      ? 'supplier'
+      : null;
+
+    // Default detail screen for Cockpit-selected customers/suppliers
+    if (canonicalType) {
+      cockpitNavigation.clearPath();
+      cockpitNavigation.addStep({
+        id: String(entity.id),
+        type: canonicalType,
+        label: entity.name,
+        subtitle: entity.subtitle,
+      });
+
+      navigate(`/cockpit/entity/${canonicalType}/${encodeURIComponent(String(entity.id))}`, {
+        state: { initialLabel: entity.name },
+      });
+      return;
+    }
+
+    // Preserve existing behavior for other entity types.
     setSelectedEntity({ type: entity.type, id: entity.id });
   };
 

@@ -662,10 +662,26 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       subtitle: entity.subtitle,
     });
 
+    // If a caller provided a handler, defer to it (backwards compatible).
     if (onSelectEntity) {
       onSelectEntity(entity);
+      return;
     }
-  }, [navigation, onSelectEntity]);
+
+    // Canonical Cockpit Detail View trigger (customer/supplier)
+    const rawType = String(entity.type ?? '').toLowerCase();
+    const canonicalType = rawType === 'customer' || rawType === 'customers'
+      ? 'customer'
+      : rawType === 'supplier' || rawType === 'suppliers'
+      ? 'supplier'
+      : null;
+
+    if (canonicalType) {
+      navigate(`/cockpit/entity/${canonicalType}/${encodeURIComponent(entity.id)}`, {
+        state: { initialLabel: entity.name },
+      });
+    }
+  }, [navigate, navigation, onSelectEntity]);
 
 
   /**
