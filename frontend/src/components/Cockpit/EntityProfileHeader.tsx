@@ -39,6 +39,7 @@ const Container = styled.div`
   border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 `;
 
 const TitleRow = styled.div`
@@ -98,10 +99,45 @@ const FieldLabel = styled.div`
   letter-spacing: 0.5px;
 `;
 
-const FieldValue = styled.div`
+const FieldValue = styled.div<{ $editable?: boolean }>`
   font-size: 13px;
   color: rgb(var(--color-text-primary));
   min-width: 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+
+  ${p =>
+    p.$editable
+      ? `
+    cursor: text;
+
+    &:hover {
+      background: rgb(var(--color-primary) / 0.06);
+      border-color: rgb(var(--color-primary) / 0.18);
+    }
+
+    &:focus-within {
+      background: rgb(var(--color-primary) / 0.06);
+      border-color: rgb(var(--color-primary) / 0.25);
+    }
+  `
+      : ''}
+`;
+
+const PreferredProductsSection = styled.div`
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(var(--color-border));
+`;
+
+const PreferredProductsTitle = styled.div`
+  font-size: 12px;
+  font-weight: 800;
+  color: rgb(var(--color-text-secondary));
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
 `;
 
 const LinkButton = styled.button`
@@ -180,9 +216,28 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
     return () => debouncedPatch.cancel();
   }, [debouncedPatch]);
 
+  const preferredProducts = useMemo(() => {
+    const fieldsAny = (data?.fields ?? {}) as any;
+    const metaAny = (data?.metadata ?? {}) as any;
+    const raw = fieldsAny?.preferred_products ?? metaAny?.preferred_products;
+
+    if (!Array.isArray(raw)) return [] as string[];
+
+    return raw
+      .map((item: any) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object') {
+          return String(item.name ?? item.title ?? item.label ?? '').trim();
+        }
+        return '';
+      })
+      .map((v: string) => v.trim())
+      .filter(Boolean);
+  }, [data?.fields, data?.metadata]);
+
   const fieldEntries = useMemo(() => {
     const fields = data?.fields ?? {};
-    const entries = Object.entries(fields).filter(([key]) => !['id'].includes(key));
+    const entries = Object.entries(fields).filter(([key]) => !['id', 'preferred_products'].includes(key));
 
     if (variant !== 'compact') {
       return entries.sort(([a], [b]) => a.localeCompare(b));
@@ -236,49 +291,67 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
       {loading ? (
         <div style={{ padding: 12 }}><Spin /></div>
       ) : (
-        <FieldsGrid>
-          {fieldEntries.map(([key, value]) => {
-            if (isEntityReference(value) && value.type && value.id !== null && value.id !== undefined) {
-              const label = value.title || `${value.type} ${value.id}`;
+        <>
+          <FieldsGrid>
+            {fieldEntries.map(([key, value]) => {
+              if (isEntityReference(value) && value.type && value.id !== null && value.id !== undefined) {
+                const label = value.title || `${value.type} ${value.id}`;
+                return (
+                  <FieldRow key={key}>
+                    <FieldLabel>{key}</FieldLabel>
+                    <FieldValue>
+                      <LinkButton
+                        onClick={() => onNavigateToEntity(String(value.type), String(value.id), label)}
+                        title="Navigate"
+                      >
+                        {label}
+                      </LinkButton>
+                    </FieldValue>
+                  </FieldRow>
+                );
+              }
+
+              const scalar = formatScalar(value);
+              const isEditable = canEdit && typeof value === 'string' && scalar.length <= 200;
+
               return (
                 <FieldRow key={key}>
                   <FieldLabel>{key}</FieldLabel>
-                  <FieldValue>
-                    <LinkButton
-                      onClick={() => onNavigateToEntity(String(value.type), String(value.id), label)}
-                      title="Navigate"
-                    >
-                      {label}
-                    </LinkButton>
+                  <FieldValue $editable={isEditable}>
+                    {typeof value === 'boolean' ? (
+                      <Tag color={value ? 'success' : 'default'}>{value ? 'Yes' : 'No'}</Tag>
+                    ) : isEditable ? (
+                      <Text
+                        editable={{
+                          onChange: (next) => debouncedPatch(key, next),
+                          tooltip: 'Click to edit',
+                          triggerType: ['icon', 'text'],
+                        }}
+                      >
+                        {scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>}
+                      </Text>
+                    ) : (
+                      scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
+                    )}
                   </FieldValue>
                 </FieldRow>
               );
-            }
+            })}
+          </FieldsGrid>
 
-            const scalar = formatScalar(value);
-            const isEditable = canEdit && typeof value === 'string' && scalar.length <= 200;
-
-            return (
-              <FieldRow key={key}>
-                <FieldLabel>{key}</FieldLabel>
-                <FieldValue>
-                  {isEditable ? (
-                    <Text
-                      editable={{
-                        onChange: (next) => debouncedPatch(key, next),
-                        tooltip: 'Click to edit',
-                      }}
-                    >
-                      {scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>}
-                    </Text>
-                  ) : (
-                    scalar || <span style={{ color: 'rgb(var(--color-text-tertiary))' }}>—</span>
-                  )}
-                </FieldValue>
-              </FieldRow>
-            );
-          })}
-        </FieldsGrid>
+          {preferredProducts.length > 0 && (
+            <PreferredProductsSection>
+              <PreferredProductsTitle>Preferred Products</PreferredProductsTitle>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {preferredProducts.map((p) => (
+                  <Tag key={p} color="purple">
+                    {p}
+                  </Tag>
+                ))}
+              </div>
+            </PreferredProductsSection>
+          )}
+        </>
       )}
     </Container>
   );

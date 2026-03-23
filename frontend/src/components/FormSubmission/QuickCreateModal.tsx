@@ -17,6 +17,10 @@ interface QuickCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: (entity: { value: string; label: string }) => void;
+  /** Render as inline panel content (no fixed overlay). */
+  inline?: boolean;
+  /** Optional initial values for context-aware prefill (e.g., customer/supplier FK). */
+  initialValues?: Record<string, any>;
 }
 
 const Overlay = styled.div`
@@ -223,11 +227,36 @@ const LoadingContainer = styled.div`
   color: var(--text-secondary, #6c757d);
 `;
 
+const InlineContainer = styled.div`
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+`;
+
+const InlineHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface-hover));
+`;
+
+const InlineTitle = styled.div`
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
 const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
   entityType,
   isOpen,
   onClose,
   onCreated,
+  inline = false,
+  initialValues,
 }) => {
   const [fields, setFields] = useState<QuickCreateField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -240,7 +269,7 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
     if (isOpen && entityType) {
       loadFields();
     }
-  }, [isOpen, entityType]);
+  }, [isOpen, entityType, initialValues]);
 
   const loadFields = async () => {
     setIsLoading(true);
@@ -250,10 +279,11 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
       setFields(response.fields);
       setEntityLabel(response.entity_label);
       
-      // Initialize form data with empty values
+      // Initialize form data with empty values (plus optional initialValues prefill)
       const initialData: Record<string, any> = {};
       response.fields.forEach(f => {
-        initialData[f.key] = '';
+        const seeded = initialValues ? initialValues[f.key] : undefined;
+        initialData[f.key] = seeded ?? '';
       });
       setFormData(initialData);
     } catch (err) {
@@ -316,6 +346,78 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
 
   if (!isOpen) return null;
 
+  if (inline) {
+    return (
+      <InlineContainer onKeyDown={handleKeyDown}>
+        <InlineHeader>
+          <InlineTitle>➕ Create New {entityLabel}</InlineTitle>
+          <CloseButton onClick={onClose} aria-label="Close">×</CloseButton>
+        </InlineHeader>
+
+        <ModalBody>
+          {isLoading ? (
+            <LoadingContainer>
+              <LoadingSpinner />
+              <span>Loading fields...</span>
+            </LoadingContainer>
+          ) : fields.length === 0 ? (
+            <LoadingContainer>
+              <span>No fields configured for quick creation.</span>
+              <span style={{ fontSize: '0.75rem' }}>
+                Please contact an administrator to configure required fields.
+              </span>
+            </LoadingContainer>
+          ) : (
+            <>
+              {errors._general && (
+                <ErrorText style={{ marginBottom: '1rem', textAlign: 'center' }}>
+                  {errors._general}
+                </ErrorText>
+              )}
+              {fields.map(field => (
+                <FieldGroup key={field.key}>
+                  <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
+                    {field.label}
+                  </Label>
+                  <Input
+                    id={`quick-create-${field.key}`}
+                    type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                    value={formData[field.key] || ''}
+                    onChange={e => handleInputChange(field.key, e.target.value)}
+                    className={errors[field.key] ? 'error' : ''}
+                    disabled={isSubmitting}
+                    autoFocus={fields.indexOf(field) === 0}
+                  />
+                  {errors[field.key] && <ErrorText>{errors[field.key]}</ErrorText>}
+                </FieldGroup>
+              ))}
+            </>
+          )}
+        </ModalBody>
+
+        <ModalFooter>
+          <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleSubmit} 
+            disabled={isLoading || isSubmitting || fields.length === 0}
+          >
+            {isSubmitting ? (
+              <>
+                <LoadingSpinner />
+                Creating...
+              </>
+            ) : (
+              <>💾 Create {entityLabel}</>
+            )}
+          </Button>
+        </ModalFooter>
+      </InlineContainer>
+    );
+  }
+
   return (
     <Overlay onClick={onClose}>
       <Modal onClick={e => e.stopPropagation()} onKeyDown={handleKeyDown}>
@@ -371,9 +473,9 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
           <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSubmit} 
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
             disabled={isLoading || isSubmitting || fields.length === 0}
           >
             {isSubmitting ? (

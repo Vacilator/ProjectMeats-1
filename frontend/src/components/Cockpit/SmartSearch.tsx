@@ -29,6 +29,7 @@ import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { CreateOrderModal } from '../Shared';
+import QuickCreateModal from '../FormSubmission/QuickCreateModal';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
 
@@ -54,6 +55,12 @@ export interface RelationalChunk {
 // NOTE: Breadcrumb UI is owned by CockpitDashboard via <BreadcrumbBar />.
 // SmartSearch reacts to navigation path changes to implement continuous browsing.
 
+export interface InlineActionPayload {
+  action: 'create' | 'edit';
+  entityType: string;
+  contextData: any;
+}
+
 export interface SmartSearchProps {
   /** Initial search query (uncontrolled mode) */
   initialQuery?: string;
@@ -67,6 +74,15 @@ export interface SmartSearchProps {
   onSelectEntity?: (entity: SearchEntity) => void;
   /** Callback when search closes */
   onClose?: () => void;
+
+  /** Inline create/edit state owned by CockpitDashboard */
+  inlineAction?: InlineActionPayload | null;
+  /** Cancel inline create/edit */
+  onInlineCancel?: () => void;
+  /** Inline create/edit success */
+  onInlineSuccess?: () => void;
+  /** Request an inline create action */
+  onOpenInlineCreate?: (targetType: string, currentRecord: SearchEntity) => void;
 }
 
 // ============================================================================
@@ -440,6 +456,10 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   hideInput = false,
   onSelectEntity,
   onClose,
+  inlineAction = null,
+  onInlineCancel,
+  onInlineSuccess,
+  onOpenInlineCreate,
 }) => {
 
   // Use global navigation context instead of local breadcrumbs
@@ -709,6 +729,16 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
     switch (actionType) {
       case 'create_po': {
+        if (onOpenInlineCreate && activeContext) {
+          onOpenInlineCreate('purchase_order', {
+            id: String(activeContext.id),
+            type: String(activeContext.type),
+            name: String(activeContext.label ?? ''),
+            subtitle: undefined,
+          });
+          return;
+        }
+
         const supplierId = entityId ? String(entityId) : '';
         const params = new URLSearchParams({ action: 'create' });
         if (supplierId) params.set('supplier_id', supplierId);
@@ -732,6 +762,16 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         window.dispatchEvent(new CustomEvent('pm:open-tool', { detail: { toolId: 'tool:email' } }));
         break;
       case 'create_so': {
+        if (onOpenInlineCreate && activeContext) {
+          onOpenInlineCreate('sales_order', {
+            id: String(activeContext.id),
+            type: String(activeContext.type),
+            name: String(activeContext.label ?? ''),
+            subtitle: undefined,
+          });
+          return;
+        }
+
         const customerId = entityId ? String(entityId) : '';
         const params = new URLSearchParams({ action: 'create' });
         if (customerId) params.set('customer_id', customerId);
@@ -753,7 +793,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       default:
         console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
     }
-  }, [navigate, navigation.path, query]);
+  }, [navigate, navigation.path, onOpenInlineCreate, query]);
 
   /**
    * Toggle favorite
@@ -1057,18 +1097,19 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     if (activeRelationTab === 'orders') {
       const type = String(activeEntity.type).toLowerCase();
       const isSupplier = type === 'supplier';
-      const actionType = isSupplier ? 'create_po' : 'create_so';
+      const targetType = isSupplier ? 'purchase_order' : 'sales_order';
       const label = isSupplier ? '+ New Purchase Order' : '+ New Sales Order';
 
       return (
         <Button
           type="primary"
           onClick={() => {
-            if (actionType === 'create_so' && type === 'customer') {
-              openInlineCreateSalesOrder();
+            if (onOpenInlineCreate) {
+              onOpenInlineCreate(targetType, activeEntity);
               return;
             }
 
+            const actionType = isSupplier ? 'create_po' : 'create_so';
             handleQuickAction({
               id: `action:${actionType}`,
               type: 'action',
@@ -1086,13 +1127,17 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     }
 
     if (activeRelationTab === 'inquiries') {
-      const type = String(activeEntity.type).toLowerCase();
-      const entityType = type === 'supplier' ? 'supplier' : 'customer';
-
       return (
         <Button
           type="primary"
           onClick={() => {
+            if (onOpenInlineCreate) {
+              onOpenInlineCreate('inquiry', activeEntity);
+              return;
+            }
+
+            const type = String(activeEntity.type).toLowerCase();
+            const entityType = type === 'supplier' ? 'supplier' : 'customer';
             navigate('/inquiries', {
               state: {
                 openCreateModal: true,
@@ -1108,7 +1153,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     }
 
     return null;
-  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity, navigate, openInlineCreateSalesOrder]);
+  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity, navigate, onOpenInlineCreate]);
 
   return (
     <Container>
@@ -1155,6 +1200,27 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           entityLabel={activeEntity?.name}
         />
 
+        {inlineAction && activeEntity && (
+          <div style={{ marginTop: 12 }}>
+            <QuickCreateModal
+              entityType={inlineAction.entityType}
+              isOpen={true}
+              inline={true}
+              initialValues={inlineAction.contextData}
+              onClose={() => onInlineCancel?.()}
+              onCreated={() => {
+                if (activeEntity) {
+                  if (activeRelationTab !== 'more') {
+                    void loadRelationshipTab(activeRelationTab, activeEntity);
+                  }
+                  void loadRelationalChunks(activeEntity);
+                }
+                onInlineSuccess?.();
+              }}
+            />
+          </div>
+        )}
+
         {isInlineCreateSalesOrderOpen && activeEntity && String(activeEntity.type).toLowerCase() === 'customer' && (
           <CreateOrderModal
             isOpen={true}
@@ -1166,7 +1232,10 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
         {activeStep ? (
           isPrimaryEntity ? (
-            <Tabs
+            inlineAction ? (
+              <div style={{ padding: 12 }} />
+            ) : (
+              <Tabs
               activeKey={activeRelationTab}
               tabBarExtraContent={
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1311,6 +1380,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 },
               ] as any[])}
             />
+          )
           ) : isRelationsLoading ? (
             <EmptyState>
               <EmptyIcon>

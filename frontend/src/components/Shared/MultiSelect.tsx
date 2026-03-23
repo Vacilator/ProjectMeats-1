@@ -55,10 +55,12 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
     const selectedOptions = Array.from(e.target.selectedOptions);
     const selectedValues = selectedOptions.map(option => option.value);
     
-    // Validation: Ensure we're sending proper array structure
-    console.debug('[MultiSelect] Selected values:', selectedValues);
-    console.debug('[MultiSelect] Type check:', Array.isArray(selectedValues), selectedValues.length);
-    
+    // Validation: Ensure we're sending proper array structure (dev-only)
+    if (import.meta.env.DEV) {
+      console.debug('[MultiSelect] Selected values:', selectedValues);
+      console.debug('[MultiSelect] Type check:', Array.isArray(selectedValues), selectedValues.length);
+    }
+
     onChange(selectedValues);
   };
 

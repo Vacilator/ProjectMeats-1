@@ -150,7 +150,7 @@ export const AIOverviewCard: React.FC<AIOverviewCardProps> = ({ entityType, enti
       }
 
       console.error('[AIOverviewCard] Failed to load AI overview:', err);
-      setState({ status: 'error', message: 'AI overview is temporarily unavailable' });
+      setState({ status: 'error', message: 'AI Summary temporarily unavailable.' });
     }
   }, [endpoint]);
 

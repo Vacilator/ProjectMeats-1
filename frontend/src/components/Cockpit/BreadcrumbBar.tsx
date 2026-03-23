@@ -88,31 +88,52 @@ const HomeButton = styled.button`
 // Component
 // ============================================================================
 
-export const BreadcrumbBar: React.FC = () => {
+type ExtraCrumb = {
+  label: string;
+};
+
+interface BreadcrumbBarProps {
+  extraCrumbs?: ExtraCrumb[];
+}
+
+export const BreadcrumbBar: React.FC<BreadcrumbBarProps> = ({ extraCrumbs = [] }) => {
   const { path, goToStep, clearPath } = useCockpitNavigation();
 
   if (path.length === 0) {
     return null;
   }
 
+  const fullPath = [...path, ...extraCrumbs.map((c, idx) => ({
+    id: `extra:${idx}`,
+    type: 'extra',
+    label: c.label,
+    timestamp: 0,
+  }))];
+
   return (
     <Container>
       <HomeButton onClick={clearPath} title="Clear path">
         <Home size={16} />
       </HomeButton>
-      
-      {path.map((step, index) => (
-        <React.Fragment key={`${step.type}-${step.id}-${step.timestamp}`}>
-          <Separator size={16} />
-          <Crumb
-            $isLast={index === path.length - 1}
-            onClick={() => index !== path.length - 1 && goToStep(index)}
-            disabled={index === path.length - 1}
-          >
-            <CrumbLabel>{step.label}</CrumbLabel>
-          </Crumb>
-        </React.Fragment>
-      ))}
+
+      {fullPath.map((step, index) => {
+        const isLast = index === fullPath.length - 1;
+        const isRealPathStep = index < path.length;
+        const isClickable = isRealPathStep && index !== path.length - 1;
+
+        return (
+          <React.Fragment key={`${step.type}-${step.id}-${step.timestamp}-${index}`}>
+            <Separator size={16} />
+            <Crumb
+              $isLast={isLast}
+              onClick={() => isClickable && goToStep(index)}
+              disabled={!isClickable}
+            >
+              <CrumbLabel>{step.label}</CrumbLabel>
+            </Crumb>
+          </React.Fragment>
+        );
+      })}
     </Container>
   );
 };
