@@ -163,18 +163,16 @@ class EmailIngestionService:
         # Format date for OData filter
         since_str = since.strftime('%Y-%m-%dT%H:%M:%SZ')
         
-        # Build filter for order-related emails
-        keyword_filters = [
-            f"contains(subject, '{keyword}')" for keyword in self.ORDER_KEYWORDS
-        ]
-        filter_query = f"receivedDateTime ge {since_str} and ({' or '.join(keyword_filters)} or hasAttachments eq true)"
+        # IMPORTANT: Microsoft Graph does not support complex contains() filters reliably across tenants.
+        # Filter by date only at the API level, then do keyword filtering locally in Python.
+        filter_query = f"receivedDateTime ge {since_str}"
         
         # Microsoft Graph API endpoint with filters
         url = f"{provider.GRAPH_API_BASE}/me/messages"
         params = {
             '$filter': filter_query,
             '$select': 'id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId',
-            '$top': 50,  # Limit to 50 most recent
+            '$top': 100,  # Fetch more and filter locally
             '$orderby': 'receivedDateTime desc'
         }
         
@@ -189,8 +187,21 @@ class EmailIngestionService:
             data = response.json()
             
             messages = data.get('value', [])
-            logger.info(f"Fetched {len(messages)} messages from inbox")
-            return messages
+
+            # Local Python filtering
+            filtered_messages = []
+            for msg in messages:
+                subject = msg.get('subject', '').lower()
+                has_attachments = msg.get('hasAttachments', False)
+
+                matches_keyword = any(keyword in subject for keyword in self.ORDER_KEYWORDS)
+                if matches_keyword or has_attachments:
+                    filtered_messages.append(msg)
+
+            logger.info(
+                f"Fetched {len(messages)} total, filtered down to {len(filtered_messages)} order-related messages"
+            )
+            return filtered_messages
             
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to fetch inbox messages: {str(e)}")

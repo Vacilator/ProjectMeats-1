@@ -67,6 +67,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-23 — Cockpit: Preferred/Active Products sections (editable, searchable multi-select) + “New Inquiry/PO/SO” CTAs open full create forms — PR: #3847.
 - 2026-03-23 — V3 Phase 1 DRY Purge: UniversalEntityForm replaces legacy Create* modals (CreateOrder/CreateClaim/CreateInquiry removed) — PR: #3850.
 - 2026-03-23 — Quick Create Context Hydration & Foreign Key ORM fix (400 Bad Request resolution) — PR: #3854.
+- 2026-03-23 — Fixed Microsoft Graph OData 400 error (Migrated to Python-level subject filtering) & hardened UX — PR: #3855.
 
 - 2026-03-22T16:39:58Z — EMERGENCY ROLLBACK: Reverted Workform Container UI to stable Friday baseline due to UX degradation.
 
