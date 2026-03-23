@@ -1,5 +1,5 @@
 /**
- * Customer Products Management Page
+ * Customer Preferred Products Management Page
  * 
  * Features:
  * - Display products associated with a specific customer
@@ -317,9 +317,9 @@ const CustomerProducts: React.FC = () => {
     <PageContainer>
       <PageHeader>
         <TitleSection>
-          <PageTitle>Customer Products</PageTitle>
+          <PageTitle>Preferred Products</PageTitle>
           <PageSubtitle>
-            Products associated with {customer?.name || 'this customer'}
+            Preferred products for {customer?.name || 'this customer'}
           </PageSubtitle>
         </TitleSection>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/customers')}>

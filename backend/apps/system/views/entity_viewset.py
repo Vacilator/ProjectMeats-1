@@ -724,6 +724,19 @@ class EntityViewSet(viewsets.ViewSet):
             metadata = {
                 "labels": EntityLabels.get_labels(entity, entity_type),
             }
+
+            # Customer Preferred Products (system.Product) — used by Cockpit EntityProfileHeader
+            # Keep payload intentionally small (names/codes only) to avoid heavy M2M serialization.
+            if entity_type == 'customer' and hasattr(entity, 'products'):
+                try:
+                    preferred = list(
+                        entity.products.filter(is_active=True)
+                        .order_by('product_code')
+                        .values('id', 'product_code', 'name')[:50]
+                    )
+                    metadata['preferred_products'] = preferred
+                except Exception:
+                    metadata['preferred_products'] = []
             
             # Add last activity timestamp
             if hasattr(entity, 'modified_on'):

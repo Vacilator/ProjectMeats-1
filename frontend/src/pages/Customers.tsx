@@ -342,8 +342,8 @@ const Customers: React.FC = () => {
                     value={formData.products}
                     onChange={(values) => setFormData({ ...formData, products: values })}
                     options={products.map(p => ({ value: p.id, label: `${p.product_code}${p.name ? ' - ' + p.name : ''}` }))}
-                    label="Products"
-                    placeholder="Select products to associate (hold Ctrl/Cmd for multiple)"
+                    label="Preferred Products"
+                    placeholder="Select preferred products (hold Ctrl/Cmd for multiple)"
                   />
                   {formData.preferred_protein_types.length > 0 && (
                     <HelperText $theme={theme}>
