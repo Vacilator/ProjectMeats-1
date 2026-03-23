@@ -161,11 +161,12 @@ class SupplierViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path='products')
     def products(self, request, pk=None):
         """
-        List all products associated with this supplier.
-        
+        List all available items (active and inactive) associated with this supplier.
+
         GET /api/v1/suppliers/{id}/products/
-        
-        Returns products that have this supplier in their M2M relationship.
+
+        Returns all SupplierAvailableItems regardless of is_active status.
+        Use the is_active field in the response to filter on the client if needed.
         Respects tenant isolation.
         """
         from tenant_apps.suppliers.serializers import SupplierAvailableItemSerializer

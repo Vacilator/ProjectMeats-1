@@ -4,6 +4,11 @@ Migration: Switch SupplierAvailableItem.master_product → product (system.Produ
 Removes the FK to products.MasterProduct and adds a FK to system.Product,
 which is the single source of truth for the product catalog.
 The existing RLS policy on tenant_id remains valid and is unchanged.
+
+NOTE: The new `product` FK is non-nullable. This migration assumes the
+`suppliers_supplieravailableitem` table is empty at the time of migration
+(the model was introduced in 0013 with no prior production data path).
+If the table has rows, a data-migration step will be needed first.
 """
 import django.db.models.deletion
 from django.db import migrations, models

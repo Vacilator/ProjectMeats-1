@@ -1,12 +1,8 @@
 /**
- * Customer Products Management Page
+ * Plant Available Products Management Page
  * 
- * Features:
- * - Display products associated with a specific customer
- * - Table layout with sorting, pagination, and search
- * - Add/remove product associations via system product catalog
- * - Theme-compliant styling with antd Table
- * - Multi-tenancy support
+ * Manages the list of system products available at a specific plant.
+ * Uses PlantAssociatedProduct model (plant + system.Product).
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
@@ -16,7 +12,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
 
-interface Product {
+interface SystemProduct {
   id: string;
   product_code: string;
   name: string;
@@ -26,18 +22,12 @@ interface Product {
   is_active?: boolean;
 }
 
-interface SystemProduct {
-  id: string;
-  product_code: string;
-  name: string;
-  protein_type?: string;
-  category?: string;
-  is_active?: boolean;
-}
-
-interface Customer {
+interface Plant {
   id: number;
   name: string;
+  code: string;
+  supplier?: number;
+  supplier_name?: string;
 }
 
 const PageContainer = styled.div`
@@ -126,15 +116,15 @@ const LoadingContainer = styled.div`
   height: 300px;
 `;
 
-const CustomerProducts: React.FC = () => {
+const PlantProducts: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<SystemProduct[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState<string>('');
-  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [plant, setPlant] = useState<Plant | null>(null);
 
   // Add modal state
   const [addModalVisible, setAddModalVisible] = useState<boolean>(false);
@@ -145,10 +135,10 @@ const CustomerProducts: React.FC = () => {
   const [addingProducts, setAddingProducts] = useState<boolean>(false);
 
   useEffect(() => {
-    if (location.state?.customer) {
-      setCustomer(location.state.customer);
+    if (location.state?.plant) {
+      setPlant(location.state.plant);
     } else if (id) {
-      fetchCustomer();
+      fetchPlant();
     }
   }, [id, location.state]);
 
@@ -156,14 +146,14 @@ const CustomerProducts: React.FC = () => {
     if (id) fetchProducts();
   }, [id]);
 
-  const fetchCustomer = async () => {
+  const fetchPlant = async () => {
     if (!id) return;
     try {
-      const response = await apiClient.get(`/customers/${id}/`);
-      setCustomer(response.data);
+      const response = await apiClient.get(`/plants/${id}/`);
+      setPlant(response.data);
     } catch (error) {
-      console.error('Error fetching customer:', error);
-      message.error('Failed to load customer details');
+      console.error('Error fetching plant:', error);
+      message.error('Failed to load plant details');
     }
   };
 
@@ -171,11 +161,11 @@ const CustomerProducts: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const response = await apiClient.get(`/customers/${id}/products/`);
+      const response = await apiClient.get(`/plants/${id}/available-products/`);
       setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching products:', error);
-      message.error('Failed to load products');
+      console.error('Error fetching plant products:', error);
+      message.error('Failed to load plant products');
     } finally {
       setLoading(false);
     }
@@ -211,9 +201,11 @@ const CustomerProducts: React.FC = () => {
     }
     setAddingProducts(true);
     try {
-      const currentIds = products.map(p => p.id);
-      const mergedIds = [...new Set([...currentIds, ...selectedProductIds])];
-      await apiClient.patch(`/customers/${id}/`, { products: mergedIds });
+      await Promise.all(
+        selectedProductIds.map(productId =>
+          apiClient.post(`/plants/${id}/available-products/`, { product: productId })
+        )
+      );
       message.success(`Added ${selectedProductIds.length} product(s) successfully`);
       setAddModalVisible(false);
       setSelectedProductIds([]);
@@ -228,40 +220,39 @@ const CustomerProducts: React.FC = () => {
 
   const handleRemoveProduct = async (productId: string) => {
     Modal.confirm({
-      title: 'Remove Product Association',
-      content: 'Are you sure you want to remove this product from this customer?',
+      title: 'Remove Product',
+      content: "Remove this product from the plant's available products?",
       okText: 'Remove',
       okType: 'danger',
       onOk: async () => {
         try {
-          await apiClient.patch(`/customers/${id}/`, {
-            products: products.filter(p => p.id !== productId).map(p => p.id),
-          });
-          message.success('Product association removed successfully');
+          await apiClient.delete(`/plants/${id}/available-products/${productId}/`);
+          message.success('Product removed successfully');
           fetchProducts();
         } catch (error) {
           console.error('Error removing product:', error);
-          message.error('Failed to remove product association');
+          message.error('Failed to remove product');
         }
       },
     });
   };
 
-  const columns: ColumnsType<Product> = [
+  const filteredProducts = products.filter(p => {
+    if (!searchText) return true;
+    const s = searchText.toLowerCase();
+    return (
+      (p.product_code || '').toLowerCase().includes(s) ||
+      (p.name || '').toLowerCase().includes(s) ||
+      (p.protein_type || '').toLowerCase().includes(s)
+    );
+  });
+
+  const columns: ColumnsType<SystemProduct> = [
     {
       title: 'Product Code',
       dataIndex: 'product_code',
       key: 'product_code',
       sorter: (a, b) => a.product_code.localeCompare(b.product_code),
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value, record) => {
-        const search = value.toString().toLowerCase();
-        return (
-          record.product_code.toLowerCase().includes(search) ||
-          (record.name || '').toLowerCase().includes(search) ||
-          (record.description || '').toLowerCase().includes(search)
-        );
-      },
     },
     {
       title: 'Name',
@@ -286,8 +277,8 @@ const CustomerProducts: React.FC = () => {
       dataIndex: 'is_active',
       key: 'status',
       render: (isActive: boolean) => (
-        <Tag color={isActive ? 'green' : 'red'}>
-          {isActive ? 'Active' : 'Inactive'}
+        <Tag color={isActive !== false ? 'green' : 'red'}>
+          {isActive !== false ? 'Active' : 'Inactive'}
         </Tag>
       ),
     },
@@ -316,25 +307,26 @@ const CustomerProducts: React.FC = () => {
     <PageContainer>
       <PageHeader>
         <TitleSection>
-          <PageTitle>Customer Products</PageTitle>
+          <PageTitle>Plant Available Products</PageTitle>
           <PageSubtitle>
-            Products associated with {customer?.name || 'this customer'}
+            Products available at {plant ? `${plant.name} (${plant.code})` : 'this plant'}
           </PageSubtitle>
         </TitleSection>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/customers')}>
-          Back to Customers
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/suppliers/plants')}>
+          Back to Plants
         </Button>
       </PageHeader>
 
-      {customer && (
+      {plant && (
         <ContextBanner>
-          Viewing products for: <span>{customer.name}</span>
+          Viewing available products for plant: <span>{plant.name} ({plant.code})</span>
+          {plant.supplier_name && <> — Supplier: <span>{plant.supplier_name}</span></>}
         </ContextBanner>
       )}
 
       <SearchSection>
         <Input
-          placeholder="Search by product code, name, or description..."
+          placeholder="Search by product code, name, or protein type..."
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -353,22 +345,18 @@ const CustomerProducts: React.FC = () => {
       <ContentCard>
         {loading ? (
           <LoadingContainer><Spin size="large" /></LoadingContainer>
-        ) : products.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <EmptyState>
-            <h3>No Products Associated</h3>
-            <p>This customer doesn't have any products associated yet.</p>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => { setAddModalVisible(true); fetchSystemProducts(); }}
-            >
+            <h3>No Available Products</h3>
+            <p>This plant doesn't have any available products listed yet.</p>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setAddModalVisible(true); fetchSystemProducts(); }}>
               Add Products
             </Button>
           </EmptyState>
         ) : (
           <Table
             columns={columns}
-            dataSource={products}
+            dataSource={filteredProducts}
             rowKey="id"
             pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Total ${total} products` }}
             scroll={{ x: 900 }}
@@ -377,7 +365,7 @@ const CustomerProducts: React.FC = () => {
       </ContentCard>
 
       <Modal
-        title="Add Products to Customer"
+        title="Add Products to Plant"
         open={addModalVisible}
         onOk={handleAddProducts}
         onCancel={() => { setAddModalVisible(false); setSelectedProductIds([]); setProductSearchText(''); }}
@@ -389,10 +377,7 @@ const CustomerProducts: React.FC = () => {
           placeholder="Search products..."
           prefix={<SearchOutlined />}
           value={productSearchText}
-          onChange={(e) => {
-            setProductSearchText(e.target.value);
-            debouncedFetchSystemProducts(e.target.value);
-          }}
+          onChange={(e) => { setProductSearchText(e.target.value); debouncedFetchSystemProducts(e.target.value); }}
           style={{ marginBottom: 16 }}
           allowClear
         />
@@ -418,4 +403,4 @@ const CustomerProducts: React.FC = () => {
   );
 };
 
-export default CustomerProducts;
+export default PlantProducts;
