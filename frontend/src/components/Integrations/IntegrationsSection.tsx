@@ -40,14 +40,23 @@ export const IntegrationsSection: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const success = params.get('success');
     const error = params.get('error');
+    const provider = params.get('provider');
 
     if (success === 'connected') {
-      toast.success('Email account connected successfully!');
+      if (provider === 'microsoft') {
+        toast.success('Outlook Connected!');
+      } else {
+        toast.success('Email account connected successfully!');
+      }
       window.history.replaceState({}, '', window.location.pathname);
       loadConnections();
     } else if (error) {
       const message = params.get('message') || error;
-      toast.error(`Connection failed: ${message}`);
+      if (provider === 'microsoft') {
+        toast.error(`Outlook connection failed: ${message}`);
+      } else {
+        toast.error(`Connection failed: ${message}`);
+      }
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [loadConnections]);
