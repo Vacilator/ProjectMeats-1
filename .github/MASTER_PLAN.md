@@ -877,7 +877,7 @@ Deliverables:
 - [x] Dual-direction auto-layout:
   - [x] autoLayout.getLayoutedElements: root graph laid out Top-to-Bottom (TB) while container children lay out Left-to-Right (LR) and containers auto-resize to fit.
 
-- PR: TBD (refactor/workforms): overhaul canvas UX, dual-direction auto-layout, and fix handle targets
+- PR: #3616 (refactor/workforms): overhaul canvas UX, dual-direction auto-layout, and fix handle targets
 
 ## Phase 9.7: Preemptive Hardening & State Sync
 
@@ -895,7 +895,7 @@ Deliverables:
   - [x] UnifiedFlowEditor: deletes clean up edges for deleted nodes and all descendants (container deletes).
   - [x] NodeContextMenu prefers centralized delete logic (with a safe fallback).
 
-- PR: TBD (refactor/workforms): Phase 9.7 hardening & state sync
+- PR: #3617 (refactor/workforms): Phase 9.7 hardening & state sync
 
 
 
