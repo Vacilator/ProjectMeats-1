@@ -5,6 +5,8 @@ import EntityFieldPicker, { type SelectedField } from '../EntityFieldPicker';
 import { useEntityList } from '../../../../services/schemaService';
 import { useUpstreamVariables } from '../../hooks/useUpstreamVariables';
 
+import styled from 'styled-components';
+
 import {
   FormField,
   Label,
@@ -13,6 +15,8 @@ import {
   TextArea,
   Select,
   HelpText,
+  PrimaryButton,
+  SecondaryButton,
 } from '../shared/StyledComponents';
 
 export interface FormNodeConfigProps {
@@ -20,6 +24,12 @@ export interface FormNodeConfigProps {
   nodes: Node[];
   edges: Edge[];
   onUpdateNode: (nodeId: string, data: Record<string, any>) => void;
+  /** Commit staged changes so the canvas immediately reflects added fields */
+  onApply?: () => void;
+  /** Discard staged changes */
+  onDiscard?: () => void;
+  /** Whether there are staged changes */
+  isDirty?: boolean;
 }
 
 /**
@@ -28,11 +38,26 @@ export interface FormNodeConfigProps {
  * Rationale: entityType → field cascade is core workflow behavior and must not
  * depend on schema formatting or conditional-render fragility.
  */
+const FooterBar = styled.div`
+  position: sticky;
+  bottom: 0;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+`;
+
 export const FormNodeConfig: React.FC<FormNodeConfigProps> = ({
   node,
   nodes,
   edges,
   onUpdateNode,
+  onApply,
+  onDiscard,
+  isDirty,
 }) => {
   const [formData, setFormData] = useState<Record<string, any>>(node.data || {});
 
@@ -120,7 +145,19 @@ export const FormNodeConfig: React.FC<FormNodeConfigProps> = ({
           hideEntitySelector
           multiSelectMode
         />
+        <HelpText style={{ marginTop: 8 }}>
+          After adding fields, click <strong>Apply Changes</strong> to update the canvas preview.
+        </HelpText>
       </FormField>
+
+      <FooterBar>
+        <SecondaryButton onClick={() => onDiscard?.()} disabled={!isDirty}>
+          Discard
+        </SecondaryButton>
+        <PrimaryButton onClick={() => onApply?.()} disabled={!isDirty}>
+          Apply Changes
+        </PrimaryButton>
+      </FooterBar>
     </>
   );
 };
