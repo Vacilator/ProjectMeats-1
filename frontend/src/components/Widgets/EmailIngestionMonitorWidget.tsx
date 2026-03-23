@@ -9,6 +9,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { message } from 'antd';
 import { Mail, RefreshCw, CheckCircle, AlertCircle, Clock, Zap } from 'lucide-react';
 import { businessApi } from '../../services/businessApi';
 
@@ -268,18 +269,57 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
    */
   const handleSyncNow = async () => {
     const tenantId = getTenantId();
-    if (!tenantId) return;
+    if (!tenantId) {
+      message.error('Tenant context missing. Please re-login or re-select your tenant.');
+      return;
+    }
 
     setSyncing(true);
     try {
-      await businessApi.post(`/integrations/email/sync/`);
-      
+      // Backward compatible: prefer tenant-scoped route if present, fall back to canonical.
+      const urls = [`/tenants/${tenantId}/integrations/email/sync/`, `/integrations/email/sync/`];
+      let response: any = null;
+      let lastErr: any = null;
+
+      for (const url of urls) {
+        try {
+          response = await businessApi.post(url);
+          break;
+        } catch (err: any) {
+          lastErr = err;
+          if (err?.response?.status === 404 && url.startsWith('/tenants/')) {
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (!response) throw lastErr;
+
+      const stats = response.data?.stats;
+
+      if (stats) {
+        const emailsSaved = Number(stats.emails_saved ?? 0);
+        const emailsFetched = Number(stats.emails_fetched ?? 0);
+
+        if (emailsSaved > 0) {
+          message.success(`Sync complete: ${emailsSaved} new emails ingested.`);
+        } else if (emailsFetched === 0) {
+          message.info('Sync complete: No new order-related emails found in the last 7 days.');
+        } else {
+          message.success(`Sync complete: ${emailsFetched} emails checked, no new ones to save.`);
+        }
+      } else {
+        message.success('Email sync completed.');
+      }
+
       // Refresh logs after 2 seconds
       setTimeout(() => {
         fetchEmailLogs();
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to trigger sync:', error);
+      message.error(error?.response?.data?.error || 'Failed to start email sync');
     } finally {
       setSyncing(false);
     }
@@ -335,7 +375,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
         ) : emails.length === 0 ? (
           <EmptyState>
             <Mail />
-            <p>No emails ingested yet</p>
+            <p>No order-related emails found in the last 7 days.</p>
             <p style={{ marginTop: '4px', fontSize: '10px' }}>
               Click "Sync" to fetch order-related emails
             </p>
