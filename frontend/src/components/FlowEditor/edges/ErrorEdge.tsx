@@ -161,6 +161,7 @@ export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
         id={id}
         className="react-flow__edge-path"
         d={edgePath}
+        fill="none"
         style={edgeStyle}
         markerEnd={`url(#warning-${id})`}
       />

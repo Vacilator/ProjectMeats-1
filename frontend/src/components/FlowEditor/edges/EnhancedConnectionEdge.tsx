@@ -466,6 +466,7 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
         {/* Invisible thick hitbox under the visible edge to stabilize hover/interaction */}
         <path
           d={edgePath}
+          fill="none"
           style={{ stroke: 'transparent', strokeWidth: 44, strokeOpacity: 0 }}
           pointerEvents="stroke"
           onMouseEnter={setHoverOn}
@@ -478,6 +479,7 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
           path={edgePath}
           markerEnd={markerEnd}
           style={{
+            fill: 'none',
             stroke: edgeColor,
             strokeWidth,
             transition: 'all 0.2s ease',

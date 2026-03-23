@@ -18,24 +18,28 @@ import { logger } from '@/utils/logger';
 // ============================================================================
 
 export const LAYOUT_CONSTANTS = {
-  // Horizontal layout for form steps
-  START_X: 50,           // Starting x position for first form step
-  STEP_SPACING: 350,     // Horizontal spacing between form steps
-  STEP_Y: 80,            // Y position for form step row
+  // Step layout (FormProcess: vertical stack; others may still use horizontal)
+  START_X: 50,
+  STEP_SPACING: 350,
+  STEP_Y: 80,
 
   // Fixed dimensions for Form Step nodes (keeps steps inside parent bounds)
   STEP_W: 320,
   STEP_H: 320,
 
   // Vertical layout for action nodes
-  ACTION_OFFSET_Y: 180,  // Vertical offset below form step
-  ACTION_SPACING_Y: 120, // Spacing between stacked actions
+  ACTION_OFFSET_Y: 180,
+  ACTION_SPACING_Y: 120,
 
   // Container padding
   CONTAINER_PADDING_X: 20,
   CONTAINER_PADDING_Y: 20,
 
-  // Node dimensions (for calculating container size)
+  // Virtual "+" add button (render-time, not persisted)
+  ADD_BUTTON_D: 56,
+  ADD_BUTTON_MARGIN_Y: 24,
+
+  // Fallback node dimensions (for calculating container size)
   DEFAULT_NODE_WIDTH: 320,
   DEFAULT_NODE_HEIGHT: 320,
 } as const;
@@ -106,15 +110,27 @@ export function calculateContainerLayout(
   
   logger.debug(`[Layout] Found \${formSteps.length} form steps, \${otherNodes.length} non-form child nodes`);
   
-  // Sort form steps by current x-position to preserve rough order
-  formSteps.sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
-  
-  // Update form steps with horizontal layout
+  const layoutDirection: 'vertical' | 'horizontal' = enforceStrictPages ? 'vertical' : 'horizontal';
+
+  // Preserve rough order based on the axis that matters for the container
+  formSteps.sort((a, b) => {
+    const ax = layoutDirection === 'vertical' ? (a.position?.y || 0) : (a.position?.x || 0);
+    const bx = layoutDirection === 'vertical' ? (b.position?.y || 0) : (b.position?.x || 0);
+    return ax - bx;
+  });
+
+  // Update form steps with container layout
   const updatedFormSteps = formSteps.map((step, index) => {
-    const newPosition: NodePosition = {
-      x: LAYOUT_CONSTANTS.START_X + index * LAYOUT_CONSTANTS.STEP_SPACING,
-      y: LAYOUT_CONSTANTS.STEP_Y,
-    };
+    const newPosition: NodePosition =
+      layoutDirection === 'vertical'
+        ? {
+            x: LAYOUT_CONSTANTS.START_X,
+            y: LAYOUT_CONSTANTS.STEP_Y + index * LAYOUT_CONSTANTS.STEP_SPACING,
+          }
+        : {
+            x: LAYOUT_CONSTANTS.START_X + index * LAYOUT_CONSTANTS.STEP_SPACING,
+            y: LAYOUT_CONSTANTS.STEP_Y,
+          };
 
     logger.debug(`[Layout] Form step \${step.id} positioned at (\${newPosition.x}, \${newPosition.y})`);
 
@@ -132,7 +148,7 @@ export function calculateContainerLayout(
         : step.style,
       data: {
         ...step.data,
-        order: index, // Store order for future reordering
+        order: index,
       },
     };
   });
@@ -140,18 +156,26 @@ export function calculateContainerLayout(
   // Book+Pages: only reposition form steps; leave other child nodes unchanged
   const updatedChildNodes = [...updatedFormSteps, ...otherNodes];
   
-  // Calculate required container dimensions
+  const getNodeSize = (n: Node) => {
+    const styleAny = (n.style || {}) as any;
+    const width = styleAny.width ?? (n as any).width ?? LAYOUT_CONSTANTS.DEFAULT_NODE_WIDTH;
+    const height = styleAny.height ?? (n as any).height ?? LAYOUT_CONSTANTS.DEFAULT_NODE_HEIGHT;
+    return { width: Number(width) || LAYOUT_CONSTANTS.DEFAULT_NODE_WIDTH, height: Number(height) || LAYOUT_CONSTANTS.DEFAULT_NODE_HEIGHT };
+  };
+
+  // Calculate required container dimensions (respect explicit style widths/heights when present)
   const maxX = Math.max(
-    ...updatedChildNodes.map(n => n.position.x + LAYOUT_CONSTANTS.DEFAULT_NODE_WIDTH),
+    ...updatedChildNodes.map((n) => n.position.x + getNodeSize(n).width),
     400 // Minimum width
   );
   const maxY = Math.max(
-    ...updatedChildNodes.map(n => n.position.y + LAYOUT_CONSTANTS.DEFAULT_NODE_HEIGHT),
+    ...updatedChildNodes.map((n) => n.position.y + getNodeSize(n).height),
     300 // Minimum height
   );
-  
+
   const containerWidth = maxX + LAYOUT_CONSTANTS.CONTAINER_PADDING_X;
-  const containerHeight = maxY + LAYOUT_CONSTANTS.CONTAINER_PADDING_Y;
+  const extraBottom = enforceStrictPages ? LAYOUT_CONSTANTS.ADD_BUTTON_D + LAYOUT_CONSTANTS.ADD_BUTTON_MARGIN_Y : 0;
+  const containerHeight = maxY + LAYOUT_CONSTANTS.CONTAINER_PADDING_Y + extraBottom;
   
   logger.debug(`[Layout] Calculated container dimensions: \${containerWidth}x\${containerHeight}`);
   
@@ -203,16 +227,30 @@ export function autoConnectSequentialSteps(
 ): ConnectionResult {
   logger.debug(`[AutoConnect] Creating sequential connections for container ${containerId}`);
   
+  const containerNode = allNodes.find((n) => n.id === containerId);
+  const containerType = ((containerNode?.data as any)?.nodeType as string | undefined) || containerNode?.type;
+  const enforceStrictPages = !!containerType &&
+    (containerType === 'formProcessGroup' ||
+      containerType === 'formProcess' ||
+      containerType === 'formMultiStepContainer' ||
+      containerType === 'formBook');
+
   // Filter child nodes (using parentId - React Flow v11+)
-  const childNodes = allNodes.filter(node => node.parentId === containerId);
-  
-  // Get only form steps and sort by x-position (left-to-right)
+  const childNodes = allNodes.filter((node) => node.parentId === containerId);
+
+  // Get only form steps and sort by the container axis
   const isPageNodeType = (type?: string) =>
     type === 'form' || type === 'formReference' || type === 'formStepSingle' || type === 'formStep';
 
+  const layoutDirection: 'vertical' | 'horizontal' = enforceStrictPages ? 'vertical' : 'horizontal';
+
   const formSteps = childNodes
     .filter((node) => isPageNodeType(node.type))
-    .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
+    .sort((a, b) =>
+      layoutDirection === 'vertical'
+        ? (a.position?.y || 0) - (b.position?.y || 0)
+        : (a.position?.x || 0) - (b.position?.x || 0)
+    );
   
   logger.debug(`[AutoConnect] Found ${formSteps.length} form steps to connect`);
   
