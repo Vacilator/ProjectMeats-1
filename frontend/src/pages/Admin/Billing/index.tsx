@@ -13,7 +13,7 @@ const BillingPage: React.FC = () => {
         <EmptyState
           icon="💳"
           title="Billing coming soon"
-          message="This area will allow tenant owners to manage subscriptions, payment methods, and invoices."
+          message="This area will allow tenant owners and admins to manage subscriptions, payment methods, and invoices."
         />
       </AdminGuard>
     </AdminPage>

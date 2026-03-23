@@ -313,7 +313,7 @@ class TenantViewSet(viewsets.ModelViewSet):
                 'can_invite_users': True,
                 'can_change_roles': True,
                 'can_manage_profile': True,
-                'can_manage_billing': False,  # Only owners can manage billing
+                'can_manage_billing': True,
                 'can_manage_configurations': True,
                 'can_manage_customizations': True,
                 'can_view_audit_logs': True,
