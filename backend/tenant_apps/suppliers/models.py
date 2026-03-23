@@ -288,7 +288,7 @@ class SupplierAvailableItem(TenantAwareModel):
         ]
         indexes = [
             models.Index(fields=['tenant', 'supplier']),
-            models.Index(fields=['tenant', 'product'], name='suppliers_s_tenant__product_idx'),
+            models.Index(fields=['tenant', 'product'], name='sup_av_tenant_prod_idx'),
         ]
 
     def __str__(self):
