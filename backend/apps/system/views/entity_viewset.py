@@ -15,6 +15,8 @@ from rest_framework.exceptions import PermissionDenied
 from django.apps import apps
 from django.core.exceptions import ObjectDoesNotExist
 
+from django.conf import settings
+
 
 class EntityViewSet(viewsets.ViewSet):
     """Unified entity relationship API for the Cockpit.
@@ -134,6 +136,90 @@ class EntityViewSet(viewsets.ViewSet):
 
         can_edit = bool(getattr(request.user, 'is_staff', False) or getattr(request.user, 'is_superuser', False))
         return Response(self._serialize_entity_detail(entity, entity_type, can_edit=can_edit))
+
+    @action(detail=True, methods=['get'], url_path='summary')
+    def summary(self, request, type=None, pk=None):
+        """AI-generated summary of the entity status + next steps."""
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            entity, entity_type, Model = self._get_entity_or_404(request, type=type, pk=pk)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except LookupError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except ObjectDoesNotExist:
+            return Response({'error': 'Entity not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        recent_activities = []
+        try:
+            # Cockpit ActivityLog is the universal tenant-aware notes feed.
+            from tenant_apps.cockpit.models import ActivityLog as CockpitActivityLog
+
+            entity_id_int = int(pk)
+            qs = (
+                CockpitActivityLog.objects.filter(
+                    tenant=tenant,
+                    entity_type=entity_type,
+                    entity_id=entity_id_int,
+                )
+                .select_related('created_by')
+                .order_by('-created_on')
+            )
+            for row in qs[:5]:
+                recent_activities.append(
+                    {
+                        'created_on': getattr(row, 'created_on', None),
+                        'title': row.title,
+                        'content': row.content,
+                        'created_by': getattr(getattr(row, 'created_by', None), 'username', None),
+                    }
+                )
+        except Exception:
+            # Best-effort: summary should still work without activity logs.
+            recent_activities = []
+
+        entity_payload = self._serialize_entity_detail(entity, entity_type, can_edit=False)
+
+        openai_api_key = getattr(settings, 'OPENAI_API_KEY', None)
+        if not openai_api_key:
+            return Response(
+                {
+                    'summary': (
+                        f"Summary unavailable (OpenAI not configured). "
+                        f"Entity: {entity_payload.get('title') or entity_payload.get('name') or entity_type}"
+                    )
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        try:
+            from openai import OpenAI
+
+            client = OpenAI(api_key=openai_api_key)
+            prompt_data = {
+                'entity': entity_payload,
+                'recent_activities': recent_activities,
+            }
+            completion = client.chat.completions.create(
+                model='gpt-4o-mini',
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': (
+                            'Summarize the current status and next steps for this entity based on this data: '
+                            f'{prompt_data}.\n\nReturn exactly 3 sentences.'
+                        ),
+                    }
+                ],
+            )
+            result_text = ((completion.choices[0].message.content or '') if completion.choices else '').strip()
+        except Exception as e:
+            return Response({'error': f'Failed to generate summary: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({'summary': result_text}, status=status.HTTP_200_OK)
 
     def partial_update(self, request, pk=None, type=None):
         """Inline editing endpoint used by Cockpit EntityProfileHeader.
