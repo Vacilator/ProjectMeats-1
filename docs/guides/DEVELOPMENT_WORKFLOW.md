@@ -297,7 +297,7 @@ python manage.py test apps/ --verbosity=2
 
 **Job:** `migrate` (in `reusable-deploy.yml`)
 
-**Environment:** `dev-backend` / `uat2-backend` / `prod2-backend`
+**Environment:** `dev-backend` / `uat-backend` / `production-backend`
 
 **Execution Method:** SSH to backend server (database firewall restricts access to deployment servers only)
 
@@ -343,7 +343,7 @@ MIGRATE
 
 **Job:** `deploy-backend` (in `reusable-deploy.yml`)
 
-**Environment:** `dev-backend` / `uat2-backend` / `prod2-backend`
+**Environment:** `dev-backend` / `uat-backend` / `production-backend`
 
 **Process:**
 1. **SSH to Backend Server**
@@ -391,7 +391,7 @@ LOG_LEVEL=INFO
 
 **Job:** `deploy-frontend` (in `reusable-deploy.yml`)
 
-**Environment:** `dev-frontend` / `uat2-frontend` / `prod2-frontend`
+**Environment:** `dev-frontend` / `uat-frontend` / `production-frontend`
 
 **Dependency:** Waits for `deploy-backend` to succeed
 

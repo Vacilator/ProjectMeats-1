@@ -30,8 +30,8 @@
 ProjectMeats uses a **manifest-based configuration system** to eliminate secret drift and ensure consistency across all environments.
 
 ### Core Principles
-1. **Single Source of Truth**: `config/env.manifest.json` defines ALL environment variables and their GitHub Secret mappings
-2. **Environment-Aware**: Secrets can be scoped globally (repository-level) or per-environment (e.g., `dev-backend`, `uat2`)
+1. **Single Source of Truth**: `manifests/env.manifest.json` defines ALL environment variables and their GitHub Secret mappings
+2. **Environment-Aware**: Secrets can be scoped globally (repository-level) or per-environment (e.g., `dev-backend`, `uat-frontend`)
 3. **Audit-First**: Run `python config/manage_env.py audit` before any deployment or secret changes
 4. **No Guessing**: Never assume secret names - always reference the manifest
 
@@ -64,10 +64,10 @@ This file defines:
 ```json
 {
   "project": "ProjectMeats",
-  "version": "3.3",
+  "version": "5.x",
   "environments": {
-    "dev-backend": { "type": "backend", "prefix": "DEV" },
-    "uat2": { "type": "frontend", "prefix": "STAGING" }
+    "dev-backend": { "type": "backend" },
+    "uat-frontend": { "type": "frontend" }
   },
   "variables": {
     "infrastructure": { /* SSH, host configs */ },
@@ -100,7 +100,7 @@ jobs:
       - run: sshpass -e ssh ${{ secrets.SSH_PASSWORD }} ...
   
   deploy-prod:
-    environment: prod2-backend  # GitHub injects prod's SSH_PASSWORD
+    environment: production-backend  # GitHub injects prod's SSH_PASSWORD
     steps:
       - run: sshpass -e ssh ${{ secrets.SSH_PASSWORD }} ...
 ```
@@ -186,7 +186,7 @@ Secrets exist at **two levels**:
 - Example: `DO_ACCESS_TOKEN`, `GITHUB_TOKEN`
 
 #### 2. Environment Secrets
-- Scoped to specific GitHub Environments (e.g., `dev-backend`, `uat2`)
+- Scoped to specific GitHub Environments (e.g., `dev-backend`, `uat-backend`)
 - Use for: Environment-specific configs (DB credentials, SSH passwords)
 - Example: `DEV_DB_HOST` in `dev-backend` environment
 
@@ -211,7 +211,7 @@ Most secrets follow a pattern defined in the manifest:
 ```
 
 For `dev-backend` (prefix=DEV): → `DEV_DB_HOST`  
-For `uat2-backend` (prefix=UAT): → `UAT_DB_HOST`
+For `uat-backend` (prefix=UAT): → `UAT_DB_HOST`
 
 #### Explicit Mapping
 Some secrets have explicit overrides:
@@ -219,7 +219,7 @@ Some secrets have explicit overrides:
 "BASTION_HOST": {
   "ci_secret_mapping": {
     "dev-backend": "DEV_HOST",
-    "uat2": "STAGING_HOST"
+    "uat-backend": "UAT_HOST"
   }
 }
 ```
@@ -262,12 +262,12 @@ Scanning Environment: dev-backend...
 
 #### ❌ Missing Secrets
 ```
-Scanning Environment: uat2...
+Scanning Environment: uat-backend...
   ❌ MISSING:
      - BASTION_HOST -> STAGING_HOST
      - BASTION_USER -> STAGING_USER
 ```
-**Action Required**: Add the missing secrets to the `uat2` GitHub Environment
+**Action Required**: Add the missing secrets to the `uat-backend` GitHub Environment
 
 ### Running Before Deployment
 **ALWAYS** run the audit before:
@@ -280,61 +280,11 @@ Scanning Environment: uat2...
 
 ## Legacy Exceptions
 
-### UAT Frontend Naming (`uat2` vs `uat2-frontend`)
+Legacy environment naming (`uat2`, `prod2`, etc.) existed in earlier manifest versions. The current v5 manifest standardizes on:
+- `uat-backend` / `uat-frontend`
+- `production-backend` / `production-frontend`
 
-**Why it's different:**
-- GitHub Environment is named `uat2` (not `uat2-frontend`)
-- Uses `STAGING_*` prefix instead of `UAT_*`
-- Predates our standardization effort
-
-**Manifest Configuration:**
-```json
-"uat2": {
-  "type": "frontend",
-  "prefix": "STAGING",
-  "url": "https://uat.meatscentral.com"
-}
-```
-
-**Secret Mappings:**
-- `BASTION_HOST` → `STAGING_HOST` (not `UAT_HOST`)
-- `BASTION_USER` → `STAGING_USER` (not `UAT_USER`)
-
-**Why We Keep It:**
-- Avoids password resets on production infrastructure
-- Maintains backward compatibility
-- No operational impact
-
-### Shared SSH Password (`SSH_PASSWORD`)
-
-**Scope**: UAT and Production environments
-
-**Configuration:**
-```json
-"BASTION_SSH_PASSWORD": {
-  "ci_secret_mapping": {
-    "uat2-backend": "SSH_PASSWORD",
-    "uat2": "SSH_PASSWORD",
-    "prod2-backend": "SSH_PASSWORD",
-    "prod2-frontend": "SSH_PASSWORD"
-  }
-}
-```
-
-**Why it's shared:**
-- Legacy infrastructure uses single SSH password for UAT/Prod droplets
-- Stored as global repository secret
-- Accessible to all UAT/Prod deployments
-
-**Security Note**: Dev environments use separate `DEV_SSH_PASSWORD` for isolation.
-
-### Production Frontend Naming
-
-**Secret Prefix**: `PRODUCTION_*` (not `PROD_*`)
-
-**Why:**
-- Matches existing secrets in production environment
-- Example: `PRODUCTION_HOST` instead of `PROD_HOST`
+If you encounter older docs or workflows referencing legacy names, treat them as historical and align to `manifests/env.manifest.json` + `python config/manage_env.py audit`.
 
 ---
 
@@ -342,7 +292,7 @@ Scanning Environment: uat2...
 
 ### Adding a New Environment Variable
 
-1. **Update the Manifest** (`config/env.manifest.json`)
+1. **Update the Manifest** (`manifests/env.manifest.json`)
    ```json
    "variables": {
      "application": {
@@ -364,8 +314,8 @@ Scanning Environment: uat2...
    ```bash
    # For each environment showing missing secrets:
    gh secret set DEV_NEW_VARIABLE --env dev-backend
-   gh secret set UAT_NEW_VARIABLE --env uat2-backend
-   gh secret set PROD_NEW_VARIABLE --env prod2-backend
+   gh secret set UAT_NEW_VARIABLE --env uat-backend
+   gh secret set PROD_NEW_VARIABLE --env production-backend
    ```
 
 4. **Verify**
@@ -417,7 +367,7 @@ Scanning Environment: uat2...
 **Debug Steps:**
 1. **Check the Manifest**: What secret name should it be?
    ```bash
-   grep -A5 "VARIABLE_NAME" config/env.manifest.json
+   grep -A5 "VARIABLE_NAME" manifests/env.manifest.json
    ```
 
 2. **Run Audit**: Is it actually missing?
@@ -443,9 +393,9 @@ Scanning Environment: uat2...
 **Possible Causes:**
 
 1. **Wrong Environment Name**
-   - Manifest: `uat2`
-   - GitHub: `uat2-frontend`
-   - **Fix**: Rename GitHub Environment or update manifest
+   - Manifest: `uat-backend`
+   - GitHub: `uat_backend` (typo / mismatch)
+   - **Fix**: Ensure GitHub Environment names exactly match `manifests/env.manifest.json`
 
 2. **Wrong Secret Name**
    - Manifest expects: `STAGING_HOST`
@@ -519,10 +469,10 @@ gh secret set SECRET_NAME --env dev-backend
 gh secret set SECRET_NAME
 
 # View manifest
-cat config/env.manifest.json | jq
+cat manifests/env.manifest.json | jq
 
 # Check manifest version
-jq '.version' config/env.manifest.json
+jq '.version' manifests/env.manifest.json
 ```
 
 ---
