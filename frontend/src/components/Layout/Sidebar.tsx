@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
 import { navigation, adminWorkspaceNavigation } from '../../config/navigation';
+import { useAdminPermissions, isAdminOrOwner } from '../../hooks/useAdminPermissions';
 import NavigationMenu from '../Navigation/NavigationMenu';
 
 interface SidebarProps {
@@ -49,6 +50,8 @@ const LockIcon: React.FC = () => (
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) => {
   const { theme, themeName, tenantBranding } = useTheme();
   const location = useLocation();
+  const { permissions, isLoading: isPermissionsLoading } = useAdminPermissions();
+  const showAdminWorkspace = !isPermissionsLoading && isAdminOrOwner(permissions);
   const [isHovered, setIsHovered] = useState(false);
   const [keepOpen, setKeepOpen] = useState(() => {
     // Load keep open preference from localStorage
@@ -146,9 +149,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onHoverChange }) =>
       </NavigationSection>
 
       {/* Admin Workspace Section - Bottom Navigation */}
-      <AdminWorkspaceSection $isDarkMode={isDarkMode}>
-        <NavigationMenu items={adminWorkspaceNavigation} isExpanded={isExpanded} />
-      </AdminWorkspaceSection>
+      {showAdminWorkspace ? (
+        <AdminWorkspaceSection $isDarkMode={isDarkMode}>
+          <NavigationMenu items={adminWorkspaceNavigation} isExpanded={isExpanded} />
+        </AdminWorkspaceSection>
+      ) : null}
 
       <SidebarFooter $isExpanded={isExpanded} $isDarkMode={isDarkMode}>
         {isExpanded && (
