@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from PIL import Image
+import json
 import re
 from .models import Tenant, TenantUser, TenantDomain, TenantConfiguration
 
@@ -149,22 +150,24 @@ class TenantSerializer(serializers.ModelSerializer):
         return value
     
     def validate_settings(self, value):
-        """
-        Validate settings JSON field, especially theme colors.
-        
-        Checks:
-        - Hex color format (#RRGGBB)
-        - Valid color values
-        
-        Args:
-            value: The settings dictionary
-        
-        Returns:
-            The validated settings dictionary
+        """Validate settings JSON field, especially theme colors.
+
+        Note: When the frontend submits tenant profile updates as multipart/form-data
+        (for logo uploads), JSON fields arrive as strings. Accept JSON strings here
+        and coerce to dict before validating.
         """
         if not value:
             return value
-        
+
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except Exception:
+                raise serializers.ValidationError('Invalid settings JSON')
+
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('Settings must be a JSON object')
+
         # Validate theme colors if present
         theme = value.get('theme', {})
         hex_pattern = re.compile(r'^#[0-9A-Fa-f]{6}$')
