@@ -800,7 +800,7 @@ const Title = styled.h1<{ $theme: Theme }>`
 `;
 
 const AddButton = styled.button`
-  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  background: rgb(var(--color-primary));
   color: white;
   border: none;
   border-radius: 8px;
@@ -812,7 +812,8 @@ const AddButton = styled.button`
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+    box-shadow: 0 4px 15px rgba(var(--color-primary), 0.25);
+    filter: brightness(0.98);
   }
 `;
 
@@ -915,15 +916,15 @@ const CancelButton = styled.button`
   border-radius: 6px;
   padding: 10px 20px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease;
 
   &:hover {
-    background: #5a6268;
+    filter: brightness(0.95);
   }
 `;
 
 const SubmitButton = styled.button`
-  background: linear-gradient(135deg, #3498db, #2980b9);
+  background: rgb(var(--color-primary));
   color: white;
   border: none;
   border-radius: 6px;
@@ -933,7 +934,8 @@ const SubmitButton = styled.button`
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 4px 15px rgba(var(--color-primary), 0.25);
+    filter: brightness(0.98);
   }
 `;
 
@@ -1183,7 +1185,7 @@ const ContactMeta = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background: #3498db;
+  background: rgb(var(--color-info));
   color: white;
   border: none;
   border-radius: 4px;
@@ -1191,25 +1193,25 @@ const ActionButton = styled.button`
   font-size: 12px;
   cursor: pointer;
   margin-right: 8px;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease;
 
   &:hover {
-    background: #2980b9;
+    filter: brightness(0.95);
   }
 `;
 
 const DeleteButton = styled.button`
-  background: #e74c3c;
+  background: rgb(var(--color-danger));
   color: white;
   border: none;
   border-radius: 4px;
   padding: 6px 12px;
   font-size: 12px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease;
 
   &:hover {
-    background: #c0392b;
+    filter: brightness(0.95);
   }
 `;
 
