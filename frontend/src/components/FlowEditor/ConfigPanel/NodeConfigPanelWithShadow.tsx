@@ -312,6 +312,9 @@ export const NodeConfigPanelWithShadow: React.FC<NodeConfigPanelWithShadowProps>
             nodes={nodes}
             edges={edges}
             onUpdateNode={handleShadowUpdate}
+            onApply={handleApply}
+            onDiscard={handleDiscard}
+            isDirty={isDirty}
           />
         ) : (
           /* PHASE D/E: Dynamic Schema-Driven Config Panel (replaces hardcoded NodeConfigPanel) */
