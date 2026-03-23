@@ -88,7 +88,7 @@ import { ErrorBoundary as ProductionErrorBoundary } from './components/common/Er
 import { logger } from './utils/logger';
 import CockpitPage from './pages/Cockpit';
 import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
-import CockpitDetailViewPage from './pages/Cockpit/CockpitDetailView';
+import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
 import WorkFormsLayout from './pages/WorkForms';
@@ -353,7 +353,8 @@ const App: React.FC = () => {
                 {/* Cockpit (Command Center Dashboard) */}
                 <Route path="cockpit" element={<CockpitPage />} />
                 <Route path="cockpit/process-monitor" element={<ProcessMonitor />} />
-                <Route path="cockpit/entity/:entityType/:entityId" element={<CockpitDetailViewPage />} />
+                {/* Legacy deep-link route (redirects into /cockpit breadcrumb UX) */}
+                <Route path="cockpit/entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
                 {/* Note: /workspace now points to Admin Workspace, not Cockpit */}
               </Route>
             </Routes>

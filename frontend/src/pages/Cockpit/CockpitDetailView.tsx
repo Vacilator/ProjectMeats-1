@@ -1,3 +1,6 @@
+// NOTE: This page is deprecated in favor of the breadcrumb/state-driven Cockpit UX on /cockpit.
+// Kept for potential future reuse, but is no longer routed from App.tsx.
+
 import React from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 
