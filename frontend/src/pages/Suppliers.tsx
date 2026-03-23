@@ -47,6 +47,8 @@ const Suppliers: React.FC = () => {
 
   const [supplierContacts, setSupplierContacts] = useState<SupplierContact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
+  const [plantContacts, setPlantContacts] = useState<SupplierContact[]>([]);
+  const [plantContactsLoading, setPlantContactsLoading] = useState(false);
 
   const [showPlantModal, setShowPlantModal] = useState(false);
   const [plantForm, setPlantForm] = useState({
@@ -213,17 +215,36 @@ const Suppliers: React.FC = () => {
     }
   };
 
+  const loadPlantContacts = async (plantId: number) => {
+    try {
+      setPlantContactsLoading(true);
+      const response = await apiClient.get('contacts/', {
+        params: { plant: plantId },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setPlantContacts(data);
+    } catch (error) {
+      logger.error('[Suppliers] Failed to load plant contacts:', error);
+      setPlantContacts([]);
+    } finally {
+      setPlantContactsLoading(false);
+    }
+  };
+
   const toggleSupplierDrilldown = async (supplier: Supplier) => {
     if (selectedSupplierId === supplier.id) {
       setSelectedSupplierId(null);
       setSupplierPlants([]);
       setSupplierContacts([]);
+      setPlantContacts([]);
       setSelectedPlantId(null);
       return;
     }
 
     setSelectedSupplierId(supplier.id);
     setSelectedPlantId(null);
+    setPlantContacts([]);
 
     await Promise.all([loadSupplierPlants(supplier.id), loadSupplierContacts(supplier.id)]);
   };
@@ -270,6 +291,15 @@ const Suppliers: React.FC = () => {
   const selectedPlant = selectedPlantId
     ? supplierPlants.find((p) => p.id === selectedPlantId)
     : null;
+
+  useEffect(() => {
+    if (!selectedPlantId) {
+      setPlantContacts([]);
+      return;
+    }
+
+    void loadPlantContacts(selectedPlantId);
+  }, [selectedPlantId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -740,7 +770,28 @@ const Suppliers: React.FC = () => {
                             <ExpandedHint>Select a plant to view details.</ExpandedHint>
                           )}
 
-                          {contactsLoading ? (
+                          {selectedPlantId ? (
+                            plantContactsLoading ? (
+                              <ExpandedHint>Loading plant contacts…</ExpandedHint>
+                            ) : plantContacts.length === 0 ? (
+                              <ExpandedHint>No contacts found for this plant.</ExpandedHint>
+                            ) : (
+                              <ContactsList>
+                                {plantContacts.map((c) => (
+                                  <ContactRow key={c.id}>
+                                    <ContactName>
+                                      {c.first_name} {c.last_name}
+                                    </ContactName>
+                                    <ContactMeta>
+                                      {c.position ? <span>{c.position}</span> : null}
+                                      {c.email ? <span>{c.email}</span> : null}
+                                      {c.phone ? <span>{c.phone}</span> : null}
+                                    </ContactMeta>
+                                  </ContactRow>
+                                ))}
+                              </ContactsList>
+                            )
+                          ) : contactsLoading ? (
                             <ExpandedHint>Loading contacts…</ExpandedHint>
                           ) : supplierContacts.length === 0 ? (
                             <ExpandedHint>No contacts found for this supplier.</ExpandedHint>

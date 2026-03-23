@@ -19,7 +19,7 @@ class Contact(TenantAwareModel):
         null=True,
         blank=True,
         related_name="contact_persons",
-        help_text="Supplier this contact belongs to"
+        help_text="Supplier this contact belongs to",
     )
     customer = models.ForeignKey(
         'customers.Customer',
@@ -27,7 +27,26 @@ class Contact(TenantAwareModel):
         null=True,
         blank=True,
         related_name="contact_persons",
-        help_text="Customer this contact belongs to"
+        help_text="Customer this contact belongs to",
+    )
+
+    # Child entity relationships (optional)
+    # NOTE: These are additive and enable UI drill-down: Supplier -> Plant -> Contacts and Customer -> Location -> Contacts.
+    plant = models.ForeignKey(
+        'plants.Plant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='contacts',
+        help_text='Plant this contact belongs to (optional)',
+    )
+    location = models.ForeignKey(
+        'locations.Location',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='contacts',
+        help_text='Location this contact belongs to (optional)',
     )
     
     # Status field for tracking active/inactive contacts
@@ -94,6 +113,10 @@ class Contact(TenantAwareModel):
         verbose_name_plural = "Contacts"
         indexes = [
             models.Index(fields=['tenant', 'last_name', 'first_name']),
+            models.Index(fields=['tenant', 'supplier']),
+            models.Index(fields=['tenant', 'customer']),
+            models.Index(fields=['tenant', 'plant']),
+            models.Index(fields=['tenant', 'location']),
         ]
 
     def __str__(self):

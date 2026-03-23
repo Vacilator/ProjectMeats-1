@@ -51,6 +51,8 @@ const Customers: React.FC = () => {
 
   const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
+  const [locationContacts, setLocationContacts] = useState<CustomerContact[]>([]);
+  const [locationContactsLoading, setLocationContactsLoading] = useState(false);
 
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [locationForm, setLocationForm] = useState({
@@ -184,17 +186,36 @@ const Customers: React.FC = () => {
     }
   };
 
+  const loadLocationContacts = async (locationId: number) => {
+    try {
+      setLocationContactsLoading(true);
+      const response = await apiClient.get('contacts/', {
+        params: { location: locationId },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setLocationContacts(data);
+    } catch (error) {
+      console.error('[Customers] Failed to load location contacts:', error);
+      setLocationContacts([]);
+    } finally {
+      setLocationContactsLoading(false);
+    }
+  };
+
   const toggleCustomerDrilldown = async (customer: Customer) => {
     if (selectedCustomerId === customer.id) {
       setSelectedCustomerId(null);
       setCustomerLocations([]);
       setCustomerContacts([]);
+      setLocationContacts([]);
       setSelectedLocationId(null);
       return;
     }
 
     setSelectedCustomerId(customer.id);
     setSelectedLocationId(null);
+    setLocationContacts([]);
 
     await Promise.all([loadCustomerLocations(customer.id), loadCustomerContacts(customer.id)]);
   };
@@ -249,6 +270,15 @@ const Customers: React.FC = () => {
   const selectedLocation = selectedLocationId
     ? customerLocations.find((l) => l.id === selectedLocationId)
     : null;
+
+  useEffect(() => {
+    if (!selectedLocationId) {
+      setLocationContacts([]);
+      return;
+    }
+
+    void loadLocationContacts(selectedLocationId);
+  }, [selectedLocationId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -752,7 +782,28 @@ const Customers: React.FC = () => {
                             <ExpandedHint>Select a location to view details.</ExpandedHint>
                           )}
 
-                          {contactsLoading ? (
+                          {selectedLocationId ? (
+                            locationContactsLoading ? (
+                              <ExpandedHint>Loading location contacts…</ExpandedHint>
+                            ) : locationContacts.length === 0 ? (
+                              <ExpandedHint>No contacts found for this location.</ExpandedHint>
+                            ) : (
+                              <ContactsList>
+                                {locationContacts.map((c) => (
+                                  <ContactRow key={c.id}>
+                                    <ContactName>
+                                      {c.first_name} {c.last_name}
+                                    </ContactName>
+                                    <ContactMeta>
+                                      {c.position ? <span>{c.position}</span> : null}
+                                      {c.email ? <span>{c.email}</span> : null}
+                                      {c.phone ? <span>{c.phone}</span> : null}
+                                    </ContactMeta>
+                                  </ContactRow>
+                                ))}
+                              </ContactsList>
+                            )
+                          ) : contactsLoading ? (
                             <ExpandedHint>Loading contacts…</ExpandedHint>
                           ) : customerContacts.length === 0 ? (
                             <ExpandedHint>No contacts found for this customer.</ExpandedHint>

@@ -25,7 +25,7 @@ class ContactViewSet(viewsets.ModelViewSet):
     serializer_class = ContactSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["supplier", "customer", "status"]
+    filterset_fields = ["supplier", "customer", "plant", "location", "status"]
     search_fields = ["first_name", "last_name", "email", "company", "position"]
     ordering_fields = ["last_name", "first_name", "created_at", "updated_at"]
     ordering = ["last_name", "first_name"]
