@@ -304,10 +304,11 @@ def disconnect_provider(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def sync_emails(request):
-    """Manually trigger email sync for current tenant.
+    """Manually trigger email sync for current tenant (synchronous).
 
-    This endpoint must NEVER hard-500 for common operational issues (missing provider,
-    missing refresh token, broker unavailable). Instead, return a clear error payload.
+    This endpoint backs a user-initiated "Sync Now" action, so we execute inline
+    and return stats immediately. It should avoid hard-500s for common operational
+    issues and instead return clear error payloads.
     """
     tenant = getattr(request, 'tenant', None)
     if not tenant:
@@ -332,62 +333,36 @@ def sync_emails(request):
         )
 
     try:
-        from apps.integrations.tasks import sync_single_tenant
+        from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
-        # Prefer async Celery dispatch.
-        try:
-            task = sync_single_tenant.delay(tenant_id)
+        service = EmailIngestionService()
+        stats = service.poll_tenant_by_id(tenant_id)
+
+        if isinstance(stats, dict) and stats.get('error'):
             return Response(
                 {
-                    "message": "Email sync started",
-                    "task_id": task.id,
+                    "error": stats.get('error'),
+                    "code": "sync_failed",
                     "tenant_id": tenant_id,
-                    "mode": "async",
-                },
-                status=status.HTTP_202_ACCEPTED,
-            )
-        except Exception as celery_exc:
-            # If the broker/worker path is unavailable, run a best-effort sync inline
-            # so "Sync Now" still works in environments without Celery.
-            logger.warning(
-                'Celery dispatch failed; falling back to inline email sync: %s',
-                str(celery_exc),
-                exc_info=True,
-            )
-
-            from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
-
-            service = EmailIngestionService()
-            stats = service.poll_tenant_by_id(tenant_id)
-
-            if isinstance(stats, dict) and stats.get('error'):
-                return Response(
-                    {
-                        "error": stats.get('error'),
-                        "code": "sync_failed",
-                        "tenant_id": tenant_id,
-                        "mode": "sync",
-                        "stats": stats,
-                    },
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
-
-            return Response(
-                {
-                    "message": "Email sync completed",
-                    "tenant_id": tenant_id,
-                    "mode": "sync",
                     "stats": stats,
                 },
-                status=status.HTTP_200_OK,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-    except Exception as e:
-        logger.error('Failed to start email sync for tenant %s: %s', tenant_id, str(e), exc_info=True)
-        # Surface as 503 (operational) instead of 500 to avoid frontend treating it as a crash.
         return Response(
             {
-                "error": f"Failed to start sync: {str(e)}",
+                "message": "Email sync completed",
+                "tenant_id": tenant_id,
+                "stats": stats,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        logger.error('Failed to sync emails for tenant %s: %s', tenant_id, str(e), exc_info=True)
+        return Response(
+            {
+                "error": f"Failed to sync emails: {str(e)}",
                 "code": "sync_exception",
                 "tenant_id": tenant_id,
             },
