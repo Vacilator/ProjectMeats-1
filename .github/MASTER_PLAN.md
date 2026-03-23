@@ -905,5 +905,5 @@ Deliverables:
 ## PR Log (append-only) — Workforms UI Hardening (merge-safe)
 
 - 2026-03-23 — Workforms Debugger polish: docked panel + execution timeline for stepping + breakpoint-first entry selection — PR: #3878.
-- 2026-03-23 — Fixed MultiSelect internal search filtering (Explicit AntD filterOption injection) — PR: #TBD.
+- 2026-03-23 — Fixed MultiSelect internal search filtering (Explicit AntD filterOption injection) — PR: #3891.
 - 2026-03-22T19:05:59Z — UI Hardening: Restored standard default container for 'formProcess' nodes, disabling 'formProcessGroup' purple canonicalization/styling overrides.
