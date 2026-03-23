@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, Spin } from 'antd';
+import { Tabs, Spin, Button } from 'antd';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityProfileHeader } from './EntityProfileHeader';
@@ -1022,6 +1022,37 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     ));
   };
 
+  const tabCTA = useMemo(() => {
+    if (!activeEntity || !isPrimaryEntity) return null;
+
+    if (activeRelationTab === 'orders') {
+      const isSupplier = String(activeEntity.type).toLowerCase() === 'supplier';
+      const actionType = isSupplier ? 'create_po' : 'create_so';
+      const label = isSupplier ? '+ New Purchase Order' : '+ New Sales Order';
+
+      return (
+        <Button
+          type="primary"
+          onClick={() => {
+            handleQuickAction({
+              id: `action:${actionType}`,
+              type: 'action',
+              name: label,
+              metadata: {
+                action: actionType,
+                entityId: activeEntity.id,
+              },
+            });
+          }}
+        >
+          {label}
+        </Button>
+      );
+    }
+
+    return null;
+  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity]);
+
   return (
     <Container>
       {!hideInput && (
@@ -1063,6 +1094,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           isPrimaryEntity ? (
             <Tabs
               activeKey={activeRelationTab}
+              tabBarExtraContent={tabCTA}
               onChange={(nextKey) => {
                 const key = nextKey as typeof activeRelationTab;
                 setActiveRelationTab(key);
