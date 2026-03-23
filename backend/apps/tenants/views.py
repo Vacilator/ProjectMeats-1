@@ -199,54 +199,65 @@ class TenantViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=["get"])
     def current_theme(self, request):
-        """
-        Get theme settings for the current user's active tenant.
-        
+        """Get theme settings for the current tenant.
+
+        Prefers `request.tenant` (TenantMiddleware) and falls back to the first
+        active tenant membership for the user.
+
         Returns tenant logo, name, and theme colors.
         Used by frontend to apply tenant-specific branding.
         """
-        # Get user's current/active tenant (you might have this in session or request header)
-        # For now, get the first tenant the user belongs to
-        tenant_user = TenantUser.objects.filter(
-            user=request.user, is_active=True
-        ).select_related("tenant").first()
-        
+        tenant = getattr(request, 'tenant', None)
+
+        if request.user.is_superuser and tenant:
+            return Response(tenant.get_theme_settings())
+
+        tenant_user_qs = TenantUser.objects.filter(user=request.user, is_active=True).select_related('tenant')
+        tenant_user = tenant_user_qs.filter(tenant=tenant).first() if tenant else tenant_user_qs.first()
+
         if not tenant_user:
             return Response(
                 {"error": "User not associated with any tenant"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
-        
-        theme_settings = tenant_user.tenant.get_theme_settings()
-        return Response(theme_settings)
-    
+
+        return Response(tenant_user.tenant.get_theme_settings())
+
     @action(detail=False, methods=["get"])
     def admin_permissions(self, request):
-        """
-        Get admin permissions for the current user in their active tenant.
-        
-        Returns a dictionary of permission flags based on the user's role:
-        - owner: Full access to everything
-        - admin: Can manage users, configs, customizations, view audit logs
-        - manager: Limited admin access
-        - user/readonly: No admin access
-        
+        """Get admin permissions for the current user in the current tenant.
+
+        Prefers `request.tenant` (TenantMiddleware) and falls back to the first
+        active tenant membership for the user.
+
         Used by frontend to show/hide admin workspace features.
         """
-        # Get user's role in their current tenant
-        # TODO: Use request.tenant from TenantMiddleware when available
-        tenant_user = TenantUser.objects.filter(
-            user=request.user, is_active=True
-        ).select_related("tenant").first()
-        
+        if request.user.is_superuser:
+            return Response({
+                'can_manage_users': True,
+                'can_invite_users': True,
+                'can_change_roles': True,
+                'can_manage_profile': True,
+                'can_manage_billing': True,
+                'can_manage_configurations': True,
+                'can_manage_customizations': True,
+                'can_view_audit_logs': True,
+                'can_manage_option_lists': True,
+                'role': 'superuser',
+            })
+
+        tenant = getattr(request, 'tenant', None)
+        tenant_user_qs = TenantUser.objects.filter(user=request.user, is_active=True)
+        tenant_user = tenant_user_qs.filter(tenant=tenant).select_related('tenant').first() if tenant else tenant_user_qs.select_related('tenant').first()
+
         if not tenant_user:
             return Response(
                 {"error": "User not associated with any tenant"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
-        
+
         role = tenant_user.role
-        
+
         # Define permissions based on role
         permissions_map = {
             'owner': {
