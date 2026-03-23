@@ -127,16 +127,17 @@ const OptionListsPage: React.FC = () => {
     loadChoiceLists();
   };
 
-  const filteredLists = useMemo(
-    () =>
-      lists.filter(
-        (list) =>
-          list.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          list.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          list.description.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    [lists, searchQuery]
-  );
+  const filteredLists = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return lists;
+
+    return lists.filter((list) => {
+      const name = (list.name || '').toLowerCase();
+      const slug = (list.slug || '').toLowerCase();
+      const desc = (list.description || '').toLowerCase();
+      return name.includes(q) || slug.includes(q) || desc.includes(q);
+    });
+  }, [lists, searchQuery]);
 
   return (
     <AdminPage
