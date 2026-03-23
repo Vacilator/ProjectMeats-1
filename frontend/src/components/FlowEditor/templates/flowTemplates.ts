@@ -6,6 +6,8 @@
 
 import { Node, Edge } from '@xyflow/react';
 
+import { MEATSCENTRAL_INQUIRY_FLOW_TEMPLATE } from '@/workforms/templates';
+
 export type TemplateCategory = 
   | 'forms'
   | 'approvals'
@@ -40,6 +42,8 @@ export interface FlowTemplate {
 }
 
 export const FLOW_TEMPLATES: FlowTemplate[] = [
+  MEATSCENTRAL_INQUIRY_FLOW_TEMPLATE,
+
   // ========================================
   // FORMS (5 templates)
   // ========================================
