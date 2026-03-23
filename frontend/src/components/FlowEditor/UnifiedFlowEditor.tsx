@@ -1059,6 +1059,57 @@ const EmptyText = styled.div`
   line-height: 1.6;
 `;
 
+const EmptyActions = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+`;
+
+const EmptyPrimaryButton = styled.button`
+  padding: 10px 16px;
+  background: rgb(var(--color-primary));
+  border: 1px solid rgb(var(--color-primary));
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const EmptySecondaryButton = styled.button`
+  padding: 10px 16px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
 const Toolbar = styled.div`
   position: absolute;
   top: 12px;
@@ -7375,23 +7426,41 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         {/* Empty State */}
         {nodes.length === 0 && (
           <EmptyState>
-            <EmptyIcon>📋</EmptyIcon>
-            <EmptyTitle>Start Building Your Flow</EmptyTitle>
+            <EmptyIcon>⚡</EmptyIcon>
+            <EmptyTitle>Start with a Trigger</EmptyTitle>
             <EmptyText>
-              Drag nodes from the left panel onto the canvas to create your workflow or form.
+              Every workflow needs a clear entry point.
               <br />
-              Connect nodes to define the flow logic.
-              <br /><br />
-              <strong>Keyboard Shortcuts:</strong>
+              Pick how this flow starts, then add your steps.
               <br />
-              Tab: Toggle palette | /: Search | Del: Delete selected
               <br />
-              Ctrl+Z: Undo | Ctrl+Y: Redo | Ctrl+S: Save
-              <br />
-              F: Fit view | 1: 100% | 2: 50% | Ctrl+A: Select all | Esc: Deselect
-              <br />
-              Ctrl+Shift+H/V: Distribute | Ctrl+Shift+L/R/T/B: Align edges | Ctrl+Shift+X/Y: Center
+              Tip: Press <strong>/</strong> to search the palette.
             </EmptyText>
+            <EmptyActions>
+              <EmptyPrimaryButton
+                onClick={() => {
+                  handleClickToAddNode('triggerManual');
+                }}
+              >
+                + Add Manual Trigger
+              </EmptyPrimaryButton>
+              <EmptySecondaryButton
+                onClick={() => {
+                  setIsTemplateModalOpen(true);
+                }}
+              >
+                Use Template
+              </EmptySecondaryButton>
+              <EmptySecondaryButton
+                onClick={() => {
+                  setIsPaletteVisible(true);
+                  setSearchQuery('');
+                  setTimeout(() => searchInputRef.current?.focus(), 0);
+                }}
+              >
+                Browse Triggers
+              </EmptySecondaryButton>
+            </EmptyActions>
           </EmptyState>
         )}
         
