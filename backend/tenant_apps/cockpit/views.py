@@ -98,8 +98,18 @@ class ActivityLogViewSet(viewsets.ModelViewSet):
         
         if entity_type and entity_id:
             queryset = queryset.filter(entity_type=entity_type, entity_id=entity_id)
-        
-        return queryset.order_by('-is_pinned', '-created_on')
+
+        queryset = queryset.order_by('-is_pinned', '-created_on')
+
+        limit_raw = self.request.query_params.get('limit')
+        if limit_raw:
+            try:
+                limit = max(1, min(50, int(limit_raw)))
+                queryset = queryset[:limit]
+            except (TypeError, ValueError):
+                pass
+
+        return queryset
     
     def perform_create(self, serializer):
         """Auto-assign tenant and created_by on create."""
@@ -126,11 +136,27 @@ class ScheduledCallViewSet(viewsets.ModelViewSet):
         
         queryset = ScheduledCall.objects.filter(tenant=self.request.tenant)
         
+        # Filter by entity if provided
+        entity_type = self.request.query_params.get('entity_type')
+        entity_id = self.request.query_params.get('entity_id')
+        if entity_type and entity_id:
+            queryset = queryset.filter(entity_type=entity_type, entity_id=entity_id)
+
         # Filter by completion status
         is_completed = self.request.query_params.get('is_completed')
         if is_completed is not None:
             queryset = queryset.filter(is_completed=is_completed.lower() == 'true')
-        
+
+        queryset = queryset.order_by('-scheduled_for')
+
+        limit_raw = self.request.query_params.get('limit')
+        if limit_raw:
+            try:
+                limit = max(1, min(50, int(limit_raw)))
+                queryset = queryset[:limit]
+            except (TypeError, ValueError):
+                pass
+
         return queryset
     
     def perform_create(self, serializer):
