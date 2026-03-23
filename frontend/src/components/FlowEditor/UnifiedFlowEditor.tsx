@@ -78,6 +78,7 @@ import {
   ZoomOut, 
   Wand2, 
   Eye, 
+  Bug,
  
   Download, 
   Upload, 
@@ -126,7 +127,6 @@ import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, En
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
 import { ValidationDrawer } from './components/ValidationDrawer';
-import { DryRunDebugger } from './components/DryRunDebugger';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
 import { schemaRegistry } from './config/schemaRegistry';
@@ -167,6 +167,7 @@ import { FormProcessModal, type ContainerData } from './Modals/FormProcessModal'
 import { WorkflowManagementModal, type WorkflowMetadata } from './Modals/WorkflowManagementModal'; // Phase 8.2
 import { WorkflowExecutionModal } from '../FormSubmission/WorkflowExecutionModal'; // Task 1: Integration
 import { PreviewPanel } from './panels/PreviewPanel';
+import { DryRunDebuggerPanel } from './panels/DryRunDebuggerPanel';
 import { FlowPreviewModal } from './Modals/FlowPreviewModal'; // Phase 1: Hybrid Functionality
 import { DataMappingPanel } from './ConfigPanel/DataMappingPanel'; // Phase 1: Hybrid Functionality
 
@@ -2544,10 +2545,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const [showDebugger, setShowDebugger] = useState(false);
-  const selectedNodeForDebug = useMemo(() => 
-    nodes.find(n => n.id === selectedNodeId) || null,
-    [nodes, selectedNodeId]
-  );
+  const selectedNodeForDebug = useMemo(() => {
+    const selected = nodes.find((n) => n.id === selectedNodeId) || null;
+    if (selected) return selected;
+
+    const entry = nodes.find((n) => {
+      const nodeTypeId = (((n.data as any)?.nodeType as string | undefined) ?? n.type ?? '').toString();
+      const def = getNodeTypeDefinition(nodeTypeId);
+      return def?.category === 'trigger' || nodeTypeId.startsWith('trigger');
+    });
+
+    return entry || nodes[0] || null;
+  }, [nodes, selectedNodeId]);
 
   // ============================================================================
   // Onboarding Tour (Gap Analysis Phase 1.1)
@@ -7160,6 +7169,20 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             Preview Flow
           </ToolbarButton>
           
+          {/* Phase 9.5: Debugger */}
+          <ToolbarButton
+            onClick={() => setShowDebugger((prev) => !prev)}
+            title="Toggle Debugger (Ctrl+D)"
+            disabled={nodes.length === 0}
+            style={{
+              fontWeight: 600,
+              color: 'rgb(var(--color-primary))',
+            }}
+          >
+            <Bug size={14} style={{ marginRight: '4px' }} />
+            Debugger
+          </ToolbarButton>
+
           {/* Phase 2: Auto-Layout */}
           <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
           <ToolbarButton 
@@ -7974,13 +7997,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ConfirmModal>
       )}
       
-      {/* Phase 7/9.4: Dry Run Debugger */}
-      {showDebugger && (
-        <DryRunDebugger
-          selectedNode={selectedNodeForDebug}
-          onClose={() => setShowDebugger(false)}
-        />
-      )}
+      {/* Phase 7/9.5: Dry Run Debugger Panel */}
+      <DryRunDebuggerPanel
+        isVisible={showDebugger}
+        selectedNode={selectedNodeForDebug}
+        onClose={() => setShowDebugger(false)}
+      />
 
       {/* Phase 8.6: Keyboard Shortcuts Help Modal */}
       {showKeyboardShortcuts && (
