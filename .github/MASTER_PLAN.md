@@ -27,6 +27,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### 2026-03-20 — Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF
 - Milestone: PM-AS (ProjectMeats Multi-Agent Swarm) scaffolding.
+- 2026-03-23 — Increased Nginx client_max_body_size to 50M across all proxies to support AI document uploads.
 - Specialized agents:
   - Orchestrator (semantic router)
   - Extractor
