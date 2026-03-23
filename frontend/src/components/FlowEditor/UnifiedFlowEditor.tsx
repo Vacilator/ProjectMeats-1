@@ -2381,6 +2381,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Fullscreen State & Handlers (Phase 0: WF-ENH-2026-Q1)
   // ============================================================================
   
+  const editorContainerRef = useRef<HTMLDivElement | null>(null);
+
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('workforms_fullscreen_enabled');
@@ -2389,12 +2391,40 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       return false;
     }
   });
-  
-  const toggleFullscreen = useCallback(() => {
-    const newFullscreenState = !isFullscreen;
-    setIsFullscreen(newFullscreenState);
-    localStorage.setItem('workforms_fullscreen_enabled', newFullscreenState ? 'true' : 'false');
+
+  const toggleFullscreen = useCallback(async () => {
+    const next = !isFullscreen;
+
+    // Prefer native browser fullscreen when available; fall back to CSS fullscreen.
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      const el = editorContainerRef.current;
+      if (next && el && typeof (el as any).requestFullscreen === 'function') {
+        await (el as any).requestFullscreen();
+        return;
+      }
+    } catch (err) {
+      logger.warn('[UnifiedFlowEditor] Fullscreen API failed, falling back to CSS fullscreen', err);
+    }
+
+    setIsFullscreen(next);
+    localStorage.setItem('workforms_fullscreen_enabled', next ? 'true' : 'false');
   }, [isFullscreen]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const active = !!document.fullscreenElement;
+      setIsFullscreen(active);
+      localStorage.setItem('workforms_fullscreen_enabled', active ? 'true' : 'false');
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
   
   // ESC key handler for CSS-based fullscreen exit
   // 🔧 Portal Container Creation (2026-02-24: Permanent Fix)
@@ -6776,7 +6806,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       availableFields={selectedFormStep?.data?.fields || []}
       currentNodeId={selectedFormStep?.id || null}
     >
-      <EditorContainer $isFullscreen={isFullscreen}>
+      <EditorContainer ref={editorContainerRef} $isFullscreen={isFullscreen}>
       {/* Deprecation Banner (Phase 6.1) */}
       {hasDeprecatedNodes && !bannerDismissed && (
         <DeprecationBanner>
@@ -7140,6 +7170,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             <AlignVerticalDistributeCenter size={14} style={{ marginRight: '4px' }} />
             Layout
           </ToolbarButton>
+
+          <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
+          <ToolbarButton onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen (ESC)' : 'Enter Fullscreen'}>
+            {(isFullscreen || !!document.fullscreenElement) ? (
+              <Minimize2 size={14} style={{ marginRight: '4px' }} />
+            ) : (
+              <Maximize2 size={14} style={{ marginRight: '4px' }} />
+            )}
+            Fullscreen
+          </ToolbarButton>
         </Toolbar>
       )}
 
@@ -7172,10 +7212,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           } : {}}
         >
           <Settings />
-        </ViewportButton>
-        <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
-        <ViewportButton onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen (ESC)' : 'Enter Fullscreen'}>
-          {isFullscreen ? <Minimize2 /> : <Maximize2 />}
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
         <ViewportButton onClick={fitView} title="Fit to View (F)">

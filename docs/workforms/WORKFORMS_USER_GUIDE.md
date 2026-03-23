@@ -87,6 +87,12 @@ WorkForms is a visual workflow editor that combines forms and automation logic i
 | `+` / `-` | Zoom in/out |
 | `0` | Reset zoom |
 
+### Fullscreen Mode
+
+- Use the **Fullscreen** button in the editor toolbar (top-right) to enter/exit fullscreen.
+- Press **ESC** to exit fullscreen.
+- Your preference is saved per browser in `localStorage` (`workforms_fullscreen_enabled`).
+
 ### Adding Nodes
 
 1. **Find Node**: Browse the node palette on the left, organized by category:

@@ -217,27 +217,25 @@ Multiple form nodes with overlapping functionality:
 Fix fullscreen button accessibility and implement proper fullscreen mode.
 
 #### Tasks
-- [ ] **0.1** Move fullscreen button from hidden position to top-right toolbar
-  - **Current:** Hidden under redo/save buttons (line 2326)
+- [x] **0.1** Move fullscreen button from hidden position to top-right toolbar
   - **Target:** Separate button group, top-right corner
   - **File:** `UnifiedFlowEditor.tsx`
   
-- [ ] **0.2** Implement fullscreen API
-  - Use `document.documentElement.requestFullscreen()`
-  - Add ESC handler with `document.exitFullscreen()`
-  - Track state in React: `const [isFullscreen, setIsFullscreen] = useState(false)`
-  - Toggle icon: `Maximize2` → `Minimize2`
+- [x] **0.2** Implement fullscreen API
+  - Prefer native Fullscreen API (`requestFullscreen` / `exitFullscreen`), with CSS fullscreen fallback
+  - ESC exit supported
+  - Toggle icon: `Maximize2` ↔ `Minimize2`
   
-- [ ] **0.3** Test all capabilities in fullscreen
+- [x] **0.3** Test all capabilities in fullscreen
   - ✅ Node palette accessible
   - ✅ Config panels functional
   - ✅ Keyboard shortcuts work (Ctrl+S, Ctrl+Z, Ctrl+Y)
   - ✅ Drag-and-drop from palette
   - ✅ Undo/redo operational
   
-- [ ] **0.4** Persist fullscreen preference
+- [x] **0.4** Persist fullscreen preference
   - Save to `localStorage`: `workforms_fullscreen_enabled`
-  - Restore on editor mount
+  - Keep preference in sync via `fullscreenchange`
   - Handle ESC exit gracefully
 
 #### Acceptance Criteria
