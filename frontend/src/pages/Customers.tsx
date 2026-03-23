@@ -72,7 +72,9 @@ const Customers: React.FC = () => {
     try {
       // Use apiClient to automatically include Authorization headers
       const response = await apiClient.get('/products/');
-      setProducts(response.data);
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setProducts(data);
     } catch (error) {
       console.error('Error fetching products:', error);
       // apiClient handles 401 automatically with token refresh
@@ -82,26 +84,25 @@ const Customers: React.FC = () => {
   const fetchFilteredProducts = async (proteinTypes: string[]) => {
     try {
       // Use apiClient with proper params - automatically includes Authorization
-      const response = await apiService.apiClient.get('/products/', {
+      const response = await apiClient.get('/products/', {
         params: {
           protein: proteinTypes, // axios will serialize array properly
         },
       });
-      
-      const data = response.data;
+
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setProducts(data);
-      
-      if (data.length === 0) {
-        console.log('No products match selected protein filters');
-      } else {
+
+      if (data.length > 0) {
         // Auto-select filtered products
-        const filteredProductIds = data.map((p: any) => p.id);
-        setFormData(prev => ({
-          ...prev,
-          products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
-        }));
-        
-        console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
+        const filteredProductIds = data.map((p: any) => p.id).filter((id: any) => typeof id === 'number');
+        if (filteredProductIds.length) {
+          setFormData((prev) => ({
+            ...prev,
+            products: [...new Set([...prev.products, ...filteredProductIds])],
+          }));
+        }
       }
     } catch (error) {
       console.error('Error fetching filtered products:', error);
