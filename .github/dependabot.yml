@@ -131,6 +131,10 @@ updates:
           - "major"
           - "minor"
           - "patch"
+    ignore:
+      # Golden pipeline stability: keep this action pinned unless we intentionally validate an upgrade.
+      - dependency-name: "appleboy/ssh-action"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # ============================================================================
   # Docker Base Images (Backend)
@@ -156,12 +160,12 @@ updates:
           - "major"
           - "minor"
           - "patch"
-    # Only update on minor versions (e.g., Python 3.11 -> 3.12)
     ignore:
+      # Platform bumps should be intentional (explicit platform PR), not automatic.
       - dependency-name: "python"
-        update-types: ["version-update:semver-patch"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "postgres"
-        update-types: ["version-update:semver-patch"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # ============================================================================
   # Docker Base Images (Frontend)
@@ -188,10 +192,11 @@ updates:
           - "minor"
           - "patch"
     ignore:
+      # Platform bumps should be intentional (explicit platform PR), not automatic.
       - dependency-name: "node"
-        update-types: ["version-update:semver-patch"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "nginx"
-        update-types: ["version-update:semver-patch"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
 # ============================================================================
 # Dependabot Optimization Strategy
