@@ -25,6 +25,7 @@ import {
 import debounce from 'lodash/debounce';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tabs, Spin, Button } from 'antd';
+import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { CreateOrderModal } from '../Shared';
@@ -455,6 +456,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [isRelationsLoading, setIsRelationsLoading] = useState(false);
 
   const [activeRelationTab, setActiveRelationTab] = useState<'orders' | 'invoices' | 'contacts' | 'more'>('orders');
+  const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
   const [relationTabData, setRelationTabData] = useState<Record<string, { items: SearchEntity[]; count: number }>>({});
   const [loadingRelationTab, setLoadingRelationTab] = useState<string | null>(null);
 
@@ -1134,6 +1136,14 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           </>
         )}
 
+        <NotesAndCallsDrawer
+          open={isNotesDrawerOpen && Boolean(activeEntity)}
+          onClose={() => setIsNotesDrawerOpen(false)}
+          entityType={String(activeEntity?.type ?? '')}
+          entityId={String(activeEntity?.id ?? '')}
+          entityLabel={activeEntity?.name}
+        />
+
         {isInlineCreateSalesOrderOpen && activeEntity && String(activeEntity.type).toLowerCase() === 'customer' && (
           <CreateOrderModal
             isOpen={true}
@@ -1147,7 +1157,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           isPrimaryEntity ? (
             <Tabs
               activeKey={activeRelationTab}
-              tabBarExtraContent={tabCTA}
+              tabBarExtraContent={
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {tabCTA}
+                  <Button onClick={() => setIsNotesDrawerOpen(true)}>Log Call / Notes</Button>
+                </div>
+              }
               onChange={(nextKey) => {
                 const key = nextKey as typeof activeRelationTab;
                 setActiveRelationTab(key);
