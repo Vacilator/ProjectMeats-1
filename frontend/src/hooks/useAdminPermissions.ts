@@ -28,6 +28,11 @@ export interface AdminPermissions {
   can_view_audit_logs: boolean;
   can_manage_option_lists: boolean;
   role: 'user' | 'readonly' | 'manager' | 'admin' | 'owner' | 'superuser';
+
+  /** Resolved tenant context (used to persist X-Tenant-ID for admin calls). */
+  tenant_id?: string | null;
+  tenant_name?: string | null;
+  tenant_slug?: string | null;
 }
 
 /**
@@ -43,6 +48,16 @@ export function useAdminPermissions() {
         // NOTE: TenantViewSet is registered at /api/v1/tenants/
         // so the admin permissions action is /api/v1/tenants/admin_permissions/
         const response = await apiClient.get('/tenants/admin_permissions/');
+
+        // Ensure tenant context is persisted for downstream Admin Workspace calls.
+        // This avoids "admin pages not working" when localStorage.tenantId is missing/stale.
+        const tenantIdFromApi = response.data?.tenant_id;
+        if (tenantIdFromApi) {
+          localStorage.setItem('tenantId', String(tenantIdFromApi));
+          if (response.data?.tenant_name) localStorage.setItem('tenantName', String(response.data.tenant_name));
+          if (response.data?.tenant_slug) localStorage.setItem('tenantSlug', String(response.data.tenant_slug));
+        }
+
         return response.data;
       } catch (error: any) {
         // If 401, let the axios interceptor handle it

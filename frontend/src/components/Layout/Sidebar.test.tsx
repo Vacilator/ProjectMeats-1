@@ -50,6 +50,28 @@ vi.mock('../../config/navigation', () => ({
   ],
 }));
 
+// Mock admin permissions hook so Sidebar tests don't require React Query provider
+vi.mock('../../hooks/useAdminPermissions', () => ({
+  useAdminPermissions: () => ({
+    permissions: {
+      can_manage_users: true,
+      can_invite_users: true,
+      can_change_roles: true,
+      can_manage_profile: true,
+      can_manage_billing: true,
+      can_manage_configurations: true,
+      can_manage_customizations: true,
+      can_view_audit_logs: true,
+      can_manage_option_lists: true,
+      role: 'admin',
+    },
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  isAdminOrOwner: () => true,
+}));
+
 // Helper to render with Router
 const renderSidebar = (props: Partial<React.ComponentProps<typeof Sidebar>> = {}) => {
   const defaultProps = {
