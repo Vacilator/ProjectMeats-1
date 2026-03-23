@@ -75,13 +75,14 @@ export default function InsertNodeEdge({
       <path
         d={edgePath}
         className="react-flow__edge-path"
+        fill="none"
         style={{ stroke: 'transparent', strokeWidth: 30, strokeOpacity: 0 }}
         pointerEvents="stroke"
       />
 
       <path
         id={id}
-        style={{ ...style, strokeWidth: 2, stroke: 'rgb(var(--color-border))' }}
+        style={{ ...style, fill: 'none', strokeWidth: 2, stroke: 'rgb(var(--color-border))' }}
         className="react-flow__edge-path"
         d={edgePath}
         markerEnd={markerEnd}

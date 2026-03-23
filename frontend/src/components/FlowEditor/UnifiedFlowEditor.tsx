@@ -109,6 +109,7 @@ import {
   FormNode,
   FormProcessNode,
   FormProcessContainerNode,
+  FormProcessAddButtonNode,
   FormStepNode,
   FormStepSingleNode,
   FormReferenceNode,
@@ -129,7 +130,7 @@ import { DryRunDebugger } from './components/DryRunDebugger';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
 import { schemaRegistry } from './config/schemaRegistry';
-import { calculateContainerLayout, autoConnectSequentialSteps } from './utils/containerLayout'; // Phase 3-4
+import { calculateContainerLayout, autoConnectSequentialSteps, LAYOUT_CONSTANTS } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
 import { EnhancedContextMenu, useEnhancedContextMenu } from './components/EnhancedContextMenu'; // Phase 2: UI/UX
 import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type WorkflowListItem } from './utils/workflowPersistence'; // Phase 7, 8.3
@@ -1671,6 +1672,9 @@ const staticNodeTypes = {
   // Form Process: non-purple container renderer with toolbar (Add Step + Edit)
   formProcessContainer: FormProcessContainerNode,
 
+  // Render-time "+" button node for Form Process containers
+  formProcessAddButton: FormProcessAddButtonNode,
+
   smartWorkForm: SmartWorkFormNode,
 
   // Backward compatibility aliases
@@ -1934,6 +1938,65 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       });
       nextEdges = connectionResult.edges;
     }
+
+    setNodes(sortNodesTopologically(nextNodes));
+    setEdges(nextEdges);
+  }, [edges, nodes, setEdges, setNodes]);
+
+  // Dynamic FormProcess alignment: when steps are added/removed, re-stack all internal pages vertically.
+  // This is intentionally NOT persisted as a migration; it only updates node positions and container sizing.
+  const containerChildSignatureRef = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (!didInitialFormProcessLayoutRef.current) return;
+
+    const isPageNodeType = (type?: string) =>
+      type === 'form' || type === 'formReference' || type === 'formStepSingle' || type === 'formStep';
+
+    const containerNodes = nodes.filter((n) =>
+      isFormProcessContainerType(((n.data as any)?.nodeType as string | undefined) || n.type)
+    );
+    if (containerNodes.length === 0) return;
+
+    let nextNodes = nodes;
+    let nextEdges = edges;
+    let didChange = false;
+
+    for (const container of containerNodes) {
+      const pages = nextNodes.filter((n) => n.parentId === container.id && isPageNodeType(n.type));
+      const signature = pages
+        .map((p) => String(p.id))
+        .sort()
+        .join('|');
+
+      const prevSig = containerChildSignatureRef.current.get(container.id);
+      if (prevSig === undefined) {
+        containerChildSignatureRef.current.set(container.id, signature);
+        continue;
+      }
+
+      if (prevSig === signature) continue;
+
+      const layoutResult = calculateContainerLayout(container.id, nextNodes, nextEdges);
+      const connectionResult = autoConnectSequentialSteps(container.id, layoutResult.nodes, nextEdges);
+
+      nextNodes = layoutResult.nodes.map((n) => {
+        if (n.id !== container.id) return n;
+        return {
+          ...n,
+          style: {
+            ...(n.style || {}),
+            width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 600),
+            height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 400),
+          },
+        };
+      });
+
+      nextEdges = connectionResult.edges;
+      containerChildSignatureRef.current.set(container.id, signature);
+      didChange = true;
+    }
+
+    if (!didChange) return;
 
     setNodes(sortNodesTopologically(nextNodes));
     setEdges(nextEdges);
@@ -4124,8 +4187,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           parentId: newNode.id,
           extent: 'parent',
           expandParent: true,
-          position: { x: 50 + index * 350, y: 80 },
+          position: {
+            x: LAYOUT_CONSTANTS.START_X,
+            y: LAYOUT_CONSTANTS.STEP_Y + index * LAYOUT_CONSTANTS.STEP_SPACING,
+          },
           draggable: false,
+          style: { width: LAYOUT_CONSTANTS.STEP_W, height: LAYOUT_CONSTANTS.STEP_H, overflow: 'hidden' },
           data: {
             label: `Page ${index + 1}`,
             status: 'draft',
@@ -4258,7 +4325,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
    */
   const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
     // Phase 5: If node is inside a container and it's a form step, check for significant movement
-    if (node.parentId && (node.type === 'formStep' || node.type === 'formReference')) {
+    if (node.parentId && (node.type === 'form' || node.type === 'formStep' || node.type === 'formStepSingle' || node.type === 'formReference')) {
       // Check if position changed significantly (more than 30px horizontally)
       const dragStart = dragStartPositionRef.current;
       const SIGNIFICANT_MOVEMENT_THRESHOLD = 30; // pixels
@@ -6346,10 +6413,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         const newPage: Node = {
           id: newPageId,
           type: 'form',
-          position: {
-            x: 50 + insertIndex * 350,
-            y: 80,
-          },
+          position: enforceStrictPages
+            ? {
+                x: LAYOUT_CONSTANTS.START_X,
+                y: LAYOUT_CONSTANTS.STEP_Y + insertIndex * LAYOUT_CONSTANTS.STEP_SPACING,
+              }
+            : {
+                x: LAYOUT_CONSTANTS.START_X + insertIndex * LAYOUT_CONSTANTS.STEP_SPACING,
+                y: LAYOUT_CONSTANTS.STEP_Y,
+              },
           style: enforceStrictPages ? { width: 320, height: 320, overflow: 'hidden' } : undefined,
           data: {
             stepTitle: `Page ${newPageNumber}`,
@@ -6386,10 +6458,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
           return {
             ...n,
-            position: {
-              x: 50 + idx * 350,
-              y: 80,
-            },
+            position: enforceStrictPages
+              ? {
+                  x: LAYOUT_CONSTANTS.START_X,
+                  y: LAYOUT_CONSTANTS.STEP_Y + idx * LAYOUT_CONSTANTS.STEP_SPACING,
+                }
+              : {
+                  x: LAYOUT_CONSTANTS.START_X + idx * LAYOUT_CONSTANTS.STEP_SPACING,
+                  y: LAYOUT_CONSTANTS.STEP_Y,
+                },
             draggable: enforceStrictPages ? false : n.draggable,
             style: enforceStrictPages
               ? {
@@ -6551,6 +6628,51 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     return derived;
   }, [edges, nodesWithHandlers]);
+
+  // Render-time "+" button beneath the last form step inside each expanded FormProcess container.
+  // This node is virtual (not persisted) and triggers creation of the next Form step.
+  const nodesForCanvas = useMemo(() => {
+    const isPageNodeType = (type?: string) =>
+      type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
+
+    const virtualNodes: Node[] = [];
+
+    nodesWithHandlers.forEach((n) => {
+      const containerType = ((n.data as any)?.nodeType as string | undefined) || n.type;
+      if (!isFormProcessContainerType(containerType)) return;
+      if ((n.data as any)?.isExpanded === false) return;
+
+      const pages = nodesWithHandlers
+        .filter((c) => c.parentId === n.id && isPageNodeType(c.type) && !c.hidden)
+        .sort((a, b) => (a.position?.y || 0) - (b.position?.y || 0));
+
+      const last = pages[pages.length - 1];
+      const anchorY = last ? last.position.y + LAYOUT_CONSTANTS.STEP_H : LAYOUT_CONSTANTS.STEP_Y;
+
+      const x = LAYOUT_CONSTANTS.START_X + (LAYOUT_CONSTANTS.STEP_W / 2 - LAYOUT_CONSTANTS.ADD_BUTTON_D / 2);
+      const y = anchorY + LAYOUT_CONSTANTS.ADD_BUTTON_MARGIN_Y;
+
+      virtualNodes.push({
+        id: `__virtual:add:${n.id}`,
+        type: 'formProcessAddButton',
+        parentId: n.id,
+        extent: 'parent',
+        position: { x, y },
+        draggable: false,
+        selectable: false,
+        connectable: false,
+        focusable: false,
+        deletable: false,
+        style: { width: LAYOUT_CONSTANTS.ADD_BUTTON_D, height: LAYOUT_CONSTANTS.ADD_BUTTON_D },
+        data: {
+          containerId: n.id,
+          onAddStepInsideForm: (n.data as any)?.onAddStepInsideForm,
+        },
+      });
+    });
+
+    return virtualNodes.length ? [...nodesWithHandlers, ...virtualNodes] : nodesWithHandlers;
+  }, [nodesWithHandlers]);
 
   return (
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
@@ -7014,7 +7136,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       {/* React Flow Canvas - Visual Mode */}
       {normalizedEditorMode === 'visual' && (
         <DebugAwareReactFlow
-        nodes={nodesWithHandlers}
+        nodes={nodesForCanvas}
         edges={edgesForCanvas}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -7054,7 +7176,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           // Step edges with larger markers + wider interaction area.
           // NOTE: edgeTypes.step maps to EnhancedConnectionEdge to preserve toolbars/hitbox.
           type: 'step',
-          style: { strokeWidth: 3, stroke: 'rgb(var(--color-text-secondary))' },
+          style: { fill: 'none', strokeWidth: 3, stroke: 'rgb(var(--color-text-secondary))' },
           interactionWidth: 28,
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -7064,6 +7186,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           },
         }}
         connectionLineStyle={{
+          fill: 'none',
           stroke: 'rgb(var(--color-text-secondary))',
           strokeWidth: 3,
           strokeDasharray: '5,5',

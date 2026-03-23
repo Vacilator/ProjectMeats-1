@@ -153,6 +153,7 @@ export const SuccessEdge = React.memo<EdgeProps<SuccessEdgeData>>(({
         id={id}
         className="react-flow__edge-path"
         d={edgePath}
+        fill="none"
         style={edgeStyle}
         markerEnd={`url(#checkmark-${id})`}
       />
