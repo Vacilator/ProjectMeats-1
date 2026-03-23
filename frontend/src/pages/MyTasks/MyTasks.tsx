@@ -14,6 +14,7 @@ import { DelegateTaskModal, DelegationData, User } from '../../components/Delega
 import { DelegationHistory } from '../../components/Delegation';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { WorkflowExecution } from '../../types/workflows';
+import { compareTasksSmart, isAtRiskTask, daysUntilDue } from '../../utils/taskPrioritization';
 
 // Styled Components
 const Container = styled.div`
@@ -617,7 +618,7 @@ export const MyTasks: React.FC = () => {
     try {
       await workflowExecutionService.resumeExecution(execution.id);
       // Navigate to the workflow
-      window.location.href = `/workflows/submissions/${execution.id}`;
+      window.location.href = `/workflows/run/${execution.id}`;
     } catch (err) {
       console.error('Failed to resume workflow:', err);
       alert('Failed to resume workflow. Please try again.');
@@ -642,29 +643,7 @@ export const MyTasks: React.FC = () => {
     return date.toLocaleDateString();
   };
 
-  const daysUntilDue = (dueDate: string | null): number | null => {
-    if (!dueDate) return null;
-    const date = new Date(dueDate);
-    const now = new Date();
-    const diff = date.getTime() - now.getTime();
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  };
-
-  const computeUrgencyValueScore = (item: ActionItem): number => {
-    const priorityWeight: Record<string, number> = {
-      urgent: 1.5,
-      high: 1.0,
-      normal: 0.5,
-      low: 0.2,
-    };
-    const days = daysUntilDue(item.due_date);
-    const isOverdue = item.is_overdue || (days !== null && days < 0);
-    const daysWeight = isOverdue ? 10 : days !== null ? Math.max(0, 7 - Math.min(days, 30)) / 7 : 0;
-    const value = item.related_po_value ?? 0;
-    const valueWeight = Math.log10(value > 0 ? value + 1 : 1); // diminishing returns
-    const priority = priorityWeight[item.priority] ?? 0.3;
-    return (isOverdue ? 5 : 0) + daysWeight * 3 + valueWeight * 2 + priority;
-  };
+  // daysUntilDue imported from shared taskPrioritization util
 
   // Filter and sort action items
   const filteredItems = useMemo(() => {
@@ -697,7 +676,7 @@ export const MyTasks: React.FC = () => {
     items.sort((a, b) => {
       switch (sortBy) {
         case 'smart':
-          return computeUrgencyValueScore(b) - computeUrgencyValueScore(a);
+          return compareTasksSmart(a, b);
         case 'due_date':
           if (!a.due_date && !b.due_date) return 0;
           if (!a.due_date) return 1;
@@ -719,12 +698,7 @@ export const MyTasks: React.FC = () => {
   }, [actionItems, priorityFilter, statusFilter, searchQuery, sortBy]);
 
   // Calculate "At Risk" tasks (high-value + overdue/due soon)
-  const isAtRisk = (item: ActionItem): boolean => {
-    const days = daysUntilDue(item.due_date);
-    const highValue = (item.related_po_value ?? 0) >= 10000; // $10k+ threshold
-    const timeCritical = item.is_overdue || (days !== null && days <= 2);
-    return highValue && timeCritical;
-  };
+  const isAtRisk = (item: ActionItem): boolean => isAtRiskTask(item);
 
   const atRiskStats = useMemo(() => {
     const atRiskItems = filteredItems.filter(isAtRisk);
@@ -735,11 +709,7 @@ export const MyTasks: React.FC = () => {
   }, [filteredItems]);
 
   const riskStats = useMemo(() => {
-    const atRiskItems = filteredItems.filter((item) => {
-      const days = daysUntilDue(item.due_date);
-      const value = item.related_po_value ?? 0;
-      return (item.is_overdue || (days !== null && days <= 2)) && value >= 10000;
-    });
+    const atRiskItems = filteredItems.filter(isAtRisk);
     const totalValue = atRiskItems.reduce((sum, item) => sum + (item.related_po_value ?? 0), 0);
     return { count: atRiskItems.length, totalValue };
   }, [filteredItems]);
@@ -748,7 +718,7 @@ export const MyTasks: React.FC = () => {
   const handleTaskClick = (item: ActionItem) => {
     // Navigate to the form submission
     if (item.submission_id) {
-      window.location.href = `/workflows/submissions/${item.submission_id}`;
+      window.location.href = `/workflows/run/${item.submission_id}`;
     }
   };
   
