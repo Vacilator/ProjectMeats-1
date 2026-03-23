@@ -95,7 +95,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   // Load tenant branding from backend on mount (only once)
   useEffect(() => {
-    const loadTenantBranding = async () => {
+    const loadTenantBranding = async (opts?: { bustLogoCache?: boolean }) => {
       if (!getAuthHeader()) return;
 
       try {
@@ -114,6 +114,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
           const baseUrl = apiBaseUrl.replace('/api/v1', '');
           branding.logoUrl = `${baseUrl}${branding.logoUrl}`;
         }
+
+        // Cache-bust the logo on explicit branding updates (avoids stale image after upload)
+        if (opts?.bustLogoCache && branding.logoUrl) {
+          const sep = branding.logoUrl.includes('?') ? '&' : '?';
+          branding.logoUrl = `${branding.logoUrl}${sep}v=${Date.now()}`;
+        }
         
         setTenantBranding(branding);
       } catch (error) {
@@ -123,10 +129,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
     loadTenantBranding();
 
-    // Listen for branding updates from Settings page
+    // Listen for branding updates from Settings/Admin Profile pages
     const handleBrandingUpdate = () => {
       console.log('🔄 Tenant branding update event received, reloading...');
-      loadTenantBranding();
+      loadTenantBranding({ bustLogoCache: true });
     };
 
     window.addEventListener('tenant-branding-updated', handleBrandingUpdate);

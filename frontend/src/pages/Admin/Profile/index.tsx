@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Image as ImageIcon, X } from 'lucide-react';
+import { Building2, Image as ImageIcon, X, Sparkles } from 'lucide-react';
 import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, AdminSection, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { getRuntimeConfig } from '@/config/runtime';
+import { extractBrandColors } from '@/utils/themeUtils';
+import { injectTenantColors } from '@/config/theme';
 
 interface Tenant {
   id: string;
@@ -61,6 +64,22 @@ const getDefaultHexFromCssVar = (varName: string, fallbackHex: string): string =
   return rgbTripletToHex(raw) ?? fallbackHex;
 };
 
+const rgbToHex = (r: number, g: number, b: number): string => {
+  const toHex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
+const normalizeLogoUrl = (logoUrl: string | null | undefined): string | null => {
+  if (!logoUrl) return null;
+  if (logoUrl.startsWith('data:')) return logoUrl;
+  if (logoUrl.startsWith('/')) {
+    const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
+    const baseUrl = apiBaseUrl.replace('/api/v1', '');
+    return `${baseUrl}${logoUrl}`;
+  }
+  return logoUrl;
+};
+
 const AdminProfilePage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -78,6 +97,7 @@ const AdminProfilePage: React.FC = () => {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
+  const [extractingColors, setExtractingColors] = useState(false);
 
   const {
     data: tenant,
@@ -117,7 +137,7 @@ const AdminProfilePage: React.FC = () => {
       primary_color_dark: tenant.branding?.primary_color_dark || defaults.dark,
     });
 
-    setLogoPreview(tenant.branding?.logo_url || null);
+    setLogoPreview(normalizeLogoUrl(tenant.branding?.logo_url) || null);
     setLogoFile(null);
     setRemoveLogo(false);
   }, [tenant, defaults.dark, defaults.light]);
@@ -190,8 +210,8 @@ const AdminProfilePage: React.FC = () => {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image size must be less than 2MB');
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
       return;
     }
 
@@ -211,6 +231,60 @@ const AdminProfilePage: React.FC = () => {
     setRemoveLogo(true);
   };
 
+  const handleExtractColorsFromLogo = async () => {
+    if (!logoPreview) {
+      toast.error('Upload a logo first to extract brand colors');
+      return;
+    }
+
+    setExtractingColors(true);
+    try {
+      const rgb = await extractBrandColors(logoPreview);
+      if (!rgb || rgb.length !== 3) {
+        toast.error('Failed to extract colors from logo');
+        return;
+      }
+
+      const [r, g, b] = rgb;
+      const primaryLight = rgbToHex(r, g, b);
+
+      // Derive a companion color for dark theme by shifting luminance.
+      const luminance = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+      const isLight = luminance > 0.55;
+      const darkRgb: [number, number, number] = isLight
+        ? [Math.max(0, Math.round(r * 0.70)), Math.max(0, Math.round(g * 0.70)), Math.max(0, Math.round(b * 0.70))]
+        : [
+            Math.min(255, Math.round(r + (255 - r) * 0.30)),
+            Math.min(255, Math.round(g + (255 - g) * 0.30)),
+            Math.min(255, Math.round(b + (255 - b) * 0.30)),
+          ];
+
+      const primaryDark = rgbToHex(darkRgb[0], darkRgb[1], darkRgb[2]);
+
+      setFormData((prev) => ({
+        ...prev,
+        primary_color_light: primaryLight,
+        primary_color_dark: primaryDark,
+      }));
+
+      // Apply as a live preview immediately (saving persists for all tenant users).
+      injectTenantColors(primaryLight, primaryDark, 'light');
+      toast.success(`Extracted theme colors: ${primaryLight} / ${primaryDark}`);
+    } catch (e) {
+      console.error('Failed to extract colors from logo:', e);
+      toast.error('Failed to extract colors from logo');
+    } finally {
+      setExtractingColors(false);
+    }
+  };
+
+  const handlePreviewTheme = () => {
+    const light = isValidHexColor(formData.primary_color_light) ? formData.primary_color_light : defaults.light;
+    const dark = isValidHexColor(formData.primary_color_dark) ? formData.primary_color_dark : defaults.dark;
+    injectTenantColors(light, dark, 'light');
+    toast.info('Preview applied (Save Changes to persist for all tenant users)');
+  };
+
   const handleDiscard = () => {
     if (!tenant) return;
 
@@ -226,7 +300,7 @@ const AdminProfilePage: React.FC = () => {
     });
 
     setLogoFile(null);
-    setLogoPreview(tenant.branding?.logo_url || null);
+    setLogoPreview(normalizeLogoUrl(tenant.branding?.logo_url) || null);
     setRemoveLogo(false);
   };
 
@@ -435,12 +509,29 @@ const AdminProfilePage: React.FC = () => {
                   <Button as="label" htmlFor="logo" variant="outline" size="sm">
                     Upload Logo
                   </Button>
-                  <Hint>PNG/JPG up to 2MB.</Hint>
+                  <Hint>PNG/JPG/WebP up to 5MB.</Hint>
                 </div>
               </LogoBlock>
 
               <ColorsBlock>
                 <LogoTitle>Primary colors</LogoTitle>
+
+                <ColorActions>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExtractColorsFromLogo}
+                    disabled={!logoPreview || extractingColors}
+                    title={!logoPreview ? 'Upload a logo to extract colors' : undefined}
+                  >
+                    <Sparkles size={16} />
+                    {extractingColors ? 'Extracting…' : 'Extract from Logo'}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={handlePreviewTheme}>
+                    Preview in App
+                  </Button>
+                </ColorActions>
 
                 <ColorField>
                   <Label>Light theme</Label>
@@ -610,6 +701,13 @@ const ColorsBlock = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
+`;
+
+const ColorActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 `;
 
 const LogoTitle = styled.h3`
