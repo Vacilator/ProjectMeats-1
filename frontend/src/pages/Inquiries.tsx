@@ -11,9 +11,9 @@
  * - Clone existing inquiries
  * - Create from templates
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/apiService';
 import { InquiryListItem, InquiryStatus, InquiryTemplateListItem } from '../types';
 import { CreateInquiryModal, InquiryDetailModal, CloneInquiryModal } from '../components/Inquiry';
@@ -359,6 +359,11 @@ const PaginationButton = styled.button`
 
 const Inquiries: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const didInitFromStateRef = useRef(false);
+
+  const [prefillEntityType, setPrefillEntityType] = useState<'customer' | 'supplier' | undefined>(undefined);
+  const [prefillEntityId, setPrefillEntityId] = useState<string | undefined>(undefined);
   const [inquiries, setInquiries] = useState<InquiryListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -420,6 +425,22 @@ const Inquiries: React.FC = () => {
   useEffect(() => {
     fetchInquiries();
   }, [fetchInquiries]);
+
+  // Allow deep-linking from Cockpit to open the create modal with context.
+  useEffect(() => {
+    if (didInitFromStateRef.current) return;
+
+    const state = (location.state ?? {}) as any;
+    if (state?.openCreateModal) {
+      didInitFromStateRef.current = true;
+      setPrefillEntityType(state.entityType === 'supplier' ? 'supplier' : state.entityType === 'customer' ? 'customer' : undefined);
+      setPrefillEntityId(typeof state.entityId === 'string' ? state.entityId : state.entityId != null ? String(state.entityId) : undefined);
+      setShowCreateModal(true);
+
+      // Clear state so refresh/back doesn't repeatedly reopen the modal.
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const handleRowClick = async (inquiry: InquiryListItem) => {
     try {
@@ -646,6 +667,8 @@ const Inquiries: React.FC = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleCreateSuccess}
+        entityType={prefillEntityType}
+        entityId={prefillEntityId}
       />
 
       {/* Inquiry Detail Modal */}

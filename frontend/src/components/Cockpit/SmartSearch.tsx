@@ -455,7 +455,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const [isRelationsLoading, setIsRelationsLoading] = useState(false);
 
-  const [activeRelationTab, setActiveRelationTab] = useState<'orders' | 'invoices' | 'contacts' | 'more'>('orders');
+  const [activeRelationTab, setActiveRelationTab] = useState<'orders' | 'invoices' | 'contacts' | 'inquiries' | 'more'>('orders');
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
   const [relationTabData, setRelationTabData] = useState<Record<string, { items: SearchEntity[]; count: number }>>({});
   const [loadingRelationTab, setLoadingRelationTab] = useState<string | null>(null);
@@ -835,11 +835,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     return raw === 'customer' || raw === 'supplier';
   }, [activeEntity?.type]);
 
-  const loadRelationshipTab = useCallback(async (tabKey: 'orders' | 'invoices' | 'contacts', entity: SearchEntity) => {
+  const loadRelationshipTab = useCallback(async (tabKey: 'orders' | 'invoices' | 'contacts' | 'inquiries', entity: SearchEntity) => {
     const relationshipType = tabKey === 'orders'
       ? 'recent_orders'
       : tabKey === 'contacts'
       ? 'contacts'
+      : tabKey === 'inquiries'
+      ? 'inquiries'
       : 'invoices';
 
     setLoadingRelationTab(tabKey);
@@ -1096,8 +1098,30 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       );
     }
 
+    if (activeRelationTab === 'inquiries') {
+      const type = String(activeEntity.type).toLowerCase();
+      const entityType = type === 'supplier' ? 'supplier' : 'customer';
+
+      return (
+        <Button
+          type="primary"
+          onClick={() => {
+            navigate('/inquiries', {
+              state: {
+                openCreateModal: true,
+                entityType,
+                entityId: String(activeEntity.id),
+              },
+            });
+          }}
+        >
+          + New Inquiry
+        </Button>
+      );
+    }
+
     return null;
-  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity, openInlineCreateSalesOrder]);
+  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity, navigate, openInlineCreateSalesOrder]);
 
   return (
     <Container>
@@ -1175,7 +1199,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                   return;
                 }
 
-                const typed = key as 'orders' | 'invoices' | 'contacts';
+                const typed = key as 'orders' | 'invoices' | 'contacts' | 'inquiries';
                 if (!relationTabData[typed] && loadingRelationTab !== typed) {
                   void loadRelationshipTab(typed, activeEntity);
                 }
@@ -1259,6 +1283,33 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                       <EmptyIcon><Users size={48} /></EmptyIcon>
                       <EmptyTitle>No contacts yet</EmptyTitle>
                       <EmptyMessage>Contacts will appear here once added</EmptyMessage>
+                    </EmptyState>
+                  ),
+                },
+                {
+                  key: 'inquiries',
+                  label: `Inquiries${relationTabData.inquiries ? ` (${relationTabData.inquiries.count})` : ''}`,
+                  children: loadingRelationTab === 'inquiries' ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : relationTabData.inquiries?.items?.length ? (
+                    <ResultGrid>
+                      {relationTabData.inquiries.items.map(item => (
+                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
+                          <ResultIcon $color={getEntityColor(item.type)}>
+                            {getEntityIcon(item.type)}
+                          </ResultIcon>
+                          <ResultContent>
+                            <ResultTitle>{item.name}</ResultTitle>
+                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          </ResultContent>
+                        </ResultCard>
+                      ))}
+                    </ResultGrid>
+                  ) : (
+                    <EmptyState>
+                      <EmptyIcon><FileText size={48} /></EmptyIcon>
+                      <EmptyTitle>No inquiries yet</EmptyTitle>
+                      <EmptyMessage>Inquiries will appear here once created</EmptyMessage>
                     </EmptyState>
                   ),
                 },

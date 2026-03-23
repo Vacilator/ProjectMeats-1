@@ -176,7 +176,7 @@ export const AIOverviewCard: React.FC<AIOverviewCardProps> = ({ entityType, enti
     if (state.status === 'unavailable') {
       return (
         <Placeholder>
-          AI overview will appear here once enabled for this environment.
+          AI overview is <strong>enabled for this environment</strong>. No summary is available yet for this record.
         </Placeholder>
       );
     }
