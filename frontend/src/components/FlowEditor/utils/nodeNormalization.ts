@@ -27,17 +27,23 @@ export function normalizeNodeData(node: Node): Node {
   // --------------------------------------------------------------------------
   // Form Process Lock-In: canonicalize legacy container types
   // --------------------------------------------------------------------------
-  // We lock all legacy Form Process / container variants to ONE runtime type:
-  // `formProcess`. This prevents UI drift between formBook/formProcessGroup/etc.
+  // We lock all legacy Form Process / container variants to ONE canonical nodeType
+  // (`formProcess`), while rendering them as a STANDARD React Flow default node
+  // to avoid the purple custom container regressions.
   if (node.type === 'formMultiStepContainer' || node.type === 'formProcess' || node.type === 'formProcessGroup' || node.type === 'formBook') {
-    const canonicalType = 'formProcess';
-    const canonicalDef = NODE_TYPE_REGISTRY[canonicalType];
+    const canonicalNodeType = 'formProcess';
+    const canonicalDef = NODE_TYPE_REGISTRY[canonicalNodeType];
+
+    const existingLabel = (node.data as any)?.label;
+    const existingContainerName = (node.data as any)?.containerName;
 
     return {
       ...node,
-      type: canonicalType,
+      type: 'default',
       data: {
         ...(node.data || {}),
+        nodeType: canonicalNodeType,
+        label: existingLabel ?? existingContainerName ?? 'Form Process',
         // Ensure group semantics are enabled
         isGroup: true,
         // Ensure required sizing metadata exists for downstream logic

@@ -75,10 +75,12 @@ export function calculateContainerLayout(
   logger.debug(`[Layout] Calculating layout for container ${containerId}`);
 
   const containerNode = allNodes.find((n) => n.id === containerId);
-  const enforceStrictPages =
-    containerNode?.type === 'formProcessGroup' ||
-    containerNode?.type === 'formProcess' ||
-    containerNode?.type === 'formMultiStepContainer';
+  const containerType = ((containerNode?.data as any)?.nodeType as string | undefined) || containerNode?.type;
+  const enforceStrictPages = !!containerType &&
+    (containerType === 'formProcessGroup' ||
+      containerType === 'formProcess' ||
+      containerType === 'formMultiStepContainer' ||
+      containerType === 'formBook');
 
   // Filter child nodes (using parentId - React Flow v11+)
   const childNodes = allNodes.filter(node => node.parentId === containerId);

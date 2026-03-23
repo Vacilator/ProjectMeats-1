@@ -1667,11 +1667,8 @@ const staticNodeTypes = {
   form: FormStepNode, // Form Step (Page)
   formStepSingle: FormStepSingleNode, // Backward compatibility
 
-  // Form Process (LOCKED): all legacy container variants render as the same container UI
-  formProcess: FormProcessNode,
-  formBook: FormProcessNode,
-  formProcessGroup: FormProcessNode,
-  formMultiStepContainer: FormProcessNode,
+  // Form Process containers render as STANDARD React Flow default nodes (no custom purple container)
+  // Container behavior is driven by node.data.nodeType === 'formProcess' + parentId grouping.
 
   smartWorkForm: SmartWorkFormNode,
 
@@ -1911,7 +1908,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     didInitialFormProcessLayoutRef.current = true;
 
-    const containerNodes = nodes.filter((n) => n.type === 'formProcess' || isFormProcessContainerType(n.type));
+    const containerNodes = nodes.filter((n) =>
+      isFormProcessContainerType(((n.data as any)?.nodeType as string | undefined) || n.type)
+    );
     if (containerNodes.length === 0) return;
 
     let nextNodes = nodes;
@@ -3367,7 +3366,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         selected: true,
       };
 
-      // Form Process lock-in: all containers are created as the canonical `formProcess`
+      // Form Process: keep container semantics in node.data.nodeType, render as STANDARD React Flow default node
       if (isNewContainer) {
         newNode.style = {
           width: 600,
@@ -3375,10 +3374,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
         newNode.data = {
           ...newNode.data,
+          nodeType: 'formProcess',
           isExpanded: true,
           isGroup: true,
         };
-        (newNode as any).type = 'formProcess';
       }
 
       const spawnDefaultFormPages = (parentId: string) => {
@@ -3637,7 +3636,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug('[Container] Looking for containers at position:', position);
     
     // Get all container nodes (support both formMultiStepContainer and formProcessGroup)
-    const containerNodes = nodes.filter(node => isFormProcessContainerType(node.type));
+    const containerNodes = nodes.filter((node) =>
+      isFormProcessContainerType(((node.data as any)?.nodeType as string | undefined) || node.type)
+    );
     
     logger.debug('[Container] Total nodes on canvas:', nodes.length);
     logger.debug('[Container] Container nodes found:', containerNodes.length);
@@ -3945,7 +3946,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
       }
       
-      // Form Process lock-in: ensure all container variants are created as the canonical `formProcess`
+      // Form Process: keep container semantics in node.data.nodeType, render as STANDARD React Flow default node
       if (isFormProcessContainerType(type)) {
         newNode.style = {
           width: 600, // Default width for group container
@@ -3953,10 +3954,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
         newNode.data = {
           ...newNode.data,
+          nodeType: 'formProcess',
           isExpanded: true, // Default to expanded so children are visible
           isGroup: true, // Mark as group for React Flow
         };
-        (newNode as any).type = 'formProcess';
       }
       
       // Phase 1.4: If dropping into a container, set parent-child relationship
@@ -4333,7 +4334,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const newParentId = container?.id || null;
     
     // Prevent containers from being nested in other containers
-    const isContainerNode = isFormProcessContainerType(node.type);
+    const isContainerNode = isFormProcessContainerType(((node.data as any)?.nodeType as string | undefined) || node.type);
     
     if (isContainerNode && newParentId) {
       logger.debug('[Container] Cannot nest containers inside containers');
@@ -4679,7 +4680,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     // Find all container nodes
     const containerNodes = nodes.filter((n) =>
-      ['formBook', 'formProcessGroup', 'formProcess', 'formMultiStepContainer'].includes(n.type || '')
+      isFormProcessContainerType(((n.data as any)?.nodeType as string | undefined) || n.type)
     );
     
     for (const container of containerNodes) {
@@ -6334,7 +6335,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         const baseOrder = [...normalizedExisting, ...missing];
         const insertIndex = afterNodeId && baseOrder.includes(afterNodeId) ? baseOrder.indexOf(afterNodeId) + 1 : baseOrder.length;
 
-        const enforceStrictPages = container.type === 'formProcessGroup' || container.type === 'formProcess' || container.type === 'formMultiStepContainer';
+        const containerType = ((container.data as any)?.nodeType as string | undefined) || container.type;
+        const enforceStrictPages = isFormProcessContainerType(containerType);
 
         const newPageId = `page-${uuidv4()}`;
         const nextOrder = [...baseOrder.slice(0, insertIndex), newPageId, ...baseOrder.slice(insertIndex)];
@@ -6413,7 +6415,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Batch 4: Also inject title change handler
   const nodesWithHandlers = useMemo(() => {
     const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
-    const isFormContainerType = (type?: string) => type === 'formBook' || type === 'formProcessGroup';
+
+    const isFormContainerNode = (n?: Node) =>
+      !!n && isFormProcessContainerType(((n.data as any)?.nodeType as string | undefined) || n.type);
 
     return nodes.map((node) => {
       const data = node.data ?? {};
@@ -6450,8 +6454,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             };
 
       const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
-      const parentIsFormContainer = parent && isFormContainerType(parent.type);
-      const nodeIsFormContainer = isFormContainerType(node.type);
+      const parentIsFormContainer = isFormContainerNode(parent);
+      const nodeIsFormContainer = isFormContainerNode(node);
 
       const onAddStepInsideForm =
         typeof (data as any).onAddStepInsideForm === 'function'
@@ -7888,8 +7892,8 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   // Force all triggers to use the rich Unified Trigger node & schema
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
 
-  // Form Process lock-in: all container variants render as ONE runtime type
-  if (isFormProcessContainerType(nodeTypeId)) return 'formProcess';
+  // Form Process: render containers as STANDARD React Flow default nodes
+  if (isFormProcessContainerType(nodeTypeId)) return 'default';
 
   // Preserve specific types for all other nodes so their specific schemas load
   return nodeTypeId;
@@ -7937,12 +7941,7 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
   }
 
   // Special handling for containers
-  if (
-    resolvedType === 'formProcess' ||
-    resolvedType === 'formMultiStepContainer' ||
-    resolvedType === 'formProcessGroup' ||
-    resolvedType === 'formBook'
-  ) {
+  if (isFormProcessContainerType(nodeTypeId)) {
     defaults.fields = [];
     defaults.containerName = 'New Container';
     defaults.isExpanded = true;
