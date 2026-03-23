@@ -218,3 +218,55 @@ class VectorMemory(TenantAwareModel):
         indexes = [
             models.Index(fields=['tenant', 'source_type'], name='ai_vec_tenant_src_idx'),
         ]
+
+
+class AIDocument(TenantAwareModel):
+    """Tenant + user-scoped document uploads for the AI assistant."""
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='ai_documents',
+        help_text='User who uploaded this document',
+    )
+
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name='documents',
+        null=True,
+        blank=True,
+        help_text='Optional chat session this document was uploaded into',
+    )
+
+    file = models.FileField(
+        upload_to='ai_assistant/documents/%Y/%m/%d',
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['pdf', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx']
+            )
+        ],
+    )
+
+    original_filename = models.CharField(max_length=255, blank=True, default='')
+    content_type = models.CharField(max_length=128, blank=True, default='')
+    file_size = models.BigIntegerField(default=0)
+
+    processing_status = models.CharField(
+        max_length=20,
+        default='pending',
+        choices=[
+            ('pending', 'pending'),
+            ('processing', 'processing'),
+            ('completed', 'completed'),
+            ('failed', 'failed'),
+        ],
+    )
+
+    class Meta:
+        db_table = 'ai_assistant_documents'
+        verbose_name = 'AI Document'
+        verbose_name_plural = 'AI Documents'
+        indexes = [
+            models.Index(fields=['tenant', 'owner', 'created_on'], name='ai_doc_tenant_owner_created_idx'),
+        ]

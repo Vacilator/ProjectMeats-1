@@ -11,13 +11,15 @@ from django.conf import settings
 from django.utils import timezone
 from pgvector.django import CosineDistance
 from rest_framework import filters, permissions, status, viewsets
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession, MessageTypeChoices, VectorMemory
+from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession, MessageTypeChoices, VectorMemory
 from .serializers import (
+    AIDocumentSerializer,
     AIConfigurationSerializer,
     ChatBotRequestSerializer,
     ChatBotResponseSerializer,
@@ -58,6 +60,13 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
     ordering_fields = ["created_on", "last_activity", "title"]
     ordering = ["-last_activity"]
 
+    @action(detail=True, methods=['get'])
+    def messages(self, request, pk=None):
+        """Return chat messages for a session (used by ChatWindow + widget history restore)."""
+        session = self.get_object()
+        qs = ChatMessage.objects.filter(session=session).order_by('created_on')
+        return Response(ChatMessageSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
         if self.action == "list":
@@ -66,7 +75,9 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter sessions to current user only."""
-        return self.queryset.filter(owner=self.request.user)
+        from django.db.models import Count
+
+        return self.queryset.filter(owner=self.request.user).annotate(message_count=Count('messages'))
 
     def perform_create(self, serializer):
         """Set the owner when creating a new session."""
@@ -233,6 +244,60 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+
+class AIDocumentViewSet(viewsets.ModelViewSet):
+    """ViewSet for uploading and listing AI documents."""
+
+    serializer_class = AIDocumentSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['created_on']
+    ordering = ['-created_on']
+
+    def get_queryset(self):
+        tenant = getattr(self.request, 'tenant', None)
+        qs = AIDocument.objects.all().select_related('tenant', 'owner', 'session')
+        qs = qs.filter(owner=self.request.user)
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        return qs
+
+    def perform_create(self, serializer):
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            from rest_framework.exceptions import ValidationError
+
+            raise ValidationError('Tenant context required.')
+
+        instance = serializer.save(
+            tenant=tenant,
+            owner=self.request.user,
+            original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
+            content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
+            file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
+        )
+
+        # If the upload was tied to a session, also create a DOCUMENT message so UIs can show it inline.
+        if instance.session_id:
+            try:
+                ChatMessage.objects.create(
+                    session=instance.session,
+                    message_type=MessageTypeChoices.DOCUMENT,
+                    content=instance.original_filename or 'Document uploaded',
+                    metadata={
+                        'document_id': str(instance.id),
+                        'original_filename': instance.original_filename,
+                        'file_url': getattr(instance.file, 'url', ''),
+                        'content_type': instance.content_type,
+                        'file_size': instance.file_size,
+                    },
+                    owner=self.request.user,
+                    created_by=self.request.user,
+                    modified_by=self.request.user,
+                )
+            except Exception:
+                pass
 
 
 class SwarmToolsOpenAPIView(APIView):
