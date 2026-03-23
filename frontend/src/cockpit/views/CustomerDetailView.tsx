@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/useToast';
 
 type CanonicalEntityType = 'customer' | 'supplier';
 
-type DetailTab = 'products' | 'orders' | 'callLogs' | 'enquiries';
+type DetailTab = 'products' | 'orders' | 'callLogs' | 'inquiries';
 
 type EntityRecord = {
   id: string | number;
@@ -80,7 +80,7 @@ function getTabRelationship(entityType: CanonicalEntityType, tab: DetailTab): st
       return entityType === 'customer' ? 'sales_orders' : 'purchase_orders';
     case 'callLogs':
       return 'call_logs';
-    case 'enquiries':
+    case 'inquiries':
       return 'inquiries';
   }
 }
@@ -540,7 +540,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
         products: 0,
         orders: 0,
         callLogs: 0,
-        enquiries: 0,
+        inquiries: 0,
       };
     }
 
@@ -548,12 +548,24 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
       products: getRelationshipCount(counts, 'products'),
       orders: getRelationshipCount(counts, canonicalType === 'customer' ? 'sales_orders' : 'purchase_orders'),
       callLogs: getRelationshipCount(counts, 'call_logs'),
-      enquiries: getRelationshipCount(counts, 'inquiries'),
+      inquiries: getRelationshipCount(counts, 'inquiries'),
     };
   }, [canonicalType, counts]);
 
-  const handleNewAction = (action: 'product' | 'order' | 'call' | 'enquiry') => {
+  const handleNewAction = (action: 'product' | 'order' | 'call' | 'inquiry') => {
     setIsNewMenuOpen(false);
+
+    if (action === 'inquiry') {
+      navigate('/inquiries', {
+        state: {
+          openCreateModal: true,
+          entityType: canonicalType,
+          entityId: String(entityId),
+        },
+      });
+      return;
+    }
+
     toast.info(`Coming soon: New ${action}`);
   };
 
@@ -701,11 +713,11 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
                 </TabButton>
                 <TabButton
                   type="button"
-                  $active={activeTab === 'enquiries'}
-                  onClick={() => setActiveTab('enquiries')}
-                  aria-selected={activeTab === 'enquiries'}
+                  $active={activeTab === 'inquiries'}
+                  onClick={() => setActiveTab('inquiries')}
+                  aria-selected={activeTab === 'inquiries'}
                 >
-                  Enquiries {tabCounts.enquiries ? `(${tabCounts.enquiries})` : ''}
+                  Inquiries {tabCounts.inquiries ? `(${tabCounts.inquiries})` : ''}
                 </TabButton>
               </TabsRow>
             </CardBody>
@@ -731,8 +743,8 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
                     <MenuItem type="button" onClick={() => handleNewAction('call')} role="menuitem">
                       New Call Log <span>↵</span>
                     </MenuItem>
-                    <MenuItem type="button" onClick={() => handleNewAction('enquiry')} role="menuitem">
-                      New Enquiry <span>↵</span>
+                    <MenuItem type="button" onClick={() => handleNewAction('inquiry')} role="menuitem">
+                      New Inquiry <span>↵</span>
                     </MenuItem>
                   </Menu>
                 )}
@@ -749,7 +761,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
                       ? 'Orders'
                       : activeTab === 'callLogs'
                         ? 'Call Logs'
-                        : 'Enquiries'}
+                        : 'Inquiries'}
                 </CardTitle>
                 <Muted>
                   {tabItemsQuery.isLoading
@@ -815,7 +827,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
                 <AIText>
                   {entityQuery.isLoading
                     ? 'Loading contact context…'
-                    : `Summary for ${title}: company ${getCompanyName(entity)}. Next steps: add a note, review recent orders, and capture enquiry details.`}
+                    : `Summary for ${title}: company ${getCompanyName(entity)}. Next steps: add a note, review recent orders, and capture inquiry details.`}
                 </AIText>
               </AIOverview>
 
