@@ -26,6 +26,11 @@ export interface EntityProfileHeaderProps {
   entityType: string;
   entityId: string;
   onNavigateToEntity: (entityType: string, entityId: string, label: string) => void;
+  /**
+   * When set to "compact", only the most important fields are shown.
+   * Defaults to "full" for backward compatibility.
+   */
+  variant?: 'full' | 'compact';
 }
 
 const Container = styled.div`
@@ -130,6 +135,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
   entityType,
   entityId,
   onNavigateToEntity,
+  variant = 'full',
 }) => {
   const [data, setData] = useState<EntityDetailResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -176,10 +182,44 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
 
   const fieldEntries = useMemo(() => {
     const fields = data?.fields ?? {};
-    return Object.entries(fields)
-      .filter(([key]) => !['id'].includes(key))
-      .sort(([a], [b]) => a.localeCompare(b));
-  }, [data]);
+    const entries = Object.entries(fields).filter(([key]) => !['id'].includes(key));
+
+    if (variant !== 'compact') {
+      return entries.sort(([a], [b]) => a.localeCompare(b));
+    }
+
+    const type = String(entityType || '').toLowerCase();
+    const preferredByType: Record<string, string[]> = {
+      customer: [
+        'company_name', 'company', 'name',
+        'phone', 'phone_number',
+        'email', 'contact_email',
+        'status',
+      ],
+      supplier: [
+        'company_name', 'company', 'name',
+        'phone', 'phone_number',
+        'email', 'contact_email',
+        'status',
+      ],
+      contact: ['first_name', 'last_name', 'email', 'phone', 'status'],
+      sales_order: ['our_sales_order_num', 'delivery_po_num', 'status', 'due_date', 'delivery_date'],
+      purchase_order: ['order_number', 'our_purchase_order_num', 'status', 'due_date', 'delivery_date'],
+      invoice: ['invoice_number', 'status', 'due_date', 'total_amount', 'payment_status'],
+    };
+
+    const preferred = preferredByType[type] ?? [];
+    const preferredIndex = new Map(preferred.map((key, idx) => [key, idx] as const));
+
+    const sorted = entries.sort(([a], [b]) => {
+      const ai = preferredIndex.has(a) ? preferredIndex.get(a)! : Number.POSITIVE_INFINITY;
+      const bi = preferredIndex.has(b) ? preferredIndex.get(b)! : Number.POSITIVE_INFINITY;
+      if (ai !== bi) return ai - bi;
+      return a.localeCompare(b);
+    });
+
+    return sorted.slice(0, 6);
+  }, [data, entityType, variant]);
 
   return (
     <Container>
@@ -187,7 +227,7 @@ export const EntityProfileHeader: React.FC<EntityProfileHeaderProps> = ({
         <TitleBlock>
           <Title title={data?.title || ''}>{data?.title || 'Record'}</Title>
           <Subtitle>
-            <Tag color="blue">{entityType}</Tag>
+            <Tag color="blue">{variant === 'compact' ? `${entityType} · key fields` : entityType}</Tag>
             <span style={{ marginLeft: 8 }}>ID: {entityId}</span>
           </Subtitle>
         </TitleBlock>
