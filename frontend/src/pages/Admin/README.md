@@ -219,36 +219,34 @@ Breakpoints:
 
 All endpoints require authentication and tenant filtering.
 
-### Users
-- `GET /api/v1/tenant-users/` - List users
-- `POST /api/v1/tenant-users/` - Create user
-- `PATCH /api/v1/tenant-users/:id/` - Update user
-- `POST /api/v1/tenant-users/invite/` - Invite user
-- `POST /api/v1/tenant-users/:id/deactivate/` - Deactivate
+### Users & Invitations
+- `GET /api/v1/tenants/tenant-users/` - List tenant users
+- `PATCH /api/v1/tenants/tenant-users/:id/` - Update tenant user (role, is_active)
+- `GET /api/v1/tenants/invitations/?status=pending` - List invitations
+- `POST /api/v1/tenants/invitations/` - Create invitation
+- `POST /api/v1/tenants/invitations/:id/resend/` - Resend invitation
+- `POST /api/v1/tenants/invitations/:id/revoke/` - Revoke invitation
 
 ### Profile
-- `GET /api/v1/tenants/:id/` - Get tenant details
-- `PATCH /api/v1/tenants/:id/` - Update tenant
-- `POST /api/v1/tenants/:id/upload_logo/` - Upload logo
+- `GET /api/v1/tenants/tenants/current/` - Get current tenant details
+- `PATCH /api/v1/tenants/tenants/:id/` - Update tenant (includes branding/logo)
 
 ### Option Lists
-- `GET /api/v1/choice-lists/` - List all
-- `POST /api/v1/choice-lists/` - Create
-- `PATCH /api/v1/choice-lists/:id/` - Update
-- `DELETE /api/v1/choice-lists/:id/` - Delete
+- `GET /api/v1/system/choice-lists/` - List all choice lists
+- `GET /api/v1/system/choice-lists/:slug/items/` - List items (system + tenant)
+- `POST /api/v1/system/choice-lists/:slug/items/` - Add tenant custom item
+- `GET /api/v1/system/tenant-overrides/?choice_list=:id` - Read tenant override
+- `POST /api/v1/system/tenant-overrides/` - Create tenant override
+- `PATCH /api/v1/system/tenant-overrides/:id/` - Update tenant override
 
 ### Configurations
-- `GET /api/v1/configurations/` - List configs
-- `POST /api/v1/configurations/` - Create
-- `PATCH /api/v1/configurations/:id/` - Update
-- `DELETE /api/v1/configurations/:id/` - Delete
-- `POST /api/v1/configurations/bulk_update/` - Bulk update
-- `POST /api/v1/configurations/:id/reset/` - Reset one
-- `POST /api/v1/configurations/reset_category/` - Reset category
+- `GET /api/v1/tenants/configurations/` - List tenant configurations
+- `POST /api/v1/tenants/configurations/bulk_update/` - Bulk update
+- `POST /api/v1/tenants/configurations/reset_category/` - Reset category
 
 ### Activity Logs
-- `GET /api/v1/activity-logs/` - List logs
-- `GET /api/v1/activity-logs/export/` - Export CSV
+- `GET /api/v1/tenants/activity-logs/` - List logs
+- `GET /api/v1/tenants/activity-logs/export/` - Export CSV
 
 ## 🐛 Troubleshooting
 

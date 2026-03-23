@@ -38,7 +38,7 @@ export function useAdminPermissions() {
     queryKey: ['admin', 'permissions'],
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/tenants/admin_permissions/');
+        const response = await apiClient.get('/tenants/tenants/admin_permissions/');
         return response.data;
       } catch (error: any) {
         // If 401, let the axios interceptor handle it

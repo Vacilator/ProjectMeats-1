@@ -62,7 +62,7 @@ const ConfigurationsPage: React.FC = () => {
     try {
       setLoading(true);
       setLoadError(null);
-      const response = await apiClient.get('/configurations/');
+      const response = await apiClient.get('/tenants/configurations/');
       const raw = response.data as any;
       const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setConfigurations(data);
@@ -159,7 +159,7 @@ const ConfigurationsPage: React.FC = () => {
       setSaving(true);
       const configurationsToUpdate = Object.entries(changes).map(([id, value]) => ({ id, value }));
 
-      await apiClient.post('/configurations/bulk_update/', {
+      await apiClient.post('/tenants/configurations/bulk_update/', {
         configurations: configurationsToUpdate,
       });
 
@@ -181,7 +181,7 @@ const ConfigurationsPage: React.FC = () => {
   const confirmReset = async () => {
     try {
       setSaving(true);
-      await apiClient.post('/configurations/reset_category/', {
+      await apiClient.post('/tenants/configurations/reset_category/', {
         category: activeCategory,
       });
 

@@ -127,7 +127,7 @@ const AdminProfilePage: React.FC = () => {
     queryKey: ['tenant'],
     enabled: canManage,
     queryFn: async () => {
-      const response = await apiClient.get('/tenants/current/');
+      const response = await apiClient.get('/tenants/tenants/current/');
       return response.data;
     },
   });
@@ -167,7 +167,7 @@ const AdminProfilePage: React.FC = () => {
       // IMPORTANT: Do NOT set Content-Type for FormData.
       // Axios will attach the correct multipart boundary, and apiClient interceptor
       // removes the default application/json header for FormData payloads.
-      const response = await apiClient.patch(`/tenants/${tenant?.id}/`, data, {
+      const response = await apiClient.patch(`/tenants/tenants/${tenant?.id}/`, data, {
         headers: {
           Accept: 'application/json',
         },
