@@ -467,8 +467,11 @@ const UsersPage: React.FC = () => {
               <option value="readonly">Read Only</option>
               <option value="user">User</option>
               <option value="manager">Manager</option>
-              {(permissions.role === 'owner' || permissions.role === 'superuser') && (
+              {(permissions.role === 'admin' || permissions.role === 'owner' || permissions.role === 'superuser') && (
                 <option value="admin">Admin</option>
+              )}
+              {(permissions.role === 'owner' || permissions.role === 'superuser') && (
+                <option value="owner">Owner</option>
               )}
             </Select>
           </FormGroup>
@@ -498,8 +501,11 @@ const UsersPage: React.FC = () => {
               <option value="readonly">Read Only</option>
               <option value="user">User</option>
               <option value="manager">Manager</option>
-              {(permissions.role === 'owner' || permissions.role === 'superuser') && (
+              {(permissions.role === 'admin' || permissions.role === 'owner' || permissions.role === 'superuser') && (
                 <option value="admin">Admin</option>
+              )}
+              {(permissions.role === 'owner' || permissions.role === 'superuser') && (
+                <option value="owner">Owner</option>
               )}
             </Select>
           </FormGroup>
