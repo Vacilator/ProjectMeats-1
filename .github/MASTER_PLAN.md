@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-23 — Admin Workspace Finalization: Option Lists enhancement & Billing Dashboard implementation — PR: #3873.
 - 2026-03-23 — Fixed Email Ingestion Monitor 404 routing error & exposed skipped email stats — PR: #3872.
 - 2026-03-23 — Improved Email Ingestion UX (Exposed Graph API fetch stats to UI to clarify empty states) — PR: #3853.
 - 2026-03-23 — AI Assistant hardened (direct OpenAI chat completion + stable tools/review compatibility endpoints + system entity summarizer action) — PR: #3843.

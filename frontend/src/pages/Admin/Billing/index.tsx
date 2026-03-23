@@ -1,38 +1,33 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import styled from 'styled-components';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CreditCard, Save, RefreshCw } from 'lucide-react';
+import { Button, Card, Col, Row, Space, Statistic, Table, Tag, Typography, message } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { DownloadOutlined } from '@ant-design/icons';
 
 import { apiClient } from '@/services/apiService';
-import {
-  AdminGuard,
-  AdminPage,
-  AdminSection,
-  EmptyState,
-  LoadingSkeleton,
-} from '@/components/Admin';
-import { Button } from '@/components/ui/Button';
-import { useToast } from '@/hooks/useToast';
+import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
+
+const { Text } = Typography;
 
 interface TenantCurrent {
   id: string;
   name: string;
-  slug: string;
-  contact_email: string;
-  contact_phone: string;
-  address: string;
-  website: string;
-  is_trial: boolean;
-  trial_ends_at: string | null;
-  is_trial_expired: boolean;
   user_count: number;
 }
 
-const BillingPage: React.FC = () => {
-  const toast = useToast();
+type InvoiceStatus = 'Paid' | 'Due' | 'Failed';
 
+interface InvoiceRow {
+  key: string;
+  date: string;
+  invoiceNumber: string;
+  amount: string;
+  status: InvoiceStatus;
+}
+
+const BillingPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
-    queryKey: ['tenants', 'current', 'billing'],
+    queryKey: ['tenants', 'current', 'billing-dashboard'],
     queryFn: async () => {
       const res = await apiClient.get('/tenants/current/');
       return res.data;
@@ -42,86 +37,95 @@ const BillingPage: React.FC = () => {
 
   const tenant = currentTenantQuery.data;
 
-  const [form, setForm] = useState({
-    contact_email: '',
-    contact_phone: '',
-    address: '',
-    website: '',
-  });
-  const [isSaving, setIsSaving] = useState(false);
+  // Mock subscription/payment/invoice data for initial dashboard render.
+  const planName = 'Enterprise Tier';
+  const billingCycle = 'Monthly';
+  const nextBillingDate = '2026-04-01';
+  const userLimit = 50;
+  const activeUsers = tenant?.user_count ?? 0;
 
-  useEffect(() => {
-    if (!tenant) return;
-    setForm({
-      contact_email: tenant.contact_email || '',
-      contact_phone: tenant.contact_phone || '',
-      address: tenant.address || '',
-      website: tenant.website || '',
-    });
-  }, [tenant]);
-
-  const hasChanges = useMemo(() => {
-    if (!tenant) return false;
-    return (
-      (form.contact_email || '') !== (tenant.contact_email || '') ||
-      (form.contact_phone || '') !== (tenant.contact_phone || '') ||
-      (form.address || '') !== (tenant.address || '') ||
-      (form.website || '') !== (tenant.website || '')
-    );
-  }, [form, tenant]);
-
-  const save = async () => {
-    if (!tenant) return;
-    if (!hasChanges) {
-      toast.info('No changes to save');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await apiClient.patch(`/tenants/${tenant.id}/`, {
-        contact_email: form.contact_email,
-        contact_phone: form.contact_phone,
-        address: form.address,
-        website: form.website,
-      });
-
-      toast.success('Billing contact details updated');
-      await currentTenantQuery.refetch();
-    } catch (err: any) {
-      console.error('[Billing] Failed to save:', err);
-      toast.error(err?.response?.data?.error || 'Failed to save billing details');
-    } finally {
-      setIsSaving(false);
-    }
+  const paymentMethod = {
+    brand: 'Visa',
+    last4: '4242',
+    exp: '12/27',
   };
+
+  const invoices: InvoiceRow[] = [
+    {
+      key: 'inv_2026_03',
+      date: '2026-03-01',
+      invoiceNumber: 'PM-INV-2026-0003',
+      amount: '$1,250.00',
+      status: 'Paid',
+    },
+    {
+      key: 'inv_2026_02',
+      date: '2026-02-01',
+      invoiceNumber: 'PM-INV-2026-0002',
+      amount: '$1,250.00',
+      status: 'Paid',
+    },
+    {
+      key: 'inv_2026_01',
+      date: '2026-01-01',
+      invoiceNumber: 'PM-INV-2026-0001',
+      amount: '$1,250.00',
+      status: 'Paid',
+    },
+  ];
+
+  const invoiceColumns: ColumnsType<InvoiceRow> = [
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      width: 120,
+      render: (iso: string) => <Text>{new Date(iso).toLocaleDateString()}</Text>,
+    },
+    {
+      title: 'Invoice #',
+      dataIndex: 'invoiceNumber',
+      key: 'invoiceNumber',
+      render: (val: string) => <code>{val}</code>,
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
+      width: 120,
+      align: 'right',
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 110,
+      render: (status: InvoiceStatus) => {
+        const color = status === 'Paid' ? 'green' : status === 'Due' ? 'gold' : 'red';
+        return <Tag color={color}>{status}</Tag>;
+      },
+    },
+    {
+      title: 'PDF',
+      key: 'pdf',
+      width: 90,
+      render: () => (
+        <Button
+          type="link"
+          icon={<DownloadOutlined />}
+          onClick={() => message.info('Invoice PDF download will be available soon.')}
+        >
+          PDF
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <AdminPage
       title="Billing"
-      description="Subscription status and billing contact details."
-      icon={<CreditCard size={18} />}
-      actions={
-        <Actions>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => currentTenantQuery.refetch()}
-            disabled={currentTenantQuery.isLoading}
-          >
-            <RefreshCw size={14} /> Refresh
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={save}
-            disabled={!hasChanges || isSaving || currentTenantQuery.isLoading}
-            title={!hasChanges ? 'No changes' : undefined}
-          >
-            <Save size={14} /> {isSaving ? 'Saving…' : 'Save'}
-          </Button>
-        </Actions>
-      }
+      description="Subscription, payment method, and invoice history."
+      icon="💳"
     >
       <AdminGuard
         feature="billing"
@@ -134,7 +138,7 @@ const BillingPage: React.FC = () => {
           <EmptyState
             icon="💳"
             title="Billing unavailable"
-            message="We couldn't load your tenant billing context. Please refresh and try again."
+            message="We couldn't load your tenant context. Please refresh and try again."
           />
         ) : !tenant ? (
           <EmptyState
@@ -143,177 +147,77 @@ const BillingPage: React.FC = () => {
             message="No active tenant was found for your account."
           />
         ) : (
-          <Grid>
-            <AdminSection title="Subscription Status" description="Current tenant plan state.">
-              <KeyValue>
-                <Row>
-                  <Key>Tenant</Key>
-                  <Value>{tenant.name}</Value>
-                </Row>
-                <Row>
-                  <Key>Users</Key>
-                  <Value>{tenant.user_count}</Value>
-                </Row>
-                <Row>
-                  <Key>Trial</Key>
-                  <Value>
-                    {tenant.is_trial ? (tenant.is_trial_expired ? 'Expired' : 'Active') : 'Not on trial'}
-                  </Value>
-                </Row>
-                <Row>
-                  <Key>Trial ends</Key>
-                  <Value>{tenant.trial_ends_at ? new Date(tenant.trial_ends_at).toLocaleDateString() : '—'}</Value>
-                </Row>
-              </KeyValue>
-              <Hint>
-                Subscription management (plans, invoices, payment methods) is being finalized. In the meantime, keep
-                your billing contact details up to date below.
-              </Hint>
-            </AdminSection>
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} lg={12}>
+                <Card
+                  title="Current Subscription"
+                  extra={
+                    <Button
+                      type="primary"
+                      onClick={() => message.info('Plan management will be connected shortly.')}
+                    >
+                      Manage Plan
+                    </Button>
+                  }
+                >
+                  <Row gutter={[16, 16]}>
+                    <Col span={12}>
+                      <Statistic title="Plan" value={planName} />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic title="Billing Cycle" value={billingCycle} />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic
+                        title="Next Billing Date"
+                        value={new Date(nextBillingDate).toLocaleDateString()}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic
+                        title="Active Users"
+                        value={`${activeUsers}/${userLimit}`}
+                      />
+                    </Col>
+                  </Row>
+                </Card>
+              </Col>
 
-            <AdminSection title="Billing Contact" description="Used for invoices and account communications.">
-              <Form>
-                <Field>
-                  <Label htmlFor="contact_email">Billing email</Label>
-                  <Input
-                    id="contact_email"
-                    type="email"
-                    value={form.contact_email}
-                    onChange={(e) => setForm((p) => ({ ...p, contact_email: e.target.value }))}
-                    placeholder="billing@yourcompany.com"
-                  />
-                </Field>
+              <Col xs={24} lg={12}>
+                <Card
+                  title="Payment Method"
+                  extra={
+                    <Button onClick={() => message.info('Payment method updates will be available soon.')}
+                    >
+                      Update Payment Method
+                    </Button>
+                  }
+                >
+                  <Space direction="vertical" size={4}>
+                    <Text strong>
+                      {paymentMethod.brand} ending in {paymentMethod.last4}
+                    </Text>
+                    <Text type="secondary">Expires {paymentMethod.exp}</Text>
+                    <Text type="secondary">Tenant: {tenant.name}</Text>
+                  </Space>
+                </Card>
+              </Col>
+            </Row>
 
-                <Field>
-                  <Label htmlFor="contact_phone">Phone</Label>
-                  <Input
-                    id="contact_phone"
-                    type="tel"
-                    value={form.contact_phone}
-                    onChange={(e) => setForm((p) => ({ ...p, contact_phone: e.target.value }))}
-                    placeholder="+1 (555) 555-5555"
-                  />
-                </Field>
-
-                <Field>
-                  <Label htmlFor="website">Website</Label>
-                  <Input
-                    id="website"
-                    type="url"
-                    value={form.website}
-                    onChange={(e) => setForm((p) => ({ ...p, website: e.target.value }))}
-                    placeholder="https://yourcompany.com"
-                  />
-                </Field>
-
-                <Field>
-                  <Label htmlFor="address">Address</Label>
-                  <TextArea
-                    id="address"
-                    value={form.address}
-                    onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-                    placeholder="Billing address"
-                    rows={4}
-                  />
-                </Field>
-              </Form>
-            </AdminSection>
-          </Grid>
+            <Card title="Billing History">
+              <Table
+                columns={invoiceColumns}
+                dataSource={invoices}
+                pagination={false}
+                size="middle"
+              />
+            </Card>
+          </Space>
         )}
       </AdminGuard>
     </AdminPage>
   );
 };
-
-const Actions = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const Grid = styled.div`
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-`;
-
-const KeyValue = styled.div`
-  display: grid;
-  gap: 10px;
-`;
-
-const Row = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  background: rgba(var(--color-surface), 0.6);
-`;
-
-const Key = styled.div`
-  color: rgb(var(--color-text-secondary));
-  font-size: 13px;
-  font-weight: 600;
-`;
-
-const Value = styled.div`
-  color: rgb(var(--color-text-primary));
-  font-size: 13px;
-  font-weight: 600;
-  text-align: right;
-`;
-
-const Hint = styled.p`
-  margin: 12px 0 0;
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary));
-`;
-
-const Form = styled.div`
-  display: grid;
-  gap: 12px;
-`;
-
-const Field = styled.div`
-  display: grid;
-  gap: 6px;
-`;
-
-const Label = styled.label`
-  font-size: 12px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-`;
-
-const Input = styled.input`
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-
-  &:focus {
-    outline: none;
-    border-color: rgba(var(--color-primary), 0.8);
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.12);
-  }
-`;
-
-const TextArea = styled.textarea`
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-primary));
-  resize: vertical;
-
-  &:focus {
-    outline: none;
-    border-color: rgba(var(--color-primary), 0.8);
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.12);
-  }
-`;
 
 export default BillingPage;
