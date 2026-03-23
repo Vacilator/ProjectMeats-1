@@ -20,6 +20,7 @@ from apps.system.models import (
     ConfigAuditLog,
     Product,
     TenantProductPreference,
+    TenantChoiceOverride,
 )
 
 
@@ -162,21 +163,25 @@ class BulkChoiceUpdateSerializer(serializers.Serializer):
             child=serializers.CharField()
         )
     )
-    
-    def validate_items(self, value):
-        """Validate item structure."""
-        for item in value:
-            if 'id' not in item or 'order' not in item:
-                raise serializers.ValidationError(
-                    "Each item must have 'id' and 'order' fields."
-                )
-            try:
-                int(item['order'])
-            except ValueError:
-                raise serializers.ValidationError(
-                    f"Invalid order value: {item['order']}"
-                )
-        return value
+
+
+class TenantChoiceOverrideSerializer(serializers.ModelSerializer):
+    """Serializer for tenant-specific choice list overrides."""
+
+    class Meta:
+        model = TenantChoiceOverride
+        fields = [
+            'id',
+            'tenant',
+            'choice_list',
+            'disabled_system_items',
+            'display_config',
+            'notes',
+            'updated_by',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'tenant', 'updated_by', 'created_at', 'updated_at']
 
 
 class ConfigAuditLogSerializer(serializers.ModelSerializer):

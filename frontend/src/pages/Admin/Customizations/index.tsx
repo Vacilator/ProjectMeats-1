@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Palette } from 'lucide-react';
 import { AdminGuard, AdminPage, EmptyState } from '@/components/Admin';
+import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
 
 const CustomizationsPage: React.FC = () => {
+  const tenantId = useMemo(() => localStorage.getItem('tenantId') || '', []);
+
   return (
     <AdminPage
       title="Customizations"
@@ -10,11 +13,15 @@ const CustomizationsPage: React.FC = () => {
       icon={<Palette size={18} />}
     >
       <AdminGuard feature="customizations" allow={(p) => p.can_manage_customizations}>
-        <EmptyState
-          icon="🎨"
-          title="Customizations coming soon"
-          message="This area will provide tenant-level UI customization, custom fields, and template tooling."
-        />
+        {!tenantId ? (
+          <EmptyState
+            icon="🏢"
+            title="Select a tenant"
+            message="Choose a tenant to manage choice list customizations."
+          />
+        ) : (
+          <TenantChoiceOverride tenantId={tenantId} />
+        )}
       </AdminGuard>
     </AdminPage>
   );

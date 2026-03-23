@@ -21,7 +21,11 @@ from apps.system.models import (
     SystemFieldSchema,
     TenantConfig,
     ConfigAuditLog,
+    TenantChoiceOverride,
 )
+
+from apps.tenants.models import TenantUser
+from apps.tenants.activity_models import ActivityLog
 from apps.system.serializers import (
     SystemChoiceListSerializer,
     SystemChoiceListMinimalSerializer,
@@ -30,6 +34,7 @@ from apps.system.serializers import (
     TenantConfigSerializer,
     ChoiceItemCreateSerializer,
     BulkChoiceUpdateSerializer,
+    TenantChoiceOverrideSerializer,
     ConfigAuditLogSerializer,
     ConfigAuditLogSummarySerializer,
 )
@@ -39,6 +44,13 @@ from apps.system.services.entity_introspection import (
     get_entity_fields,
     get_entity_display_fields,
 )
+
+
+def _get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -51,16 +63,28 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 
 
 class IsTenantAdminOrReadOnly(permissions.BasePermission):
-    """Allow read-only for authenticated users, write for tenant admins."""
-    
+    """Allow read-only for authenticated users, write for tenant admins/owners."""
+
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return request.user.is_authenticated
-        # Check if user is a tenant admin
-        return (
-            request.user.is_authenticated and 
-            (request.user.is_staff or getattr(request.user, 'is_tenant_admin', False))
-        )
+
+        if not request.user.is_authenticated:
+            return False
+
+        if request.user.is_superuser or request.user.is_staff:
+            return True
+
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return False
+
+        return TenantUser.objects.filter(
+            tenant=tenant,
+            user=request.user,
+            role__in=['owner', 'admin'],
+            is_active=True,
+        ).exists()
 
 
 class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
@@ -74,7 +98,7 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = SystemChoiceList.objects.all()
     serializer_class = SystemChoiceListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTenantAdminOrReadOnly]
     lookup_field = 'slug'
     
     def get_serializer_class(self):
@@ -140,7 +164,39 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                 tenant=tenant,
                 **serializer.validated_data
             )
-            
+
+            try:
+                ConfigAuditLog.log_change(
+                    entity=item,
+                    change_type=ConfigAuditLog.ChangeType.CREATE,
+                    user=request.user,
+                    tenant=tenant,
+                    request=request,
+                    snapshot_after={
+                        'id': str(item.id),
+                        'choice_list': choice_list.slug,
+                        'value': item.value,
+                        'label': item.label,
+                        'order': item.order,
+                    },
+                )
+            except Exception:
+                pass
+
+            try:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=request.user,
+                    action='optionlist.update',
+                    description=f"Added custom option '{item.label}' to list {choice_list.slug}.",
+                    entity_type='SystemChoiceItem',
+                    entity_id=item.id,
+                    metadata={'choice_list': choice_list.slug},
+                    ip_address=_get_client_ip(request),
+                )
+            except Exception:
+                pass
+
             return Response(
                 SystemChoiceItemSerializer(item).data,
                 status=status.HTTP_201_CREATED
@@ -165,14 +221,42 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
         for item_data in serializer.validated_data['items']:
             item_id = item_data['id']
             new_order = int(item_data['order'])
-            
+
             # Only allow updating tenant's own items or system items (if admin)
             item_filter = {'id': item_id, 'choice_list': choice_list}
             if not request.user.is_staff:
                 item_filter['tenant'] = tenant
-            
+
             SystemChoiceItem.objects.filter(**item_filter).update(order=new_order)
-        
+
+        try:
+            ConfigAuditLog.log_change(
+                entity=choice_list,
+                change_type=ConfigAuditLog.ChangeType.UPDATE,
+                user=request.user,
+                tenant=tenant,
+                request=request,
+                notes='Reordered choice list items.',
+                new_value={'count': len(serializer.validated_data['items'])},
+            )
+        except Exception:
+            pass
+
+        try:
+            if tenant:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=request.user,
+                    action='optionlist.update',
+                    description=f"Reordered items for list {choice_list.slug}.",
+                    entity_type='SystemChoiceList',
+                    entity_id=choice_list.id,
+                    metadata={'choice_list': choice_list.slug},
+                    ip_address=_get_client_ip(request),
+                )
+        except Exception:
+            pass
+
         return Response({'status': 'ok'})
 
 
@@ -203,16 +287,101 @@ class SystemChoiceItemViewSet(viewsets.ModelViewSet):
         """Only allow deleting tenant-owned items."""
         if instance.tenant_id is None:
             from rest_framework.exceptions import PermissionDenied
+
             raise PermissionDenied("Cannot delete system-defined items.")
+
+        tenant = getattr(self.request, 'tenant', None)
+        snapshot_before = {
+            'id': str(instance.id),
+            'choice_list': getattr(instance.choice_list, 'slug', None),
+            'value': instance.value,
+            'label': instance.label,
+            'order': instance.order,
+        }
+
         instance.delete()
-    
+
+        try:
+            ConfigAuditLog.log_change(
+                entity=instance,
+                change_type=ConfigAuditLog.ChangeType.DELETE,
+                user=self.request.user,
+                tenant=tenant,
+                request=self.request,
+                snapshot_before=snapshot_before,
+            )
+        except Exception:
+            pass
+
+        try:
+            if tenant:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=self.request.user,
+                    action='optionlist.delete',
+                    description=f"Deleted tenant option '{snapshot_before['label']}'.",
+                    entity_type='SystemChoiceItem',
+                    entity_id=snapshot_before['id'],
+                    metadata={'choice_list': snapshot_before['choice_list']},
+                    ip_address=_get_client_ip(self.request),
+                )
+        except Exception:
+            pass
+
     def perform_update(self, serializer):
         """Only allow updating tenant-owned items (or if admin)."""
         instance = serializer.instance
         if instance.tenant_id is None and not self.request.user.is_staff:
             from rest_framework.exceptions import PermissionDenied
+
             raise PermissionDenied("Cannot modify system-defined items.")
-        serializer.save()
+
+        tenant = getattr(self.request, 'tenant', None)
+        snapshot_before = {
+            'id': str(instance.id),
+            'choice_list': getattr(instance.choice_list, 'slug', None),
+            'value': instance.value,
+            'label': instance.label,
+            'order': instance.order,
+            'is_active': instance.is_active,
+        }
+
+        updated = serializer.save()
+
+        try:
+            ConfigAuditLog.log_change(
+                entity=updated,
+                change_type=ConfigAuditLog.ChangeType.UPDATE,
+                user=self.request.user,
+                tenant=tenant,
+                request=self.request,
+                snapshot_before=snapshot_before,
+                snapshot_after={
+                    'id': str(updated.id),
+                    'choice_list': getattr(updated.choice_list, 'slug', None),
+                    'value': updated.value,
+                    'label': updated.label,
+                    'order': updated.order,
+                    'is_active': updated.is_active,
+                },
+            )
+        except Exception:
+            pass
+
+        try:
+            if tenant:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=self.request.user,
+                    action='optionlist.update',
+                    description=f"Updated option '{updated.label}'.",
+                    entity_type='SystemChoiceItem',
+                    entity_id=updated.id,
+                    metadata={'choice_list': getattr(updated.choice_list, 'slug', None)},
+                    ip_address=_get_client_ip(self.request),
+                )
+        except Exception:
+            pass
 
 
 class SystemFieldSchemaViewSet(viewsets.ModelViewSet):
@@ -230,6 +399,114 @@ class SystemFieldSchemaViewSet(viewsets.ModelViewSet):
         """Allow lookup by field_path with dots."""
         field_path = self.kwargs.get('field_path', '')
         return SystemFieldSchema.objects.get(field_path=field_path)
+
+
+class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
+    """CRUD for TenantChoiceOverride (tenant-specific choice visibility and ordering)."""
+
+    serializer_class = TenantChoiceOverrideSerializer
+    permission_classes = [IsTenantAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['choice_list']
+    ordering_fields = ['updated_at', 'created_at']
+    ordering = ['-updated_at']
+
+    def get_queryset(self):
+        tenant = getattr(self.request, 'tenant', None)
+        qs = TenantChoiceOverride.objects.all().select_related('tenant', 'choice_list', 'updated_by')
+
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return qs
+
+        if not tenant:
+            return TenantChoiceOverride.objects.none()
+
+        return qs.filter(tenant=tenant)
+
+    def perform_create(self, serializer):
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            from rest_framework.exceptions import ValidationError
+
+            raise ValidationError('Tenant context required.')
+
+        instance = serializer.save(tenant=tenant, updated_by=self.request.user)
+
+        try:
+            ConfigAuditLog.log_change(
+                entity=instance,
+                change_type=ConfigAuditLog.ChangeType.CREATE,
+                user=self.request.user,
+                tenant=tenant,
+                request=self.request,
+                snapshot_after={
+                    'id': str(instance.id),
+                    'choice_list': str(instance.choice_list_id),
+                    'disabled_system_items': list(instance.disabled_system_items or []),
+                    'display_config': instance.display_config or {},
+                },
+            )
+        except Exception:
+            pass
+
+        try:
+            ActivityLog.log_activity(
+                tenant=tenant,
+                user=self.request.user,
+                action='optionlist.update',
+                description='Updated tenant choice list customizations.',
+                entity_type='TenantChoiceOverride',
+                entity_id=instance.id,
+                metadata={'choice_list': str(instance.choice_list_id)},
+                ip_address=_get_client_ip(self.request),
+            )
+        except Exception:
+            pass
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        tenant = getattr(self.request, 'tenant', None)
+        snapshot_before = {
+            'id': str(instance.id),
+            'choice_list': str(instance.choice_list_id),
+            'disabled_system_items': list(instance.disabled_system_items or []),
+            'display_config': instance.display_config or {},
+        }
+
+        updated = serializer.save(updated_by=self.request.user)
+
+        try:
+            ConfigAuditLog.log_change(
+                entity=updated,
+                change_type=ConfigAuditLog.ChangeType.UPDATE,
+                user=self.request.user,
+                tenant=tenant,
+                request=self.request,
+                snapshot_before=snapshot_before,
+                snapshot_after={
+                    'id': str(updated.id),
+                    'choice_list': str(updated.choice_list_id),
+                    'disabled_system_items': list(updated.disabled_system_items or []),
+                    'display_config': updated.display_config or {},
+                },
+            )
+        except Exception:
+            pass
+
+        try:
+            if tenant:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=self.request.user,
+                    action='optionlist.update',
+                    description='Updated tenant choice list customizations.',
+                    entity_type='TenantChoiceOverride',
+                    entity_id=updated.id,
+                    metadata={'choice_list': str(updated.choice_list_id)},
+                    ip_address=_get_client_ip(self.request),
+                )
+        except Exception:
+            pass
 
 
 class TenantConfigViewSet(viewsets.ModelViewSet):
@@ -256,11 +533,71 @@ class TenantConfigViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None)
         if not tenant:
             from rest_framework.exceptions import ValidationError
+
             raise ValidationError("Tenant context required.")
-        serializer.save(tenant=tenant, updated_by=self.request.user)
-    
+
+        instance = serializer.save(tenant=tenant, updated_by=self.request.user)
+
+        try:
+            ConfigAuditLog.log_change(
+                entity=instance,
+                change_type=ConfigAuditLog.ChangeType.CREATE,
+                user=self.request.user,
+                tenant=tenant,
+                request=self.request,
+                snapshot_after={'id': str(instance.id), 'key': instance.key, 'value': instance.value},
+            )
+        except Exception:
+            pass
+
+        try:
+            ActivityLog.log_activity(
+                tenant=tenant,
+                user=self.request.user,
+                action='config.update',
+                description=f"Created config {instance.key}.",
+                entity_type='TenantConfig',
+                entity_id=instance.id,
+                metadata={'key': instance.key},
+                ip_address=_get_client_ip(self.request),
+            )
+        except Exception:
+            pass
+
     def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+        instance = serializer.instance
+        tenant = getattr(self.request, 'tenant', None)
+        snapshot_before = {'id': str(instance.id), 'key': instance.key, 'value': instance.value}
+
+        updated = serializer.save(updated_by=self.request.user)
+
+        try:
+            ConfigAuditLog.log_change(
+                entity=updated,
+                change_type=ConfigAuditLog.ChangeType.UPDATE,
+                user=self.request.user,
+                tenant=tenant,
+                request=self.request,
+                snapshot_before=snapshot_before,
+                snapshot_after={'id': str(updated.id), 'key': updated.key, 'value': updated.value},
+            )
+        except Exception:
+            pass
+
+        try:
+            if tenant:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=self.request.user,
+                    action='config.update',
+                    description=f"Updated config {updated.key}.",
+                    entity_type='TenantConfig',
+                    entity_id=updated.id,
+                    metadata={'key': updated.key},
+                    ip_address=_get_client_ip(self.request),
+                )
+        except Exception:
+            pass
     
     @action(detail=False, methods=['get'])
     def by_category(self, request):
