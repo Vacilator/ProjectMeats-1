@@ -147,6 +147,8 @@ python config/manage_env.py audit
 
 This compares GitHub Secrets (repo + environment) to `manifests/env.manifest.json` and reports **missing** and **zombie** secret names.
 
+**Note (Permissions):** the audit can only be trusted when run with a GitHub identity that can **list** repository + environment secret *names* in this repo. If it reports `0` secrets visible (and therefore flags everything as missing), run `gh auth status` and re-authenticate with an org-authorized account (or run the audit from an admin-maintainer machine).
+
 ### 2) Set required secrets in the correct GitHub Environment
 
 Set these as **Environment Secrets** (not repo secrets), typically in `uat-backend` and `production-backend`:
