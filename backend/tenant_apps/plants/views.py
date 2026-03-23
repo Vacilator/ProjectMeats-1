@@ -19,7 +19,7 @@ class PlantViewSet(viewsets.ModelViewSet):
     serializer_class = PlantSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["plant_type", "is_active", "city", "state"]
+    filterset_fields = ["supplier", "plant_type", "is_active", "city", "state"]
     search_fields = ["name", "code", "address", "city", "state", "manager"]
     ordering_fields = ["name", "code", "created_at", "capacity"]
     ordering = ["name"]
