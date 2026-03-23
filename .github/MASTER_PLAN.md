@@ -47,7 +47,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
-- 2026-03-23 — Cockpit UX: Google-style AI Overview Card (show more + graceful fallback) — PR: #TBD
+- 2026-03-23 — Cockpit UX: Google-style AI Overview Card (show more + graceful fallback) — PR: #3801
+- 2026-03-23 — Cockpit UX: Tabbed relations (Orders / Invoices / Contacts) + compact profile header — PR: #3802
 
 - 2026-03-22T16:39:58Z — EMERGENCY ROLLBACK: Reverted Workform Container UI to stable Friday baseline due to UX degradation.
 
