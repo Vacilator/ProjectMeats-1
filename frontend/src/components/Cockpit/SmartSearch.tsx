@@ -449,8 +449,6 @@ const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
 // Main Component
 // ============================================================================
 
-import QuickCreateModal from '../FormSubmission/QuickCreateModal';
-
 export const SmartSearch: React.FC<SmartSearchProps> = ({
   initialQuery = '',
   query: controlledQuery,
