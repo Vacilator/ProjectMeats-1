@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import timedelta
 from typing import Any, Dict, List
 
@@ -18,21 +19,29 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
+SYSTEM_PROMPT = (
+    'You are a data extraction specialist for a wholesale meat logistics platform. '
+    'Given an AI-extracted payload from an inbound document, return the corrected, normalized JSON.'
+)
+
+
 @shared_task(name='ai_assistant.process_rlhf_flywheel')
-def process_rlhf_flywheel(days: int = 7) -> Dict[str, Any]:
+def process_rlhf_flywheel(days: int = 7, limit: int = 5000, out_path: str | None = None) -> Dict[str, Any]:
     """Nightly RLHF flywheel aggregation.
 
-    Aggregates recent `AIFeedbackLog` rows and formats them into a JSONL-style
-    instruction dataset for future fine-tuning of local enrichment models.
+    Aggregates recent *resolved* `AIFeedbackLog` rows and writes an OpenAI chat
+    fine-tuning JSONL file to disk for later upload.
 
-    This is scaffold-only: it currently returns a summary and *does not* write files
-    or initiate any fine-tune jobs.
+    This task is tenant-safe (never crosses tenant boundaries in a single record)
+    and intentionally does not initiate any fine-tune jobs.
 
     Args:
         days: Lookback window for feedback logs.
+        limit: Maximum number of records to export.
+        out_path: Optional output path for the JSONL file.
 
     Returns:
-        Summary dict with counts and a small sample.
+        Summary dict with counts and output path.
     """
 
     try:
@@ -40,38 +49,67 @@ def process_rlhf_flywheel(days: int = 7) -> Dict[str, Any]:
 
         since = timezone.now() - timedelta(days=int(days))
         qs = (
-            AIFeedbackLog.objects.filter(created_on__gte=since)
-            .only('tenant_id', 'document_id', 'document_type', 'confidence_score', 'original_extracted_data', 'user_corrected_data')
-            .order_by('-created_on')
+            AIFeedbackLog.objects.filter(created_on__gte=since, resolved_by__isnull=False)
+            .exclude(user_corrected_data={})
+            .only(
+                'tenant_id',
+                'document_id',
+                'document_type',
+                'confidence_score',
+                'original_extracted_data',
+                'user_corrected_data',
+            )
+            .order_by('created_on')
         )
 
-        count = qs.count()
-        sample_rows = list(qs[:25])
+        total = qs.count()
 
-        # JSONL instruction format (placeholder)
-        jsonl: List[str] = []
-        for row in sample_rows:
-            record = {
-                'tenant_id': str(row.tenant_id),
-                'document_id': str(row.document_id),
-                'document_type': row.document_type,
-                'confidence_score': float(row.confidence_score or 0.0),
-                'input': row.original_extracted_data or {},
-                'output': row.user_corrected_data or {},
-                'metadata': {
-                    'source': 'rlhf_flywheel',
-                },
-            }
-            jsonl.append(json.dumps(record, ensure_ascii=False))
+        if not out_path:
+            ts = timezone.now().strftime('%Y%m%d_%H%M%S')
+            out_path = f"/tmp/projectmeats_rlhf_flywheel_{ts}.jsonl"
 
-        logger.info('[RLHF] Aggregated %s feedback logs (sample=%s)', count, len(sample_rows))
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+        written = 0
+        preview: List[str] = []
+
+        with open(out_path, 'w', encoding='utf-8') as f:
+            for row in qs[: int(limit)]:
+                user_payload = {
+                    'tenant_id': str(row.tenant_id),
+                    'document_id': str(row.document_id),
+                    'document_type': row.document_type,
+                    'confidence_score': float(row.confidence_score or 0.0),
+                    'original_extracted_data': row.original_extracted_data or {},
+                }
+
+                assistant_payload = row.user_corrected_data or {}
+
+                record = {
+                    'messages': [
+                        {'role': 'system', 'content': SYSTEM_PROMPT},
+                        {'role': 'user', 'content': json.dumps(user_payload, ensure_ascii=False)},
+                        {'role': 'assistant', 'content': json.dumps(assistant_payload, ensure_ascii=False)},
+                    ]
+                }
+
+                line = json.dumps(record, ensure_ascii=False)
+                f.write(line + '\n')
+
+                if len(preview) < 3:
+                    preview.append(line)
+
+                written += 1
+
+        logger.info('[RLHF] Exported %s/%s resolved feedback logs to %s', written, total, out_path)
 
         return {
             'status': 'ok',
             'lookback_days': int(days),
-            'total_feedback_logs': count,
-            'sample_jsonl_count': len(jsonl),
-            'sample_jsonl_preview': jsonl[:3],
+            'total_resolved_feedback_logs': total,
+            'written': written,
+            'out_path': out_path,
+            'preview': preview,
         }
 
     except Exception as e:

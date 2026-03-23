@@ -31,6 +31,12 @@ app.conf.beat_schedule = {
             'expires': 240.0,  # Task expires if not run within 4 minutes
         },
     },
+    # Phase 8.0: RLHF flywheel export (writes JSONL to /tmp for later upload)
+    'rlhf-flywheel-nightly-jsonl-export': {
+        'task': 'ai_assistant.process_rlhf_flywheel',
+        'schedule': crontab(hour=2, minute=15),
+        'args': (7, 5000),
+    },
 }
 
 # Set timezone for scheduled tasks

@@ -45,7 +45,11 @@ class Command(BaseCommand):
         tenant_id = options.get('tenant_id')
 
         since = timezone.now() - timedelta(days=days)
-        qs = AIFeedbackLog.objects.filter(created_on__gte=since).order_by('created_on')
+        qs = (
+            AIFeedbackLog.objects.filter(created_on__gte=since, resolved_by__isnull=False)
+            .exclude(user_corrected_data={})
+            .order_by('created_on')
+        )
         if tenant_id:
             qs = qs.filter(tenant_id=tenant_id)
 
