@@ -9,9 +9,10 @@
  * - Quote expiration date
  * - Competitor tracking fields
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
+import { SearchableSelect } from '../Shared/SearchableSelect';
 import {
   Inquiry,
   InquirySource,
@@ -496,6 +497,13 @@ export const CreateInquiryModal: React.FC<CreateInquiryModalProps> = ({
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const entityTypeOptions = useMemo(() => (
+    [
+      { id: 'customer', name: 'Customer' },
+      { id: 'supplier', name: 'Supplier' },
+    ] as EntityOption[]
+  ), []);
 
   // Initialize from props
   useEffect(() => {

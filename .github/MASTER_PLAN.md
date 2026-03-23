@@ -44,6 +44,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-20 — MSAL dynamic authority fix (mitigates msaidpvalidate) — PR: #3731.
 - Deployed Phase 8.2: Meat SME Agent with strict Tenant-Isolated Vector RAG (Retrieval-Augmented Generation).
 
+### 2026-03-23 — Phase 8.4: Universal Metadata-Driven UI
+- Transition away from hardcoded modals toward a schema-driven `UniversalEntityForm` container.
+- Searchable Foreign Key selectors (entity + contact) via `SearchableSelect` to avoid massive dropdown scrolling.
+- Cockpit key-field renderer now supports array fields with a dedicated multi-select edit mode (no AntD `<Text editable>` for arrays/products).
+
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
 ### PR Log (append-only)
