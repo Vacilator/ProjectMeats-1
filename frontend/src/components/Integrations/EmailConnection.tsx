@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { toast } from 'react-hot-toast';
 import { Mail, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
+import { apiClient } from '../../services/apiService';
 
 interface EmailConnectionProps {
   provider: 'microsoft' | 'google';
@@ -55,15 +56,21 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
     }
 
     setIsConnecting(true);
-    
+
     try {
-      const tenantId = localStorage.getItem('tenantId');
-      const tenantParam = tenantId ? `&tenant_id=${encodeURIComponent(tenantId)}` : '';
-      window.location.href = `/api/v1/integrations/oauth/authorize/?provider=${encodeURIComponent(provider)}&redirect=1${tenantParam}`;
+      const response = await apiClient.get('/integrations/oauth/authorize/', {
+        params: { provider },
+      });
+
+      if (!response.data?.auth_url) {
+        throw new Error('Authorization URL not received from server');
+      }
+
+      window.location.href = response.data.auth_url;
     } catch (error: any) {
       console.error('[EmailConnection] OAuth initiation failed:', error);
-      const message = error?.message ? String(error.message) : '';
-      toast.error(message ? `Failed to initiate connection: ${message}` : 'Failed to initiate connection');
+      toast.error(error.response?.data?.error || 'Failed to initiate connection. Please try again.');
+    } finally {
       setIsConnecting(false);
     }
   };
