@@ -1,6 +1,9 @@
-"""
+"""apps.integrations.views
+
 OAuth integration views for external email providers.
 """
+
+import logging
 import secrets
 from datetime import timedelta
 from urllib.parse import quote
@@ -17,6 +20,8 @@ from .microsoft.utils import get_microsoft_redirect_uri
 from .models import ExternalAuthProvider
 from .providers import MicrosoftGraphProvider
 from .providers.base import EmailProviderError, AuthenticationError
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -316,19 +321,39 @@ def sync_emails(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    tenant_id = str(request.tenant.id)
+
     try:
         from apps.integrations.tasks import sync_single_tenant
-        
-        # Trigger async task
-        task = sync_single_tenant.delay(str(request.tenant.id))
-        
-        return Response({
-            "message": "Email sync started",
-            "task_id": task.id,
-            "tenant_id": str(request.tenant.id),
-        }, status=status.HTTP_202_ACCEPTED)
-        
+
+        # Prefer async Celery dispatch.
+        try:
+            task = sync_single_tenant.delay(tenant_id)
+            return Response({
+                "message": "Email sync started",
+                "task_id": task.id,
+                "tenant_id": tenant_id,
+                "mode": "async",
+            }, status=status.HTTP_202_ACCEPTED)
+        except Exception as celery_exc:
+            # If the broker/worker path is unavailable, run a best-effort sync inline
+            # so "Sync Now" still works in environments without Celery.
+            logger.warning('Celery dispatch failed; falling back to inline email sync: %s', str(celery_exc), exc_info=True)
+
+            from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
+
+            service = EmailIngestionService()
+            stats = service.poll_tenant_by_id(tenant_id)
+
+            return Response({
+                "message": "Email sync completed",
+                "tenant_id": tenant_id,
+                "mode": "sync",
+                "stats": stats,
+            }, status=status.HTTP_200_OK)
+
     except Exception as e:
+        logger.error('Failed to start email sync for tenant %s: %s', tenant_id, str(e), exc_info=True)
         return Response(
             {"error": f"Failed to start sync: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
