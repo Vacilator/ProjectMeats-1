@@ -30,17 +30,8 @@ export const navigation: NavigationItem[] = [
   {
     label: 'Cockpit',
     icon: '🎯',
+    path: '/cockpit',
     children: [
-      {
-        label: 'Dashboard',
-        icon: '📊',
-        path: '/cockpit',
-      },
-      {
-        label: 'Process Monitor',
-        icon: '🧭',
-        path: '/cockpit/process-monitor',
-      },
       {
         label: 'Calls',
         icon: '📞',
