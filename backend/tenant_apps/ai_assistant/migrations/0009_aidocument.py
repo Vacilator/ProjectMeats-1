@@ -101,7 +101,7 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "AI Documents",
                 "db_table": "ai_assistant_documents",
                 "indexes": [
-                    models.Index(fields=["tenant", "owner", "created_on"], name="ai_doc_tenant_owner_created_idx")
+                    models.Index(fields=["tenant", "owner", "created_on"], name="aidoc_tnt_owner_created_idx")
                 ],
             },
         ),

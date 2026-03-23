@@ -268,5 +268,5 @@ class AIDocument(TenantAwareModel):
         verbose_name = 'AI Document'
         verbose_name_plural = 'AI Documents'
         indexes = [
-            models.Index(fields=['tenant', 'owner', 'created_on'], name='ai_doc_tenant_owner_created_idx'),
+            models.Index(fields=['tenant', 'owner', 'created_on'], name='aidoc_tnt_owner_created_idx'),
         ]
