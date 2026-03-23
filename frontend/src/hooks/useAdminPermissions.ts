@@ -121,7 +121,7 @@ export function getAdminUpgradeMessage(
 ): string {
   const messages: Record<string, string> = {
     manage_users: 'Only tenant administrators and owners can manage users',
-    billing: 'Only tenant owners can manage billing and subscriptions',
+    billing: 'Only tenant owners and admins can manage billing and subscriptions',
     configurations: 'Only tenant administrators can manage configurations',
     audit_logs: 'Only tenant administrators can view audit logs',
     option_lists: 'Only tenant administrators can manage option lists',

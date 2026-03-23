@@ -53,7 +53,8 @@ interface SystemChoiceItem {
 const OptionListsPage: React.FC = () => {
   const toast = useToast();
   const { permissions } = useAdminPermissions();
-  const canManage = permissions.can_manage_option_lists;
+  const canEdit = permissions.can_manage_option_lists;
+  const canView = canEdit || permissions.role === 'manager' || permissions.role === 'owner' || permissions.role === 'admin' || permissions.role === 'superuser';
 
   const [lists, setLists] = useState<SystemChoiceList[]>([]);
   const [expandedList, setExpandedList] = useState<string | null>(null);
@@ -64,9 +65,9 @@ const OptionListsPage: React.FC = () => {
   const [editingList, setEditingList] = useState<SystemChoiceList | null>(null);
 
   useEffect(() => {
-    if (!canManage) return;
+    if (!canView) return;
     loadChoiceLists();
-  }, [canManage]);
+  }, [canView]);
 
   const loadChoiceLists = async () => {
     setLoading(true);
@@ -113,6 +114,7 @@ const OptionListsPage: React.FC = () => {
 
   const handleEditList = (list: SystemChoiceList, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canEdit) return;
     setEditingList(list);
   };
 
@@ -161,7 +163,7 @@ const OptionListsPage: React.FC = () => {
     >
       <AdminGuard
         feature="option_lists"
-        allow={(p) => p.can_manage_option_lists}
+        allow={(p) => p.can_manage_option_lists || p.role === 'manager'}
         loadingFallback={<LoadingSkeleton type="card" rows={2} />}
       >
         {loading ? (
@@ -221,14 +223,16 @@ const OptionListsPage: React.FC = () => {
                   <ItemsContainer>
                     <ItemsHeader>
                       <ItemsTitle>{list.model_field_path || 'Choice Items'}</ItemsTitle>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => handleEditList(list, e)}
-                        title={list.is_extensible ? 'Edit items' : 'View items'}
-                      >
-                        <Edit2 size={14} /> {list.is_extensible ? 'Edit Items' : 'View Items'}
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => handleEditList(list, e)}
+                          title={list.is_extensible ? 'Edit items' : 'View items'}
+                        >
+                          <Edit2 size={14} /> {list.is_extensible ? 'Edit Items' : 'View Items'}
+                        </Button>
+                      )}
                     </ItemsHeader>
 
                     {isLoadingItems ? (
