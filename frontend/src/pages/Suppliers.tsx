@@ -4,6 +4,7 @@ import { logger } from '@/utils/logger';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
+import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
 import { US_STATES } from '../utils/constants/states';
 import { DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
@@ -38,6 +39,7 @@ const Suppliers: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [products, setProducts] = useState<Array<{ id: string; product_code: string; effective_name?: string; name?: string; product_name?: string }>>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
@@ -284,7 +286,7 @@ const Suppliers: React.FC = () => {
       } else {
         await apiService.createSupplier(formData);
       }
-      setShowForm(false);
+      setShowEditForm(false);
       setEditingSupplier(null);
       resetForm();
       fetchSuppliers();
@@ -321,7 +323,7 @@ const Suppliers: React.FC = () => {
       preferred_protein_types: supplier.preferred_protein_types || [], // NEW: Populate protein types
       products: supplier.products || [], // Populate product IDs
     });
-    setShowForm(true);
+    setShowEditForm(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -363,6 +365,7 @@ const Suppliers: React.FC = () => {
 
   const handleCancel = () => {
     setShowForm(false);
+    setShowEditForm(false);
     setEditingSupplier(null);
     resetForm();
   };
@@ -375,14 +378,23 @@ const Suppliers: React.FC = () => {
     <>
       <Header>
         <Title $theme={theme}>Suppliers</Title>
-        <AddButton onClick={() => setShowForm(true)}>+ Add Supplier</AddButton>
+        <AddButton onClick={() => { setEditingSupplier(null); setShowForm(true); }}>+ Add Supplier</AddButton>
       </Header>
 
       {showForm && (
+        <QuickCreateModal
+          entityType="supplier"
+          isOpen={showForm}
+          onClose={() => setShowForm(false)}
+          onCreated={() => fetchSuppliers()}
+        />
+      )}
+
+      {showEditForm && (
         <FormOverlay>
           <FormContainer $theme={theme}>
             <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>{editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}</FormTitle>
+              <FormTitle $theme={theme}>Edit Supplier</FormTitle>
               <CloseButton $theme={theme} onClick={handleCancel}>×</CloseButton>
             </FormHeader>
 

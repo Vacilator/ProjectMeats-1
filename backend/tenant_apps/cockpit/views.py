@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 
+from django.conf import settings
 from django.db.models import Q
 from django.db import IntegrityError
 from django.utils import timezone
@@ -51,17 +52,136 @@ class EntityAIOverviewView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        safe_entity_type = (entity_type or '').strip()[:64] or 'entity'
-        safe_entity_id = (str(entity_id) or '').strip()[:128]
+        normalized_type = (entity_type or '').strip().lower()
+        safe_entity_type = normalized_type[:64] or 'entity'
 
-        summary = (
-            f"AI overview for {safe_entity_type} #{safe_entity_id}. "
-            "AI summaries are enabled for this environment, but the automated "
-            "summarizer is not configured yet. Use Activity and Inquiries to review "
-            "recent updates, next steps, and follow-ups for this record."
+        try:
+            entity_id_int = int(entity_id)
+        except (TypeError, ValueError):
+            return Response(
+                {'status': 'error', 'summary': 'Invalid entity id.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        model_map = {
+            'customer': Customer,
+            'customers': Customer,
+            'supplier': Supplier,
+            'suppliers': Supplier,
+            'purchase_order': PurchaseOrder,
+            'purchase_orders': PurchaseOrder,
+            'order': PurchaseOrder,
+            'orders': PurchaseOrder,
+            'po': PurchaseOrder,
+        }
+
+        Model = model_map.get(normalized_type)
+        if not Model:
+            return Response(
+                {'status': 'error', 'summary': f'Unsupported entity type: {safe_entity_type}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        entity = (
+            Model.objects.filter(tenant=tenant, id=entity_id_int).first()
+            if hasattr(Model, 'objects')
+            else None
+        )
+        if not entity:
+            return Response(
+                {'status': 'error', 'summary': 'Entity not found for this tenant.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Build a brief entity representation (name/status/created date)
+        display_name = (
+            getattr(entity, 'name', None)
+            or getattr(entity, 'order_number', None)
+            or f"{safe_entity_type} #{entity_id_int}"
+        )
+        status_value = getattr(entity, 'status', None)
+        created_value = (
+            getattr(entity, 'created_on', None)
+            or getattr(entity, 'created_at', None)
+            or getattr(entity, 'order_date', None)
+        )
+        created_str = ''
+        try:
+            if created_value:
+                created_str = str(getattr(created_value, 'date', lambda: created_value)())
+        except Exception:
+            created_str = str(created_value) if created_value else ''
+
+        entity_text = f"Name: {display_name}."
+        if status_value is not None:
+            entity_text += f" Status: {status_value}."
+        if created_str:
+            entity_text += f" Created: {created_str}."
+
+        # Most recent 3 activity logs
+        activity_entity_type = (
+            'customer'
+            if Model is Customer
+            else 'supplier'
+            if Model is Supplier
+            else 'purchase_order'
+            if Model is PurchaseOrder
+            else safe_entity_type
         )
 
-        return Response({'status': 'success', 'summary': summary})
+        logs_qs = (
+            ActivityLog.objects.filter(
+                tenant=tenant,
+                entity_type=activity_entity_type,
+                entity_id=entity_id_int,
+            )
+            .select_related('created_by')
+            .order_by('-created_on')
+        )
+        recent_logs = []
+        for row in logs_qs[:3]:
+            recent_logs.append(
+                {
+                    'created_on': getattr(row, 'created_on', None),
+                    'title': row.title,
+                    'content': row.content,
+                    'created_by': getattr(getattr(row, 'created_by', None), 'username', None),
+                }
+            )
+
+        openai_api_key = getattr(settings, 'OPENAI_API_KEY', None)
+        if not openai_api_key:
+            return Response(
+                {
+                    'status': 'error',
+                    'summary': 'AI overview unavailable (OpenAI not configured).',
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        prompt = (
+            f"You are a helpful AI assistant. Summarize the status and recent activity of this {safe_entity_type} in 2 sentences.\n\n"
+            f"Entity: {entity_text}\n\n"
+            f"Recent activity logs (most recent first): {recent_logs}"
+        )
+
+        try:
+            from openai import OpenAI
+
+            client = OpenAI(api_key=openai_api_key)
+            completion = client.chat.completions.create(
+                model='gpt-4o-mini',
+                messages=[{'role': 'user', 'content': prompt}],
+            )
+            ai_response_text = ((completion.choices[0].message.content or '') if completion.choices else '').strip()
+        except Exception:
+            logger.error('[EntityAIOverviewView] Overview generation failed', exc_info=True)
+            return Response(
+                {'status': 'error', 'summary': 'Failed to generate AI overview.'},
+                status=status.HTTP_200_OK,
+            )
+
+        return Response({'summary': ai_response_text, 'status': 'success'})
 
 
 class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):

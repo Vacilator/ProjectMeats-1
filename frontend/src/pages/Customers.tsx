@@ -6,6 +6,7 @@ import { Theme } from '../config/theme';
 import { apiService, Customer, apiClient } from '../services/apiService';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
+import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
 import { US_STATES } from '../utils/constants/states';
 import { INDUSTRY_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 
@@ -40,6 +41,7 @@ const Customers: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { theme } = useTheme();
   const [products, setProducts] = useState<Array<{ id: string; product_code: string; name: string; protein_type: string }>>([]);
@@ -279,7 +281,7 @@ const Customers: React.FC = () => {
       } else {
         await apiService.createCustomer(formData);
       }
-      setShowForm(false);
+      setShowEditForm(false);
       setEditingCustomer(null);
       resetForm();
       fetchCustomers();
@@ -315,7 +317,7 @@ const Customers: React.FC = () => {
       preferred_protein_types: customer.preferred_protein_types || [], // Phase 4: Populate array
       products: customer.products || [], // Populate product IDs
     });
-    setShowForm(true);
+    setShowEditForm(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -356,6 +358,7 @@ const Customers: React.FC = () => {
 
   const handleCancel = () => {
     setShowForm(false);
+    setShowEditForm(false);
     setEditingCustomer(null);
     resetForm();
   };
@@ -368,14 +371,23 @@ const Customers: React.FC = () => {
     <>
       <Header>
         <Title $theme={theme}>Customers</Title>
-        <AddButton onClick={() => setShowForm(true)}>+ Add Customer</AddButton>
+        <AddButton onClick={() => { setEditingCustomer(null); setShowForm(true); }}>+ Add Customer</AddButton>
       </Header>
 
       {showForm && (
+        <QuickCreateModal
+          entityType="customer"
+          isOpen={showForm}
+          onClose={() => setShowForm(false)}
+          onCreated={() => fetchCustomers()}
+        />
+      )}
+
+      {showEditForm && (
         <FormOverlay>
           <FormContainer $theme={theme}>
             <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>{editingCustomer ? 'Edit Customer' : 'Add New Customer'}</FormTitle>
+              <FormTitle $theme={theme}>{editingCustomer ? 'Edit Customer' : 'Edit Customer'}</FormTitle>
               <CloseButton $theme={theme} onClick={handleCancel}>×</CloseButton>
             </FormHeader>
 
@@ -519,7 +531,7 @@ const Customers: React.FC = () => {
                   Cancel
                 </CancelButton>
                 <SubmitButton type="submit">
-                  {editingCustomer ? 'Update' : 'Create'} Customer
+                  {editingCustomer ? 'Update' : 'Update'} Customer
                 </SubmitButton>
               </FormActions>
             </Form>

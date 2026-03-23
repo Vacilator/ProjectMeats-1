@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-23 — Universal Form Standardization, AntD Searchable MultiSelect, and Live AI Overviews — PR: #3875.
 - 2026-03-23 — Fixed Protein-to-Product cascading filters (Backend case-sensitivity, URL serialization, and removed aggressive UX auto-add) — PR: #3874.
 - 2026-03-23 — Admin Workspace Finalization: Option Lists enhancement & Billing Dashboard implementation — PR: #3873.
 - 2026-03-23 — Fixed Email Ingestion Monitor 404 routing error & exposed skipped email stats — PR: #3872.

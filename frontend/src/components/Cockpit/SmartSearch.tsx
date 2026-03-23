@@ -480,6 +480,10 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [relationTabData, setRelationTabData] = useState<Record<string, { items: SearchEntity[]; count: number }>>({});
   const [loadingRelationTab, setLoadingRelationTab] = useState<string | null>(null);
 
+  const [quickCreateConfig, setQuickCreateConfig] = useState<{ isOpen: boolean; type: string; context: any }>(
+    { isOpen: false, type: '', context: {} }
+  );
+
   /**
    * Load favorites from localStorage
    */
@@ -844,6 +848,29 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     return raw === 'customer' || raw === 'supplier';
   }, [activeEntity?.type]);
 
+  const openQuickCreate = useCallback((type: string) => {
+    const ctxType = String(activeEntity?.type ?? '').toLowerCase();
+    const ctxId = String(activeEntity?.id ?? '');
+
+    const context = ctxType === 'customer'
+      ? { customer: ctxId }
+      : ctxType === 'supplier'
+      ? { supplier: ctxId }
+      : {};
+
+    setQuickCreateConfig({ isOpen: true, type, context });
+  }, [activeEntity]);
+
+  const closeQuickCreate = useCallback(() => {
+    setQuickCreateConfig({ isOpen: false, type: '', context: {} });
+  }, []);
+
+  const formatEntityLabel = useCallback((raw: string) => {
+    const cleaned = String(raw || '').replace(/_/g, ' ').trim();
+    if (!cleaned) return 'Record';
+    return cleaned.split(' ').map((w) => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
+  }, []);
+
   const loadRelationshipTab = useCallback(async (tabKey: 'orders' | 'invoices' | 'contacts' | 'inquiries', entity: SearchEntity) => {
     const relationshipType = tabKey === 'orders'
       ? 'recent_orders'
@@ -937,6 +964,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               {typeLabel}
               <SectionCount>({entities.length})</SectionCount>
             </SectionTitle>
+            <Button size="small" type="primary" onClick={() => openQuickCreate(type)}>
+              + New {formatEntityLabel(type)}
+            </Button>
           </SectionHeader>
 
           <ResultGrid>
@@ -1171,6 +1201,27 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           entityId={String(activeEntity?.id ?? '')}
           entityLabel={activeEntity?.name}
         />
+
+        {quickCreateConfig.isOpen && (
+          <div style={{ marginTop: 12 }}>
+            <QuickCreateModal
+              entityType={quickCreateConfig.type}
+              isOpen={true}
+              inline={true}
+              contextData={quickCreateConfig.context}
+              onClose={closeQuickCreate}
+              onCreated={() => {
+                if (activeEntity) {
+                  if (activeRelationTab !== 'more') {
+                    void loadRelationshipTab(activeRelationTab, activeEntity);
+                  }
+                  void loadRelationalChunks(activeEntity);
+                }
+                closeQuickCreate();
+              }}
+            />
+          </div>
+        )}
 
         {inlineAction && activeEntity && (
           <div style={{ marginTop: 12 }}>
