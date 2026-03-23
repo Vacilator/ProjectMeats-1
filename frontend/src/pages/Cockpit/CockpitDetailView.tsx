@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 
-import { CockpitDetailViewTemplate } from '@/cockpit/templates/Cockpit-Detail-View-Template';
+import { CustomerDetailView } from '@/cockpit/views/CustomerDetailView';
 
 type LocationState = {
   initialLabel?: string;
@@ -14,11 +14,7 @@ export const CockpitDetailViewPage: React.FC = () => {
   const state = (location.state ?? {}) as LocationState;
 
   return (
-    <CockpitDetailViewTemplate
-      entityType={entityType}
-      entityId={entityId}
-      initialLabel={state.initialLabel}
-    />
+    <CustomerDetailView entityType={entityType} entityId={entityId} initialLabel={state.initialLabel} />
   );
 };
 
