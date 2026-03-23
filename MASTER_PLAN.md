@@ -1,7 +1,7 @@
 # ProjectMeats Master Plan - Phase Tracking & Technical Debt
 
 **Status**: 🔄 LIVING DOCUMENT  
-**Last Updated**: March 22, 2026  
+**Last Updated**: March 23, 2026  
 **Current Focus**: Phase 7 Stabilization + Production Credential Configuration 🚀  
 **Overall Progress**: 100% (all 9 phases complete) — external secrets required for UAT/Production activation  
 **Infrastructure Status**: All phases fully operational in dev
@@ -11,6 +11,7 @@
 - Vanguard: Cockpit-Detail-View-Template – Complete.
 - Vanguard: Cockpit Customer Detail View – Complete & Whiteboard-Accurate.
 - Vanguard: Workform Editor UX Polish – Auto-realign + Line fix + Circular Add Button.
+- Vanguard: Workform Editor Node Palette – Trigger-only on blank canvas; hide Triggers + End Points after Trigger placed.
 - Completed Batch 2: disabled manual node dragging/connecting, defaulted edges to inline insertion type, added "+" edge event listener to open the node palette with context, and enforced strict top-to-bottom auto-layout centering.
 - Hotfix: restored dev-site load by fixing nodeConfigSchemas TDZ initialization ordering (PR #3557).
 - Ops hardening: env secret audit aligned to manifests/env.manifest.json v5.1 + email_integration model/schema cleanup (PR #3558).
