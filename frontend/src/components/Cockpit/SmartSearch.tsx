@@ -23,10 +23,11 @@ import {
   Users, Building2, Package, TrendingUp, X
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tabs, Spin, Button } from 'antd';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
+import { CreateOrderModal } from '../Shared';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
 
@@ -443,6 +444,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   // Use global navigation context instead of local breadcrumbs
   const navigation = useCockpitNavigation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [internalQuery, setInternalQuery] = useState(initialQuery);
   const query = controlledQuery ?? internalQuery;
@@ -1022,11 +1024,48 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     ));
   };
 
+  const cockpitSubview = searchParams.get('cockpit_subview');
+  const isInlineCreateSalesOrderOpen = cockpitSubview === 'create_so';
+
+  // Keep breadcrumbs in sync with URL-driven subview.
+  useEffect(() => {
+    if (!activeEntity || !isPrimaryEntity) return;
+
+    const last = navigation.path[navigation.path.length - 1];
+    const subviewStepId = 'subview:create_so';
+    const hasSubviewStep = last?.id === subviewStepId;
+
+    if (isInlineCreateSalesOrderOpen && !hasSubviewStep) {
+      navigation.addStep({
+        id: subviewStepId,
+        type: 'subview',
+        label: 'New Sales Order',
+      });
+    }
+
+    if (!isInlineCreateSalesOrderOpen && hasSubviewStep) {
+      navigation.goBack(1);
+    }
+  }, [activeEntity, isPrimaryEntity, isInlineCreateSalesOrderOpen, navigation, navigation.path]);
+
+  const openInlineCreateSalesOrder = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    next.set('cockpit_subview', 'create_so');
+    setSearchParams(next);
+  }, [searchParams, setSearchParams]);
+
+  const closeInlineSubview = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('cockpit_subview');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const tabCTA = useMemo(() => {
     if (!activeEntity || !isPrimaryEntity) return null;
 
     if (activeRelationTab === 'orders') {
-      const isSupplier = String(activeEntity.type).toLowerCase() === 'supplier';
+      const type = String(activeEntity.type).toLowerCase();
+      const isSupplier = type === 'supplier';
       const actionType = isSupplier ? 'create_po' : 'create_so';
       const label = isSupplier ? '+ New Purchase Order' : '+ New Sales Order';
 
@@ -1034,6 +1073,11 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         <Button
           type="primary"
           onClick={() => {
+            if (actionType === 'create_so' && type === 'customer') {
+              openInlineCreateSalesOrder();
+              return;
+            }
+
             handleQuickAction({
               id: `action:${actionType}`,
               type: 'action',
@@ -1051,7 +1095,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     }
 
     return null;
-  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity]);
+  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity, openInlineCreateSalesOrder]);
 
   return (
     <Container>
@@ -1088,6 +1132,15 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               variant={isPrimaryEntity ? 'compact' : 'full'}
             />
           </>
+        )}
+
+        {isInlineCreateSalesOrderOpen && activeEntity && String(activeEntity.type).toLowerCase() === 'customer' && (
+          <CreateOrderModal
+            isOpen={true}
+            onClose={closeInlineSubview}
+            onSuccess={closeInlineSubview}
+            initialValues={{ customer: String(activeEntity.id) }}
+          />
         )}
 
         {activeStep ? (
