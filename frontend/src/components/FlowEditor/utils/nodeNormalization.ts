@@ -25,12 +25,12 @@ export function normalizeNodeData(node: Node): Node {
   }
 
   // --------------------------------------------------------------------------
-  // Phase 7 Stabilization: canonicalize legacy Form container types
+  // Form Process Lock-In: canonicalize legacy container types
   // --------------------------------------------------------------------------
-  // We standardize on the React Flow group implementation and present it as a
-  // singular "Form" container (formBook). Legacy types continue to load.
-  if (node.type === 'formMultiStepContainer' || node.type === 'formProcess' || node.type === 'formProcessGroup') {
-    const canonicalType = 'formBook';
+  // We lock all legacy Form Process / container variants to ONE runtime type:
+  // `formProcess`. This prevents UI drift between formBook/formProcessGroup/etc.
+  if (node.type === 'formMultiStepContainer' || node.type === 'formProcess' || node.type === 'formProcessGroup' || node.type === 'formBook') {
+    const canonicalType = 'formProcess';
     const canonicalDef = NODE_TYPE_REGISTRY[canonicalType];
 
     return {

@@ -803,38 +803,6 @@ export const SmartWorkFormNode = React.memo<NodeProps<SmartWorkFormFlowNode>>(({
       </TopBar>
 
       <Body>
-        <Panel>
-          <PanelTitle>Field Library</PanelTitle>
-          {PO_FIELD_LIBRARY.map((g) => (
-            <div key={g.stepEntityKey}>
-              <GroupTitle>{g.title}</GroupTitle>
-              {g.fields.map((f) => (
-                <FieldChip
-                  key={f.id}
-                  type="button"
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/json', JSON.stringify(f));
-                    e.dataTransfer.effectAllowed = 'copy';
-                  }}
-                  onClick={() => {
-                    const target = activeStep?.id;
-                    if (!target) return;
-                    upsertFieldInStep(target, f);
-                  }}
-                  title={activeStep ? 'Click to add to active step, or drag onto a step' : 'Add a step first'}
-                >
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {f.label}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'rgb(var(--color-text-secondary))', fontWeight: 900 }}>
-                    {f.type || 'text'}
-                  </span>
-                </FieldChip>
-              ))}
-            </div>
-          ))}
-        </Panel>
 
         <Center>
           <PanelTitle>Steps (live preview)</PanelTitle>

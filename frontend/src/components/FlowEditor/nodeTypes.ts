@@ -132,29 +132,27 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     hidden: true, // Deprecated - use 'form' instead
   },
   
-  // DEPRECATED: FormProcess (Basic) - Use formProcessGroup instead
+  // Canonical Form Process container (LOCKED)
   formProcess: {
     id: 'formProcess',
-    name: 'Form Process (Basic - Deprecated)',
+    name: 'Form Process',
     category: 'form',
     icon: '📦',
     color: '#8b5cf6', // purple - distinct from regular form blue
-    description: 'DEPRECATED: Use Form Process Group node instead. This basic container has been superseded by the advanced group implementation.',
+    description: 'Multi-step container that keeps child form steps constrained and arranged horizontally.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
-    hidden: true, // Hide from node palette
   },
   
-  // NEW: Singular Form container using React Flow sub-flows (Book & Pages)
-  // Temporarily hidden while we revert to the purple FormProcess container UX.
+  // Legacy container aliases (hidden): kept for backward compatibility ONLY
   formBook: {
     id: 'formBook',
-    name: 'Form (Book - Hidden)',
+    name: 'Form (Legacy Container)',
     category: 'form',
     icon: '📚',
     color: '#a78bfa',
-    description: '[HIDDEN] Book-style form container. Use Form Process instead.',
+    description: '[HIDDEN] Legacy alias. Loads as Form Process at runtime.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -162,31 +160,31 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   },
 
   // Phase 7+: Smart WorkForm (single-node wizard)
-  // Kept for backward compatibility, but hidden from the palette for now.
+  // Kept for backward compatibility, but hidden from the palette.
   smartWorkForm: {
     id: 'smartWorkForm',
     name: 'Smart WorkForm (Hidden)',
     category: 'form',
     icon: '🧠',
     color: '#a78bfa',
-    description: '[HIDDEN] Kept for backward compatibility. Use Form Process instead.',
+    description: '[HIDDEN] Backward compatibility. Use Form Process instead.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
     hidden: true,
   },
 
-  // Purple multi-step container (restored as primary)
   formProcessGroup: {
     id: 'formProcessGroup',
-    name: 'Form Process',
+    name: 'Form Process (Legacy Alias)',
     category: 'form',
     icon: '📦',
-    color: '#8b5cf6',
-    description: 'Multi-step container that keeps child form steps constrained and arranged horizontally.',
+    color: '#9ca3af',
+    description: '[HIDDEN] Legacy alias. Loads as Form Process at runtime.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true,
   },
   
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)

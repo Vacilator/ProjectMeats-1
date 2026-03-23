@@ -1664,16 +1664,20 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // we cast here to keep editor typing stable while runtime behavior remains unchanged.
 const staticNodeTypes = {
   // Form nodes (Phase E - 2026-02-19)
-  form: FormStepNode,  // Form Step (Page)
-  formStepSingle: FormStepSingleNode,  // Backward compatibility
-  formBook: FormNode,  // Form container (Book)
-  // Restore legacy purple FormProcess container renderer (kept stable for business users)
+  form: FormStepNode, // Form Step (Page)
+  formStepSingle: FormStepSingleNode, // Backward compatibility
+
+  // Form Process (LOCKED): all legacy container variants render as the same container UI
   formProcess: FormProcessNode,
+  formBook: FormProcessNode,
   formProcessGroup: FormProcessNode,
+  formMultiStepContainer: FormProcessNode,
+
   smartWorkForm: SmartWorkFormNode,
+
   // Backward compatibility aliases
-  formStep: FormStepSingleNode,  // Deprecated
-  formMultiStepContainer: FormProcessNode,  // Legacy container alias (render as purple process container)
+  formStep: FormStepSingleNode, // Deprecated
+
   // Other nodes
   formReference: FormReferenceNode,
   trigger: TriggerNode,
@@ -1898,6 +1902,42 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   useEffect(() => {
     edgesRef.current = edges;
   }, [edges]);
+
+  // Initial Form Process alignment: force child steps to align horizontally on load
+  const didInitialFormProcessLayoutRef = useRef(false);
+  useEffect(() => {
+    if (didInitialFormProcessLayoutRef.current) return;
+    if (nodes.length === 0) return;
+
+    didInitialFormProcessLayoutRef.current = true;
+
+    const containerNodes = nodes.filter((n) => n.type === 'formProcess' || isFormProcessContainerType(n.type));
+    if (containerNodes.length === 0) return;
+
+    let nextNodes = nodes;
+    let nextEdges = edges;
+
+    for (const container of containerNodes) {
+      const layoutResult = calculateContainerLayout(container.id, nextNodes, nextEdges);
+      const connectionResult = autoConnectSequentialSteps(container.id, layoutResult.nodes, nextEdges);
+
+      nextNodes = layoutResult.nodes.map((n) => {
+        if (n.id !== container.id) return n;
+        return {
+          ...n,
+          style: {
+            ...(n.style || {}),
+            width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 600),
+            height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 400),
+          },
+        };
+      });
+      nextEdges = connectionResult.edges;
+    }
+
+    setNodes(sortNodesTopologically(nextNodes));
+    setEdges(nextEdges);
+  }, [edges, nodes, setEdges, setNodes]);
   
   // Selected node state (moved here to fix TDZ - used in useMemo at line ~1917)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -3327,47 +3367,42 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         selected: true,
       };
 
-      // Canonical container type: singular Form (Book)
+      // Form Process lock-in: all containers are created as the canonical `formProcess`
       if (isNewContainer) {
         newNode.style = {
           width: 600,
-          height: 450,
+          height: 400,
         };
         newNode.data = {
           ...newNode.data,
           isExpanded: true,
           isGroup: true,
         };
-        (newNode as any).type = 'formBook';
+        (newNode as any).type = 'formProcess';
       }
 
-      const spawnDefaultFormPage = (parentId: string) => {
-        const pageId = `node-${nodeIdCounter + 1}`;
+      const spawnDefaultFormPages = (parentId: string) => {
+        const page1Id = `node-${nodeIdCounter + 1}`;
+        const page2Id = `node-${nodeIdCounter + 2}`;
 
-        const pageNode: Node = {
-          id: pageId,
+        const makePage = (id: string, index: number): Node => ({
+          id,
           type: 'form',
           parentId,
           extent: 'parent',
           expandParent: true,
-          position: { x: 30, y: 90 },
+          position: { x: 50 + index * 350, y: 80 },
+          draggable: false,
           data: {
-            label: NODE_TYPE_REGISTRY.form?.name || 'Form',
+            label: `Page ${index + 1}`,
             status: 'draft',
             fields: [],
             ...getDefaultNodeData('form'),
           },
-          selected: true,
-        };
+          selected: index === 0,
+        });
 
-        const edge: Edge = {
-          id: `edge-${parentId}-${pageId}`,
-          source: parentId,
-          target: pageId,
-          type: 'insert',
-        };
-
-        return { pageNode, edge, pageId };
+        return { pageNodes: [makePage(page1Id, 0), makePage(page2Id, 1)], pageIds: [page1Id, page2Id] };
       };
 
       const selectOnly = (ns: Node[], selectedId: string) => ns.map((n) => ({ ...n, selected: n.id === selectedId }));
@@ -3414,11 +3449,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         let counterDelta = 1;
 
         if (isNewContainer) {
-          const { pageNode, edge, pageId } = spawnDefaultFormPage(newNodeId);
-          nodesToAdd.push(pageNode);
-          nextEdges.push(edge);
-          selectedId = pageId;
-          counterDelta = 2;
+          const { pageNodes, pageIds } = spawnDefaultFormPages(newNodeId);
+          nodesToAdd.push(...pageNodes);
+          selectedId = pageIds[0];
+          counterDelta = 3;
         }
 
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
@@ -3429,7 +3463,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
-        applyAutoLayoutImmediate(nextNodes, nextEdges);
+        if (isNewContainer) {
+          const layoutResult = calculateContainerLayout(newNodeId, nextNodes, nextEdges);
+          const connectionResult = autoConnectSequentialSteps(newNodeId, layoutResult.nodes, nextEdges);
+          const finalNodes = sortNodesTopologically(
+            layoutResult.nodes.map((n) => {
+              if (n.id !== newNodeId) return n;
+              return {
+                ...n,
+                style: {
+                  ...(n.style || {}),
+                  width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 600),
+                  height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 400),
+                },
+              };
+            })
+          );
+          setNodes(finalNodes);
+          setEdges(connectionResult.edges);
+          setHasUnsavedChanges(true);
+        } else {
+          applyAutoLayoutImmediate(nextNodes, nextEdges);
+        }
         return;
       }
 
@@ -3470,11 +3525,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         let counterDelta = 1;
 
         if (isNewContainer) {
-          const { pageNode, edge, pageId } = spawnDefaultFormPage(newNodeId);
-          nodesToAdd.push(pageNode);
-          nextEdges.push(edge);
-          selectedId = pageId;
-          counterDelta = 2;
+          const { pageNodes, pageIds } = spawnDefaultFormPages(newNodeId);
+          nodesToAdd.push(...pageNodes);
+          selectedId = pageIds[0];
+          counterDelta = 3;
         }
 
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
@@ -3483,7 +3537,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
-        applyAutoLayoutImmediate(nextNodes, nextEdges);
+        if (isNewContainer) {
+          const layoutResult = calculateContainerLayout(newNodeId, nextNodes, nextEdges);
+          const connectionResult = autoConnectSequentialSteps(newNodeId, layoutResult.nodes, nextEdges);
+          const finalNodes = sortNodesTopologically(
+            layoutResult.nodes.map((n) => {
+              if (n.id !== newNodeId) return n;
+              return {
+                ...n,
+                style: {
+                  ...(n.style || {}),
+                  width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 600),
+                  height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 400),
+                },
+              };
+            })
+          );
+          setNodes(finalNodes);
+          setEdges(connectionResult.edges);
+          setHasUnsavedChanges(true);
+        } else {
+          applyAutoLayoutImmediate(nextNodes, nextEdges);
+        }
       } else {
         const nextEdges: Edge[] = [...edges];
 
@@ -3492,11 +3567,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         let counterDelta = 1;
 
         if (isNewContainer) {
-          const { pageNode, edge, pageId } = spawnDefaultFormPage(newNodeId);
-          nodesToAdd.push(pageNode);
-          nextEdges.push(edge);
-          selectedId = pageId;
-          counterDelta = 2;
+          const { pageNodes, pageIds } = spawnDefaultFormPages(newNodeId);
+          nodesToAdd.push(...pageNodes);
+          selectedId = pageIds[0];
+          counterDelta = 3;
         }
 
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
@@ -3506,7 +3580,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
-        applyAutoLayoutImmediate(nextNodes, nextEdges);
+        if (isNewContainer) {
+          const layoutResult = calculateContainerLayout(newNodeId, nextNodes, nextEdges);
+          const connectionResult = autoConnectSequentialSteps(newNodeId, layoutResult.nodes, nextEdges);
+          const finalNodes = sortNodesTopologically(
+            layoutResult.nodes.map((n) => {
+              if (n.id !== newNodeId) return n;
+              return {
+                ...n,
+                style: {
+                  ...(n.style || {}),
+                  width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 600),
+                  height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 400),
+                },
+              };
+            })
+          );
+          setNodes(finalNodes);
+          setEdges(connectionResult.edges);
+          setHasUnsavedChanges(true);
+        } else {
+          applyAutoLayoutImmediate(nextNodes, nextEdges);
+        }
       }
     },
     [
@@ -3850,10 +3945,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         };
       }
       
-      // Phase 3: FormProcessGroup as true React Flow group container (2026-02-21)
+      // Form Process lock-in: ensure all container variants are created as the canonical `formProcess`
       if (isFormProcessContainerType(type)) {
         newNode.style = {
-          width: 600,  // Default width for group container
+          width: 600, // Default width for group container
           height: 400, // Default height for child nodes
         };
         newNode.data = {
@@ -3861,8 +3956,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           isExpanded: true, // Default to expanded so children are visible
           isGroup: true, // Mark as group for React Flow
         };
-        // Upgrade legacy formProcess to canonical formProcessGroup type
-        (newNode as any).type = 'formProcessGroup';
+        (newNode as any).type = 'formProcess';
       }
       
       // Phase 1.4: If dropping into a container, set parent-child relationship
@@ -4016,32 +4110,30 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const edgesToAdd: Edge[] = [];
       let counterDelta = 1;
 
-      // Auto-spawn a default Form Step (Page) inside a new Form (Book)
-      if (isContainerNode && (newNode.type === 'formBook' || newNode.type === 'formProcessGroup')) {
-        const pageId = `node-${nodeIdCounter + 1}`;
-        const pageNode: Node = {
-          id: pageId,
+      // Auto-spawn TWO default Form Steps inside a new Form Process container
+      // (Validation requires 2 steps minimum; this keeps the node immediately usable.)
+      if (isContainerNode) {
+        const page1Id = `node-${nodeIdCounter + 1}`;
+        const page2Id = `node-${nodeIdCounter + 2}`;
+
+        const makePage = (id: string, index: number): Node => ({
+          id,
           type: 'form',
           parentId: newNode.id,
           extent: 'parent',
           expandParent: true,
-          position: { x: 30, y: 90 },
+          position: { x: 50 + index * 350, y: 80 },
+          draggable: false,
           data: {
-            label: NODE_TYPE_REGISTRY.form?.name || 'Form',
+            label: `Page ${index + 1}`,
             status: 'draft',
             fields: [],
             ...getDefaultNodeData('form'),
           },
-        };
-
-        nodesToAdd.push(pageNode);
-        edgesToAdd.push({
-          id: `edge-${newNode.id}-${pageId}`,
-          source: newNode.id,
-          target: pageId,
-          type: 'insert',
         });
-        counterDelta = 2;
+
+        nodesToAdd.push(makePage(page1Id, 0), makePage(page2Id, 1));
+        counterDelta = 3;
       }
 
       const updatedNodes = nodes.concat(nodesToAdd);
@@ -4081,8 +4173,28 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       updatedEdges = [...updatedEdges, ...edgesToAdd];
 
-      if (isContainerNode && (newNode.type === 'formBook' || newNode.type === 'formProcessGroup')) {
-        applyAutoLayoutImmediate(updatedNodes, updatedEdges);
+      if (isContainerNode) {
+        // Force horizontal child alignment within the container
+        const layoutResult = calculateContainerLayout(newNode.id, updatedNodes, updatedEdges);
+        const connectionResult = autoConnectSequentialSteps(newNode.id, layoutResult.nodes, updatedEdges);
+
+        const finalNodes = sortNodesTopologically(
+          layoutResult.nodes.map((n) => {
+            if (n.id !== newNode.id) return n;
+            return {
+              ...n,
+              style: {
+                ...(n.style || {}),
+                width: Math.max(layoutResult.containerWidth, (n.style as any)?.width || 600),
+                height: Math.max(layoutResult.containerHeight, (n.style as any)?.height || 400),
+              },
+            };
+          })
+        );
+
+        setNodes(finalNodes);
+        setEdges(connectionResult.edges);
+        setHasUnsavedChanges(true);
       } else {
         setNodes(updatedNodes);
         setEdges(updatedEdges);
@@ -4579,7 +4691,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         ['form', 'formStepSingle', 'formStep', 'formReference'].includes(n.type || '')
       );
 
-      const minSteps = container.type === 'formBook' ? 3 : 1;
+      const minSteps = 2;
       if (formSteps.length < minSteps) {
         errors.push(
           `Container "${container.data.label || container.id}" must have at least ${minSteps} step(s)`
@@ -7776,9 +7888,10 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   // Force all triggers to use the rich Unified Trigger node & schema
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
 
+  // Form Process lock-in: all container variants render as ONE runtime type
+  if (isFormProcessContainerType(nodeTypeId)) return 'formProcess';
+
   // Preserve specific types for all other nodes so their specific schemas load
-  if (nodeTypeId === 'formMultiStepContainer') return 'formMultiStepContainer';
-  if (nodeTypeId === 'formBook') return 'formBook';
   return nodeTypeId;
 }
 
@@ -7824,7 +7937,12 @@ function getDefaultNodeData(nodeTypeId: string): Record<string, any> {
   }
 
   // Special handling for containers
-  if (resolvedType === 'formMultiStepContainer' || resolvedType === 'formProcessGroup' || resolvedType === 'formBook') {
+  if (
+    resolvedType === 'formProcess' ||
+    resolvedType === 'formMultiStepContainer' ||
+    resolvedType === 'formProcessGroup' ||
+    resolvedType === 'formBook'
+  ) {
     defaults.fields = [];
     defaults.containerName = 'New Container';
     defaults.isExpanded = true;

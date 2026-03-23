@@ -708,30 +708,6 @@ export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selecte
         </Badge>
       </Header>
 
-      <LeftSidebar className="nodrag">
-        <PanelTitle>Field Library</PanelTitle>
-        {fieldsByEntity.length === 0 ? (
-          <SmallMuted>Add steps to see fields grouped by entity.</SmallMuted>
-        ) : (
-          fieldsByEntity.map((group) => (
-            <div key={group.entity}>
-              <GroupTitle>{group.entity}</GroupTitle>
-              {group.fields.slice(0, 12).map((f) => (
-                <FieldChip key={f.id} onClick={() => addFieldToActiveStep(f)} title="Add to active step">
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {f.label || f.id}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'rgb(var(--color-text-secondary))' }}>+</span>
-                </FieldChip>
-              ))}
-              {group.fields.length > 12 ? <SmallMuted>+ {group.fields.length - 12} more…</SmallMuted> : null}
-            </div>
-          ))
-        )}
-        <SmallMuted style={{ marginTop: 12 }}>
-          Tip: Click a field to add it to the active step.
-        </SmallMuted>
-      </LeftSidebar>
 
       <TabsRow className="nodrag">
         {sortedSteps.map((s, idx) => {
@@ -756,21 +732,6 @@ export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selecte
         })}
       </TabsRow>
 
-      <RightPanel className="nodrag">
-        <PanelTitle>Properties</PanelTitle>
-        <SmallMuted>
-          Active step: {activeStep ? ((activeStep.data as any)?.stepTitle || (activeStep.data as any)?.label || activeStep.id) : 'None'}
-        </SmallMuted>
-
-        <GroupTitle style={{ marginTop: 14 }}>Cascade mappings (JSON)</GroupTitle>
-        <JsonTextarea
-          value={cascadeDraft}
-          onChange={(e) => setCascadeDraft(e.target.value)}
-          onBlur={commitCascadeDraft}
-          spellCheck={false}
-        />
-        <SmallMuted>Edits apply on blur. Invalid JSON is ignored until fixed.</SmallMuted>
-      </RightPanel>
 
       {/* External connections in/out */}
       <Handle type="target" position={Position.Left} />
