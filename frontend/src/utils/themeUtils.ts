@@ -63,6 +63,14 @@ const resolveLogoSrc = async (logoUrl: string): Promise<{ src: string; revoke: (
     const headers: HeadersInit = {};
     if (authHeader) headers['Authorization'] = authHeader;
 
+    // Tenant-aware hardening: tenant media endpoints may require X-Tenant-ID.
+    try {
+      const tenantId = localStorage.getItem('tenantId');
+      if (tenantId) headers['X-Tenant-ID'] = tenantId;
+    } catch {
+      // ignore (e.g. storage blocked)
+    }
+
     const res = await fetch(logoUrl, { credentials: 'include', headers });
     if (res.ok) {
       const blob = await res.blob();
