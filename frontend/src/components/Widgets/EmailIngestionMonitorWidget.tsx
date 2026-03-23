@@ -276,6 +276,8 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
 
     setSyncing(true);
     try {
+      const startTime = Date.now();
+
       // Backward compatible: prefer tenant-scoped route if present, fall back to canonical.
       const urls = [`/tenants/${tenantId}/integrations/email/sync/`, `/integrations/email/sync/`];
       let response: any = null;
@@ -296,6 +298,12 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
 
       if (!response) throw lastErr;
 
+      // Ensure loader shows for at least 1.5s for UX
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime < 1500) {
+        await new Promise((resolve) => setTimeout(resolve, 1500 - elapsedTime));
+      }
+
       const stats = response.data?.stats;
 
       if (stats) {
@@ -313,10 +321,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
         message.success('Email sync completed.');
       }
 
-      // Refresh logs after 2 seconds
-      setTimeout(() => {
-        fetchEmailLogs();
-      }, 2000);
+      fetchEmailLogs();
     } catch (error: any) {
       console.error('Failed to trigger sync:', error);
       message.error(error?.response?.data?.error || 'Failed to start email sync');
