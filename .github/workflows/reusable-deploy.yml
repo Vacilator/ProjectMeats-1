@@ -1273,19 +1273,6 @@ jobs:
             exit 1
           fi
           
-          # Reload host nginx to sync proxy configuration
-          echo "Reloading host-level nginx..."
-          if command -v nginx > /dev/null 2>&1; then
-            sudo systemctl reload nginx && {
-              echo "✓ Host nginx reloaded successfully"
-            } || {
-              echo "⚠ Warning: Failed to reload nginx (continuing anyway)"
-              echo "  You may need to manually run: sudo systemctl reload nginx"
-            }
-          else
-            echo "ℹ Nginx not found on host (may be running in different configuration)"
-          fi
-          
           echo ""
           echo "==================================="
           echo "✓ Frontend Deployment Complete"
@@ -1295,3 +1282,11 @@ jobs:
           echo "External access: https://${DOMAIN_NAME}"
           echo "Note: Host nginx proxies external traffic to this container"
           SSH
+
+      - name: Reload Nginx
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: sudo nginx -t && sudo systemctl reload nginx

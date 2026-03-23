@@ -17,6 +17,9 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+# Expose auto-tuner task for Celery autodiscovery
+from .auto_tuner import orchestrate_rlhf_finetuning  # noqa: F401
+
 
 @shared_task(name='ai_assistant.process_rlhf_flywheel')
 def process_rlhf_flywheel(days: int = 7) -> Dict[str, Any]:
