@@ -68,6 +68,7 @@ class TenantSerializer(serializers.ModelSerializer):
             "logo_url": theme_settings.get("logo_url"),
             "primary_color_light": theme_settings.get("primary_color_light"),
             "primary_color_dark": theme_settings.get("primary_color_dark"),
+            "theme_version": theme_settings.get("theme_version"),
         }
 
     def validate_slug(self, value):
