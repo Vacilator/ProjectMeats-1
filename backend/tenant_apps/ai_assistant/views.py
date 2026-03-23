@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession, MessageTypeChoices, VectorMemory
 from .serializers import (
     AIDocumentSerializer,
+    AIFeedbackLogSerializer,
     AIConfigurationSerializer,
     ChatBotRequestSerializer,
     ChatBotResponseSerializer,
@@ -541,6 +542,50 @@ class PendingReviewAPIView(APIView):
 
         payload = PendingReviewItemSerializer(items, many=True).data
         return Response({'results': payload}, status=status.HTTP_200_OK)
+
+
+class AIFeedbackViewSet(viewsets.ReadOnlyModelViewSet):
+    """Staff-only read access to AIFeedbackLog (for debugging/auditing)."""
+
+    serializer_class = AIFeedbackLogSerializer
+    permission_classes = [IsAdminUser]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['created_on']
+    ordering = ['-created_on']
+
+    def get_queryset(self):
+        tenant = getattr(self.request, 'tenant', None)
+        qs = AIFeedbackLog.objects.all().select_related('tenant', 'resolved_by')
+
+        if self.request.user.is_superuser:
+            return qs
+
+        tenant_id = getattr(tenant, 'id', None)
+        if not tenant_id:
+            return AIFeedbackLog.objects.none()
+
+        return qs.filter(tenant_id=tenant_id)
+
+
+class ToolsOpenAPIView(SwarmToolsOpenAPIView):
+    """Alias: stable tools endpoint for clean routing."""
+
+
+class PendingReviewView(PendingReviewAPIView):
+    """Alias: stable pending review endpoint for clean routing."""
+
+
+class AIAgentChatView(APIView):
+    """Clean chat endpoint wrapper.
+
+    This wraps the ViewSet action so routing is stable and server boot can't fail
+    due to DRF router/action wiring.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        return ChatBotAPIViewSet().chat(request)
 
 
 class PendingReviewResolveAPIView(APIView):

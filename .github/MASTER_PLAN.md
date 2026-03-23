@@ -56,6 +56,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-23 — Cockpit UX: Notes & Calls drawer (unified timeline + add note) — PR: #3805
 - 2026-03-23 — Admin Branding: reliably load tenant logo/colors after login + cache-bust on update — PR: #3807
 - 2026-03-23 — Hardened OAuth initiation flow (Removed direct API navigation to preserve JWT/Tenant context) — PR: #TBD
+- 2026-03-23 — Emergency fix applied to ai_assistant routing to resolve 502 crash. — PR: #3828
 
 - 2026-03-22T16:39:58Z — EMERGENCY ROLLBACK: Reverted Workform Container UI to stable Friday baseline due to UX degradation.
 

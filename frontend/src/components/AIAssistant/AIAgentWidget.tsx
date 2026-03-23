@@ -919,7 +919,7 @@ export const AIAgentWidget: React.FC = () => {
       }
 
       if (text) {
-        const res = await businessApi.post<{ response: string; session_id: string }>('/ai-assistant/ai-chat/chat/', {
+        const res = await businessApi.post<{ response: string; session_id: string }>('/ai-assistant/chat/', {
           message: text,
           session_id: sid,
           context: { ui_source: 'AIAgentWidget' },

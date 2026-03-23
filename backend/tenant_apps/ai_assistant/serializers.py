@@ -2,7 +2,7 @@
 Serializers for AI Assistant functionality.
 """
 from rest_framework import serializers
-from .models import AIDocument, AIConfiguration, ChatMessage, ChatSession
+from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession
 
 
 class VectorMemorySearchRequestSerializer(serializers.Serializer):
@@ -201,3 +201,24 @@ class PendingReviewItemSerializer(serializers.Serializer):
     precision_delta = serializers.FloatField()
     created_on = serializers.DateTimeField()
     original_extracted_data = serializers.JSONField()
+
+
+class AIFeedbackLogSerializer(serializers.ModelSerializer):
+    """Model serializer for AIFeedbackLog (staff-only admin APIs)."""
+
+    class Meta:
+        model = AIFeedbackLog
+        fields = [
+            'id',
+            'tenant',
+            'document_id',
+            'document_type',
+            'original_extracted_data',
+            'user_corrected_data',
+            'confidence_score',
+            'precision_delta',
+            'resolved_by',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = ['id', 'tenant', 'precision_delta', 'created_on', 'modified_on']
