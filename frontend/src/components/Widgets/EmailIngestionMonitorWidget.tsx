@@ -238,24 +238,12 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
   const [syncing, setSyncing] = useState(false);
 
   /**
-   * Get current tenant ID from localStorage
-   */
-  const getTenantId = (): string | null => {
-    return localStorage.getItem('tenantId');
-  };
-
-  /**
    * Fetch email logs from API
    */
   const fetchEmailLogs = async () => {
-    const tenantId = getTenantId();
-    if (!tenantId) return;
-
     setLoading(true);
     try {
-      const response = await businessApi.get<EmailLogsResponse>(
-        `/integrations/email/logs/?limit=5`
-      );
+      const response = await businessApi.get<EmailLogsResponse>('/integrations/email/logs/?limit=5');
       setEmails(response.data.emails);
     } catch (error) {
       console.error('Failed to fetch email logs:', error);
@@ -268,35 +256,11 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
    * Trigger manual email sync
    */
   const handleSyncNow = async () => {
-    const tenantId = getTenantId();
-    if (!tenantId) {
-      message.error('Tenant context missing. Please re-login or re-select your tenant.');
-      return;
-    }
-
     setSyncing(true);
     try {
       const startTime = Date.now();
 
-      // Backward compatible: prefer tenant-scoped route if present, fall back to canonical.
-      const urls = [`/tenants/${tenantId}/integrations/email/sync/`, `/integrations/email/sync/`];
-      let response: any = null;
-      let lastErr: any = null;
-
-      for (const url of urls) {
-        try {
-          response = await businessApi.post(url);
-          break;
-        } catch (err: any) {
-          lastErr = err;
-          if (err?.response?.status === 404 && url.startsWith('/tenants/')) {
-            continue;
-          }
-          throw err;
-        }
-      }
-
-      if (!response) throw lastErr;
+      const response = await businessApi.post('/integrations/email/sync/');
 
       // Ensure loader shows for at least 1.5s for UX
       const elapsedTime = Date.now() - startTime;
@@ -307,15 +271,14 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
       const stats = response.data?.stats;
 
       if (stats) {
-        const emailsSaved = Number(stats.emails_saved ?? 0);
-        const emailsFetched = Number(stats.emails_fetched ?? 0);
-
-        if (emailsSaved > 0) {
-          message.success(`Sync complete: ${emailsSaved} new emails ingested.`);
-        } else if (emailsFetched === 0) {
-          message.info('Sync complete: No new order-related emails found in the last 7 days.');
+        if (stats.emails_saved > 0) {
+          message.success(`Sync complete: Found and saved ${stats.emails_saved} new emails.`);
+        } else if (stats.emails_skipped > 0) {
+          message.info(
+            `Sync complete: Found ${stats.emails_skipped} order emails, but they were already in the system.`
+          );
         } else {
-          message.success(`Sync complete: ${emailsFetched} emails checked, no new ones to save.`);
+          message.info('Sync complete: Scanned recent emails, no new order-related emails found.');
         }
       } else {
         message.success('Email sync completed.');
