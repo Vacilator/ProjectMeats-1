@@ -76,9 +76,9 @@ export const IngestionMonitor: React.FC = () => {
         `/integrations/email/logs/?limit=10`
       );
       setEmails(response.data.emails);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch email logs:', error);
-      message.error('Failed to load email logs');
+      message.error(error?.response?.data?.error || 'Failed to load email logs');
     } finally {
       setLoading(false);
     }
@@ -93,16 +93,16 @@ export const IngestionMonitor: React.FC = () => {
 
     setSyncing(true);
     try {
-      await businessApi.post(`/integrations/email/sync/`);
-      message.success('Email sync started. This may take a few moments...');
-      
+      const response = await businessApi.post(`/integrations/email/sync/`);
+      message.success(response.data?.message || 'Email sync started. This may take a few moments...');
+
       // Refresh logs after 3 seconds
       setTimeout(() => {
         fetchEmailLogs();
       }, 3000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to trigger sync:', error);
-      message.error('Failed to start email sync');
+      message.error(error?.response?.data?.error || 'Failed to start email sync');
     } finally {
       setSyncing(false);
     }
