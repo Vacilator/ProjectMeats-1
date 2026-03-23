@@ -2,7 +2,7 @@
 Serializers for AI Assistant functionality.
 """
 from rest_framework import serializers
-from .models import AIConfiguration, ChatMessage, ChatSession
+from .models import AIDocument, AIConfiguration, ChatMessage, ChatSession
 
 
 class VectorMemorySearchRequestSerializer(serializers.Serializer):
@@ -122,6 +122,36 @@ class ChatBotResponseSerializer(serializers.Serializer):
     message_id = serializers.UUIDField()
     processing_time = serializers.FloatField()
     metadata = serializers.JSONField(default=dict)
+
+
+class AIDocumentSerializer(serializers.ModelSerializer):
+    """Serializer for AI assistant document uploads."""
+
+    def validate_session(self, value):
+        request = self.context.get('request')
+        if not value or not request:
+            return value
+
+        if getattr(value, 'owner_id', None) != getattr(request.user, 'id', None):
+            raise serializers.ValidationError('Session not found')
+
+        return value
+
+    class Meta:
+        model = AIDocument
+        fields = [
+            'id',
+            'tenant',
+            'owner',
+            'session',
+            'file',
+            'original_filename',
+            'content_type',
+            'file_size',
+            'processing_status',
+            'created_on',
+        ]
+        read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_size', 'created_on']
 
 
 class AIConfigurationSerializer(serializers.ModelSerializer):

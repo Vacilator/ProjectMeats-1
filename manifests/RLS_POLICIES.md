@@ -98,6 +98,7 @@ All workflow-related tables have Row-Level Security **ENABLED** and **FORCED**:
 | `ai_assistant_configurations` | ✅ | `ai_assistant/0005_add_rls_policies_batch` | Mar 18, 2026 |
 | `ai_assistant_feedback_logs` | ✅ | `ai_assistant/0006_aifeedbacklog` | Mar 20, 2026 |
 | `ai_assistant_vector_memory` | ✅ | `ai_assistant/0007_vectormemory` | Mar 20, 2026 |
+| `ai_assistant_documents` | ✅ | `ai_assistant/0009_aidocument` | Mar 23, 2026 |
 
 ---
 

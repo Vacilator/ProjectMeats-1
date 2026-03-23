@@ -8,6 +8,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    AIDocumentViewSet,
     ChatBotAPIViewSet,
     ChatMessageViewSet,
     ChatSessionViewSet,
@@ -23,6 +24,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r"ai-sessions", ChatSessionViewSet, basename="ai-session")
 router.register(r"ai-messages", ChatMessageViewSet, basename="ai-message")
+router.register(r"ai-documents", AIDocumentViewSet, basename="ai-document")
 router.register(r"ai-chat", ChatBotAPIViewSet, basename="ai-chatbot")
 
 urlpatterns = [
