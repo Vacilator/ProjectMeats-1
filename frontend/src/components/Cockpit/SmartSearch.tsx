@@ -679,20 +679,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       return;
     }
 
-    // Canonical Cockpit Detail View trigger (customer/supplier)
-    const rawType = String(entity.type ?? '').toLowerCase();
-    const canonicalType = rawType === 'customer' || rawType === 'customers'
-      ? 'customer'
-      : rawType === 'supplier' || rawType === 'suppliers'
-      ? 'supplier'
-      : null;
-
-    if (canonicalType) {
-      navigate(`/cockpit/entity/${canonicalType}/${encodeURIComponent(entity.id)}`, {
-        state: { initialLabel: entity.name },
-      });
-    }
-  }, [navigate, navigation, onSelectEntity]);
+  }, [navigation, onSelectEntity]);
 
 
   /**

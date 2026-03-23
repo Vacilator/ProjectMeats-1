@@ -17,6 +17,7 @@ import styled from 'styled-components';
 import { Search, X, ArrowUp, ArrowDown, CornerDownLeft, Plus, FileText, Users, Building2, Package, Truck } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
+import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityDetailModal } from '../Shared/EntityDetailModal';
 
 // ============================================================================
@@ -501,6 +502,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const cockpitNavigation = useCockpitNavigation();
 
   // Focus input when opened
   useEffect(() => {
@@ -657,12 +659,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         ? 'supplier'
         : null;
 
-    // Cockpit default: open the canonical 3-column detail view for customers/suppliers.
+    // Cockpit default: open the canonical breadcrumb-driven view on /cockpit.
     if (canonicalType) {
-      onClose();
-      navigate(`/cockpit/entity/${canonicalType}/${encodeURIComponent(String(item.id))}`, {
-        state: { initialLabel: item.title },
+      cockpitNavigation.clearPath();
+      cockpitNavigation.addStep({
+        id: String(item.id),
+        type: canonicalType,
+        label: item.title,
+        subtitle: item.subtitle,
       });
+
+      onClose();
+      navigate('/cockpit');
       return;
     }
 

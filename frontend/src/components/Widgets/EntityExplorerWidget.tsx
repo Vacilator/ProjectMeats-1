@@ -330,9 +330,7 @@ export const EntityExplorerWidget: React.FC<EntityExplorerWidgetProps> = ({
         subtitle: entity.subtitle,
       });
 
-      navigate(`/cockpit/entity/${canonicalType}/${encodeURIComponent(String(entity.id))}`, {
-        state: { initialLabel: entity.name },
-      });
+      navigate('/cockpit');
       return;
     }
 
