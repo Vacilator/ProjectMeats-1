@@ -127,25 +127,30 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - Container edges: strict container edge isolation remains removed to support Form → Action → Form workflows across permeable boundaries.
   - Layout: steps sequence horizontally (wider spacing) and non-form child nodes are not repositioned by container auto-layout.
 
-- 2026-03-19 — Phase 7 — Initiative: WorkForm Visual Evolution: Interleaved Action Containers and Horizontal Page Layout — Commit: TBD
+- 2026-03-19 — Phase 7 — Initiative: WorkForm Visual Evolution: Interleaved Action Containers and Horizontal Page Layout — Commit: 9bd8df90 (PR: #3633)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3633
   - FormProcessGroupNode: pages (type `form`) lay out horizontally while other node types remain free-positioned within the container.
   - Group container sizing: width expands with page count ("book" grows as pages are added).
   - FormNode UX: selected pages support a lightweight in-canvas field editor (add/reorder) to reduce side-panel dependency.
   - Connectivity: plan to introduce virtual handles for collapsed groups so edges can cross the container boundary cleanly without breaking `extent: 'parent'` visually.
 
-- 2026-03-19 — Fix: ConditionBuilder loads entity fields — Commit: TBD (PR: TBD)
+- 2026-03-19 — Fix: ConditionBuilder loads entity fields — Commit: c3af966d (PR: #3637)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3637
   - DynamicConfigPanel: when an entity is selected (entityType/eventEntity/entity), load entity fields via schemaService and include them in ConditionBuilder available fields.
   - Resolves empty ConditionBuilder dropdowns for Database Event trigger nodes.
 
-- 2026-03-19 — Fix: Catalog filtering shows hybrid WorkForms — Commit: TBD (PR: TBD)
+- 2026-03-19 — Fix: Catalog filtering shows hybrid WorkForms — Commit: 7dfb64b6 (PR: #3638)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3638
   - WorkForms Catalog: refactored filtering/classification to deeply inspect flow_data.nodes, correctly categorizing hybrid WorkForms (Form Process Groups) and pure workflows so user-created flows are not hidden.
 
-- 2026-03-19 — Phase 7 UX: Sub-flows + toolbars + smoother edges — Commit: TBD (PR: TBD)
+- 2026-03-19 — Phase 7 UX: Sub-flows + toolbars + smoother edges — Commit: bc766c91 (PR: #3640)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3640
   - FormProcessGroupNode: removed dimension transitions and force explicit width/height on expand/collapse to avoid ResizeObserver bounding-box glitches.
   - BaseNode: replaced ad-hoc controls with React Flow NodeToolbar and added button-style output handle.
   - Edges: default to smoothstep (via EnhancedConnectionEdge) with thicker strokes + larger arrow markers; added a hover EdgeToolbar with insert/delete affordances.
 
-- 2026-03-19 — Phase 7 — Fix: TenantForm API path + FormProcessGroup internals + Auto-Map panel click isolation — Commit: TBD (PR: TBD)
+- 2026-03-19 — Phase 7 — Fix: TenantForm API path + FormProcessGroup internals + Auto-Map panel click isolation — Commit: 57d5d294 (PR: #3661)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3661
   - tenantFormService: align CRUD base path to `/workflows/forms/` (views mounted on workflows router).
   - FormProcessGroupNode: use `useUpdateNodeInternals()` and remove stale height style when collapsing to avoid ResizeObserver glitches.
   - AutoMappingSuggestionsPanel: improve wrapping and stop event propagation on Apply/Reject/Apply All.
@@ -166,7 +171,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - tenantService: removed rogue axios.create + interceptors (incl. 401 hard redirect to /login); now uses centralized JWT-aware apiClient.
   - IntegrationSettings + EmailConnection: switched to apiClient and removed hardcoded /api/v1 (or /api) prefixes to avoid double-stacking baseURL.
 
-- 2026-03-19 — Email Integrations UI mounted (Settings) — Commit: TBD (PR: TBD)
+- 2026-03-19 — Email Integrations UI mounted (Settings) — Commit: 70f9fc43 (PR: #3643)
+  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3643
   - Settings: mounted IntegrationsSection below Tenant Branding.
   - IntegrationsSection + EmailConnection: OAuth calls now use authenticated apiClient (no raw axios, no hardcoded /api prefix).
   - Forced deployment to dev environment via .deployment-trigger to inject updated Microsoft OAuth Client ID and Secret environment variables.
@@ -242,11 +248,6 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3457
   - Backend: tenant-safe cache for UniversalSearchService results (short TTL), plus hardened entity lookup response and tenant fallback.
 
-- 2026-03-15 — Phase 8.3 Email ingestion fan-out — Commit: d71673d6 (PR: #3458)
-  - PR: https://github.com/Meats-Central/ProjectMeats/pull/3458
-  - Backend: Celery fan-out for email ingestion (provider-scoped tasks) with jittered dispatch.
-
-- 2026-03-15 — Entity-First UI Restoration (Portal + Schema Bootstrap) — Commit: TBD (PR: #3460)
 - 2026-03-15 — Phase 8.3 Email ingestion fan-out — Commit: 86c2025f (PR: #3458)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3458
   - Backend: Celery fan-out for email ingestion (provider-scoped tasks) with jittered dispatch.
@@ -257,13 +258,11 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
   - FlowEditor: ensure schemaRegistry is initialized (no fallback schemas for trigger/formStep), restoring entity-first configuration.
   - FlowEditor: Developer Mode JSON editor uses Monaco (fallback to textarea).
 
-- 2026-03-15 — FlowEditor: cascading relation fields — Commit: TBD (PR: #3462)
 - 2026-03-15 — FlowEditor: cascading relation fields — Commit: 9579a247 (PR: #3462)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3462
   - EntityFieldPicker: relation fields (FK/M2M/1-1) can select an upstream variable template to cascade/auto-populate (`cascadeFrom`).
   - DynamicConfigPanel: entity-field-picker renderer passes upstream variables into EntityFieldPicker.
 
-- 2026-03-15 — Cockpit: global search in header (Ctrl+K) — Commit: TBD (PR: #3466)
 - 2026-03-15 — Cockpit: global search in header (Ctrl+K) — Commit: 2be7d888 (PR: #3466)
   - PR: https://github.com/Meats-Central/ProjectMeats/pull/3466
   - Move Cockpit search input to `Header.tsx` with global Ctrl/⌘K focus.
