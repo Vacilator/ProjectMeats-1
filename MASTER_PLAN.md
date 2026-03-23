@@ -12,6 +12,7 @@
 - Vanguard: Cockpit Customer Detail View – Complete & Whiteboard-Accurate.
 - Vanguard: Workform Editor UX Polish – Auto-realign + Line fix + Circular Add Button.
 - Vanguard: Workform Editor Node Palette – Trigger-only on blank canvas; hide Triggers + End Points after Trigger placed.
+- Vanguard: Workform Editor Guided Empty State – Trigger-first CTAs (Add Manual Trigger / Use Template / Browse Triggers).
 - Completed Batch 2: disabled manual node dragging/connecting, defaulted edges to inline insertion type, added "+" edge event listener to open the node palette with context, and enforced strict top-to-bottom auto-layout centering.
 - Hotfix: restored dev-site load by fixing nodeConfigSchemas TDZ initialization ordering (PR #3557).
 - Ops hardening: env secret audit aligned to manifests/env.manifest.json v5.1 + email_integration model/schema cleanup (PR #3558).
