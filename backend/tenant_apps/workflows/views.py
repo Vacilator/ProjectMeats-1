@@ -2615,6 +2615,13 @@ class QuickCreateEntityAPIView(APIView):
 
         # Get required fields (excluding system fields)
         required_fields = []
+
+        # Optional quick-create fields we still want to expose for better UX.
+        # These are especially important for Master Product compliance.
+        extra_fields_by_entity = {
+            "customer": {"preferred_protein_types", "products"},
+            "supplier": {"preferred_protein_types", "products"},
+        }
         excluded = {
             "id",
             "pk",
@@ -2653,6 +2660,10 @@ class QuickCreateEntityAPIView(APIView):
                     form_type = "checkbox"
                 elif field_type == "DateField":
                     form_type = "date"
+                elif field_type == "ArrayField":
+                    form_type = "multiselect"
+                elif getattr(field, "many_to_many", False):
+                    form_type = "multiselect"
 
                 required_fields.append(
                     {
@@ -2670,11 +2681,51 @@ class QuickCreateEntityAPIView(APIView):
                     required_fields.append({"key": "name", "label": "Name", "type": "text", "required": True})
                     break
 
+        # Add a small allowlisted set of optional fields (non-breaking additive change).
+        # These fields are not required but are critical for the create flow UX.
+        extras = []
+        allow = extra_fields_by_entity.get(entity_type, set())
+        if allow:
+            already = {f["key"] for f in required_fields}
+            for field in model._meta.get_fields():
+                if not hasattr(field, "name"):
+                    continue
+                if field.name in excluded:
+                    continue
+                if field.name not in allow:
+                    continue
+                if field.name in already:
+                    continue
+
+                field_type = type(field).__name__
+                form_type = "text"
+                if field_type in ("IntegerField", "DecimalField", "FloatField"):
+                    form_type = "number"
+                elif field_type == "EmailField":
+                    form_type = "email"
+                elif field_type == "BooleanField":
+                    form_type = "checkbox"
+                elif field_type == "DateField":
+                    form_type = "date"
+                elif field_type == "ArrayField":
+                    form_type = "multiselect"
+                elif getattr(field, "many_to_many", False):
+                    form_type = "multiselect"
+
+                extras.append(
+                    {
+                        "key": field.name,
+                        "label": str(getattr(field, "verbose_name", field.name)).replace("_", " ").title(),
+                        "type": form_type,
+                        "required": False,
+                    }
+                )
+
         return Response(
             {
                 "entity_type": entity_type,
                 "entity_label": entity_type.replace("_", " ").title(),
-                "fields": required_fields,
+                "fields": required_fields + extras,
             }
         )
 

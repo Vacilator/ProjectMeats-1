@@ -4,13 +4,16 @@
  * Modal for quick-creating entity records from within forms.
  * Shows only the required/essential fields for fast creation.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import styled from 'styled-components';
-import { 
-  entityOptionsService, 
-  QuickCreateField, 
-  QuickCreateResponse 
+import { Select, Spin } from 'antd';
+import debounce from 'lodash/debounce';
+import {
+  entityOptionsService,
+  QuickCreateField,
 } from '../../services/quickActionsService';
+import { apiClient } from '../../services/apiService';
+import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 
 interface QuickCreateModalProps {
   entityType: string;
@@ -265,6 +268,16 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [entityLabel, setEntityLabel] = useState('');
 
+  const proteinTypeValue: string[] = useMemo(() => {
+    const raw = formData?.preferred_protein_types;
+    if (!raw) return [];
+    return (Array.isArray(raw) ? raw : [raw]).map((v) => String(v)).filter(Boolean);
+  }, [formData]);
+
+  const [productOptions, setProductOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const debouncedProductSearchRef = useRef<ReturnType<typeof debounce> | null>(null);
+
   useEffect(() => {
     if (isOpen && entityType) {
       loadFields();
@@ -305,6 +318,58 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
       });
     }
   }, [errors]);
+
+  const fetchMasterProducts = useCallback(async (search?: string) => {
+    setIsLoadingProducts(true);
+    try {
+      const normalizedProteins = proteinTypeValue
+        .map((t) => String(t).toLowerCase().trim())
+        .filter(Boolean);
+
+      const response = await apiClient.get('/system/products/', {
+        params: {
+          search: search || undefined,
+          is_active: true,
+          page_size: 50,
+          ...(normalizedProteins.length ? { protein: normalizedProteins } : {}),
+        },
+      });
+
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+
+      setProductOptions(
+        data.map((p: any) => ({
+          value: String(p.id),
+          label: `${p.product_code}${p.name ? ` - ${p.name}` : ''}`,
+        }))
+      );
+    } catch (err) {
+      // Silent fail: quick create should still work for basic fields.
+      console.error('[QuickCreateModal] Failed to load master products:', err);
+      setProductOptions([]);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  }, [proteinTypeValue]);
+
+  useEffect(() => {
+    // Re-load product options whenever protein filters change.
+    if (fields.some((f) => f.key === 'products')) {
+      void fetchMasterProducts();
+    }
+  }, [fetchMasterProducts, fields, proteinTypeValue.join('|')]);
+
+  useEffect(() => {
+    // Setup debounced search handler
+    debouncedProductSearchRef.current = debounce((q: string) => {
+      void fetchMasterProducts(q);
+    }, 300);
+    return () => {
+      debouncedProductSearchRef.current?.cancel();
+      debouncedProductSearchRef.current = null;
+    };
+  }, [fetchMasterProducts]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -379,15 +444,41 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                   <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
                     {field.label}
                   </Label>
-                  <Input
-                    id={`quick-create-${field.key}`}
-                    type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
-                    value={formData[field.key] || ''}
-                    onChange={e => handleInputChange(field.key, e.target.value)}
-                    className={errors[field.key] ? 'error' : ''}
-                    disabled={isSubmitting}
-                    autoFocus={fields.indexOf(field) === 0}
-                  />
+                  {field.key === 'preferred_protein_types' ? (
+                    <Select
+                      mode="multiple"
+                      value={proteinTypeValue}
+                      onChange={(vals) => handleInputChange(field.key, vals)}
+                      options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
+                      placeholder="Select protein types"
+                      disabled={isSubmitting}
+                      style={{ width: '100%' }}
+                    />
+                  ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
+                    <Select
+                      mode="multiple"
+                      value={Array.isArray(formData[field.key]) ? formData[field.key] : []}
+                      onChange={(vals) => handleInputChange(field.key, vals)}
+                      options={productOptions}
+                      placeholder={proteinTypeValue.length ? 'Search products (filtered by protein types)...' : 'Search products...'}
+                      showSearch
+                      filterOption={false}
+                      onSearch={(q) => debouncedProductSearchRef.current?.(q)}
+                      notFoundContent={isLoadingProducts ? <Spin size="small" /> : null}
+                      disabled={isSubmitting}
+                      style={{ width: '100%' }}
+                    />
+                  ) : (
+                    <Input
+                      id={`quick-create-${field.key}`}
+                      type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                      value={formData[field.key] || ''}
+                      onChange={e => handleInputChange(field.key, e.target.value)}
+                      className={errors[field.key] ? 'error' : ''}
+                      disabled={isSubmitting}
+                      autoFocus={fields.indexOf(field) === 0}
+                    />
+                  )}
                   {errors[field.key] && <ErrorText>{errors[field.key]}</ErrorText>}
                 </FieldGroup>
               ))}
@@ -453,15 +544,41 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                   <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
                     {field.label}
                   </Label>
-                  <Input
-                    id={`quick-create-${field.key}`}
-                    type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
-                    value={formData[field.key] || ''}
-                    onChange={e => handleInputChange(field.key, e.target.value)}
-                    className={errors[field.key] ? 'error' : ''}
-                    disabled={isSubmitting}
-                    autoFocus={fields.indexOf(field) === 0}
-                  />
+                  {field.key === 'preferred_protein_types' ? (
+                    <Select
+                      mode="multiple"
+                      value={proteinTypeValue}
+                      onChange={(vals) => handleInputChange(field.key, vals)}
+                      options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
+                      placeholder="Select protein types"
+                      disabled={isSubmitting}
+                      style={{ width: '100%' }}
+                    />
+                  ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
+                    <Select
+                      mode="multiple"
+                      value={Array.isArray(formData[field.key]) ? formData[field.key] : []}
+                      onChange={(vals) => handleInputChange(field.key, vals)}
+                      options={productOptions}
+                      placeholder={proteinTypeValue.length ? 'Search products (filtered by protein types)...' : 'Search products...'}
+                      showSearch
+                      filterOption={false}
+                      onSearch={(q) => debouncedProductSearchRef.current?.(q)}
+                      notFoundContent={isLoadingProducts ? <Spin size="small" /> : null}
+                      disabled={isSubmitting}
+                      style={{ width: '100%' }}
+                    />
+                  ) : (
+                    <Input
+                      id={`quick-create-${field.key}`}
+                      type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                      value={formData[field.key] || ''}
+                      onChange={e => handleInputChange(field.key, e.target.value)}
+                      className={errors[field.key] ? 'error' : ''}
+                      disabled={isSubmitting}
+                      autoFocus={fields.indexOf(field) === 0}
+                    />
+                  )}
                   {errors[field.key] && <ErrorText>{errors[field.key]}</ErrorText>}
                 </FieldGroup>
               ))}
