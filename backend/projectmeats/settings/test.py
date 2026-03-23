@@ -7,6 +7,10 @@ import dj_database_url
 
 from .base import *  # noqa
 
+# Tests run in environments that may not have optional Postgres extensions installed (e.g. pgvector).
+# Keep the test suite runnable by excluding AI Assistant vector features from INSTALLED_APPS.
+INSTALLED_APPS = tuple(app for app in INSTALLED_APPS if app != 'tenant_apps.ai_assistant')
+
 # Secret key for tests
 SECRET_KEY = "test-secret-key-not-for-production-use-only-testing"
 
