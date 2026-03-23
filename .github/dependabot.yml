@@ -89,15 +89,16 @@ updates:
       - dependency-name: "@storybook/*"
         update-types: ["version-update:semver-major"]
       # CRITICAL: Known major version breaking changes (block auto-merge)
+      # Note: Dependabot ignore entries do not support a `reason` field; keep rationale as comments.
       - dependency-name: "tailwindcss"
         update-types: ["version-update:semver-major"]
-        reason: "Tailwind v4 requires @tailwindcss/postcss + config changes"
+        # Tailwind v4 requires @tailwindcss/postcss + config changes
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
-        reason: "React major versions require manual migration"
+        # React major versions require manual migration
       - dependency-name: "vite"
         update-types: ["version-update:semver-major"]
-        reason: "Vite major versions often have plugin breaking changes"
+        # Vite major versions often have plugin breaking changes
       # OWASP: Document ignored vulnerabilities
       # Example:
       # - dependency-name: "axios"
