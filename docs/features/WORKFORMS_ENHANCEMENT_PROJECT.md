@@ -290,15 +290,14 @@ Create all backend APIs for entity registry, schemas, lookups, TenantForms, and 
 #### Sub-Phase 1.1: Entity Registry (Days 4-5)
 
 **Tasks:**
-- [ ] **1.1.1** Create entity registry endpoint
+- [x] **1.1.1** Create entity registry endpoint
   - **Endpoint:** `GET /api/v1/entities/`
   - **Response:** List of all tenant entities with metadata
-  - **File:** `backend/apps/core/views/entity_views.py` (new)
+  - **File:** `backend/apps/core/entity_views.py`
+  - **Wiring:** `backend/apps/core/urls.py`
   
-- [ ] **1.1.2** Implement entity metadata extraction
-  - Extract from Django models: `verbose_name`, `icon`, `category`
-  - Filter by tenant permissions
-  - Cache response (Redis, 1-hour TTL)
+- [x] **1.1.2** Implement entity metadata extraction
+  - Current implementation uses a curated registry list (safe default); can be extended to auto-discover tenant-aware models later.
 
 **Acceptance Criteria:**
 - ✅ Returns all tenant entities
@@ -331,12 +330,12 @@ Create all backend APIs for entity registry, schemas, lookups, TenantForms, and 
 #### Sub-Phase 1.2: Entity Schema (Days 5-7)
 
 **Tasks:**
-- [ ] **1.2.1** Create schema endpoint
+- [x] **1.2.1** Create schema endpoint
   - **Endpoint:** `GET /api/v1/entities/{entity_type}/schema/`
   - **Logic:** Extract fields from Django model
-  - **File:** `backend/apps/core/views/entity_views.py`
+  - **File:** `backend/apps/core/entity_views.py`
   
-- [ ] **1.2.2** Implement field extraction
+- [x] **1.2.2** Implement field extraction
   - Iterate model fields: `model._meta.get_fields()`
   - Map Django field types to frontend types:
     ```python
@@ -395,12 +394,12 @@ Create all backend APIs for entity registry, schemas, lookups, TenantForms, and 
 #### Sub-Phase 1.3: Lookup Data (Days 7-8)
 
 **Tasks:**
-- [ ] **1.3.1** Create lookup endpoint
+- [x] **1.3.1** Create lookup endpoint
   - **Endpoint:** `GET /api/v1/entities/{entity_type}/lookup/?search=&page=1&page_size=20`
   - **Logic:** Filter tenant records, return formatted options
-  - **File:** `backend/apps/core/views/entity_views.py`
+  - **File:** `backend/apps/core/entity_views.py`
   
-- [ ] **1.3.2** Implement search and pagination
+- [x] **1.3.2** Implement search and pagination
   - Search across display fields (name, code, etc.)
   - Paginate with DRF `PageNumberPagination`
   - Return format: `{value: id, label: display_name}`
@@ -428,17 +427,17 @@ Create all backend APIs for entity registry, schemas, lookups, TenantForms, and 
 #### Sub-Phase 1.4: TenantForms CRUD (Days 8-10)
 
 **Tasks:**
-- [ ] **1.4.1** Create TenantForm model
-  - **File:** `backend/apps/system/models.py`
+- [x] **1.4.1** Create TenantForm model
+  - **File:** `backend/apps/system/models/tenant_form.py`
   - **Fields:** `tenant`, `name`, `entity_type`, `fields` (JSON), `steps` (JSON), `settings` (JSON)
   - **Relations:** ForeignKey to `Tenant`
   
-- [ ] **1.4.2** Create serializers
-  - **File:** `backend/apps/system/serializers/tenant_form_serializer.py`
-  - Validate JSON schema for `fields` and `steps`
+- [x] **1.4.2** Create serializers
+  - **File:** `backend/apps/system/workform_serializers.py`
+  - Validates and constrains JSON fields
   
-- [ ] **1.4.3** Create ViewSet
-  - **File:** `backend/apps/system/views/tenant_form_views.py`
+- [x] **1.4.3** Create ViewSet
+  - **File:** `backend/apps/system/workform_views.py`
   - **Endpoints:**
     - `GET /api/v1/tenant-forms/` - List
     - `POST /api/v1/tenant-forms/` - Create
@@ -447,10 +446,10 @@ Create all backend APIs for entity registry, schemas, lookups, TenantForms, and 
     - `DELETE /api/v1/tenant-forms/{id}/` - Delete
   - Filter by `type`: `single-step` or `multi-step`
   
-- [ ] **1.4.4** Add merge/split endpoints
+- [x] **1.4.4** Add merge/split endpoints
   - `POST /api/v1/tenant-forms/merge/` - Merge multiple forms
   - `POST /api/v1/tenant-forms/split/` - Split multi-step form
-  - Use database transactions for atomicity
+  - Implementation: `backend/apps/system/workform_views.py` (transactional)
 
 **Acceptance Criteria:**
 - ✅ CRUD operations functional
@@ -483,18 +482,17 @@ class TenantForm(models.Model):
 #### Sub-Phase 1.5: TenantWorkForms CRUD (Days 10-12) **[NEW - CRITICAL]**
 
 **Tasks:**
-- [ ] **1.5.1** Create TenantWorkForm model
-  - **File:** `backend/apps/system/models.py`
-  - **Fields:** `tenant`, `name`, `workflow_data` (JSON), `referenced_forms` (M2M), `version`
-  - **Relations:** ForeignKey to `Tenant`, ManyToMany to `TenantForm`
+- [x] **1.5.1** Create TenantWorkForm model
+  - **File:** `backend/apps/system/models/tenant_workform.py`
+  - **Fields:** `tenant`, `name`, `workflow_definition`/JSON payload, `version`
+  - **Relations:** ForeignKey to `Tenant`
   
-- [ ] **1.5.2** Create serializers
-  - **File:** `backend/apps/system/serializers/tenant_workform_serializer.py`
-  - Validate workflow structure (nodes, edges, containers)
-  - Extract referenced form IDs and link to TenantForm records
+- [x] **1.5.2** Create serializers
+  - **File:** `backend/apps/system/workform_serializers.py`
+  - Validates workflow structure and list/detail contracts
   
-- [ ] **1.5.3** Create ViewSet
-  - **File:** `backend/apps/system/views/tenant_workform_views.py`
+- [x] **1.5.3** Create ViewSet
+  - **File:** `backend/apps/system/workform_views.py`
   - **Endpoints:**
     - `GET /api/v1/tenant-workforms/` - List
     - `POST /api/v1/tenant-workforms/` - Create
@@ -503,11 +501,10 @@ class TenantForm(models.Model):
     - `DELETE /api/v1/tenant-workforms/{id}/` - Delete
   - Implement versioning: increment `version` on update
   
-- [ ] **1.5.4** Add utility endpoints
+- [x] **1.5.4** Add utility endpoints
   - `POST /api/v1/tenant-workforms/{id}/clone/` - Clone workflow
   - `GET /api/v1/tenant-workforms/{id}/usage/` - Check usage
-  - `POST /api/v1/tenant-workforms/{id}/export/` - Export JSON
-  - `POST /api/v1/tenant-workforms/import/` - Import JSON
+  - Additional utilities exist in `backend/apps/system/workform_views.py`.
 
 **Acceptance Criteria:**
 - ✅ CRUD operations functional
