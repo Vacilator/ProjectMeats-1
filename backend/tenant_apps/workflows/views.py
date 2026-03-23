@@ -2748,13 +2748,28 @@ class QuickCreateEntityAPIView(APIView):
         try:
             # Build kwargs from request data
             create_kwargs = {}
+            m2m_to_set = {}
             data = request.data
 
             for field in model._meta.get_fields():
                 if not hasattr(field, "name"):
                     continue
+
+                # Skip reverse/auto-created relations
+                if getattr(field, "auto_created", False) and not getattr(field, "concrete", False):
+                    continue
+
                 if field.name in data:
-                    create_kwargs[field.name] = data[field.name]
+                    # If it's a ManyToManyField, set after instance is created
+                    if getattr(field, "many_to_many", False) and not getattr(field, "auto_created", False):
+                        m2m_to_set[field.name] = data[field.name]
+                        continue
+
+                    # If it's a ForeignKey/relation, assign via _id to accept string UUIDs
+                    if field.is_relation and (getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False)):
+                        create_kwargs[f"{field.name}_id"] = data[field.name]
+                    else:
+                        create_kwargs[field.name] = data[field.name]
 
             # Add tenant if model has it
             if hasattr(model, "tenant"):
@@ -2767,6 +2782,14 @@ class QuickCreateEntityAPIView(APIView):
             # Create the record
             with transaction.atomic():
                 obj = model.objects.create(**create_kwargs)
+
+                for field_name, raw_vals in m2m_to_set.items():
+                    vals = raw_vals
+                    if vals is None:
+                        vals = []
+                    if not isinstance(vals, (list, tuple)):
+                        vals = [vals]
+                    getattr(obj, field_name).set(list(vals))
 
             # Get display label
             label = str(obj)

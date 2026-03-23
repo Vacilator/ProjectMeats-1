@@ -24,6 +24,8 @@ interface QuickCreateModalProps {
   inline?: boolean;
   /** Optional initial values for context-aware prefill (e.g., customer/supplier FK). */
   initialValues?: Record<string, any>;
+  /** Context data used to pre-populate and hide fields (e.g., raw UUIDs from Cockpit). */
+  contextData?: Record<string, any>;
 }
 
 const Overlay = styled.div`
@@ -260,6 +262,7 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
   onCreated,
   inline = false,
   initialValues,
+  contextData,
 }) => {
   const [fields, setFields] = useState<QuickCreateField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -278,11 +281,16 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const debouncedProductSearchRef = useRef<ReturnType<typeof debounce> | null>(null);
 
+  const mergedContext = useMemo(
+    () => ({ ...(initialValues || {}), ...(contextData || {}) }),
+    [initialValues, contextData]
+  );
+
   useEffect(() => {
     if (isOpen && entityType) {
       loadFields();
     }
-  }, [isOpen, entityType, initialValues]);
+  }, [isOpen, entityType, mergedContext]);
 
   const loadFields = async () => {
     setIsLoading(true);
@@ -292,11 +300,12 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
       setFields(response.fields);
       setEntityLabel(response.entity_label);
       
-      // Initialize form data with empty values (plus optional initialValues prefill)
-      const initialData: Record<string, any> = {};
-      response.fields.forEach(f => {
-        const seeded = initialValues ? initialValues[f.key] : undefined;
-        initialData[f.key] = seeded ?? '';
+      // Initialize form data with empty values (plus optional context prefill)
+      const initialData: Record<string, any> = { ...(mergedContext || {}) };
+      response.fields.forEach((f) => {
+        if (initialData[f.key] === undefined) {
+          initialData[f.key] = '';
+        }
       });
       setFormData(initialData);
     } catch (err) {
@@ -439,49 +448,56 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                   {errors._general}
                 </ErrorText>
               )}
-              {fields.map(field => (
-                <FieldGroup key={field.key}>
-                  <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
-                    {field.label}
-                  </Label>
-                  {field.key === 'preferred_protein_types' ? (
-                    <Select
-                      mode="multiple"
-                      value={proteinTypeValue}
-                      onChange={(vals) => handleInputChange(field.key, vals)}
-                      options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-                      placeholder="Select protein types"
-                      disabled={isSubmitting}
-                      style={{ width: '100%' }}
-                    />
-                  ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
-                    <Select
-                      mode="multiple"
-                      value={Array.isArray(formData[field.key]) ? formData[field.key] : []}
-                      onChange={(vals) => handleInputChange(field.key, vals)}
-                      options={productOptions}
-                      placeholder={proteinTypeValue.length ? 'Search products (filtered by protein types)...' : 'Search products...'}
-                      showSearch
-                      filterOption={false}
-                      onSearch={(q) => debouncedProductSearchRef.current?.(q)}
-                      notFoundContent={isLoadingProducts ? <Spin size="small" /> : null}
-                      disabled={isSubmitting}
-                      style={{ width: '100%' }}
-                    />
-                  ) : (
-                    <Input
-                      id={`quick-create-${field.key}`}
-                      type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
-                      value={formData[field.key] || ''}
-                      onChange={e => handleInputChange(field.key, e.target.value)}
-                      className={errors[field.key] ? 'error' : ''}
-                      disabled={isSubmitting}
-                      autoFocus={fields.indexOf(field) === 0}
-                    />
-                  )}
-                  {errors[field.key] && <ErrorText>{errors[field.key]}</ErrorText>}
-                </FieldGroup>
-              ))}
+              {fields.map((field) => {
+                // Hide fields that are pre-populated from context
+                if (contextData && contextData[field.key] !== undefined) {
+                  return null;
+                }
+
+                return (
+                  <FieldGroup key={field.key}>
+                    <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
+                      {field.label}
+                    </Label>
+                    {field.key === 'preferred_protein_types' ? (
+                      <Select
+                        mode="multiple"
+                        value={proteinTypeValue}
+                        onChange={(vals) => handleInputChange(field.key, vals)}
+                        options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
+                        placeholder="Select protein types"
+                        disabled={isSubmitting}
+                        style={{ width: '100%' }}
+                      />
+                    ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
+                      <Select
+                        mode="multiple"
+                        value={Array.isArray(formData[field.key]) ? formData[field.key] : []}
+                        onChange={(vals) => handleInputChange(field.key, vals)}
+                        options={productOptions}
+                        placeholder={proteinTypeValue.length ? 'Search products (filtered by protein types)...' : 'Search products...'}
+                        showSearch
+                        filterOption={false}
+                        onSearch={(q) => debouncedProductSearchRef.current?.(q)}
+                        notFoundContent={isLoadingProducts ? <Spin size="small" /> : null}
+                        disabled={isSubmitting}
+                        style={{ width: '100%' }}
+                      />
+                    ) : (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value)}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                      />
+                    )}
+                    {errors[field.key] && <ErrorText>{errors[field.key]}</ErrorText>}
+                  </FieldGroup>
+                );
+              })}
             </>
           )}
         </ModalBody>
@@ -539,49 +555,56 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                   {errors._general}
                 </ErrorText>
               )}
-              {fields.map(field => (
-                <FieldGroup key={field.key}>
-                  <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
-                    {field.label}
-                  </Label>
-                  {field.key === 'preferred_protein_types' ? (
-                    <Select
-                      mode="multiple"
-                      value={proteinTypeValue}
-                      onChange={(vals) => handleInputChange(field.key, vals)}
-                      options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
-                      placeholder="Select protein types"
-                      disabled={isSubmitting}
-                      style={{ width: '100%' }}
-                    />
-                  ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
-                    <Select
-                      mode="multiple"
-                      value={Array.isArray(formData[field.key]) ? formData[field.key] : []}
-                      onChange={(vals) => handleInputChange(field.key, vals)}
-                      options={productOptions}
-                      placeholder={proteinTypeValue.length ? 'Search products (filtered by protein types)...' : 'Search products...'}
-                      showSearch
-                      filterOption={false}
-                      onSearch={(q) => debouncedProductSearchRef.current?.(q)}
-                      notFoundContent={isLoadingProducts ? <Spin size="small" /> : null}
-                      disabled={isSubmitting}
-                      style={{ width: '100%' }}
-                    />
-                  ) : (
-                    <Input
-                      id={`quick-create-${field.key}`}
-                      type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
-                      value={formData[field.key] || ''}
-                      onChange={e => handleInputChange(field.key, e.target.value)}
-                      className={errors[field.key] ? 'error' : ''}
-                      disabled={isSubmitting}
-                      autoFocus={fields.indexOf(field) === 0}
-                    />
-                  )}
-                  {errors[field.key] && <ErrorText>{errors[field.key]}</ErrorText>}
-                </FieldGroup>
-              ))}
+              {fields.map((field) => {
+                // Hide fields that are pre-populated from context
+                if (contextData && contextData[field.key] !== undefined) {
+                  return null;
+                }
+
+                return (
+                  <FieldGroup key={field.key}>
+                    <Label required={field.required} htmlFor={`quick-create-${field.key}`}>
+                      {field.label}
+                    </Label>
+                    {field.key === 'preferred_protein_types' ? (
+                      <Select
+                        mode="multiple"
+                        value={proteinTypeValue}
+                        onChange={(vals) => handleInputChange(field.key, vals)}
+                        options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
+                        placeholder="Select protein types"
+                        disabled={isSubmitting}
+                        style={{ width: '100%' }}
+                      />
+                    ) : field.key === 'products' && (entityType === 'customer' || entityType === 'supplier') ? (
+                      <Select
+                        mode="multiple"
+                        value={Array.isArray(formData[field.key]) ? formData[field.key] : []}
+                        onChange={(vals) => handleInputChange(field.key, vals)}
+                        options={productOptions}
+                        placeholder={proteinTypeValue.length ? 'Search products (filtered by protein types)...' : 'Search products...'}
+                        showSearch
+                        filterOption={false}
+                        onSearch={(q) => debouncedProductSearchRef.current?.(q)}
+                        notFoundContent={isLoadingProducts ? <Spin size="small" /> : null}
+                        disabled={isSubmitting}
+                        style={{ width: '100%' }}
+                      />
+                    ) : (
+                      <Input
+                        id={`quick-create-${field.key}`}
+                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                        value={formData[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value)}
+                        className={errors[field.key] ? 'error' : ''}
+                        disabled={isSubmitting}
+                        autoFocus={fields.indexOf(field) === 0}
+                      />
+                    )}
+                    {errors[field.key] && <ErrorText>{errors[field.key]}</ErrorText>}
+                  </FieldGroup>
+                );
+              })}
             </>
           )}
         </ModalBody>

@@ -1178,7 +1178,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               entityType={inlineAction.entityType}
               isOpen={true}
               inline={true}
-              initialValues={inlineAction.contextData}
+              contextData={inlineAction.contextData}
               onClose={() => onInlineCancel?.()}
               onCreated={() => {
                 if (activeEntity) {
