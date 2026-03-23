@@ -396,6 +396,8 @@ const PanelContent = styled.div`
   flex: 1;
   overflow-y: auto;
   position: relative;
+  /* Reserve space for the Apply/Discard bar rendered by TabbedConfigPanelWithShadow */
+  padding-bottom: 92px;
 `;
 
 const TabPanel = styled(motion.div)`
