@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
-import { AlertTriangle, BrainCircuit, CheckCircle2, GitBranch, Send, Wrench, X } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, GitBranch, Send, Wrench, X } from 'lucide-react';
 
 import { businessApi } from '../../services/businessApi';
 
@@ -431,7 +431,9 @@ export const AIAgentWidget: React.FC = () => {
   }, [expanded]);
 
   const icon =
-    state === 'action_required' ? <AlertTriangle size={18} /> : state === 'thinking' ? <BrainCircuit size={18} /> : <CheckCircle2 size={18} />;
+    state === 'action_required'
+      ? <AlertTriangle size={18} />
+      : <BrainCircuit size={18} />;
 
   const pill =
     state === 'action_required'
