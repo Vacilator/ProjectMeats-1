@@ -2119,7 +2119,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       height: 100vh;
       overflow-y: auto;
       background: #fff;
-      z-index: 1000;
+      /* Must sit above fullscreen canvas (EditorContainer uses z-index: 9990) */
+      z-index: 10050;
       box-shadow: -4px 0 12px rgba(0,0,0,0.1);
       display: none;
       pointer-events: none;
@@ -2158,7 +2159,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           height: 100vh;
           overflow-y: auto;
           background: #fff;
-          z-index: 1000;
+          /* Must sit above fullscreen canvas (EditorContainer uses z-index: 9990) */
+          z-index: 10050;
           box-shadow: -4px 0 12px rgba(0,0,0,0.1);
           display: flex;
           pointer-events: auto;
