@@ -76,7 +76,11 @@ class OAuthAuthorizeView(APIView):
 
     def get(self, request):
         provider = request.query_params.get('provider', 'microsoft')
-        user_id = getattr(getattr(request, 'user', None), 'id', None)
+
+        # DRF auth is disabled for this endpoint (browser navigation), but the underlying Django
+        # request may still have an authenticated user via session cookie.
+        django_user = getattr(getattr(request, '_request', None), 'user', None) or getattr(request, 'user', None)
+        user_id = getattr(django_user, 'id', None)
         logger.info('[OAuthAuthorizeView] authorize requested provider=%s user_id=%s', provider, user_id)
 
         if provider != 'microsoft':
@@ -88,6 +92,39 @@ class OAuthAuthorizeView(APIView):
             )
 
         tenant = getattr(request, 'tenant', None)
+        tenant_id_param = request.query_params.get('tenant_id')
+
+        # If tenant isn't resolved from host/subdomain, allow explicit tenant_id selection.
+        # This is required for shared dev domains (e.g., dev.meatscentral.com) with many tenants.
+        if tenant_id_param:
+            if not (django_user and getattr(django_user, 'is_authenticated', False)):
+                return HttpResponse('Authentication required to select tenant.', status=401, content_type='text/plain')
+
+            from apps.tenants.models import TenantUser
+
+            if not (
+                getattr(django_user, 'is_superuser', False)
+                or TenantUser.objects.filter(tenant_id=tenant_id_param, user=django_user, is_active=True).exists()
+            ):
+                return HttpResponse('Permission denied for tenant.', status=403, content_type='text/plain')
+
+            try:
+                tenant = Tenant.objects.get(id=tenant_id_param)
+            except Tenant.DoesNotExist:
+                return HttpResponse('Tenant not found.', status=400, content_type='text/plain')
+
+        # Fallback: resolve tenant from user's first active membership.
+        if not tenant and django_user and getattr(django_user, 'is_authenticated', False):
+            from apps.tenants.models import TenantUser
+
+            membership = (
+                TenantUser.objects.filter(user=django_user, is_active=True)
+                .select_related('tenant')
+                .order_by('created_at')
+                .first()
+            )
+            tenant = membership.tenant if membership else None
+
         if not tenant:
             return HttpResponse('Tenant not resolved for this request.', status=400, content_type='text/plain')
 
@@ -120,8 +157,15 @@ class OAuthAuthorizeView(APIView):
             )
 
         scopes = [
+            # OpenID scopes (helpful for account selection + profile)
+            'openid',
+            'profile',
+            'email',
+            # Graph scopes
             'https://graph.microsoft.com/Mail.Send',
             'https://graph.microsoft.com/Mail.ReadWrite',
+            'https://graph.microsoft.com/Calendars.ReadWrite',
+            'https://graph.microsoft.com/Contacts.ReadWrite',
             'https://graph.microsoft.com/User.Read',
             'offline_access',
         ]
@@ -133,6 +177,7 @@ class OAuthAuthorizeView(APIView):
             'response_mode': 'query',
             'scope': ' '.join(scopes),
             'state': state,
+            'prompt': 'select_account',
         }
 
         auth_url = f'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?{urlencode(params)}'
@@ -168,14 +213,14 @@ class OAuthCallbackView(APIView):
         if error:
             error_description = request.query_params.get('error_description', 'Unknown error')
             response = redirect(
-                f"/settings/email-integrations?error={quote(error)}&message={quote(error_description)}"
+                f"/settings/email-integrations?error={quote(error)}&message={quote(error_description)}&provider={quote(provider)}"
             )
             _clear_oauth_cookies(response, provider)
             return response
 
         code = request.query_params.get('code')
         if not code:
-            response = redirect('/settings/email-integrations?error=no_code')
+            response = redirect(f'/settings/email-integrations?error=no_code&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
 
@@ -185,7 +230,7 @@ class OAuthCallbackView(APIView):
             name=_oauth_cookie_name('state', provider),
         )
         if not state or state != expected_state:
-            response = redirect('/settings/email-integrations?error=invalid_state')
+            response = redirect(f'/settings/email-integrations?error=invalid_state&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
 
@@ -194,7 +239,7 @@ class OAuthCallbackView(APIView):
             name=_oauth_cookie_name('tenant', provider),
         )
         if not tenant_id:
-            response = redirect('/settings/email-integrations?error=no_tenant')
+            response = redirect(f'/settings/email-integrations?error=no_tenant&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
         tenant_id = str(tenant_id)
@@ -202,7 +247,7 @@ class OAuthCallbackView(APIView):
         try:
             tenant = Tenant.objects.get(id=tenant_id)
         except Tenant.DoesNotExist:
-            response = redirect('/settings/email-integrations?error=tenant_not_found')
+            response = redirect(f'/settings/email-integrations?error=tenant_not_found&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
 
@@ -211,7 +256,7 @@ class OAuthCallbackView(APIView):
         redirect_uri = get_microsoft_redirect_uri(request, callback_path=callback_path)
 
         if provider != 'microsoft':
-            response = redirect('/settings/email-integrations?error=provider_not_supported')
+            response = redirect(f'/settings/email-integrations?error=provider_not_supported&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
 
@@ -247,17 +292,19 @@ class OAuthCallbackView(APIView):
             request.session.pop(f'oauth_state_{provider}', None)
             request.session.pop(f'oauth_tenant_{provider}', None)
 
-            response = redirect('/settings/email-integrations?success=connected')
+            response = redirect(f'/settings/email-integrations?success=connected&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
 
         except (AuthenticationError, EmailProviderError, ValueError) as e:
             logger.exception('[OAuthCallbackView] token exchange failed provider=%s tenant_id=%s', provider, tenant_id)
-            response = redirect(f"/settings/email-integrations?error=exchange_failed&message={quote(str(e))}")
+            response = redirect(
+                f"/settings/email-integrations?error=exchange_failed&message={quote(str(e))}&provider={quote(provider)}"
+            )
             _clear_oauth_cookies(response, provider)
             return response
         except Exception:
             logger.exception('[OAuthCallbackView] unexpected failure provider=%s tenant_id=%s', provider, tenant_id)
-            response = redirect('/settings/email-integrations?error=exchange_failed')
+            response = redirect(f'/settings/email-integrations?error=exchange_failed&provider={quote(provider)}')
             _clear_oauth_cookies(response, provider)
             return response
