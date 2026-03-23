@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
+
 from django.db.models import Q
 from django.db import IntegrityError
 from django.utils import timezone
@@ -28,6 +29,39 @@ from tenant_apps.customers.models import Customer
 logger = logging.getLogger(__name__)
 from tenant_apps.suppliers.models import Supplier
 from tenant_apps.purchase_orders.models import PurchaseOrder
+
+
+class EntityAIOverviewView(APIView):
+    """AI overview for a Cockpit entity.
+
+    This endpoint unblocks the AIOverviewCard UI. It returns a contextual fallback
+    payload until a real summarization service is wired in.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, entity_type: str, entity_id: str):
+        tenant = getattr(request, 'tenant', None) or getattr(request.user, 'current_tenant', None)
+        if not tenant:
+            return Response(
+                {
+                    'status': 'error',
+                    'summary': 'Tenant context required to generate AI overview.',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        safe_entity_type = (entity_type or '').strip()[:64] or 'entity'
+        safe_entity_id = (str(entity_id) or '').strip()[:128]
+
+        summary = (
+            f"AI overview for {safe_entity_type} #{safe_entity_id}. "
+            "AI summaries are enabled for this environment, but the automated "
+            "summarizer is not configured yet. Use Activity and Inquiries to review "
+            "recent updates, next steps, and follow-ups for this record."
+        )
+
+        return Response({'status': 'success', 'summary': summary})
 
 
 class CockpitSlotViewSet(viewsets.ReadOnlyModelViewSet):

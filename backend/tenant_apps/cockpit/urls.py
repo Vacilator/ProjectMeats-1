@@ -4,11 +4,12 @@ URL routing for Cockpit app.
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    CockpitSlotViewSet, 
-    ActivityLogViewSet, 
-    ScheduledCallViewSet, 
+    CockpitSlotViewSet,
+    ActivityLogViewSet,
+    ScheduledCallViewSet,
     WorkspaceLayoutView,
     WorkspaceStatsView,
+    EntityAIOverviewView,
 )
 
 router = DefaultRouter()
@@ -18,6 +19,11 @@ router.register(r'scheduled-calls', ScheduledCallViewSet, basename='scheduled-ca
 
 urlpatterns = [
     path('', include(router.urls)),
+    path(
+        'entities/<str:entity_type>/<str:entity_id>/ai-overview/',
+        EntityAIOverviewView.as_view(),
+        name='entity-ai-overview',
+    ),
     path('workspace-layout/', WorkspaceLayoutView.as_view(), name='workspace-layout'),
     path('stats/', WorkspaceStatsView.as_view(), name='workspace-stats'),
 ]
