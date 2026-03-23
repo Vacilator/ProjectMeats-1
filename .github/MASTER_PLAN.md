@@ -43,7 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
-- 2026-03-23 — Improved Email Ingestion UX (Exposed Graph API fetch stats to UI to clarify empty states) — PR: #TBD.
+- 2026-03-23 — Improved Email Ingestion UX (Exposed Graph API fetch stats to UI to clarify empty states) — PR: #3853.
 - 2026-03-23 — AI Assistant hardened (direct OpenAI chat completion + stable tools/review compatibility endpoints + system entity summarizer action) — PR: #3843.
 - 2026-03-23 — Data Architecture: Replaced scaffolded product seeds with the official Master Products (3.22.26) list, establishing the Tier 1 Golden Catalog as the single source of truth. 661 products across 40+ protein types (Beef, Pork, Chicken, Turkey, Duck, Goose, Quail, Pheasant, Squab, Guinea Fowl, Lamb, Goat, Veal, Bison, Elk, Venison, Rabbit, Kangaroo, Ostrich, Emu, Wild Boar, Camel, Yak, Antelope, Salmon, Cod, Pollock, Haddock, Tilapia, Catfish, Trout, Mahi-Mahi, Tuna, Halibut, Snapper, Grouper, Sardines, Anchovy, Whitefish, Carp, Perch, Walleye, Rendered, Pet Food, Specialty) covering primal cuts, organs, bones, by-products, and rendered goods. Each entry maps Protein → Item Name → Variations per the Master Products 3.22.26 diagram, with auto-generated product codes (e.g. BEEF-CHUCK-ROLL), category, and protein_type fields aligned to the diagram's pre-filter cascade (Protein → Item Name → Type → Trim).
 
@@ -66,6 +66,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-23 — Suppliers/Customers: punch-in drill-down navigation (Suppliers→Plants + details + Contacts; Customers→Locations + details + Contacts) — PR: #3846.
 - 2026-03-23 — Cockpit: Preferred/Active Products sections (editable, searchable multi-select) + “New Inquiry/PO/SO” CTAs open full create forms — PR: #3847.
 - 2026-03-23 — V3 Phase 1 DRY Purge: UniversalEntityForm replaces legacy Create* modals (CreateOrder/CreateClaim/CreateInquiry removed) — PR: #3850.
+- 2026-03-23 — Quick Create Context Hydration & Foreign Key ORM fix (400 Bad Request resolution) — PR: #3854.
 
 - 2026-03-22T16:39:58Z — EMERGENCY ROLLBACK: Reverted Workform Container UI to stable Friday baseline due to UX degradation.
 
