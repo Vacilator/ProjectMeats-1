@@ -45,7 +45,7 @@
   - relationship metadata → SearchableSelect injection
   - arrays/m2m → multi-select
 - [ ] Standardize:
-  - loading skeleton
+  - [x] loading skeleton
   - submit button disable states
   - toast error mapping (`err.response?.data?.detail|error|message`)
 - [ ] Add Vitest coverage for mapping + rendering.
@@ -96,6 +96,7 @@
 
 #### Checklist
 - [ ] Identify “legacy” panels not used by `DynamicConfigPanel` and mark them deprecated.
+- [x] Panel Purge (Batches 2 & 3): remove legacy node-type routing and delete legacy config panels so nodes fall back to `DynamicConfigPanel`.
 - [ ] For each node type, ensure the config schema is resolved via the dynamic registry and rendered via `DynamicConfigPanel`.
 - [ ] Remove duplicate panel logic (validation, defaulting, help text) from per-node components.
 - [ ] Bundle-size validation: ensure panel deletion reduces code.
@@ -176,6 +177,7 @@
 #### Checklist
 - [ ] Smooth expand/collapse and “glow” states for action_required.
 - [ ] Stable polling/backoff with skeleton loaders.
+- [x] AI file upload UI (Paperclip + immediate upload + filename pill).
 - [ ] Review cards UX:
   - summarize pending items
   - allow resolve/approve actions

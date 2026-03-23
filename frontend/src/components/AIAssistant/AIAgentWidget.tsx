@@ -4,6 +4,7 @@ import {
   FileText,
   GitBranch,
   History,
+  LoaderCircle,
   Paperclip,
   Plus,
   Send,
@@ -58,7 +59,14 @@ type ServerMessage = {
   created_on?: string;
 };
 
-const SUPPORTED_EXTENSIONS = ['pdf', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
+type UploadedAttachment = {
+  id: string;
+  original_filename: string;
+  file_url?: string;
+  content_type?: string;
+};
+
+const SUPPORTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const LOCAL_STORAGE_SESSION_KEY = 'pm.ai.widget.sessionId';
 
@@ -229,6 +237,19 @@ const IconBtn = styled.button<{ $danger?: boolean }>`
   align-items: center;
   justify-content: center;
   color: ${(p) => (p.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+
+  .pm-spin {
+    animation: pm-spin 1s linear infinite;
+  }
+
+  @keyframes pm-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   &:hover {
     background: rgb(var(--color-primary) / 0.10);
@@ -502,7 +523,8 @@ export const AIAgentWidget: React.FC = () => {
     },
   ]);
 
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
+  const [uploadingAttachments, setUploadingAttachments] = useState(0);
   const [dragOver, setDragOver] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -649,7 +671,7 @@ export const AIAgentWidget: React.FC = () => {
     return null;
   };
 
-  const addAttachments = (files: File[]) => {
+  const addAttachments = async (files: File[]) => {
     const accepted: File[] = [];
     for (const f of files) {
       const err = validateFile(f);
@@ -661,8 +683,40 @@ export const AIAgentWidget: React.FC = () => {
     }
 
     if (!accepted.length) return;
-    setAttachments((prev) => [...prev, ...accepted]);
-    toast.success(`Added ${accepted.length} attachment(s)`);
+
+    setUploadingAttachments((n) => n + accepted.length);
+    try {
+      const sid = await ensureSession();
+
+      for (const file of accepted) {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('session', sid);
+
+        const res = await businessApi.post('/ai-assistant/ai-documents/', form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        const doc: any = res.data ?? {};
+        const next: UploadedAttachment = {
+          id: String(doc.id || `${Date.now()}`),
+          original_filename: String(doc.original_filename || file.name),
+          file_url: String(doc.file_url || doc.file || ''),
+          content_type: String(doc.content_type || file.type || ''),
+        };
+
+        setAttachments((prev) => [...prev, next]);
+      }
+
+      toast.success(`Uploaded ${accepted.length} attachment(s)`);
+
+      // The backend creates a DOCUMENT ChatMessage on upload (session-bound), so refresh history.
+      await loadSessionMessages(sid);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to upload attachment(s)');
+    } finally {
+      setUploadingAttachments((n) => Math.max(0, n - accepted.length));
+    }
   };
 
   const ensureSession = async (): Promise<string> => {
@@ -769,16 +823,6 @@ export const AIAgentWidget: React.FC = () => {
     }
   };
 
-  const uploadAttachments = async (sid: string) => {
-    for (const file of attachments) {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('session', sid);
-      await businessApi.post('/ai-assistant/ai-documents/', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-    }
-  };
 
   const handleListTools = async () => {
     setState('thinking');
@@ -912,11 +956,7 @@ export const AIAgentWidget: React.FC = () => {
     try {
       const sid = await ensureSession();
 
-      if (attachments.length) {
-        await uploadAttachments(sid);
-        setAttachments([]);
-        toast.success('Uploaded attachment(s)');
-      }
+      // Attachments are uploaded immediately on selection; clear pills after a send cycle.
 
       if (text) {
         const res = await businessApi.post<{ response: string; session_id: string }>('/ai-assistant/chat/', {
@@ -931,6 +971,7 @@ export const AIAgentWidget: React.FC = () => {
 
       await reloadSessions();
       await loadSessionMessages(sid);
+      setAttachments([]);
 
       setState('idle');
     } catch (err: any) {
@@ -1042,7 +1083,7 @@ export const AIAgentWidget: React.FC = () => {
                 e.preventDefault();
                 setDragOver(false);
                 const files = Array.from(e.dataTransfer.files);
-                if (files.length) addAttachments(files);
+                if (files.length) void addAttachments(files);
               }}
             >
               {messages.map((m) => (
@@ -1083,20 +1124,20 @@ export const AIAgentWidget: React.FC = () => {
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   const list = e.target.files ? Array.from(e.target.files) : [];
-                  if (list.length) addAttachments(list);
+                  if (list.length) void addAttachments(list);
                   e.target.value = '';
                 }}
               />
 
               {attachments.length ? (
                 <AttachmentsBar>
-                  {attachments.map((f, idx) => (
-                    <AttachmentChip key={`${f.name}-${idx}`}>
+                  {attachments.map((a, idx) => (
+                    <AttachmentChip key={`${a.id}-${idx}`}>
                       <FileText size={14} />
-                      <span>{f.name}</span>
+                      <span>{a.original_filename}</span>
                       <ChipRemove
                         type="button"
-                        aria-label={`Remove ${f.name}`}
+                        aria-label={`Remove ${a.original_filename}`}
                         onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
                       >
                         ×
@@ -1108,7 +1149,7 @@ export const AIAgentWidget: React.FC = () => {
 
               <ComposerRow>
                 <IconBtn type="button" title="Attach" onClick={() => fileInputRef.current?.click()}>
-                  <Paperclip size={16} />
+                  {uploadingAttachments > 0 ? <LoaderCircle className="pm-spin" size={16} /> : <Paperclip size={16} />}
                 </IconBtn>
 
                 <IconBtn type="button" title="Tools" onClick={() => void handleListTools()}>

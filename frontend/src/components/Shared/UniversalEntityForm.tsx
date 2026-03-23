@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Spin, message, Select } from 'antd';
+import { Modal, Spin, message, Select, Skeleton } from 'antd';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
 import { apiClient } from '../../services/apiService';
@@ -37,6 +37,7 @@ type BackendSchema = {
 
 const Container = styled.div`
   width: 100%;
+  min-height: 520px;
 `;
 
 const normalizeEntityKey = (entityType: string): string => {
@@ -325,7 +326,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       <Container>
         {loading ? (
           <div style={{ padding: 16 }}>
-            <Spin />
+            <Skeleton active paragraph={{ rows: 6 }} />
           </div>
         ) : !schema ? (
           <div style={{ padding: 12, color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
