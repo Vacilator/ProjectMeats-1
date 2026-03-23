@@ -22,8 +22,9 @@ import { AutoMappingSuggestionsPanel } from '../components/AutoMappingSuggestion
 
 // Phase E.3: Data inheritance hook
 import { useUpstreamVariables } from '../hooks/useUpstreamVariables';
+import type { SelectedField } from './EntityFieldPicker';
 import ConditionBuilder, { type ConditionRule } from './ConditionBuilder';
-import { useEntityFields } from '../../../services/schemaService';
+import { useEntityFields, EntityField } from '../../../services/schemaService';
 
 // FormBuilder Context (2026-02-21 Comprehensive Enhancements)
 import { useFormBuilderContext } from '../../../contexts/FormBuilderContext';
@@ -238,6 +239,89 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     return visible;
   }, [schema, formData]);
 
+  const entityType = (formData as any)?.entityType as string | undefined;
+
+  const { data: entityFieldsResp } = useEntityFields(entityType, {
+    enabled: Boolean(entityType) && (node?.type === 'form' || node?.type === 'formStep' || node?.type === 'formStepSingle'),
+  });
+
+  const pendingAutoDefaultsRef = React.useRef<string | null>(null);
+
+  const buildSmartDefaults = (entityFields: EntityField[]): SelectedField[] => {
+    const blocked = new Set([
+      'id',
+      'pk',
+      'tenant',
+      'tenant_id',
+      'created_at',
+      'updated_at',
+      'custom_data',
+    ]);
+
+    const scalarFields = entityFields.filter((f) => {
+      const n = (f.name || '').toLowerCase();
+      if (blocked.has(n)) return false;
+      // avoid selecting relations by default; they tend to be heavy/noisy
+      const t = (f.type || f.field_type || '').toLowerCase();
+      if (t.includes('foreign') || t.includes('many')) return false;
+      return true;
+    });
+
+    const preferredNames = [
+      'name',
+      'title',
+      'description',
+      'email',
+      'phone',
+      'status',
+      'notes',
+    ];
+
+    const byNameScore = (f: EntityField) => {
+      const n = (f.name || '').toLowerCase();
+      const idx = preferredNames.indexOf(n);
+      return idx === -1 ? 999 : idx;
+    };
+
+    const required = scalarFields.filter((f) => Boolean(f.required || f.is_required));
+    const optional = scalarFields.filter((f) => !(f.required || f.is_required));
+
+    optional.sort((a, b) => byNameScore(a) - byNameScore(b) || a.label.localeCompare(b.label));
+
+    const picked = [...required, ...optional].slice(0, 10);
+
+    return picked.map((f) => ({
+      ...f,
+      fieldId: `auto:${entityType ?? 'entity'}:${f.name}`,
+    }));
+  };
+
+  // Smart defaults: when the user changes entityType for a Form node, preselect a sensible
+  // set of fields instead of forcing "Select all".
+  React.useEffect(() => {
+    if (!node?.id) return;
+    if (!pendingAutoDefaultsRef.current) return;
+
+    const targetEntityType = pendingAutoDefaultsRef.current;
+    if (!entityFieldsResp?.fields || entityFieldsResp.fields.length === 0) return;
+
+    // Only apply for the matching entityType and when fields are empty.
+    const currentEntityType = (formData as any)?.entityType as string | undefined;
+    const currentFields = ((formData as any)?.fields as SelectedField[] | undefined) ?? [];
+
+    if (currentEntityType !== targetEntityType) return;
+    if (currentFields.length > 0) {
+      pendingAutoDefaultsRef.current = null;
+      return;
+    }
+
+    const defaults = buildSmartDefaults(entityFieldsResp.fields);
+    const next = { ...(formData as any), fields: defaults };
+    setFormData(next);
+    onUpdateNode(node.id, next);
+    pendingAutoDefaultsRef.current = null;
+  }, [entityFieldsResp?.fields, formData, node?.id, onUpdateNode]);
+
   // Handle field value change
   // NOTE: This panel runs inside a shadow-state wrapper (TabbedConfigPanelWithShadow).
   // We stage changes immediately into the wrapper via onUpdateNode and rely on the
@@ -248,6 +332,17 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const field = findFieldById(schema, fieldId);
 
     setFormData((prev) => {
+      // If entity type changes on form-like nodes, reset fields and trigger smart defaults.
+      if (
+        fieldId === 'entityType' &&
+        (node.type === 'form' || node.type === 'formStep' || node.type === 'formStepSingle')
+      ) {
+        pendingAutoDefaultsRef.current = value as string;
+        const next = { ...prev, entityType: value, fields: [] };
+        onUpdateNode(node.id, next);
+        return next;
+      }
+
       const next = { ...prev, [fieldId]: value };
       onUpdateNode(node.id, next);
 

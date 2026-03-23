@@ -73,13 +73,25 @@ const DirtyIndicatorBanner = styled.div<{ $show: boolean }>`
 
 const ActionBar = styled.div<{ $show: boolean }>`
   display: ${props => props.$show ? 'flex' : 'none'};
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 100vw);
+  max-width: 100vw;
+  z-index: 10001;
+
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
   padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   border-top: 1px solid rgb(var(--color-border));
   background: rgb(var(--color-surface));
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+
+  @media (max-width: 600px) {
+    width: 100vw;
+  }
 `;
 
 const ConfirmationModal = styled.div<{ $show: boolean }>`
