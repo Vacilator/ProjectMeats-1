@@ -27,6 +27,7 @@ from apps.system.views import (
 )
 from apps.system.views.search_viewset import RankedSearchViewSet
 from apps.system.views.entity_viewset import EntityViewSet
+from apps.system.views.forms_schema import SystemFormSchemaView
 
 app_name = 'system'
 
@@ -55,6 +56,9 @@ urlpatterns = [
     # - /api/v1/system/entities/<entity_id>/display-fields/
     # (These would otherwise be captured by the typed Cockpit routes below.)
     path('', include(router.urls)),
+
+    # Metadata-driven UI schemas
+    path('forms/schema/', SystemFormSchemaView.as_view(), name='forms-schema'),
 
     # Cockpit Entity Graph (typed URLs)
     # The DefaultRouter only supports /entities/<pk>/..., but Cockpit uses /entities/<type>/<id>/...
