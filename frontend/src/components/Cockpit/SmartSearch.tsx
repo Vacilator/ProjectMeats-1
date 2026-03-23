@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Tabs, Spin, Button } from 'antd';
+import { Tabs, Spin, Button, Dropdown, type MenuProps } from 'antd';
 import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
@@ -1206,6 +1206,46 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         <Button type="primary" onClick={() => openQuickCreate('inquiry')}>
           + New Inquiry
         </Button>
+      );
+    }
+
+    if (activeRelationTab === 'more') {
+      const type = String(activeEntity.type).toLowerCase();
+      const isSupplier = type === 'supplier';
+
+      const items: MenuProps['items'] = (isSupplier
+        ? [
+            { key: 'purchase_order', label: 'Purchase Order' },
+            { key: 'contact', label: 'Contact' },
+            { key: 'inquiry', label: 'Inquiry' },
+          ]
+        : [
+            { key: 'sales_order', label: 'Sales Order' },
+            { key: 'invoice', label: 'Invoice' },
+            { key: 'contact', label: 'Contact' },
+            { key: 'inquiry', label: 'Inquiry' },
+          ]) as MenuProps['items'];
+
+      return (
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            items,
+            onClick: ({ key }) => {
+              if (key === 'sales_order') {
+                openInlineCreateSalesOrder();
+                return;
+              }
+              if (key === 'purchase_order' && onOpenInlineCreate) {
+                onOpenInlineCreate('purchase_order', activeEntity);
+                return;
+              }
+              openQuickCreate(String(key));
+            },
+          }}
+        >
+          <Button type="primary">+ New…</Button>
+        </Dropdown>
       );
     }
 
