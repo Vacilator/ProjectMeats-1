@@ -934,21 +934,106 @@ export const AIAgentWidget: React.FC = () => {
       setMessages((m) => [...m, { id: newId(), role: 'user', content: text, createdAt: Date.now() }]);
     }
 
-    // Local slash commands (staff-only endpoints)
-    if (text === '/help') {
+    const appendAssistant = (content: string) => {
       setMessages((m) => [
         ...m,
         {
           id: newId(),
           role: 'assistant',
-          content:
-            'Commands:\n' +
-            '- /pending — list pending review items\n' +
-            '- /resolve [idPrefix] [json] — resolve item (optional corrected JSON)\n' +
-            '- /resolve — resolves latest pending item\n',
+          content,
           createdAt: Date.now(),
         },
       ]);
+    };
+
+    // Local slash commands (HITL staff endpoints)
+    if (text === '/help') {
+      appendAssistant(
+        'Commands:\n' +
+          '- /pending — list pending review items\n' +
+          '- /resolve [idPrefix] [json] — resolve item (optional corrected JSON)\n' +
+          '- /resolve — resolves latest pending item\n',
+      );
+      return;
+    }
+
+    if (text === '/pending') {
+      setState('thinking');
+      try {
+        const res = await businessApi.get<any>('/ai-assistant/review/pending/');
+        const items = (res.data?.pending_reviews || res.data?.results || []) as any[];
+
+        if (!items.length) {
+          appendAssistant('No pending review items (or you are not staff).');
+          setState('idle');
+          return;
+        }
+
+        const lines = items.slice(0, 10).map((it) => {
+          const id = String(it.id || '');
+          const prefix = id ? `${id.slice(0, 8)}…` : '—';
+          const docType = it.document_type || 'unknown';
+          const conf = typeof it.confidence_score === 'number' ? it.confidence_score.toFixed(2) : '—';
+          return `- ${prefix} ${docType} (confidence=${conf})`;
+        });
+
+        appendAssistant(`Pending review items:\n${lines.join('\n')}`);
+        setState('idle');
+      } catch (e: any) {
+        appendAssistant('Pending review queue unavailable (requires staff permissions).');
+        setState('idle');
+      }
+      return;
+    }
+
+    if (text.startsWith('/resolve')) {
+      setState('thinking');
+      try {
+        const rest = text.slice('/resolve'.length).trim();
+        const prefix = rest ? rest.split(/\s+/)[0] : '';
+        const jsonStr = rest ? rest.slice(prefix.length).trim() : '';
+
+        const pendingRes = await businessApi.get<any>('/ai-assistant/review/pending/');
+        const items = (pendingRes.data?.pending_reviews || pendingRes.data?.results || []) as any[];
+
+        if (!items.length) {
+          appendAssistant('No pending review items (or you are not staff).');
+          setState('idle');
+          return;
+        }
+
+        const target = prefix
+          ? items.find((it) => String(it.id || '').startsWith(prefix))
+          : items[0];
+
+        if (!target) {
+          appendAssistant(`No pending review item found matching prefix: ${prefix}`);
+          setState('idle');
+          return;
+        }
+
+        let corrected: any = undefined;
+        if (jsonStr) {
+          try {
+            corrected = JSON.parse(jsonStr);
+          } catch {
+            appendAssistant('Invalid JSON for /resolve. Example: /resolve abcd1234 {"key":"value"}');
+            setState('idle');
+            return;
+          }
+        }
+
+        const feedbackId = String(target.id);
+        await businessApi.post(`/ai-assistant/review/${feedbackId}/resolve/`, {
+          user_corrected_data: corrected ?? null,
+        });
+
+        appendAssistant(`Resolved review item: ${feedbackId.slice(0, 8)}…`);
+        setState('idle');
+      } catch (e: any) {
+        appendAssistant('Resolve failed (requires staff permissions).');
+        setState('idle');
+      }
       return;
     }
 
