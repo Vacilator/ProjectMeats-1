@@ -16,11 +16,15 @@ Usage:
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 from django.conf import settings
+from pgvector.django import L2Distance
+
+logger = logging.getLogger(__name__)
 
 
 class AIPrompter:
@@ -74,51 +78,41 @@ class AIPrompter:
         self,
         tenant: Any,
         current_flow: Dict[str, Any],
-        user_request: str,
-        available_entities: Optional[List[str]] = None
+        user_request: str = "",
+        additional_context: Optional[Dict[str, Any]] = None,
+        available_entities: Optional[List[str]] = None,
     ) -> str:
+        """Build complete prompt by combining template with runtime context.
+
+        Notes:
+            This accepts both a direct ``user_request`` string and an optional
+            ``additional_context`` dict. Some callers (e.g. Workflows views)
+            provide only ``additional_context``.
         """
-        Build complete prompt by combining template with runtime context.
-        
-        Args:
-            tenant: Tenant model instance
-            current_flow: Dictionary with existing workflow nodes
-            user_request: User's natural language request
-            available_entities: List of entity names (Supplier, Customer, etc.)
-            
-        Returns:
-            str: Complete prompt ready for OpenAI API
-        """
-        # Load base template
         template = self.load_template()
-        
-        # Build context injection
-        context = self._build_context(tenant, current_flow, user_request, available_entities)
-        
-        # Combine template + context
-        full_prompt = f"{template}\n\n---\n\n## CURRENT REQUEST\n\n{json.dumps(context, indent=2)}"
-        
-        return full_prompt
-    
+
+        additional_context = additional_context or {}
+        effective_user_request = (user_request or additional_context.get('user_request') or '').strip()
+
+        context = self._build_context(
+            tenant=tenant,
+            current_flow=current_flow,
+            user_request=effective_user_request,
+            additional_context=additional_context,
+            available_entities=available_entities,
+        )
+
+        return f"{template}\n\n---\n\n## CURRENT REQUEST\n\n{json.dumps(context, indent=2)}"
+
     def _build_context(
         self,
         tenant: Any,
         current_flow: Dict[str, Any],
         user_request: str,
-        available_entities: Optional[List[str]] = None
+        additional_context: Optional[Dict[str, Any]] = None,
+        available_entities: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
-        """
-        Build context dictionary to inject into prompt.
-        
-        Args:
-            tenant: Tenant model instance
-            current_flow: Current workflow state
-            user_request: User's request
-            available_entities: Available entity types
-            
-        Returns:
-            dict: Context object with tenant info, flow state, entities
-        """
+        """Build context dictionary to inject into prompt."""
         # Extract existing nodes
         existing_nodes = current_flow.get('nodes', [])
         last_node = existing_nodes[-1] if existing_nodes else None
@@ -134,29 +128,95 @@ class AIPrompter:
                 'Carrier', 'PurchaseOrder', 'ColdStorageEntry'
             ]
         
+        additional_context = additional_context or {}
+
         context = {
-            "tenant": {
-                "name": tenant.name,
-                "industry_type": industry_type,
-                "primary_entities": available_entities[:3]  # Top 3 for brevity
+            'tenant': {
+                'name': tenant.name,
+                'industry_type': industry_type,
+                'primary_entities': available_entities[:3],
             },
-            "current_flow": {
-                "existing_nodes": [
+            'current_flow': {
+                'existing_nodes': [
                     {
-                        "id": node.get('id'),
-                        "type": node.get('type'),
-                        "label": node.get('data', {}).get('label', 'Untitled')
+                        'id': node.get('id'),
+                        'type': node.get('type'),
+                        'label': node.get('data', {}).get('label', 'Untitled'),
                     }
                     for node in existing_nodes
                 ],
-                "last_node_type": last_node.get('type') if last_node else None
+                'last_node_type': last_node.get('type') if last_node else None,
             },
-            "available_entities": available_entities,
-            "user_request": user_request
+            'available_entities': available_entities,
+            'user_request': user_request,
+            'additional_context': additional_context,
+            'tenant_knowledge_facts': self._retrieve_relevant_facts(
+                tenant=tenant,
+                current_flow=current_flow,
+                additional_context=additional_context,
+            ),
         }
-        
+
         return context
     
+    def _retrieve_relevant_facts(
+        self,
+        *,
+        tenant: Any,
+        current_flow: Dict[str, Any],
+        additional_context: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        """Retrieve top-k tenant knowledge facts via semantic similarity.
+
+        Safe-by-default: if OpenAI or pgvector are unavailable/misconfigured, this returns [].
+        """
+
+        if not getattr(settings, 'OPENAI_API_KEY', None):
+            return []
+
+        try:
+            from openai import OpenAI
+
+            from tenant_apps.ai_assistant.models import TenantKnowledgeFact
+        except Exception:
+            return []
+
+        try:
+            client = OpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
+            )
+
+            # Convert user's context/question to vector
+            query_input = f"{str(current_flow)} {str(additional_context)}"
+            query_response = client.embeddings.create(
+                input=query_input,
+                model='text-embedding-3-small',
+            )
+            query_vector = query_response.data[0].embedding
+
+            # Retrieve top 5 most semantically relevant facts
+            facts = list(
+                TenantKnowledgeFact.objects.filter(
+                    tenant=tenant,
+                    is_active=True,
+                    embedding__isnull=False,
+                )
+                .annotate(distance=L2Distance('embedding', query_vector))
+                .order_by('distance')[:5]
+            )
+
+            return [
+                {
+                    'domain_category': f.domain_category,
+                    'fact_text': f.fact_text,
+                }
+                for f in facts
+            ]
+        except Exception as e:
+            logger.warning('Failed to retrieve tenant knowledge facts: %s', str(e), exc_info=True)
+            return []
+
     def parse_ai_response(self, raw_response: str) -> Dict[str, Any]:
         """
         Parse OpenAI response and validate structure.

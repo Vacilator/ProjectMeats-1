@@ -55,7 +55,7 @@ requests>=2.31.0  # For GitHub API integration in bug reports
 openai>=1.0.0
 
 # Vector DB (Phase 8.0: Swarm Memory)
-pgvector>=0.2.5
+pgvector>=0.2.7  # For PostgreSQL vector embeddings (RAG)
 
 # Email (SendGrid Web API)
 sendgrid>=6.11.0
