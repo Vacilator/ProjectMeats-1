@@ -250,13 +250,72 @@ class EntityViewSet(viewsets.ViewSet):
         if field_name in blocked:
             return Response({'error': f'Field not editable: {field_name}'}, status=status.HTTP_400_BAD_REQUEST)
 
+        raw_value = request.data.get('value', None)
+
+        # Special-case: product association lists (not direct model fields)
+        if field_name in {'preferred_products', 'active_products'}:
+            tenant = getattr(request, 'tenant', None)
+
+            if entity_type == 'customer' and hasattr(entity, 'products') and field_name in {'preferred_products', 'active_products'}:
+                if not isinstance(raw_value, list):
+                    return Response({'error': 'Value must be a list of product IDs'}, status=status.HTTP_400_BAD_REQUEST)
+
+                Product = apps.get_model('system', 'Product')
+                products = Product.objects.filter(id__in=raw_value)
+                entity.products.set(products)
+                return Response(self._serialize_entity_detail(entity, entity_type, can_edit=True))
+
+            if entity_type == 'supplier':
+                if not isinstance(raw_value, list):
+                    return Response({'error': 'Value must be a list of product IDs'}, status=status.HTTP_400_BAD_REQUEST)
+
+                Product = apps.get_model('system', 'Product')
+                valid_ids = set(Product.objects.filter(id__in=raw_value).values_list('id', flat=True))
+
+                if field_name == 'active_products':
+                    from tenant_apps.suppliers.models import SupplierAvailableItem
+
+                    existing = SupplierAvailableItem.objects.filter(tenant=tenant, supplier=entity)
+                    existing.exclude(product_id__in=valid_ids).update(is_active=False)
+                    existing.filter(product_id__in=valid_ids).update(is_active=True)
+
+                    existing_ids = set(existing.values_list('product_id', flat=True))
+                    to_create = valid_ids - existing_ids
+                    SupplierAvailableItem.objects.bulk_create(
+                        [
+                            SupplierAvailableItem(tenant=tenant, supplier=entity, product_id=pid, is_active=True)
+                            for pid in to_create
+                        ],
+                        ignore_conflicts=True,
+                    )
+
+                    return Response(self._serialize_entity_detail(entity, entity_type, can_edit=True))
+
+                if field_name == 'preferred_products':
+                    from apps.system.models.tenant_product_preference import TenantProductPreference
+
+                    # Clear existing preferred mappings for this supplier
+                    TenantProductPreference.objects.filter(
+                        tenant=tenant,
+                        preferred_supplier=entity,
+                    ).update(preferred_supplier=None)
+
+                    # Set preferred supplier for selected products
+                    TenantProductPreference.objects.filter(
+                        tenant=tenant,
+                        product_id__in=valid_ids,
+                    ).update(preferred_supplier=entity)
+
+                    return Response(self._serialize_entity_detail(entity, entity_type, can_edit=True))
+
+            return Response({'error': f'Field not editable for {entity_type}: {field_name}'}, status=status.HTTP_400_BAD_REQUEST)
+
         # Only allow direct model fields (no reverse relations / m2m)
         model_fields = {f.name: f for f in Model._meta.get_fields() if getattr(f, 'concrete', False) and not getattr(f, 'many_to_many', False)}
         if field_name not in model_fields:
             return Response({'error': f'Unknown field: {field_name}'}, status=status.HTTP_400_BAD_REQUEST)
 
         field = model_fields[field_name]
-        raw_value = request.data.get('value', None)
 
         try:
             if getattr(field, 'is_relation', False) and getattr(field, 'many_to_one', False):
@@ -811,7 +870,7 @@ class EntityViewSet(viewsets.ViewSet):
                 "labels": EntityLabels.get_labels(entity, entity_type),
             }
 
-            # Customer Preferred Products (system.Product) — used by Cockpit EntityProfileHeader
+            # Product associations for Cockpit EntityProfileHeader
             # Keep payload intentionally small (names/codes only) to avoid heavy M2M serialization.
             if entity_type == 'customer' and hasattr(entity, 'products'):
                 try:
@@ -821,8 +880,54 @@ class EntityViewSet(viewsets.ViewSet):
                         .values('id', 'product_code', 'name')[:50]
                     )
                     metadata['preferred_products'] = preferred
+                    # Customers don't currently have a separate active-products model; treat as same for now.
+                    metadata['active_products'] = preferred
                 except Exception:
                     metadata['preferred_products'] = []
+                    metadata['active_products'] = []
+
+            if entity_type == 'supplier':
+                # Preferred products: products where this supplier is marked preferred in tenant product preferences
+                try:
+                    from apps.system.models.tenant_product_preference import TenantProductPreference
+
+                    preferred = list(
+                        TenantProductPreference.objects.filter(
+                            tenant=getattr(entity, 'tenant', None),
+                            preferred_supplier=entity,
+                            is_active=True,
+                        )
+                        .select_related('product')
+                        .order_by('product__product_code')
+                        .values('product__id', 'product__product_code', 'product__name')[:50]
+                    )
+                    metadata['preferred_products'] = [
+                        {'id': row['product__id'], 'product_code': row['product__product_code'], 'name': row['product__name']}
+                        for row in preferred
+                    ]
+                except Exception:
+                    metadata['preferred_products'] = []
+
+                # Active products: supplier-level availability table
+                try:
+                    from tenant_apps.suppliers.models import SupplierAvailableItem
+
+                    active = list(
+                        SupplierAvailableItem.objects.filter(
+                            tenant=getattr(entity, 'tenant', None),
+                            supplier=entity,
+                            is_active=True,
+                        )
+                        .select_related('product')
+                        .order_by('product__product_code')
+                        .values('product__id', 'product__product_code', 'product__name')[:50]
+                    )
+                    metadata['active_products'] = [
+                        {'id': row['product__id'], 'product_code': row['product__product_code'], 'name': row['product__name']}
+                        for row in active
+                    ]
+                except Exception:
+                    metadata['active_products'] = []
             
             # Add last activity timestamp
             if hasattr(entity, 'modified_on'):
