@@ -574,15 +574,49 @@ class ToolsOpenAPIView(APIView):
 
 
 class PendingReviewView(APIView):
-    """Compatibility endpoint for the frontend widget.
+    """Pending-review queue for the frontend widget.
 
-    This must be safe for non-staff users; it returns an empty queue for now.
+    Safety rule:
+    - Non-staff users must not be able to access the HITL queue, so they always
+      receive an empty list.
+    - Staff users receive the same underlying queue as PendingReviewAPIView.
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({'pending_reviews': []}, status=status.HTTP_200_OK)
+        if not (request.user.is_staff or request.user.is_superuser):
+            return Response({'pending_reviews': []}, status=status.HTTP_200_OK)
+
+        tenant = getattr(request, 'tenant', None)
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        if not tenant_id:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = (
+            AIFeedbackLog.objects.filter(
+                tenant_id=tenant_id,
+                resolved_by__isnull=True,
+                confidence_score__lt=0.85,
+            )
+            .order_by('-created_on')
+        )
+
+        items = [
+            {
+                'id': row.id,
+                'document_id': row.document_id,
+                'document_type': row.document_type,
+                'confidence_score': float(row.confidence_score or 0.0),
+                'precision_delta': float(row.precision_delta or 0.0),
+                'created_on': row.created_on,
+                'original_extracted_data': row.original_extracted_data or {},
+            }
+            for row in qs[:25]
+        ]
+
+        payload = PendingReviewItemSerializer(items, many=True).data
+        return Response({'pending_reviews': payload, 'results': payload}, status=status.HTTP_200_OK)
 
 
 class AIAgentChatView(APIView):
