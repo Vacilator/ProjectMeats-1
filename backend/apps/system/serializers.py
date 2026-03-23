@@ -67,12 +67,28 @@ class SystemChoiceListSerializer(serializers.ModelSerializer):
 
 
 class SystemChoiceListMinimalSerializer(serializers.ModelSerializer):
-    """Minimal serializer for listing choice lists without items."""
+    """Lightweight serializer for listing choice lists (no nested items).
+
+    The Admin Workspace Option Lists and Customizations UI needs a few metadata
+    fields to render locked/extensible state and provide useful searching.
+    """
+
     items_count = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = SystemChoiceList
-        fields = ['id', 'slug', 'name', 'items_count']
+        fields = [
+            'id',
+            'slug',
+            'name',
+            'description',
+            'model_field_path',
+            'is_extensible',
+            'is_reorderable',
+            'items_count',
+            'created_at',
+            'updated_at',
+        ]
 
 
 class SystemFieldSchemaSerializer(serializers.ModelSerializer):
