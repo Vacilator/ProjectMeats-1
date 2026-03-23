@@ -859,7 +859,7 @@ Deliverables:
   - [x] DryRunDebugger: added **Step Into**, **Step Over**, **Continue**, with FlowEditorContext-backed debug session state.
   - [x] Continue halts at breakpoints or terminal nodes.
 
-- PR: TBD (feat/workforms): Implement visual breakpoints, execution timeline, and step-through debugger
+- PR: #3878 (feat/workforms): Debugger panel polish (visual breakpoints + execution timeline + step-through)
 
 ## Phase 9.6: Canvas UX Overhaul
 
@@ -877,7 +877,7 @@ Deliverables:
 - [x] Dual-direction auto-layout:
   - [x] autoLayout.getLayoutedElements: root graph laid out Top-to-Bottom (TB) while container children lay out Left-to-Right (LR) and containers auto-resize to fit.
 
-- PR: TBD (refactor/workforms): overhaul canvas UX, dual-direction auto-layout, and fix handle targets
+- PR: #3616 (refactor/workforms): overhaul canvas UX, dual-direction auto-layout, and fix handle targets
 
 ## Phase 9.7: Preemptive Hardening & State Sync
 
@@ -895,7 +895,7 @@ Deliverables:
   - [x] UnifiedFlowEditor: deletes clean up edges for deleted nodes and all descendants (container deletes).
   - [x] NodeContextMenu prefers centralized delete logic (with a safe fallback).
 
-- PR: TBD (refactor/workforms): Phase 9.7 hardening & state sync
+- PR: #3617 (refactor/workforms): Phase 9.7 hardening & state sync
 
 
 
@@ -904,4 +904,5 @@ Deliverables:
 
 ## PR Log (append-only) — Workforms UI Hardening (merge-safe)
 
+- 2026-03-23 — Workforms Debugger polish: docked panel + execution timeline for stepping + breakpoint-first entry selection — PR: #3878.
 - 2026-03-22T19:05:59Z — UI Hardening: Restored standard default container for 'formProcess' nodes, disabling 'formProcessGroup' purple canonicalization/styling overrides.
