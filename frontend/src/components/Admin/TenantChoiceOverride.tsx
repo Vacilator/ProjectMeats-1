@@ -32,7 +32,7 @@ import Modal from '../Modal/Modal';
 interface SystemChoiceList {
   id: string;
   slug: string;
-  label: string;
+  name: string;
   description?: string;
   is_extensible: boolean;
   is_reorderable: boolean;
@@ -42,13 +42,13 @@ interface SystemChoiceItem {
   id: string;
   value: string;
   label: string;
-  display_order: number;
+  order: number;
   is_active: boolean;
+  is_system_defined: boolean;
 }
 
 interface TenantOverride {
   id?: string;
-  tenant: string;
   choice_list: string;
   disabled_system_items: string[];
   display_config: {
@@ -98,23 +98,33 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
   /**
    * Load system items and tenant override for selected list
    */
-  const loadListData = useCallback(async (listId: string) => {
+  const loadListData = useCallback(async (list: SystemChoiceList) => {
     setIsLoading(true);
     try {
-      // Load system items
-      const itemsRes = await apiClient.get(`/system/choice-lists/${listId}/items/`);
-      setSystemItems(itemsRes.data.filter((item: SystemChoiceItem) => item.is_active));
+      const itemsRes = await apiClient.get(`/system/choice-lists/${list.slug}/items/`);
+      const itemsData = Array.isArray(itemsRes.data) ? itemsRes.data : [];
+      const systemItemIds = new Set(
+        itemsData.filter((i: SystemChoiceItem) => i.is_system_defined).map((i: SystemChoiceItem) => i.id)
+      );
+      setSystemItems(itemsData.filter((item: SystemChoiceItem) => item.is_active));
 
-      // Load tenant override
       try {
         const overrideRes = await apiClient.get(`/system/tenant-overrides/`, {
-          params: { choice_list: listId },
+          params: { choice_list: list.id },
         });
-        
-        const override = overrideRes.data.results?.[0];
+
+        const results = Array.isArray((overrideRes.data as any)?.results)
+          ? (overrideRes.data as any).results
+          : Array.isArray(overrideRes.data)
+            ? overrideRes.data
+            : [];
+
+        const override = results[0];
         if (override) {
           setTenantOverride(override);
-          setDisabledItems(new Set(override.disabled_system_items || []));
+          setDisabledItems(
+            new Set((override.disabled_system_items || []).filter((id: string) => systemItemIds.has(id)))
+          );
           setCustomOrder(override.display_config?.custom_order || []);
         } else {
           setTenantOverride(null);
@@ -146,7 +156,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
    */
   useEffect(() => {
     if (selectedList) {
-      loadListData(selectedList.id);
+      loadListData(selectedList);
     } else {
       setSystemItems([]);
       setTenantOverride(null);
@@ -167,7 +177,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
    */
   const orderedItems = useMemo(() => {
     if (customOrder.length === 0) {
-      return visibleItems.sort((a, b) => a.display_order - b.display_order);
+      return [...visibleItems].sort((a, b) => a.order - b.order);
     }
 
     const ordered: SystemChoiceItem[] = [];
@@ -184,7 +194,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
 
     // Add remaining items
     Array.from(itemMap.values())
-      .sort((a, b) => a.display_order - b.display_order)
+      .sort((a, b) => a.order - b.order)
       .forEach(item => ordered.push(item));
 
     return ordered;
@@ -193,13 +203,15 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
   /**
    * Toggle item disabled state
    */
-  const handleToggleDisabled = useCallback((itemId: string) => {
-    setDisabledItems(prev => {
+  const handleToggleDisabled = useCallback((item: SystemChoiceItem) => {
+    if (!item.is_system_defined) return;
+
+    setDisabledItems((prev) => {
       const next = new Set(prev);
-      if (next.has(itemId)) {
-        next.delete(itemId);
+      if (next.has(item.id)) {
+        next.delete(item.id);
       } else {
-        next.add(itemId);
+        next.add(item.id);
       }
       return next;
     });
@@ -236,15 +248,16 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
     if (!selectedList || !newCustomItem.value || !newCustomItem.label) return;
 
     try {
-      await apiClient.post('/system/choice-items/', {
-        choice_list: selectedList.id,
+      await apiClient.post(`/system/choice-lists/${selectedList.slug}/items/`, {
         value: newCustomItem.value,
         label: newCustomItem.label,
-        display_order: systemItems.length,
+        extra_data: {},
+        order: systemItems.length,
         is_active: true,
+        is_default: false,
       });
 
-      await loadListData(selectedList.id);
+      await loadListData(selectedList);
       setIsAddCustomModalOpen(false);
       setNewCustomItem({ value: '', label: '' });
     } catch (error) {
@@ -261,7 +274,6 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
     setIsSaving(true);
     try {
       const overrideData: TenantOverride = {
-        tenant: tenantId,
         choice_list: selectedList.id,
         disabled_system_items: Array.from(disabledItems),
         display_config: {
@@ -275,7 +287,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
         await apiClient.post('/system/tenant-overrides/', overrideData);
       }
 
-      await loadListData(selectedList.id);
+      await loadListData(selectedList);
       alert('Override saved successfully!');
     } catch (error) {
       console.error('[TenantChoiceOverride] Failed to save override:', error);
@@ -334,7 +346,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
                   $isSelected={selectedList?.id === list.id}
                   onClick={() => setSelectedList(list)}
                 >
-                  <ListName>{list.label}</ListName>
+                  <ListName>{list.name}</ListName>
                   <ListMeta>
                     {list.is_extensible && <Badge $color="green">Can Add Items</Badge>}
                     {list.is_reorderable && <Badge $color="purple">Can Reorder</Badge>}
@@ -349,7 +361,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
           {selectedList ? (
             <>
               <PanelHeader>
-                <PanelTitle>{selectedList.label}</PanelTitle>
+                <PanelTitle>{selectedList.name}</PanelTitle>
                 {selectedList.is_extensible && (
                   <Button
                     $variant="primary"
@@ -423,8 +435,9 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
 
                       <ItemActions>
                         <IconButton
-                          onClick={() => handleToggleDisabled(item.id)}
-                          title={isDisabled ? 'Enable' : 'Disable'}
+                          onClick={() => handleToggleDisabled(item)}
+                          title={isDisabled ? 'Enable' : item.is_system_defined ? 'Disable' : 'System-only'}
+                          disabled={!item.is_system_defined}
                         >
                           {isDisabled ? <EyeOff size={16} /> : <Eye size={16} />}
                         </IconButton>
@@ -447,7 +460,7 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
                           </ItemContent>
                           <ItemActions>
                             <IconButton
-                              onClick={() => handleToggleDisabled(item.id)}
+                              onClick={() => handleToggleDisabled(item)}
                               title="Enable"
                             >
                               <EyeOff size={16} />

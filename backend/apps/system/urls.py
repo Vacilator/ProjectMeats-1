@@ -18,6 +18,7 @@ from apps.system.views import (
     SystemChoiceItemViewSet,
     SystemFieldSchemaViewSet,
     TenantConfigViewSet,
+    TenantChoiceOverrideViewSet,
     ConfigResolverView,
     ConfigAuditLogViewSet,
     EntityIntrospectionViewSet,
@@ -34,6 +35,7 @@ router.register(r'choice-lists', SystemChoiceListViewSet, basename='choice-list'
 router.register(r'choice-items', SystemChoiceItemViewSet, basename='choice-item')
 router.register(r'field-schemas', SystemFieldSchemaViewSet, basename='field-schema')
 router.register(r'tenant-configs', TenantConfigViewSet, basename='tenant-config')
+router.register(r'tenant-overrides', TenantChoiceOverrideViewSet, basename='tenant-override')
 router.register(r'config', ConfigResolverView, basename='config')
 router.register(r'audit-logs', ConfigAuditLogViewSet, basename='audit-log')
 # IMPORTANT:
