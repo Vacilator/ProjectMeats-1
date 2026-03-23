@@ -16,13 +16,22 @@
  * @module SmartSearch
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
-import { 
-  Search, ChevronRight, Star, Clock, Phone, FileText, 
-  Users, Building2, Package, TrendingUp, X, Home 
+import {
+  Search, Star, Clock, FileText,
+  Users, Building2, Package, TrendingUp, X
 } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
+import debounce from 'lodash/debounce';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Tabs, Spin, Button } from 'antd';
+import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
+import { businessApi } from '../../services/businessApi';
+import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
+import UniversalEntityForm from '../Shared/UniversalEntityForm';
+import QuickCreateModal from '../FormSubmission/QuickCreateModal';
+import { EntityProfileHeader } from './EntityProfileHeader';
+import { AIOverviewCard } from './AIOverviewCard';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -30,32 +39,50 @@ import { apiClient } from '../../services/apiService';
 
 export interface SearchEntity {
   id: string;
-  type: 'customer' | 'supplier' | 'contact' | 'product' | 'order' | 'inquiry';
+  type: string;
   name: string;
   subtitle?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface RelationalChunk {
-  type: 'calls' | 'orders' | 'inquiries' | 'associates' | 'products';
+  type: string;
   title: string;
   items: SearchEntity[];
   icon: React.ReactNode;
 }
 
-export interface BreadcrumbItem {
-  id: string;
-  label: string;
-  entity?: SearchEntity;
+// NOTE: Breadcrumb UI is owned by CockpitDashboard via <BreadcrumbBar />.
+// SmartSearch reacts to navigation path changes to implement continuous browsing.
+
+export interface InlineActionPayload {
+  action: 'create' | 'edit';
+  entityType: string;
+  contextData: any;
 }
 
 export interface SmartSearchProps {
-  /** Initial search query */
+  /** Initial search query (uncontrolled mode) */
   initialQuery?: string;
+  /** Controlled query (preferred for global header-driven search) */
+  query?: string;
+  /** Callback when query changes (controlled mode only) */
+  onQueryChange?: (query: string) => void;
+  /** When true, hides the internal search input (used when Header owns the search input) */
+  hideInput?: boolean;
   /** Callback when entity is selected */
   onSelectEntity?: (entity: SearchEntity) => void;
   /** Callback when search closes */
   onClose?: () => void;
+
+  /** Inline create/edit state owned by CockpitDashboard */
+  inlineAction?: InlineActionPayload | null;
+  /** Cancel inline create/edit */
+  onInlineCancel?: () => void;
+  /** Inline create/edit success */
+  onInlineSuccess?: () => void;
+  /** Request an inline create action */
+  onOpenInlineCreate?: (targetType: string, currentRecord: SearchEntity) => void;
 }
 
 // ============================================================================
@@ -126,51 +153,6 @@ const ClearButton = styled.button`
   }
 `;
 
-const Breadcrumbs = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: rgb(var(--color-background-secondary));
-  border-radius: 6px;
-  font-size: 13px;
-  overflow-x: auto;
-  white-space: nowrap;
-
-  &::-webkit-scrollbar {
-    height: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgb(var(--color-border));
-    border-radius: 2px;
-  }
-`;
-
-const BreadcrumbItem = styled.button<{ $isActive?: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: ${props => props.$isActive ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${props => props.$isActive ? 'white' : 'rgb(var(--color-text-secondary))'};
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 13px;
-
-  &:hover {
-    background: ${props => props.$isActive ? 'rgb(var(--color-primary-hover))' : 'rgb(var(--color-background-tertiary))'};
-    color: ${props => props.$isActive ? 'white' : 'rgb(var(--color-text-primary))'};
-  }
-`;
-
-const BreadcrumbSeparator = styled(ChevronRight)`
-  color: rgb(var(--color-text-tertiary));
-  flex-shrink: 0;
-`;
 
 const ContentArea = styled.div`
   flex: 1;
@@ -360,22 +342,147 @@ const getEntityColor = (type: SearchEntity['type']) => {
   }
 };
 
+/**
+ * Format relationship type to human-readable title
+ */
+const formatRelationshipTitle = (relType: string): string => {
+  const titleMap: Record<string, string> = {
+    'purchase_orders': 'Purchase Orders',
+    'sales_orders': 'Sales Orders',
+    'contacts': 'Contacts',
+    'line_items': 'Line Items',
+    'supplier': 'Supplier',
+    'customer': 'Customer',
+    'products': 'Products',
+  };
+  return titleMap[relType] || relType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+};
+
+/**
+ * Get icon for relationship type
+ */
+const getRelationshipIcon = (relType: string) => {
+  switch (relType) {
+    case 'purchase_orders':
+    case 'sales_orders':
+      return <FileText size={16} />;
+    case 'contacts':
+      return <Users size={16} />;
+    case 'products':
+      return <Package size={16} />;
+    case 'line_items':
+      return <FileText size={16} />;
+    case 'supplier':
+      return <Building2 size={16} />;
+    case 'customer':
+      return <Users size={16} />;
+    default:
+      return <FileText size={16} />;
+  }
+};
+
+/**
+ * Format entity subtitle from metadata
+ */
+const formatEntitySubtitle = (item: any): string => {
+  // Use smart labels if available
+  if (item.metadata?.labels && item.metadata.labels.length > 0) {
+    return item.metadata.labels[0]; // Show first label
+  }
+  
+  // Fallback to common fields
+  if (item.subtitle) return item.subtitle;
+  if (item.status) return item.status;
+  if (item.quantity) return `Qty: ${item.quantity}`;
+  
+  return '';
+};
+
+/**
+ * Get quick actions for an entity type
+ */
+const getQuickActionsForEntity = (entity: SearchEntity): RelationalChunk => {
+  const actions: SearchEntity[] = [];
+  
+  switch (entity.type) {
+    case 'customer':
+      actions.push(
+        { id: 'create-invoice', type: 'order', name: 'Create Invoice', subtitle: 'Generate new invoice for this customer', metadata: { action: 'create_invoice', entityId: entity.id } },
+        { id: 'schedule-call', type: 'inquiry', name: 'Schedule Call', subtitle: 'Set up a call reminder', metadata: { action: 'schedule_call', entityId: entity.id } },
+        { id: 'view-history', type: 'order', name: 'View Full History', subtitle: 'See all transactions and interactions', metadata: { action: 'view_history', entityId: entity.id } }
+      );
+      break;
+    
+    case 'supplier':
+      actions.push(
+        { id: 'create-po', type: 'order', name: 'Create Purchase Order', subtitle: 'Start new PO with this supplier', metadata: { action: 'create_po', entityId: entity.id } },
+        { id: 'send-email', type: 'inquiry', name: 'Send Email', subtitle: 'Contact supplier via email', metadata: { action: 'send_email', entityId: entity.id } },
+        { id: 'view-history', type: 'order', name: 'View Purchase History', subtitle: 'See all orders from this supplier', metadata: { action: 'view_history', entityId: entity.id } }
+      );
+      break;
+    
+    case 'product':
+      actions.push(
+        { id: 'adjust-inventory', type: 'product', name: 'Adjust Inventory', subtitle: 'Update stock levels', metadata: { action: 'adjust_inventory', entityId: entity.id } },
+        { id: 'update-pricing', type: 'product', name: 'Update Pricing', subtitle: 'Change product pricing', metadata: { action: 'update_pricing', entityId: entity.id } },
+        { id: 'view-movement', type: 'product', name: 'View Stock Movement', subtitle: 'See inventory history', metadata: { action: 'view_movement', entityId: entity.id } }
+      );
+      break;
+    
+    case 'contact':
+      actions.push(
+        { id: 'send-email', type: 'inquiry', name: 'Send Email', subtitle: 'Contact via email', metadata: { action: 'send_email', entityId: entity.id } },
+        { id: 'schedule-meeting', type: 'inquiry', name: 'Schedule Meeting', subtitle: 'Set up a meeting', metadata: { action: 'schedule_meeting', entityId: entity.id } }
+      );
+      break;
+  }
+  
+  return {
+    type: 'actions' as any,
+    title: 'Quick Actions',
+    items: actions,
+    icon: <TrendingUp size={16} />,
+  };
+};
+
 // ============================================================================
 // Main Component
 // ============================================================================
 
 export const SmartSearch: React.FC<SmartSearchProps> = ({
   initialQuery = '',
+  query: controlledQuery,
+  onQueryChange,
+  hideInput = false,
   onSelectEntity,
   onClose,
+  inlineAction = null,
+  onInlineCancel,
+  onInlineSuccess,
+  onOpenInlineCreate,
 }) => {
-  const [query, setQuery] = useState(initialQuery);
+
+  // Use global navigation context instead of local breadcrumbs
+  const navigation = useCockpitNavigation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [internalQuery, setInternalQuery] = useState(initialQuery);
+  const query = controlledQuery ?? internalQuery;
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
-  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([{ id: 'home', label: 'Search' }]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isRelationsLoading, setIsRelationsLoading] = useState(false);
+
+  const [activeRelationTab, setActiveRelationTab] = useState<'orders' | 'invoices' | 'contacts' | 'inquiries' | 'more'>('orders');
+  const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
+  const [relationTabData, setRelationTabData] = useState<Record<string, { items: SearchEntity[]; count: number }>>({});
+  const [loadingRelationTab, setLoadingRelationTab] = useState<string | null>(null);
+
+  const [quickCreateConfig, setQuickCreateConfig] = useState<{ isOpen: boolean; type: string; context: any }>(
+    { isOpen: false, type: '', context: {} }
+  );
 
   /**
    * Load favorites from localStorage
@@ -407,13 +514,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       return;
     }
 
-    setIsLoading(true);
+    setIsSearching(true);
 
     try {
       console.log('[SmartSearch] Searching for:', searchQuery);
       
       // Call universal search API (correct endpoint)
-      const response = await apiClient.get('/search/universal/', {
+      const response = await businessApi.get('/search/universal/', {
         params: { q: searchQuery, limit: 5 },
       });
 
@@ -425,16 +532,16 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       
       if (response.data.results && Array.isArray(response.data.results)) {
         response.data.results.forEach((item: any) => {
-          const type = item.type;
+          const type = String(item.type ?? 'unknown');
           if (!grouped[type]) {
             grouped[type] = [];
           }
           grouped[type].push({
-            id: item.id,
+            id: String(item.id ?? ''),
             type,
             name: item.title || item.name || 'Unnamed',
             subtitle: item.subtitle || '',
-            metadata: item.metadata || {},
+            metadata: (item.metadata ?? {}) as Record<string, unknown>,
           });
         });
       }
@@ -450,7 +557,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       });
       setResults({});
     } finally {
-      setIsLoading(false);
+      setIsSearching(false);
     }
   }, []);
 
@@ -459,94 +566,114 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    */
   const handleQueryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newQuery = e.target.value;
-    setQuery(newQuery);
 
-    // Debounce search
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
+    if (controlledQuery !== undefined) {
+      onQueryChange?.(newQuery);
+      return;
     }
 
-    searchTimeoutRef.current = setTimeout(() => {
-      searchEntities(newQuery);
-    }, 300);
-  }, [searchEntities]);
+    setInternalQuery(newQuery);
+  }, [controlledQuery, onQueryChange]);
+
+  const debouncedSearch = useMemo(() => debounce((q: string) => {
+    searchEntities(q);
+  }, 300), [searchEntities]);
+
+  useEffect(() => {
+    debouncedSearch(query);
+    return () => debouncedSearch.cancel();
+  }, [debouncedSearch, query]);
 
   /**
-   * Load relational chunks for an entity
+   * Load relational chunks for an entity using Entity Graph API + Fuzzy Discovery
    */
   const loadRelationalChunks = useCallback(async (entity: SearchEntity) => {
-    setIsLoading(true);
+    setIsRelationsLoading(true);
 
     try {
-      // Fetch related entities based on type
+      console.log('[SmartSearch] Loading relationships for:', entity);
+      
+      // Use unified Entity Graph API
+      const response = await businessApi.get(
+        `/system/entities/${entity.type}/${entity.id}/relationships/`
+      );
+      
+      console.log('[SmartSearch] Entity relationships:', response.data);
+      
       const chunks: RelationalChunk[] = [];
+      const { relationships } = response.data;
+      
+      // Transform API relationships to chunks
+      Object.entries(relationships).forEach(([relType, items]: [string, any]) => {
+        if (!items || items.length === 0) return;
+        
+        const chunk: RelationalChunk = {
+          type: relType as any,
+          title: formatRelationshipTitle(relType),
+          items: items.map((item: any) => ({
+            id: String(item.id ?? ''),
+            type: String(item.type ?? 'unknown'),
+            name: item.title || item.name || `${item.type} #${item.id}`,
+            subtitle: formatEntitySubtitle(item),
+            metadata: (item.metadata ?? {}) as Record<string, unknown>,
+          })),
+          icon: getRelationshipIcon(relType),
+        };
+        
+        chunks.push(chunk);
+      });
 
-      // Example: For a customer, fetch recent orders, calls, inquiries
-      if (entity.type === 'customer' || entity.type === 'supplier') {
-        // Recent orders
-        const ordersRes = await apiClient.get(`/${entity.type}s/${entity.id}/orders/`, {
-          params: { limit: 5 },
-        });
-        if (ordersRes.data.results?.length) {
-          chunks.push({
-            type: 'orders',
-            title: 'Recent Orders',
-            items: ordersRes.data.results.map((o: any) => ({
-              id: o.id,
-              type: 'order',
-              name: o.order_number || `Order #${o.id}`,
-              subtitle: o.status,
-              metadata: o,
-            })),
-            icon: <FileText size={16} />,
+      // FUZZY DISCOVERY: Fetch fuzzy-matched related entities
+      try {
+        const fuzzyResponse = await businessApi.get(
+          `/system/entities/${entity.type}/${entity.id}/fuzzy-related/`,
+          { params: { max_results: 30 } }
+        );
+        
+        console.log('[SmartSearch] Fuzzy matches:', fuzzyResponse.data);
+        
+        if (fuzzyResponse.data.fuzzy_matches && fuzzyResponse.data.fuzzy_matches.length > 0) {
+          // Group fuzzy matches by type
+          const fuzzyByType: Record<string, any[]> = {};
+          
+          fuzzyResponse.data.fuzzy_matches.forEach((match: any) => {
+            if (!fuzzyByType[match.type]) {
+              fuzzyByType[match.type] = [];
+            }
+            fuzzyByType[match.type].push(match);
           });
-        }
-
-        // Recent calls (if available)
-        try {
-          const callsRes = await apiClient.get(`/${entity.type}s/${entity.id}/calls/`, {
-            params: { limit: 5 },
-          });
-          if (callsRes.data.results?.length) {
-            chunks.push({
-              type: 'calls',
-              title: 'Recent Calls',
-              items: callsRes.data.results.map((c: any) => ({
-                id: c.id,
-                type: 'inquiry',
-                name: `Call on ${new Date(c.created_at).toLocaleDateString()}`,
-                subtitle: c.notes,
-                metadata: c,
+          
+          // Add fuzzy chunks with distinctive styling
+          Object.entries(fuzzyByType).forEach(([matchType, matches]) => {
+            const fuzzyChunk: RelationalChunk = {
+              type: `fuzzy_${matchType}`,
+              title: `${formatRelationshipTitle(matchType)} (Fuzzy Matches)`,
+              items: (matches as any[]).map((match: any) => ({
+                id: String(match.id ?? ''),
+                type: String(match.type ?? 'unknown'),
+                name: match.name,
+                subtitle: match.subtitle || `Match: ${match.metadata?.match_type || 'Unknown'}`,
+                metadata: {
+                  ...(match.metadata ?? {}),
+                  fuzzy: true,
+                  relevance_score: match.relevance_score || 0.5,
+                } as Record<string, unknown>,
               })),
-              icon: <Phone size={16} />,
-            });
-          }
-        } catch (error) {
-          // Calls API may not exist yet
-        }
+              icon: getRelationshipIcon(matchType),
+            };
 
-        // Associates (contacts)
-        try {
-          const contactsRes = await apiClient.get(`/${entity.type}s/${entity.id}/contacts/`, {
-            params: { limit: 5 },
+            chunks.push(fuzzyChunk);
           });
-          if (contactsRes.data.results?.length) {
-            chunks.push({
-              type: 'associates',
-              title: 'Contacts',
-              items: contactsRes.data.results.map((c: any) => ({
-                id: c.id,
-                type: 'contact',
-                name: c.name || `${c.first_name} ${c.last_name}`,
-                subtitle: c.title || c.email,
-                metadata: c,
-              })),
-              icon: <Users size={16} />,
-            });
-          }
-        } catch (error) {
-          // Contacts API may not exist yet
         }
+      } catch (fuzzyError) {
+        // Fuzzy discovery is optional - don't fail if it errors
+        console.warn('[SmartSearch] Fuzzy discovery failed (non-fatal):', fuzzyError);
+      }
+
+      // Add Quick Actions chunk at the end
+      const quickActions = getQuickActionsForEntity(entity);
+      if (quickActions.items.length > 0) {
+        chunks.push(quickActions);
       }
 
       setRelationalChunks(chunks);
@@ -554,50 +681,105 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       console.error('[SmartSearch] Failed to load relational chunks:', error);
       setRelationalChunks([]);
     } finally {
-      setIsLoading(false);
+      setIsRelationsLoading(false);
     }
   }, []);
 
   /**
-   * Handle entity selection
+   * Handle entity selection - push into the global navigation path.
+   * Relational chunks are loaded by the navigation-path effect.
    */
   const handleSelectEntity = useCallback((entity: SearchEntity) => {
-    // Add to breadcrumbs
-    setBreadcrumbs(prev => [
-      ...prev,
-      { id: entity.id, label: entity.name, entity },
-    ]);
+    navigation.addStep({
+      id: entity.id,
+      type: entity.type,
+      label: entity.name,
+      subtitle: entity.subtitle,
+    });
 
-    // Load relational chunks
-    loadRelationalChunks(entity);
-
-    // Callback
+    // If a caller provided a handler, defer to it (backwards compatible).
     if (onSelectEntity) {
       onSelectEntity(entity);
+      return;
     }
-  }, [loadRelationalChunks, onSelectEntity]);
+
+  }, [navigation, onSelectEntity]);
+
 
   /**
-   * Navigate breadcrumb
+   * Handle quick action click
    */
-  const handleBreadcrumbClick = useCallback((index: number) => {
-    const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
-    setBreadcrumbs(newBreadcrumbs);
+  const handleQuickAction = useCallback((action: SearchEntity) => {
+    const actionType = action.metadata?.action as string | undefined;
+    const entityId = (action.metadata?.entityId as string | number | undefined) ?? action.id;
 
-    // If navigating back to home, show search results
-    if (index === 0) {
-      setRelationalChunks([]);
-      if (query) {
-        searchEntities(query);
-      }
-    } else {
-      // Load relational chunks for the selected entity
-      const entity = newBreadcrumbs[index].entity;
-      if (entity) {
-        loadRelationalChunks(entity);
-      }
+    if (!actionType) {
+      console.warn('[SmartSearch] Quick action missing actionType', action);
+      return;
     }
-  }, [breadcrumbs, query, loadRelationalChunks, searchEntities]);
+
+    const activeContext = navigation.path[navigation.path.length - 1];
+    const prefillBase = {
+      source: 'cockpit',
+      query,
+      contextEntity: activeContext
+        ? {
+            id: activeContext.id,
+            type: activeContext.type,
+            label: activeContext.label,
+          }
+        : undefined,
+    };
+
+    switch (actionType) {
+      case 'create_po': {
+
+        const supplierId = entityId ? String(entityId) : '';
+        const params = new URLSearchParams({ action: 'create' });
+        if (supplierId) params.set('supplier_id', supplierId);
+        if (query) params.set('cockpit_q', query);
+
+        navigate(`/purchase-orders?${params.toString()}`, {
+          state: {
+            prefill: {
+              ...prefillBase,
+              supplierId,
+            },
+          },
+        });
+        break;
+      }
+      case 'view_purchase_history':
+      case 'view_history':
+        navigate(`/purchase-orders?supplier_id=${entityId}`);
+        break;
+      case 'send_email':
+        window.dispatchEvent(new CustomEvent('pm:open-tool', { detail: { toolId: 'tool:email' } }));
+        break;
+      case 'create_so': {
+
+        const customerId = entityId ? String(entityId) : '';
+        const params = new URLSearchParams({ action: 'create' });
+        if (customerId) params.set('customer_id', customerId);
+        if (query) params.set('cockpit_q', query);
+
+        navigate(`/sales-orders?${params.toString()}`, {
+          state: {
+            prefill: {
+              ...prefillBase,
+              customerId,
+            },
+          },
+        });
+        break;
+      }
+      case 'view_sales_history':
+        navigate(`/sales-orders?customer_id=${entityId}`);
+        break;
+      default:
+        console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
+    }
+  }, [navigate, navigation.path, onOpenInlineCreate, query]);
 
   /**
    * Toggle favorite
@@ -621,11 +803,134 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Clear search
    */
   const handleClear = useCallback(() => {
-    setQuery('');
+    if (controlledQuery !== undefined) {
+      onQueryChange?.('');
+    } else {
+      setInternalQuery('');
+    }
+
     setResults({});
     setRelationalChunks([]);
-    setBreadcrumbs([{ id: 'home', label: 'Search' }]);
+    navigation.clearPath();
+    onClose?.();
+  }, [controlledQuery, navigation, onQueryChange, onClose]);
+
+  const activeStep = navigation.path[navigation.path.length - 1];
+
+  const handleNavigateToEntity = useCallback((nextType: string, nextId: string, label: string) => {
+    navigation.addStep({
+      id: nextId,
+      type: nextType,
+      label,
+    });
+  }, [navigation]);
+
+  const activeEntity = useMemo(() => {
+    if (!activeStep) return null;
+
+    const rawType = String(activeStep.type ?? '').toLowerCase();
+    const canonicalType = rawType === 'customers'
+      ? 'customer'
+      : rawType === 'suppliers'
+      ? 'supplier'
+      : rawType;
+
+    return {
+      id: String(activeStep.id),
+      type: canonicalType,
+      name: activeStep.label,
+      subtitle: activeStep.subtitle,
+    } satisfies SearchEntity;
+  }, [activeStep]);
+
+  const isPrimaryEntity = useMemo(() => {
+    const raw = String(activeEntity?.type ?? '').toLowerCase();
+    return raw === 'customer' || raw === 'supplier';
+  }, [activeEntity?.type]);
+
+  const openQuickCreate = useCallback((type: string) => {
+    const ctxType = String(activeEntity?.type ?? '').toLowerCase();
+    const ctxId = String(activeEntity?.id ?? '');
+
+    const context = ctxType === 'customer'
+      ? { customer: ctxId }
+      : ctxType === 'supplier'
+      ? { supplier: ctxId }
+      : {};
+
+    setQuickCreateConfig({ isOpen: true, type, context });
+  }, [activeEntity]);
+
+  const closeQuickCreate = useCallback(() => {
+    setQuickCreateConfig({ isOpen: false, type: '', context: {} });
   }, []);
+
+  const formatEntityLabel = useCallback((raw: string) => {
+    const cleaned = String(raw || '').replace(/_/g, ' ').trim();
+    if (!cleaned) return 'Record';
+    return cleaned.split(' ').map((w) => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
+  }, []);
+
+  const loadRelationshipTab = useCallback(async (tabKey: 'orders' | 'invoices' | 'contacts' | 'inquiries', entity: SearchEntity) => {
+    const relationshipType = tabKey === 'orders'
+      ? 'recent_orders'
+      : tabKey === 'contacts'
+      ? 'contacts'
+      : tabKey === 'inquiries'
+      ? 'inquiries'
+      : 'invoices';
+
+    setLoadingRelationTab(tabKey);
+    try {
+      const response = await businessApi.get(
+        `/system/entities/${encodeURIComponent(entity.type)}/${encodeURIComponent(entity.id)}/relationships/`,
+        { params: { relationship_types: relationshipType } }
+      );
+
+      const items = (response.data?.relationships?.[relationshipType] ?? []) as any[];
+      const count = Number(response.data?.counts?.[relationshipType] ?? items.length);
+
+      const mapped: SearchEntity[] = items.map((item: any) => ({
+        id: String(item.id ?? ''),
+        type: String(item.type ?? 'unknown'),
+        name: item.title || item.name || `${item.type} #${item.id}`,
+        subtitle: formatEntitySubtitle(item),
+        metadata: (item.metadata ?? {}) as Record<string, unknown>,
+      }));
+
+      setRelationTabData(prev => ({
+        ...prev,
+        [tabKey]: { items: mapped, count },
+      }));
+    } catch (error) {
+      console.error('[SmartSearch] Failed to load relationship tab:', tabKey, error);
+      setRelationTabData(prev => ({
+        ...prev,
+        [tabKey]: { items: [], count: 0 },
+      }));
+    } finally {
+      setLoadingRelationTab(prev => (prev === tabKey ? null : prev));
+    }
+  }, []);
+
+  // Continuous browsing: when the breadcrumb path changes, load the most relevant panel.
+  useEffect(() => {
+    if (!activeEntity) {
+      setRelationalChunks([]);
+      setRelationTabData({});
+      setLoadingRelationTab(null);
+      return;
+    }
+
+    if (isPrimaryEntity) {
+      setActiveRelationTab('orders');
+      setRelationTabData({});
+      void loadRelationshipTab('orders', activeEntity);
+      return;
+    }
+
+    void loadRelationalChunks(activeEntity);
+  }, [activeEntity, isPrimaryEntity, loadRelationalChunks, loadRelationshipTab]);
 
   /**
    * Render search results (top-5 per type)
@@ -659,6 +964,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               {typeLabel}
               <SectionCount>({entities.length})</SectionCount>
             </SectionTitle>
+            <Button size="small" type="primary" onClick={() => openQuickCreate(type)}>
+              + New {formatEntityLabel(type)}
+            </Button>
           </SectionHeader>
 
           <ResultGrid>
@@ -700,8 +1008,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   /**
    * Render relational chunks
    */
-  const renderRelationalChunks = () => {
-    if (relationalChunks.length === 0) {
+  const renderRelationalChunks = (chunks: RelationalChunk[] = relationalChunks) => {
+    if (chunks.length === 0) {
       return (
         <EmptyState>
           <EmptyIcon>
@@ -715,7 +1023,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       );
     }
 
-    return relationalChunks.map(chunk => (
+    return chunks.map(chunk => (
       <Section key={chunk.type}>
         <SectionHeader>
           <SectionTitle>
@@ -729,7 +1037,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           {chunk.items.map(item => (
             <ResultCard
               key={item.id}
-              onClick={() => handleSelectEntity(item)}
+              onClick={() => chunk.type === 'actions' ? handleQuickAction(item) : handleSelectEntity(item)}
+              style={chunk.type === 'actions' ? { cursor: 'pointer', borderStyle: 'dashed' } : {}}
             >
               <ResultIcon $color={getEntityColor(item.type)}>
                 {getEntityIcon(item.type)}
@@ -742,13 +1051,15 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 )}
               </ResultContent>
 
-              <FavoriteButton
-                $isFavorite={favorites.has(item.id)}
-                onClick={(e) => toggleFavorite(item.id, e)}
-                title={favorites.has(item.id) ? 'Remove from favorites' : 'Add to favorites'}
-              >
-                <Star size={16} />
-              </FavoriteButton>
+              {chunk.type !== 'actions' && (
+                <FavoriteButton
+                  $isFavorite={favorites.has(item.id)}
+                  onClick={(e) => toggleFavorite(item.id, e)}
+                  title={favorites.has(item.id) ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  <Star size={16} />
+                </FavoriteButton>
+              )}
             </ResultCard>
           ))}
         </ResultGrid>
@@ -756,55 +1067,361 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     ));
   };
 
+  const cockpitSubview = searchParams.get('cockpit_subview');
+  const isInlineCreateSalesOrderOpen = cockpitSubview === 'create_so';
+
+  // Keep breadcrumbs in sync with URL-driven subview.
+  useEffect(() => {
+    if (!activeEntity || !isPrimaryEntity) return;
+
+    const last = navigation.path[navigation.path.length - 1];
+    const subviewStepId = 'subview:create_so';
+    const hasSubviewStep = last?.id === subviewStepId;
+
+    if (isInlineCreateSalesOrderOpen && !hasSubviewStep) {
+      navigation.addStep({
+        id: subviewStepId,
+        type: 'subview',
+        label: 'New Sales Order',
+      });
+    }
+
+    if (!isInlineCreateSalesOrderOpen && hasSubviewStep) {
+      navigation.goBack(1);
+    }
+  }, [activeEntity, isPrimaryEntity, isInlineCreateSalesOrderOpen, navigation, navigation.path]);
+
+  const openInlineCreateSalesOrder = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    next.set('cockpit_subview', 'create_so');
+    setSearchParams(next);
+  }, [searchParams, setSearchParams]);
+
+  const closeInlineSubview = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('cockpit_subview');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const tabCTA = useMemo(() => {
+    if (!activeEntity || !isPrimaryEntity) return null;
+
+    if (activeRelationTab === 'orders') {
+      const type = String(activeEntity.type).toLowerCase();
+      const isSupplier = type === 'supplier';
+      const targetType = isSupplier ? 'purchase_order' : 'sales_order';
+      const label = isSupplier ? '+ New Purchase Order' : '+ New Sales Order';
+
+      return (
+        <Button
+          type="primary"
+          onClick={() => {
+            const actionType = isSupplier ? 'create_po' : 'create_so';
+            handleQuickAction({
+              id: `action:${actionType}`,
+              type: 'action',
+              name: label,
+              metadata: {
+                action: actionType,
+                entityId: activeEntity.id,
+              },
+            });
+          }}
+        >
+          {label}
+        </Button>
+      );
+    }
+
+    if (activeRelationTab === 'inquiries') {
+      return (
+        <Button
+          type="primary"
+          onClick={() => {
+            const type = String(activeEntity.type).toLowerCase();
+            const entityType = type === 'supplier' ? 'supplier' : 'customer';
+            navigate('/inquiries', {
+              state: {
+                openCreateModal: true,
+                entityType,
+                entityId: String(activeEntity.id),
+              },
+            });
+          }}
+        >
+          + New Inquiry
+        </Button>
+      );
+    }
+
+    return null;
+  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity, navigate, onOpenInlineCreate]);
+
   return (
     <Container>
-      <SearchHeader>
-        <SearchInputWrapper>
-          <SearchIcon>
-            <Search size={18} />
-          </SearchIcon>
-          <SearchInput
-            type="text"
-            placeholder="Search customers, suppliers, orders..."
-            value={query}
-            onChange={handleQueryChange}
-            autoFocus
-          />
-          {query && (
-            <ClearButton onClick={handleClear} title="Clear search">
-              <X size={18} />
-            </ClearButton>
-          )}
-        </SearchInputWrapper>
-
-        {breadcrumbs.length > 1 && (
-          <Breadcrumbs>
-            {breadcrumbs.map((crumb, index) => (
-              <React.Fragment key={crumb.id}>
-                {index > 0 && <BreadcrumbSeparator size={14} />}
-                <BreadcrumbItem
-                  $isActive={index === breadcrumbs.length - 1}
-                  onClick={() => handleBreadcrumbClick(index)}
-                >
-                  {index === 0 && <Home size={12} />}
-                  {crumb.label}
-                </BreadcrumbItem>
-              </React.Fragment>
-            ))}
-          </Breadcrumbs>
-        )}
-      </SearchHeader>
+      {!hideInput && (
+        <SearchHeader>
+          <SearchInputWrapper>
+            <SearchIcon>
+              <Search size={18} />
+            </SearchIcon>
+            <SearchInput
+              type="text"
+              placeholder="Search customers, suppliers, orders..."
+              value={query}
+              onChange={handleQueryChange}
+              autoFocus
+            />
+            {query && (
+              <ClearButton onClick={handleClear} title="Clear search">
+                <X size={18} />
+              </ClearButton>
+            )}
+          </SearchInputWrapper>
+        </SearchHeader>
+      )}
 
       <ContentArea>
-        {isLoading ? (
+        {activeStep && (
+          <>
+            <AIOverviewCard entityType={activeEntity?.type ?? activeStep.type} entityId={String(activeStep.id)} />
+            <EntityProfileHeader
+              entityType={activeEntity?.type ?? activeStep.type}
+              entityId={String(activeStep.id)}
+              onNavigateToEntity={handleNavigateToEntity}
+              variant={isPrimaryEntity ? 'compact' : 'full'}
+            />
+          </>
+        )}
+
+        <NotesAndCallsDrawer
+          open={isNotesDrawerOpen && Boolean(activeEntity)}
+          onClose={() => setIsNotesDrawerOpen(false)}
+          entityType={String(activeEntity?.type ?? '')}
+          entityId={String(activeEntity?.id ?? '')}
+          entityLabel={activeEntity?.name}
+        />
+
+        {quickCreateConfig.isOpen && (
+          <div style={{ marginTop: 12 }}>
+            <QuickCreateModal
+              entityType={quickCreateConfig.type}
+              isOpen={true}
+              inline={true}
+              contextData={quickCreateConfig.context}
+              onClose={closeQuickCreate}
+              onCreated={() => {
+                if (activeEntity) {
+                  if (activeRelationTab !== 'more') {
+                    void loadRelationshipTab(activeRelationTab, activeEntity);
+                  }
+                  void loadRelationalChunks(activeEntity);
+                }
+                closeQuickCreate();
+              }}
+            />
+          </div>
+        )}
+
+        {inlineAction && activeEntity && (
+          <div style={{ marginTop: 12 }}>
+            <QuickCreateModal
+              entityType={inlineAction.entityType}
+              isOpen={true}
+              inline={true}
+              contextData={inlineAction.contextData}
+              onClose={() => onInlineCancel?.()}
+              onCreated={() => {
+                if (activeEntity) {
+                  if (activeRelationTab !== 'more') {
+                    void loadRelationshipTab(activeRelationTab, activeEntity);
+                  }
+                  void loadRelationalChunks(activeEntity);
+                }
+                onInlineSuccess?.();
+              }}
+            />
+          </div>
+        )}
+
+        {isInlineCreateSalesOrderOpen && activeEntity && String(activeEntity.type).toLowerCase() === 'customer' && (
+          <UniversalEntityForm
+            entityType="sales-orders"
+            isOpen={true}
+            onClose={closeInlineSubview}
+            onSuccess={() => closeInlineSubview()}
+            initialValues={{ customer: String(activeEntity.id) } as any}
+          />
+        )}
+
+        {activeStep ? (
+          isPrimaryEntity ? (
+            inlineAction ? (
+              <div style={{ padding: 12 }} />
+            ) : (
+              <Tabs
+              activeKey={activeRelationTab}
+              tabBarExtraContent={
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {tabCTA}
+                  <Button onClick={() => setIsNotesDrawerOpen(true)}>Log Call / Notes</Button>
+                </div>
+              }
+              onChange={(nextKey) => {
+                const key = nextKey as typeof activeRelationTab;
+                setActiveRelationTab(key);
+                if (!activeEntity) return;
+
+                if (key === 'more') {
+                  if (relationalChunks.length === 0 && !isRelationsLoading) {
+                    void loadRelationalChunks(activeEntity);
+                  }
+                  return;
+                }
+
+                const typed = key as 'orders' | 'invoices' | 'contacts' | 'inquiries';
+                if (!relationTabData[typed] && loadingRelationTab !== typed) {
+                  void loadRelationshipTab(typed, activeEntity);
+                }
+              }}
+              items={([
+                {
+                  key: 'orders',
+                  label: `Orders${relationTabData.orders ? ` (${relationTabData.orders.count})` : ''}`,
+                  children: loadingRelationTab === 'orders' ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : relationTabData.orders?.items?.length ? (
+                    <ResultGrid>
+                      {relationTabData.orders.items.map(item => (
+                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
+                          <ResultIcon $color={getEntityColor(item.type)}>
+                            {getEntityIcon(item.type)}
+                          </ResultIcon>
+                          <ResultContent>
+                            <ResultTitle>{item.name}</ResultTitle>
+                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          </ResultContent>
+                        </ResultCard>
+                      ))}
+                    </ResultGrid>
+                  ) : (
+                    <EmptyState>
+                      <EmptyIcon><FileText size={48} /></EmptyIcon>
+                      <EmptyTitle>No orders yet</EmptyTitle>
+                      <EmptyMessage>Orders will appear here once created</EmptyMessage>
+                    </EmptyState>
+                  ),
+                },
+                {
+                  key: 'invoices',
+                  label: `Invoices${relationTabData.invoices ? ` (${relationTabData.invoices.count})` : ''}`,
+                  children: loadingRelationTab === 'invoices' ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : relationTabData.invoices?.items?.length ? (
+                    <ResultGrid>
+                      {relationTabData.invoices.items.map(item => (
+                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
+                          <ResultIcon $color={getEntityColor(item.type)}>
+                            {getEntityIcon(item.type)}
+                          </ResultIcon>
+                          <ResultContent>
+                            <ResultTitle>{item.name}</ResultTitle>
+                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          </ResultContent>
+                        </ResultCard>
+                      ))}
+                    </ResultGrid>
+                  ) : (
+                    <EmptyState>
+                      <EmptyIcon><FileText size={48} /></EmptyIcon>
+                      <EmptyTitle>No invoices yet</EmptyTitle>
+                      <EmptyMessage>Invoices will appear here once issued</EmptyMessage>
+                    </EmptyState>
+                  ),
+                },
+                {
+                  key: 'contacts',
+                  label: `Contacts${relationTabData.contacts ? ` (${relationTabData.contacts.count})` : ''}`,
+                  children: loadingRelationTab === 'contacts' ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : relationTabData.contacts?.items?.length ? (
+                    <ResultGrid>
+                      {relationTabData.contacts.items.map(item => (
+                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
+                          <ResultIcon $color={getEntityColor(item.type)}>
+                            {getEntityIcon(item.type)}
+                          </ResultIcon>
+                          <ResultContent>
+                            <ResultTitle>{item.name}</ResultTitle>
+                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          </ResultContent>
+                        </ResultCard>
+                      ))}
+                    </ResultGrid>
+                  ) : (
+                    <EmptyState>
+                      <EmptyIcon><Users size={48} /></EmptyIcon>
+                      <EmptyTitle>No contacts yet</EmptyTitle>
+                      <EmptyMessage>Contacts will appear here once added</EmptyMessage>
+                    </EmptyState>
+                  ),
+                },
+                {
+                  key: 'inquiries',
+                  label: `Inquiries${relationTabData.inquiries ? ` (${relationTabData.inquiries.count})` : ''}`,
+                  children: loadingRelationTab === 'inquiries' ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : relationTabData.inquiries?.items?.length ? (
+                    <ResultGrid>
+                      {relationTabData.inquiries.items.map(item => (
+                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
+                          <ResultIcon $color={getEntityColor(item.type)}>
+                            {getEntityIcon(item.type)}
+                          </ResultIcon>
+                          <ResultContent>
+                            <ResultTitle>{item.name}</ResultTitle>
+                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          </ResultContent>
+                        </ResultCard>
+                      ))}
+                    </ResultGrid>
+                  ) : (
+                    <EmptyState>
+                      <EmptyIcon><FileText size={48} /></EmptyIcon>
+                      <EmptyTitle>No inquiries yet</EmptyTitle>
+                      <EmptyMessage>Inquiries will appear here once created</EmptyMessage>
+                    </EmptyState>
+                  ),
+                },
+                {
+                  key: 'more',
+                  label: 'More',
+                  children: isRelationsLoading ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : (
+                    renderRelationalChunks()
+                  ),
+                },
+              ] as any[])}
+            />
+          )
+          ) : isRelationsLoading ? (
+            <EmptyState>
+              <EmptyIcon>
+                <Search size={48} />
+              </EmptyIcon>
+              <EmptyTitle>Loading record context…</EmptyTitle>
+            </EmptyState>
+          ) : (
+            renderRelationalChunks()
+          )
+        ) : isSearching ? (
           <EmptyState>
             <EmptyIcon>
               <Search size={48} />
             </EmptyIcon>
-            <EmptyTitle>Searching...</EmptyTitle>
+            <EmptyTitle>Searching…</EmptyTitle>
           </EmptyState>
-        ) : breadcrumbs.length > 1 ? (
-          renderRelationalChunks()
         ) : (
           renderSearchResults()
         )}

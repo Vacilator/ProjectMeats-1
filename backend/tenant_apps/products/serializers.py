@@ -1,18 +1,67 @@
+"""Serializers for products.
+
+NOTE: Phase 8.0 Three-Tier Products replaces tenant-level products with system.Product.
+
+This module keeps the legacy ProductSerializer (tenant_apps.products.Product) for any
+remaining internal usages, but the /api/v1/products endpoint is now a read-only,
+backward-compatible alias to /api/v1/system/products.
 """
-Serializers for Products app.
-"""
+
 from rest_framework import serializers
-from .models import Product
+
+from apps.system.models import Product as SystemProduct
+
+from .models import MasterProduct
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    """Serializer for Product model with tenant validation."""
-    
-    # Read-only fields for display
-    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    """Serializer for tenant-scoped MasterProduct."""
 
     class Meta:
-        model = Product
+        model = MasterProduct
+        fields = [
+            'id',
+            'tenant',
+            'protein',
+            'item_name',
+            'type',
+            'trim',
+            'display_name',
+            'is_active',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = ['id', 'tenant', 'display_name', 'created_on', 'modified_on']
+
+
+class LegacySystemProductSerializer(serializers.ModelSerializer):
+    """Backward-compatible serializer for /api/v1/products alias.
+
+    We expose the historic field names used by older UIs/clients while sourcing
+    data from system.Product (three-tier catalog).
+    """
+
+    # Legacy field aliases
+    description_of_product_item = serializers.CharField(source="description", allow_blank=True, required=False)
+    type_of_protein = serializers.CharField(source="protein_type", allow_blank=True, required=False)
+
+    namp = serializers.CharField(source="namp_code", allow_blank=True, required=False)
+    usda = serializers.CharField(source="usda_code", allow_blank=True, required=False)
+    ub = serializers.CharField(source="ub_code", allow_blank=True, required=False)
+
+    created_on = serializers.DateTimeField(source="created_at", read_only=True)
+    modified_on = serializers.DateTimeField(source="updated_at", read_only=True)
+
+    # Tenant-era fields that don't exist on system.Product
+    tenant = serializers.SerializerMethodField()
+    supplier = serializers.SerializerMethodField()
+    supplier_name = serializers.SerializerMethodField()
+    supplier_item_number = serializers.SerializerMethodField()
+    plants_available = serializers.SerializerMethodField()
+    origin = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SystemProduct
         fields = [
             "id",
             "tenant",
@@ -40,8 +89,21 @@ class ProductSerializer(serializers.ModelSerializer):
             "created_on",
             "modified_on",
         ]
-        read_only_fields = ["id", "tenant", "created_on", "modified_on"]
-        extra_kwargs = {
-            'product_code': {'required': True},
-            'description_of_product_item': {'required': True},
-        }
+
+    def get_tenant(self, _obj):
+        return None
+
+    def get_supplier(self, _obj):
+        return None
+
+    def get_supplier_name(self, _obj):
+        return ""
+
+    def get_supplier_item_number(self, _obj):
+        return ""
+
+    def get_plants_available(self, _obj):
+        return []
+
+    def get_origin(self, _obj):
+        return ""

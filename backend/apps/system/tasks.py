@@ -153,9 +153,17 @@ def pin_workflow_versions(workflow_id):
     nodes = workflow.workflow_definition.get('nodes', [])
     pinned_forms = []
     
+    container_types = {
+        'formBook',
+        'formProcessGroup',
+        'formProcess',
+        'formMultiStepContainer',
+        'smartWorkForm',
+    }
+
     for node in nodes:
-        if node.get('type') == 'formMultiStepContainer':
-            tenant_form_id = node.get('data', {}).get('tenantFormId')
+        if node.get('type') in container_types:
+            tenant_form_id = (node.get('data') or {}).get('tenantFormId')
             
             if tenant_form_id:
                 try:
@@ -186,4 +194,22 @@ def pin_workflow_versions(workflow_id):
         'workflow_id': str(workflow_id),
         'pinned_count': len(pinned_forms),
         'pinned_forms': pinned_forms
+    }
+
+
+@shared_task(name='system.execute_workform_loop_item')
+def execute_workform_loop_item(workform_id: str, loop_node_id: str, index: int, item: object):
+    """Vanguard 1 scaffold: execute a single loop iteration item.
+
+    This is a placeholder. The full implementation should:
+    - load the TenantWorkForm by ID
+    - run the loop-body subgraph with `variables.item`/`variables.index`
+    - persist execution logs
+    """
+    logger.info('[LoopItem] workform=%s loop_node=%s index=%s', workform_id, loop_node_id, index)
+    return {
+        'success': True,
+        'workform_id': workform_id,
+        'loop_node_id': loop_node_id,
+        'index': index,
     }

@@ -13,15 +13,26 @@
 export { BaseNode } from './BaseNode';
 export type { BaseNodeData, BaseNodeProps } from './BaseNode';
 
-// Form nodes - Phase E (2026-02-19): FormNode is the new name, FormStepSingleNode exported for backward compat
-export { FormNode, FormStepSingleNode } from './FormNode';
-export type { FormStepNodeData, FormField } from './FormNode';
+// Form nodes
+// - FormNode: container (Book) using React Flow sub-flows
+// - FormStepNode: child step (Page) inside the container
+export { FormNode } from './FormNode';
+export { FormStepNode } from './FormStepNode';
+export type { FormStepNodeData } from './FormStepNode';
+
+// Backward compatibility (legacy step node)
+export { FormStepSingleNode } from './FormStepSingleNode';
+export type { FormStepNodeData as LegacyFormStepNodeData, FormField } from './FormStepSingleNode';
 
 export { FormReferenceNode } from './FormReferenceNode';
 export type { FormReferenceNodeData } from './FormReferenceNode';
 
 export { FormProcessNode } from './FormProcessNode';
 export type { ContainerNodeData } from './FormProcessNode';
+
+export { FormProcessContainerNode } from './FormProcessContainerNode';
+export { FormProcessAddButtonNode } from './FormProcessAddButtonNode';
+export type { FormProcessAddButtonData } from './FormProcessAddButtonNode';
 
 export { TriggerNode } from './TriggerNode';
 export type { TriggerNodeData } from './TriggerNode';
@@ -42,3 +53,14 @@ export type { FormProcessGroupData } from './FormProcessGroupNode';
 
 export { FormProcessChildWrapper } from './FormProcessChildWrapper';
 export type { ChildWrapperProps } from './FormProcessChildWrapper';
+
+// Smart WorkForm (single-node wizard)
+export { SmartWorkFormNode } from './SmartWorkFormNode';
+export type { SmartWorkFormNodeData, SmartWorkFormStep, SmartWorkFormField } from './SmartWorkFormNode';
+
+// Phase 7.4 Advanced Node Types (2026-02-27)
+export { ParallelPathNode } from './ParallelPathNode';
+export type { ParallelPathNodeData } from './ParallelPathNode';
+
+export { SubWorkflowNode } from './SubWorkflowNode';
+export type { SubWorkflowNodeData } from './SubWorkflowNode';

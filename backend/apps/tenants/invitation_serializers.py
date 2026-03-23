@@ -9,6 +9,39 @@ from apps.tenants.models import Tenant, TenantUser, TenantInvitation
 
 class TenantInvitationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating tenant invitations."""
+
+    def validate_role(self, value: str) -> str:
+        """Restrict role assignment on invitations.
+
+        - Admins/owners can invite admin/manager/user/readonly
+        - Only owners (or superusers) can invite another owner
+        """
+        tenant = self.context.get('tenant')
+        request = self.context.get('request')
+
+        # Ensure role is valid
+        if value not in dict(TenantInvitation.ROLE_CHOICES):
+            raise serializers.ValidationError(
+                f"Invalid role. Must be one of: {', '.join(dict(TenantInvitation.ROLE_CHOICES).keys())}"
+            )
+
+        if not request or not getattr(request, 'user', None) or not tenant:
+            return value
+
+        if request.user.is_superuser:
+            return value
+
+        inviter = TenantUser.objects.filter(tenant=tenant, user=request.user, is_active=True).first()
+        if not inviter:
+            raise serializers.ValidationError('You do not have permission to invite users to this tenant')
+
+        if value == 'owner' and inviter.role != 'owner':
+            raise serializers.ValidationError('Only tenant owners can invite another owner')
+
+        if value == 'admin' and inviter.role not in ('owner', 'admin'):
+            raise serializers.ValidationError('Only tenant admins or owners can invite an admin')
+
+        return value
     
     class Meta:
         model = TenantInvitation

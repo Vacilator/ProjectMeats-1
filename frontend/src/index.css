@@ -26,6 +26,10 @@
   --color-surface: 255, 255, 255;    /* white */
   --color-surface-hover: 243, 244, 246; /* gray-100 */
   --color-surface-foreground: 17, 24, 39; /* gray-900 */
+
+  /* Back-compat aliases (used by older components) */
+  --color-bg-primary: var(--color-surface);
+  --color-bg-secondary: var(--color-background);
   
   --color-text-primary: 44, 62, 80;
   --color-text-secondary: 108, 117, 125;
@@ -85,6 +89,10 @@
   --color-surface: 45, 45, 45;
   --color-surface-hover: 61, 61, 61;
   --color-surface-foreground: 224, 224, 224;
+
+  /* Back-compat aliases (used by older components) */
+  --color-bg-primary: var(--color-surface);
+  --color-bg-secondary: var(--color-background);
   
   --color-text-primary: 224, 224, 224;
   --color-text-secondary: 160, 160, 160;

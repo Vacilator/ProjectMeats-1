@@ -57,8 +57,21 @@ class TenantFormViewSet(viewsets.ModelViewSet):
                 models.Q(name__icontains=search) |
                 models.Q(description__icontains=search)
             )
+
+        # Filter: workform-generated forms
+        is_workform = self.request.query_params.get('is_workform')
+        if is_workform is not None:
+            normalized = str(is_workform).strip().lower()
+            if normalized in {'1', 'true', 'yes'}:
+                queryset = queryset.filter(is_workform=True)
+            elif normalized in {'0', 'false', 'no'}:
+                queryset = queryset.filter(is_workform=False)
+
+        parent_workform_id = self.request.query_params.get('parent_workform_id')
+        if parent_workform_id:
+            queryset = queryset.filter(parent_workform_id=parent_workform_id)
         
-        return queryset.select_related('created_by', 'updated_by')
+        return queryset.select_related('created_by', 'updated_by', 'parent_workform')
     
     def get_serializer_class(self):
         """Use lightweight serializer for list views."""

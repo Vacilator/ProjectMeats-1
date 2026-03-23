@@ -22,7 +22,7 @@ import {
   Eye, Filter, RefreshCw, FileText, ChevronRight, ChevronDown,
   Clock, AlertCircle
 } from 'lucide-react';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { WorkflowExecution, WorkflowAuditEntry } from '../../types/workflows';
 
@@ -256,10 +256,10 @@ const StatusBadge = styled.span<{ $status: string }>`
   font-size: 12px;
   font-weight: 500;
   border-radius: 12px;
-  background: ${({ $status }) => 
-    $status === 'completed' ? 'rgb(34, 197, 94, 0.1)' : 'rgb(239, 68, 68, 0.1)'
+  background: ${({ $status }) =>
+    $status === 'completed' ? 'rgb(34 197 94 / 0.10)' : 'rgb(239 68 68 / 0.10)'
   };
-  color: ${({ $status }) => 
+  color: ${({ $status }) =>
     $status === 'completed' ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'
   };
 `;
@@ -464,7 +464,7 @@ const DurationBadge = styled.span`
   font-size: 11px;
   font-weight: 500;
   border-radius: 12px;
-  background: rgba(var(--color-primary), 0.1);
+  background: rgb(var(--color-primary) / 0.10);
   color: rgb(var(--color-primary));
   margin-left: 8px;
 `;
@@ -506,7 +506,7 @@ const FormsFlowsHistory: React.FC = () => {
       if (endDate) params.end_date = endDate;
       if (searchQuery) params.search = searchQuery;
       
-      const response = await apiClient.get('/workflows/form-submissions/', { params });
+      const response = await businessApi.get('/workflows/form-submissions/', { params });
       setSubmissions(response.data.results || response.data || []);
       setTotalCount(response.data.count || 0);
     } catch (error) {
@@ -517,21 +517,24 @@ const FormsFlowsHistory: React.FC = () => {
     }
   };
   
-  useEffect(() => {
-    fetchSubmissions();
-  }, [page, startDate, endDate]);
   
-  // Debounced search
+  // Debounced search (respect active tab)
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (page === 1) {
+      if (page !== 1) {
+        setPage(1);
+        return;
+      }
+
+      if (activeTab === 'submissions') {
         fetchSubmissions();
       } else {
-        setPage(1);
+        fetchWorkflowExecutions();
       }
     }, 300);
+
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [activeTab, page, searchQuery]);
   
   // Fetch workflow executions
   const fetchWorkflowExecutions = async () => {
@@ -650,13 +653,21 @@ const FormsFlowsHistory: React.FC = () => {
       <TabsContainer>
         <Tab
           $active={activeTab === 'submissions'}
-          onClick={() => setActiveTab('submissions')}
+          onClick={() => {
+            setExpandedWorkflow(null);
+            setPage(1);
+            setActiveTab('submissions');
+          }}
         >
           Form Submissions
         </Tab>
         <Tab
           $active={activeTab === 'workflows'}
-          onClick={() => setActiveTab('workflows')}
+          onClick={() => {
+            setExpandedWorkflow(null);
+            setPage(1);
+            setActiveTab('workflows');
+          }}
         >
           Workflow Executions
         </Tab>
@@ -701,11 +712,11 @@ const FormsFlowsHistory: React.FC = () => {
             Export
           </ActionButton>
           <ActionButton 
-            onClick={fetchSubmissions} 
-            disabled={loading}
-            aria-label={loading ? 'Loading...' : 'Refresh history'}
+            onClick={() => (activeTab === 'submissions' ? fetchSubmissions() : fetchWorkflowExecutions())}
+            disabled={currentLoading}
+            aria-label={currentLoading ? 'Loading...' : 'Refresh history'}
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
+            <RefreshCw size={16} className={currentLoading ? 'animate-spin' : ''} aria-hidden="true" />
           </ActionButton>
         </div>
       </Toolbar>
@@ -721,7 +732,7 @@ const FormsFlowsHistory: React.FC = () => {
           <EmptyMessage>
             {searchQuery || startDate || endDate
               ? 'No matching records found. Try adjusting your filters.'
-              : 'Completed and cancelled forms will appear here.'}
+              : 'Completed and cancelled form submissions will appear here once a workflow finishes executing.'}
           </EmptyMessage>
         </EmptyState>
       ) : (

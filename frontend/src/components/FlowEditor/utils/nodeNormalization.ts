@@ -23,15 +23,53 @@ export function normalizeNodeData(node: Node): Node {
   if (!node.type) {
     return node;
   }
-  
+
+  // --------------------------------------------------------------------------
+  // Form Process Lock-In: canonicalize legacy container types
+  // --------------------------------------------------------------------------
+  // We lock all legacy Form Process / container variants to ONE canonical nodeType
+  // (`formProcess`), while rendering them as a STANDARD React Flow default node
+  // to avoid the purple custom container regressions.
+  if (node.type === 'formMultiStepContainer' || node.type === 'formProcess' || node.type === 'formProcessGroup' || node.type === 'formBook') {
+    const canonicalNodeType = 'formProcess';
+    const canonicalDef = NODE_TYPE_REGISTRY[canonicalNodeType];
+
+    const existingLabel = (node.data as any)?.label;
+    const existingContainerName = (node.data as any)?.containerName;
+
+    return {
+      ...node,
+      type: 'formProcessContainer',
+      data: {
+        ...(node.data || {}),
+        nodeType: canonicalNodeType,
+        label: existingLabel ?? existingContainerName ?? 'Form Process',
+        // Ensure group semantics are enabled
+        isGroup: true,
+        // Ensure required sizing metadata exists for downstream logic
+        maxInputs: (node.data as any)?.maxInputs ?? canonicalDef?.maxInputs ?? 1,
+        maxOutputs: (node.data as any)?.maxOutputs ?? canonicalDef?.maxOutputs ?? 1,
+      },
+    };
+  }
+
+  // Ensure strict parent bounds for any node that lives inside a container
+  if (node.parentId) {
+    node = {
+      ...node,
+      extent: node.extent || 'parent',
+      expandParent: node.expandParent ?? true,
+    } as Node;
+  }
+
   // Get node type definition
   const nodeTypeDef = NODE_TYPE_REGISTRY[node.type];
-  
+
   // If unknown type, return as-is
   if (!nodeTypeDef) {
     return node;
   }
-  
+
   // Create new node with normalized data
   return {
     ...node,

@@ -103,14 +103,14 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
   
   // === FORM ELEMENTS ===
   
-  // Form node (renamed from formStepSingle in Phase E - 2026-02-19)
+  // Form step node (page) (renamed from formStepSingle in Phase E - 2026-02-19)
   form: {
     id: 'form',
-    name: 'Form',
+    name: 'Form Step',
     category: 'form',
-    icon: '📋',
+    icon: '📄',
     color: '#3b82f6', // blue
-    description: 'Single-page form for data collection - works standalone or in Form Process containers',
+    description: 'Single form step (page). Use inside a Form (Book) container or standalone.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -132,39 +132,70 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     hidden: true, // Deprecated - use 'form' instead
   },
   
+  // Canonical Form Process container (LOCKED)
   formProcess: {
     id: 'formProcess',
     name: 'Form Process',
     category: 'form',
     icon: '📦',
     color: '#8b5cf6', // purple - distinct from regular form blue
-    description: 'DROP ZONE: Drag form steps and nodes here to create a multi-step flow',
+    description: 'Multi-step container that keeps child form steps constrained and arranged horizontally.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
   },
   
-  formProcessGroup: {
-    id: 'formProcessGroup',
-    name: 'Form Process Group',
+  // Legacy container aliases (hidden): kept for backward compatibility ONLY
+  formBook: {
+    id: 'formBook',
+    name: 'Form (Legacy Container)',
     category: 'form',
-    icon: '📂',
-    color: '#a78bfa', // lighter purple - group variant
-    description: 'LABELED CONTAINER: Resizable group with labeled header and vertical auto-layout for child steps',
+    icon: '📚',
+    color: '#a78bfa',
+    description: '[HIDDEN] Legacy alias. Loads as Form Process at runtime.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+    hidden: true,
+  },
+
+  // Phase 7+: Smart WorkForm (single-node wizard)
+  // Kept for backward compatibility, but hidden from the palette.
+  smartWorkForm: {
+    id: 'smartWorkForm',
+    name: 'Smart WorkForm (Hidden)',
+    category: 'form',
+    icon: '🧠',
+    color: '#a78bfa',
+    description: '[HIDDEN] Backward compatibility. Use Form Process instead.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hidden: true,
+  },
+
+  formProcessGroup: {
+    id: 'formProcessGroup',
+    name: 'Form Process (Legacy Alias)',
+    category: 'form',
+    icon: '📦',
+    color: '#9ca3af',
+    description: '[HIDDEN] Legacy alias. Loads as Form Process at runtime.',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hidden: true,
   },
   
   // DEPRECATED: Phase 2 - Backward compatibility aliases (2026-02-14)
   // These map to the new node types but are marked as deprecated
   formStep: {
     id: 'formStep',
-    name: 'Form Step (DEPRECATED - use formStepSingle)',
+    name: 'Form Step (Deprecated)',
     category: 'form',
     icon: '📋',
     color: '#9ca3af', // gray - deprecated
-    description: '[DEPRECATED] This node type has been renamed to formStepSingle. Existing workflows will continue to work.',
+    description: '[DEPRECATED] This node type has been renamed to "Form". Existing workflows will continue to work.',
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
@@ -282,6 +313,32 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     maxInputs: 1,
     maxOutputs: 1,
     requiresConfig: true,
+  },
+  
+  // Phase 7.4: Advanced Node Types (2026-02-27)
+  parallelPath: {
+    id: 'parallelPath',
+    name: 'Parallel Paths',
+    category: 'logic',
+    icon: '⚡',
+    color: '#8b5cf6', // purple
+    description: 'Split execution into parallel branches',
+    maxInputs: 1,
+    maxOutputs: -1, // unlimited (one per path)
+    requiresConfig: true,
+  },
+  
+  subWorkflow: {
+    id: 'subWorkflow',
+    name: 'Sub-Workflow',
+    category: 'logic',
+    icon: '🔗',
+    color: '#6366f1', // indigo
+    description: 'Execute another workflow as a sub-process',
+    maxInputs: 1,
+    maxOutputs: 1,
+    requiresConfig: true,
+    hasErrorRoute: true,
   },
   
   // === ACTIONS ===

@@ -7,6 +7,7 @@
  * - Uses Bearer tokens for JWT authentication
  * - Falls back to Token auth for legacy compatibility
  * - Automatic token refresh on 401 responses
+ * - Session expired modal instead of hard redirects
  */
 import axios, { AxiosError as AxiosErrorType, InternalAxiosRequestConfig } from 'axios';
 import { config } from '../config/runtime';
@@ -17,6 +18,7 @@ import {
   clearTokens,
   isUsingJwt,
 } from './jwtService';
+import { triggerGlobalSessionExpired } from '../contexts/SessionManagerContext';
 
 // API Configuration
 const API_BASE_URL = config.API_BASE_URL;
@@ -75,6 +77,18 @@ const adminClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
+      // IMPORTANT: When uploading files, ensure we do NOT force application/json.
+      // Axios will set the correct multipart boundary automatically.
+      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+        // Support both AxiosHeaders and plain object.
+        try {
+          delete (config.headers as any)['Content-Type'];
+          delete (config.headers as any)['content-type'];
+        } catch {
+          // ignore
+        }
+      }
+
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
         console.debug('[API] Token needs refresh, refreshing before request...');
@@ -115,6 +129,17 @@ apiClient.interceptors.request.use(
 adminClient.interceptors.request.use(
   async (config) => {
     try {
+      // IMPORTANT: When uploading files, ensure we do NOT force application/json.
+      // Axios will set the correct multipart boundary automatically.
+      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+        try {
+          delete (config.headers as any)['Content-Type'];
+          delete (config.headers as any)['content-type'];
+        } catch {
+          // ignore
+        }
+      }
+
       // Check if token needs refresh before making request
       if (isUsingJwt() && needsRefresh() && !isRefreshing) {
         console.debug('[Admin API] Token needs refresh, refreshing before request...');
@@ -173,7 +198,7 @@ apiClient.interceptors.response.use(
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
-        console.error('[API] Max retry attempts reached, redirecting to login');
+        console.error('[API] Max retry attempts reached, showing session expired modal');
         clearTokens();
         localStorage.removeItem('user');
         // KEEP tenant context for re-login - user should see same tenant after re-auth
@@ -181,7 +206,9 @@ apiClient.interceptors.response.use(
         // localStorage.removeItem('tenantId');
         // localStorage.removeItem('tenantName');
         // localStorage.removeItem('tenantSlug');
-        window.location.href = '/login';
+        
+        // Show session expired modal instead of hard redirect
+        triggerGlobalSessionExpired('Your session has expired after multiple authentication attempts.');
         return Promise.reject(error);
       }
       
@@ -214,7 +241,7 @@ apiClient.interceptors.response.use(
         } catch (refreshError) {
           console.error('[API] Token refresh failed:', refreshError);
           processQueue(refreshError);
-          // Refresh failed, redirect to login
+          // Refresh failed, show session expired modal
           clearTokens();
           localStorage.removeItem('user');
           // KEEP tenant context for re-login - user should see same tenant after re-auth
@@ -222,7 +249,8 @@ apiClient.interceptors.response.use(
           // localStorage.removeItem('tenantId');
           // localStorage.removeItem('tenantName');
           // localStorage.removeItem('tenantSlug');
-          window.location.href = '/login';
+          
+          triggerGlobalSessionExpired('Your session could not be refreshed. Please log in again.');
           return Promise.reject(refreshError);
         } finally {
           // CRITICAL: Always reset isRefreshing flag
@@ -230,11 +258,11 @@ apiClient.interceptors.response.use(
         }
       }
       
-      // No JWT or refresh failed, clear auth and redirect
-      console.warn('[API] No JWT auth available, redirecting to login');
+      // No JWT or refresh failed, clear auth and show modal
+      console.warn('[API] No JWT auth available, showing session expired modal');
       clearTokens();
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      triggerGlobalSessionExpired('Your session has expired. Please log in to continue.');
     }
     
     return Promise.reject(error);
@@ -263,10 +291,10 @@ adminClient.interceptors.response.use(
       // Prevent infinite retry loops
       const retryCount = (originalRequest._retryCount || 0) + 1;
       if (retryCount > 2) {
-        console.error('[Admin API] Max retry attempts reached, redirecting to login');
+        console.error('[Admin API] Max retry attempts reached, showing session expired modal');
         clearTokens();
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        triggerGlobalSessionExpired('Your session has expired.');
         return Promise.reject(error);
       }
       
@@ -282,10 +310,10 @@ adminClient.interceptors.response.use(
         }
       }
       
-      console.warn('[Admin API] No JWT auth available, redirecting to login');
+      console.warn('[Admin API] No JWT auth available, showing session expired modal');
       clearTokens();
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      triggerGlobalSessionExpired('Your session has expired. Please log in to continue.');
     }
     
     return Promise.reject(error);

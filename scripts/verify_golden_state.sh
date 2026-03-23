@@ -7,11 +7,18 @@ echo ""
 
 ERRORS=0
 
-# 1. Check manifest exists
-if [ -f "config/env.manifest.json" ]; then
-    echo "✅ config/env.manifest.json exists"
+# 1. Check manifest exists (canonical: manifests/env.manifest.json; legacy: config/env.manifest.json)
+MANIFEST_PATH=""
+if [ -f "manifests/env.manifest.json" ]; then
+    MANIFEST_PATH="manifests/env.manifest.json"
+elif [ -f "config/env.manifest.json" ]; then
+    MANIFEST_PATH="config/env.manifest.json"
+fi
+
+if [ -n "$MANIFEST_PATH" ]; then
+    echo "✅ $MANIFEST_PATH exists"
 else
-    echo "❌ config/env.manifest.json NOT FOUND"
+    echo "❌ env.manifest.json NOT FOUND (expected: manifests/env.manifest.json)"
     ERRORS=$((ERRORS + 1))
 fi
 
@@ -40,33 +47,33 @@ else
 fi
 
 # 5. Check frontend health check
-if grep -q "8080" .github/workflows/reusable-deploy.yml 2>/dev/null; then
+if grep -q "127.0.0.1:8080" .github/workflows/reusable-deploy.yml 2>/dev/null; then
     echo "✅ reusable-deploy.yml checks frontend container directly"
 else
     echo "❌ reusable-deploy.yml frontend check incorrect"
     ERRORS=$((ERRORS + 1))
 fi
 
-# 6. Check for prohibited patterns
-if grep -q "django-tenants" backend/requirements.txt 2>/dev/null; then
+# 6. Check for prohibited patterns (must be an actual dependency, not just a comment)
+if grep -Eq '^[[:space:]]*django-tenants([<=>[:space:]]|$)' backend/requirements.txt 2>/dev/null; then
     echo "❌ CRITICAL: django-tenants found in requirements.txt"
     ERRORS=$((ERRORS + 1))
 else
     echo "✅ No django-tenants in requirements.txt"
 fi
 
-# 7. Check documentation exists
-if [ -f "docs/GOLDEN_PIPELINE.md" ]; then
-    echo "✅ docs/GOLDEN_PIPELINE.md exists"
+# 7. Check documentation exists (allow canonical docs/reference/*, with optional top-level wrappers)
+if [ -f "docs/GOLDEN_PIPELINE.md" ] || [ -f "docs/reference/GOLDEN_PIPELINE.md" ]; then
+    echo "✅ GOLDEN_PIPELINE documentation exists"
 else
-    echo "❌ docs/GOLDEN_PIPELINE.md NOT FOUND"
+    echo "❌ GOLDEN_PIPELINE documentation NOT FOUND"
     ERRORS=$((ERRORS + 1))
 fi
 
-if [ -f "docs/CONFIGURATION_AND_SECRETS.md" ]; then
-    echo "✅ docs/CONFIGURATION_AND_SECRETS.md exists"
+if [ -f "docs/CONFIGURATION_AND_SECRETS.md" ] || [ -f "docs/reference/CONFIGURATION_AND_SECRETS.md" ]; then
+    echo "✅ CONFIGURATION_AND_SECRETS documentation exists"
 else
-    echo "❌ docs/CONFIGURATION_AND_SECRETS.md NOT FOUND"
+    echo "❌ CONFIGURATION_AND_SECRETS documentation NOT FOUND"
     ERRORS=$((ERRORS + 1))
 fi
 

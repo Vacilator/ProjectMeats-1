@@ -13,8 +13,16 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { QuickActionsProvider } from './contexts/QuickActionsContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import { ActionItemsProvider } from './contexts/ActionItemsContext';
+import { SessionManagerProvider } from './contexts/SessionManagerContext';
+import { CockpitNavigationProvider } from './contexts/CockpitNavigationContext';
+import { CockpitPinnedToolsProvider } from './contexts/CockpitPinnedToolsContext';
 import { ToastProvider } from './hooks/useToast';
 import Layout from './components/Layout/Layout';
+import './i18n/config'; // Initialize i18n
+import { initSentry } from './utils/sentry'; // Initialize Sentry
+
+// Initialize Sentry for error tracking and performance monitoring
+initSentry();
 
 // Create QueryClient for data fetching (React Query)
 const queryClient = new QueryClient({
@@ -23,6 +31,9 @@ const queryClient = new QueryClient({
       retry: 1,
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000, // 5 minutes
+      // IMPORTANT: Refetch on mount to ensure tenant context is correct
+      // This prevents stale cached data from previous tenant after hard refresh
+      refetchOnMount: 'always',
     },
   },
 });
@@ -39,6 +50,7 @@ import Plants from './pages/Suppliers/Plants';
 import SupplierProducts from './pages/Suppliers/Products';
 import CustomerLocations from './pages/Customers/Locations';
 import CustomerProducts from './pages/Customers/Products';
+import PlantProducts from './pages/Plants/Products';
 import Carriers from './pages/Carriers';
 import AIAssistant from './pages/AIAssistant';
 import CallLog from './pages/Cockpit/CallLog';
@@ -71,10 +83,13 @@ import UsersPage from './pages/Admin/Users';
 import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
 import ActivityPage from './pages/Admin/Activity';
+import AdminWorkspaceHome from './pages/Admin/Home';
 import AdminErrorBoundary from './components/Admin/AdminErrorBoundary';
-import ErrorBoundary from './components/ErrorBoundary';
-import { ReportBugButton } from './components/ReportBugButton';
+import { ErrorBoundary as ProductionErrorBoundary } from './components/common/ErrorBoundary';
+import { logger } from './utils/logger';
 import CockpitPage from './pages/Cockpit';
+import ProcessMonitor from './pages/Cockpit/ProcessMonitor';
+import CockpitEntityRedirect from './pages/Cockpit/CockpitEntityRedirect';
 import { NotificationPreferences } from './pages/Settings/index';
 // WorkForms pages - Phase 1 Enhancement (renamed from Forms & Flows)
 import WorkFormsLayout from './pages/WorkForms';
@@ -82,6 +97,7 @@ import WorkFormsCatalog from './pages/WorkForms/Catalog';
 import WorkFormsInProgress from './pages/WorkForms/InProgress';
 import WorkFormsHistory from './pages/WorkForms/History';
 import WorkFormsEditor from './pages/WorkForms/Editor';
+import WorkFormsMonitoring from './pages/WorkForms/Monitoring';
 
 // Wrapper component to access QuickActions context
 const FormSubmissionWrapper: React.FC = () => {
@@ -104,6 +120,36 @@ const FormSubmissionWrapper: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // Handle hard refresh - clear React Query cache to ensure fresh data with correct tenant
+  useEffect(() => {
+    const storedTenantId = localStorage.getItem('tenantId');
+    
+    // Check if this is a hard refresh (performance.navigation.type === 1)
+    // Or if sessionStorage was cleared (hard refresh clears sessionStorage)
+    const isHardRefresh = !sessionStorage.getItem('appInitialized');
+    
+    if (isHardRefresh) {
+      logger.debug('[App] Hard refresh detected - clearing React Query cache', { component: 'App' });
+      queryClient.clear();
+      // Mark app as initialized in session
+      sessionStorage.setItem('appInitialized', 'true');
+      
+      // Store current tenant to detect changes
+      if (storedTenantId) {
+        sessionStorage.setItem('currentTenantId', storedTenantId);
+      }
+    } else {
+      // Not a hard refresh - check if tenant changed
+      const lastTenantId = sessionStorage.getItem('currentTenantId');
+      
+      if (storedTenantId && lastTenantId && storedTenantId !== lastTenantId) {
+        logger.debug('[App] Tenant changed - clearing React Query cache', { component: 'App' });
+        queryClient.clear();
+        sessionStorage.setItem('currentTenantId', storedTenantId);
+      }
+    }
+  }, []);
+
   // Dynamic favicon and title based on environment
   useEffect(() => {
     const updateFaviconAndTitle = () => {
@@ -148,7 +194,7 @@ const App: React.FC = () => {
 
       // Log for debugging (only in development)
       if (env === 'development' || env === 'dev') {
-        console.log(`[Environment] ${env} - Favicon: ${faviconPath}`);
+        logger.debug(`[Environment] ${env} - Favicon: ${faviconPath}`, { component: 'App' });
       }
     };
 
@@ -156,7 +202,20 @@ const App: React.FC = () => {
   }, []); // Run once on mount
 
   return (
-    <ErrorBoundary showDetails={false}>
+    <ProductionErrorBoundary
+      onError={(error, errorInfo) => {
+        // Log to our centralized logger
+        logger.error('App-level error caught', {
+          component: 'App',
+          metadata: {
+            componentStack: errorInfo.componentStack
+          }
+        }, {
+          message: error.message,
+          stack: error.stack
+        });
+      }}
+    >
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <AuthProvider>
@@ -164,13 +223,11 @@ const App: React.FC = () => {
               <NotificationsProvider>
                 <ActionItemsProvider>
                   <QuickActionsProvider>
-                <Router
-                  future={{
-                    v7_startTransition: true,
-                    v7_relativeSplatPath: true,
-                  }}
-                >
-                  <NavigationProvider>
+                    <CockpitNavigationProvider>
+                      <CockpitPinnedToolsProvider>
+                        <Router>
+                        <SessionManagerProvider>
+                          <NavigationProvider>
                     <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
@@ -182,6 +239,7 @@ const App: React.FC = () => {
                 <Route path="suppliers/contacts" element={<Contacts />} />
                 <Route path="suppliers/plants" element={<Plants />} />
                 <Route path="suppliers/:id/products" element={<SupplierProducts />} />
+                <Route path="plants/:id/products" element={<PlantProducts />} />
                 
                 {/* Customers & Related */}
                 <Route path="customers" element={<Customers />} />
@@ -216,6 +274,7 @@ const App: React.FC = () => {
                 <Route path="reports" element={<Reports />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="settings/email-integrations" element={<Settings />} />
                 <Route path="settings/notifications" element={<NotificationPreferences />} />
                 <Route path="api-test" element={<ApiTestComponent />} />
                 
@@ -230,6 +289,7 @@ const App: React.FC = () => {
                   <Route index element={<Navigate to="/workforms/tasks" replace />} />
                   <Route path="tasks" element={<MyTasks />} />
                   <Route path="in-progress" element={<WorkFormsInProgress />} />
+                  <Route path="monitoring" element={<WorkFormsMonitoring />} />
                   <Route path="catalog" element={<WorkFormsCatalog />} />
                   <Route path="history" element={<WorkFormsHistory />} />
                   <Route path="editor" element={<WorkFormsEditor />} />
@@ -248,6 +308,11 @@ const App: React.FC = () => {
                 <Route path="my-tasks" element={<Navigate to="/workforms/tasks" replace />} />
                 
                 {/* Admin Workspace - Wrapped with error boundary */}
+                <Route path="workspace" element={
+                  <AdminErrorBoundary fallbackTitle="Admin Workspace Error">
+                    <AdminWorkspaceHome />
+                  </AdminErrorBoundary>
+                } />
                 <Route path="workspace/option-lists" element={
                   <AdminErrorBoundary fallbackTitle="Option Lists Error">
                     <OptionListsPage />
@@ -289,24 +354,27 @@ const App: React.FC = () => {
                 
                 {/* Cockpit (Command Center Dashboard) */}
                 <Route path="cockpit" element={<CockpitPage />} />
+                <Route path="cockpit/process-monitor" element={<ProcessMonitor />} />
+                {/* Legacy deep-link route (redirects into /cockpit breadcrumb UX) */}
+                <Route path="cockpit/entity/:entityType/:entityId" element={<CockpitEntityRedirect />} />
                 {/* Note: /workspace now points to Admin Workspace, not Cockpit */}
               </Route>
             </Routes>
             {/* Form Submission Modal - rendered at app level */}
             <FormSubmissionWrapper />
-            
-            {/* Global floating bug report button - always available */}
-            <ReportBugButton variant="floating" />
-          </NavigationProvider>
-        </Router>
-              </QuickActionsProvider>
-            </ActionItemsProvider>
-          </NotificationsProvider>
+                          </NavigationProvider>
+                        </SessionManagerProvider>
+                      </Router>
+                    </CockpitPinnedToolsProvider>
+                    </CockpitNavigationProvider>
+                  </QuickActionsProvider>
+                </ActionItemsProvider>
+              </NotificationsProvider>
         </ThemeProvider>
       </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>
-    </ErrorBoundary>
+    </ProductionErrorBoundary>
   );
 };
 

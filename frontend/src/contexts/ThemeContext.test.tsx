@@ -12,11 +12,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider, useTheme } from './ThemeContext';
-import axios from 'axios';
+import { apiClient } from '../services/apiService';
 
-// Mock axios
-vi.mock('axios');
-const mockedAxios = vi.mocked(axios, true);
+// ThemeProvider is mounted under AuthProvider in the app. Mock useAuth for unit tests.
+vi.mock('./AuthContext', () => ({
+  useAuth: () => ({ isAuthenticated: true }),
+}));
+
+vi.mock('../services/apiService', () => ({
+  apiClient: {
+    get: vi.fn(),
+    patch: vi.fn(),
+  },
+}));
+
+const mockedApiClient = vi.mocked(apiClient, true);
 
 // Mock theme config
 vi.mock('../config/theme', () => ({
@@ -29,10 +39,19 @@ vi.mock('../config/theme', () => ({
   injectTenantColors: vi.fn(),
 }));
 
-// Mock runtime config
-vi.mock('../config/runtime', () => ({
-  getRuntimeConfig: vi.fn(() => 'http://localhost:8000/api/v1'),
-}));
+// Mock runtime config (partial)
+vi.mock('../config/runtime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../config/runtime')>();
+  return {
+    ...actual,
+    getRuntimeConfig: vi.fn(() => 'http://localhost:8000/api/v1'),
+    config: {
+      ...actual.config,
+      API_BASE_URL: 'http://localhost:8000/api/v1',
+      ENVIRONMENT: 'development',
+    },
+  };
+});
 
 // Test component to access context
 const TestConsumer: React.FC = () => {
@@ -52,12 +71,27 @@ const TestConsumer: React.FC = () => {
 };
 
 describe('ThemeContext', () => {
-  let originalBody: HTMLElement;
+  let originalMatchMedia: typeof window.matchMedia | undefined;
   let localStorageMock: { [key: string]: string };
 
   beforeEach(() => {
     // Clear mocks
     vi.clearAllMocks();
+
+    // Ensure matchMedia exists for theme preference checks
+    originalMatchMedia = window.matchMedia;
+    // Default: no special preferences
+    window.matchMedia = ((query: string) => ({
+      // Default test environment prefers dark, but not high-contrast/reduced-motion
+      matches: query.includes('(prefers-color-scheme: dark)'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as any;
     
     // Mock localStorage
     localStorageMock = {};
@@ -69,16 +103,16 @@ describe('ThemeContext', () => {
       delete localStorageMock[key];
     });
     
-    // Store original body reference
-    originalBody = document.body;
-    
-    // Mock axios responses (no auth token by default)
-    mockedAxios.get.mockRejectedValue(new Error('No token'));
-    mockedAxios.patch.mockRejectedValue(new Error('No token'));
+    // Mock API responses (no auth token by default)
+    mockedApiClient.get.mockRejectedValue(new Error('No token'));
+    mockedApiClient.patch.mockRejectedValue(new Error('No token'));
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    if (originalMatchMedia) {
+      window.matchMedia = originalMatchMedia;
+    }
     document.body.removeAttribute('data-theme');
   });
 
@@ -268,12 +302,20 @@ describe('ThemeContext', () => {
     it('should load theme from backend when authenticated', async () => {
       localStorageMock['authToken'] = 'test-token';
       
-      mockedAxios.get.mockImplementation((url: string) => {
+      mockedApiClient.get.mockImplementation((url: string) => {
         if (url.includes('/preferences/me/')) {
           return Promise.resolve({ data: { theme: 'light' } });
         }
         if (url.includes('/tenants/current_theme/')) {
-          return Promise.resolve({ data: { name: 'Test Tenant', logo_url: null, primary_color_light: '#fff', primary_color_dark: '#000' } });
+          return Promise.resolve({
+            data: {
+              name: 'Test Tenant',
+              logo_url: null,
+              primary_color_light: '#fff',
+              primary_color_dark: '#000',
+              theme_version: '2026-03-23T00:00:00Z',
+            },
+          });
         }
         return Promise.reject(new Error('Unknown endpoint'));
       });
@@ -293,8 +335,8 @@ describe('ThemeContext', () => {
       const user = userEvent.setup();
       localStorageMock['authToken'] = 'test-token';
       
-      mockedAxios.patch.mockResolvedValue({ data: { theme: 'light' } });
-      mockedAxios.get.mockRejectedValue(new Error('Not found'));
+      mockedApiClient.patch.mockResolvedValue({ data: { theme: 'light' } });
+      mockedApiClient.get.mockRejectedValue(new Error('Not found'));
       
       render(
         <ThemeProvider>
@@ -305,10 +347,9 @@ describe('ThemeContext', () => {
       await user.click(screen.getByText('Toggle'));
       
       await waitFor(() => {
-        expect(mockedAxios.patch).toHaveBeenCalledWith(
+        expect(mockedApiClient.patch).toHaveBeenCalledWith(
           expect.stringContaining('/preferences/me/'),
-          { theme: 'light' },
-          expect.any(Object)
+          { theme: 'light' }
         );
       });
     });
@@ -317,8 +358,8 @@ describe('ThemeContext', () => {
       const user = userEvent.setup();
       localStorageMock['authToken'] = 'test-token';
       
-      mockedAxios.patch.mockRejectedValue(new Error('Network error'));
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.patch.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
       
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       
@@ -341,7 +382,7 @@ describe('ThemeContext', () => {
     it('should load tenant branding when authenticated', async () => {
       localStorageMock['authToken'] = 'test-token';
       
-      mockedAxios.get.mockImplementation((url: string) => {
+      mockedApiClient.get.mockImplementation((url: string) => {
         if (url.includes('/tenants/current_theme/')) {
           return Promise.resolve({
             data: {
@@ -349,6 +390,7 @@ describe('ThemeContext', () => {
               logo_url: '/media/logos/acme.png',
               primary_color_light: '#3498db',
               primary_color_dark: '#2980b9',
+              theme_version: '2026-03-23T00:00:00Z',
             },
           });
         }
@@ -372,7 +414,7 @@ describe('ThemeContext', () => {
     it('should fix relative logo URLs', async () => {
       localStorageMock['authToken'] = 'test-token';
       
-      mockedAxios.get.mockImplementation((url: string) => {
+      mockedApiClient.get.mockImplementation((url: string) => {
         if (url.includes('/tenants/current_theme/')) {
           return Promise.resolve({
             data: {
@@ -380,6 +422,7 @@ describe('ThemeContext', () => {
               logo_url: '/media/logo.png',
               primary_color_light: '#fff',
               primary_color_dark: '#000',
+              theme_version: '2026-03-23T00:00:00Z',
             },
           });
         }
@@ -396,7 +439,7 @@ describe('ThemeContext', () => {
       );
       
       await waitFor(() => {
-        expect(screen.getByTestId('logo')).toHaveTextContent('http://localhost:8000/media/logo.png');
+        expect(screen.getByTestId('logo')).toHaveTextContent('http://localhost:8000/media/logo.png?v=2026-03-23T00%3A00%3A00Z');
       });
     });
 
@@ -413,7 +456,7 @@ describe('ThemeContext', () => {
     it('should handle branding load failure gracefully', async () => {
       localStorageMock['authToken'] = 'test-token';
       
-      mockedAxios.get.mockRejectedValue(new Error('Network error'));
+      mockedApiClient.get.mockRejectedValue(new Error('Network error'));
       
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       
@@ -435,7 +478,7 @@ describe('ThemeContext', () => {
       localStorageMock['authToken'] = 'test-token';
       
       let callCount = 0;
-      mockedAxios.get.mockImplementation((url: string) => {
+      mockedApiClient.get.mockImplementation((url: string) => {
         if (url.includes('/tenants/current_theme/')) {
           callCount++;
           return Promise.resolve({
@@ -444,6 +487,7 @@ describe('ThemeContext', () => {
               logo_url: null,
               primary_color_light: '#fff',
               primary_color_dark: '#000',
+              theme_version: callCount === 1 ? 'v1' : 'v2',
             },
           });
         }

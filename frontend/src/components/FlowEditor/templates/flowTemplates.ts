@@ -6,6 +6,8 @@
 
 import { Node, Edge } from '@xyflow/react';
 
+import { MEATSCENTRAL_INQUIRY_FLOW_TEMPLATE } from '@/workforms/templates';
+
 export type TemplateCategory = 
   | 'forms'
   | 'approvals'
@@ -33,6 +35,11 @@ export interface FlowTemplate {
   thumbnail: string;
   tags: string[];
   popularity: number;
+  /**
+   * Sort priority within the Template Selector modal/search.
+   * Lower numbers appear first. Omit for normal ordering.
+   */
+  priority?: number;
   nodes: Node[];
   edges: Edge[];
   variables: TemplateVariable[];
@@ -40,6 +47,8 @@ export interface FlowTemplate {
 }
 
 export const FLOW_TEMPLATES: FlowTemplate[] = [
+  MEATSCENTRAL_INQUIRY_FLOW_TEMPLATE,
+
   // ========================================
   // FORMS (5 templates)
   // ========================================
@@ -1453,43 +1462,53 @@ export const CATEGORY_ICONS: Record<TemplateCategory, string> = {
 // Helper Functions
 // ============================================================================
 
+const templatePriority = (t: FlowTemplate) =>
+  typeof t.priority === 'number' ? t.priority : Number.POSITIVE_INFINITY;
+
+const compareTemplates = (a: FlowTemplate, b: FlowTemplate) => {
+  const pa = templatePriority(a);
+  const pb = templatePriority(b);
+  if (pa !== pb) return pa - pb;
+  if (a.popularity !== b.popularity) return b.popularity - a.popularity;
+  return a.name.localeCompare(b.name);
+};
+
 /**
- * Get popular templates (sorted by popularity score)
+ * Get popular templates (sorted by priority first, then popularity)
  */
 export function getPopularTemplates(count: number = 6): FlowTemplate[] {
-  return [...FLOW_TEMPLATES]
-    .sort((a, b) => b.popularity - a.popularity)
-    .slice(0, count);
+  return [...FLOW_TEMPLATES].sort(compareTemplates).slice(0, count);
 }
 
 /**
- * Get featured template (highest popularity)
+ * Get featured template (highest priority, then popularity)
  */
 export function getFeaturedTemplate(): FlowTemplate {
-  return FLOW_TEMPLATES.reduce((prev, current) => 
-    current.popularity > prev.popularity ? current : prev
-  );
+  return [...FLOW_TEMPLATES].sort(compareTemplates)[0];
 }
 
 /**
- * Search templates by name, description, or tags
+ * Search templates by name, description, or tags (priority-sorted)
  */
 export function searchTemplates(query: string): FlowTemplate[] {
   const lowerQuery = query.toLowerCase().trim();
-  if (!lowerQuery) return FLOW_TEMPLATES;
-  
-  return FLOW_TEMPLATES.filter(template =>
-    template.name.toLowerCase().includes(lowerQuery) ||
-    template.description.toLowerCase().includes(lowerQuery) ||
-    template.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
-  );
+  const base = !lowerQuery
+    ? FLOW_TEMPLATES
+    : FLOW_TEMPLATES.filter(
+        (template) =>
+          template.name.toLowerCase().includes(lowerQuery) ||
+          template.description.toLowerCase().includes(lowerQuery) ||
+          template.tags.some((tag) => tag.toLowerCase().includes(lowerQuery))
+      );
+
+  return [...base].sort(compareTemplates);
 }
 
 /**
- * Get templates by category
+ * Get templates by category (priority-sorted)
  */
 export function getTemplatesByCategory(category: TemplateCategory): FlowTemplate[] {
-  return FLOW_TEMPLATES.filter(template => template.category === category);
+  return FLOW_TEMPLATES.filter((template) => template.category === category).sort(compareTemplates);
 }
 
 /**

@@ -1,0 +1,196 @@
+{
+  "workflowEditor": {
+    "title": "Workflow Editor",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "undo": "Undo",
+    "redo": "Redo",
+    "zoom": {
+      "in": "Zoom In",
+      "out": "Zoom Out",
+      "fit": "Fit to Screen"
+    },
+    "toolbar": {
+      "select": "Select",
+      "pan": "Pan",
+      "addNode": "Add Node",
+      "delete": "Delete",
+      "undo": "Undo",
+      "redo": "Redo"
+    },
+    "nodes": {
+      "start": "Start",
+      "end": "End",
+      "action": "Action",
+      "decision": "Decision",
+      "loop": "Loop",
+      "conditional": "Conditional Branch",
+      "subworkflow": "Sub-Workflow"
+    },
+    "properties": {
+      "title": "Properties",
+      "name": "Name",
+      "description": "Description",
+      "type": "Type",
+      "condition": "Condition",
+      "actions": "Actions",
+      "connections": "Connections"
+    },
+    "validation": {
+      "requiredField": "This field is required",
+      "invalidName": "Invalid name",
+      "circularDependency": "Circular dependency detected",
+      "danglingNode": "Node has no outgoing connections",
+      "orphanNode": "Node has no incoming connections",
+      "duplicateName": "Name already exists"
+    },
+    "notifications": {
+      "saved": "Workflow saved successfully",
+      "deleted": "Workflow deleted successfully",
+      "error": "An error occurred",
+      "validationFailed": "Validation failed",
+      "connectionCreated": "Connection created",
+      "connectionDeleted": "Connection deleted",
+      "nodeAdded": "Node added",
+      "nodeDeleted": "Node deleted"
+    },
+    "history": {
+      "title": "Version History",
+      "noHistory": "No history available",
+      "restore": "Restore",
+      "compare": "Compare",
+      "author": "Author",
+      "date": "Date",
+      "changes": "Changes"
+    },
+    "entityMapping": {
+      "title": "Entity Mapping",
+      "selectEntity": "Select Entity",
+      "mapFields": "Map Fields",
+      "formField": "Form Field",
+      "entityField": "Entity Field",
+      "noMapping": "No mapping configured"
+    },
+    "performance": {
+      "fps": "FPS",
+      "memory": "Memory",
+      "nodes": "Nodes",
+      "connections": "Connections",
+      "renderTime": "Render Time"
+    },
+    "accessibility": {
+      "announcements": {
+        "nodeSelected": "Node {{name}} selected",
+        "nodeMoved": "Node {{name}} moved to position {{x}}, {{y}}",
+        "connectionCreated": "Connection created from {{source}} to {{target}}",
+        "connectionDeleted": "Connection from {{source}} to {{target}} deleted",
+        "workflowSaved": "Workflow saved successfully",
+        "validationError": "Validation error: {{error}}"
+      },
+      "hints": {
+        "navigateNodes": "Use arrow keys to navigate between nodes",
+        "selectNode": "Press Enter to select focused node",
+        "deleteNode": "Press Delete to remove selected node",
+        "undo": "Press Ctrl+Z to undo",
+        "redo": "Press Ctrl+Y to redo"
+      }
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "export": "Export",
+    "import": "Import",
+    "settings": "Settings",
+    "help": "Help",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "noResults": "No results found",
+    "noRelated": "No related items",
+    "searching": "Searching...",
+    "retry": "Retry"
+  },
+  "cockpit": {
+    "searchPlaceholder": "Search anything...",
+    "openSearch": "Open search (press Command+K or Control+K)",
+    "smartSearch": {
+      "placeholder": "Search customers, suppliers, orders...",
+      "noResults": "No results found",
+      "noRelated": "No related items",
+      "searching": "Searching...",
+      "loadingContext": "Loading record context..."
+    }
+  },
+  "forms": {
+    "selectAForm": "Select a Form",
+    "searchForms": "Search forms...",
+    "loadingForms": "Loading forms...",
+    "noFormsMatch": "No forms match your search",
+    "noForms": "No forms available",
+    "selectForm": "Select Form",
+    "submissions": "{{count}} submissions"
+  },
+  "aiPanel": {
+    "title": "AI Suggestions",
+    "analyzing": "Analyzing workflow...",
+    "suggestions": "Intelligent next steps for your workflow",
+    "buildWorkflow": "Build your workflow to see suggestions",
+    "addNodes": "Add nodes to your workflow to get intelligent suggestions",
+    "retry": "Retry",
+    "mode": {
+      "ai": "AI",
+      "static": "Static",
+      "cached": "Cached"
+    }
+  },
+  "mobile": {
+    "login": {
+      "title": "ProjectMeats",
+      "subtitle": "Multi-Tenant Platform",
+      "username": "Username or Email",
+      "password": "Password",
+      "signIn": "Sign In",
+      "signingIn": "Signing In...",
+      "loginFailed": "Login Failed",
+      "fillFields": "Please fill in all fields",
+      "invalidCredentials": "Invalid credentials"
+    },
+    "home": {
+      "dashboard": "Dashboard",
+      "quickActions": "Quick Actions",
+      "loadingDashboard": "Loading dashboard...",
+      "logout": "Logout",
+      "logoutConfirm": "Are you sure you want to logout?",
+      "switchOrg": "Switch Organization",
+      "switchConfirm": "Do you want to switch to a different organization?",
+      "switchBtn": "Switch",
+      "cancel": "Cancel",
+      "comingSoon": "Coming Soon",
+      "featureSoon": "This feature will be available soon.",
+      "nextUpdate": "{{entity}} management will be available in the next update.",
+      "createOrder": "Create Order",
+      "viewReports": "View Reports",
+      "aiAssistant": "AI Assistant",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "contacts": "Contacts",
+      "plants": "Plants",
+      "carriers": "Carriers",
+      "welcome": "Welcome, {{name}}",
+      "trialAccount": "TRIAL ACCOUNT"
+    }
+  }
+}

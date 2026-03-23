@@ -4,7 +4,7 @@
 Provides aggregated, polymorphic search across tenant-scoped models (Customer, Supplier, PurchaseOrder) for ProjectMeats frontend "Cockpit" search feature.
 
 ## Features
-- **Multi-tenant isolation**: Automatically respects schema-based tenancy via `django-tenants`
+- **Multi-tenant isolation**: Shared-schema multi-tenancy via `tenant` foreign keys + `TenantMiddleware` (`request.tenant`) + PostgreSQL RLS
 - **Polymorphic search**: Returns unified results with `type` field for frontend icon rendering
 - **Lightweight serializers**: Minimal data transfer for fast autocomplete/search
 
@@ -77,13 +77,13 @@ const SearchResult = ({ item }) => {
 ## Architecture
 - **No models**: View-only app, no database tables
 - **Read-only ViewSet**: Uses `ReadOnlyModelViewSet` for GET operations only
-- **Tenant filtering**: Queries are automatically scoped to current tenant schema
+- **Tenant filtering**: Querysets must be scoped to `tenant=request.tenant` (shared-schema; no per-tenant DB schemas)
 - **Result limiting**: Returns max 10 results per model type (30 total)
 
 ## Multi-Tenancy Notes
-- All queries respect current tenant context via `TenantMainMiddleware`
-- No explicit tenant filtering needed - handled by django-tenants at PostgreSQL schema level
-- Migrations run with `migrate_schemas --tenant` (not standard `migrate`)
+- `TenantMiddleware` resolves `request.tenant` from header/domain/subdomain.
+- PostgreSQL RLS provides defense-in-depth, but application code should still filter by tenant explicitly.
+- Migrations run with standard Django `migrate` (no `migrate_schemas`).
 
 ## Security
 - Requires `IsAuthenticated` permission

@@ -7,9 +7,11 @@ This directory contains validation and automation scripts used by GitHub Actions
 ### validate-migrations.sh
 **Purpose:** Comprehensive Django migration validation before deployment
 
-**When it runs:**
-- Every deployment workflow (dev, UAT, prod)
-- After dependencies installed but before tests run
+**When to run it:**
+- Before opening/merging any backend model changes
+- As a pre-deploy sanity check when troubleshooting migration-related failures
+
+> Note: deployment workflows currently run an equivalent "Check Migration State" gate (via `makemigrations --check`) in `.github/workflows/reusable-deploy.yml`.
 
 **What it validates:**
 1. No unapplied migrations (`makemigrations --check`)
@@ -28,8 +30,7 @@ This directory contains validation and automation scripts used by GitHub Actions
 # In CI (with PostgreSQL service)
 CI=true DATABASE_URL=postgresql://... ./validate-migrations.sh
 
-# Local testing
-cd backend
+# Local testing (run from repo root or any working directory)
 DATABASE_URL=... ./.github/scripts/validate-migrations.sh
 ```
 

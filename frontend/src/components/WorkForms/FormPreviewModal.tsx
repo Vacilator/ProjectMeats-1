@@ -6,6 +6,8 @@
  */
 
 import React from 'react';
+import { logger } from '@/utils/logger';
+
 import styled from 'styled-components';
 import { X, Edit, Eye, Copy, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -277,8 +279,8 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
 
   const handleEdit = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log('[FormPreview] Edit button clicked - form:', { id: form.id, name: form.name, flow_data: form.flow_data });
-    console.log('[FormPreview] Navigating to:', `/workforms/editor/${form.id}`);
+    logger.debug('[FormPreview] Edit button clicked - form:', { id: form.id, name: form.name, flow_data: form.flow_data });
+    logger.debug('[FormPreview] Navigating to:', `/workforms/editor/${form.id}`);
     onClose();
     setTimeout(() => {
       navigate(`/workforms/editor/${form.id}`);
@@ -287,8 +289,8 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
   
   const handleClone = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log('[FormPreview] Clone button clicked - form:', { id: form.id, name: form.name });
-    console.log('[FormPreview] Navigating to:', `/workforms/editor?clone=${form.id}`);
+    logger.debug('[FormPreview] Clone button clicked - form:', { id: form.id, name: form.name });
+    logger.debug('[FormPreview] Navigating to:', `/workforms/editor?clone=${form.id}`);
     onClose();
     setTimeout(() => {
       navigate(`/workforms/editor?clone=${form.id}`);
@@ -297,8 +299,8 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
   
   const handleSettings = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log('[FormPreview] Settings button clicked - form:', { id: form.id, name: form.name });
-    console.log('[FormPreview] Navigating to editor with settings tab');
+    logger.debug('[FormPreview] Settings button clicked - form:', { id: form.id, name: form.name });
+    logger.debug('[FormPreview] Navigating to editor with settings tab');
     onClose();
     setTimeout(() => {
       navigate(`/workforms/editor/${form.id}?tab=settings`);
@@ -307,8 +309,8 @@ export const FormPreviewModal: React.FC<FormPreviewModalProps> = ({ form, onClos
   
   const handlePreview = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log('[FormPreview] Preview button clicked - form:', { id: form.id, name: form.name });
-    console.log('[FormPreview] Navigating to:', `/workforms/editor/${form.id}?mode=preview`);
+    logger.debug('[FormPreview] Preview button clicked - form:', { id: form.id, name: form.name });
+    logger.debug('[FormPreview] Navigating to:', `/workforms/editor/${form.id}?mode=preview`);
     onClose();
     setTimeout(() => {
       navigate(`/workforms/editor/${form.id}?mode=preview`);

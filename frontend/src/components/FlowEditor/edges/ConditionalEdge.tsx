@@ -148,6 +148,7 @@ export const ConditionalEdge = React.memo<EdgeProps<ConditionalEdgeData>>(({
         id={id}
         className="react-flow__edge-path"
         d={edgePath}
+        fill="none"
         style={edgeStyle}
         markerEnd={`url(#diamond-${id})`}
       />

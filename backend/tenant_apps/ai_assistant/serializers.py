@@ -2,7 +2,46 @@
 Serializers for AI Assistant functionality.
 """
 from rest_framework import serializers
-from .models import AIConfiguration, ChatMessage, ChatSession
+from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession
+
+
+class VectorMemorySearchRequestSerializer(serializers.Serializer):
+    embedding = serializers.ListField(child=serializers.FloatField(), allow_empty=False)
+    top_k = serializers.IntegerField(required=False, default=5, min_value=1, max_value=50)
+
+    def validate_embedding(self, value):
+        if len(value) != 1536:
+            raise serializers.ValidationError('embedding must be a 1536-length float array')
+        return value
+
+
+class VectorMemoryUpsertRequestSerializer(serializers.Serializer):
+    embedding = serializers.ListField(child=serializers.FloatField(), allow_empty=False)
+    source_type = serializers.CharField(required=False, default='context', max_length=64)
+    document_id = serializers.UUIDField(required=False, allow_null=True)
+    content = serializers.CharField(required=False, allow_blank=True, default='')
+    metadata = serializers.JSONField(required=False, default=dict)
+
+    def validate_embedding(self, value):
+        if len(value) != 1536:
+            raise serializers.ValidationError('embedding must be a 1536-length float array')
+        return value
+
+    def validate_metadata(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('metadata must be an object')
+        return value
+
+
+class PendingReviewResolveRequestSerializer(serializers.Serializer):
+    user_corrected_data = serializers.JSONField(required=False, allow_null=True)
+
+    def validate_user_corrected_data(self, value):
+        if value is None:
+            return value
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('user_corrected_data must be an object')
+        return value
 
 
 class ChatSessionListSerializer(serializers.ModelSerializer):
@@ -85,9 +124,101 @@ class ChatBotResponseSerializer(serializers.Serializer):
     metadata = serializers.JSONField(default=dict)
 
 
+class AIDocumentSerializer(serializers.ModelSerializer):
+    """Serializer for AI assistant document uploads."""
+
+    def validate_session(self, value):
+        request = self.context.get('request')
+        if not value or not request:
+            return value
+
+        if getattr(value, 'owner_id', None) != getattr(request.user, 'id', None):
+            raise serializers.ValidationError('Session not found')
+
+        return value
+
+    class Meta:
+        model = AIDocument
+        fields = [
+            'id',
+            'tenant',
+            'owner',
+            'session',
+            'file',
+            'original_filename',
+            'content_type',
+            'file_size',
+            'processing_status',
+            'created_on',
+        ]
+        read_only_fields = ['id', 'tenant', 'owner', 'content_type', 'file_size', 'created_on']
+
+
 class AIConfigurationSerializer(serializers.ModelSerializer):
     """Serializer for AI configurations."""
 
     class Meta:
         model = AIConfiguration
         fields = ["id", "name", "provider", "model_name", "is_default"]
+
+
+class VectorMemorySearchResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    source_type = serializers.CharField()
+    document_id = serializers.UUIDField(allow_null=True, required=False)
+    distance = serializers.FloatField()
+    content_preview = serializers.CharField()
+    metadata = serializers.JSONField()
+
+
+class SwarmInvokeRequestSerializer(serializers.Serializer):
+    event_type = serializers.ChoiceField(choices=['email', 'user_chat', 'webhook'])
+    payload = serializers.JSONField()
+    correlation_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate_payload(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('payload must be an object')
+        return value
+
+
+class SwarmInvokeResponseSerializer(serializers.Serializer):
+    tenant_id = serializers.UUIDField()
+    correlation_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    event_type = serializers.CharField()
+    intent = serializers.CharField()
+    urgency = serializers.CharField()
+    agent_chain = serializers.ListField(child=serializers.CharField())
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class PendingReviewItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    document_id = serializers.UUIDField()
+    document_type = serializers.CharField()
+    confidence_score = serializers.FloatField()
+    precision_delta = serializers.FloatField()
+    created_on = serializers.DateTimeField()
+    original_extracted_data = serializers.JSONField()
+
+
+class AIFeedbackLogSerializer(serializers.ModelSerializer):
+    """Model serializer for AIFeedbackLog (staff-only admin APIs)."""
+
+    class Meta:
+        model = AIFeedbackLog
+        fields = [
+            'id',
+            'tenant',
+            'document_id',
+            'document_type',
+            'original_extracted_data',
+            'user_corrected_data',
+            'confidence_score',
+            'precision_delta',
+            'resolved_by',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = ['id', 'tenant', 'precision_delta', 'created_on', 'modified_on']

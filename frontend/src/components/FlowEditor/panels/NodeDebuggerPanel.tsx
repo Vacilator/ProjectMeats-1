@@ -24,9 +24,10 @@
  * Created: 2026-02-12 - Phase 4 Node Debugger Implementation
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import Editor from '@monaco-editor/react';
+
+const MonacoEditor = React.lazy(() => import('@monaco-editor/react'));
 import { 
   Play, 
   AlertCircle, 
@@ -214,21 +215,31 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
                 </ErrorBadge>
               )}
             </EditorLabel>
-            <Editor
-              height="400px"
-              defaultLanguage="json"
-              value={mockContext}
-              onChange={(value) => setMockContext(value || '')}
-              theme="vs-dark"
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: 'on',
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                tabSize: 2,
-              }}
-            />
+            <Suspense
+              fallback={
+                <FallbackTextarea
+                  value={mockContext}
+                  onChange={(e) => setMockContext(e.target.value)}
+                  spellCheck={false}
+                />
+              }
+            >
+              <MonacoEditor
+                height="400px"
+                defaultLanguage="json"
+                value={mockContext}
+                onChange={(value) => setMockContext(value || '')}
+                theme="vs-dark"
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 13,
+                  lineNumbers: 'on',
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  tabSize: 2,
+                }}
+              />
+            </Suspense>
           </EditorContainer>
         )}
         
@@ -288,21 +299,34 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
                 {result.output !== null && (
                   <EditorContainer>
                     <EditorLabel>Output Data</EditorLabel>
-                    <Editor
-                      height="300px"
-                      defaultLanguage="json"
-                      value={JSON.stringify(result.output, null, 2)}
-                      theme="vs-dark"
-                      options={{
-                        readOnly: true,
-                        minimap: { enabled: false },
-                        fontSize: 13,
-                        lineNumbers: 'on',
-                        scrollBeyondLastLine: false,
-                        automaticLayout: true,
-                        tabSize: 2,
-                      }}
-                    />
+                    <Suspense
+                      fallback={
+                        <FallbackTextarea
+                          value={JSON.stringify(result.output, null, 2)}
+                          onChange={() => {
+                            // read-only
+                          }}
+                          spellCheck={false}
+                          readOnly
+                        />
+                      }
+                    >
+                      <MonacoEditor
+                        height="300px"
+                        defaultLanguage="json"
+                        value={JSON.stringify(result.output, null, 2)}
+                        theme="vs-dark"
+                        options={{
+                          readOnly: true,
+                          minimap: { enabled: false },
+                          fontSize: 13,
+                          lineNumbers: 'on',
+                          scrollBeyondLastLine: false,
+                          automaticLayout: true,
+                          tabSize: 2,
+                        }}
+                      />
+                    </Suspense>
                   </EditorContainer>
                 )}
               </>
@@ -506,6 +530,20 @@ const ContentContainer = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+`;
+
+const FallbackTextarea = styled.textarea`
+  width: 100%;
+  min-height: 300px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
 `;
 
 const EditorContainer = styled.div`

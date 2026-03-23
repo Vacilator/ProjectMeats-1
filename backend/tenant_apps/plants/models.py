@@ -5,14 +5,12 @@ Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 
 from django.db import models
-from apps.core.models import TenantManager
+from apps.core.models import TenantManager, TenantAwareModel
 from django.contrib.auth.models import User
 from apps.tenants.models import Tenant
 
 
-class Plant(models.Model):
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
+class Plant(TenantAwareModel):
     PLANT_TYPE_CHOICES = [
         ("processing", "Processing Plant"),
         ("distribution", "Distribution Center"),
@@ -20,14 +18,6 @@ class Plant(models.Model):
         ("retail", "Retail Location"),
         ("other", "Other"),
     ]
-
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="plants",
-        help_text="Tenant this plant belongs to"
-    )
 
     # Parent entity relationship (Phase 4: Contextual Supplier Selection)
     supplier = models.ForeignKey(
@@ -37,6 +27,26 @@ class Plant(models.Model):
         null=True,
         blank=True,
         help_text="Supplier that owns/operates this plant"
+    )
+
+    # Known products (legacy: system.Product)
+    associated_products = models.ManyToManyField(
+        'system.Product',
+        through='PlantAssociatedProduct',
+        related_name='sold_by_plants',
+        blank=True,
+        verbose_name='Known Products Sold',
+        help_text='Legacy system.Product associations (deprecated).',
+    )
+
+    # Known products (new: tenant-scoped MasterProduct)
+    associated_master_products = models.ManyToManyField(
+        'products.MasterProduct',
+        through='PlantAssociatedMasterProduct',
+        related_name='known_by_plants',
+        blank=True,
+        verbose_name='Known Master Products',
+        help_text='Master products commonly sold/produced by this plant.',
     )
 
     name = models.CharField(max_length=200)
@@ -79,3 +89,61 @@ class Plant(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+
+class PlantAssociatedProduct(TenantAwareModel):
+    """Tenant-safe link table for Plant ↔ system.Product affinity (deprecated)."""
+
+    plant = models.ForeignKey(
+        Plant,
+        on_delete=models.CASCADE,
+        related_name='associated_product_links',
+    )
+    product = models.ForeignKey(
+        'system.Product',
+        on_delete=models.CASCADE,
+        related_name='plant_affinity_links',
+    )
+
+    class Meta:
+        verbose_name = 'Plant Known Product'
+        verbose_name_plural = 'Plant Known Products'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'plant', 'product'],
+                name='unique_plant_product_affinity_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'plant']),
+            models.Index(fields=['tenant', 'product']),
+        ]
+
+
+class PlantAssociatedMasterProduct(TenantAwareModel):
+    """Tenant-safe link table for Plant ↔ products.MasterProduct affinity."""
+
+    plant = models.ForeignKey(
+        Plant,
+        on_delete=models.CASCADE,
+        related_name='associated_master_product_links',
+    )
+    master_product = models.ForeignKey(
+        'products.MasterProduct',
+        on_delete=models.CASCADE,
+        related_name='plant_affinity_links',
+    )
+
+    class Meta:
+        verbose_name = 'Plant Known Master Product'
+        verbose_name_plural = 'Plant Known Master Products'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'plant', 'master_product'],
+                name='unique_plant_master_product_affinity_per_tenant',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'plant']),
+            models.Index(fields=['tenant', 'master_product']),
+        ]

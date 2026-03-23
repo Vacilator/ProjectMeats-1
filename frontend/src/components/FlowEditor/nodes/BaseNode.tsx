@@ -7,13 +7,14 @@
  * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
  * Updated: 2026-02-09 - Added edit/delete controls and expand/collapse (Batch 3)
  * Updated: 2026-02-17 - Added badges, icons, pinning (Sprint 1 Task 1.2)
+ * Updated: 2026-02-25 - Agent C Phase 2: Live validation badges (Task polish-live-validation-badges)
  */
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Handle, Position } from '@xyflow/react';
-import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react';
+import { Handle, Position, NodeToolbar, useStore } from '@xyflow/react';
+import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock, Plus } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
-import { NodeBadge, NodeBadgeStatus } from '../components/NodeBadge';
+import type { NodeBadgeStatus } from '../components/NodeBadge';
 import { NodeIcon, NodeIconType } from '../components/NodeIcons';
 
 // ============================================================================
@@ -31,6 +32,14 @@ export interface BaseNodeData {
   onEdit?: () => void; // Batch 3: Edit handler
   onDelete?: () => void; // Batch 3: Delete handler
   onTitleChange?: (newTitle: string) => void; // Batch 4: Title edit handler
+  /** Open the node palette in "insert after this node" context */
+  onInsertAfter?: () => void;
+  /** Add a step/page inside the nearest Form container (Book) */
+  onAddStepInsideForm?: () => void;
+  /** Whether this node is considered a "sink" in its scope (root or container sub-flow) */
+  isLastInWorkflow?: boolean;
+  // Phase 9.4: Breakpoints
+  hasBreakpoint?: boolean;
   // Sprint 1 Task 1.2: Enhanced visuals
   badge?: { status: NodeBadgeStatus; count?: number; message?: string };
   iconType?: NodeIconType;
@@ -47,6 +56,8 @@ export interface BaseNodeProps {
   data: BaseNodeData;
   selected?: boolean;
   nodeType: NodeTypeDefinition;
+  /** Optional override for the header drag handle class */
+  dragHandleClassName?: string;
 }
 
 // ============================================================================
@@ -201,22 +212,17 @@ const ConfigPreview = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
-const StatusIndicator = styled.div<{ $status: string }>`
+const BreakpointDot = styled.div`
   position: absolute;
   top: -6px;
-  right: -6px;
+  left: -6px;
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: 999px;
   border: 2px solid rgb(var(--color-surface));
-  background: ${props => {
-    switch (props.$status) {
-      case 'active': return 'rgb(34, 197, 94)'; // green
-      case 'error': return 'rgb(239, 68, 68)'; // red
-      case 'disabled': return 'rgb(148, 163, 184)'; // gray
-      default: return 'rgb(234, 179, 8)'; // yellow (draft)
-    }
-  }};
+  background: rgb(var(--color-error));
+  box-shadow: 0 2px 8px rgba(var(--color-error), 0.35);
+  z-index: 12;
 `;
 
 const ErrorMessage = styled.div`
@@ -230,60 +236,105 @@ const ErrorMessage = styled.div`
 `;
 
 const StyledHandle = styled(Handle)<{ $color: string }>`
-  width: 10px;
-  height: 10px;
-  background: ${props => props.$color};
+  width: 14px;
+  height: 14px;
+  background: ${(props) => props.$color};
   border: 2px solid rgb(var(--color-surface));
-  
+  border-radius: 4px;
+  cursor: crosshair;
+  z-index: 20;
+
+  /* Push handles outside node body to avoid overlapping internal controls */
+  &.react-flow__handle-top,
+  &[data-handlepos='top'] {
+    top: -14px;
+  }
+
+  &.react-flow__handle-bottom,
+  &[data-handlepos='bottom'] {
+    bottom: -14px;
+  }
+
   &:hover {
-    width: 14px;
-    height: 14px;
+    transform: scale(1.1);
   }
 `;
 
-// Batch 3: Node Controls
-const NodeControls = styled.div`
-  position: absolute;
-  top: 8px;
-  right: 8px;
+const ToolbarCard = styled.div`
   display: flex;
   gap: 4px;
-  opacity: 1; /* Always visible */
-  transition: opacity 0.2s ease;
-  z-index: 10; /* Ensure buttons appear above other elements */
+  background: rgb(var(--color-surface));
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 `;
 
-const ControlButton = styled.button<{ $variant?: 'edit' | 'delete' | 'expand' | 'pin' }>`
+const ToolbarBtn = styled.button<{ $danger?: boolean }>`
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-text-secondary))')};
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: ${(props) =>
+      props.$danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(var(--color-primary), 0.1)'};
+    color: ${(props) => (props.$danger ? 'rgb(239, 68, 68)' : 'rgb(var(--color-primary))')};
+  }
+`;
+
+// Button Handle overrides standard dot
+const ButtonHandle = styled(Handle)`
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.95);
-  color: ${props => {
-    if (props.$variant === 'delete') return 'rgb(239, 68, 68)';
-    if (props.$variant === 'edit') return 'rgb(var(--color-primary))';
-    if (props.$variant === 'pin') return 'rgb(99, 102, 241)'; // Indigo
-    return 'rgb(var(--color-text-secondary))';
-  }};
+  background: rgb(var(--color-surface));
+  border: 2px solid rgb(var(--color-primary));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: transform 0.15s ease, background 0.15s ease;
+
+  &::after {
+    content: '+';
+    color: rgb(var(--color-primary));
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  &:hover {
+    transform: scale(1.1);
+    background: rgb(var(--color-primary));
+
+    &::after {
+      color: white;
+    }
+  }
+`;
+
+const ControlButton = styled.button`
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-secondary));
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   transition: all 0.15s ease;
-  
+
   &:hover {
-    transform: scale(1.1);
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-  
-  &:active {
-    transform: scale(0.95);
-  }
-  
-  svg {
-    width: 14px;
-    height: 14px;
+    background: rgba(var(--color-primary), 0.08);
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
   }
 `;
 
@@ -309,6 +360,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   data,
   selected = false,
   nodeType,
+  dragHandleClassName,
   children,
 }) => {
   const {
@@ -322,15 +374,11 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     onEdit,
     onDelete,
     onTitleChange,
+    hasBreakpoint = false,
     // Sprint 1 Task 1.2: Enhanced visuals
-    badge,
     iconType,
     isPinned = false,
     onPin,
-    errorCount,
-    warningCount,
-    successCount,
-    isProcessing = false,
   } = data;
   
   // Phase 2: Determine if node has uncommitted changes
@@ -338,31 +386,24 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
   
   // Batch 3: Expand/collapse state
   const [isExpanded, setIsExpanded] = useState(true);
-  
+
+  const connectionInProcess = useStore((s: any) => Boolean(s.connectionInProcess));
+
   // Batch 4: Title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(label);
   
   // Sprint 1: Drag state
   const [isDragging, setIsDragging] = useState(false);
+  
+  const headerDragHandleClass = dragHandleClassName ?? 'custom-drag-handle';
 
   const showInputHandle = nodeType.maxInputs !== 0;
   const showOutputHandle = nodeType.maxOutputs !== 0;
-  
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault(); // Also prevent default to be extra safe
-    console.log('🔘 [BaseNode] Edit button clicked - calling onEdit');
-    if (onEdit) onEdit();
-  };
-  
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onDelete && window.confirm('Delete this node?')) {
-      onDelete();
-    }
-  };
-  
+
+  const showButtonHandle = selected || connectionInProcess || Boolean((data as any)?.isLastInWorkflow);
+  const showToolbar = selected;
+
   const handlePin = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onPin) onPin();
@@ -401,17 +442,6 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
     }
   };
   
-  // Sprint 1: Determine badge to show (priority: processing > error > warning > success)
-  const getBadgeToShow = () => {
-    if (badge) return badge; // Explicit badge takes precedence
-    if (isProcessing) return { status: 'processing' as NodeBadgeStatus };
-    if (errorCount && errorCount > 0) return { status: 'error' as NodeBadgeStatus, count: errorCount };
-    if (warningCount && warningCount > 0) return { status: 'warning' as NodeBadgeStatus, count: warningCount };
-    if (successCount && successCount > 0) return { status: 'success' as NodeBadgeStatus, count: successCount };
-    return null;
-  };
-  
-  const badgeToShow = getBadgeToShow();
 
   return (
     <NodeContainer 
@@ -423,11 +453,15 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       $isDragging={isDragging}
       onDragStart={() => setIsDragging(true)}
       onDragEnd={() => setIsDragging(false)}
+
       role="article"
       aria-label={`${nodeType.name} node: ${data.label || 'Untitled'}`}
       aria-selected={selected}
       tabIndex={0}
     >
+      {/* Phase 9.4: Breakpoint indicator */}
+      {hasBreakpoint && <BreakpointDot title="Breakpoint" />}
+
       {/* Input Handle */}
       {showInputHandle && (
         <StyledHandle
@@ -436,60 +470,75 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           id="input"
           $color={nodeType.color}
           aria-label="Input connection handle"
+          style={{
+            left: '18px',
+          }}
         />
       )}
       
-      {/* Sprint 1: Status Badge */}
-      {badgeToShow && (
-        <NodeBadge
-          status={badgeToShow.status}
-          count={badgeToShow.count}
-          message={badgeToShow.message}
-          position="top-right"
-        />
-      )}
 
       {/* Status Indicator - REMOVED (confusing yellow dot) */}
       
-      {/* Node Controls (Batch 3 + Sprint 1 Pin) */}
-      <NodeControls>
-        {onPin && (
-          <ControlButton 
-            $variant="pin" 
-            onClick={handlePin}
-            title={isPinned ? "Unlock node (allow drag)" : "Lock node position (Cmd/Ctrl+L)"}
-          >
-            {isPinned ? <Lock /> : <Unlock />}
-          </ControlButton>
-        )}
-        {onEdit && (
-          <ControlButton 
-            $variant="edit" 
-            onClick={handleEdit}
-            title="Edit node configuration"
-            aria-label={`Edit ${data.label || 'node'} configuration`}
-            role="button"
-            tabIndex={0}
-          >
-            <Edit2 aria-hidden="true" />
-          </ControlButton>
-        )}
-        {onDelete && (
-          <ControlButton 
-            $variant="delete" 
-            onClick={handleDelete}
-            title="Delete node"
-            aria-label={`Delete ${data.label || 'node'}`}
-            role="button"
-            tabIndex={0}
-          >
-            <Trash2 aria-hidden="true" />
-          </ControlButton>
-        )}
-      </NodeControls>
+      <NodeToolbar isVisible={selected} position={Position.Top}>
+        <ToolbarCard
+          className="nodrag"
+          style={{
+            opacity: showToolbar ? 1 : 0,
+            transform: `translateY(${showToolbar ? 0 : -4}px) scale(${showToolbar ? 1 : 0.98})`,
+            pointerEvents: showToolbar ? 'auto' : 'none',
+            transition: 'opacity 0.15s ease, transform 0.15s ease',
+          }}
+        >
+          {(data.onAddStepInsideForm || data.onInsertAfter) && (
+            <ToolbarBtn
+              onClick={(e) => {
+                e.stopPropagation();
+                (data.onAddStepInsideForm || data.onInsertAfter)?.();
+              }}
+              title={data.onAddStepInsideForm ? 'Add step inside Form' : 'Add next node'}
+            >
+              <Plus size={16} />
+            </ToolbarBtn>
+          )}
+          {data.onEdit && (
+            <ToolbarBtn
+              onClick={(e) => {
+                e.stopPropagation();
+                data.onEdit!();
+              }}
+              title="Edit Node"
+            >
+              <Edit2 size={16} />
+            </ToolbarBtn>
+          )}
+          {data.onDelete && (
+            <ToolbarBtn
+              $danger
+              onClick={(e) => {
+                e.stopPropagation();
+                data.onDelete!();
+              }}
+              title="Delete Node"
+            >
+              <Trash2 size={16} />
+            </ToolbarBtn>
+          )}
+          {onPin && (
+            <ToolbarBtn
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePin(e);
+              }}
+              title={isPinned ? 'Unlock node (allow drag)' : 'Lock node position (Cmd/Ctrl+L)'}
+            >
+              {isPinned ? <Lock size={16} /> : <Unlock size={16} />}
+            </ToolbarBtn>
+          )}
+        </ToolbarCard>
+      </NodeToolbar>
 
       {/* Header */}
-      <NodeHeader $color={nodeType.color}>
+      <NodeHeader className={headerDragHandleClass} $color={nodeType.color}>
         <NodeIconWrapper>
           {iconType ? (
             <NodeIcon type={iconType} size={16} color="white" />
@@ -499,6 +548,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
         </NodeIconWrapper>
         {isEditingTitle ? (
           <NodeTitleInput
+            className="nodrag"
             value={editedTitle}
             onChange={handleTitleChange}
             onBlur={handleTitleBlur}
@@ -521,7 +571,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Body (collapsible) */}
       {isExpanded && (
-        <NodeBody>
+        <NodeBody className="nodrag">
           <NodeContent>
             {children || (
               <>
@@ -549,7 +599,8 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       
       {/* Expand/Collapse Button (Batch 3) */}
       {(children || config || errorMessage) && (
-        <ExpandButton 
+        <ExpandButton
+          className="nodrag"
           onClick={toggleExpand}
           title={isExpanded ? "Collapse" : "Expand"}
         >
@@ -559,12 +610,17 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
 
       {/* Output Handle */}
       {showOutputHandle && (
-        <StyledHandle
+        <ButtonHandle
           type="source"
-          position={Position.Bottom}
+          position={Position.Right}
           id="output"
-          $color={nodeType.color}
+          isConnectable={true}
           aria-label="Output connection handle"
+          style={{
+            top: nodeType.hasErrorRoute ? '40%' : '50%',
+            opacity: showButtonHandle ? 1 : 0,
+            pointerEvents: showButtonHandle ? 'all' : 'none',
+          }}
         />
       )}
       
@@ -575,7 +631,12 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           position={Position.Right}
           id="error"
           $color="rgb(239, 68, 68)"
-          style={{ top: '50%' }}
+          style={{
+            top: '70%',
+            width: '16px',
+            height: '16px',
+            cursor: 'crosshair',
+          }}
           aria-label="Error route connection handle"
         />
       )}

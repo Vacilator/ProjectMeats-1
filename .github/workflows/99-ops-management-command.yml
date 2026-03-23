@@ -23,9 +23,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check_infrastructure:
+    name: "Check Infrastructure (Golden Drift Gate)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Run infrastructure checks
+        run: bash .github/scripts/check_infrastructure.sh
+
   execute-command:
     name: Run "${{ inputs.command }}" on ${{ inputs.environment }}
     runs-on: ubuntu-latest
+    needs: [check_infrastructure]
     environment: ${{ inputs.environment }}-backend
     steps:
       - name: Setup SSH
@@ -39,24 +53,39 @@ jobs:
         id: context
         run: |
           {
-            if [ "${{ inputs.environment }}" == "prod" ]; then
+            # Prefer environment-scoped canonical names (env.manifest.json):
+            #   SSH_HOST / SSH_USER / SSH_PASSWORD / SSH_KEY
+            # Fall back to legacy/prefixed names if canonical aren't present.
+            if [ -n "${{ secrets.SSH_HOST }}" ] && [ -n "${{ secrets.SSH_USER }}" ]; then
+              echo "HOST=\"${{ secrets.SSH_HOST }}\""
+              echo "USER=\"${{ secrets.SSH_USER }}\""
+            elif [ "${{ inputs.environment }}" == "prod" ]; then
               echo "HOST=\"${{ secrets.PRODUCTION_HOST }}\""
               echo "USER=\"${{ secrets.PRODUCTION_USER }}\""
-              echo "PASS=\"${{ secrets.SSH_PASSWORD }}\""
             elif [ "${{ inputs.environment }}" == "uat" ]; then
               echo "HOST=\"${{ secrets.STAGING_HOST }}\""
               echo "USER=\"${{ secrets.STAGING_USER }}\""
-              echo "PASS=\"${{ secrets.SSH_PASSWORD }}\""
             else
               echo "HOST=\"${{ secrets.DEV_HOST }}\""
               echo "USER=\"${{ secrets.DEV_USER }}\""
+            fi
+
+            # Password selection:
+            # - Prefer canonical SSH_PASSWORD if set
+            # - Fall back to DEV_SSH_PASSWORD for dev only
+            if [ -n "${{ secrets.SSH_PASSWORD }}" ]; then
+              echo "PASS=\"${{ secrets.SSH_PASSWORD }}\""
+            elif [ "${{ inputs.environment }}" == "dev" ] && [ -n "${{ secrets.DEV_SSH_PASSWORD }}" ]; then
               echo "PASS=\"${{ secrets.DEV_SSH_PASSWORD }}\""
+            else
+              echo "PASS=\"\""
             fi
           } >> "$GITHUB_OUTPUT"
 
       - name: Execute Remote Command
         env:
           SSHPASS: ${{ steps.context.outputs.PASS }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
           # Django standard environment variables (if provided)
           DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
           DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
@@ -72,65 +101,82 @@ jobs:
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
+          set -euo pipefail
+
           HOST="${{ steps.context.outputs.HOST }}"
           USER="${{ steps.context.outputs.USER }}"
           CMD="${{ inputs.command }}"
-          
+
           echo "🚀 Executing: $CMD"
           echo "📍 Target: $USER@$HOST"
           echo "🌍 Environment: ${{ inputs.environment }}-backend"
-          
+
           # SAFETY CHECK: Strip 'python manage.py' if user accidentally included it
           CLEAN_CMD=$(echo "$CMD" | sed 's/^python manage.py //')
-          
+
           if [ "$CMD" != "$CLEAN_CMD" ]; then
             echo "⚠️  Auto-corrected command input (removed redundant prefix)"
           fi
-          
+
           # Build environment variable injection string for docker exec
           ENV_VARS=""
-          
+
           # Add Django superuser variables if provided (for init_tenant, createsuperuser, etc.)
-          if [ -n "$DJANGO_SUPERUSER_USERNAME" ]; then
+          if [ -n "${DJANGO_SUPERUSER_USERNAME:-}" ]; then
             ENV_VARS="$ENV_VARS -e DJANGO_SUPERUSER_USERNAME=\"$DJANGO_SUPERUSER_USERNAME\""
           fi
-          if [ -n "$DJANGO_SUPERUSER_EMAIL" ]; then
+          if [ -n "${DJANGO_SUPERUSER_EMAIL:-}" ]; then
             ENV_VARS="$ENV_VARS -e DJANGO_SUPERUSER_EMAIL=\"$DJANGO_SUPERUSER_EMAIL\""
           fi
-          if [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+          if [ -n "${DJANGO_SUPERUSER_PASSWORD:-}" ]; then
             ENV_VARS="$ENV_VARS -e DJANGO_SUPERUSER_PASSWORD=\"$DJANGO_SUPERUSER_PASSWORD\""
           fi
-          
+
           # Add core Django settings
-          if [ -n "$SECRET_KEY" ]; then
+          if [ -n "${SECRET_KEY:-}" ]; then
             ENV_VARS="$ENV_VARS -e SECRET_KEY=\"$SECRET_KEY\""
           fi
-          if [ -n "$DJANGO_SETTINGS_MODULE" ]; then
+          if [ -n "${DJANGO_SETTINGS_MODULE:-}" ]; then
             ENV_VARS="$ENV_VARS -e DJANGO_SETTINGS_MODULE=\"$DJANGO_SETTINGS_MODULE\""
           fi
-          
+
           # Add database configuration
-          if [ -n "$DATABASE_URL" ]; then
+          if [ -n "${DATABASE_URL:-}" ]; then
             ENV_VARS="$ENV_VARS -e DATABASE_URL=\"$DATABASE_URL\""
           fi
-          if [ -n "$DB_NAME" ]; then
+          if [ -n "${DB_NAME:-}" ]; then
             ENV_VARS="$ENV_VARS -e DB_NAME=\"$DB_NAME\""
           fi
-          if [ -n "$DB_USER" ]; then
+          if [ -n "${DB_USER:-}" ]; then
             ENV_VARS="$ENV_VARS -e DB_USER=\"$DB_USER\""
           fi
-          if [ -n "$DB_PASSWORD" ]; then
+          if [ -n "${DB_PASSWORD:-}" ]; then
             ENV_VARS="$ENV_VARS -e DB_PASSWORD=\"$DB_PASSWORD\""
           fi
-          if [ -n "$DB_HOST" ]; then
+          if [ -n "${DB_HOST:-}" ]; then
             ENV_VARS="$ENV_VARS -e DB_HOST=\"$DB_HOST\""
           fi
-          if [ -n "$DB_PORT" ]; then
+          if [ -n "${DB_PORT:-}" ]; then
             ENV_VARS="$ENV_VARS -e DB_PORT=\"$DB_PORT\""
           fi
-          
+
           echo "📦 Injecting environment variables into container..."
-          
-          # Execute command with environment variables
-          sshpass -e ssh -o StrictHostKeyChecking=no $USER@$HOST \
-          "docker exec $ENV_VARS pm-backend python manage.py $CLEAN_CMD"
+
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+          if [ -n "${SSH_KEY:-}" ]; then
+            KEY_FILE="$HOME/.ssh/ops_key"
+            printf '%s\n' "$SSH_KEY" > "$KEY_FILE"
+            chmod 600 "$KEY_FILE"
+
+            ssh -i "$KEY_FILE" -o IdentitiesOnly=yes $SSH_OPTS "$USER@$HOST" \
+              "docker exec $ENV_VARS pm-backend python manage.py $CLEAN_CMD"
+          else
+            if [ -z "${SSHPASS:-}" ]; then
+              echo "::error::No SSH auth available (set SSH_PASSWORD or SSH_KEY in the environment secrets)."
+              exit 1
+            fi
+
+            sshpass -e ssh $SSH_OPTS "$USER@$HOST" \
+              "docker exec $ENV_VARS pm-backend python manage.py $CLEAN_CMD"
+          fi

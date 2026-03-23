@@ -5,5 +5,9 @@
  */
 export { CommandBar } from './CommandBar';
 export { SmartSearch } from './SmartSearch';
-export type { SearchEntity, RelationalChunk, BreadcrumbItem, SmartSearchProps } from './SmartSearch';
+export { BreadcrumbBar } from './BreadcrumbBar';
+export { EntityProfileHeader } from './EntityProfileHeader';
+export { AIOverviewCard } from './AIOverviewCard';
+export { CockpitTour, resetCockpitTour, hasCompletedTour } from './CockpitTour';
+export type { SearchEntity, RelationalChunk, SmartSearchProps } from './SmartSearch';
 export type { CommandBarProps } from './CommandBar';

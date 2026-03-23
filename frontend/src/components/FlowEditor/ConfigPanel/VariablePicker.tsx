@@ -41,6 +41,7 @@ import {
   List, 
   FileText,
   ArrowRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { WorkflowContext, AvailableDataNode } from '../../FormSubmission/hooks/useWorkflowContext';
 import {
@@ -149,6 +150,24 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
   
+  const nodeIndexById = useMemo(() => {
+    const m = new Map<string, number>();
+    context.nodes.forEach((n, idx) => m.set(n.id, idx));
+    return m;
+  }, [context.nodes]);
+
+  const currentNodeIndex = useMemo(() => {
+    if (!context.currentNodeId) return -1;
+    return nodeIndexById.get(context.currentNodeId) ?? -1;
+  }, [context.currentNodeId, nodeIndexById]);
+
+  const isPotentiallyOutOfScope = (nodeId: string) => {
+    if (currentNodeIndex < 0) return false;
+    const idx = nodeIndexById.get(nodeId);
+    if (typeof idx !== 'number') return true;
+    return idx >= currentNodeIndex;
+  };
+
   // Filter and flatten available variables
   const filteredVariables = useMemo(() => {
     const variables: Array<{
@@ -159,6 +178,7 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
       fieldLabel: string;
       fieldType: string;
       template: string;
+      potentiallyOutOfScope: boolean;
     }> = [];
     
     context.availableData.forEach(node => {
@@ -181,12 +201,13 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
           fieldLabel: field.label || field.key,
           fieldType: field.type || 'string',
           template,
+          potentiallyOutOfScope: isPotentiallyOutOfScope(node.nodeId),
         });
       });
     });
     
     return variables;
-  }, [context.availableData, search]);
+  }, [context.availableData, search, currentNodeIndex, nodeIndexById]);
   
   // Group variables by node
   const groupedVariables = useMemo(() => {
@@ -294,6 +315,13 @@ export const VariablePicker: React.FC<VariablePickerProps> = ({
                         <VariableLabel>{variable.fieldLabel}</VariableLabel>
                         <VariableKey>{variable.fieldKey}</VariableKey>
                       </VariableContent>
+                      {variable.potentiallyOutOfScope && (
+                        <ScopeWarning
+                          title="Warning: This variable may not be evaluated before this step executes."
+                        >
+                          <AlertTriangle size={14} />
+                        </ScopeWarning>
+                      )}
                       <ArrowRight size={14} style={{ opacity: 0.3 }} />
                     </VariableItem>
                   );
@@ -449,6 +477,13 @@ const VariableKey = styled.div`
   font-family: 'Monaco', 'Menlo', monospace;
   color: rgb(var(--color-text-secondary));
   opacity: 0.7;
+`;
+
+const ScopeWarning = styled.span`
+  display: flex;
+  align-items: center;
+  color: rgb(234, 179, 8);
+  opacity: 0.9;
 `;
 
 const PickerFooter = styled.div`

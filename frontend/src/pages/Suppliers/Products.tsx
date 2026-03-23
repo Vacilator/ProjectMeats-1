@@ -1,36 +1,33 @@
 /**
- * Supplier Products Management Page
+ * Supplier Available Products Management Page
  * 
- * Features:
- * - Display products associated with a specific supplier
- * - Table layout with sorting, pagination, and search
- * - Add/remove product associations
- * - Links to product details
- * - Theme-compliant styling with antd Table
- * - Multi-tenancy support
+ * Manages the list of system products that a supplier has available.
+ * Uses SupplierAvailableItem model (supplier + system.Product).
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Table, Input, Button, Modal, message, Tag, Space, Spin } from 'antd';
+import { Table, Input, Button, Modal, message, Tag, Space, Spin, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
+import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 
-// ============================================================================
-// TypeScript Interfaces
-// ============================================================================
-
-interface Product {
+interface AvailableItem {
   id: number;
+  product: string;
   product_code: string;
-  description_of_product_item: string;
-  type_of_protein?: string;
-  fresh_or_frozen?: string;
-  package_type?: string;
-  unit_weight?: number;
-  supplier?: number;
-  supplier_name?: string;
+  product_name: string;
+  protein_type?: string;
+  is_active: boolean;
+}
+
+interface SystemProduct {
+  id: string;
+  product_code: string;
+  name: string;
+  protein_type?: string;
+  category?: string;
   is_active?: boolean;
 }
 
@@ -38,10 +35,6 @@ interface Supplier {
   id: number;
   name: string;
 }
-
-// ============================================================================
-// Styled Components (Theme-Compliant)
-// ============================================================================
 
 const PageContainer = styled.div`
   display: flex;
@@ -129,22 +122,24 @@ const LoadingContainer = styled.div`
   height: 300px;
 `;
 
-// ============================================================================
-// Main Component
-// ============================================================================
-
 const SupplierProducts: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // State
-  const [products, setProducts] = useState<Product[]>([]);
+  const [items, setItems] = useState<AvailableItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState<string>('');
   const [supplier, setSupplier] = useState<Supplier | null>(null);
 
-  // Get supplier from location state or fetch
+  // Add modal state
+  const [addModalVisible, setAddModalVisible] = useState<boolean>(false);
+  const [systemProducts, setSystemProducts] = useState<SystemProduct[]>([]);
+  const [productSearchText, setProductSearchText] = useState<string>('');
+  const [loadingSystemProducts, setLoadingSystemProducts] = useState<boolean>(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [addingProducts, setAddingProducts] = useState<boolean>(false);
+
   useEffect(() => {
     if (location.state?.supplier) {
       setSupplier(location.state.supplier);
@@ -153,7 +148,10 @@ const SupplierProducts: React.FC = () => {
     }
   }, [id, location.state]);
 
-  // Fetch supplier details
+  useEffect(() => {
+    if (id) fetchItems();
+  }, [id]);
+
   const fetchSupplier = async () => {
     if (!id) return;
     try {
@@ -165,105 +163,124 @@ const SupplierProducts: React.FC = () => {
     }
   };
 
-  // Fetch products
-  useEffect(() => {
-    if (id) {
-      fetchProducts();
-    }
-  }, [id]);
-
-  const fetchProducts = async () => {
+  const fetchItems = async () => {
     if (!id) return;
     setLoading(true);
     try {
       const response = await apiClient.get(`/suppliers/${id}/products/`);
-      setProducts(response.data);
+      setItems(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching products:', error);
-      message.error('Failed to load products');
+      console.error('Error fetching available products:', error);
+      message.error('Failed to load available products');
     } finally {
       setLoading(false);
     }
   };
 
-  // Remove product association
-  const handleRemoveProduct = async (productId: number) => {
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // system.Product is a shared tenant-agnostic catalog — no tenant filter needed
+  const [proteinFilter, setProteinFilter] = useState<string[]>([]);
+
+  const fetchSystemProducts = useCallback(async (search?: string) => {
+    setLoadingSystemProducts(true);
+    try {
+      const params: Record<string, any> = { page_size: '500', is_active: true };
+      if (search) params.search = search;
+      if (proteinFilter.length) params.protein = proteinFilter.map((t) => String(t).toLowerCase());
+      const response = await apiClient.get('/system/products/', { params });
+      const data = Array.isArray(response.data) ? response.data : (response.data?.results || []);
+      setSystemProducts(data);
+    } catch (error) {
+      console.error('Error fetching system products:', error);
+      message.error('Failed to load product catalog');
+    } finally {
+      setLoadingSystemProducts(false);
+    }
+  }, [proteinFilter]); // apiClient, message, and state setters are all stable references
+
+  const debouncedFetchSystemProducts = useCallback((search: string) => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => fetchSystemProducts(search), 350);
+  }, [fetchSystemProducts]);
+
+  useEffect(() => {
+    if (addModalVisible) {
+      void fetchSystemProducts(productSearchText);
+    }
+  }, [addModalVisible, fetchSystemProducts, productSearchText, proteinFilter.join('|')]);
+
+  const handleAddProducts = async () => {
+    if (!selectedProductIds.length) {
+      message.warning('Please select at least one product');
+      return;
+    }
+    setAddingProducts(true);
+    try {
+      await Promise.all(
+        selectedProductIds.map(productId =>
+          apiClient.post(`/suppliers/${id}/available-products/`, { product: productId })
+        )
+      );
+      message.success(`Added ${selectedProductIds.length} product(s) successfully`);
+      setAddModalVisible(false);
+      setSelectedProductIds([]);
+      fetchItems();
+    } catch (error) {
+      console.error('Error adding products:', error);
+      message.error('Failed to add products');
+    } finally {
+      setAddingProducts(false);
+    }
+  };
+
+  const handleRemoveItem = async (item: AvailableItem) => {
     Modal.confirm({
-      title: 'Remove Product Association',
-      content: 'Are you sure you want to remove this product from this supplier?',
+      title: 'Remove Available Product',
+      content: `Remove "${item.product_name || item.product_code}" from this supplier's available products?`,
       okText: 'Remove',
       okType: 'danger',
       onOk: async () => {
         try {
-          // Update supplier to remove product from M2M
-          await apiClient.patch(`/suppliers/${id}/`, {
-            products: products.filter(p => p.id !== productId).map(p => p.id)
-          });
-          message.success('Product association removed successfully');
-          fetchProducts();
+          await apiClient.delete(`/suppliers/${id}/available-products/${item.product}/`);
+          message.success('Product removed successfully');
+          fetchItems();
         } catch (error) {
           console.error('Error removing product:', error);
-          message.error('Failed to remove product association');
+          message.error('Failed to remove product');
         }
       },
     });
   };
 
-  // Navigate back to supplier
-  const handleBackToSupplier = () => {
-    navigate('/suppliers');
-  };
+  const filteredItems = items.filter(item => {
+    if (!searchText) return true;
+    const s = searchText.toLowerCase();
+    return (
+      (item.product_code || '').toLowerCase().includes(s) ||
+      (item.product_name || '').toLowerCase().includes(s) ||
+      (item.protein_type || '').toLowerCase().includes(s)
+    );
+  });
 
-  // Table columns
-  const columns: ColumnsType<Product> = [
+  const columns: ColumnsType<AvailableItem> = [
     {
       title: 'Product Code',
       dataIndex: 'product_code',
       key: 'product_code',
-      sorter: (a, b) => a.product_code.localeCompare(b.product_code),
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value, record) => {
-        const search = value.toString().toLowerCase();
-        return (
-          record.product_code.toLowerCase().includes(search) ||
-          record.description_of_product_item.toLowerCase().includes(search)
-        );
-      },
+      sorter: (a, b) => (a.product_code || '').localeCompare(b.product_code || ''),
     },
     {
-      title: 'Description',
-      dataIndex: 'description_of_product_item',
-      key: 'description',
+      title: 'Product Name',
+      dataIndex: 'product_name',
+      key: 'product_name',
       ellipsis: true,
     },
     {
       title: 'Protein Type',
-      dataIndex: 'type_of_protein',
-      key: 'protein',
-      filters: [
-        { text: 'Beef', value: 'Beef' },
-        { text: 'Chicken', value: 'Chicken' },
-        { text: 'Pork', value: 'Pork' },
-        { text: 'Lamb', value: 'Lamb' },
-      ],
-      onFilter: (value, record) => record.type_of_protein === value,
-    },
-    {
-      title: 'Fresh/Frozen',
-      dataIndex: 'fresh_or_frozen',
-      key: 'fresh_frozen',
-      filters: [
-        { text: 'Fresh', value: 'Fresh' },
-        { text: 'Frozen', value: 'Frozen' },
-      ],
-      onFilter: (value, record) => record.fresh_or_frozen === value,
-    },
-    {
-      title: 'Unit Weight',
-      dataIndex: 'unit_weight',
-      key: 'weight',
-      render: (weight: number) => weight ? `${weight} lbs` : '-',
-      sorter: (a, b) => (a.unit_weight || 0) - (b.unit_weight || 0),
+      dataIndex: 'protein_type',
+      key: 'protein_type',
+      render: (val: string) => val ? <Tag>{val}</Tag> : '-',
     },
     {
       title: 'Status',
@@ -274,11 +291,6 @@ const SupplierProducts: React.FC = () => {
           {isActive ? 'Active' : 'Inactive'}
         </Tag>
       ),
-      filters: [
-        { text: 'Active', value: true },
-        { text: 'Inactive', value: false },
-      ],
-      onFilter: (value, record) => record.is_active === value,
     },
     {
       title: 'Actions',
@@ -291,7 +303,7 @@ const SupplierProducts: React.FC = () => {
             type="link"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => handleRemoveProduct(record.id)}
+            onClick={() => handleRemoveItem(record)}
             size="small"
           >
             Remove
@@ -305,28 +317,25 @@ const SupplierProducts: React.FC = () => {
     <PageContainer>
       <PageHeader>
         <TitleSection>
-          <PageTitle>Supplier Products</PageTitle>
+          <PageTitle>Supplier Available Products</PageTitle>
           <PageSubtitle>
-            Products associated with {supplier?.name || 'this supplier'}
+            Products available from {supplier?.name || 'this supplier'}
           </PageSubtitle>
         </TitleSection>
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={handleBackToSupplier}
-        >
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/suppliers')}>
           Back to Suppliers
         </Button>
       </PageHeader>
 
       {supplier && (
         <ContextBanner>
-          Viewing products for: <span>{supplier.name}</span>
+          Viewing available products for: <span>{supplier.name}</span>
         </ContextBanner>
       )}
 
       <SearchSection>
         <Input
-          placeholder="Search by product code or description..."
+          placeholder="Search by product code, name, or protein type..."
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -336,7 +345,7 @@ const SupplierProducts: React.FC = () => {
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => message.info('Add Product feature coming soon!')}
+          onClick={() => { setAddModalVisible(true); fetchSystemProducts(); }}
         >
           Add Products
         </Button>
@@ -344,35 +353,77 @@ const SupplierProducts: React.FC = () => {
 
       <ContentCard>
         {loading ? (
-          <LoadingContainer>
-            <Spin size="large" />
-          </LoadingContainer>
-        ) : products.length === 0 ? (
+          <LoadingContainer><Spin size="large" /></LoadingContainer>
+        ) : filteredItems.length === 0 ? (
           <EmptyState>
-            <h3>No Products Associated</h3>
-            <p>This supplier doesn't have any products associated yet.</p>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => message.info('Add Product feature coming soon!')}
-            >
+            <h3>No Available Products</h3>
+            <p>This supplier doesn't have any products listed as available yet.</p>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setAddModalVisible(true); fetchSystemProducts(); }}>
               Add Products
             </Button>
           </EmptyState>
         ) : (
           <Table
             columns={columns}
-            dataSource={products}
+            dataSource={filteredItems}
             rowKey="id"
-            pagination={{
-              pageSize: 20,
-              showSizeChanger: true,
-              showTotal: (total) => `Total ${total} products`,
-            }}
-            scroll={{ x: 1200 }}
+            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Total ${total} products` }}
+            scroll={{ x: 900 }}
           />
         )}
       </ContentCard>
+
+      <Modal
+        title="Add Available Products"
+        open={addModalVisible}
+        onOk={handleAddProducts}
+        onCancel={() => { setAddModalVisible(false); setSelectedProductIds([]); setProductSearchText(''); setProteinFilter([]); }}
+        okText="Add Selected"
+        confirmLoading={addingProducts}
+        width={700}
+      >
+        <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+          <Input
+            placeholder="Search products..."
+            prefix={<SearchOutlined />}
+            value={productSearchText}
+            onChange={(e) => { setProductSearchText(e.target.value); debouncedFetchSystemProducts(e.target.value); }}
+            style={{ flex: 1 }}
+            allowClear
+          />
+          <div style={{ width: 260 }}>
+            <span style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'rgb(var(--color-text-secondary))' }}>
+              Protein filter
+            </span>
+            <Select
+              mode="multiple"
+              value={proteinFilter}
+              onChange={(vals) => setProteinFilter(vals)}
+              options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
+              placeholder="All proteins"
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
+        <Table
+          size="small"
+          loading={loadingSystemProducts}
+          dataSource={systemProducts.filter(p => !items.find(existing => existing.product === p.id))}
+          rowKey="id"
+          rowSelection={{
+            selectedRowKeys: selectedProductIds,
+            onChange: (keys) => setSelectedProductIds(keys as string[]),
+          }}
+          columns={[
+            { title: 'Code', dataIndex: 'product_code', key: 'product_code', width: 150 },
+            { title: 'Name', dataIndex: 'name', key: 'name' },
+            { title: 'Protein Type', dataIndex: 'protein_type', key: 'protein_type', width: 120 },
+            { title: 'Category', dataIndex: 'category', key: 'category', width: 140 },
+          ]}
+          pagination={{ pageSize: 10 }}
+          scroll={{ y: 300 }}
+        />
+      </Modal>
     </PageContainer>
   );
 };

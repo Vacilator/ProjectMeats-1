@@ -1,5 +1,75 @@
 # Workflow Editor Enhancement Roadmap
 **Date**: 2026-02-09  
+**Last Updated**: 2026-03-20  
+**Status**: ✅ Version 2.0 Production-Ready (Stabilized)  
+**Current Version**: 2.0
+
+---
+
+## Version 3.0 “Ideal State” — Four Vanguard Progression
+
+- ✅ **Vanguard: Main Inquiry Flow Template – Complete** (Meatscentral-Inquiry-Flow-Template set as MAIN default blueprint)
+
+To reach an **Enterprise-Grade, AI-Assisted Multiplayer Engine**, remaining work is organized into 4 cohesive Vanguards.
+
+### 🛡️ Vanguard 1: Architecture & Resilience (Tech Debt Purge)
+**Goal**: finalize structural hardening so the editor can scale to 150–1000+ nodes without degraded UX.
+
+**Deliverables**:
+- **Complete Panel Migration (Phase E.2)**: migrate remaining legacy config panels to shared components.
+- **Viewport Virtualization**: ensure we only paint what is visible (React Flow visible-elements + optional node/edge list culling).
+- **Try/Catch + Retry System**: define error edges + retry policy contract so workflows don’t fail silently.
+
+**Exit criteria**:
+- No legacy panels remain (or are isolated behind a single compatibility shim).
+- 150+ node workflows remain responsive while panning/zooming.
+- Error handling contract is defined and usable by the runtime.
+
+**Draft: Error Edge + Retry JSON contract**
+```json
+{
+  "type": "error",
+  "label": "On Error",
+  "errorType": "timeout",
+  "retry": {
+    "maxAttempts": 3,
+    "backoffMs": 2000,
+    "strategy": "exponential"
+  }
+}
+```
+
+### 🧩 Vanguard 2: Advanced Orchestration (Power & Reusability)
+**Goal**: upgrade from linear flow builder → reusable, composable programming interface.
+
+**Deliverables**:
+- Sub-Flows & Template Library (“Save as Sub-Flow Template” → global library → drag into flows)
+- Loops & Batch Processing (For-Each / While semantics)
+- “Magic Format” Auto-Layout (Dagre/ELK) for clean swimlanes
+
+### 🤝 Vanguard 3: Enterprise Multiplayer (Figma Experience)
+**Goal**: team-based workflow construction with safe concurrency.
+
+**Deliverables**:
+- Real-time canvas sync (presence, cursors, optimistic locking)
+- Visual diffing + version control (Git-like history)
+- Comment pins + @mentions on nodes/edges
+
+### 🧠 Vanguard 4: Autonomous Editor (AI-Native)
+**Goal**: workflows build themselves from intent; users debug visually.
+
+**Deliverables**:
+- Generative workflows (prompt → node graph preview → apply)
+- Smart node prediction (contextual next-step suggestions)
+- Step-through debugger (execution timeline + breakpoints + payload inspector)
+
+---
+
+## Legacy Checklist (Reference)
+The sections below preserve the original granular roadmap items for reference. New work should be planned/executed under the Vanguard structure above.
+
+# Workflow Editor Enhancement Roadmap
+**Date**: 2026-02-09  
 **Last Updated**: 2026-02-21  
 **Status**: ✅ Phase D/E COMPLETE - 98% Production Ready  
 **Current Version**: 2.0 (Comprehensive Enhancements Deployed)

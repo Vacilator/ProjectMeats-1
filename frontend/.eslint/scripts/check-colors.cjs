@@ -21,7 +21,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { glob: nodeGlob } = require('glob');
+const glob = require('glob');
 
 // Standardized color mappings
 const STANDARDIZED_COLORS = {
@@ -97,9 +97,10 @@ async function main() {
   if (specificFile) {
     files = [path.resolve(specificFile)];
   } else {
-    files = await nodeGlob('src/**/*.{ts,tsx,js,jsx}', {
+    files = glob.sync('src/**/*.{ts,tsx,js,jsx}', {
       cwd: path.join(__dirname, '../..'),
       absolute: true,
+      nodir: true,
       ignore: ['**/node_modules/**', '**/build/**', '**/coverage/**', '**/*.test.*', '**/*.spec.*']
     });
   }

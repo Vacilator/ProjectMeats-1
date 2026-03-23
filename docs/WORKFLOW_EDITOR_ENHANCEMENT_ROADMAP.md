@@ -1,8 +1,13 @@
 # Workflow Editor Enhancement Roadmap
-**Date**: 2026-02-09  
-**Last Updated**: 2026-02-19  
-**Status**: 📋 Planning Document  
-**Current Version**: 1.2 (Phase E.3 Complete)
+
+This file is a legacy duplicate of the canonical roadmap:
+- `docs/workforms/WORKFLOW_EDITOR_ENHANCEMENT_ROADMAP.md`
+
+The canonical roadmap is now structured into the four **Vanguards** for Version 3.0.
+
+Latest: ✅ Vanguard: Main Inquiry Flow Template – Complete
+
+(Kept for backwards references; prefer the workforms doc.)
 
 ---
 

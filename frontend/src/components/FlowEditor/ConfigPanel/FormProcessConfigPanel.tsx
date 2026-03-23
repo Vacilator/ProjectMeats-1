@@ -132,7 +132,21 @@ export const FormProcessConfigPanel: React.FC<FormProcessConfigPanelProps> = ({
   onAddStep,
   onReorderSteps,
 }) => {
-  const data = node.data || {};
+  const data = (node.data ?? {}) as Record<string, any>;
+
+  const containerName =
+    typeof data.containerName === 'string'
+      ? data.containerName
+      : typeof data.label === 'string'
+        ? data.label
+        : '';
+
+  const containerDescription =
+    typeof data.containerDescription === 'string'
+      ? data.containerDescription
+      : typeof data.description === 'string'
+        ? data.description
+        : '';
 
   // Handle field changes
   const handleChange = useCallback((field: string, value: any) => {
@@ -152,7 +166,7 @@ export const FormProcessConfigPanel: React.FC<FormProcessConfigPanelProps> = ({
           <Label>Container Name</Label>
           <Input
             type="text"
-            value={data.containerName || data.label || ''}
+            value={containerName}
             onChange={(e) => handleChange('containerName', e.target.value)}
             placeholder="e.g., Customer Onboarding Form"
           />
@@ -161,7 +175,7 @@ export const FormProcessConfigPanel: React.FC<FormProcessConfigPanelProps> = ({
         <Field>
           <Label>Description</Label>
           <TextArea
-            value={data.containerDescription || data.description || ''}
+            value={containerDescription}
             onChange={(e) => handleChange('containerDescription', e.target.value)}
             placeholder="Brief description of this form process..."
           />

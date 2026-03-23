@@ -1,36 +1,38 @@
 /**
- * Customer Products Management Page
+ * Customer Preferred Products Management Page
  * 
  * Features:
  * - Display products associated with a specific customer
  * - Table layout with sorting, pagination, and search
- * - Add/remove product associations
- * - Links to product details
+ * - Add/remove product associations via system product catalog
  * - Theme-compliant styling with antd Table
  * - Multi-tenancy support
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Table, Input, Button, Modal, message, Tag, Space, Spin } from 'antd';
+import { Table, Input, Button, Modal, message, Tag, Space, Spin, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
-
-// ============================================================================
-// TypeScript Interfaces
-// ============================================================================
+import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 
 interface Product {
-  id: number;
+  id: string;
   product_code: string;
-  description_of_product_item: string;
-  type_of_protein?: string;
-  fresh_or_frozen?: string;
-  package_type?: string;
-  unit_weight?: number;
-  supplier?: number;
-  supplier_name?: string;
+  name: string;
+  description?: string;
+  protein_type?: string;
+  category?: string;
+  is_active?: boolean;
+}
+
+interface SystemProduct {
+  id: string;
+  product_code: string;
+  name: string;
+  protein_type?: string;
+  category?: string;
   is_active?: boolean;
 }
 
@@ -38,10 +40,6 @@ interface Customer {
   id: number;
   name: string;
 }
-
-// ============================================================================
-// Styled Components (Theme-Compliant)
-// ============================================================================
 
 const PageContainer = styled.div`
   display: flex;
@@ -129,22 +127,24 @@ const LoadingContainer = styled.div`
   height: 300px;
 `;
 
-// ============================================================================
-// Main Component
-// ============================================================================
-
 const CustomerProducts: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // State
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState<string>('');
   const [customer, setCustomer] = useState<Customer | null>(null);
 
-  // Get customer from location state or fetch
+  // Add modal state
+  const [addModalVisible, setAddModalVisible] = useState<boolean>(false);
+  const [systemProducts, setSystemProducts] = useState<SystemProduct[]>([]);
+  const [productSearchText, setProductSearchText] = useState<string>('');
+  const [loadingSystemProducts, setLoadingSystemProducts] = useState<boolean>(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [addingProducts, setAddingProducts] = useState<boolean>(false);
+
   useEffect(() => {
     if (location.state?.customer) {
       setCustomer(location.state.customer);
@@ -153,7 +153,10 @@ const CustomerProducts: React.FC = () => {
     }
   }, [id, location.state]);
 
-  // Fetch customer details
+  useEffect(() => {
+    if (id) fetchProducts();
+  }, [id]);
+
   const fetchCustomer = async () => {
     if (!id) return;
     try {
@@ -165,19 +168,12 @@ const CustomerProducts: React.FC = () => {
     }
   };
 
-  // Fetch products
-  useEffect(() => {
-    if (id) {
-      fetchProducts();
-    }
-  }, [id]);
-
   const fetchProducts = async () => {
     if (!id) return;
     setLoading(true);
     try {
       const response = await apiClient.get(`/customers/${id}/products/`);
-      setProducts(response.data);
+      setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching products:', error);
       message.error('Failed to load products');
@@ -186,8 +182,62 @@ const CustomerProducts: React.FC = () => {
     }
   };
 
-  // Remove product association
-  const handleRemoveProduct = async (productId: number) => {
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // system.Product is a shared tenant-agnostic catalog — no tenant filter needed
+  const [proteinFilter, setProteinFilter] = useState<string[]>([]);
+
+  const fetchSystemProducts = useCallback(async (search?: string) => {
+    setLoadingSystemProducts(true);
+    try {
+      const params: Record<string, any> = { page_size: '500', is_active: true };
+      if (search) params.search = search;
+      if (proteinFilter.length) params.protein = proteinFilter.map((t) => String(t).toLowerCase());
+      const response = await apiClient.get('/system/products/', { params });
+      const data = Array.isArray(response.data) ? response.data : (response.data?.results || []);
+      setSystemProducts(data);
+    } catch (error) {
+      console.error('Error fetching system products:', error);
+      message.error('Failed to load product catalog');
+    } finally {
+      setLoadingSystemProducts(false);
+    }
+  }, [proteinFilter]); // apiClient, message, and state setters are all stable references
+
+  const debouncedFetchSystemProducts = useCallback((search: string) => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => fetchSystemProducts(search), 350);
+  }, [fetchSystemProducts]);
+
+  useEffect(() => {
+    if (addModalVisible) {
+      void fetchSystemProducts(productSearchText);
+    }
+  }, [addModalVisible, fetchSystemProducts, productSearchText, proteinFilter.join('|')]);
+
+  const handleAddProducts = async () => {
+    if (!selectedProductIds.length) {
+      message.warning('Please select at least one product');
+      return;
+    }
+    setAddingProducts(true);
+    try {
+      const currentIds = products.map(p => p.id);
+      const mergedIds = [...new Set([...currentIds, ...selectedProductIds])];
+      await apiClient.patch(`/customers/${id}/`, { products: mergedIds });
+      message.success(`Added ${selectedProductIds.length} product(s) successfully`);
+      setAddModalVisible(false);
+      setSelectedProductIds([]);
+      fetchProducts();
+    } catch (error) {
+      console.error('Error adding products:', error);
+      message.error('Failed to add products');
+    } finally {
+      setAddingProducts(false);
+    }
+  };
+
+  const handleRemoveProduct = async (productId: string) => {
     Modal.confirm({
       title: 'Remove Product Association',
       content: 'Are you sure you want to remove this product from this customer?',
@@ -195,9 +245,8 @@ const CustomerProducts: React.FC = () => {
       okType: 'danger',
       onOk: async () => {
         try {
-          // Update customer to remove product from M2M
           await apiClient.patch(`/customers/${id}/`, {
-            products: products.filter(p => p.id !== productId).map(p => p.id)
+            products: products.filter(p => p.id !== productId).map(p => p.id),
           });
           message.success('Product association removed successfully');
           fetchProducts();
@@ -209,12 +258,6 @@ const CustomerProducts: React.FC = () => {
     });
   };
 
-  // Navigate back to customers
-  const handleBackToCustomers = () => {
-    navigate('/customers');
-  };
-
-  // Table columns
   const columns: ColumnsType<Product> = [
     {
       title: 'Product Code',
@@ -226,44 +269,28 @@ const CustomerProducts: React.FC = () => {
         const search = value.toString().toLowerCase();
         return (
           record.product_code.toLowerCase().includes(search) ||
-          record.description_of_product_item.toLowerCase().includes(search)
+          (record.name || '').toLowerCase().includes(search) ||
+          (record.description || '').toLowerCase().includes(search)
         );
       },
     },
     {
-      title: 'Description',
-      dataIndex: 'description_of_product_item',
-      key: 'description',
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
       ellipsis: true,
     },
     {
       title: 'Protein Type',
-      dataIndex: 'type_of_protein',
-      key: 'protein',
-      filters: [
-        { text: 'Beef', value: 'Beef' },
-        { text: 'Chicken', value: 'Chicken' },
-        { text: 'Pork', value: 'Pork' },
-        { text: 'Lamb', value: 'Lamb' },
-      ],
-      onFilter: (value, record) => record.type_of_protein === value,
+      dataIndex: 'protein_type',
+      key: 'protein_type',
+      render: (val: string) => val ? <Tag>{val}</Tag> : '-',
     },
     {
-      title: 'Fresh/Frozen',
-      dataIndex: 'fresh_or_frozen',
-      key: 'fresh_frozen',
-      filters: [
-        { text: 'Fresh', value: 'Fresh' },
-        { text: 'Frozen', value: 'Frozen' },
-      ],
-      onFilter: (value, record) => record.fresh_or_frozen === value,
-    },
-    {
-      title: 'Unit Weight',
-      dataIndex: 'unit_weight',
-      key: 'weight',
-      render: (weight: number) => weight ? `${weight} lbs` : '-',
-      sorter: (a, b) => (a.unit_weight || 0) - (b.unit_weight || 0),
+      title: 'Category',
+      dataIndex: 'category',
+      key: 'category',
+      render: (val: string) => val || '-',
     },
     {
       title: 'Status',
@@ -274,11 +301,6 @@ const CustomerProducts: React.FC = () => {
           {isActive ? 'Active' : 'Inactive'}
         </Tag>
       ),
-      filters: [
-        { text: 'Active', value: true },
-        { text: 'Inactive', value: false },
-      ],
-      onFilter: (value, record) => record.is_active === value,
     },
     {
       title: 'Actions',
@@ -305,15 +327,12 @@ const CustomerProducts: React.FC = () => {
     <PageContainer>
       <PageHeader>
         <TitleSection>
-          <PageTitle>Customer Products</PageTitle>
+          <PageTitle>Preferred Products</PageTitle>
           <PageSubtitle>
-            Products associated with {customer?.name || 'this customer'}
+            Preferred products for {customer?.name || 'this customer'}
           </PageSubtitle>
         </TitleSection>
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={handleBackToCustomers}
-        >
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/customers')}>
           Back to Customers
         </Button>
       </PageHeader>
@@ -326,7 +345,7 @@ const CustomerProducts: React.FC = () => {
 
       <SearchSection>
         <Input
-          placeholder="Search by product code or description..."
+          placeholder="Search by product code, name, or description..."
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -336,7 +355,7 @@ const CustomerProducts: React.FC = () => {
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => message.info('Add Product feature coming soon!')}
+          onClick={() => { setAddModalVisible(true); fetchSystemProducts(); }}
         >
           Add Products
         </Button>
@@ -344,9 +363,7 @@ const CustomerProducts: React.FC = () => {
 
       <ContentCard>
         {loading ? (
-          <LoadingContainer>
-            <Spin size="large" />
-          </LoadingContainer>
+          <LoadingContainer><Spin size="large" /></LoadingContainer>
         ) : products.length === 0 ? (
           <EmptyState>
             <h3>No Products Associated</h3>
@@ -354,7 +371,7 @@ const CustomerProducts: React.FC = () => {
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => message.info('Add Product feature coming soon!')}
+              onClick={() => { setAddModalVisible(true); fetchSystemProducts(); }}
             >
               Add Products
             </Button>
@@ -364,15 +381,67 @@ const CustomerProducts: React.FC = () => {
             columns={columns}
             dataSource={products}
             rowKey="id"
-            pagination={{
-              pageSize: 20,
-              showSizeChanger: true,
-              showTotal: (total) => `Total ${total} products`,
-            }}
-            scroll={{ x: 1200 }}
+            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Total ${total} products` }}
+            scroll={{ x: 900 }}
           />
         )}
       </ContentCard>
+
+      <Modal
+        title="Add Products to Customer"
+        open={addModalVisible}
+        onOk={handleAddProducts}
+        onCancel={() => { setAddModalVisible(false); setSelectedProductIds([]); setProductSearchText(''); setProteinFilter([]); }}
+        okText="Add Selected"
+        confirmLoading={addingProducts}
+        width={700}
+      >
+        <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+          <Input
+            placeholder="Search products..."
+            prefix={<SearchOutlined />}
+            value={productSearchText}
+            onChange={(e) => {
+              setProductSearchText(e.target.value);
+              debouncedFetchSystemProducts(e.target.value);
+            }}
+            style={{ flex: 1 }}
+            allowClear
+          />
+          <div style={{ width: 260 }}>
+            <span style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'rgb(var(--color-text-secondary))' }}>
+              Protein filter
+            </span>
+            <Select
+              mode="multiple"
+              value={proteinFilter}
+              onChange={(vals) => setProteinFilter(vals)}
+              options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
+              placeholder="All proteins"
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
+
+        <Table
+          size="small"
+          loading={loadingSystemProducts}
+          dataSource={systemProducts.filter(p => !products.find(existing => existing.id === p.id))}
+          rowKey="id"
+          rowSelection={{
+            selectedRowKeys: selectedProductIds,
+            onChange: (keys) => setSelectedProductIds(keys as string[]),
+          }}
+          columns={[
+            { title: 'Code', dataIndex: 'product_code', key: 'product_code', width: 150 },
+            { title: 'Name', dataIndex: 'name', key: 'name' },
+            { title: 'Protein Type', dataIndex: 'protein_type', key: 'protein_type', width: 120 },
+            { title: 'Category', dataIndex: 'category', key: 'category', width: 140 },
+          ]}
+          pagination={{ pageSize: 10 }}
+          scroll={{ y: 300 }}
+        />
+      </Modal>
     </PageContainer>
   );
 };

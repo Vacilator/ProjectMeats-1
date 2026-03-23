@@ -6,53 +6,55 @@
  */
 
 import { apiClient } from '../services/apiService';
+import { logger } from '@/utils/logger';
+
 
 export const searchDiagnostic = async (query: string = 'test') => {
   console.group('🔍 Search Diagnostic');
   
   try {
-    console.log('1. Testing search endpoint...');
-    console.log('   Query:', query);
+    logger.debug('1. Testing search endpoint...');
+    logger.debug('   Query:', query);
     
     const response = await apiClient.get('/search/universal/', {
       params: { q: query, limit: 10 }
     });
     
-    console.log('2. Response received:', response);
-    console.log('   Status:', response.status);
-    console.log('   Data:', response.data);
+    logger.debug('2. Response received:', response);
+    logger.debug('   Status:', response.status);
+    logger.debug('   Data:', response.data);
     
     if (response.data.results) {
-      console.log('3. Results found:', response.data.results.length);
-      console.log('   Results by type:', response.data.counts);
+      logger.debug('3. Results found:', response.data.results.length);
+      logger.debug('   Results by type:', response.data.counts);
       
       if (response.data.results.length === 0) {
-        console.warn('⚠️ No results found. Possible reasons:');
-        console.warn('   - No data in database for current tenant');
-        console.warn('   - Search term too specific');
-        console.warn('   - Tenant context not set properly');
+        logger.warn('⚠️ No results found. Possible reasons:');
+        logger.warn('   - No data in database for current tenant');
+        logger.warn('   - Search term too specific');
+        logger.warn('   - Tenant context not set properly');
       } else {
-        console.log('✅ Search working! Sample results:');
+        logger.debug('✅ Search working! Sample results:');
         response.data.results.slice(0, 3).forEach((r: any) => {
-          console.log(`   - ${r.type}: ${r.title}`);
+          logger.debug(`   - ${r.type}: ${r.title}`);
         });
       }
     } else {
-      console.error('❌ Invalid response format:', response.data);
+      logger.error('❌ Invalid response format:', response.data);
     }
     
   } catch (error: any) {
-    console.error('❌ Search failed:', error);
-    console.error('   Status:', error.response?.status);
-    console.error('   Message:', error.response?.data);
-    console.error('   Full error:', error);
+    logger.error('❌ Search failed:', error);
+    logger.error('   Status:', error.response?.status);
+    logger.error('   Message:', error.response?.data);
+    logger.error('   Full error:', error);
     
     if (error.response?.status === 401) {
-      console.error('   Issue: Not authenticated');
+      logger.error('   Issue: Not authenticated');
     } else if (error.response?.status === 403) {
-      console.error('   Issue: Missing tenant context or permissions');
+      logger.error('   Issue: Missing tenant context or permissions');
     } else if (error.response?.status === 404) {
-      console.error('   Issue: Endpoint not found - check URL');
+      logger.error('   Issue: Endpoint not found - check URL');
     }
   }
   

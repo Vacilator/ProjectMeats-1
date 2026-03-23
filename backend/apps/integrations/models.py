@@ -174,7 +174,9 @@ class ExternalAuthProvider(models.Model):
         
         refresh_token = self.get_decrypted_token('refresh')
         if not refresh_token:
-            raise ValueError("No refresh token available")
+            # Microsoft may not return a refresh token depending on scopes/policies.
+            # Avoid crashing ingestion; caller can proceed (Graph calls will simply return no data if token is expired).
+            return False
         
         # Refresh the token
         token_response = provider.refresh_token(refresh_token)
@@ -188,3 +190,124 @@ class ExternalAuthProvider(models.Model):
         self.save()
         
         return True
+
+
+class EmailLog(models.Model):
+    """
+    Log of emails ingested from external providers for order processing.
+    
+    Tracks emails fetched from Microsoft/Gmail for AI analysis and order creation.
+    """
+    
+    STATUS_CHOICES = [
+        ('logged', 'Logged'),
+        ('ai_parsing', 'AI Parsing'),
+        ('order_created', 'Order Created'),
+        ('failed', 'Failed'),
+        ('ignored', 'Ignored'),
+    ]
+    
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='email_logs'
+    )
+    provider = models.ForeignKey(
+        ExternalAuthProvider,
+        on_delete=models.CASCADE,
+        related_name='email_logs',
+        help_text="Auth provider this email was fetched from"
+    )
+    
+    # Email identification
+    message_id = models.CharField(
+        max_length=255,
+        unique=True,
+        db_index=True,
+        help_text="Unique message ID from provider (prevents duplicates)"
+    )
+    thread_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Thread/conversation ID"
+    )
+    
+    # Email metadata
+    subject = models.CharField(max_length=500)
+    sender_email = models.EmailField()
+    sender_name = models.CharField(max_length=255, blank=True)
+    received_at = models.DateTimeField(help_text="When email was sent/received")
+    
+    # Email content
+    body_text = models.TextField(blank=True, help_text="Plain text body")
+    body_html = models.TextField(blank=True, help_text="HTML body")
+    has_attachments = models.BooleanField(default=False)
+    attachment_count = models.IntegerField(default=0)
+    
+    # Processing status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='logged',
+        db_index=True
+    )
+    processing_error = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Error message if processing failed"
+    )
+    
+    # AI extraction results
+    extracted_data = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="AI-extracted order data (products, quantities, etc.)"
+    )
+    
+    # Related order (if created)
+    related_order_id = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="ID of order created from this email"
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    processed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When AI processing completed"
+    )
+    
+    class Meta:
+        ordering = ['-received_at']
+        indexes = [
+            models.Index(fields=['tenant', 'status']),
+            models.Index(fields=['tenant', 'received_at']),
+            models.Index(fields=['provider', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.tenant.name} - {self.subject} ({self.status})"
+    
+    def mark_as_processing(self):
+        """Update status to AI parsing."""
+        self.status = 'ai_parsing'
+        self.save(update_fields=['status', 'updated_at'])
+    
+    def mark_as_completed(self, extracted_data: dict = None, order_id: int = None):
+        """Mark email processing as complete."""
+        self.status = 'order_created' if order_id else 'ignored'
+        self.extracted_data = extracted_data
+        self.related_order_id = order_id
+        self.processed_at = timezone.now()
+        self.save(update_fields=['status', 'extracted_data', 'related_order_id', 'processed_at', 'updated_at'])
+    
+    def mark_as_failed(self, error_message: str):
+        """Mark email processing as failed."""
+        self.status = 'failed'
+        self.processing_error = error_message
+        self.processed_at = timezone.now()
+        self.save(update_fields=['status', 'processing_error', 'processed_at', 'updated_at'])

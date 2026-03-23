@@ -24,6 +24,13 @@ from .permissions import IsTenantAdminOrOwner
 logger = logging.getLogger(__name__)
 
 
+def _get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
 class TenantViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing tenants.
@@ -88,8 +95,38 @@ class TenantViewSet(viewsets.ModelViewSet):
             cache_key = f'tenant_branding_{instance.id}'
             cache.delete(cache_key)
             logger.info(f"✅ Tenant update successful - Cache cleared: {cache_key}")
+
+            try:
+                is_theme_update = any(
+                    k in self.request.data for k in ['primary_color_light', 'primary_color_dark']
+                )
+                is_logo_update = bool(self.request.FILES) or bool(self.request.data.get('remove_logo'))
+
+                action = 'theme.update' if is_theme_update else 'profile.update'
+                if is_theme_update and is_logo_update:
+                    description = 'Updated tenant theme and logo.'
+                elif is_theme_update:
+                    description = 'Updated tenant theme colors.'
+                elif is_logo_update:
+                    description = 'Updated tenant logo.'
+                else:
+                    description = 'Updated tenant profile.'
+
+                ActivityLog.log_activity(
+                    tenant=instance,
+                    user=self.request.user,
+                    action=action,
+                    description=description,
+                    entity_type='Tenant',
+                    entity_id=instance.id,
+                    metadata={'fields': list(self.request.data.keys())},
+                    ip_address=_get_client_ip(self.request),
+                )
+            except Exception:
+                logger.exception('Failed to write ActivityLog for tenant update')
+
             logger.info("=" * 60)
-            
+
             return instance
             
         except Exception as e:
@@ -173,57 +210,102 @@ class TenantViewSet(viewsets.ModelViewSet):
 
         serializer = UserTenantSerializer(tenant_users, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def current(self, request):
+        """Return the current active tenant.
+
+        Prefers `request.tenant` (TenantMiddleware) and falls back to the first
+        active tenant membership for the user.
+        """
+        tenant = getattr(request, 'tenant', None)
+
+        if not tenant:
+            tenant_user = TenantUser.objects.filter(
+                user=request.user, is_active=True
+            ).select_related('tenant').first()
+            tenant = tenant_user.tenant if tenant_user else None
+
+        if not tenant:
+            return Response(
+                {"error": "User not associated with any tenant"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(TenantSerializer(tenant).data)
     
     @action(detail=False, methods=["get"])
     def current_theme(self, request):
-        """
-        Get theme settings for the current user's active tenant.
-        
+        """Get theme settings for the current tenant.
+
+        Prefers `request.tenant` (TenantMiddleware) and falls back to the first
+        active tenant membership for the user.
+
         Returns tenant logo, name, and theme colors.
         Used by frontend to apply tenant-specific branding.
         """
-        # Get user's current/active tenant (you might have this in session or request header)
-        # For now, get the first tenant the user belongs to
-        tenant_user = TenantUser.objects.filter(
-            user=request.user, is_active=True
-        ).select_related("tenant").first()
-        
+        tenant = getattr(request, 'tenant', None)
+
+        if request.user.is_superuser and tenant:
+            return Response(tenant.get_theme_settings())
+
+        tenant_user_qs = TenantUser.objects.filter(user=request.user, is_active=True).select_related('tenant')
+        tenant_user = tenant_user_qs.filter(tenant=tenant).first() if tenant else tenant_user_qs.first()
+
         if not tenant_user:
             return Response(
                 {"error": "User not associated with any tenant"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
-        
-        theme_settings = tenant_user.tenant.get_theme_settings()
-        return Response(theme_settings)
-    
+
+        return Response(tenant_user.tenant.get_theme_settings())
+
     @action(detail=False, methods=["get"])
     def admin_permissions(self, request):
-        """
-        Get admin permissions for the current user in their active tenant.
-        
-        Returns a dictionary of permission flags based on the user's role:
-        - owner: Full access to everything
-        - admin: Can manage users, configs, customizations, view audit logs
-        - manager: Limited admin access
-        - user/readonly: No admin access
-        
+        """Get admin permissions for the current user in the current tenant.
+
+        Prefers `request.tenant` (TenantMiddleware) and falls back to the first
+        active tenant membership for the user.
+
         Used by frontend to show/hide admin workspace features.
         """
-        # Get user's role in their current tenant
-        # TODO: Use request.tenant from TenantMiddleware when available
-        tenant_user = TenantUser.objects.filter(
-            user=request.user, is_active=True
-        ).select_related("tenant").first()
-        
+        if request.user.is_superuser:
+            tenant = getattr(request, 'tenant', None)
+            tenant_user = None
+
+            if not tenant:
+                tenant_user = TenantUser.objects.filter(user=request.user, is_active=True).select_related('tenant').first()
+                tenant = tenant_user.tenant if tenant_user else None
+
+            return Response({
+                'can_manage_users': True,
+                'can_invite_users': True,
+                'can_change_roles': True,
+                'can_manage_profile': True,
+                'can_manage_billing': True,
+                'can_manage_configurations': True,
+                'can_manage_customizations': True,
+                'can_view_audit_logs': True,
+                'can_manage_option_lists': True,
+                'role': 'superuser',
+                # Include resolved tenant context to help frontend persist X-Tenant-ID
+                'tenant_id': str(tenant.id) if tenant else None,
+                'tenant_name': getattr(tenant, 'name', None) if tenant else None,
+                'tenant_slug': getattr(tenant, 'slug', None) if tenant else None,
+            })
+
+        tenant = getattr(request, 'tenant', None)
+        tenant_user_qs = TenantUser.objects.filter(user=request.user, is_active=True)
+        tenant_user = tenant_user_qs.filter(tenant=tenant).select_related('tenant').first() if tenant else tenant_user_qs.select_related('tenant').first()
+
         if not tenant_user:
             return Response(
                 {"error": "User not associated with any tenant"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
-        
+
         role = tenant_user.role
-        
+
         # Define permissions based on role
         permissions_map = {
             'owner': {
@@ -242,7 +324,7 @@ class TenantViewSet(viewsets.ModelViewSet):
                 'can_invite_users': True,
                 'can_change_roles': True,
                 'can_manage_profile': True,
-                'can_manage_billing': False,  # Only owners can manage billing
+                'can_manage_billing': True,
                 'can_manage_configurations': True,
                 'can_manage_customizations': True,
                 'can_view_audit_logs': True,
@@ -286,6 +368,9 @@ class TenantViewSet(viewsets.ModelViewSet):
         # Get permissions for user's role, default to empty permissions
         permissions = permissions_map.get(role, permissions_map['readonly'])
         permissions['role'] = role
+        permissions['tenant_id'] = str(tenant_user.tenant.id)
+        permissions['tenant_name'] = tenant_user.tenant.name
+        permissions['tenant_slug'] = tenant_user.tenant.slug
         
         return Response(permissions)
     
@@ -386,11 +471,27 @@ class TenantUserViewSet(viewsets.ModelViewSet):
                 "You don't have permission to manage users for this tenant."
             )
 
-        serializer.save()
+        instance = serializer.save()
+
+        try:
+            ActivityLog.log_activity(
+                tenant=instance.tenant,
+                user=self.request.user,
+                action='user.invite',
+                description=f"Invited/added user to tenant ({instance.user.email if instance.user else 'unknown'}).",
+                entity_type='TenantUser',
+                entity_id=instance.id,
+                metadata={'role': instance.role, 'user_id': getattr(instance.user, 'id', None)},
+                ip_address=_get_client_ip(self.request),
+            )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for user invite')
 
     def perform_update(self, serializer):
         """Ensure user has permission to update associations."""
         instance = self.get_object()
+        old_role = instance.role
+        old_active = instance.is_active
 
         # Check if user has admin access to the tenant
         if (
@@ -406,12 +507,52 @@ class TenantUserViewSet(viewsets.ModelViewSet):
                 "You don't have permission to manage users for this tenant."
             )
 
-        serializer.save()
+        updated = serializer.save()
+
+        try:
+            if old_role != updated.role:
+                ActivityLog.log_activity(
+                    tenant=updated.tenant,
+                    user=self.request.user,
+                    action='user.role_change',
+                    description=f"Changed user role from {old_role} to {updated.role}.",
+                    entity_type='TenantUser',
+                    entity_id=updated.id,
+                    metadata={'old_role': old_role, 'new_role': updated.role, 'user_id': getattr(updated.user, 'id', None)},
+                    ip_address=_get_client_ip(self.request),
+                )
+            if old_active != updated.is_active:
+                ActivityLog.log_activity(
+                    tenant=updated.tenant,
+                    user=self.request.user,
+                    action='user.activate' if updated.is_active else 'user.deactivate',
+                    description='Activated user.' if updated.is_active else 'Deactivated user.',
+                    entity_type='TenantUser',
+                    entity_id=updated.id,
+                    metadata={'user_id': getattr(updated.user, 'id', None)},
+                    ip_address=_get_client_ip(self.request),
+                )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for user update')
 
     def perform_destroy(self, instance):
         """Soft delete by setting is_active to False."""
         instance.is_active = False
         instance.save()
+
+        try:
+            ActivityLog.log_activity(
+                tenant=instance.tenant,
+                user=self.request.user,
+                action='user.deactivate',
+                description='Deactivated user.',
+                entity_type='TenantUser',
+                entity_id=instance.id,
+                metadata={'user_id': getattr(instance.user, 'id', None)},
+                ip_address=_get_client_ip(self.request),
+            )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for user deactivation')
     
     @action(detail=False, methods=["post"])
     def bulk_update_roles(self, request):
@@ -464,6 +605,22 @@ class TenantUserViewSet(viewsets.ModelViewSet):
                 tenant_user.save()
                 updated_count += 1
         
+        try:
+            tenant = getattr(request, 'tenant', None) or (tenant_users.first().tenant if tenant_users else None)
+            if tenant:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=request.user,
+                    action='user.role_change',
+                    description=f"Bulk updated roles for {updated_count} user(s).",
+                    entity_type='TenantUser',
+                    entity_id=None,
+                    metadata={'updated_count': updated_count, 'user_ids': user_ids, 'new_role': new_role},
+                    ip_address=_get_client_ip(request),
+                )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for bulk role update')
+
         return Response({
             "message": f"Successfully updated {updated_count} user(s)",
             "updated_count": updated_count
@@ -516,6 +673,22 @@ class TenantUserViewSet(viewsets.ModelViewSet):
                 tenant_user.save()
                 deactivated_count += 1
         
+        try:
+            tenant = getattr(request, 'tenant', None) or (tenant_users.first().tenant if tenant_users else None)
+            if tenant:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=request.user,
+                    action='user.deactivate',
+                    description=f"Bulk deactivated {deactivated_count} user(s).",
+                    entity_type='TenantUser',
+                    entity_id=None,
+                    metadata={'deactivated_count': deactivated_count, 'user_ids': user_ids},
+                    ip_address=_get_client_ip(request),
+                )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for bulk deactivation')
+
         return Response({
             "message": f"Successfully deactivated {deactivated_count} user(s)",
             "deactivated_count": deactivated_count
@@ -525,19 +698,25 @@ class TenantUserViewSet(viewsets.ModelViewSet):
 class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for viewing activity logs (audit trail).
-    
+
     Read-only - logs are created automatically by the system.
     Only admins and owners can view activity logs.
-    
+
     Additional Actions:
     - export: Export activity logs to CSV
     """
-    
+
     queryset = ActivityLog.objects.all()
     serializer_class = ActivityLogSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["tenant", "user", "action", "entity_type"]
+    filterset_fields = {
+        'tenant': ['exact'],
+        'user': ['exact'],
+        'action': ['exact'],
+        'entity_type': ['exact'],
+        'created_at': ['gte', 'lte'],
+    }
     search_fields = ["description", "entity_type", "entity_id"]
     ordering_fields = ["created_at"]
     ordering = ["-created_at"]
@@ -651,7 +830,7 @@ class TenantConfigurationViewSet(viewsets.ModelViewSet):
         tenant_id = self.request.headers.get('X-Tenant-ID')
         if tenant_id:
             tenant = Tenant.objects.get(id=tenant_id)
-            serializer.save(tenant=tenant, updated_by=self.request.user)
+            instance = serializer.save(tenant=tenant, updated_by=self.request.user)
         else:
             # Fallback: Use first tenant where user is admin
             tenant_user = TenantUser.objects.filter(
@@ -659,11 +838,44 @@ class TenantConfigurationViewSet(viewsets.ModelViewSet):
                 role__in=["owner", "admin"],
                 is_active=True
             ).first()
-            
+
             if not tenant_user:
                 raise permissions.PermissionDenied("User is not an admin of any tenant")
-            
-            serializer.save(tenant=tenant_user.tenant, updated_by=self.request.user)
+
+            instance = serializer.save(tenant=tenant_user.tenant, updated_by=self.request.user)
+
+        try:
+            ActivityLog.log_activity(
+                tenant=instance.tenant,
+                user=self.request.user,
+                action='config.update',
+                description=f"Created configuration {instance.key}.",
+                entity_type='TenantConfiguration',
+                entity_id=instance.id,
+                metadata={'key': instance.key, 'category': instance.category},
+                ip_address=_get_client_ip(self.request),
+            )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for config create')
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        old_value = instance.value
+        updated = serializer.save(updated_by=self.request.user)
+
+        try:
+            ActivityLog.log_activity(
+                tenant=updated.tenant,
+                user=self.request.user,
+                action='config.update',
+                description=f"Updated configuration {updated.key}.",
+                entity_type='TenantConfiguration',
+                entity_id=updated.id,
+                metadata={'key': updated.key, 'category': updated.category, 'old_value': old_value, 'new_value': updated.value},
+                ip_address=_get_client_ip(self.request),
+            )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for config update')
     
     def perform_destroy(self, instance):
         """Prevent deletion of system configurations."""
@@ -731,7 +943,23 @@ class TenantConfigurationViewSet(viewsets.ModelViewSet):
         
         if errors:
             response_data["errors"] = errors
-        
+
+        try:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=request.user,
+                    action='config.update',
+                    description=f"Bulk updated {updated_count} configuration(s).",
+                    entity_type='TenantConfiguration',
+                    entity_id=None,
+                    metadata={'updated_count': updated_count, 'configuration_ids': [c.get('id') for c in configurations_data]},
+                    ip_address=_get_client_ip(request),
+                )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for bulk config update')
+
         return Response(response_data)
     
     @action(detail=True, methods=["post"])
@@ -749,6 +977,20 @@ class TenantConfigurationViewSet(viewsets.ModelViewSet):
         config.updated_by = request.user
         config.save()
         
+        try:
+            ActivityLog.log_activity(
+                tenant=config.tenant,
+                user=request.user,
+                action='config.update',
+                description=f"Reset configuration {config.key} to default.",
+                entity_type='TenantConfiguration',
+                entity_id=config.id,
+                metadata={'key': config.key, 'category': config.category},
+                ip_address=_get_client_ip(request),
+            )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for config reset')
+
         serializer = self.get_serializer(config)
         return Response(serializer.data)
     
@@ -779,7 +1021,23 @@ class TenantConfigurationViewSet(viewsets.ModelViewSet):
                 config.updated_by = request.user
                 config.save()
                 reset_count += 1
-        
+
+        try:
+            tenant = getattr(request, 'tenant', None)
+            if tenant:
+                ActivityLog.log_activity(
+                    tenant=tenant,
+                    user=request.user,
+                    action='config.update',
+                    description=f"Reset {reset_count} configuration(s) in category {category}.",
+                    entity_type='TenantConfiguration',
+                    entity_id=None,
+                    metadata={'category': category, 'reset_count': reset_count},
+                    ip_address=_get_client_ip(request),
+                )
+        except Exception:
+            logger.exception('Failed to write ActivityLog for category reset')
+
         return Response({
             "message": f"Reset {reset_count} configuration(s) in category '{category}'",
             "reset_count": reset_count

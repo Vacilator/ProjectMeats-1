@@ -43,23 +43,39 @@ export const PanelOverlay = styled.div<{ $isOpen?: boolean }>`
 /**
  * Panel Container - Main panel wrapper (slide-in from right)
  * Used by: CreateRecordConfigPanel, DocumentConfigPanel, etc.
+ * 
+ * Updated: 2026-02-24 - Fixed responsive width and overflow issues
  */
 export const Panel = styled.div<{ $width?: string }>`
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
-  width: ${props => props.$width || '600px'};
+  width: ${props => props.$width || 'min(720px, 45vw)'};
+  max-width: 900px;
+  min-width: 480px;
   background: rgb(var(--color-surface));
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   z-index: 1001;
+  overflow-x: auto;
   animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   
   @keyframes slideIn {
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
+  }
+  
+  @media (max-width: 1024px) {
+    width: 60vw;
+    min-width: 400px;
+  }
+  
+  @media (max-width: 768px) {
+    width: 100vw;
+    max-width: none;
+    min-width: unset;
   }
 `;
 
@@ -240,6 +256,13 @@ export const FieldLabel = styled.label`
   font-weight: 500;
   color: rgb(var(--color-text-primary));
   margin-bottom: 8px;
+`;
+
+export const Checkbox = styled.input.attrs({ type: 'checkbox' })`
+  width: 16px;
+  height: 16px;
+  accent-color: rgb(var(--color-primary));
+  cursor: pointer;
 `;
 
 /**

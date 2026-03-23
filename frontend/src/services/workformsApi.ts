@@ -71,7 +71,7 @@ export interface TenantForm {
   name: string;
   description: string;
   type: 'single_step' | 'multi_step';
-  flow_data: any; // Backend uses flow_data, not form_definition
+  form_definition: any;
   version: number;
   usage_count: number;
   entity_type: string;
@@ -84,6 +84,29 @@ export interface TenantForm {
   updated_by?: string;
   updated_by_name?: string;
 }
+
+// ---------------------------------------------------------------------------
+// System / TenantForm helpers (Phase 9: remove direct axios usage)
+// ---------------------------------------------------------------------------
+
+export interface TenantFormUsageInfo {
+  form_id: string;
+  usage_count: number;
+  workflows: Array<{
+    id: string;
+    name: string;
+    status: string;
+  }>;
+}
+
+export const getTenantFormUsageInfo = async (formId: string): Promise<TenantFormUsageInfo> => {
+  const response = await apiClient.get(`/system/tenant-forms/${formId}/usage/`);
+  return response.data;
+};
+
+export const decrementTenantFormUsage = async (formId: string): Promise<void> => {
+  await apiClient.post(`/system/tenant-forms/${formId}/decrement-usage/`);
+};
 
 export interface TenantWorkForm {
   id: string;
@@ -114,6 +137,25 @@ export interface TenantWorkForm {
   updated_by?: string;
   updated_by_name?: string;
 }
+
+export interface AvailableWorkForm {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  node_count: number;
+  edge_count: number;
+  updated_at: string;
+}
+
+export const getAvailableWorkForms = async (params?: {
+  status?: 'draft' | 'active' | 'archived';
+  search?: string;
+}): Promise<AvailableWorkForm[]> => {
+  const response = await apiClient.get('/tenant-workforms/', { params });
+  const data = response.data?.results || response.data || [];
+  return Array.isArray(data) ? data : [];
+};
 
 // ============================================================================
 // Entity APIs (Phase 1.1-1.3)
@@ -160,16 +202,25 @@ export const getEntityLookup = async (
 export const listTenantForms = async (params?: {
   type?: 'single_step' | 'multi_step';
   search?: string;
+  is_workform?: boolean;
+  parent_workform_id?: string;
 }): Promise<TenantForm[]> => {
-  const response = await apiClient.get('/workflows/forms/', { params });
+  const response = await apiClient.get('/tenant-forms/', { params });
   return response.data.results || response.data || [];
+};
+
+/**
+ * Convenience wrapper for selectors.
+ */
+export const getAvailableForms = async (): Promise<TenantForm[]> => {
+  return listTenantForms();
 };
 
 /**
  * Get a specific tenant form by ID
  */
 export const getTenantForm = async (formId: string): Promise<TenantForm> => {
-  const response = await apiClient.get(`/workflows/forms/${formId}/`);
+  const response = await apiClient.get(`/tenant-forms/${formId}/`);
   return response.data;
 };
 
@@ -179,18 +230,17 @@ export const getTenantForm = async (formId: string): Promise<TenantForm> => {
 export const getFormFields = async (formId: string): Promise<EntityField[]> => {
   const form = await getTenantForm(formId);
   
-  // Extract fields from flow_data structure
-  // TenantForm.flow_data can have:
-  // - fields: EntityField[] (single-step forms)
-  // - steps: Array<{ fields: EntityField[] }> (multi-step forms)
+  // Extract fields from form_definition structure.
+  // Backward compatibility: some legacy code paths may still return `flow_data`.
+  const definition = (form as any).form_definition ?? (form as any).flow_data;
   const fields: EntityField[] = [];
-  
-  if (form.flow_data?.fields && Array.isArray(form.flow_data.fields)) {
+
+  if (definition?.fields && Array.isArray(definition.fields)) {
     // Single-step form
-    fields.push(...form.flow_data.fields);
-  } else if (form.flow_data?.steps && Array.isArray(form.flow_data.steps)) {
+    fields.push(...definition.fields);
+  } else if (definition?.steps && Array.isArray(definition.steps)) {
     // Multi-step form - aggregate all fields from all steps
-    form.flow_data.steps.forEach((step: any) => {
+    definition.steps.forEach((step: any) => {
       if (step.fields && Array.isArray(step.fields)) {
         fields.push(...step.fields);
       }
@@ -209,7 +259,7 @@ export const createTenantForm = async (data: {
   type: 'single_step' | 'multi_step';
   form_definition: any;
 }): Promise<TenantForm> => {
-  const response = await apiClient.post('/workflows/forms/', data);
+  const response = await apiClient.post('/tenant-forms/', data);
   return response.data;
 };
 
@@ -220,7 +270,7 @@ export const updateTenantForm = async (
   formId: string,
   data: Partial<TenantForm>
 ): Promise<TenantForm> => {
-  const response = await apiClient.put(`/workflows/forms/${formId}/`, data);
+  const response = await apiClient.put(`/tenant-forms/${formId}/`, data);
   return response.data;
 };
 
@@ -228,7 +278,7 @@ export const updateTenantForm = async (
  * Delete a tenant form (only if usage_count === 0)
  */
 export const deleteTenantForm = async (formId: string): Promise<void> => {
-  await apiClient.delete(`/workflows/forms/${formId}/`);
+  await apiClient.delete(`/tenant-forms/${formId}/`);
 };
 
 /**
@@ -238,7 +288,7 @@ export const deleteTenantForm = async (formId: string): Promise<void> => {
 export const decrementFormUsage = async (
   formId: string
 ): Promise<{ form_id: string; usage_count: number; can_delete: boolean }> => {
-  const response = await apiClient.post(`/workflows/forms/${formId}/decrement_usage/`);
+  const response = await apiClient.post(`/tenant-forms/${formId}/decrement-usage/`);
   return response.data;
 };
 
@@ -261,7 +311,7 @@ export const mergeForms = async (data: {
   deleted_form_ids: string[];
   message: string;
 }> => {
-  const response = await apiClient.post('/workflows/forms/merge/', data);
+  const response = await apiClient.post('/tenant-forms/merge/', data);
   return response.data;
 };
 
@@ -281,7 +331,7 @@ export const splitForm = async (data: {
   created_form_name: string;
   message: string;
 }> => {
-  const response = await apiClient.post('/workflows/forms/split/', data);
+  const response = await apiClient.post('/tenant-forms/split/', data);
   return response.data;
 };
 

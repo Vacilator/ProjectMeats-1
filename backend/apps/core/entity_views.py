@@ -8,12 +8,15 @@ Created: 2026-02-06
 """
 from django.apps import apps
 from django.db import models
+from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.core.paginator import Paginator
 from django.db.models import Q
+
+from apps.tenants.models import TenantUser
 
 
 # ============================================================================
@@ -281,6 +284,8 @@ def entity_lookup(request, entity_type):
         'product': ('system', 'Product'),
         'contact': ('contacts', 'Contact'),
         'location': ('locations', 'Location'),
+        # Utility entity for lookup selectors (no tenant FK)
+        'user': ('auth', 'User'),
     }
     
     if entity_type not in entity_map:
@@ -290,15 +295,19 @@ def entity_lookup(request, entity_type):
         )
     
     app_label, model_name = entity_map[entity_type]
-    
-    try:
-        model = apps.get_model(app_label, model_name)
-    except LookupError:
-        return Response(
-            {"error": f"Model {app_label}.{model_name} not found"},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
+
+    # auth.User may be swapped; use get_user_model() for lookup selectors.
+    if entity_type == 'user':
+        model = get_user_model()
+    else:
+        try:
+            model = apps.get_model(app_label, model_name)
+        except LookupError:
+            return Response(
+                {"error": f"Model {app_label}.{model_name} not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
     # Get query parameters
     search_query = request.query_params.get('search', '')
     page_number = int(request.query_params.get('page', 1))
@@ -306,15 +315,35 @@ def entity_lookup(request, entity_type):
     
     # Get tenant from request (set by TenantMiddleware)
     tenant = getattr(request, 'tenant', None)
-    
-    if not tenant:
-        return Response(
-            {"error": "Tenant context required"},
-            status=status.HTTP_400_BAD_REQUEST
+
+    # Fallback: DRF authentication can populate request.user after middleware.
+    # For API endpoints that require tenant filtering, resolve a default tenant
+    # association here if middleware couldn't.
+    if not tenant and getattr(request, 'user', None) and request.user.is_authenticated:
+        tenant_user = (
+            TenantUser.objects.filter(user=request.user, is_active=True)
+            .select_related('tenant')
+            .order_by('-role')
+            .first()
         )
-    
-    # Build queryset with tenant filter
-    queryset = model.objects.filter(tenant=tenant)
+        if tenant_user:
+            tenant = tenant_user.tenant
+
+    # Build base queryset with tenant filter where applicable.
+    # Some entities are system-wide (e.g., Product) or utility (e.g., User).
+    queryset = model.objects.all()
+
+    if entity_type == 'user':
+        # Safe default: only allow selecting the current user.
+        queryset = queryset.filter(id=request.user.id)
+    else:
+        if not tenant:
+            return Response(
+                {"error": "Tenant context required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if hasattr(model, 'tenant'):
+            queryset = queryset.filter(tenant=tenant)
     
     # Apply search filter (search across common fields)
     if search_query:
@@ -383,12 +412,16 @@ def entity_lookup(request, entity_type):
         if search_query:
             previous_url += f"&search={search_query}"
     
-    return Response({
-        "results": results,
-        "count": paginator.count,
-        "next": next_url,
-        "previous": previous_url,
-        "page": page_number,
-        "page_size": page_size,
-        "total_pages": paginator.num_pages
-    })
+    # Backward compatibility: some clients expect `options` instead of `results`.
+    return Response(
+        {
+            "results": results,
+            "options": results,
+            "count": paginator.count,
+            "next": next_url,
+            "previous": previous_url,
+            "page": page_number,
+            "page_size": page_size,
+            "total_pages": paginator.num_pages,
+        }
+    )

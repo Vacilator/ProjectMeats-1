@@ -15,11 +15,33 @@
  * 
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
-import { Eye, EyeOff, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
+import ReactSelect from 'react-select';
+import { Eye, EyeOff, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { ValidationRuleBuilder, ValidationRule } from './ValidationRuleBuilder';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
+import { useFlowEditor } from '../context';
+import { getUpstreamOutputs, formatInheritanceSyntax, isInheritanceSyntax } from '../../../utils/flowUtils';
+import {
+  PanelHeader,
+  PanelTitle,
+  PanelContent,
+  PanelFooter,
+  Section,
+  SectionHeader,
+  SectionTitle,
+  FormField,
+  Label,
+  Input,
+  TextArea,
+  Select,
+  HelpText,
+  RequiredIndicator,
+  PrimaryButton,
+  SecondaryButton,
+} from './shared/StyledComponents';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -82,8 +104,6 @@ export interface FormFieldConfigPanelProps {
   field: FormField;
   onChange: (field: FormField) => void;
   onClose: () => void;
-  availableFields?: Array<{ key: string; label: string; type: string }>;
-  tenantLists?: Array<{ id: string; name: string }>;
 }
 
 // ============================================================================
@@ -205,22 +225,14 @@ const FIELD_TYPE_DEFINITIONS: Record<FormFieldType, {
 };
 
 // ============================================================================
-// Styled Components
+// Styled Components (Custom - Panel-specific)
 // ============================================================================
 
+// Layout containers
 const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-`;
-
-
-
-const Title = styled.h3`
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
 `;
 
 const Subtitle = styled.div`
@@ -228,107 +240,41 @@ const Subtitle = styled.div`
   color: rgb(var(--color-text-secondary));
 `;
 
-
-
-const Section = styled.div`
-  margin-bottom: 32px;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-`;
-
-const SectionHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  cursor: pointer;
-  user-select: none;
-`;
-
-const SectionTitle = styled.h4`
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: rgb(var(--color-text-primary));
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
+// SectionContent for collapsible sections (shared Section doesn't support $collapsed)
 const SectionContent = styled.div<{ $collapsed?: boolean }>`
   display: ${props => props.$collapsed ? 'none' : 'block'};
 `;
 
-
-
-
-
-const Required = styled.span`
-  color: rgb(239, 68, 68);
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-background));
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  min-height: 80px;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  background: rgb(var(--color-background));
-  font-family: inherit;
-  resize: vertical;
-  transition: all 0.15s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
-  }
-`;
-
-
-
-
-
+// CheckboxLabel (not in shared library)
 const CheckboxLabel = styled.label`
   display: flex;
   align-items: center;
   font-size: 13px;
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  
+
   &:hover {
     color: rgb(var(--color-primary));
   }
 `;
 
-const HelpText = styled.div`
-  font-size: 12px;
-  color: rgb(var(--color-text-tertiary));
-  margin-top: 6px;
-  line-height: 1.5;
+const Checkbox = styled.input`
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  accent-color: rgb(var(--color-primary));
 `;
 
+const UpstreamBadge = styled.span`
+  margin-left: 8px;
+  font-size: 11px;
+  color: rgb(var(--color-primary));
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+// Field type selector components (specific to FormFieldConfigPanel)
 const FieldTypeGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -396,63 +342,6 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   }
 `;
 
-const OptionsEditor = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const OptionItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgb(var(--color-background));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-md);
-`;
-
-const OptionInput = styled.input`
-  flex: 1;
-  padding: 6px 8px;
-  border: none;
-  background: transparent;
-  font-size: 13px;
-  color: rgb(var(--color-text-primary));
-  
-  &:focus {
-    outline: none;
-  }
-`;
-
-
-
-const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
-  padding: 10px 20px;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  ${props => props.$variant === 'primary' ? `
-    background: rgb(var(--color-primary));
-    color: white;
-    
-    &:hover {
-      opacity: 0.9;
-    }
-  ` : `
-    background: rgb(var(--color-background));
-    color: rgb(var(--color-text-primary));
-    border: 1px solid rgb(var(--color-border));
-    
-    &:hover {
-      background: rgb(var(--color-border));
-    }
-  `}
-`;
 
 // ============================================================================
 // Component
@@ -462,21 +351,47 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
   field,
   onChange,
   onClose,
-  availableFields = [],
-  tenantLists = [],
 }) => {
+  const { tenantLists, availableFields, currentNodeId } = useFlowEditor();
   // Ensure required arrays are always initialized
   const [localField, setLocalField] = useState<FormField>({
     ...field,
     validationRules: field.validationRules || [],
   });
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [inheritanceMode, setInheritanceMode] = useState<'manual' | 'inherit'>('manual');
+
+  // React Flow integration for upstream data inheritance
+  const { getNodes, getEdges } = useReactFlow();
+  
+  // Get upstream outputs for inheritance
+  const upstreamOutputs = useMemo(() => {
+    if (!currentNodeId) return [];
+    return getUpstreamOutputs(getNodes(), getEdges(), currentNodeId);
+  }, [currentNodeId, getNodes, getEdges]);
+
+  // Convert upstream outputs to react-select options
+  const inheritanceOptions = useMemo(() => {
+    return upstreamOutputs.map((output) => ({
+      value: formatInheritanceSyntax(output.nodeId, output.fieldName),
+      label: `${output.nodeLabel} → ${output.fieldLabel}`,
+      nodeLabel: output.nodeLabel,
+      fieldLabel: output.fieldLabel,
+      type: output.fieldType,
+      sample: output.sampleValue,
+    }));
+  }, [upstreamOutputs]);
 
   useEffect(() => {
     setLocalField({
       ...field,
       validationRules: field.validationRules || [],
     });
+    
+    // Detect if current default value is inheritance syntax
+    if (field.defaultValue && isInheritanceSyntax(field.defaultValue)) {
+      setInheritanceMode('inherit');
+    }
   }, [field]);
 
   const fieldTypeDef = FIELD_TYPE_DEFINITIONS[localField.type];
@@ -520,7 +435,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
           <SectionContent $collapsed={collapsedSections.has('basic')}>
             <FormField>
               <Label>
-                Field Type <Required>*</Required>
+                Field Type <RequiredIndicator>*</RequiredIndicator>
               </Label>
               <FieldTypeGrid>
                 {Object.entries(FIELD_TYPE_DEFINITIONS).map(([type, def]) => (
@@ -538,7 +453,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
 
             <FormField>
               <Label>
-                Field Label <Required>*</Required>
+                Field Label <RequiredIndicator>*</RequiredIndicator>
               </Label>
               <Input
                 type="text"
@@ -582,16 +497,107 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
               <HelpText>User must provide a value before submitting</HelpText>
             </FormField>
 
+            {/* Smart Data Inheritance - Default Value */}
             {!['checkbox', 'file'].includes(localField.type) && (
               <FormField>
-                <Label>Default Value</Label>
-                <Input
-                  type={localField.type === 'number' ? 'number' : 'text'}
-                  value={localField.defaultValue || ''}
-                  onChange={(e) => handleUpdate({ defaultValue: e.target.value })}
-                  placeholder="Optional default value..."
-                />
-                <HelpText>Value pre-filled when the form loads</HelpText>
+                <Label>
+                  Default Value
+                  {upstreamOutputs.length > 0 && (
+                    <UpstreamBadge>
+                      <Zap size={12} />
+                      {upstreamOutputs.length} upstream field(s)
+                    </UpstreamBadge>
+                  )}
+                </Label>
+                
+                {/* Mode Toggle */}
+                {upstreamOutputs.length > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                    <ToggleButton
+                      type="button"
+                      $active={inheritanceMode === 'manual'}
+                      onClick={() => setInheritanceMode('manual')}
+                    >
+                      Manual Value
+                    </ToggleButton>
+                    <ToggleButton
+                      type="button"
+                      $active={inheritanceMode === 'inherit'}
+                      onClick={() => setInheritanceMode('inherit')}
+                    >
+                      <Zap size={12} />
+                      Inherit from Upstream
+                    </ToggleButton>
+                  </div>
+                )}
+
+                {/* Manual Input Mode */}
+                {(inheritanceMode === 'manual' || upstreamOutputs.length === 0) && (
+                  <Input
+                    type={localField.type === 'number' ? 'number' : 'text'}
+                    value={localField.defaultValue || ''}
+                    onChange={(e) => handleUpdate({ defaultValue: e.target.value })}
+                    placeholder="Optional default value..."
+                  />
+                )}
+
+                {/* Inheritance Mode - Dropdown Selector */}
+                {inheritanceMode === 'inherit' && upstreamOutputs.length > 0 && (
+                  <ReactSelect
+                    value={inheritanceOptions.find((opt) => opt.value === localField.defaultValue)}
+                    onChange={(selected) => {
+                      if (selected) {
+                        handleUpdate({ defaultValue: selected.value });
+                      }
+                    }}
+                    options={inheritanceOptions}
+                    isClearable
+                    placeholder="Select upstream field to inherit..."
+                    formatOptionLabel={(option: any) => (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: 'rgb(var(--color-text-primary))' }}>
+                          {option.nodeLabel} → {option.fieldLabel}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'rgb(var(--color-text-secondary))' }}>
+                          Type: {option.type} | Sample: {option.sample || 'N/A'}
+                        </div>
+                      </div>
+                    )}
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        minHeight: '42px',
+                        border: '1px solid rgb(var(--color-border))',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: 'none',
+                        '&:hover': {
+                          border: '1px solid rgb(var(--color-primary))',
+                        },
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isFocused
+                          ? 'rgba(var(--color-primary), 0.1)'
+                          : 'transparent',
+                        color: 'rgb(var(--color-text-primary))',
+                        cursor: 'pointer',
+                        padding: '12px',
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                        zIndex: 9999,
+                      }),
+                    }}
+                  />
+                )}
+
+                <HelpText>
+                  {inheritanceMode === 'inherit' 
+                    ? 'Value automatically pulled from an upstream node\'s output'
+                    : 'Value pre-filled when the form loads'}
+                </HelpText>
               </FormField>
             )}
           </SectionContent>
@@ -630,12 +636,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                 <Label>Options Source</Label>
                 <Select
                   value={localField.options?.source || 'manual'}
-                  onChange={(e) => handleUpdate({
-                    options: {
-                      ...localField.options,
-                      source: e.target.value as 'manual' | 'tenant-list' | 'entity',
-                    }
-                  })}
+                  onChange={(e) =>
+                    handleUpdate({
+                      options: {
+                        ...(localField.options ?? { source: 'manual' }),
+                        source: e.target.value as 'manual' | 'tenant-list' | 'entity',
+                      },
+                    })
+                  }
                 >
                   <option value="manual">Manual Entry</option>
                   <option value="tenant-list">Tenant List</option>
@@ -648,12 +656,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   <Label>Options (one per line)</Label>
                   <TextArea
                     value={localField.options?.manualOptions?.join('\n') || ''}
-                    onChange={(e) => handleUpdate({
-                      options: {
-                        ...localField.options,
-                        manualOptions: e.target.value.split('\n').filter(o => o.trim()),
-                      }
-                    })}
+                    onChange={(e) =>
+                      handleUpdate({
+                        options: {
+                          ...(localField.options ?? { source: 'manual' }),
+                          manualOptions: e.target.value.split('\n').filter((o) => o.trim()),
+                        },
+                      })
+                    }
                     placeholder="Option 1&#10;Option 2&#10;Option 3"
                   />
                   <HelpText>Enter each option on a new line</HelpText>
@@ -665,12 +675,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   <Label>Select Tenant List</Label>
                   <Select
                     value={localField.options?.tenantListId || ''}
-                    onChange={(e) => handleUpdate({
-                      options: {
-                        ...localField.options,
-                        tenantListId: e.target.value,
-                      }
-                    })}
+                    onChange={(e) =>
+                      handleUpdate({
+                        options: {
+                          ...(localField.options ?? { source: 'tenant-list' }),
+                          tenantListId: e.target.value,
+                        },
+                      })
+                    }
                   >
                     <option value="">Choose a list...</option>
                     {tenantLists.map(list => (
@@ -689,12 +701,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     <Label>Entity Type</Label>
                     <Select
                       value={localField.options?.entityType || ''}
-                      onChange={(e) => handleUpdate({
-                        options: {
-                          ...localField.options,
-                          entityType: e.target.value,
-                        }
-                      })}
+                      onChange={(e) =>
+                        handleUpdate({
+                          options: {
+                            ...(localField.options ?? { source: 'entity' }),
+                            entityType: e.target.value,
+                          },
+                        })
+                      }
                     >
                       <option value="">Select entity...</option>
                       <option value="supplier">Suppliers</option>
@@ -708,12 +722,14 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     <Input
                       type="text"
                       value={localField.options?.entityField || ''}
-                      onChange={(e) => handleUpdate({
-                        options: {
-                          ...localField.options,
-                          entityField: e.target.value,
-                        }
-                      })}
+                      onChange={(e) =>
+                        handleUpdate({
+                          options: {
+                            ...(localField.options ?? { source: 'entity' }),
+                            entityField: e.target.value,
+                          },
+                        })
+                      }
                       placeholder="e.g., name"
                     />
                     <HelpText>Which field to show in the dropdown (e.g., "name")</HelpText>

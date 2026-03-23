@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { apiService, PurchaseOrder, Supplier } from '../services/apiService';
 import { LocationSelector } from '../components/Shared';
@@ -352,6 +352,18 @@ const SubmitButton = styled.button`
 
 const PurchaseOrders: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+
+  type CockpitPrefill = {
+    source?: string;
+    query?: string;
+    supplierId?: string;
+    contextEntity?: { id?: string; type?: string; label?: string };
+  };
+
+  const cockpitPrefill = (location.state as any)?.prefill as CockpitPrefill | undefined;
+  const [pendingCreatePrefill, setPendingCreatePrefill] = useState<CockpitPrefill | null>(null);
+
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -370,14 +382,62 @@ const PurchaseOrders: React.FC = () => {
     delivery_location: null as string | null, // Phase 4: Location integration
   });
 
-  // Auto-open form if ?action=create in URL
+  // Auto-open form if ?action=create in URL (e.g., from Cockpit suggested actions)
   useEffect(() => {
-    if (searchParams.get('action') === 'create') {
-      setShowForm(true);
-      searchParams.delete('action');
-      setSearchParams(searchParams);
+    if (searchParams.get('action') !== 'create') return;
+
+    const supplierId =
+      searchParams.get('supplier_id') ??
+      cockpitPrefill?.supplierId ??
+      undefined;
+
+    const cockpitQuery =
+      searchParams.get('cockpit_q') ??
+      cockpitPrefill?.query ??
+      undefined;
+
+    setPendingCreatePrefill({
+      source: 'cockpit',
+      supplierId: supplierId || undefined,
+      query: cockpitQuery || undefined,
+      contextEntity: cockpitPrefill?.contextEntity,
+    });
+
+    setEditingPurchaseOrder(null);
+    setShowForm(true);
+
+    // Clear params so refresh doesn't keep reopening.
+    ['action', 'supplier_id', 'cockpit_q'].forEach((key) => searchParams.delete(key));
+    setSearchParams(searchParams);
+  }, [searchParams, setSearchParams, cockpitPrefill]);
+
+  // Apply prefill once we have loaded suppliers + existing orders (for next suggested order_number)
+  useEffect(() => {
+    if (!pendingCreatePrefill || !showForm) return;
+
+    const supplierId = pendingCreatePrefill.supplierId ?? '';
+    const noteParts: string[] = [];
+
+    if (pendingCreatePrefill.query) {
+      noteParts.push(`Cockpit search: "${pendingCreatePrefill.query}"`);
     }
-  }, [searchParams, setSearchParams]);
+
+    if (pendingCreatePrefill.contextEntity?.label) {
+      noteParts.push(`Context: ${pendingCreatePrefill.contextEntity.label}`);
+    }
+
+    const suggestedNotes = noteParts.join('\n');
+
+    setFormData((prev) => ({
+      ...prev,
+      order_number: prev.order_number || getNextOrderNumber(),
+      supplier: supplierId || prev.supplier,
+      order_date: prev.order_date || new Date().toISOString().split('T')[0],
+      notes: prev.notes || suggestedNotes,
+    }));
+
+    setPendingCreatePrefill(null);
+  }, [pendingCreatePrefill, showForm, suppliers.length, purchaseOrders.length]);
 
   useEffect(() => {
     loadData();

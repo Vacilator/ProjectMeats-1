@@ -116,7 +116,7 @@ export function exportSubFlow(
   category?: string
 ): SubFlowTemplate {
   // Find all child nodes (nodes with parentId = containerNode.id)
-  const childNodes = allNodes.filter(node => node.parentNode === containerNode.id);
+  const childNodes = allNodes.filter(node => node.parentId === containerNode.id);
   
   // Find all edges connecting children (source and target both are children)
   const childNodeIds = new Set(childNodes.map(n => n.id));
@@ -216,7 +216,7 @@ export function importSubFlow(
       type: childTemplate.type!,
       data: childTemplate.data,
       position: childTemplate.position!,
-      parentNode: containerNewId, // Set parent to new container
+      parentId: containerNewId,
       extent: childTemplate.extent || 'parent',
       expandParent: childTemplate.expandParent,
       width: childTemplate.width,

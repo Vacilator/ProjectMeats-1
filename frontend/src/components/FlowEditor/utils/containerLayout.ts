@@ -5,33 +5,43 @@
  * 
  * This module handles automatic positioning of nodes within containers:
  * - Form steps arrange horizontally (left-to-right)
- * - Action nodes stack vertically below connected form steps
+ * - Non-form nodes are NOT repositioned by container layout (prevents forcing actions inside the book)
  * - Maintains consistent spacing and alignment
  */
 
 import { Node, Edge } from '@xyflow/react';
+import { logger } from '@/utils/logger';
+
 
 // ============================================================================
 // Layout Constants (Phase 3.1)
 // ============================================================================
 
 export const LAYOUT_CONSTANTS = {
-  // Horizontal layout for form steps
-  START_X: 50,           // Starting x position for first form step
-  STEP_SPACING: 250,     // Horizontal spacing between form steps
-  STEP_Y: 80,            // Y position for form step row
-  
+  // Step layout (FormProcess: vertical stack; others may still use horizontal)
+  START_X: 50,
+  STEP_SPACING: 350,
+  STEP_Y: 80,
+
+  // Fixed dimensions for Form Step nodes (keeps steps inside parent bounds)
+  STEP_W: 320,
+  STEP_H: 320,
+
   // Vertical layout for action nodes
-  ACTION_OFFSET_Y: 180,  // Vertical offset below form step
-  ACTION_SPACING_Y: 120, // Spacing between stacked actions
-  
+  ACTION_OFFSET_Y: 180,
+  ACTION_SPACING_Y: 120,
+
   // Container padding
   CONTAINER_PADDING_X: 20,
   CONTAINER_PADDING_Y: 20,
-  
-  // Node dimensions (for calculating container size)
-  DEFAULT_NODE_WIDTH: 200,
-  DEFAULT_NODE_HEIGHT: 100,
+
+  // Virtual "+" add button (render-time, not persisted)
+  ADD_BUTTON_D: 56,
+  ADD_BUTTON_MARGIN_Y: 24,
+
+  // Fallback node dimensions (for calculating container size)
+  DEFAULT_NODE_WIDTH: 320,
+  DEFAULT_NODE_HEIGHT: 320,
 } as const;
 
 // ============================================================================
@@ -66,13 +76,21 @@ export function calculateContainerLayout(
   allNodes: Node[],
   allEdges: Edge[]
 ): LayoutResult {
-  console.log(`[Layout] Calculating layout for container ${containerId}`);
-  
+  logger.debug(`[Layout] Calculating layout for container ${containerId}`);
+
+  const containerNode = allNodes.find((n) => n.id === containerId);
+  const containerType = ((containerNode?.data as any)?.nodeType as string | undefined) || containerNode?.type;
+  const enforceStrictPages = !!containerType &&
+    (containerType === 'formProcessGroup' ||
+      containerType === 'formProcess' ||
+      containerType === 'formMultiStepContainer' ||
+      containerType === 'formBook');
+
   // Filter child nodes (using parentId - React Flow v11+)
   const childNodes = allNodes.filter(node => node.parentId === containerId);
   
   if (childNodes.length === 0) {
-    console.log(`[Layout] No child nodes found for container ${containerId}`);
+    logger.debug(`[Layout] No child nodes found for container ${containerId}`);
     return {
       nodes: allNodes,
       containerWidth: 400,  // Default container size
@@ -81,95 +99,85 @@ export function calculateContainerLayout(
   }
   
   // Separate nodes by type
-  const formSteps = childNodes.filter(node => node.type === 'formStep' || node.type === 'formReference');
-  const actionNodes = childNodes.filter(node => 
-    node.type !== 'formStep' && 
-    node.type !== 'formReference' &&
-    node.type !== 'formMultiStepContainer' // Don't layout nested containers
+  // Pages (form nodes) should be laid out in a horizontal row; other child nodes remain free-positioned.
+  const isPageNodeType = (type?: string) =>
+    type === 'form' || type === 'formReference' || type === 'formStepSingle' || type === 'formStep';
+
+  const formSteps = childNodes.filter((node) => isPageNodeType(node.type));
+  const otherNodes = childNodes.filter(
+    (node) => !isPageNodeType(node.type) && node.type !== 'formMultiStepContainer' // Don't layout nested containers
   );
   
-  console.log(`[Layout] Found \${formSteps.length} form steps, \${actionNodes.length} action nodes`);
+  logger.debug(`[Layout] Found \${formSteps.length} form steps, \${otherNodes.length} non-form child nodes`);
   
-  // Sort form steps by current x-position to preserve rough order
-  formSteps.sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
-  
-  // Update form steps with horizontal layout
+  const layoutDirection: 'vertical' | 'horizontal' = enforceStrictPages ? 'vertical' : 'horizontal';
+
+  // Preserve rough order based on the axis that matters for the container
+  formSteps.sort((a, b) => {
+    const ax = layoutDirection === 'vertical' ? (a.position?.y || 0) : (a.position?.x || 0);
+    const bx = layoutDirection === 'vertical' ? (b.position?.y || 0) : (b.position?.x || 0);
+    return ax - bx;
+  });
+
+  // Update form steps with container layout
   const updatedFormSteps = formSteps.map((step, index) => {
-    const newPosition: NodePosition = {
-      x: LAYOUT_CONSTANTS.START_X + (index * LAYOUT_CONSTANTS.STEP_SPACING),
-      y: LAYOUT_CONSTANTS.STEP_Y,
-    };
-    
-    console.log(`[Layout] Form step \${step.id} positioned at (\${newPosition.x}, \${newPosition.y})`);
-    
+    const newPosition: NodePosition =
+      layoutDirection === 'vertical'
+        ? {
+            x: LAYOUT_CONSTANTS.START_X,
+            y: LAYOUT_CONSTANTS.STEP_Y + index * LAYOUT_CONSTANTS.STEP_SPACING,
+          }
+        : {
+            x: LAYOUT_CONSTANTS.START_X + index * LAYOUT_CONSTANTS.STEP_SPACING,
+            y: LAYOUT_CONSTANTS.STEP_Y,
+          };
+
+    logger.debug(`[Layout] Form step \${step.id} positioned at (\${newPosition.x}, \${newPosition.y})`);
+
     return {
       ...step,
       position: newPosition,
+      draggable: enforceStrictPages ? false : step.draggable,
+      style: enforceStrictPages
+        ? {
+            ...(step.style || {}),
+            width: LAYOUT_CONSTANTS.STEP_W,
+            height: LAYOUT_CONSTANTS.STEP_H,
+            overflow: 'hidden',
+          }
+        : step.style,
       data: {
         ...step.data,
-        order: index, // Store order for future reordering
+        order: index,
       },
     };
   });
   
-  // Layout action nodes below their connected form steps
-  const updatedActionNodes = actionNodes.map(action => {
-    // Find which form step this action is connected to
-    const connectedStep = findConnectedFormStep(action, updatedFormSteps, allEdges);
-    
-    if (connectedStep) {
-      // Position below the connected form step
-      const actionsAtThisStep = actionNodes.filter(a => 
-        findConnectedFormStep(a, updatedFormSteps, allEdges)?.id === connectedStep.id
-      );
-      const actionIndex = actionsAtThisStep.indexOf(action);
-      
-      const newPosition: NodePosition = {
-        x: connectedStep.position.x,
-        y: connectedStep.position.y + LAYOUT_CONSTANTS.ACTION_OFFSET_Y + 
-           (actionIndex * LAYOUT_CONSTANTS.ACTION_SPACING_Y),
-      };
-      
-      console.log(`[Layout] Action \${action.id} positioned below step \${connectedStep.id} at (\${newPosition.x}, \${newPosition.y})`);
-      
-      return {
-        ...action,
-        position: newPosition,
-      };
-    } else {
-      // No connected form step - position at the end
-      const defaultX = LAYOUT_CONSTANTS.START_X + (formSteps.length * LAYOUT_CONSTANTS.STEP_SPACING);
-      const newPosition: NodePosition = {
-        x: defaultX,
-        y: LAYOUT_CONSTANTS.STEP_Y,
-      };
-      
-      console.log(`[Layout] Orphaned action \${action.id} positioned at end (\${newPosition.x}, \${newPosition.y})`);
-      
-      return {
-        ...action,
-        position: newPosition,
-      };
-    }
-  });
+  // Book+Pages: only reposition form steps; leave other child nodes unchanged
+  const updatedChildNodes = [...updatedFormSteps, ...otherNodes];
   
-  // Combine updated nodes
-  const updatedChildNodes = [...updatedFormSteps, ...updatedActionNodes];
-  
-  // Calculate required container dimensions
+  const getNodeSize = (n: Node) => {
+    const styleAny = (n.style || {}) as any;
+    const width = styleAny.width ?? (n as any).width ?? LAYOUT_CONSTANTS.DEFAULT_NODE_WIDTH;
+    const height = styleAny.height ?? (n as any).height ?? LAYOUT_CONSTANTS.DEFAULT_NODE_HEIGHT;
+    return { width: Number(width) || LAYOUT_CONSTANTS.DEFAULT_NODE_WIDTH, height: Number(height) || LAYOUT_CONSTANTS.DEFAULT_NODE_HEIGHT };
+  };
+
+  // Calculate required container dimensions (respect explicit style widths/heights when present)
   const maxX = Math.max(
-    ...updatedChildNodes.map(n => n.position.x + LAYOUT_CONSTANTS.DEFAULT_NODE_WIDTH),
+    ...updatedChildNodes.map((n) => n.position.x + getNodeSize(n).width),
     400 // Minimum width
   );
   const maxY = Math.max(
-    ...updatedChildNodes.map(n => n.position.y + LAYOUT_CONSTANTS.DEFAULT_NODE_HEIGHT),
+    ...updatedChildNodes.map((n) => n.position.y + getNodeSize(n).height),
     300 // Minimum height
   );
-  
+
   const containerWidth = maxX + LAYOUT_CONSTANTS.CONTAINER_PADDING_X;
-  const containerHeight = maxY + LAYOUT_CONSTANTS.CONTAINER_PADDING_Y;
+  const extraBottom = enforceStrictPages ? LAYOUT_CONSTANTS.ADD_BUTTON_D + LAYOUT_CONSTANTS.ADD_BUTTON_MARGIN_Y : 0;
+  const containerHeight = maxY + LAYOUT_CONSTANTS.CONTAINER_PADDING_Y + extraBottom;
   
-  console.log(`[Layout] Calculated container dimensions: \${containerWidth}x\${containerHeight}`);
+  logger.debug(`[Layout] Calculated container dimensions: \${containerWidth}x\${containerHeight}`);
   
   // Merge updated child nodes back into all nodes
   const updatedAllNodes = allNodes.map(node => {
@@ -184,43 +192,6 @@ export function calculateContainerLayout(
   };
 }
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Find the form step that an action node is connected to
- * 
- * @param actionNode - The action node to check
- * @param formSteps - Array of form step nodes
- * @param edges - All edges in the editor
- * @returns The connected form step node, or null if none found
- */
-function findConnectedFormStep(
-  actionNode: Node,
-  formSteps: Node[],
-  edges: Edge[]
-): Node | null {
-  // Check incoming edges (action is target)
-  const incomingEdge = edges.find(edge => edge.target === actionNode.id);
-  if (incomingEdge) {
-    const sourceNode = formSteps.find(step => step.id === incomingEdge.source);
-    if (sourceNode) {
-      return sourceNode;
-    }
-  }
-  
-  // Check outgoing edges (action is source)
-  const outgoingEdge = edges.find(edge => edge.source === actionNode.id);
-  if (outgoingEdge) {
-    const targetNode = formSteps.find(step => step.id === outgoingEdge.target);
-    if (targetNode) {
-      return targetNode;
-    }
-  }
-  
-  return null;
-}
 
 /**
  * Check if a node should trigger auto-layout
@@ -254,20 +225,37 @@ export function autoConnectSequentialSteps(
   allNodes: Node[],
   allEdges: Edge[]
 ): ConnectionResult {
-  console.log(`[AutoConnect] Creating sequential connections for container ${containerId}`);
+  logger.debug(`[AutoConnect] Creating sequential connections for container ${containerId}`);
   
+  const containerNode = allNodes.find((n) => n.id === containerId);
+  const containerType = ((containerNode?.data as any)?.nodeType as string | undefined) || containerNode?.type;
+  const enforceStrictPages = !!containerType &&
+    (containerType === 'formProcessGroup' ||
+      containerType === 'formProcess' ||
+      containerType === 'formMultiStepContainer' ||
+      containerType === 'formBook');
+
   // Filter child nodes (using parentId - React Flow v11+)
-  const childNodes = allNodes.filter(node => node.parentId === containerId);
-  
-  // Get only form steps and sort by x-position (left-to-right)
+  const childNodes = allNodes.filter((node) => node.parentId === containerId);
+
+  // Get only form steps and sort by the container axis
+  const isPageNodeType = (type?: string) =>
+    type === 'form' || type === 'formReference' || type === 'formStepSingle' || type === 'formStep';
+
+  const layoutDirection: 'vertical' | 'horizontal' = enforceStrictPages ? 'vertical' : 'horizontal';
+
   const formSteps = childNodes
-    .filter(node => node.type === 'formStep' || node.type === 'formReference')
-    .sort((a, b) => (a.position?.x || 0) - (b.position?.x || 0));
+    .filter((node) => isPageNodeType(node.type))
+    .sort((a, b) =>
+      layoutDirection === 'vertical'
+        ? (a.position?.y || 0) - (b.position?.y || 0)
+        : (a.position?.x || 0) - (b.position?.x || 0)
+    );
   
-  console.log(`[AutoConnect] Found ${formSteps.length} form steps to connect`);
+  logger.debug(`[AutoConnect] Found ${formSteps.length} form steps to connect`);
   
   if (formSteps.length < 2) {
-    console.log(`[AutoConnect] Not enough form steps to create connections`);
+    logger.debug(`[AutoConnect] Not enough form steps to create connections`);
     return { edges: allEdges };
   }
   
@@ -283,7 +271,7 @@ export function autoConnectSequentialSteps(
     return sourceNode?.parentId !== containerId || targetNode?.parentId !== containerId;
   });
   
-  console.log(`[AutoConnect] Removed ${allEdges.length - nonAutoEdges.length} old auto-edges`);
+  logger.debug(`[AutoConnect] Removed ${allEdges.length - nonAutoEdges.length} old auto-edges`);
   
   // Create sequential edges between form steps
   const newAutoEdges: Edge[] = [];
@@ -300,7 +288,7 @@ export function autoConnectSequentialSteps(
     );
     
     if (manualEdgeExists) {
-      console.log(`[AutoConnect] Skipping ${edgeId} - manual edge exists`);
+      logger.debug(`[AutoConnect] Skipping ${edgeId} - manual edge exists`);
       continue;
     }
     
@@ -315,10 +303,10 @@ export function autoConnectSequentialSteps(
       },
     });
     
-    console.log(`[AutoConnect] Created edge: ${sourceStep.id} → ${targetStep.id}`);
+    logger.debug(`[AutoConnect] Created edge: ${sourceStep.id} → ${targetStep.id}`);
   }
   
-  console.log(`[AutoConnect] Created ${newAutoEdges.length} sequential edges`);
+  logger.debug(`[AutoConnect] Created ${newAutoEdges.length} sequential edges`);
   
   return {
     edges: [...nonAutoEdges, ...newAutoEdges],

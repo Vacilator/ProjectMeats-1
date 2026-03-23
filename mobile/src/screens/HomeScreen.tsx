@@ -9,13 +9,14 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ApiService } from '../services/ApiService';
-import { RootStackParamList, User, Tenant, Customer, Supplier } from '../types';
+import { RootStackParamList, User, GuestUser, Tenant, Customer, Supplier } from '../types';
+import { useMobileTranslation } from '../i18n';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 interface Props {
   navigation: HomeScreenNavigationProp;
-  user: User;
+  user: User | GuestUser;
   tenant: Tenant;
   onLogout: () => void;
   onSwitchTenant: () => void;
@@ -36,6 +37,7 @@ const EntityCard: React.FC<EntityCardProps> = ({ title, count, onPress, color })
 );
 
 export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitchTenant }: Props) {
+  const { t } = useMobileTranslation();
   const [dashboardData, setDashboardData] = useState({
     customers: 0,
     suppliers: 0,
@@ -51,7 +53,6 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
 
   const loadDashboardData = async () => {
     try {
-      // Load basic counts for dashboard
       const [customers, suppliers, contacts, plants, carriers] = await Promise.all([
         ApiService.getCustomers(),
         ApiService.getSuppliers(),
@@ -69,8 +70,6 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
       });
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
-      // Don't show alert for now, just log the error
-      // This might fail if the user doesn't have proper permissions yet
     } finally {
       setLoading(false);
     }
@@ -78,30 +77,30 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
 
   const handleEntityPress = (entityType: string) => {
     Alert.alert(
-      'Coming Soon',
-      `${entityType} management will be available in the next update.`,
+      t.home.comingSoon,
+      t.home.nextUpdate(entityType),
       [{ text: 'OK' }]
     );
   };
 
   const handleLogout = () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      t.home.logout,
+      t.home.logoutConfirm,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: onLogout },
+        { text: t.home.cancel, style: 'cancel' },
+        { text: t.home.logout, style: 'destructive', onPress: onLogout },
       ]
     );
   };
 
   const handleSwitchTenant = () => {
     Alert.alert(
-      'Switch Organization',
-      'Do you want to switch to a different organization?',
+      t.home.switchOrg,
+      t.home.switchConfirm,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Switch', onPress: onSwitchTenant },
+        { text: t.home.cancel, style: 'cancel' },
+        { text: t.home.switchBtn, onPress: onSwitchTenant },
       ]
     );
   };
@@ -113,11 +112,11 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
         <View>
           <Text style={styles.tenantName}>{tenant.name}</Text>
           <Text style={styles.welcomeText}>
-            Welcome, {user.first_name || user.username}
+            {t.home.welcome(user.first_name || user.username)}
           </Text>
           {tenant.is_trial && (
             <View style={styles.trialBanner}>
-              <Text style={styles.trialText}>TRIAL ACCOUNT</Text>
+              <Text style={styles.trialText}>{t.home.trialAccount}</Text>
             </View>
           )}
         </View>
@@ -127,58 +126,58 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
             style={[styles.headerButton, styles.switchButton]} 
             onPress={handleSwitchTenant}
           >
-            <Text style={styles.headerButtonText}>Switch</Text>
+            <Text style={styles.headerButtonText}>{t.home.switchBtn}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={[styles.headerButton, styles.logoutButton]} 
             onPress={handleLogout}
           >
-            <Text style={styles.headerButtonText}>Logout</Text>
+            <Text style={styles.headerButtonText}>{t.home.logout}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Dashboard */}
       <ScrollView style={styles.content}>
-        <Text style={styles.sectionTitle}>Dashboard</Text>
+        <Text style={styles.sectionTitle}>{t.home.dashboard}</Text>
         
         {loading ? (
           <View style={styles.loadingContainer}>
-            <Text>Loading dashboard...</Text>
+            <Text>{t.home.loadingDashboard}</Text>
           </View>
         ) : (
           <View style={styles.entityGrid}>
             <EntityCard
-              title="Customers"
+              title={t.home.customers}
               count={dashboardData.customers}
               onPress={() => handleEntityPress('Customer')}
               color="#3498db"
             />
             
             <EntityCard
-              title="Suppliers"
+              title={t.home.suppliers}
               count={dashboardData.suppliers}
               onPress={() => handleEntityPress('Supplier')}
               color="#e74c3c"
             />
             
             <EntityCard
-              title="Contacts"
+              title={t.home.contacts}
               count={dashboardData.contacts}
               onPress={() => handleEntityPress('Contact')}
               color="#f39c12"
             />
             
             <EntityCard
-              title="Plants"
+              title={t.home.plants}
               count={dashboardData.plants}
               onPress={() => handleEntityPress('Plant')}
               color="#27ae60"
             />
             
             <EntityCard
-              title="Carriers"
+              title={t.home.carriers}
               count={dashboardData.carriers}
               onPress={() => handleEntityPress('Carrier')}
               color="#9b59b6"
@@ -187,27 +186,34 @@ export default function HomeScreen({ navigation, user, tenant, onLogout, onSwitc
         )}
 
         {/* Quick Actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionTitle}>{t.home.quickActions}</Text>
         <View style={styles.quickActions}>
           <TouchableOpacity 
-            style={styles.quickActionButton}
-            onPress={() => Alert.alert('Coming Soon', 'This feature will be available soon.')}
+            style={[styles.quickActionButton, styles.workFormsButton]}
+            onPress={() => navigation.navigate('WorkForms')}
           >
-            <Text style={styles.quickActionText}>Create Order</Text>
+            <Text style={[styles.quickActionText, styles.workFormsButtonText]}>WorkForms</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => Alert.alert(t.home.comingSoon, t.home.featureSoon)}
+          >
+            <Text style={styles.quickActionText}>{t.home.createOrder}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.quickActionButton}
-            onPress={() => Alert.alert('Coming Soon', 'This feature will be available soon.')}
+            onPress={() => Alert.alert(t.home.comingSoon, t.home.featureSoon)}
           >
-            <Text style={styles.quickActionText}>View Reports</Text>
+            <Text style={styles.quickActionText}>{t.home.viewReports}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.quickActionButton}
-            onPress={() => Alert.alert('Coming Soon', 'This feature will be available soon.')}
+            onPress={() => Alert.alert(t.home.comingSoon, t.home.featureSoon)}
           >
-            <Text style={styles.quickActionText}>AI Assistant</Text>
+            <Text style={styles.quickActionText}>{t.home.aiAssistant}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -326,6 +332,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#e1e5e9',
+  },
+  workFormsButton: {
+    backgroundColor: '#2c3e50',
+    borderColor: '#2c3e50',
+  },
+  workFormsButtonText: {
+    color: '#fff',
   },
   quickActionText: {
     color: '#2c3e50',

@@ -15,6 +15,7 @@ import { ConfigField, FieldRenderProps } from '../types';
 import EntityFieldPicker, { SelectedField } from '../../ConfigPanel/EntityFieldPicker';
 import FieldMappingPanel from '../../ConfigPanel/FieldMappingPanel';
 import VariablePickerWithUpstream from '../../ConfigPanel/VariablePickerWithUpstream';
+import ValidationRuleBuilder from '../../ConfigPanel/ValidationRuleBuilder';
 
 // ============================================================================
 // Entity Field Picker Renderer (Phase E.3)
@@ -55,7 +56,7 @@ export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactEle
   }
   
   const handleFieldsChange = (fields: SelectedField[]) => {
-    onChange(field.id, fields);
+    onChange(fields);
   };
   
   // Note: EntityFieldPicker handles entityType changes internally,
@@ -65,7 +66,9 @@ export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactEle
       <EntityFieldPicker
         selectedFields={selectedFields}
         onFieldsChange={handleFieldsChange}
-        initialEntityType={entityType}
+        upstreamVariables={data?._upstreamVariables || []}
+        entityType={entityType}
+        hideEntitySelector
         multiSelectMode={field.options?.multiSelect ?? true}
       />
       {error && <ErrorMessage>{error}</ErrorMessage>}
@@ -91,7 +94,7 @@ export function renderEntitySelector(props: FieldRenderProps): React.ReactElemen
   const entityType = props.data?.entityType as string | undefined;
   
   const handleFieldsChange = (fields: SelectedField[]) => {
-    onChange(field.id, fields);
+    onChange(fields);
   };
   
   const handleEntityTypeChange = (newEntityType: string) => {
@@ -141,7 +144,7 @@ export function renderFieldMapping(props: FieldRenderProps): React.ReactElement 
   }
   
   const handleMappingsChange = (newMappings: Record<string, any>) => {
-    onChange(field.id, newMappings);
+    onChange(newMappings);
   };
   
   return (
@@ -171,7 +174,7 @@ export function renderVariablePicker(props: FieldRenderProps): React.ReactElemen
   const selectedVariable = value as string | undefined;
   
   const handleVariableSelect = (variablePath: string) => {
-    onChange(field.id, variablePath);
+    onChange(variablePath);
   };
   
   return (
@@ -194,19 +197,22 @@ export function renderVariablePicker(props: FieldRenderProps): React.ReactElemen
 /**
  * Renders a validation rule builder
  * Used for defining validation rules on form fields
- * TODO: Implement ValidationRuleBuilder component
  */
 export function renderValidationBuilder(props: FieldRenderProps): React.ReactElement {
   const { field, value, onChange, error } = props;
-  
-  // Placeholder implementation - actual ValidationRuleBuilder component to be created
+
+  const rules = (value as any[]) || [];
+
+  const handleRulesChange = (newRules: any[]) => {
+    onChange(newRules);
+  };
+
   return (
     <FieldContainer>
-      <EmptyState>
-        ⚠️ Validation builder not yet implemented
-        <br />
-        Current value: {JSON.stringify(value)}
-      </EmptyState>
+      <ValidationRuleBuilder
+        rules={rules}
+        onChange={handleRulesChange}
+      />
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </FieldContainer>
   );

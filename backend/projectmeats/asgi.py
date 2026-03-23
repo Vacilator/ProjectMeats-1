@@ -1,10 +1,12 @@
-"""
-ASGI config for projectmeats project.
+"""projectmeats ASGI entrypoint.
 
-It exposes the ASGI callable as a module-level variable named ``application``.
+Phase 7.3 introduces Django Channels to enable WebSocket-based real-time
+collaboration for the WorkForms editor.
 
-For more information on this file, see
-https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
+Notes:
+- HTTP traffic continues to use the standard Django ASGI application.
+- WebSocket routes are registered in tenant_apps.workflows.routing.
+- Tenant isolation for broadcast is enforced via tenant-scoped group names.
 """
 
 import os
@@ -13,4 +15,19 @@ from django.core.asgi import get_asgi_application
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "projectmeats.settings")
 
-application = get_asgi_application()
+django_asgi_app = get_asgi_application()
+
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.security.websocket import AllowedHostsOriginValidator
+
+import tenant_apps.workflows.routing
+
+application = ProtocolTypeRouter(
+    {
+        "http": django_asgi_app,
+        "websocket": AllowedHostsOriginValidator(
+            AuthMiddlewareStack(URLRouter(tenant_apps.workflows.routing.websocket_urlpatterns))
+        ),
+    }
+)

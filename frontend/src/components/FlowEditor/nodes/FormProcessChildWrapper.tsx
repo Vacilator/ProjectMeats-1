@@ -134,10 +134,7 @@ const ContentArea = styled.div`
 /**
  * Calculate vertical position for a child node based on its index
  * 
- * @param stepIndex - Zero-based index of step in container
- * @param baseY - Base Y offset from container top
- * @param spacing - Vertical spacing between steps
- * @returns Y position for this step
+ * (Kept for backward compatibility; the Book+Pages paradigm prefers horizontal sequencing.)
  */
 export function calculateChildYPosition(
   stepIndex: number,
@@ -148,26 +145,35 @@ export function calculateChildYPosition(
 }
 
 /**
- * Auto-layout children within a container
- * Updates node positions to follow vertical stack pattern
+ * Calculate horizontal position for a child node based on its index
  * 
- * @param childNodes - Array of child nodes to layout
- * @param containerWidth - Width of parent container
- * @returns Updated nodes with new positions
+ * Book+Pages: steps flow left-to-right like pages on a track.
+ */
+export function calculateChildXPosition(
+  stepIndex: number,
+  baseX: number = 20,
+  spacing: number = 350
+): number {
+  return baseX + (stepIndex * spacing);
+}
+
+/**
+ * Auto-layout children within a container
+ * Updates node positions to follow horizontal "pages" sequencing
  */
 export function autoLayoutChildren(
   childNodes: any[],
-  containerWidth: number = 560
+  _containerWidth: number = 560
 ): any[] {
   const baseX = 20; // Left margin
-  const baseY = 60; // Top margin (below header)
-  const spacing = 120; // Vertical spacing between steps
-  
+  const baseY = 80; // Row position (below header)
+  const spacingX = 350; // Horizontal spacing between pages
+
   return childNodes.map((node, index) => ({
     ...node,
     position: {
-      x: baseX,
-      y: calculateChildYPosition(index, baseY, spacing),
+      x: calculateChildXPosition(index, baseX, spacingX),
+      y: baseY,
     },
     data: {
       ...node.data,

@@ -14,12 +14,13 @@
  * Theme Compliance:
  * - Uses CSS custom properties
  */
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { Activity, Package, Users, FileText, DollarSign } from 'lucide-react';
 import { WidgetCard } from './WidgetCard';
-import { useCockpitStats } from '../../hooks/useCockpitStats';
+import { useCockpitStats, ActivityItem } from '../../hooks/useCockpitStats';
 import { formatDistanceToNow } from 'date-fns';
+import { EntityDetailModal } from '../Shared/EntityDetailModal';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -42,18 +43,26 @@ const ActivityList = styled.div`
   padding: 4px;
 `;
 
-const ActivityItemCard = styled.div`
+const ActivityItemButton = styled.button`
   display: flex;
   align-items: flex-start;
   gap: 12px;
   padding: 10px;
   border-radius: var(--radius-md, 8px);
   border: 1px solid rgb(var(--color-border));
+  background: transparent;
+  text-align: left;
   transition: all 0.15s ease;
+  cursor: pointer;
 
   &:hover {
     background: rgb(var(--color-background-hover));
     border-color: rgb(var(--color-primary));
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
   }
 `;
 
@@ -100,10 +109,37 @@ const EmptyState = styled.div`
 // Helper Functions
 // ============================================================================
 
+const SUPPORTED_MODAL_ENTITY_TYPES = new Set([
+  'supplier',
+  'customer',
+  'contact',
+  'purchase_order',
+  'sales_order',
+  'product',
+  'carrier',
+  'plant',
+  'invoice',
+]);
+
+const normalizeEntityTypeForModal = (raw: string): string | null => {
+  const value = (raw ?? '').toString().trim().toLowerCase();
+  if (!value) return null;
+
+  // Support legacy/camel variants like "PurchaseOrder" or "purchaseorder"
+  const compact = value.replace(/\s+/g, '').replace(/_/g, '');
+  if (compact === 'purchaseorder') return 'purchase_order';
+  if (compact === 'salesorder') return 'sales_order';
+
+  // Prefer snake_case types coming from backend TextChoices
+  const normalized = value.replace(/\s+/g, '_');
+  return SUPPORTED_MODAL_ENTITY_TYPES.has(normalized) ? normalized : null;
+};
+
 const getIconForEntityType = (entityType: string) => {
-  switch (entityType.toLowerCase()) {
-    case 'purchaseorder':
-    case 'salesorder':
+  const normalized = normalizeEntityTypeForModal(entityType) ?? entityType.toLowerCase();
+  switch (normalized) {
+    case 'purchase_order':
+    case 'sales_order':
       return <Package size={16} />;
     case 'customer':
       return <Users size={16} />;
@@ -117,10 +153,11 @@ const getIconForEntityType = (entityType: string) => {
 };
 
 const getColorForEntityType = (entityType: string) => {
-  switch (entityType.toLowerCase()) {
-    case 'purchaseorder':
+  const normalized = normalizeEntityTypeForModal(entityType) ?? entityType.toLowerCase();
+  switch (normalized) {
+    case 'purchase_order':
       return 'rgb(59, 130, 246)';
-    case 'salesorder':
+    case 'sales_order':
       return 'rgb(168, 85, 247)';
     case 'customer':
       return 'rgb(34, 197, 94)';
@@ -139,6 +176,15 @@ const getColorForEntityType = (entityType: string) => {
 
 export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = () => {
   const { stats, isLoading, error, refetch } = useCockpitStats();
+  const [selectedEntity, setSelectedEntity] = useState<{ type: string; id: number } | null>(null);
+
+  const activities = useMemo(() => stats?.recent_activity ?? [], [stats]);
+
+  const handleActivityClick = (activity: ActivityItem) => {
+    const type = normalizeEntityTypeForModal(activity.entity_type);
+    if (!type) return;
+    setSelectedEntity({ type, id: activity.entity_id });
+  };
 
   return (
     <WidgetCard
@@ -148,23 +194,46 @@ export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = () => {
       error={error || undefined}
       onRefresh={refetch}
     >
-      {stats && stats.recent_activity.length > 0 ? (
-        <ActivityList>
-          {stats.recent_activity.map(activity => (
-            <ActivityItemCard key={activity.id}>
-              <ActivityIcon $color={getColorForEntityType(activity.entity_type)}>
-                {getIconForEntityType(activity.entity_type)}
-              </ActivityIcon>
-              <ActivityContent>
-                <ActivityTitle>{activity.title}</ActivityTitle>
-                <ActivityMeta>
-                  {activity.content} • {activity.created_by} •{' '}
-                  {formatDistanceToNow(new Date(activity.created_on), { addSuffix: true })}
-                </ActivityMeta>
-              </ActivityContent>
-            </ActivityItemCard>
-          ))}
-        </ActivityList>
+      {activities.length > 0 ? (
+        <>
+          <ActivityList>
+            {activities.map(activity => {
+              const modalType = normalizeEntityTypeForModal(activity.entity_type);
+              const isClickable = !!modalType;
+
+              return (
+                <ActivityItemButton
+                  key={activity.id}
+                  type="button"
+                  onClick={() => handleActivityClick(activity)}
+                  aria-label={isClickable ? `Open ${activity.entity_type} details` : undefined}
+                  style={{ cursor: isClickable ? 'pointer' : 'default', opacity: isClickable ? 1 : 0.75 }}
+                  disabled={!isClickable}
+                >
+                  <ActivityIcon $color={getColorForEntityType(activity.entity_type)}>
+                    {getIconForEntityType(activity.entity_type)}
+                  </ActivityIcon>
+                  <ActivityContent>
+                    <ActivityTitle>{activity.title}</ActivityTitle>
+                    <ActivityMeta>
+                      {activity.content} • {activity.created_by} •{' '}
+                      {formatDistanceToNow(new Date(activity.created_on), { addSuffix: true })}
+                    </ActivityMeta>
+                  </ActivityContent>
+                </ActivityItemButton>
+              );
+            })}
+          </ActivityList>
+
+          {selectedEntity && (
+            <EntityDetailModal
+              isOpen={!!selectedEntity}
+              onClose={() => setSelectedEntity(null)}
+              entityType={selectedEntity.type}
+              entityId={selectedEntity.id}
+            />
+          )}
+        </>
       ) : (
         <EmptyState>
           <Activity size={32} style={{ marginBottom: '8px', opacity: 0.3 }} />

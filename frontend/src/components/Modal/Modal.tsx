@@ -19,7 +19,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 
-interface ModalProps {
+export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
@@ -92,6 +92,7 @@ const ModalBackdrop = styled.div`
     left: 0;
     right: 0;
     bottom: 0;
+    pointer-events: none; /* Don't block clicks to modal content */
   }
 `;
 

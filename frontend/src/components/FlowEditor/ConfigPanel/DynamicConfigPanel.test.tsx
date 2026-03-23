@@ -11,10 +11,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DynamicConfigPanel } from './DynamicConfigPanel';
 import type { Node, Edge } from '@xyflow/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FormBuilderProvider } from '../../../contexts/FormBuilderContext';
 
 // Mock the schema registry
-vi.mock('../config/schemaRegistry', () => ({
+vi.mock('../config', () => ({
   schemaRegistry: {
     getSchema: vi.fn((type: string) => {
       if (type === 'form') {
@@ -90,11 +91,19 @@ vi.mock('./NestedChildrenRenderer', () => ({
 
 // Helper to wrap component with providers
 const renderWithProviders = (ui: React.ReactElement) => {
-  return render(
-    <FormBuilderProvider>
-      {ui}
-    </FormBuilderProvider>
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+
+  const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <QueryClientProvider client={queryClient}>
+      <FormBuilderProvider>{children}</FormBuilderProvider>
+    </QueryClientProvider>
   );
+
+  return render(ui, { wrapper: Wrapper });
 };
 
 describe('DynamicConfigPanel', () => {
@@ -187,6 +196,15 @@ describe('DynamicConfigPanel', () => {
       expect(screen.getByTestId('field-description')).toBeInTheDocument();
     });
 
+    /**
+     * Test fallback schema for unknown types.
+     * 
+     * IMPORTANT: As of PR #3217, schemaRegistry.getSchema() ALWAYS returns a valid schema
+     * via createFallbackSchema(). The error panel has been REMOVED because all 50 node types
+     * now have either explicit schemas or auto-generated fallback schemas.
+     * 
+     * This test verifies the NEW behavior: unknown types render with fallback config.
+     */
     it('should show error panel when schema not found', () => {
       const nodeWithUnknownType: Node = {
         id: 'test-node',
@@ -204,8 +222,10 @@ describe('DynamicConfigPanel', () => {
         />
       );
 
-      expect(screen.getByText('Configuration Error')).toBeInTheDocument();
-      expect(screen.getByText(/No configuration schema found/)).toBeInTheDocument();
+      // Fallback schema should render (no error panel)
+      // The panel shows node details when data is empty
+      expect(screen.getByText(/Node type/i)).toBeInTheDocument();
+      expect(screen.getByText(/unknown-type/i)).toBeInTheDocument();
     });
 
     it('should handle field changes', async () => {
@@ -307,14 +327,12 @@ describe('DynamicConfigPanel', () => {
 
       // Change to null
       rerender(
-        <FormBuilderProvider>
-          <DynamicConfigPanel
-            node={null}
-            nodes={mockNodes}
-            edges={mockEdges}
-            onUpdateNode={mockOnUpdateNode}
-          />
-        </FormBuilderProvider>
+        <DynamicConfigPanel
+          node={null}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
       );
 
       expect(screen.getByText('No Node Selected')).toBeInTheDocument();
@@ -335,14 +353,12 @@ describe('DynamicConfigPanel', () => {
       // Simulate multiple re-renders (React 19 strict mode behavior)
       for (let i = 0; i < 5; i++) {
         rerender(
-          <FormBuilderProvider>
-            <DynamicConfigPanel
-              node={null}
-              nodes={mockNodes}
-              edges={mockEdges}
-              onUpdateNode={mockOnUpdateNode}
-            />
-          </FormBuilderProvider>
+          <DynamicConfigPanel
+            node={null}
+            nodes={mockNodes}
+            edges={mockEdges}
+            onUpdateNode={mockOnUpdateNode}
+          />
         );
       }
 
@@ -375,25 +391,21 @@ describe('DynamicConfigPanel', () => {
 
       // Rapid changes
       rerender(
-        <FormBuilderProvider>
-          <DynamicConfigPanel
-            node={null}
-            nodes={mockNodes}
-            edges={mockEdges}
-            onUpdateNode={mockOnUpdateNode}
-          />
-        </FormBuilderProvider>
+        <DynamicConfigPanel
+          node={null}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
       );
 
       rerender(
-        <FormBuilderProvider>
-          <DynamicConfigPanel
-            node={node2}
-            nodes={mockNodes}
-            edges={mockEdges}
-            onUpdateNode={mockOnUpdateNode}
-          />
-        </FormBuilderProvider>
+        <DynamicConfigPanel
+          node={node2}
+          nodes={mockNodes}
+          edges={mockEdges}
+          onUpdateNode={mockOnUpdateNode}
+        />
       );
 
       // Should handle without errors

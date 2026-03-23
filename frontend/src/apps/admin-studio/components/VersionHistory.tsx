@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Clock, GitBranch, Check, X, History, RotateCcw } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://dev.meatscentral.com';
+import { adminClient } from '@/services/apiService';
 
 interface Version {
   id: string;
@@ -40,13 +38,10 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   const fetchVersionHistory = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${API_BASE}/admin/system-config/api/studio/versions/history/`,
+      const response = await adminClient.get(
+        '/admin/system-config/api/studio/versions/history/',
         {
           params: { blueprint_id: blueprintId },
-          headers: {
-            Authorization: `Token ${localStorage.getItem('authToken')}`,
-          },
         }
       );
       setVersions(response.data.versions || []);
@@ -63,14 +58,9 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
     }
 
     try {
-      const response = await axios.post(
-        `${API_BASE}/admin/system-config/api/studio/versions/${versionId}/rollback/`,
-        {},
-        {
-          headers: {
-            Authorization: `Token ${localStorage.getItem('authToken')}`,
-          },
-        }
+      const response = await adminClient.post(
+        `/admin/system-config/api/studio/versions/${versionId}/rollback/`,
+        {}
       );
 
       alert(response.data.message);
@@ -86,13 +76,10 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
     if (!selectedForCompare) return;
 
     try {
-      const response = await axios.get(
-        `${API_BASE}/admin/system-config/api/studio/versions/${selectedForCompare}/compare/`,
+      const response = await adminClient.get(
+        `/admin/system-config/api/studio/versions/${selectedForCompare}/compare/`,
         {
           params: { with: versionBId },
-          headers: {
-            Authorization: `Token ${localStorage.getItem('authToken')}`,
-          },
         }
       );
       setComparisonData(response.data);

@@ -102,8 +102,8 @@ export const ContainerContextProvider: React.FC<ContainerContextProviderProps> =
   }, [containerStack]);
   
   const getBreadcrumbs = useCallback(() => {
-    const breadcrumbs = [{ id: null, name: 'Main Canvas' }];
-    containerStack.forEach(state => {
+    const breadcrumbs: Array<{ id: string | null; name: string }> = [{ id: null, name: 'Main Canvas' }];
+    containerStack.forEach((state) => {
       breadcrumbs.push({ id: state.containerId, name: state.containerName });
     });
     return breadcrumbs;

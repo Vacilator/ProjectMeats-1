@@ -25,6 +25,19 @@ concurrency:
   cancel-in-progress: false  # NEVER cancel in-progress deployments - only skip queued ones via check-latest
 
 jobs:
+  check_infrastructure:
+    name: "Check Infrastructure (Golden Drift Gate)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Run infrastructure checks
+        run: bash .github/scripts/check_infrastructure.sh
+
   # ==========================================
   # Detect Latest Commit (Smart Queue Management)
   # ==========================================
@@ -42,6 +55,7 @@ jobs:
   # 3. All commits are eventually deployed (git history is cumulative)
   check-latest:
     runs-on: ubuntu-latest
+    needs: [check_infrastructure]
     outputs:
       should_deploy: ${{ steps.check.outputs.should_deploy }}
       latest_sha: ${{ steps.check.outputs.latest_sha }}

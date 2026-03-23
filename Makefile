@@ -135,13 +135,10 @@ frontend:
 migrate:
 	cd backend && python manage.py migrate
 
-migrate-all:  ## Migrate public + all tenant schemas
-	@echo "🗃️  Running multi-tenant migrations..."
-	@echo "Step 1: Migrating public schema..."
-	cd backend && python manage.py migrate_schemas --schema=public
-	@echo "Step 2: Migrating all tenant schemas..."
-	cd backend && python manage.py migrate_schemas
-	@echo "✅ All schemas migrated successfully!"
+migrate-all:  ## Apply all Django migrations (shared-schema)
+	@echo "🗃️  Applying migrations (shared-schema multi-tenancy)..."
+	cd backend && python manage.py migrate --noinput
+	@echo "✅ Migrations applied successfully!"
 
 migrations:
 	cd backend && python manage.py makemigrations
@@ -169,7 +166,7 @@ test-backend:
 
 test-frontend:
 	@echo "🧪 Running React tests..."
-	cd frontend && CI=true npm test -- --watchAll=false --passWithNoTests
+	cd frontend && npm run test:ci
 
 # Code quality
 format:

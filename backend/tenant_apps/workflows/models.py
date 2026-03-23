@@ -18,6 +18,7 @@ from django.db import models
 from django.utils import timezone
 
 from apps.tenants.models import Tenant
+from apps.core.models import TenantAwareModel
 
 
 # =============================================================================
@@ -31,6 +32,7 @@ class TriggerType(models.TextChoices):
     WEBHOOK = 'webhook', 'Webhook (External API)'
     EVENT = 'event', 'Database Event'
     FORM_SUBMIT = 'form_submit', 'Form Submission'
+    EMAIL_RECEIVED = 'email_received', 'Email Received'  # Phase 6.5 (AI document understanding)
     RECORD_CREATED = 'record_created', 'New Record Created'  # Legacy - use EVENT
     RECORD_UPDATED = 'record_updated', 'Record Field Updated'  # Legacy - use EVENT
 
@@ -89,7 +91,7 @@ class WorkflowStatus(models.TextChoices):
 # TENANT LIST MODEL
 # =============================================================================
 
-class TenantList(models.Model):
+class TenantList(TenantAwareModel):
     """
     Tenant-specific option list for dropdown/multi-select fields.
     
@@ -98,12 +100,6 @@ class TenantList(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name='custom_lists',
-        help_text="Tenant this list belongs to"
-    )
     
     name = models.CharField(
         max_length=255,
@@ -152,7 +148,7 @@ class TenantList(models.Model):
 # TENANT FORM MODELS
 # =============================================================================
 
-class TenantForm(models.Model):
+class TenantForm(TenantAwareModel):
     """
     Custom form definition for a tenant.
     
@@ -161,12 +157,6 @@ class TenantForm(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name='custom_forms',
-        help_text="Tenant this form belongs to"
-    )
     
     # Form identification
     name = models.CharField(
@@ -208,6 +198,12 @@ class TenantForm(models.Model):
         help_text="Allow this form to be added to user Quick Actions menu"
     )
     
+    # Template Library (Phase 2.2)
+    is_system_template = models.BooleanField(
+        default=False,
+        help_text="True if this is an industry-standard system template"
+    )
+    
     # Audit
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -225,6 +221,20 @@ class TenantForm(models.Model):
         default=dict,
         blank=True,
         help_text="Visual editor flow definition (nodes and edges)"
+    )
+    
+    # Version control fields (Phase 2.4)
+    version_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable version control for this form"
+    )
+    current_version = models.ForeignKey(
+        'TenantFormVersion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='forms_at_this_version',
+        help_text="Current active version of this form"
     )
     
     class Meta:
@@ -248,7 +258,64 @@ class TenantForm(models.Model):
         return self.entities.count() == 1
 
 
-class TenantFormEntity(models.Model):
+class TenantFormVersion(TenantAwareModel):
+    """
+    Version snapshot of a tenant form (Phase 2.4).
+    
+    Stores complete form configuration at a specific point in time,
+    enabling rollback and audit trail of changes.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    form = models.ForeignKey(
+        TenantForm,
+        on_delete=models.CASCADE,
+        related_name='versions',
+        help_text="Form this version belongs to"
+    )
+    
+    version_number = models.PositiveIntegerField(
+        help_text="Sequential version number (1, 2, 3...)"
+    )
+    
+    snapshot_data = models.JSONField(
+        help_text="Complete snapshot of form configuration at this version"
+    )
+    
+    change_summary = models.TextField(
+        blank=True,
+        default='',
+        help_text="Summary of changes made in this version"
+    )
+    
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='form_versions_created',
+        help_text="User who created this version"
+    )
+    
+    is_current = models.BooleanField(
+        default=False,
+        help_text="Whether this is the current active version"
+    )
+    
+    # NOTE: created_on, modified_on, tenant, and custom_data are inherited from TenantAwareModel
+    
+    class Meta:
+        verbose_name = "Form Version"
+        verbose_name_plural = "Form Versions"
+        ordering = ['form', '-version_number']
+        unique_together = [['form', 'version_number']]
+    
+    def __str__(self):
+        current = " (Current)" if self.is_current else ""
+        return f"{self.form.name} v{self.version_number}{current}"
+
+
+class TenantFormEntity(TenantAwareModel):
     """
     Entity included in a tenant form.
     
@@ -262,6 +329,14 @@ class TenantFormEntity(models.Model):
         related_name='entities',
         help_text="Form this entity belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.form_id:
+            tenant_id = getattr(self.form, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantForm.objects.only('tenant_id').get(pk=self.form_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Reference to the entity type (e.g., 'supplier', 'customer', 'purchase_order')
     entity_type = models.CharField(
@@ -294,7 +369,7 @@ class TenantFormEntity(models.Model):
         return f"Step {self.order + 1}: {self.step_name or self.entity_type}"
 
 
-class TenantFormField(models.Model):
+class TenantFormField(TenantAwareModel):
     """
     Field configuration within a form entity.
     
@@ -308,6 +383,14 @@ class TenantFormField(models.Model):
         related_name='fields',
         help_text="Form entity this field belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.form_entity_id:
+            tenant_id = getattr(self.form_entity, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantFormEntity.objects.only('tenant_id').get(pk=self.form_entity_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Reference to the actual field
     field_key = models.CharField(
@@ -395,6 +478,26 @@ class TenantFormField(models.Model):
         help_text="Validation rules: min_length, max_length, pattern, min, max, etc."
     )
     
+    # Cascading field configuration (Phase 2.3: Entity Cascading)
+    cascade_parent_field = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cascade_children',
+        help_text="Parent field that controls options for this field (e.g., protein type filters cuts)"
+    )
+    cascade_filter_key = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Field key to filter by in related model (e.g., 'type_of_protein' in Product model)"
+    )
+    cascade_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable cascading filter for this field"
+    )
+    
     class Meta:
         verbose_name = "Form Field"
         verbose_name_plural = "Form Fields"
@@ -406,7 +509,7 @@ class TenantFormField(models.Model):
         return f"{visibility} {self.custom_label or self.field_key}"
 
 
-class TenantFormRule(models.Model):
+class TenantFormRule(TenantAwareModel):
     """
     Conditional rule for a form.
     
@@ -421,6 +524,14 @@ class TenantFormRule(models.Model):
         related_name='rules',
         help_text="Form this rule belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.form_id:
+            tenant_id = getattr(self.form, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantForm.objects.only('tenant_id').get(pk=self.form_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     name = models.CharField(
         max_length=255,
@@ -476,7 +587,7 @@ class TenantFormRule(models.Model):
 # TENANT WORKFLOW MODELS
 # =============================================================================
 
-class TenantWorkflow(models.Model):
+class TenantWorkflow(TenantAwareModel):
     """
     Workflow definition for a tenant.
     
@@ -485,12 +596,6 @@ class TenantWorkflow(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name='workflows',
-        help_text="Tenant this workflow belongs to"
-    )
     
     # Workflow identification
     name = models.CharField(
@@ -522,6 +627,17 @@ class TenantWorkflow(models.Model):
     # For scheduled: {"cron": "0 9 * * 1", "timezone": "America/New_York"}
     # For record_created: {"entity_type": "purchase_order"}
     # For record_updated: {"entity_type": "purchase_order", "fields": ["status", "total"]}
+    #
+    # For email_received (Phase 6.5):
+    # {
+    #   "conditions": {
+    #     "sender_contains": "@customer.com",
+    #     "subject_contains": "PO",
+    #     "document_type_equals": "PURCHASE_ORDER",
+    #     "body_keywords": ["ribeye", "delivery"],
+    #     "urgency_equals": "high"
+    #   }
+    # }
     trigger_config = models.JSONField(
         default=dict,
         blank=True,
@@ -576,7 +692,7 @@ class TenantWorkflow(models.Model):
         return f"{self.name} ({self.get_trigger_type_display()})"
 
 
-class TenantWorkflowCondition(models.Model):
+class TenantWorkflowCondition(TenantAwareModel):
     """
     Condition that must be met for workflow actions to execute.
     
@@ -590,6 +706,14 @@ class TenantWorkflowCondition(models.Model):
         related_name='conditions',
         help_text="Workflow this condition belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.workflow_id:
+            tenant_id = getattr(self.workflow, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantWorkflow.objects.only('tenant_id').get(pk=self.workflow_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Field to check
     field_path = models.CharField(
@@ -626,7 +750,7 @@ class TenantWorkflowCondition(models.Model):
         return f"{self.field_path} {self.operator} {self.compare_value}"
 
 
-class TenantWorkflowAction(models.Model):
+class TenantWorkflowAction(TenantAwareModel):
     """
     Action to perform when workflow triggers and conditions are met.
     
@@ -640,6 +764,14 @@ class TenantWorkflowAction(models.Model):
         related_name='actions',
         help_text="Workflow this action belongs to"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.workflow_id:
+            tenant_id = getattr(self.workflow, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantWorkflow.objects.only('tenant_id').get(pk=self.workflow_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Action type
     action_type = models.CharField(
@@ -680,7 +812,7 @@ class TenantWorkflowAction(models.Model):
         return f"{self.order + 1}. {self.get_action_type_display()}"
 
 
-class WorkflowExecutionLog(models.Model):
+class WorkflowExecutionLog(TenantAwareModel):
     """
     Log of workflow executions for auditing and debugging.
     """
@@ -692,6 +824,14 @@ class WorkflowExecutionLog(models.Model):
         related_name='execution_logs',
         help_text="Workflow that was executed"
     )
+
+    def save(self, *args, **kwargs):
+        if not self.tenant_id and self.workflow_id:
+            tenant_id = getattr(self.workflow, 'tenant_id', None)
+            if not tenant_id:
+                tenant_id = TenantWorkflow.objects.only('tenant_id').get(pk=self.workflow_id).tenant_id
+            self.tenant_id = tenant_id
+        super().save(*args, **kwargs)
     
     # Trigger info
     trigger_type = models.CharField(
@@ -791,17 +931,18 @@ class FormSubmission(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name='form_submissions',
-        help_text="Tenant this submission belongs to"
-    )
     form = models.ForeignKey(
         TenantForm,
         on_delete=models.CASCADE,
         related_name='submissions',
         help_text="The form being submitted"
+    )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='form_submissions',
+        help_text='Tenant this submission belongs to'
     )
     
     # Status tracking
@@ -858,7 +999,7 @@ class FormSubmission(models.Model):
         verbose_name_plural = "Form Submissions"
         ordering = ['-updated_at']
         indexes = [
-            models.Index(fields=['tenant', 'status']),
+            models.Index(fields=['tenant', 'status'], name='workflows_f_tenant__8314a5_idx'),
             models.Index(fields=['created_by', 'status']),
             models.Index(fields=['form', 'status']),
         ]
@@ -899,6 +1040,14 @@ class FormStepSubmission(models.Model):
         related_name='step_submissions',
         help_text="Parent form submission"
     )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='form_step_submissions',
+        help_text='Tenant owning this step submission'
+    )
+
     step = models.ForeignKey(
         TenantFormEntity,
         on_delete=models.CASCADE,
@@ -945,6 +1094,9 @@ class FormStepSubmission(models.Model):
         verbose_name_plural = "Step Submissions"
         ordering = ['submission', 'step__order']
         unique_together = [['submission', 'step']]
+        indexes = [
+            models.Index(fields=['tenant', 'status'], name='fss_tenant_status_idx'),
+        ]
     
     def __str__(self):
         return f"{self.submission.form.name} - {self.step.step_name} ({self.status})"
@@ -1220,12 +1372,6 @@ class StepAssignment(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name='step_assignments',
-        help_text="Tenant this assignment belongs to"
-    )
     
     # Step being assigned
     form = models.ForeignKey(
@@ -1239,6 +1385,13 @@ class StepAssignment(models.Model):
         on_delete=models.CASCADE,
         related_name='assignments',
         help_text="The step being assigned"
+    )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='step_assignments',
+        help_text='Tenant this assignment belongs to'
     )
     
     # Assignment type and target
@@ -1304,17 +1457,23 @@ class StepAssignment(models.Model):
         ordering = ['form', 'step__order']
         unique_together = [['form', 'step', 'assigned_user'], ['form', 'step', 'assigned_role']]
         indexes = [
-            models.Index(fields=['tenant', 'form']),
+            models.Index(fields=['tenant', 'form'], name='workflows_s_tenant__3c0364_idx'),
             models.Index(fields=['assigned_user', 'assignment_type']),
             models.Index(fields=['assigned_role']),
         ]
     
     def __str__(self):
+        step_label = (
+            getattr(self.step, 'step_name', None)
+            or getattr(self.step, 'name', None)
+            or str(self.step)
+        )
+
         if self.assignment_type == AssignmentType.USER and self.assigned_user:
-            return f"{self.step.name} → {self.assigned_user.username}"
-        elif self.assignment_type in [AssignmentType.ROLE, AssignmentType.TEAM]:
-            return f"{self.step.name} → {self.assigned_role}"
-        return f"{self.step.name} → {self.assignment_type}"
+            return f"{step_label} → {self.assigned_user.username}"
+        if self.assignment_type in [AssignmentType.ROLE, AssignmentType.TEAM]:
+            return f"{step_label} → {self.assigned_role}"
+        return f"{step_label} → {self.assignment_type}"
 
 
 # =============================================================================
@@ -1363,17 +1522,18 @@ class UserNotification(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name='notifications',
-        help_text="Tenant this notification belongs to"
-    )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='notifications',
         help_text="User to receive this notification"
+    )
+
+    tenant = models.ForeignKey(
+        'tenants.Tenant',
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        help_text='Tenant this notification belongs to'
     )
     
     # Notification content
@@ -1452,7 +1612,7 @@ class UserNotification(models.Model):
         indexes = [
             models.Index(fields=['user', 'is_read', '-created_at']),
             models.Index(fields=['user', 'notification_type', '-created_at']),
-            models.Index(fields=['tenant', '-created_at']),
+            models.Index(fields=['tenant', '-created_at'], name='workflows_u_tenant__b2d0bd_idx'),
             models.Index(fields=['entity_type', 'entity_id']),
             models.Index(fields=['expires_at']),
         ]

@@ -89,7 +89,9 @@ class AdminAPITests(APITestCase):
         # Create tenant
         cls.tenant = Tenant.objects.create(
             name='Test Tenant',
-            slug='test-tenant'
+            slug='test-tenant',
+            contact_email='admin@test.com',
+            created_by=cls.admin_user,
         )
         
         # Create test form
@@ -342,7 +344,9 @@ class FieldConfigAPITests(APITestCase):
         # Create tenant
         cls.tenant = Tenant.objects.create(
             name='Config Test Tenant',
-            slug='config-test-tenant'
+            slug='config-test-tenant',
+            contact_email='configadmin@test.com',
+            created_by=cls.admin_user,
         )
         
         # Create test form
@@ -504,7 +508,9 @@ class FormRulesAPITests(APITestCase):
         # Create tenant
         cls.tenant = Tenant.objects.create(
             name='Rules Test Tenant',
-            slug='rules-test-tenant'
+            slug='rules-test-tenant',
+            contact_email='rulesadmin@test.com',
+            created_by=cls.admin_user,
         )
         
         # Create test form
@@ -712,7 +718,9 @@ class FormStepsAPITests(APITestCase):
         # Create tenant
         cls.tenant = Tenant.objects.create(
             name='Steps Test Tenant',
-            slug='steps-test-tenant'
+            slug='steps-test-tenant',
+            contact_email='stepsadmin@test.com',
+            created_by=cls.admin_user,
         )
         
         # Create test form

@@ -11,6 +11,9 @@
  */
 
 import { NodeConfigSchema } from './types';
+import { schemaRegistry } from './schemaRegistry';
+import { logger } from '@/utils/logger';
+
 import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Zap, Calendar, Webhook, Clock, FileSignature, Upload, Archive, AlertCircle } from 'lucide-react';
 
 /**
@@ -50,8 +53,8 @@ import { Package, FileText, CheckSquare, Settings, Mail, Navigation, Database, Z
  */
 export const formSchema: NodeConfigSchema = {
   nodeType: 'form',
-  displayName: 'Form',
-  description: 'Single-page form for data collection',
+  displayName: 'Form Step',
+  description: 'Single form step (page) for data collection',
   icon: FileText,
   version: '2.0.0',  // Updated for Phase E rename
   tags: ['form', 'data-collection', 'user-input'],
@@ -340,6 +343,13 @@ export const formSchema: NodeConfigSchema = {
           defaultValue: 'Submit'
         },
         {
+          id: 'showCancelButton',
+          type: 'toggle',
+          label: 'Show Cancel Button',
+          helpText: 'Display a cancel button alongside submit',
+          defaultValue: false
+        },
+        {
           id: 'cancelButtonText',
           type: 'text',
           label: 'Cancel Button Text',
@@ -350,13 +360,6 @@ export const formSchema: NodeConfigSchema = {
             operator: 'equals',
             value: true
           }
-        },
-        {
-          id: 'showCancelButton',
-          type: 'toggle',
-          label: 'Show Cancel Button',
-          helpText: 'Display a cancel button alongside submit',
-          defaultValue: false
         }
       ]
     },
@@ -385,13 +388,14 @@ export const formSchema: NodeConfigSchema = {
           onClick: (nodeId: string, nodeData: any) => {
             // This onClick will be wrapped by DynamicConfigPanel to inject FormBuilderContext
             // See: DynamicConfigPanel.tsx for context injection
-            console.log('[FormBuilder] Button clicked - context injection required');
+            logger.debug('[FormBuilder] Button clicked - context injection required');
             return { nodeId, nodeData, nodeType: 'form' };
           }
         },
         {
           id: '_formBuilderInfo',
           type: 'info',
+          label: 'Information',
           content: 'The Form Builder provides a visual interface to configure fields, add validation rules, set up conditional logic, and define field mappings from upstream nodes.'
         }
       ]
@@ -470,11 +474,12 @@ export const formProcessSchema: NodeConfigSchema = {
           placeholder: 'e.g., Customer Onboarding Form',
           helpText: 'Display name for this form process',
           defaultValue: 'New Form Process',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Container name is required' },
+            { type: 'minLength', value: 3, message: 'Container name must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Container name must be at most 100 characters' }
+          ]
         },
         {
           id: 'containerDescription',
@@ -483,9 +488,9 @@ export const formProcessSchema: NodeConfigSchema = {
           placeholder: 'Brief description of this form process...',
           helpText: 'Optional description to explain the purpose of this form',
           rows: 3,
-          validation: {
-            maxLength: 500
-          }
+          validation: [
+            { type: 'maxLength', value: 500, message: 'Description must be at most 500 characters' }
+          ]
         }
       ]
     },
@@ -562,13 +567,14 @@ export const formProcessSchema: NodeConfigSchema = {
           onClick: (nodeId: string, nodeData: any) => {
             // This onClick will be wrapped by DynamicConfigPanel to inject FormBuilderContext
             // See: DynamicConfigPanel.tsx for context injection
-            console.log('[FormBuilder] Button clicked - context injection required');
+            logger.debug('[FormBuilder] Button clicked - context injection required');
             return { nodeId, nodeData, nodeType: 'formProcessGroup' };
           }
         },
         {
           id: '_formBuilderInfo',
           type: 'info',
+          label: 'Information',
           content: 'The Form Builder allows you to visually manage all form steps within this container, set up navigation flow, and configure data mappings between steps.'
         }
       ]
@@ -590,8 +596,8 @@ export const formProcessSchema: NodeConfigSchema = {
  */
 export const formProcessGroupSchema: NodeConfigSchema = {
   nodeType: 'formProcessGroup',
-  displayName: 'Form Process Group',
-  description: 'Labeled container with auto-layout for multi-step forms',
+  displayName: 'Form Process (Legacy)',
+  description: '[DEPRECATED] Legacy container type. Use Form (Book).',
   icon: Package,
   version: '1.0.0',
   tags: ['form', 'container', 'group', 'multi-step', 'layout'],
@@ -615,11 +621,12 @@ export const formProcessGroupSchema: NodeConfigSchema = {
           placeholder: 'e.g., Customer Information Section',
           helpText: 'Display name for this form group',
           defaultValue: 'New Form Group',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Group name is required' },
+            { type: 'minLength', value: 3, message: 'Group name must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Group name must be at most 100 characters' }
+          ]
         },
         {
           id: 'containerDescription',
@@ -628,9 +635,9 @@ export const formProcessGroupSchema: NodeConfigSchema = {
           placeholder: 'Brief description of this form group...',
           helpText: 'Optional description to explain the purpose',
           rows: 3,
-          validation: {
-            maxLength: 500
-          }
+          validation: [
+            { type: 'maxLength', value: 500, message: 'Description must be at most 500 characters' }
+          ]
         },
         {
           id: 'isExpanded',
@@ -679,6 +686,22 @@ export const formProcessGroupSchema: NodeConfigSchema = {
 };
 
 // ============================================================================
+// Singular Form (Book) Container Schema
+// ============================================================================
+
+/**
+ * Schema for the singular Form container (Book & Pages).
+ *
+ * This is the canonical container type going forward.
+ */
+export const formBookSchema: NodeConfigSchema = {
+  ...formProcessGroupSchema,
+  nodeType: 'formBook',
+  displayName: 'Form',
+  description: 'Multi-step form container (Book) that groups Form Steps (Pages)',
+};
+
+// ============================================================================
 // Create Record Action Schema
 // ============================================================================
 
@@ -715,11 +738,12 @@ export const createRecordSchema: NodeConfigSchema = {
           placeholder: 'e.g., Create Customer',
           helpText: 'Display name for this action',
           defaultValue: 'Create Record',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Action label is required' },
+            { type: 'minLength', value: 3, message: 'Action label must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Action label must be at most 100 characters' }
+          ]
         },
         {
           id: 'description',
@@ -728,9 +752,9 @@ export const createRecordSchema: NodeConfigSchema = {
           placeholder: 'Optional description...',
           helpText: 'Brief explanation of what this action does',
           rows: 2,
-          validation: {
-            maxLength: 300
-          }
+          validation: [
+            { type: 'maxLength', value: 300, message: 'Description must be at most 300 characters' }
+          ]
         },
         {
           id: 'entity',
@@ -738,9 +762,10 @@ export const createRecordSchema: NodeConfigSchema = {
           label: 'Target Entity',
           placeholder: 'Select entity to create...',
           helpText: 'Choose which entity type to create a record for',
-          validation: {
-            required: true
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Target entity is required' }
+          ]
         }
       ]
     },
@@ -754,9 +779,9 @@ export const createRecordSchema: NodeConfigSchema = {
       icon: CheckSquare,
       defaultExpanded: true,
       description: 'Map workflow variables to entity fields',
-      conditionalLogic: {
+      conditional: {
         field: 'entity',
-        condition: 'notEmpty'
+        operator: 'isNotEmpty'
       },
       fields: [
         {
@@ -766,18 +791,19 @@ export const createRecordSchema: NodeConfigSchema = {
           helpText: 'Map values from upstream nodes to target entity fields',
           entityFieldId: 'entity',
           showAutoSuggest: true,
-          validation: {
-            custom: (value: any) => {
-              if (!value || value.length === 0) {
-                return { valid: false, message: 'At least one field mapping is required' };
-              }
-              const hasMissingMappings = value.some((m: any) => !m.targetField || !m.sourceExpression);
-              if (hasMissingMappings) {
-                return { valid: false, message: 'All mappings must have both target field and source value' };
-              }
-              return { valid: true };
-            }
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'At least one field mapping is required' },
+            {
+              type: 'custom',
+              message: 'All mappings must have both target field and source value',
+              validator: (value: any) => {
+                if (!value || value.length === 0) return true;
+                const hasMissingMappings = value.some((m: any) => !m.targetField || !m.sourceExpression);
+                return !hasMissingMappings;
+              },
+            },
+          ]
         }
       ]
     }
@@ -821,11 +847,12 @@ export const outlookEmailSchema: NodeConfigSchema = {
           placeholder: 'e.g., Send Welcome Email',
           helpText: 'Display name for this email action',
           defaultValue: 'Send Email',
-          validation: {
-            required: true,
-            minLength: 3,
-            maxLength: 100
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Node label is required' },
+            { type: 'minLength', value: 3, message: 'Node label must be at least 3 characters' },
+            { type: 'maxLength', value: 100, message: 'Node label must be at most 100 characters' }
+          ]
         },
         {
           id: 'to',
@@ -833,11 +860,11 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'To',
           placeholder: 'recipient@example.com',
           helpText: 'Email recipient(s). Separate multiple with commas or use variable picker.',
-          validation: {
-            required: true,
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter valid email address(es)'
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Recipient is required' },
+            { type: 'regex', value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter valid email address(es)' }
+          ]
         },
         {
           id: 'cc',
@@ -845,10 +872,9 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'CC',
           placeholder: 'cc@example.com',
           helpText: 'Carbon copy recipients (optional)',
-          validation: {
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter valid email address(es)'
-          }
+          validation: [
+            { type: 'regex', value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter valid email address(es)' }
+          ]
         },
         {
           id: 'bcc',
@@ -856,10 +882,9 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'BCC',
           placeholder: 'bcc@example.com',
           helpText: 'Blind carbon copy recipients (optional)',
-          validation: {
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Enter valid email address(es)'
-          }
+          validation: [
+            { type: 'regex', value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter valid email address(es)' }
+          ]
         },
         {
           id: 'subject',
@@ -867,11 +892,12 @@ export const outlookEmailSchema: NodeConfigSchema = {
           label: 'Subject',
           placeholder: 'e.g., Welcome to {{customer.name}}',
           helpText: 'Email subject line. Use {{variable}} for dynamic content.',
-          validation: {
-            required: true,
-            minLength: 1,
-            maxLength: 200
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Subject is required' },
+            { type: 'minLength', value: 1, message: 'Subject must not be empty' },
+            { type: 'maxLength', value: 200, message: 'Subject must be at most 200 characters' }
+          ]
         },
         {
           id: 'body',
@@ -880,10 +906,11 @@ export const outlookEmailSchema: NodeConfigSchema = {
           placeholder: 'Email content...\n\nUse {{variable}} for dynamic values.',
           helpText: 'Email body content. Supports plain text and variables.',
           rows: 10,
-          validation: {
-            required: true,
-            minLength: 1
-          }
+          required: true,
+          validation: [
+            { type: 'required', message: 'Body is required' },
+            { type: 'minLength', value: 1, message: 'Body must not be empty' }
+          ]
         },
         {
           id: 'importance',
@@ -913,48 +940,116 @@ export const outlookEmailSchema: NodeConfigSchema = {
  * - Updated to use 'formSchema' as primary schema
  * - formStepSingleSchema exported as alias for backward compatibility
  */
-export const allSchemas: NodeConfigSchema[] = [
-  formSchema,  // NEW: Primary form schema (Phase E - 2026-02-19)
+const buildAllSchemas = (): NodeConfigSchema[] => [
+  // === CORE SCHEMAS (Phase 1-3) ===
+  formSchema,  // NEW: Primary form step schema (Phase E - 2026-02-19)
   formProcessSchema,
+  formBookSchema,
   formProcessGroupSchema,
   createRecordSchema,
   outlookEmailSchema,
   // Phase 2: Trigger and Document schemas (2026-02-21)
-  triggerSchema,
-  documentGenerateSchema,
-  documentSignSchema,
-  documentUploadSchema,
-  documentStoreSchema,
+  // NOTE: These are registered later in this module. They are intentionally
+  // excluded from this early list to avoid TDZ (const-before-init) issues.
   // Phase 3: Logic & Control Flow schemas (2026-02-21 - Quick Wins)
   conditionIfSchema,
   actionEmailSchema,
   endSuccessSchema,
   endErrorSchema,
   timerDelaySchema,
+  
+  // === EXTENDED SCHEMAS (Phase 4 - Agent C: Complete Config Coverage) ===
+  // Form nodes
+  formStepSchema,
+  formFieldSchema,
+  formSectionSchema,
+  formReferenceSchema,
+  formSignatureSchema,
+  formFileUploadSchema,
+  
+  // Trigger nodes
+  triggerManualSchema,
+  triggerScheduleSchema,
+  triggerWebhookSchema,
+  triggerEventSchema,
+  triggerFormSchema,
+  
+  // Logic nodes
+  conditionSwitchSchema,
+  conditionFilterSchema,
+  
+  // Action nodes
+  actionHTTPSchema,
+  actionSMSSchema,
+  actionNotifySchema,
+  actionScriptSchema,
+  actionCreateRecordSchema,
+  actionUpdateRecordSchema,
+  actionDeleteRecordSchema,
+  
+  // Data nodes
+  dataLookupSchema,
+  dataMergeSchema,
+  dataTransformSchema,
+  
+  // Variable nodes
+  setVariableSchema,
+  
+  // Loop nodes
+  loopForEachSchema,
+  loopWhileSchema,
+  
+  // Wait/Pending nodes
+  timerScheduleSchema,
+  pendingApprovalSchema,
+  pendingDocumentSchema,
+  pendingPaymentSchema,
+  pendingResponseSchema,
+  
+  // Document nodes
+  documentMergeSchema,
+  
+  // Utility nodes
+  groupSubflowSchema,
+  noteCommentSchema,
+  
+  // Terminal nodes
+  endCancelSchema,
+  
+  // Phase 7.4: Advanced Node Types (2026-02-27)
+  parallelPathSchema,
+  subWorkflowSchema,
 ];
 
 // Export formStepSingleSchema as alias for backward compatibility
 export const formStepSingleSchema = formSchema;
 
 // ============================================================================
-// Auto-initialize registry
+// Registry initialization
 // ============================================================================
 
-import { schemaRegistry } from './schemaRegistry';
+// NOTE: Registry initialization is deferred until end-of-module to avoid TDZ
+// errors from schema constants declared later in this file.
 
-// Initialize registry with all schemas on module load
-schemaRegistry.initialize(allSchemas);
+// CRITICAL HOTFIX (2026-03-18): Defer all registry calls to bypass Vite/Rollup ES Module TDZ
+// When index.ts re-exports cause evaluation order issues, schemaRegistry may not be
+// instantiated yet. setTimeout pushes execution to next macro-task after all modules link.
+setTimeout(() => {
+  if (typeof schemaRegistry !== 'undefined') {
+    // Phase E Fix (2026-02-19): Register backward compatibility aliases
+    // formStepSingle nodes should use the same schema as 'form' nodes
+    schemaRegistry.register({
+      ...formSchema,
+      nodeType: 'formStepSingle',
+      displayName: 'Form (Legacy)',
+      description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
+    }, true); // Allow overwrite
 
-// Phase E Fix (2026-02-19): Register backward compatibility aliases
-// formStepSingle nodes should use the same schema as 'form' nodes
-schemaRegistry.register({
-  ...formSchema,
-  nodeType: 'formStepSingle',
-  displayName: 'Form (Legacy)',
-  description: '[DEPRECATED] Use the "Form" node instead. This exists for backward compatibility only.',
-}, true); // Allow overwrite
-
-console.log('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
+    logger.debug('[Schema Registry] Registered backward compatibility: formStepSingle → formSchema');
+  } else {
+    console.error('[Schema Registry] CRITICAL: schemaRegistry still undefined after deferral at line 1013');
+  }
+}, 0);
 
 // ============================================================================
 // Phase 2: Trigger Node Schema (Unified Entry Point)
@@ -1017,7 +1112,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: Webhook,
       defaultExpanded: true,
       description: 'Configure webhook endpoint and authentication',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'webhook'
@@ -1052,7 +1147,7 @@ export const triggerSchema: NodeConfigSchema = {
           placeholder: 'Auto-generated',
           helpText: 'Secret key for validating incoming requests (auto-generated)',
           readOnly: true,
-          visibilityCondition: {
+          conditional: {
             field: 'webhookAuth',
             operator: 'notEquals',
             value: 'none'
@@ -1080,7 +1175,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: Calendar,
       defaultExpanded: true,
       description: 'Configure when the workflow should run',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'schedule'
@@ -1104,7 +1199,7 @@ export const triggerSchema: NodeConfigSchema = {
           placeholder: 'e.g., 15',
           helpText: 'How often to run',
           defaultValue: 15,
-          visibilityCondition: {
+          conditional: {
             field: 'scheduleType',
             operator: 'equals',
             value: 'simple'
@@ -1125,7 +1220,7 @@ export const triggerSchema: NodeConfigSchema = {
             { value: 'weeks', label: 'Weeks' },
           ],
           defaultValue: 'minutes',
-          visibilityCondition: {
+          conditional: {
             field: 'scheduleType',
             operator: 'equals',
             value: 'simple'
@@ -1137,7 +1232,7 @@ export const triggerSchema: NodeConfigSchema = {
           label: 'Cron Expression',
           placeholder: '0 0 * * *',
           helpText: 'Unix cron syntax (minute hour day month weekday)',
-          visibilityCondition: {
+          conditional: {
             field: 'scheduleType',
             operator: 'equals',
             value: 'cron'
@@ -1173,7 +1268,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: Database,
       defaultExpanded: true,
       description: 'Configure database event triggers',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'event'
@@ -1217,7 +1312,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: FileText,
       defaultExpanded: true,
       description: 'Configure form submission trigger',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'formSubmit'
@@ -1242,7 +1337,7 @@ export const triggerSchema: NodeConfigSchema = {
       icon: Zap,
       defaultExpanded: true,
       description: 'Configure manual trigger button',
-      visibilityCondition: {
+      conditional: {
         field: 'type',
         operator: 'equals',
         value: 'manual'
@@ -1278,7 +1373,7 @@ export const triggerSchema: NodeConfigSchema = {
 
 // Register trigger schema
 schemaRegistry.register(triggerSchema);
-console.log('[Schema Registry] Registered triggerSchema');
+logger.debug('[Schema Registry] Registered triggerSchema');
 
 // ============================================================================
 // Phase 2: Document Node Schemas
@@ -1324,7 +1419,14 @@ export const documentGenerateSchema: NodeConfigSchema = {
           placeholder: 'Select template...',
           helpText: 'Pre-configured document template',
           required: true,
-          visibilityCondition: {
+          options: [
+            {
+              value: '__loading__',
+              label: 'Loading Templates...',
+              disabled: true,
+            },
+          ],
+          conditional: {
             field: 'templateSource',
             operator: 'equals',
             value: 'library'
@@ -1416,7 +1518,7 @@ export const documentSignSchema: NodeConfigSchema = {
           placeholder: 'Select document from previous step...',
           helpText: 'Document to be signed',
           required: true,
-          visibilityCondition: {
+          conditional: {
             field: 'documentSource',
             operator: 'equals',
             value: 'upstream'
@@ -1618,9 +1720,9 @@ export const documentStoreSchema: NodeConfigSchema = {
           label: 'Record ID',
           placeholder: 'Select record ID...',
           helpText: 'ID of the related entity record',
-          visibilityCondition: {
+          conditional: {
             field: 'relatedEntity',
-            operator: 'notEmpty',
+            operator: 'isNotEmpty',
           }
         },
       ]
@@ -1634,7 +1736,7 @@ schemaRegistry.register(documentSignSchema);
 schemaRegistry.register(documentUploadSchema);
 schemaRegistry.register(documentStoreSchema);
 
-console.log('[Schema Registry] Registered document schemas (generate, sign, upload, store)');
+logger.debug('[Schema Registry] Registered document schemas (generate, sign, upload, store)');
 
 // ============================================================================
 // Logic & Control Flow Schemas (2026-02-21 - Quick Wins)
@@ -1697,7 +1799,7 @@ export const conditionIfSchema: NodeConfigSchema = {
           label: 'Right Value',
           placeholder: 'Select value or enter text...',
           helpText: 'Value to compare against',
-          visibilityCondition: {
+          conditional: {
             field: 'operator',
             operator: 'notIn',
             value: ['isEmpty', 'isNotEmpty']
@@ -2004,4 +2106,2108 @@ export const timerDelaySchema: NodeConfigSchema = {
   ]
 };
 
-// Cache bust: 1771488534
+// ============================================================================
+// Phase 4: Universal Schemas for All Remaining Node Types (2026-02-23)
+// ============================================================================
+
+/**
+ * CRITICAL FIX: Register schemas for ALL node types to prevent
+ * "No configuration schema found" errors.
+ * 
+ * This section provides basic schemas for node types that don't have
+ * dedicated advanced schemas yet. Each schema provides:
+ * - Name and description fields (minimum viable config)
+ * - Consistent UI (prevents errors)
+ * - Extensible structure (can be enhanced later)
+ */
+
+// === FORM NODES ===
+
+const formStepSchema: NodeConfigSchema = {
+  nodeType: 'formStep',
+  displayName: 'Form Step',
+  description: 'Single step within a multi-step form. Fully supported for new and existing workflows.',
+  icon: FileText,
+  version: '1.1.1',
+  tags: ['form', 'step'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'basic',
+      title: 'Basic Properties',
+      icon: Package,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'name',
+          type: 'text',
+          label: 'Step Name',
+          placeholder: 'e.g., Customer Information',
+          required: true,
+          validation: [
+            { type: 'required', message: 'Step name is required' },
+            { type: 'minLength', value: 3, message: 'Name must be at least 3 characters' }
+          ]
+        },
+        {
+          id: 'description',
+          type: 'textarea',
+          label: 'Description',
+          placeholder: 'Describe this form step...',
+          helpText: 'Optional description for documentation'
+        },
+      ]
+    },
+    {
+      id: 'entity',
+      title: 'Entity Configuration',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Select the entity type this step will create or edit',
+      fields: [
+        {
+          id: 'entityType',
+          type: 'entity-selector',
+          label: 'Entity Type',
+          placeholder: 'Select an entity...',
+          helpText: 'Choose the data model this step interacts with',
+          required: true,
+          validation: [
+            { type: 'required', message: 'Entity type is required' }
+          ]
+        },
+      ]
+    },
+    {
+      id: 'fields',
+      title: 'Form Fields',
+      icon: FileText,
+      defaultExpanded: true,
+      description: 'Select which fields appear in this step',
+      conditional: {
+        field: 'entityType',
+        operator: 'isNotEmpty'
+      },
+      fields: [
+        {
+          id: 'fields',
+          type: 'entity-field-picker',
+          label: 'Fields',
+          helpText: 'Select fields from the entity to include in your form step.',
+          defaultValue: []
+        },
+        {
+          id: 'fieldLayout',
+          type: 'select',
+          label: 'Field Layout',
+          helpText: 'How should fields be arranged visually?',
+          defaultValue: 'single-column',
+          options: [
+            { value: 'single-column', label: 'Single Column' },
+            { value: 'two-column', label: 'Two Columns' },
+            { value: 'auto', label: 'Auto' }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+const formFieldSchema: NodeConfigSchema = {
+  nodeType: 'formField',
+  displayName: 'Form Field',
+  description: 'Individual form field element with advanced validation and conditional logic',
+  icon: FileText,
+  version: '2.0.0',
+  tags: ['form', 'field', 'input'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'field',
+      title: 'Field Configuration',
+      icon: Settings,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'label',
+          type: 'text',
+          label: 'Field Label',
+          placeholder: 'e.g., Email Address',
+          required: true,
+          validation: [
+            { type: 'required', message: 'Field label is required' },
+            { type: 'minLength', value: 2, message: 'Label must be at least 2 characters' }
+          ]
+        },
+        {
+          id: 'fieldName',
+          type: 'text',
+          label: 'Field Name (Key)',
+          placeholder: 'e.g., email',
+          helpText: 'Internal field name used for data storage (no spaces, lowercase)',
+          required: true,
+          validation: [
+            { type: 'required', message: 'Field name is required' },
+            { type: 'pattern', value: '^[a-z][a-z0-9_]*$', message: 'Must start with lowercase letter, only lowercase, numbers, and underscores allowed' }
+          ]
+        },
+        {
+          id: 'fieldType',
+          type: 'select',
+          label: 'Field Type',
+          options: [
+            { value: 'text', label: 'Text', description: 'Single line text input' },
+            { value: 'email', label: 'Email', description: 'Email address with validation' },
+            { value: 'number', label: 'Number', description: 'Numeric input' },
+            { value: 'tel', label: 'Phone', description: 'Phone number input' },
+            { value: 'url', label: 'URL', description: 'Website URL' },
+            { value: 'date', label: 'Date', description: 'Date picker' },
+            { value: 'datetime', label: 'Date & Time', description: 'Date and time picker' },
+            { value: 'time', label: 'Time', description: 'Time picker' },
+            { value: 'select', label: 'Dropdown', description: 'Single selection dropdown' },
+            { value: 'multiselect', label: 'Multi-select', description: 'Multiple selection dropdown' },
+            { value: 'radio', label: 'Radio Buttons', description: 'Single selection from list' },
+            { value: 'checkbox', label: 'Checkbox', description: 'Single checkbox' },
+            { value: 'checkbox-group', label: 'Checkbox Group', description: 'Multiple checkboxes' },
+            { value: 'textarea', label: 'Text Area', description: 'Multi-line text input' },
+            { value: 'file', label: 'File Upload', description: 'File upload field' },
+            { value: 'color', label: 'Color Picker', description: 'Color selection' },
+          ],
+          defaultValue: 'text',
+          required: true,
+        },
+        {
+          id: 'placeholder',
+          type: 'text',
+          label: 'Placeholder',
+          placeholder: 'e.g., Enter your email...',
+          helpText: 'Hint text shown when field is empty'
+        },
+        {
+          id: 'helpText',
+          type: 'textarea',
+          label: 'Help Text',
+          placeholder: 'Additional guidance for users...',
+          helpText: 'Helpful instructions displayed below the field'
+        },
+        {
+          id: 'defaultValue',
+          type: 'text',
+          label: 'Default Value',
+          placeholder: 'Default value',
+          helpText: 'Pre-filled value when form loads'
+        }
+      ]
+    },
+    {
+      id: 'validation',
+      title: 'Validation Rules',
+      icon: CheckSquare,
+      collapsible: true,
+      defaultExpanded: false,
+      fields: [
+        {
+          id: 'required',
+          type: 'toggle',
+          label: 'Required Field',
+          helpText: 'User must fill this field before submitting',
+          defaultValue: false,
+        },
+        {
+          id: 'minLength',
+          type: 'number',
+          label: 'Minimum Length',
+          placeholder: 'e.g., 3',
+          helpText: 'Minimum number of characters',
+          conditional: {
+            field: 'fieldType',
+            operator: 'in',
+            value: ['text', 'textarea', 'email', 'url', 'tel']
+          }
+        },
+        {
+          id: 'maxLength',
+          type: 'number',
+          label: 'Maximum Length',
+          placeholder: 'e.g., 100',
+          helpText: 'Maximum number of characters',
+          conditional: {
+            field: 'fieldType',
+            operator: 'in',
+            value: ['text', 'textarea', 'email', 'url', 'tel']
+          }
+        },
+        {
+          id: 'min',
+          type: 'number',
+          label: 'Minimum Value',
+          placeholder: 'e.g., 0',
+          helpText: 'Minimum numeric value',
+          conditional: {
+            field: 'fieldType',
+            operator: 'equals',
+            value: 'number'
+          }
+        },
+        {
+          id: 'max',
+          type: 'number',
+          label: 'Maximum Value',
+          placeholder: 'e.g., 100',
+          helpText: 'Maximum numeric value',
+          conditional: {
+            field: 'fieldType',
+            operator: 'equals',
+            value: 'number'
+          }
+        },
+        {
+          id: 'pattern',
+          type: 'text',
+          label: 'Custom Pattern (Regex)',
+          placeholder: 'e.g., ^[A-Z]{2}[0-9]{4}$',
+          helpText: 'Regular expression for custom validation'
+        },
+        {
+          id: 'customValidationMessage',
+          type: 'text',
+          label: 'Custom Error Message',
+          placeholder: 'e.g., Please enter a valid format',
+          helpText: 'Error message shown when validation fails'
+        }
+      ]
+    },
+    {
+      id: 'options',
+      title: 'Field Options',
+      icon: Package,
+      collapsible: true,
+      defaultExpanded: false,
+      description: 'Configure options for dropdown, radio, and checkbox fields',
+      conditional: {
+        field: 'fieldType',
+        operator: 'in',
+        value: ['select', 'multiselect', 'radio', 'checkbox-group']
+      },
+      fields: [
+        {
+          id: 'options',
+          type: 'nested-children',
+          label: 'Options',
+          helpText: 'Add options for this field',
+          defaultValue: [],
+          itemSchema: {
+            fields: [
+              { id: 'value', type: 'text', label: 'Value', required: true },
+              { id: 'label', type: 'text', label: 'Label', required: true },
+              { id: 'disabled', type: 'toggle', label: 'Disabled', defaultValue: false }
+            ]
+          }
+        },
+        {
+          id: 'allowCustomOption',
+          type: 'toggle',
+          label: 'Allow Custom Input',
+          helpText: 'Let users enter their own value',
+          defaultValue: false
+        }
+      ]
+    },
+    {
+      id: 'advanced',
+      title: 'Advanced Settings',
+      icon: Settings,
+      collapsible: true,
+      defaultExpanded: false,
+      fields: [
+        {
+          id: 'disabled',
+          type: 'toggle',
+          label: 'Disabled',
+          helpText: 'Field is visible but not editable',
+          defaultValue: false
+        },
+        {
+          id: 'hidden',
+          type: 'toggle',
+          label: 'Hidden',
+          helpText: 'Field is not visible to users',
+          defaultValue: false
+        },
+        {
+          id: 'readonly',
+          type: 'toggle',
+          label: 'Read Only',
+          helpText: 'Field is visible and selectable but not editable',
+          defaultValue: false
+        },
+        {
+          id: 'autoComplete',
+          type: 'text',
+          label: 'Auto Complete',
+          placeholder: 'e.g., email, tel, name',
+          helpText: 'Browser autocomplete hint'
+        }
+      ]
+    }
+  ]
+};
+
+const formSectionSchema: NodeConfigSchema = {
+  nodeType: 'formSection',
+  displayName: 'Form Section',
+  description: 'Group form fields into sections',
+  icon: Package,
+  version: '1.0.0',
+  tags: ['form', 'layout'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'section',
+      title: 'Section Properties',
+      icon: Package,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'title',
+          type: 'text',
+          label: 'Section Title',
+          placeholder: 'e.g., Contact Information',
+          required: true,
+        },
+        {
+          id: 'description',
+          type: 'textarea',
+          label: 'Description',
+          placeholder: 'Optional section description...',
+        },
+      ]
+    }
+  ]
+};
+
+const formReferenceSchema: NodeConfigSchema = {
+  nodeType: 'formReference',
+  displayName: 'Form Reference',
+  description: 'Reference to another form definition',
+  icon: Navigation,
+  version: '1.0.0',
+  tags: ['form', 'reference'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'reference',
+      title: 'Form Reference',
+      icon: Navigation,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'formId',
+          type: 'text',
+          label: 'Form ID',
+          placeholder: 'Enter form ID to reference...',
+          required: true,
+        },
+        {
+          id: 'passData',
+          type: 'boolean',
+          label: 'Pass Data to Referenced Form',
+          defaultValue: true,
+        },
+      ]
+    }
+  ]
+};
+
+const formSignatureSchema: NodeConfigSchema = {
+  nodeType: 'formSignature',
+  displayName: 'Signature Field',
+  description: 'Capture digital signature',
+  icon: FileSignature,
+  version: '1.0.0',
+  tags: ['form', 'signature'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'signature',
+      title: 'Signature Configuration',
+      icon: FileSignature,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'label',
+          type: 'text',
+          label: 'Signature Label',
+          placeholder: 'e.g., Customer Signature',
+          required: true,
+        },
+        {
+          id: 'required',
+          type: 'boolean',
+          label: 'Required',
+          defaultValue: true,
+        },
+      ]
+    }
+  ]
+};
+
+const formFileUploadSchema: NodeConfigSchema = {
+  nodeType: 'formFileUpload',
+  displayName: 'File Upload',
+  description: 'Upload file(s) in form',
+  icon: Upload,
+  version: '1.0.0',
+  tags: ['form', 'upload'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'upload',
+      title: 'Upload Configuration',
+      icon: Upload,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'label',
+          type: 'text',
+          label: 'Upload Label',
+          placeholder: 'e.g., Attach Documents',
+          required: true,
+        },
+        {
+          id: 'multiple',
+          type: 'boolean',
+          label: 'Allow Multiple Files',
+          defaultValue: false,
+        },
+        {
+          id: 'maxSize',
+          type: 'text',
+          label: 'Max File Size (MB)',
+          placeholder: 'e.g., 10',
+          defaultValue: '10',
+        },
+      ]
+    }
+  ]
+};
+
+const formMultiStepContainerSchema: NodeConfigSchema = {
+  nodeType: 'formMultiStepContainer',
+  displayName: 'Multi-Step Form Container',
+  description: 'Container for multi-page forms',
+  icon: Package,
+  version: '1.0.0',
+  tags: ['form', 'container'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'container',
+      title: 'Container Properties',
+      icon: Package,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'name',
+          type: 'text',
+          label: 'Container Name',
+          placeholder: 'e.g., Customer Onboarding',
+          required: true,
+        },
+        {
+          id: 'showProgress',
+          type: 'boolean',
+          label: 'Show Progress Indicator',
+          defaultValue: true,
+        },
+      ]
+    }
+  ]
+};
+
+// === TRIGGER NODES ===
+
+const triggerManualSchema: NodeConfigSchema = {
+  nodeType: 'triggerManual',
+  displayName: 'Manual Trigger',
+  description: 'User clicks button to start workflow',
+  icon: Zap,
+  version: '1.0.0',
+  tags: ['trigger', 'manual'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'trigger',
+      title: 'Trigger Configuration',
+      icon: Zap,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'buttonLabel',
+          type: 'text',
+          label: 'Button Label',
+          placeholder: 'e.g., Start Workflow',
+          defaultValue: 'Start',
+        },
+        {
+          id: 'confirmationRequired',
+          type: 'boolean',
+          label: 'Require Confirmation',
+          defaultValue: false,
+        },
+      ]
+    }
+  ]
+};
+
+const triggerScheduleSchema: NodeConfigSchema = {
+  nodeType: 'triggerSchedule',
+  displayName: 'Schedule Trigger',
+  description: 'Run workflow on schedule',
+  icon: Clock,
+  version: '1.0.0',
+  tags: ['trigger', 'schedule'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'schedule',
+      title: 'Schedule Configuration',
+      icon: Clock,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'cronExpression',
+          type: 'text',
+          label: 'Cron Expression',
+          placeholder: '0 9 * * MON-FRI',
+          helpText: 'Standard cron syntax',
+          required: true,
+        },
+        {
+          id: 'timezone',
+          type: 'text',
+          label: 'Timezone',
+          placeholder: 'America/New_York',
+          defaultValue: 'UTC',
+        },
+      ]
+    }
+  ]
+};
+
+const triggerWebhookSchema: NodeConfigSchema = {
+  nodeType: 'triggerWebhook',
+  displayName: 'Webhook Trigger',
+  description: 'Receive data from external API',
+  icon: Webhook,
+  version: '1.0.0',
+  tags: ['trigger', 'webhook'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'webhook',
+      title: 'Webhook Configuration',
+      icon: Webhook,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'path',
+          type: 'text',
+          label: 'Webhook Path',
+          placeholder: '/webhooks/my-webhook',
+          required: true,
+        },
+        {
+          id: 'authentication',
+          type: 'select',
+          label: 'Authentication',
+          options: [
+            { value: 'none', label: 'None' },
+            { value: 'token', label: 'Bearer Token' },
+            { value: 'basic', label: 'Basic Auth' },
+          ],
+          defaultValue: 'none',
+        },
+      ]
+    }
+  ]
+};
+
+const triggerEventSchema: NodeConfigSchema = {
+  nodeType: 'triggerEvent',
+  displayName: 'Event Trigger',
+  description: 'Trigger on database events',
+  icon: Zap,
+  version: '1.0.0',
+  tags: ['trigger', 'event'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'event',
+      title: 'Event Configuration',
+      icon: Zap,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'entityType',
+          type: 'text',
+          label: 'Entity Type',
+          placeholder: 'e.g., PurchaseOrder',
+          required: true,
+        },
+        {
+          id: 'eventType',
+          type: 'select',
+          label: 'Event Type',
+          options: [
+            { value: 'created', label: 'Created' },
+            { value: 'updated', label: 'Updated' },
+            { value: 'deleted', label: 'Deleted' },
+          ],
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+const triggerFormSchema: NodeConfigSchema = {
+  nodeType: 'triggerForm',
+  displayName: 'Form Submit Trigger',
+  description: 'Trigger on form submission',
+  icon: FileText,
+  version: '1.0.0',
+  tags: ['trigger', 'form'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'form',
+      title: 'Form Trigger',
+      icon: FileText,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'formId',
+          type: 'text',
+          label: 'Form ID',
+          placeholder: 'ID of form to watch...',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+// === LOGIC & CONDITION NODES ===
+
+const conditionSwitchSchema: NodeConfigSchema = {
+  nodeType: 'conditionSwitch',
+  displayName: 'Condition (If/Then)',
+  description: 'Branch workflow based on conditional logic with visual rule builder',
+  icon: Navigation,
+  version: '2.0.0',
+  tags: ['logic', 'condition', 'if', 'branching'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'condition-rules',
+      title: 'Condition Rules',
+      icon: Navigation,
+      defaultExpanded: true,
+      description: 'Define conditions using visual rule builder',
+      fields: [
+        {
+          id: 'rules',
+          type: 'ruleBuilder',
+          label: 'If...',
+          helpText: 'Build conditions using AND/OR logic. Supports upstream field selection.',
+          required: true,
+          config: {
+            operators: [
+              { value: 'equals', label: 'equals', symbol: '=' },
+              { value: 'notEquals', label: 'does not equal', symbol: '≠' },
+              { value: 'contains', label: 'contains', symbol: '∋' },
+              { value: 'notContains', label: 'does not contain', symbol: '∌' },
+              { value: 'startsWith', label: 'starts with', symbol: '⊳' },
+              { value: 'endsWith', label: 'ends with', symbol: '⊲' },
+              { value: 'greaterThan', label: 'greater than', symbol: '>' },
+              { value: 'lessThan', label: 'less than', symbol: '<' },
+              { value: 'greaterThanOrEqual', label: 'greater than or equal', symbol: '≥' },
+              { value: 'lessThanOrEqual', label: 'less than or equal', symbol: '≤' },
+              { value: 'isEmpty', label: 'is empty', symbol: '∅' },
+              { value: 'isNotEmpty', label: 'is not empty', symbol: '≠∅' },
+              { value: 'isTrue', label: 'is true', symbol: '✓' },
+              { value: 'isFalse', label: 'is false', symbol: '✗' },
+            ],
+            allowGroups: true,
+            allowUpstreamFields: true,
+            defaultLogic: 'AND',
+          }
+        },
+        {
+          id: 'logic',
+          type: 'select',
+          label: 'Logic Type',
+          options: [
+            { value: 'AND', label: 'AND - All conditions must be true' },
+            { value: 'OR', label: 'OR - At least one condition must be true' },
+          ],
+          defaultValue: 'AND',
+          helpText: 'How to combine multiple conditions'
+        },
+        {
+          id: 'description',
+          type: 'textarea',
+          label: 'Description',
+          placeholder: 'Describe what this condition checks...',
+          helpText: 'Optional description for documentation',
+          rows: 2,
+        },
+      ]
+    },
+    {
+      id: 'condition-branches',
+      title: 'Branch Paths',
+      icon: Navigation,
+      defaultExpanded: true,
+      description: 'Configure what happens when condition is true or false',
+      fields: [
+        {
+          id: 'trueBranchLabel',
+          type: 'text',
+          label: 'True Branch Label',
+          placeholder: 'When condition is true',
+          defaultValue: 'True',
+          helpText: 'Label for the true path (shown on edge)'
+        },
+        {
+          id: 'falseBranchLabel',
+          type: 'text',
+          label: 'False Branch Label',
+          placeholder: 'When condition is false',
+          defaultValue: 'False',
+          helpText: 'Label for the false path (shown on edge)'
+        },
+        {
+          id: 'elseBranchEnabled',
+          type: 'checkbox',
+          label: 'Enable Else Branch',
+          defaultValue: true,
+          helpText: 'Allow alternative path when condition is false'
+        },
+      ]
+    }
+  ]
+};
+
+const conditionFilterSchema: NodeConfigSchema = {
+  nodeType: 'conditionFilter',
+  displayName: 'Filter Condition',
+  description: 'Filter items based on criteria',
+  icon: Navigation,
+  version: '1.0.0',
+  tags: ['logic', 'filter'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'filter',
+      title: 'Filter Configuration',
+      icon: Navigation,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'criteria',
+          type: 'textarea',
+          label: 'Filter Criteria',
+          placeholder: 'Define filter rules...',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+// === ACTION NODES ===
+
+const actionHTTPSchema: NodeConfigSchema = {
+  nodeType: 'actionHTTP',
+  displayName: 'HTTP Request',
+  description: 'Make HTTP API call with full control over headers, body, and authentication',
+  icon: Webhook,
+  version: '2.0.0',
+  tags: ['action', 'http', 'webhook', 'api'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'http-request',
+      title: 'Request Configuration',
+      icon: Webhook,
+      defaultExpanded: true,
+      description: 'Configure HTTP request details',
+      fields: [
+        {
+          id: 'url',
+          type: 'text',
+          label: 'URL',
+          placeholder: 'https://api.example.com/endpoint',
+          helpText: 'Full URL including protocol. Supports {{variable}} substitution.',
+          required: true,
+          validation: [
+            {
+              type: 'required',
+              message: 'URL is required'
+            },
+            {
+              type: 'pattern',
+              value: '^https?://.+',
+              message: 'URL must start with http:// or https://'
+            }
+          ]
+        },
+        {
+          id: 'method',
+          type: 'select',
+          label: 'HTTP Method',
+          options: [
+            { value: 'GET', label: 'GET - Retrieve data' },
+            { value: 'POST', label: 'POST - Create new resource' },
+            { value: 'PUT', label: 'PUT - Update entire resource' },
+            { value: 'PATCH', label: 'PATCH - Update partial resource' },
+            { value: 'DELETE', label: 'DELETE - Remove resource' },
+          ],
+          defaultValue: 'GET',
+          required: true,
+        },
+        {
+          id: 'headers',
+          type: 'keyValue',
+          label: 'Headers',
+          helpText: 'HTTP headers to send with the request',
+          placeholder: { key: 'Header name', value: 'Header value' },
+          defaultValue: [
+            { key: 'Content-Type', value: 'application/json' }
+          ],
+          addButtonText: '+ Add Header',
+        },
+        {
+          id: 'body',
+          type: 'codeEditor',
+          label: 'Request Body',
+          language: 'json',
+          placeholder: '{\n  "key": "value"\n}',
+          helpText: 'Request body for POST/PUT/PATCH. Supports {{variable}} substitution.',
+          conditional: {
+            field: 'method',
+            operator: 'in',
+            value: ['POST', 'PUT', 'PATCH']
+          }
+        },
+        {
+          id: 'timeout',
+          type: 'number',
+          label: 'Timeout (seconds)',
+          defaultValue: 30,
+          min: 1,
+          max: 300,
+          helpText: 'Request timeout in seconds'
+        },
+      ]
+    },
+    {
+      id: 'http-auth',
+      title: 'Authentication',
+      icon: Settings,
+      defaultExpanded: false,
+      description: 'Configure API authentication',
+      fields: [
+        {
+          id: 'authType',
+          type: 'select',
+          label: 'Authentication Type',
+          options: [
+            { value: 'none', label: 'None' },
+            { value: 'bearer', label: 'Bearer Token' },
+            { value: 'basic', label: 'Basic Auth (Username/Password)' },
+            { value: 'apiKey', label: 'API Key' },
+          ],
+          defaultValue: 'none',
+        },
+        {
+          id: 'bearerToken',
+          type: 'text',
+          label: 'Bearer Token',
+          placeholder: 'your-api-token',
+          helpText: 'Token will be sent as "Authorization: Bearer {token}"',
+          conditional: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'bearer'
+          }
+        },
+        {
+          id: 'basicUsername',
+          type: 'text',
+          label: 'Username',
+          placeholder: 'username',
+          conditional: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'basic'
+          }
+        },
+        {
+          id: 'basicPassword',
+          type: 'password',
+          label: 'Password',
+          placeholder: 'password',
+          conditional: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'basic'
+          }
+        },
+        {
+          id: 'apiKeyHeader',
+          type: 'text',
+          label: 'API Key Header Name',
+          placeholder: 'X-API-Key',
+          conditional: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'apiKey'
+          }
+        },
+        {
+          id: 'apiKeyValue',
+          type: 'text',
+          label: 'API Key Value',
+          placeholder: 'your-api-key',
+          conditional: {
+            field: 'authType',
+            operator: 'equals',
+            value: 'apiKey'
+          }
+        },
+      ]
+    },
+    {
+      id: 'http-response',
+      title: 'Response Handling',
+      icon: Database,
+      defaultExpanded: false,
+      description: 'Extract and map response data',
+      fields: [
+        {
+          id: 'responseVariable',
+          type: 'text',
+          label: 'Save Response As',
+          placeholder: 'apiResponse',
+          helpText: 'Variable name to store the response data',
+          defaultValue: 'response',
+        },
+        {
+          id: 'extractFields',
+          type: 'keyValue',
+          label: 'Extract Specific Fields',
+          helpText: 'JSONPath expressions to extract data (e.g., $.data.id)',
+          placeholder: { key: 'Field name', value: 'JSONPath expression' },
+          addButtonText: '+ Add Extraction',
+        },
+        {
+          id: 'errorHandling',
+          type: 'select',
+          label: 'On Error',
+          options: [
+            { value: 'fail', label: 'Fail workflow' },
+            { value: 'continue', label: 'Continue with empty response' },
+            { value: 'retry', label: 'Retry request' },
+          ],
+          defaultValue: 'fail',
+        },
+        {
+          id: 'retryCount',
+          type: 'number',
+          label: 'Retry Count',
+          defaultValue: 3,
+          min: 1,
+          max: 10,
+          conditional: {
+            field: 'errorHandling',
+            operator: 'equals',
+            value: 'retry'
+          }
+        },
+      ]
+    }
+  ]
+};
+
+const actionSMSSchema: NodeConfigSchema = {
+  nodeType: 'actionSMS',
+  displayName: 'Send SMS',
+  description: 'Send SMS message',
+  icon: Mail,
+  version: '1.0.0',
+  tags: ['action', 'sms'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'sms',
+      title: 'SMS Configuration',
+      icon: Mail,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'recipient',
+          type: 'text',
+          label: 'Recipient Phone',
+          placeholder: '+1234567890',
+          required: true,
+        },
+        {
+          id: 'message',
+          type: 'textarea',
+          label: 'Message',
+          placeholder: 'SMS message content...',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+const actionNotifySchema: NodeConfigSchema = {
+  nodeType: 'actionNotify',
+  displayName: 'Send Notification',
+  description: 'Send in-app notification',
+  icon: AlertCircle,
+  version: '1.0.0',
+  tags: ['action', 'notification'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'notify',
+      title: 'Notification Configuration',
+      icon: AlertCircle,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'title',
+          type: 'text',
+          label: 'Title',
+          placeholder: 'Notification title...',
+          required: true,
+        },
+        {
+          id: 'message',
+          type: 'textarea',
+          label: 'Message',
+          placeholder: 'Notification message...',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+const actionScriptSchema: NodeConfigSchema = {
+  nodeType: 'actionScript',
+  displayName: 'Run Script',
+  description: 'Execute custom JavaScript',
+  icon: Settings,
+  version: '1.0.0',
+  tags: ['action', 'script'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'script',
+      title: 'Script Configuration',
+      icon: Settings,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'code',
+          type: 'textarea',
+          label: 'JavaScript Code',
+          placeholder: '// Your code here...',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+const actionCreateRecordSchema: NodeConfigSchema = {
+  nodeType: 'actionCreateRecord',
+  displayName: 'Create Record',
+  description: 'Create database record',
+  icon: Database,
+  version: '1.0.0',
+  tags: ['action', 'database'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'create',
+      title: 'Create Record',
+      icon: Database,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'entityType',
+          type: 'text',
+          label: 'Entity Type',
+          placeholder: 'e.g., PurchaseOrder',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+const actionUpdateRecordSchema: NodeConfigSchema = {
+  nodeType: 'actionUpdateRecord',
+  displayName: 'Update Record',
+  description: 'Update database record',
+  icon: Database,
+  version: '1.0.0',
+  tags: ['action', 'database'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'update',
+      title: 'Update Record',
+      icon: Database,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'entityType',
+          type: 'text',
+          label: 'Entity Type',
+          placeholder: 'e.g., PurchaseOrder',
+          required: true,
+        },
+        {
+          id: 'recordId',
+          type: 'text',
+          label: 'Record ID',
+          placeholder: 'ID of record to update',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+const actionDeleteRecordSchema: NodeConfigSchema = {
+  nodeType: 'actionDeleteRecord',
+  displayName: 'Delete Record',
+  description: 'Delete database record',
+  icon: Database,
+  version: '1.0.0',
+  tags: ['action', 'database'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'delete',
+      title: 'Delete Record',
+      icon: Database,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'entityType',
+          type: 'text',
+          label: 'Entity Type',
+          placeholder: 'e.g., PurchaseOrder',
+          required: true,
+        },
+        {
+          id: 'recordId',
+          type: 'text',
+          label: 'Record ID',
+          placeholder: 'ID of record to delete',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+// === DATA TRANSFORMATION NODES ===
+
+const dataLookupSchema: NodeConfigSchema = {
+  nodeType: 'dataLookup',
+  displayName: 'Data Lookup',
+  description: 'Look up data from database',
+  icon: Database,
+  version: '1.0.0',
+  tags: ['data', 'lookup'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'lookup',
+      title: 'Lookup Configuration',
+      icon: Database,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'entityType',
+          type: 'text',
+          label: 'Entity Type',
+          placeholder: 'e.g., Customer',
+          required: true,
+        },
+        {
+          id: 'searchField',
+          type: 'text',
+          label: 'Search Field',
+          placeholder: 'Field to search by',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+const dataMergeSchema: NodeConfigSchema = {
+  nodeType: 'dataMerge',
+  displayName: 'Merge Data',
+  description: 'Merge multiple data sources',
+  icon: Database,
+  version: '1.0.0',
+  tags: ['data', 'merge'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'merge',
+      title: 'Merge Configuration',
+      icon: Database,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'mergeStrategy',
+          type: 'select',
+          label: 'Merge Strategy',
+          options: [
+            { value: 'concat', label: 'Concatenate' },
+            { value: 'union', label: 'Union' },
+            { value: 'intersect', label: 'Intersect' },
+          ],
+          defaultValue: 'concat',
+        },
+      ]
+    }
+  ]
+};
+
+const dataTransformSchema: NodeConfigSchema = {
+  nodeType: 'dataTransform',
+  displayName: 'Transform Data',
+  description: 'Transform, map, filter, or format data with visual builder',
+  icon: Settings,
+  version: '2.0.0',
+  tags: ['data', 'transform', 'map', 'filter'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'transform-input',
+      title: 'Input Configuration',
+      icon: Database,
+      defaultExpanded: true,
+      description: 'Select data to transform',
+      fields: [
+        {
+          id: 'inputSource',
+          type: 'text',
+          label: 'Input Data',
+          placeholder: 'e.g., {{apiResponse.data}} or {{customers}}',
+          helpText: 'Source data to transform. Supports {{variable}} syntax.',
+          required: true,
+        },
+        {
+          id: 'inputType',
+          type: 'select',
+          label: 'Input Type',
+          options: [
+            { value: 'object', label: 'Object - Single item' },
+            { value: 'array', label: 'Array - List of items' },
+          ],
+          defaultValue: 'object',
+        },
+      ]
+    },
+    {
+      id: 'transform-operation',
+      title: 'Transformation',
+      icon: Settings,
+      defaultExpanded: true,
+      description: 'Define how to transform the data',
+      fields: [
+        {
+          id: 'operation',
+          type: 'select',
+          label: 'Operation Type',
+          options: [
+            { value: 'map', label: 'Map - Transform each item' },
+            { value: 'filter', label: 'Filter - Remove items by condition' },
+            { value: 'format', label: 'Format - Change data structure' },
+            { value: 'extract', label: 'Extract - Pull specific fields' },
+            { value: 'custom', label: 'Custom - JavaScript expression' },
+          ],
+          defaultValue: 'map',
+          required: true,
+        },
+        {
+          id: 'mapTemplate',
+          type: 'keyValue',
+          label: 'Field Mapping',
+          helpText: 'Map input fields to output fields',
+          placeholder: { key: 'Output field', value: 'Input field (e.g., {{item.name}})' },
+          addButtonText: '+ Add Mapping',
+          conditional: {
+            field: 'operation',
+            operator: 'equals',
+            value: 'map'
+          }
+        },
+        {
+          id: 'filterCondition',
+          type: 'textarea',
+          label: 'Filter Expression',
+          placeholder: 'e.g., {{item.status}} == "active"',
+          helpText: 'Items matching this condition will be included',
+          rows: 3,
+          conditional: {
+            field: 'operation',
+            operator: 'equals',
+            value: 'filter'
+          }
+        },
+        {
+          id: 'customScript',
+          type: 'codeEditor',
+          label: 'Custom JavaScript',
+          language: 'javascript',
+          placeholder: '// Transform logic\nreturn data.map(item => ({\n  id: item.id,\n  name: item.name.toUpperCase()\n}));',
+          helpText: 'Full JavaScript control. Input available as "data" variable.',
+          rows: 8,
+          conditional: {
+            field: 'operation',
+            operator: 'equals',
+            value: 'custom'
+          }
+        },
+      ]
+    },
+    {
+      id: 'transform-output',
+      title: 'Output',
+      icon: Database,
+      defaultExpanded: false,
+      description: 'Configure output variable',
+      fields: [
+        {
+          id: 'outputVariable',
+          type: 'text',
+          label: 'Save Result As',
+          placeholder: 'transformedData',
+          defaultValue: 'transformed',
+          helpText: 'Variable name to store the transformation result',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+// === LOOP NODES ===
+
+// Variable Set Node (NEW - Phase 4)
+const setVariableSchema: NodeConfigSchema = {
+  nodeType: 'setVariable',
+  displayName: 'Set Variable',
+  description: 'Create or update a variable with static value, upstream data, or expression',
+  icon: Settings,
+  version: '2.0.0',
+  tags: ['variable', 'data', 'set'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'variable-config',
+      title: 'Variable Configuration',
+      icon: Settings,
+      defaultExpanded: true,
+      description: 'Define the variable',
+      fields: [
+        {
+          id: 'variableName',
+          type: 'text',
+          label: 'Variable Name',
+          placeholder: 'myVariable',
+          helpText: 'Name to reference this variable (e.g., {{myVariable}})',
+          required: true,
+          validation: [
+            {
+              type: 'pattern',
+              value: '^[a-zA-Z_][a-zA-Z0-9_]*$',
+              message: 'Must be valid variable name (letters, numbers, underscore)'
+            }
+          ]
+        },
+        {
+          id: 'valueType',
+          type: 'select',
+          label: 'Value Type',
+          options: [
+            { value: 'static', label: 'Static Value - Enter manually' },
+            { value: 'upstream', label: 'From Upstream - Select field from previous node' },
+            { value: 'expression', label: 'Expression - Calculate using formula' },
+          ],
+          defaultValue: 'static',
+          required: true,
+        },
+        {
+          id: 'staticValue',
+          type: 'text',
+          label: 'Value',
+          placeholder: 'Enter value...',
+          helpText: 'Static value to assign',
+          conditional: {
+            field: 'valueType',
+            operator: 'equals',
+            value: 'static'
+          }
+        },
+        {
+          id: 'upstreamValue',
+          type: 'text',
+          label: 'Upstream Field',
+          placeholder: 'e.g., {{customer.email}} or {{response.data.id}}',
+          helpText: 'Select field from previous node output',
+          conditional: {
+            field: 'valueType',
+            operator: 'equals',
+            value: 'upstream'
+          }
+        },
+        {
+          id: 'expressionValue',
+          type: 'codeEditor',
+          label: 'Expression',
+          language: 'javascript',
+          placeholder: '// Calculate value\nreturn {{quantity}} * {{price}};',
+          helpText: 'JavaScript expression to calculate value. Return the result.',
+          rows: 4,
+          conditional: {
+            field: 'valueType',
+            operator: 'equals',
+            value: 'expression'
+          }
+        },
+        {
+          id: 'dataType',
+          type: 'select',
+          label: 'Data Type',
+          options: [
+            { value: 'string', label: 'String (text)' },
+            { value: 'number', label: 'Number' },
+            { value: 'boolean', label: 'Boolean (true/false)' },
+            { value: 'object', label: 'Object' },
+            { value: 'array', label: 'Array' },
+            { value: 'auto', label: 'Auto-detect' },
+          ],
+          defaultValue: 'auto',
+          helpText: 'Expected data type (for validation)',
+        },
+      ]
+    },
+    {
+      id: 'variable-scope',
+      title: 'Variable Scope',
+      icon: Settings,
+      defaultExpanded: false,
+      description: 'Control where this variable is accessible',
+      fields: [
+        {
+          id: 'scope',
+          type: 'select',
+          label: 'Scope',
+          options: [
+            { value: 'step', label: 'Step - Only this step and downstream' },
+            { value: 'workflow', label: 'Workflow - Entire workflow execution' },
+            { value: 'global', label: 'Global - All workflows (persistent)' },
+          ],
+          defaultValue: 'workflow',
+          helpText: 'How long and where this variable is available',
+        },
+        {
+          id: 'persistent',
+          type: 'checkbox',
+          label: 'Persist to Database',
+          defaultValue: false,
+          helpText: 'Save variable value to database for future workflow runs',
+          conditional: {
+            field: 'scope',
+            operator: 'equals',
+            value: 'global'
+          }
+        },
+      ]
+    }
+  ]
+};
+
+const loopForEachSchema: NodeConfigSchema = {
+  nodeType: 'loopForEach',
+  displayName: 'Loop (For Each)',
+  description: 'Iterate over array or list with enhanced controls',
+  icon: Navigation,
+  version: '2.0.0',
+  tags: ['loop', 'iteration', 'foreach'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'loop-config',
+      title: 'Loop Configuration',
+      icon: Navigation,
+      defaultExpanded: true,
+      description: 'Configure iteration behavior',
+      fields: [
+        {
+          id: 'arrayVariable',
+          type: 'text',
+          label: 'Array to Loop Over',
+          placeholder: 'e.g., {{customers}} or {{response.data.items}}',
+          helpText: 'Array or list variable. Supports {{variable}} syntax.',
+          required: true,
+        },
+        {
+          id: 'itemVariable',
+          type: 'text',
+          label: 'Item Variable Name',
+          placeholder: 'item',
+          defaultValue: 'item',
+          helpText: 'Name to reference each item (e.g., {{item.name}})',
+          required: true,
+        },
+        {
+          id: 'indexVariable',
+          type: 'text',
+          label: 'Index Variable Name (Optional)',
+          placeholder: 'index',
+          helpText: 'Name to reference iteration number (starts at 0)',
+        },
+        {
+          id: 'maxIterations',
+          type: 'number',
+          label: 'Max Iterations',
+          defaultValue: 1000,
+          min: 1,
+          max: 10000,
+          helpText: 'Safety limit to prevent infinite loops',
+        },
+      ]
+    }
+  ]
+};
+
+const loopWhileSchema: NodeConfigSchema = {
+  nodeType: 'loopWhile',
+  displayName: 'While Loop',
+  description: 'Loop while condition is true',
+  icon: Navigation,
+  version: '1.0.0',
+  tags: ['loop', 'condition'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'loop',
+      title: 'Loop Configuration',
+      icon: Navigation,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'condition',
+          type: 'textarea',
+          label: 'Loop Condition',
+          placeholder: 'Continue while this is true...',
+          required: true,
+        },
+        {
+          id: 'maxIterations',
+          type: 'text',
+          label: 'Max Iterations',
+          placeholder: '100',
+          defaultValue: '100',
+        },
+      ]
+    }
+  ]
+};
+
+// === WAIT/PENDING NODES ===
+
+const timerScheduleSchema: NodeConfigSchema = {
+  nodeType: 'timerSchedule',
+  displayName: 'Wait Until Time',
+  description: 'Wait until specific date/time',
+  icon: Calendar,
+  version: '1.0.0',
+  tags: ['wait', 'timer'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'schedule',
+      title: 'Schedule Configuration',
+      icon: Calendar,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'targetDateTime',
+          type: 'text',
+          label: 'Target Date/Time',
+          placeholder: '2026-12-31T23:59:59Z',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+const pendingApprovalSchema: NodeConfigSchema = {
+  nodeType: 'pendingApproval',
+  displayName: 'Pending Approval',
+  description: 'Wait for user approval',
+  icon: CheckSquare,
+  version: '1.0.0',
+  tags: ['wait', 'approval'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'approval',
+      title: 'Approval Configuration',
+      icon: CheckSquare,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'approverUserId',
+          type: 'text',
+          label: 'Approver User ID',
+          placeholder: 'ID of user who can approve',
+          required: true,
+        },
+        {
+          id: 'message',
+          type: 'textarea',
+          label: 'Approval Message',
+          placeholder: 'Please review and approve...',
+        },
+      ]
+    }
+  ]
+};
+
+const pendingDocumentSchema: NodeConfigSchema = {
+  nodeType: 'pendingDocument',
+  displayName: 'Pending Document',
+  description: 'Wait for document upload',
+  icon: FileText,
+  version: '1.0.0',
+  tags: ['wait', 'document'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'document',
+      title: 'Document Configuration',
+      icon: FileText,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'documentType',
+          type: 'text',
+          label: 'Required Document Type',
+          placeholder: 'e.g., Invoice',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+const pendingPaymentSchema: NodeConfigSchema = {
+  nodeType: 'pendingPayment',
+  displayName: 'Pending Payment',
+  description: 'Wait for payment confirmation',
+  icon: CheckSquare,
+  version: '1.0.0',
+  tags: ['wait', 'payment'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'payment',
+      title: 'Payment Configuration',
+      icon: CheckSquare,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'amount',
+          type: 'text',
+          label: 'Expected Amount',
+          placeholder: '0.00',
+          required: true,
+        },
+        {
+          id: 'currency',
+          type: 'text',
+          label: 'Currency',
+          placeholder: 'USD',
+          defaultValue: 'USD',
+        },
+      ]
+    }
+  ]
+};
+
+const pendingResponseSchema: NodeConfigSchema = {
+  nodeType: 'pendingResponse',
+  displayName: 'Pending Response',
+  description: 'Wait for user response',
+  icon: Mail,
+  version: '1.0.0',
+  tags: ['wait', 'response'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'response',
+      title: 'Response Configuration',
+      icon: Mail,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'recipientUserId',
+          type: 'text',
+          label: 'Recipient User ID',
+          placeholder: 'User to respond',
+          required: true,
+        },
+        {
+          id: 'message',
+          type: 'textarea',
+          label: 'Request Message',
+          placeholder: 'Please respond to...',
+        },
+      ]
+    }
+  ]
+};
+
+// === DOCUMENT NODES ===
+
+const documentMergeSchema: NodeConfigSchema = {
+  nodeType: 'documentMerge',
+  displayName: 'Merge Documents',
+  description: 'Combine multiple documents',
+  icon: FileText,
+  version: '1.0.0',
+  tags: ['document', 'merge'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'merge',
+      title: 'Merge Configuration',
+      icon: FileText,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'documentIds',
+          type: 'textarea',
+          label: 'Document IDs',
+          placeholder: 'Comma-separated list of document IDs',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+// === UTILITY NODES ===
+
+const groupSubflowSchema: NodeConfigSchema = {
+  nodeType: 'groupSubflow',
+  displayName: 'Subflow',
+  description: 'Reusable workflow component',
+  icon: Package,
+  version: '1.0.0',
+  tags: ['utility', 'subflow'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'subflow',
+      title: 'Subflow Configuration',
+      icon: Package,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'subflowId',
+          type: 'text',
+          label: 'Subflow ID',
+          placeholder: 'ID of subflow to execute',
+          required: true,
+        },
+        {
+          id: 'passData',
+          type: 'boolean',
+          label: 'Pass Data to Subflow',
+          defaultValue: true,
+        },
+      ]
+    }
+  ]
+};
+
+const noteCommentSchema: NodeConfigSchema = {
+  nodeType: 'noteComment',
+  displayName: 'Note/Comment',
+  description: 'Add documentation notes',
+  icon: FileText,
+  version: '1.0.0',
+  tags: ['utility', 'documentation'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'note',
+      title: 'Note Content',
+      icon: FileText,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'title',
+          type: 'text',
+          label: 'Note Title',
+          placeholder: 'Short title...',
+        },
+        {
+          id: 'content',
+          type: 'textarea',
+          label: 'Note Content',
+          placeholder: 'Add your notes here...',
+          required: true,
+        },
+      ]
+    }
+  ]
+};
+
+// === TERMINAL NODES ===
+
+const endCancelSchema: NodeConfigSchema = {
+  nodeType: 'endCancel',
+  displayName: 'End (Cancel)',
+  description: 'Cancel workflow execution',
+  icon: AlertCircle,
+  version: '1.0.0',
+  tags: ['terminal', 'end'],
+  contextAware: false,
+  sections: [
+    {
+      id: 'end',
+      title: 'Cancel Configuration',
+      icon: AlertCircle,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'message',
+          type: 'textarea',
+          label: 'Cancel Message',
+          placeholder: 'Workflow was cancelled because...',
+        },
+      ]
+    }
+  ]
+};
+
+// ============================================================================
+// PHASE 7.4: ADVANCED NODE TYPES (2026-02-27)
+// ============================================================================
+
+/**
+ * Parallel Path Node Schema
+ * 
+ * Enables parallel execution branches for concurrent processing.
+ */
+export const parallelPathSchema: NodeConfigSchema = {
+  nodeType: 'parallelPath',
+  displayName: 'Parallel Paths',
+  description: 'Execute multiple branches concurrently',
+  icon: Zap,
+  version: '1.0.0',
+  tags: ['logic', 'parallel', 'concurrent'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'paths',
+      title: 'Parallel Paths Configuration',
+      icon: Zap,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'pathCount',
+          type: 'number',
+          label: 'Number of Paths',
+          min: 2,
+          max: 10,
+          defaultValue: 2,
+          required: true,
+        },
+        {
+          id: 'waitStrategy',
+          type: 'select',
+          label: 'Wait Strategy',
+          options: [
+            { value: 'all', label: 'Wait for All (AND)' },
+            { value: 'any', label: 'Wait for Any (OR)' },
+            { value: 'none', label: 'Fire & Forget' },
+          ],
+          defaultValue: 'all',
+          required: true,
+        },
+        {
+          id: 'errorStrategy',
+          type: 'select',
+          label: 'Error Handling',
+          options: [
+            { value: 'stop', label: 'Stop All on Error' },
+            { value: 'continue', label: 'Continue Other Paths' },
+          ],
+          defaultValue: 'stop',
+          required: true,
+        },
+        {
+          id: 'timeout',
+          type: 'number',
+          label: 'Timeout (seconds)',
+          min: 0,
+          placeholder: 'No timeout',
+        },
+      ]
+    }
+  ]
+};
+
+/**
+ * Sub-Workflow Node Schema
+ * 
+ * Executes another workflow as a reusable sub-process.
+ */
+export const subWorkflowSchema: NodeConfigSchema = {
+  nodeType: 'subWorkflow',
+  displayName: 'Sub-Workflow',
+  description: 'Execute another workflow as a sub-process',
+  icon: Package,
+  version: '1.0.0',
+  tags: ['logic', 'subflow', 'reusable'],
+  contextAware: true,
+  sections: [
+    {
+      id: 'workflow',
+      title: 'Workflow Selection',
+      icon: Package,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'workflowId',
+          type: 'text',
+          label: 'Workflow ID',
+          placeholder: 'Select workflow...',
+          required: true,
+        },
+        {
+          id: 'workflowName',
+          type: 'text',
+          label: 'Workflow Name',
+          placeholder: 'Display name',
+        },
+        {
+          id: 'version',
+          type: 'text',
+          label: 'Version',
+          placeholder: 'latest',
+        },
+      ]
+    },
+    {
+      id: 'execution',
+      title: 'Execution Options',
+      icon: Settings,
+      defaultExpanded: true,
+      fields: [
+        {
+          id: 'waitForCompletion',
+          type: 'boolean',
+          label: 'Wait for Completion',
+          defaultValue: true,
+        },
+        {
+          id: 'inheritContext',
+          type: 'boolean',
+          label: 'Inherit Parent Context',
+          defaultValue: false,
+        },
+        {
+          id: 'timeout',
+          type: 'number',
+          label: 'Timeout (seconds)',
+          min: 0,
+          placeholder: 'No timeout',
+        },
+      ]
+    },
+    {
+      id: 'errorHandling',
+      title: 'Error Handling',
+      icon: AlertCircle,
+      defaultExpanded: false,
+      fields: [
+        {
+          id: 'errorHandling',
+          type: 'select',
+          label: 'On Error',
+          options: [
+            { value: 'fail', label: 'Fail Parent Workflow' },
+            { value: 'continue', label: 'Continue Parent Workflow' },
+            { value: 'retry', label: 'Retry Sub-Workflow' },
+          ],
+          defaultValue: 'fail',
+          required: true,
+        },
+        {
+          id: 'retryCount',
+          type: 'number',
+          label: 'Retry Attempts',
+          min: 1,
+          max: 10,
+          defaultValue: 3,
+          conditional: { field: 'errorHandling', operator: 'equals', value: 'retry' },
+        },
+      ]
+    }
+  ]
+};
+
+// ============================================================================
+// SCHEMA REGISTRATION COMPLETE
+// ============================================================================
+
+// Build + initialize schemas at end-of-module to avoid TDZ errors.
+export const allSchemas: NodeConfigSchema[] = buildAllSchemas();
+
+// CRITICAL HOTFIX (2026-03-18): Defer initialization to bypass Vite/Rollup ES Module TDZ
+setTimeout(() => {
+  if (typeof schemaRegistry !== 'undefined') {
+    schemaRegistry.initialize(allSchemas);
+    logger.debug(`[Schema Registry] Complete config coverage: ${allSchemas.length} node schemas registered`);
+  } else {
+    console.error('[Schema Registry] CRITICAL: schemaRegistry still undefined after deferral at line 4171');
+  }
+}, 0);
+
+// Cache bust: 1771875847

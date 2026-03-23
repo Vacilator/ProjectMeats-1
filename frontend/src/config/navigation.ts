@@ -30,12 +30,8 @@ export const navigation: NavigationItem[] = [
   {
     label: 'Cockpit',
     icon: '🎯',
+    path: '/cockpit',
     children: [
-      {
-        label: 'Dashboard',
-        icon: '📊',
-        path: '/cockpit',
-      },
       {
         label: 'Calls',
         icon: '📞',
@@ -237,40 +233,44 @@ export const adminWorkspaceNavigation: NavigationItem[] = [
     icon: '⚙️',
     children: [
       {
+        label: 'Overview',
+        icon: '🏠',
+        path: '/workspace',
+      },
+      {
         label: 'Configurations',
         icon: '🔧',
         path: '/workspace/configurations',
-        roles: ['admin', 'superuser'],
       },
       {
         label: 'Customizations',
         icon: '🎨',
         path: '/workspace/customizations',
-        roles: ['admin', 'superuser'],
       },
       {
         label: 'Users & Invitations',
         icon: '👥',
         path: '/workspace/users',
-        roles: ['admin', 'superuser'],
       },
       {
         label: 'Profile',
         icon: '🏢',
         path: '/workspace/profile',
-        roles: ['admin', 'superuser'],
       },
       {
         label: 'Billing',
         icon: '💳',
         path: '/workspace/billing',
-        roles: ['admin', 'superuser'],
       },
       {
         label: 'Option Lists',
         icon: '📋',
         path: '/workspace/option-lists',
-        roles: ['admin', 'superuser'],
+      },
+      {
+        label: 'Activity & Audit Logs',
+        icon: '🕒',
+        path: '/workspace/activity',
       },
     ],
   },

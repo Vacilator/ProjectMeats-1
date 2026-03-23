@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { tenantService, Tenant } from '../services/tenantService';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import styled from 'styled-components';
 import { ChromePicker, ColorResult } from 'react-color';
 import { extractBrandColors, rgbToHex, hexToRgb } from '../utils/themeUtils';
 import { injectTenantColors } from '../config/theme';
 import { getRuntimeConfig } from '../config/runtime';
+import { IntegrationsSection } from '../components/Integrations/IntegrationsSection';
 
 // Renamed to avoid collision with component name (ESLint no-redeclare warning)
 interface UserSettings {
@@ -30,7 +32,8 @@ interface UserSettings {
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
-  const { themeName, tenantBranding } = useTheme(); // Initialize theme context
+  const { permissions } = useAdminPermissions();
+  const { themeName } = useTheme(); // Initialize theme context
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -60,8 +63,8 @@ const Settings: React.FC = () => {
   } | null>(null);
   
   // Theme color picker state
-  const [primaryColor, setPrimaryColor] = useState<string>('rgb(220, 38, 38)');
-  const [secondaryColor, setSecondaryColor] = useState<string>('rgb(245, 158, 11)');
+  const [primaryColor, setPrimaryColor] = useState<string>('#DC2626');
+  const [secondaryColor, setSecondaryColor] = useState<string>('#F59E0B');
   const [showPrimaryPicker, setShowPrimaryPicker] = useState(false);
   const [showSecondaryPicker, setShowSecondaryPicker] = useState(false);
   const [extractingColors, setExtractingColors] = useState(false);
@@ -79,25 +82,30 @@ const Settings: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Load current tenant information
+    // Load current tenant information (prefer the active tenantId)
     const loadTenant = async () => {
       try {
         const tenants = await tenantService.getMyTenants();
-        if (tenants && tenants.length > 0) {
-          setCurrentTenant(tenants[0]);
-          // Map logo URL from the backend response
-          // Backend returns 'logo' field directly or as 'logo_url'
-          let logoUrl = tenants[0].logo || (tenants[0] as any).logo_url;
-          if (logoUrl) {
-            // If logo URL is relative (starts with /), prepend API_BASE_URL
-            if (logoUrl.startsWith('/')) {
-              const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
-              // Remove /api/v1 from API_BASE_URL and append the logo path
-              const baseUrl = apiBaseUrl.replace('/api/v1', '');
-              logoUrl = `${baseUrl}${logoUrl}`;
-            }
-            setLogoPreview(logoUrl);
+        if (!tenants || tenants.length === 0) return;
+
+        const activeTenantId = localStorage.getItem('tenantId');
+        const tenant = activeTenantId ? tenants.find((t) => t.id === activeTenantId) : undefined;
+        const selected = tenant ?? tenants[0];
+
+        setCurrentTenant(selected);
+
+        // Map logo URL from the backend response
+        // Backend returns 'logo' field directly or as 'logo_url'
+        let logoUrl = selected.logo || (selected as any).logo_url;
+        if (logoUrl) {
+          // If logo URL is relative (starts with /), prepend API_BASE_URL
+          if (logoUrl.startsWith('/')) {
+            const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
+            // Remove /api/v1 from API_BASE_URL and append the logo path
+            const baseUrl = apiBaseUrl.replace('/api/v1', '');
+            logoUrl = `${baseUrl}${logoUrl}`;
           }
+          setLogoPreview(logoUrl);
         }
       } catch (error) {
         console.error('Failed to load tenant:', error);
@@ -207,15 +215,28 @@ const Settings: React.FC = () => {
     }
   };
 
+  const normalizeLogoUrl = (logoUrl: string | null | undefined): string | null => {
+    if (!logoUrl) return null;
+    if (logoUrl.startsWith('/')) {
+      const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
+      const baseUrl = apiBaseUrl.replace('/api/v1', '');
+      return `${baseUrl}${logoUrl}`;
+    }
+    return logoUrl;
+  };
+
   const handleLogoUpload = async () => {
     if (!logoFile || !currentTenant) return;
 
     // Use tenant_id if available, fallback to id for compatibility
     const tenantId = (currentTenant as any).tenant_id || currentTenant.id;
-    
-    // Validate tenant ID exists (debugging aid as suggested in issue)
+
+    // Validate tenant ID exists
     if (!tenantId) {
-      setMessage({ type: 'error', text: 'Unable to upload logo: Tenant ID is missing. Please try refreshing the page.' });
+      setMessage({
+        type: 'error',
+        text: 'Unable to upload logo: Tenant ID is missing. Please try refreshing the page.',
+      });
       console.error('Logo upload error: tenant_id is undefined or null', currentTenant);
       return;
     }
@@ -227,28 +248,19 @@ const Settings: React.FC = () => {
       const updatedTenant = await tenantService.uploadLogo(tenantId, logoFile);
       setCurrentTenant(updatedTenant);
       setLogoFile(null);
-      
-      // Update logo preview from response
-      if (updatedTenant.logo) {
-        setLogoPreview(updatedTenant.logo);
-      }
-      
-      setMessage({ 
-        type: 'success', 
-        text: 'Logo uploaded successfully! Refreshing page to update branding...' 
+
+      // Update logo preview from response (normalize relative URLs)
+      setLogoPreview(normalizeLogoUrl(updatedTenant.logo) ?? null);
+
+      setMessage({
+        type: 'success',
+        text: 'Logo uploaded successfully! Branding will update momentarily.',
       });
-      
-      // Reload page after short delay to show success message
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-      
+
+      // Notify ThemeProvider to reload branding (no full refresh needed)
+      window.dispatchEvent(new Event('tenant-branding-updated'));
     } catch (error: any) {
-      // Enhanced error display - show the actual error message from the service
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : 'Failed to upload logo. Please try again.';
-      
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload logo. Please try again.';
       setMessage({ type: 'error', text: errorMessage });
       console.error('Logo upload error:', error);
     } finally {
@@ -277,7 +289,8 @@ const Settings: React.FC = () => {
       setCurrentTenant(updatedTenant);
       setLogoPreview(null);
       setLogoFile(null);
-      setMessage({ type: 'success', text: 'Logo removed successfully! Please refresh the page to see changes in the sidebar.' });
+      setMessage({ type: 'success', text: 'Logo removed successfully.' });
+      window.dispatchEvent(new Event('tenant-branding-updated'));
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to remove logo. Please try again.' });
       console.error('Logo remove error:', error);
@@ -363,7 +376,8 @@ const Settings: React.FC = () => {
 
     try {
       // Apply colors to CSS variables for preview using injectTenantColors utility
-      injectTenantColors(primaryColor, secondaryColor, themeName);
+      const cssThemeMode: 'light' | 'dark' = themeName === 'dark' ? 'dark' : 'light';
+      injectTenantColors(primaryColor, secondaryColor, cssThemeMode);
 
       // Save colors to backend using new updateTenantSettings method
       // This ensures proper Content-Type headers and prevents HTML responses
@@ -374,10 +388,12 @@ const Settings: React.FC = () => {
         }
       });
       
-      setMessage({ 
-        type: 'success', 
-        text: 'Theme colors saved successfully! Changes applied immediately.' 
+      setMessage({
+        type: 'success',
+        text: 'Theme colors saved successfully! Changes applied immediately.',
       });
+
+      window.dispatchEvent(new Event('tenant-branding-updated'));
       
       // Close pickers
       setShowPrimaryPicker(false);
@@ -423,7 +439,7 @@ const Settings: React.FC = () => {
 
       <SettingsContent>
         {/* Tenant Branding Settings */}
-        {currentTenant && (user?.is_staff || user?.is_superuser) && (
+        {currentTenant && permissions.can_manage_profile && (
           <SettingsSection>
             <SectionHeader>
               <SectionIcon>🎨</SectionIcon>
@@ -533,6 +549,9 @@ const Settings: React.FC = () => {
             </SettingGroup>
           </SettingsSection>
         )}
+
+        {/* Email Integrations Section */}
+        <IntegrationsSection />
 
         {/* Notification Settings */}
         <SettingsSection>

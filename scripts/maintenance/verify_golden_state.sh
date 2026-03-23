@@ -9,12 +9,19 @@ echo ""
 
 ERRORS=0
 
-# 1. Check manifest exists
-if [ -f "config/env.manifest.json" ]; then
-    VERSION=$(jq -r '.version' config/env.manifest.json 2>/dev/null || echo "unknown")
-    echo "✅ config/env.manifest.json exists (version: $VERSION)"
+# 1. Check manifest exists (canonical: manifests/env.manifest.json; legacy: config/env.manifest.json)
+MANIFEST_PATH=""
+if [ -f "manifests/env.manifest.json" ]; then
+    MANIFEST_PATH="manifests/env.manifest.json"
+elif [ -f "config/env.manifest.json" ]; then
+    MANIFEST_PATH="config/env.manifest.json"
+fi
+
+if [ -n "$MANIFEST_PATH" ]; then
+    VERSION=$(jq -r '.version' "$MANIFEST_PATH" 2>/dev/null || echo "unknown")
+    echo "✅ $MANIFEST_PATH exists (version: $VERSION)"
 else
-    echo "❌ config/env.manifest.json NOT FOUND"
+    echo "❌ env.manifest.json NOT FOUND (expected: manifests/env.manifest.json)"
     ERRORS=$((ERRORS + 1))
 fi
 

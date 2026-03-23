@@ -15,7 +15,7 @@
  * - INFO: Best practice tips
  */
 
-import { Node, Edge } from 'reactflow';
+import { Node, Edge } from '@xyflow/react';
 
 export type ValidationSeverity = 'error' | 'warning' | 'info';
 
@@ -146,7 +146,7 @@ export function validateNodeConfig(node: Node): ValidationIssue[] {
   
   // Basic validation without schema dependency
   // Type-specific validations
-  if (node.type === 'form' || node.type === 'formProcessGroup') {
+  if (node.type === 'form' || node.type === 'formProcessGroup' || node.type === 'formBook') {
     const fields = node.data.fields || [];
     if (fields.length === 0) {
       issues.push({

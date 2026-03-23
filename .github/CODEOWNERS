@@ -34,6 +34,9 @@
 
 # Infrastructure and configuration
 /config/ @Meats-Central/devops-team
+/manifests/ @Meats-Central/devops-team @Meats-Central/security-team
+/manifests/env.manifest.json @Meats-Central/devops-team @Meats-Central/security-team
+/manifests/RLS_POLICIES.md @Meats-Central/security-team @Meats-Central/backend-team
 *.yml @Meats-Central/devops-team
 *.yaml @Meats-Central/devops-team
 

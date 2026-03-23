@@ -15,6 +15,7 @@ from .base import (
     AuthUrlResponse,
     TokenResponse,
 )
+from ..microsoft.utils import get_microsoft_redirect_uri
 
 
 class MicrosoftGraphProvider(EmailProvider):
@@ -47,17 +48,24 @@ class MicrosoftGraphProvider(EmailProvider):
     
     def __init__(self, tenant_id: int):
         super().__init__(tenant_id)
-        self.client_id = os.environ.get("MICROSOFT_CLIENT_ID")
-        self.client_secret = os.environ.get("MICROSOFT_CLIENT_SECRET")
-        
-        if not self.client_id or not self.client_secret:
+        self.client_id = os.environ.get('MICROSOFT_CLIENT_ID')
+        self.client_secret = os.environ.get('MICROSOFT_CLIENT_SECRET')
+
+        # NOTE:
+        # - client_secret is NOT required to generate the *authorize* URL.
+        # - client_secret IS required for code exchange / refresh.
+        if not self.client_id:
             raise EmailProviderError(
-                "Microsoft OAuth credentials not configured. "
-                "Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET environment variables."
+                'Microsoft OAuth client_id not configured. Set MICROSOFT_CLIENT_ID environment variable.'
             )
     
     def get_auth_url(self, redirect_uri: str, state: str) -> AuthUrlResponse:
-        """Generate Microsoft OAuth2 authorization URL"""
+        """
+        Generate Microsoft OAuth2 authorization URL.
+        
+        Note: redirect_uri should be constructed using get_microsoft_redirect_uri()
+        to ensure /api/v1 sub-path routing (no api. subdomain prefix).
+        """
         params = {
             "client_id": self.client_id,
             "response_type": "code",
@@ -72,12 +80,17 @@ class MicrosoftGraphProvider(EmailProvider):
     
     def exchange_code(self, code: str, redirect_uri: str) -> TokenResponse:
         """Exchange authorization code for access tokens"""
+        if not self.client_secret:
+            raise EmailProviderError(
+                'Microsoft OAuth client_secret not configured. Set MICROSOFT_CLIENT_SECRET environment variable.'
+            )
+
         data = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "code": code,
-            "redirect_uri": redirect_uri,
-            "grant_type": "authorization_code",
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'code': code,
+            'redirect_uri': redirect_uri,
+            'grant_type': 'authorization_code',
         }
         
         try:
@@ -97,11 +110,16 @@ class MicrosoftGraphProvider(EmailProvider):
     
     def refresh_token(self, refresh_token: str) -> TokenResponse:
         """Refresh an expired access token"""
+        if not self.client_secret:
+            raise EmailProviderError(
+                'Microsoft OAuth client_secret not configured. Set MICROSOFT_CLIENT_SECRET environment variable.'
+            )
+
         data = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "refresh_token": refresh_token,
-            "grant_type": "refresh_token",
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'refresh_token': refresh_token,
+            'grant_type': 'refresh_token',
         }
         
         try:

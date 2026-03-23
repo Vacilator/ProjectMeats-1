@@ -7,6 +7,15 @@ import { MemoryRouter } from 'react-router-dom';
 import { MyTasksWidget } from './MyTasksWidget';
 import * as NotificationsContext from '../../contexts/NotificationsContext';
 
+vi.mock('../../contexts/CockpitPinnedToolsContext', () => ({
+  useCockpitPinnedTools: () => ({
+    pinned: [],
+    pinWidget: vi.fn(),
+    unpin: vi.fn(),
+    isWidgetPinned: vi.fn(() => false),
+  }),
+}));
+
 // Mock useNavigate
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -70,6 +79,8 @@ describe('MyTasksWidget', () => {
         due_date: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
         form_name: 'Purchase Order Form',
         status: 'pending',
+        is_overdue: false,
+        related_po_value: 500,
       },
       {
         id: '2',
@@ -78,6 +89,8 @@ describe('MyTasksWidget', () => {
         due_date: new Date(Date.now() - 86400000).toISOString(), // Yesterday (overdue)
         form_name: 'Supplier Contract',
         status: 'pending',
+        is_overdue: true,
+        related_po_value: 15000,
       },
     ];
 
@@ -97,6 +110,44 @@ describe('MyTasksWidget', () => {
     expect(screen.getByText('Approve supplier contract')).toBeInTheDocument();
   });
 
+  it('prioritizes high-value tasks due soon (urgency × value)', () => {
+    const mockTasks = [
+      {
+        id: 'low',
+        title: 'Low value follow-up',
+        priority: 'normal',
+        due_date: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+        status: 'pending',
+        is_overdue: false,
+        related_po_value: 0,
+      },
+      {
+        id: 'high',
+        title: 'High value approval',
+        priority: 'normal',
+        due_date: new Date(Date.now() + 2 * 86400000).toISOString(), // In 2 days (At Risk when value >= $10k)
+        status: 'pending',
+        is_overdue: false,
+        related_po_value: 20000,
+      },
+    ];
+
+    mockUseNotifications.mockReturnValue({
+      actionItems: mockTasks,
+      loading: false,
+      fetchActionItems: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <MyTasksWidget />
+      </MemoryRouter>
+    );
+
+    const orderedTitles = screen.getAllByText(/High value approval|Low value follow-up/);
+    expect(orderedTitles[0]).toHaveTextContent('High value approval');
+  });
+
   it('shows overdue indicator for overdue tasks', () => {
     const mockTasks = [
       {
@@ -105,6 +156,7 @@ describe('MyTasksWidget', () => {
         priority: 'high',
         due_date: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
         status: 'pending',
+        is_overdue: true,
       },
     ];
 
@@ -149,7 +201,7 @@ describe('MyTasksWidget', () => {
     );
 
     fireEvent.click(screen.getByText('Test task'));
-    expect(mockNavigate).toHaveBeenCalledWith('/my-submissions/sub-123');
+    expect(mockNavigate).toHaveBeenCalledWith('/workflows/run/sub-123');
   });
 
   it('shows badge when there are overdue tasks', () => {
@@ -160,6 +212,7 @@ describe('MyTasksWidget', () => {
         priority: 'urgent',
         due_date: new Date(Date.now() - 86400000).toISOString(),
         status: 'pending',
+        is_overdue: true,
       },
       {
         id: '2',
@@ -167,6 +220,7 @@ describe('MyTasksWidget', () => {
         priority: 'high',
         due_date: new Date(Date.now() - 86400000).toISOString(),
         status: 'pending',
+        is_overdue: true,
       },
     ];
 
@@ -192,6 +246,7 @@ describe('MyTasksWidget', () => {
       priority: 'normal',
       due_date: null,
       status: 'pending',
+      is_overdue: false,
     }));
 
     mockUseNotifications.mockReturnValue({
@@ -206,11 +261,9 @@ describe('MyTasksWidget', () => {
       </MemoryRouter>
     );
 
-    // Should show 3 tasks plus "View all" link
-    expect(screen.getByText('Task 1')).toBeInTheDocument();
-    expect(screen.getByText('Task 2')).toBeInTheDocument();
-    expect(screen.getByText('Task 3')).toBeInTheDocument();
-    expect(screen.queryByText('Task 4')).not.toBeInTheDocument();
+    // Should show only maxItems task titles plus "View all" link
+    const visibleTaskTitles = screen.getAllByText(/^Task \d+$/);
+    expect(visibleTaskTitles).toHaveLength(3);
     expect(screen.getByText('View all tasks')).toBeInTheDocument();
   });
 

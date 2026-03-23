@@ -125,3 +125,31 @@ class ContainerVersioningTests(TestCase):
         # Should only have 1 TenantForm record
         count = TenantForm.objects.filter(tenant=self.tenant).count()
         self.assertEqual(count, 1)
+
+    def test_extract_container_definitions_includes_smart_workform(self):
+        """smartWorkForm nodes should be treated as snapshot-able containers."""
+        nodes = [
+            {
+                'id': 'smart-1',
+                'type': 'smartWorkForm',
+                'data': {
+                    'label': 'P.O. Pre-Approval',
+                    'steps': [
+                        {
+                            'id': 'step_1',
+                            'name': '1. Customer Inquiry',
+                            'entity_type': 'customer_inquiry',
+                            'fields': [{'name': 'customer', 'type': 'select'}],
+                            'order': 0,
+                        }
+                    ],
+                },
+            }
+        ]
+
+        containers = extract_container_definitions(nodes)
+        self.assertEqual(len(containers), 1)
+        self.assertEqual(containers[0]['container']['id'], 'smart-1')
+        self.assertEqual(containers[0]['container']['type'], 'smartWorkForm')
+        self.assertEqual(len(containers[0]['children']), 1)
+        self.assertEqual(containers[0]['children'][0]['entity_type'], 'customer_inquiry')

@@ -92,9 +92,27 @@ export function useNodeShadowState(
     return data.configStatus || 'pristine';
   }, [node]);
 
+  // Derive dirty state from the actual presence/diff of shadowConfig.
+  // This is more reliable than trusting configStatus alone (which can be missed
+  // if some panels update shadowConfig but forget to update configStatus).
   const isDirty = useMemo(() => {
-    return configStatus === 'dirty';
-  }, [configStatus]);
+    if (!node) return false;
+    const data = node.data as NodeDataWithShadow;
+    if (!data.shadowConfig) return false;
+
+    const committedConfig = data.config || (() => {
+      // Avoid comparing against internal shadow bookkeeping keys.
+      const { shadowConfig, configStatus, config, ...rest } = data;
+      return rest;
+    })();
+
+    try {
+      return JSON.stringify(data.shadowConfig) !== JSON.stringify(committedConfig);
+    } catch {
+      // If serialization fails, fall back to showing Apply/Discard when shadowConfig exists.
+      return true;
+    }
+  }, [node]);
 
   /**
    * Update shadow config without affecting committed config

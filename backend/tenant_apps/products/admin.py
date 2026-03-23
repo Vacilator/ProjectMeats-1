@@ -4,118 +4,48 @@ Django admin configuration for Products app.
 from django.contrib import admin
 from apps.core.admin_site import admin_site
 from apps.core.admin import TenantFilteredAdmin
-from .models import Product
+from .models import MasterProduct
 
 
-class ProductAdmin(TenantFilteredAdmin):
-    """Admin interface for Product model with tenant filtering."""
+class MasterProductAdmin(TenantFilteredAdmin):
+    """Admin interface for MasterProduct model with tenant filtering."""
 
     list_display = (
-        "product_code",
-        "description_preview",
-        "supplier",
-        "type_of_protein",
-        "fresh_or_frozen",
-        "package_type",
-        "is_active",
-        "created_on",
+        'display_name',
+        'protein',
+        'item_name',
+        'type',
+        'trim',
+        'is_active',
+        'created_on',
     )
-    list_filter = (
-        "type_of_protein",
-        "fresh_or_frozen",
-        "package_type",
-        "edible_or_inedible",
-        "tested_product",
-        "is_active",
-        "origin",
-        "created_on",
-    )
-    search_fields = (
-        "product_code",
-        "description_of_product_item",
-        "supplier_item_number",
-        "namp",
-        "usda",
-        "ub",
-    )
-    readonly_fields = ("created_on", "modified_on")
-    raw_id_fields = ("supplier",)
-
-    def description_preview(self, obj):
-        """Return truncated description for list display."""
-        return (
-            obj.description_of_product_item[:50] + "..."
-            if len(obj.description_of_product_item) > 50
-            else obj.description_of_product_item
-        )
-
-    description_preview.short_description = "Description"
+    list_filter = ('protein', 'type', 'trim', 'is_active', 'created_on')
+    search_fields = ('display_name', 'item_name')
+    readonly_fields = ('display_name', 'created_on', 'modified_on')
 
     fieldsets = (
         (
-            "Product Identification",
-            {"fields": ("product_code", "description_of_product_item", "is_active")},
-        ),
-        (
-            "Product Characteristics",
+            'Master Product',
             {
-                "fields": (
-                    "type_of_protein",
-                    "fresh_or_frozen",
-                    "package_type",
-                    "net_or_catch",
-                    "edible_or_inedible",
-                    "tested_product",
+                'fields': (
+                    'protein',
+                    'item_name',
+                    'type',
+                    'trim',
+                    'display_name',
+                    'is_active',
                 )
             },
         ),
         (
-            "Supplier & Sourcing",
+            'Metadata',
             {
-                "fields": (
-                    "supplier",
-                    "supplier_item_number",
-                    "plants_available",
-                    "origin",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Packaging Details",
-            {
-                "fields": (
-                    "carton_type",
-                    "pcs_per_carton",
-                    "uom",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Codes & References",
-            {
-                "fields": (
-                    "namp",
-                    "usda",
-                    "ub",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Details",
-            {"fields": ("unit_weight",)},
-        ),
-        (
-            "Metadata",
-            {
-                "fields": ("tenant", "created_on", "modified_on"),
-                "classes": ("collapse",),
+                'fields': ('tenant', 'created_on', 'modified_on'),
+                'classes': ('collapse',),
             },
         ),
     )
 
 
 # Register models with custom admin site
-admin_site.register(Product, ProductAdmin)
+admin_site.register(MasterProduct, MasterProductAdmin)

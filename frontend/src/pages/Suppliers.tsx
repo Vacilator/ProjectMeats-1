@@ -1,22 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { logger } from '@/utils/logger';
+
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PhoneInput, Select } from '../components/ui';
 import { MultiSelect } from '../components/Shared';
+import QuickCreateModal from '../components/FormSubmission/QuickCreateModal';
 import { US_STATES } from '../utils/constants/states';
 import { DEPARTMENT_CHOICES, PROTEIN_TYPE_CHOICES } from '../utils/constants/choices';
 import styled from 'styled-components';
-import { apiService, Supplier } from '../services/apiService';
+import { apiService, apiClient, Supplier } from '../services/apiService';
+
+interface SupplierPlant {
+  id: number;
+  name: string;
+  code: string;
+  plant_type?: string;
+  manager?: string;
+  email?: string;
+  phone?: string;
+}
+
+interface SupplierContact {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  phone?: string;
+  position?: string;
+  company?: string;
+}
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../config/theme';
 
 const Suppliers: React.FC = () => {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
-  const [products, setProducts] = useState<Array<{ id: number; product_code: string; description_of_product_item: string }>>([]);
+  const [products, setProducts] = useState<Array<{ id: string; product_code: string; effective_name?: string; name?: string; product_name?: string }>>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
+  const [supplierPlants, setSupplierPlants] = useState<SupplierPlant[]>([]);
+  const [plantsLoading, setPlantsLoading] = useState(false);
+  const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
+
+  const [supplierContacts, setSupplierContacts] = useState<SupplierContact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [plantContacts, setPlantContacts] = useState<SupplierContact[]>([]);
+  const [plantContactsLoading, setPlantContactsLoading] = useState(false);
+
+  const [showPlantModal, setShowPlantModal] = useState(false);
+  const [plantForm, setPlantForm] = useState({
+    name: '',
+    code: '',
+    plant_type: 'processing',
+    manager: '',
+    email: '',
+    phone: '',
+  });
+
   const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
@@ -47,12 +92,26 @@ const Suppliers: React.FC = () => {
     fetchProducts();
   }, []);
 
+  // Debug: Log products state changes
+  useEffect(() => {
+    logger.debug('[Suppliers] Products state updated:', {
+      count: Array.isArray(products) ? products.length : 0,
+      products: products,
+      multiSelectOptions: Array.isArray(products) ? products.map(p => ({ 
+        value: String(p.id), 
+        label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}` 
+      })) : []
+    });
+  }, [products]);
+
   // Auto-fetch products when preferred_protein_types changes
   useEffect(() => {
+    logger.debug('[Suppliers] Protein types changed:', formData.preferred_protein_types);
     if (formData.preferred_protein_types && formData.preferred_protein_types.length > 0) {
       fetchFilteredProducts(formData.preferred_protein_types);
     } else {
       // Reset to all products if no protein types selected
+      logger.debug('[Suppliers] No protein types selected, fetching all products');
       fetchProducts();
     }
   }, [formData.preferred_protein_types]);
@@ -63,7 +122,7 @@ const Suppliers: React.FC = () => {
       const data = await apiService.getSuppliers();
       setSuppliers(data);
     } catch (error) {
-      console.error('Error fetching suppliers:', error);
+      logger.error('Error fetching suppliers:', error);
     } finally {
       setLoading(false);
     }
@@ -71,46 +130,153 @@ const Suppliers: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/v1/products/', {
-        headers: {
-          'Authorization': `Token ${localStorage.getItem('authToken')}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
-      }
+      logger.debug('[Suppliers] Fetching products from system catalog...');
+      const response = await apiClient.get('/system/products/', { params: { limit: 500 } });
+      const productsData = Array.isArray(response.data) ? response.data : (response.data.results || []);
+      setProducts(productsData);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      logger.error('[Suppliers] Error fetching products:', error);
+      setProducts([]);
     }
   };
 
   const fetchFilteredProducts = async (proteinTypes: string[]) => {
     try {
-      // Build query string with multiple protein parameters
-      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
-      const response = await fetch(`/api/v1/products/?${proteinParams}`, {
-        headers: {
-          'Authorization': `Token ${localStorage.getItem('authToken')}`,
-        },
+      logger.debug('[Suppliers] Fetching filtered products for protein types:', proteinTypes);
+
+      const response = await apiClient.get('/system/products/', {
+        params: { protein: proteinTypes.join(','), limit: 500 },
       });
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
-        
-        // Auto-select filtered products
-        const filteredProductIds = data.map((p: any) => p.id);
-        setFormData(prev => ({
-          ...prev,
-          products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
-        }));
-        
-        console.log(`✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
-      }
+      const data = Array.isArray(response.data) ? response.data : (response.data.results || []);
+      setProducts(data);
+
+      // Note: Auto-select logic intentionally removed to improve UX
+      logger.debug(`[Suppliers] Loaded ${data.length} product(s) for protein types:`, proteinTypes);
     } catch (error) {
-      console.error('Error fetching filtered products:', error);
+      logger.error('[Suppliers] Error fetching filtered products:', error);
+      setProducts([]);
     }
   };
+
+  const loadSupplierPlants = async (supplierId: number) => {
+    try {
+      setPlantsLoading(true);
+      const response = await apiClient.get('plants/', {
+        params: { supplier: supplierId },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setSupplierPlants(data);
+    } catch (error) {
+      logger.error('[Suppliers] Failed to load supplier plants:', error);
+      setSupplierPlants([]);
+    } finally {
+      setPlantsLoading(false);
+    }
+  };
+
+  const loadSupplierContacts = async (supplierId: number) => {
+    try {
+      setContactsLoading(true);
+      const response = await apiClient.get('contacts/', {
+        params: { supplier: supplierId },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setSupplierContacts(data);
+    } catch (error) {
+      logger.error('[Suppliers] Failed to load supplier contacts:', error);
+      setSupplierContacts([]);
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  const loadPlantContacts = async (plantId: number) => {
+    try {
+      setPlantContactsLoading(true);
+      const response = await apiClient.get('contacts/', {
+        params: { plant: plantId },
+      });
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setPlantContacts(data);
+    } catch (error) {
+      logger.error('[Suppliers] Failed to load plant contacts:', error);
+      setPlantContacts([]);
+    } finally {
+      setPlantContactsLoading(false);
+    }
+  };
+
+  const toggleSupplierDrilldown = async (supplier: Supplier) => {
+    if (selectedSupplierId === supplier.id) {
+      setSelectedSupplierId(null);
+      setSupplierPlants([]);
+      setSupplierContacts([]);
+      setPlantContacts([]);
+      setSelectedPlantId(null);
+      return;
+    }
+
+    setSelectedSupplierId(supplier.id);
+    setSelectedPlantId(null);
+    setPlantContacts([]);
+
+    await Promise.all([loadSupplierPlants(supplier.id), loadSupplierContacts(supplier.id)]);
+  };
+
+  const openCreatePlant = () => {
+    if (!selectedSupplierId) return;
+    setPlantForm({
+      name: '',
+      code: '',
+      plant_type: 'processing',
+      manager: '',
+      email: '',
+      phone: '',
+    });
+    setShowPlantModal(true);
+  };
+
+  const submitPlant = async () => {
+    if (!selectedSupplierId) return;
+
+    if (!plantForm.name.trim() || !plantForm.code.trim()) {
+      alert('Plant name and code are required');
+      return;
+    }
+
+    try {
+      await apiClient.post('plants/', {
+        supplier: selectedSupplierId,
+        name: plantForm.name.trim(),
+        code: plantForm.code.trim(),
+        plant_type: plantForm.plant_type,
+        manager: plantForm.manager,
+        email: plantForm.email,
+        phone: plantForm.phone,
+      });
+      setShowPlantModal(false);
+      await loadSupplierPlants(selectedSupplierId);
+    } catch (error: unknown) {
+      logger.error('[Suppliers] Failed to create plant:', error);
+      alert('Failed to create plant');
+    }
+  };
+
+  const selectedPlant = selectedPlantId
+    ? supplierPlants.find((p) => p.id === selectedPlantId)
+    : null;
+
+  useEffect(() => {
+    if (!selectedPlantId) {
+      setPlantContacts([]);
+      return;
+    }
+
+    void loadPlantContacts(selectedPlantId);
+  }, [selectedPlantId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,7 +286,7 @@ const Suppliers: React.FC = () => {
       } else {
         await apiService.createSupplier(formData);
       }
-      setShowForm(false);
+      setShowEditForm(false);
       setEditingSupplier(null);
       resetForm();
       fetchSuppliers();
@@ -130,8 +296,7 @@ const Suppliers: React.FC = () => {
       const errorMessage = err.message || 'An unexpected error occurred. Please try again.';
       
       // Log detailed error information for debugging
-      // eslint-disable-next-line no-console
-      console.error('[Suppliers] Error saving supplier:', {
+      logger.error('[Suppliers] Error saving supplier:', {
         message: errorMessage,
         error: err,
         action: editingSupplier ? 'update' : 'create',
@@ -158,7 +323,7 @@ const Suppliers: React.FC = () => {
       preferred_protein_types: supplier.preferred_protein_types || [], // NEW: Populate protein types
       products: supplier.products || [], // Populate product IDs
     });
-    setShowForm(true);
+    setShowEditForm(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -170,7 +335,7 @@ const Suppliers: React.FC = () => {
       } catch (error: unknown) {
         // Type-safe error handling: Use 'unknown' instead of 'any' and assert expected structure
         // This ensures we handle errors safely while maintaining type checking
-        console.error('Error deleting supplier:', error);
+        logger.error('Error deleting supplier:', error);
         const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string };
         const errorMessage = err?.response?.data?.detail 
           || err?.response?.data?.message 
@@ -200,6 +365,7 @@ const Suppliers: React.FC = () => {
 
   const handleCancel = () => {
     setShowForm(false);
+    setShowEditForm(false);
     setEditingSupplier(null);
     resetForm();
   };
@@ -212,14 +378,23 @@ const Suppliers: React.FC = () => {
     <>
       <Header>
         <Title $theme={theme}>Suppliers</Title>
-        <AddButton onClick={() => setShowForm(true)}>+ Add Supplier</AddButton>
+        <AddButton onClick={() => { setEditingSupplier(null); setShowForm(true); }}>+ Add Supplier</AddButton>
       </Header>
 
       {showForm && (
+        <QuickCreateModal
+          entityType="supplier"
+          isOpen={showForm}
+          onClose={() => setShowForm(false)}
+          onCreated={() => fetchSuppliers()}
+        />
+      )}
+
+      {showEditForm && (
         <FormOverlay>
           <FormContainer $theme={theme}>
             <FormHeader $theme={theme}>
-              <FormTitle $theme={theme}>{editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}</FormTitle>
+              <FormTitle $theme={theme}>Edit Supplier</FormTitle>
               <CloseButton $theme={theme} onClick={handleCancel}>×</CloseButton>
             </FormHeader>
 
@@ -352,7 +527,10 @@ const Suppliers: React.FC = () => {
                   <MultiSelect
                     value={formData.products.map(String)}
                     onChange={(values) => setFormData({ ...formData, products: values.map(Number) })}
-                    options={products.map(p => ({ value: String(p.id), label: `${p.product_code} - ${p.description_of_product_item}` }))}
+                    options={Array.isArray(products) ? products.map(p => ({ 
+                      value: String(p.id), 
+                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}` 
+                    })) : []}
                     label="Products"
                     placeholder="Select products to associate (hold Ctrl/Cmd for multiple)"
                   />
@@ -366,6 +544,97 @@ const Suppliers: React.FC = () => {
                 <SubmitButton type="submit">
                   {editingSupplier ? 'Update' : 'Create'} Supplier
                 </SubmitButton>
+              </FormActions>
+            </Form>
+          </FormContainer>
+        </FormOverlay>
+      )}
+
+      {showPlantModal && (
+        <FormOverlay>
+          <FormContainer $theme={theme}>
+            <FormHeader $theme={theme}>
+              <FormTitle $theme={theme}>Add New Plant</FormTitle>
+              <CloseButton $theme={theme} onClick={() => setShowPlantModal(false)}>×</CloseButton>
+            </FormHeader>
+
+            <Form onSubmit={(e) => { e.preventDefault(); void submitPlant(); }}>
+              <FormGrid>
+                <FormGroup>
+                  <Label $theme={theme}>Plant Name *</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.name}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, name: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Code *</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.code}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, code: e.target.value }))}
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Type</Label>
+                  <Select
+                    value={plantForm.plant_type}
+                    onChange={(value) => setPlantForm((p) => ({ ...p, plant_type: value }))}
+                    options={[
+                      { value: 'processing', label: 'Processing' },
+                      { value: 'distribution', label: 'Distribution' },
+                      { value: 'warehouse', label: 'Warehouse' },
+                      { value: 'retail', label: 'Retail' },
+                      { value: 'other', label: 'Other' },
+                    ]}
+                    placeholder="Select type"
+                    aria-label="Plant type"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Manager</Label>
+                  <Input
+                    $theme={theme}
+                    type="text"
+                    value={plantForm.manager}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, manager: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Email</Label>
+                  <Input
+                    $theme={theme}
+                    type="email"
+                    value={plantForm.email}
+                    onChange={(e) => setPlantForm((p) => ({ ...p, email: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label $theme={theme}>Phone</Label>
+                  <PhoneInput
+                    value={plantForm.phone}
+                    onChange={(value) => setPlantForm((p) => ({ ...p, phone: value }))}
+                    placeholder="(XXX) XXX-XXXX"
+                    aria-label="Plant phone"
+                  />
+                </FormGroup>
+              </FormGrid>
+
+              <FormActions>
+                <CancelButton type="button" onClick={() => setShowPlantModal(false)}>
+                  Cancel
+                </CancelButton>
+                <SubmitButton type="submit">Create Plant</SubmitButton>
               </FormActions>
             </Form>
           </FormContainer>
@@ -393,9 +662,18 @@ const Suppliers: React.FC = () => {
             </TableHeader>
             <TableBody>
               {suppliers.map((supplier) => (
+                <React.Fragment key={supplier.id}>
                 <TableRow key={supplier.id} $theme={theme}>
                   <TableCell $theme={theme}>
-                    <CompanyName $theme={theme}>{supplier.name}</CompanyName>
+                    <CompanyButton
+                      $theme={theme}
+                      type="button"
+                      onClick={() => toggleSupplierDrilldown(supplier)}
+                      aria-pressed={selectedSupplierId === supplier.id}
+                    >
+                      <CompanyName $theme={theme}>{supplier.name}</CompanyName>
+                      <CompanyChevron aria-hidden="true">{selectedSupplierId === supplier.id ? '▾' : '▸'}</CompanyChevron>
+                    </CompanyButton>
                   </TableCell>
                   <TableCell $theme={theme}>{supplier.contact_person || '-'}</TableCell>
                   <TableCell $theme={theme}>{supplier.email || '-'}</TableCell>
@@ -410,6 +688,121 @@ const Suppliers: React.FC = () => {
                     <DeleteButton onClick={() => handleDelete(supplier.id)}>Delete</DeleteButton>
                   </TableCell>
                 </TableRow>
+                {selectedSupplierId === supplier.id && (
+                  <ExpandedTableRow $theme={theme}>
+                    <ExpandedTableCell $theme={theme} colSpan={6}>
+                      <ExpandedPanel>
+                        <ExpandedColumn>
+                          <ExpandedHeader>
+                            <ExpandedTitle>Plants</ExpandedTitle>
+                            <ExpandedActions>
+                              <SmallButton type="button" onClick={openCreatePlant} disabled={!selectedSupplierId}>
+                                + New Plant
+                              </SmallButton>
+                              <SmallButton
+                                type="button"
+                                onClick={() => navigate('/suppliers/plants', { state: { supplierId: supplier.id } })}
+                              >
+                                Manage
+                              </SmallButton>
+                            </ExpandedActions>
+                          </ExpandedHeader>
+
+                          {plantsLoading ? (
+                            <ExpandedHint>Loading plants…</ExpandedHint>
+                          ) : supplierPlants.length === 0 ? (
+                            <ExpandedHint>No plants found for this supplier.</ExpandedHint>
+                          ) : (
+                            <ChildList>
+                              {supplierPlants.map((plant) => (
+                                <ChildListItem
+                                  key={plant.id}
+                                  type="button"
+                                  $active={selectedPlantId === plant.id}
+                                  onClick={() => setSelectedPlantId(plant.id)}
+                                >
+                                  <ChildListName>{plant.name}</ChildListName>
+                                  <ChildListMeta>
+                                    <span>{plant.code}</span>
+                                    {plant.plant_type ? <span>• {plant.plant_type}</span> : null}
+                                  </ChildListMeta>
+                                </ChildListItem>
+                              ))}
+                            </ChildList>
+                          )}
+                        </ExpandedColumn>
+
+                        <ExpandedColumn>
+                          <ExpandedHeader>
+                            <ExpandedTitle>Plant Details & Contacts</ExpandedTitle>
+                          </ExpandedHeader>
+
+                          {selectedPlant ? (
+                            <MetaCard>
+                              <MetaRow>
+                                <MetaKey>Manager</MetaKey>
+                                <MetaValue>{selectedPlant.manager || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Email</MetaKey>
+                                <MetaValue>{selectedPlant.email || '—'}</MetaValue>
+                              </MetaRow>
+                              <MetaRow>
+                                <MetaKey>Phone</MetaKey>
+                                <MetaValue>{selectedPlant.phone || '—'}</MetaValue>
+                              </MetaRow>
+                            </MetaCard>
+                          ) : (
+                            <ExpandedHint>Select a plant to view details.</ExpandedHint>
+                          )}
+
+                          {selectedPlantId ? (
+                            plantContactsLoading ? (
+                              <ExpandedHint>Loading plant contacts…</ExpandedHint>
+                            ) : plantContacts.length === 0 ? (
+                              <ExpandedHint>No contacts found for this plant.</ExpandedHint>
+                            ) : (
+                              <ContactsList>
+                                {plantContacts.map((c) => (
+                                  <ContactRow key={c.id}>
+                                    <ContactName>
+                                      {c.first_name} {c.last_name}
+                                    </ContactName>
+                                    <ContactMeta>
+                                      {c.position ? <span>{c.position}</span> : null}
+                                      {c.email ? <span>{c.email}</span> : null}
+                                      {c.phone ? <span>{c.phone}</span> : null}
+                                    </ContactMeta>
+                                  </ContactRow>
+                                ))}
+                              </ContactsList>
+                            )
+                          ) : contactsLoading ? (
+                            <ExpandedHint>Loading contacts…</ExpandedHint>
+                          ) : supplierContacts.length === 0 ? (
+                            <ExpandedHint>No contacts found for this supplier.</ExpandedHint>
+                          ) : (
+                            <ContactsList>
+                              {supplierContacts.map((c) => (
+                                <ContactRow key={c.id}>
+                                  <ContactName>
+                                    {c.first_name} {c.last_name}
+                                  </ContactName>
+                                  <ContactMeta>
+                                    {c.position ? <span>{c.position}</span> : null}
+                                    {c.email ? <span>{c.email}</span> : null}
+                                    {c.phone ? <span>{c.phone}</span> : null}
+                                  </ContactMeta>
+                                </ContactRow>
+                              ))}
+                            </ContactsList>
+                          )}
+                        </ExpandedColumn>
+                      </ExpandedPanel>
+                    </ExpandedTableCell>
+                  </ExpandedTableRow>
+                )}
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
@@ -444,7 +837,7 @@ const Title = styled.h1<{ $theme: Theme }>`
 `;
 
 const AddButton = styled.button`
-  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  background: rgb(var(--color-primary));
   color: white;
   border: none;
   border-radius: 8px;
@@ -456,7 +849,8 @@ const AddButton = styled.button`
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+    box-shadow: 0 4px 15px rgba(var(--color-primary), 0.25);
+    filter: brightness(0.98);
   }
 `;
 
@@ -559,15 +953,15 @@ const CancelButton = styled.button`
   border-radius: 6px;
   padding: 10px 20px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease;
 
   &:hover {
-    background: #5a6268;
+    filter: brightness(0.95);
   }
 `;
 
 const SubmitButton = styled.button`
-  background: linear-gradient(135deg, #3498db, #2980b9);
+  background: rgb(var(--color-primary));
   color: white;
   border: none;
   border-radius: 6px;
@@ -577,7 +971,8 @@ const SubmitButton = styled.button`
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 4px 15px rgba(var(--color-primary), 0.25);
+    filter: brightness(0.98);
   }
 `;
 
@@ -639,13 +1034,195 @@ const TableCell = styled.td<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.textPrimary};
 `;
 
+const CompanyButton = styled.button<{ $theme: Theme }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${(props) => props.$theme.colors.border};
+    background: ${(props) => props.$theme.colors.surfaceHover};
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
+`;
+
 const CompanyName = styled.div<{ $theme: Theme }>`
   font-weight: 600;
   color: ${(props) => props.$theme.colors.textPrimary};
 `;
 
+const CompanyChevron = styled.span`
+  color: rgb(var(--color-text-secondary));
+  font-size: 14px;
+`;
+
+const ExpandedTableRow = styled.tr<{ $theme: Theme }>`
+  background: ${(props) => props.$theme.colors.surface};
+`;
+
+const ExpandedTableCell = styled.td<{ $theme: Theme }>`
+  padding: 14px 18px;
+  border-bottom: 1px solid ${(props) => props.$theme.colors.border};
+`;
+
+const ExpandedPanel = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ExpandedColumn = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 12px;
+  background: rgb(var(--color-surface));
+  padding: 12px;
+`;
+
+const ExpandedHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+`;
+
+const ExpandedTitle = styled.div`
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ExpandedActions = styled.div`
+  display: inline-flex;
+  gap: 8px;
+`;
+
+const SmallButton = styled.button`
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(var(--color-primary), 0.6);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ExpandedHint = styled.div`
+  padding: 12px;
+  color: rgb(var(--color-text-secondary));
+  font-size: 13px;
+`;
+
+const ChildList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ChildListItem = styled.button<{ $active: boolean }>`
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.7)' : 'rgb(var(--color-border))')};
+  background: ${(p) => (p.$active ? 'rgba(var(--color-primary), 0.08)' : 'rgb(var(--color-surface))')};
+  padding: 10px 12px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgba(var(--color-primary), 0.55);
+  }
+`;
+
+const ChildListName = styled.div`
+  font-weight: 650;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ChildListMeta = styled.div`
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const MetaCard = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 10px;
+  background: rgba(var(--color-surface), 0.6);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+`;
+
+const MetaRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+`;
+
+const MetaKey = styled.div`
+  font-size: 12px;
+  font-weight: 650;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const MetaValue = styled.div`
+  font-size: 13px;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ContactsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ContactRow = styled.div`
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgb(var(--color-surface));
+`;
+
+const ContactName = styled.div`
+  font-weight: 650;
+  color: rgb(var(--color-text-primary));
+`;
+
+const ContactMeta = styled.div`
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+`;
+
 const ActionButton = styled.button`
-  background: #3498db;
+  background: rgb(var(--color-info));
   color: white;
   border: none;
   border-radius: 4px;
@@ -653,25 +1230,25 @@ const ActionButton = styled.button`
   font-size: 12px;
   cursor: pointer;
   margin-right: 8px;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease;
 
   &:hover {
-    background: #2980b9;
+    filter: brightness(0.95);
   }
 `;
 
 const DeleteButton = styled.button`
-  background: #e74c3c;
+  background: rgb(var(--color-danger));
   color: white;
   border: none;
   border-radius: 4px;
   padding: 6px 12px;
   font-size: 12px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease;
 
   &:hover {
-    background: #c0392b;
+    filter: brightness(0.95);
   }
 `;
 

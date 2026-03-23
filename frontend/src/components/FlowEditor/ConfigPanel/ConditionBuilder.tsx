@@ -254,7 +254,7 @@ const ConditionLabel = styled.div`
 
 
 
-const Input = styled.input`
+const ValueInput = styled.input`
   width: 100%;
   padding: 8px 10px;
   border: 1px solid rgb(var(--color-border));
@@ -508,7 +508,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
                     {operatorDef?.requiresValue && (
                       <FieldGroup>
                         <ConditionLabel>Value</ConditionLabel>
-                        <Input
+                        <ValueInput
                           type={getFieldType(condition.field) === 'number' ? 'number' : 'text'}
                           value={condition.value || ''}
                           onChange={(e) => handleUpdateCondition(condition.id, { 

@@ -1,0 +1,196 @@
+{
+  "workflowEditor": {
+    "title": "Editor de Flujos",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "zoom": {
+      "in": "Acercar",
+      "out": "Alejar",
+      "fit": "Ajustar a la Pantalla"
+    },
+    "toolbar": {
+      "select": "Seleccionar",
+      "pan": "Desplazar",
+      "addNode": "Agregar Nodo",
+      "delete": "Eliminar",
+      "undo": "Deshacer",
+      "redo": "Rehacer"
+    },
+    "nodes": {
+      "start": "Inicio",
+      "end": "Fin",
+      "action": "Acción",
+      "decision": "Decisión",
+      "loop": "Bucle",
+      "conditional": "Rama Condicional",
+      "subworkflow": "Sub-Flujo"
+    },
+    "properties": {
+      "title": "Propiedades",
+      "name": "Nombre",
+      "description": "Descripción",
+      "type": "Tipo",
+      "condition": "Condición",
+      "actions": "Acciones",
+      "connections": "Conexiones"
+    },
+    "validation": {
+      "requiredField": "Este campo es requerido",
+      "invalidName": "Nombre inválido",
+      "circularDependency": "Dependencia circular detectada",
+      "danglingNode": "El nodo no tiene conexiones salientes",
+      "orphanNode": "El nodo no tiene conexiones entrantes",
+      "duplicateName": "El nombre ya existe"
+    },
+    "notifications": {
+      "saved": "Flujo guardado exitosamente",
+      "deleted": "Flujo eliminado exitosamente",
+      "error": "Ocurrió un error",
+      "validationFailed": "Validación fallida",
+      "connectionCreated": "Conexión creada",
+      "connectionDeleted": "Conexión eliminada",
+      "nodeAdded": "Nodo agregado",
+      "nodeDeleted": "Nodo eliminado"
+    },
+    "history": {
+      "title": "Historial de Versiones",
+      "noHistory": "No hay historial disponible",
+      "restore": "Restaurar",
+      "compare": "Comparar",
+      "author": "Autor",
+      "date": "Fecha",
+      "changes": "Cambios"
+    },
+    "entityMapping": {
+      "title": "Mapeo de Entidades",
+      "selectEntity": "Seleccionar Entidad",
+      "mapFields": "Mapear Campos",
+      "formField": "Campo del Formulario",
+      "entityField": "Campo de la Entidad",
+      "noMapping": "No hay mapeo configurado"
+    },
+    "performance": {
+      "fps": "FPS",
+      "memory": "Memoria",
+      "nodes": "Nodos",
+      "connections": "Conexiones",
+      "renderTime": "Tiempo de Renderizado"
+    },
+    "accessibility": {
+      "announcements": {
+        "nodeSelected": "Nodo {{name}} seleccionado",
+        "nodeMoved": "Nodo {{name}} movido a la posición {{x}}, {{y}}",
+        "connectionCreated": "Conexión creada desde {{source}} hasta {{target}}",
+        "connectionDeleted": "Conexión desde {{source}} hasta {{target}} eliminada",
+        "workflowSaved": "Flujo guardado exitosamente",
+        "validationError": "Error de validación: {{error}}"
+      },
+      "hints": {
+        "navigateNodes": "Use las teclas de flecha para navegar entre nodos",
+        "selectNode": "Presione Enter para seleccionar el nodo enfocado",
+        "deleteNode": "Presione Delete para eliminar el nodo seleccionado",
+        "undo": "Presione Ctrl+Z para deshacer",
+        "redo": "Presione Ctrl+Y para rehacer"
+      }
+    }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "info": "Información",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "finish": "Finalizar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "sort": "Ordenar",
+    "export": "Exportar",
+    "import": "Importar",
+    "settings": "Configuración",
+    "help": "Ayuda",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "noResults": "No se encontraron resultados",
+    "noRelated": "No hay elementos relacionados",
+    "searching": "Buscando...",
+    "retry": "Reintentar"
+  },
+  "cockpit": {
+    "searchPlaceholder": "Buscar cualquier cosa...",
+    "openSearch": "Abrir búsqueda (presiona Command+K o Control+K)",
+    "smartSearch": {
+      "placeholder": "Buscar clientes, proveedores, pedidos...",
+      "noResults": "No se encontraron resultados",
+      "noRelated": "No hay elementos relacionados",
+      "searching": "Buscando...",
+      "loadingContext": "Cargando contexto del registro..."
+    }
+  },
+  "forms": {
+    "selectAForm": "Seleccionar un Formulario",
+    "searchForms": "Buscar formularios...",
+    "loadingForms": "Cargando formularios...",
+    "noFormsMatch": "Ningún formulario coincide con su búsqueda",
+    "noForms": "No hay formularios disponibles",
+    "selectForm": "Seleccionar Formulario",
+    "submissions": "{{count}} envíos"
+  },
+  "aiPanel": {
+    "title": "Sugerencias de IA",
+    "analyzing": "Analizando flujo...",
+    "suggestions": "Próximos pasos inteligentes para su flujo",
+    "buildWorkflow": "Construya su flujo para ver sugerencias",
+    "addNodes": "Agregue nodos a su flujo para obtener sugerencias inteligentes",
+    "retry": "Reintentar",
+    "mode": {
+      "ai": "IA",
+      "static": "Estático",
+      "cached": "En caché"
+    }
+  },
+  "mobile": {
+    "login": {
+      "title": "ProjectMeats",
+      "subtitle": "Plataforma Multi-Inquilino",
+      "username": "Usuario o Correo",
+      "password": "Contraseña",
+      "signIn": "Iniciar Sesión",
+      "signingIn": "Iniciando sesión...",
+      "loginFailed": "Error de inicio de sesión",
+      "fillFields": "Por favor complete todos los campos",
+      "invalidCredentials": "Credenciales inválidas"
+    },
+    "home": {
+      "dashboard": "Panel de Control",
+      "quickActions": "Acciones Rápidas",
+      "loadingDashboard": "Cargando panel...",
+      "logout": "Cerrar Sesión",
+      "logoutConfirm": "¿Está seguro de que desea cerrar sesión?",
+      "switchOrg": "Cambiar Organización",
+      "switchConfirm": "¿Desea cambiar a una organización diferente?",
+      "switchBtn": "Cambiar",
+      "cancel": "Cancelar",
+      "comingSoon": "Próximamente",
+      "featureSoon": "Esta función estará disponible pronto.",
+      "nextUpdate": "La gestión de {{entity}} estará disponible en la próxima actualización.",
+      "createOrder": "Crear Pedido",
+      "viewReports": "Ver Informes",
+      "aiAssistant": "Asistente IA",
+      "customers": "Clientes",
+      "suppliers": "Proveedores",
+      "contacts": "Contactos",
+      "plants": "Plantas",
+      "carriers": "Transportistas",
+      "welcome": "Bienvenido, {{name}}",
+      "trialAccount": "CUENTA DE PRUEBA"
+    }
+  }
+}

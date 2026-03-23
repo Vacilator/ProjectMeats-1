@@ -15,67 +15,51 @@
  * Created: 2026-02-12 - Phase 4 Keyboard Shortcuts Fix
  */
 
+import type React from 'react';
+
 /**
  * Check if user is currently typing in an input field or other text-entry context
- * 
- * This prevents global keyboard shortcuts (like Delete, Backspace, Space, /, etc.)
- * from triggering when user is typing in:
- * - Text inputs
- * - Textareas
- * - ContentEditable elements
- * - Monaco editor instances
- * - Config panels (marked with data-config-panel)
- * - Modals (marked with data-modal or role="dialog")
- * 
+ *
+ * Bulletproof focus detection (Phase 7 UX hardening):
+ * - Uses document.activeElement (more reliable than event.target for global listeners)
+ * - Handles INPUT/TEXTAREA/SELECT, contentEditable, Monaco, AntD inputs/selects, and inline editors
+ *
  * @param event - Keyboard event
  * @returns true if user is typing in an input context
  */
-export function isTypingInInput(event: KeyboardEvent): boolean {
-  const target = event.target as HTMLElement;
-  
-  // Direct input/textarea/select check
-  if (
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
-  ) {
+export function isTypingInInput(event: KeyboardEvent | React.KeyboardEvent): boolean {
+  const activeElement = document.activeElement as HTMLElement | null;
+  const fallbackTarget = (event.target as HTMLElement | null) ?? null;
+  const el = activeElement ?? fallbackTarget;
+
+  if (!el) return false;
+
+  // 1) Direct input/textarea/select check (active element)
+  const tagName = (el.tagName || '').toUpperCase();
+  if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') {
     return true;
   }
-  
-  // ContentEditable check
-  if (
-    target.isContentEditable ||
-    target.getAttribute('contenteditable') === 'true'
-  ) {
+
+  // 2) ContentEditable check
+  if (el.isContentEditable) {
     return true;
   }
-  
-  // Monaco editor check (look for Monaco-specific classes)
-  if (
-    target.classList.contains('monaco-editor') ||
-    target.closest('.monaco-editor') !== null
-  ) {
+
+  // 3) Monaco editor check (.monaco-editor on self or any parent)
+  if (el.classList?.contains('monaco-editor') || el.closest?.('.monaco-editor')) {
     return true;
   }
-  
-  // Config panel check (any element with data-config-panel attribute)
-  if (target.closest('[data-config-panel]') !== null) {
+
+  // 4) AntD / React Flow node / other inline editors
+  if (el.closest?.('.ant-select, .ant-input, .react-flow__node')) {
     return true;
   }
-  
-  // Modal check (any element with data-modal or role="dialog")
-  if (
-    target.closest('[data-modal]') !== null ||
-    target.closest('[role="dialog"]') !== null
-  ) {
-    return true;
-  }
-  
-  // Check if element is inside a form
-  if (target.closest('form') !== null) {
-    return true;
-  }
-  
+
+  // Existing guards (keep for safety)
+  if (el.closest?.('[data-config-panel]')) return true;
+  if (el.closest?.('[data-modal]') || el.closest?.('[role="dialog"]')) return true;
+  if (el.closest?.('form')) return true;
+
   return false;
 }
 

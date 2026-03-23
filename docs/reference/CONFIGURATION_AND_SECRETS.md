@@ -2,14 +2,14 @@
 
 **Status**: ✅ CURRENT  
 **Category**: Reference  
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-02-27
 
 ---
 
 **Single Source of Truth for ProjectMeats Environments**
 
 > **Authority**: This document describes the authoritative configuration system for ProjectMeats.  
-> **Version**: Manifest v3.3 (December 2025)
+> **Version**: Manifest v3.4 (February 2026) - Environment-Scoped Secrets
 
 ---
 
@@ -30,8 +30,8 @@
 ProjectMeats uses a **manifest-based configuration system** to eliminate secret drift and ensure consistency across all environments.
 
 ### Core Principles
-1. **Single Source of Truth**: `config/env.manifest.json` defines ALL environment variables and their GitHub Secret mappings
-2. **Environment-Aware**: Secrets can be scoped globally (repository-level) or per-environment (e.g., `dev-backend`, `uat2`)
+1. **Single Source of Truth**: `manifests/env.manifest.json` defines ALL environment variables and their GitHub Secret mappings
+2. **Environment-Aware**: Secrets can be scoped globally (repository-level) or per-environment (e.g., `dev-backend`, `uat-frontend`)
 3. **Audit-First**: Run `python config/manage_env.py audit` before any deployment or secret changes
 4. **No Guessing**: Never assume secret names - always reference the manifest
 
@@ -52,7 +52,7 @@ ProjectMeats uses a **manifest-based configuration system** to eliminate secret 
 
 ## The Authority: env.manifest.json
 
-**Location**: [`config/env.manifest.json`](../config/env.manifest.json)
+**Location**: [`manifests/env.manifest.json`](../manifests/env.manifest.json)
 
 This file defines:
 - **Environments**: All 6 deployment targets (dev, uat, prod × backend, frontend)
@@ -64,10 +64,10 @@ This file defines:
 ```json
 {
   "project": "ProjectMeats",
-  "version": "3.3",
+  "version": "5.x",
   "environments": {
-    "dev-backend": { "type": "backend", "prefix": "DEV" },
-    "uat2": { "type": "frontend", "prefix": "STAGING" }
+    "dev-backend": { "type": "backend" },
+    "uat-frontend": { "type": "frontend" }
   },
   "variables": {
     "infrastructure": { /* SSH, host configs */ },
@@ -80,10 +80,30 @@ This file defines:
 ### Variable Categories
 
 #### 1. Infrastructure Secrets
-Used by **both** backend and frontend deployments for SSH access:
-- `BASTION_HOST` - Droplet IP address
-- `BASTION_USER` - SSH username
-- `BASTION_SSH_PASSWORD` - SSH password (see [Legacy Exceptions](#legacy-exceptions))
+Used by **all environments** for SSH access:
+- `BASTION_HOST` / `DEV_HOST` / `PRODUCTION_HOST` / `STAGING_HOST` - Server IP addresses
+- `BASTION_USER` / `DEV_USER` / `PRODUCTION_USER` / `STAGING_USER` - SSH usernames  
+- `SSH_PASSWORD` - **ENVIRONMENT-SCOPED** secret (same name, different values per environment)
+
+**CRITICAL: SSH Password Pattern**
+ProjectMeats uses GitHub Environments to scope secrets. The `SSH_PASSWORD` secret:
+- Has the **same name** in all 6 environments (dev-backend, dev-frontend, uat-backend, uat-frontend, production-backend, production-frontend)
+- Contains **different values** per environment (dev has one password, uat has another, etc.)
+- Workflows reference `${{ secrets.SSH_PASSWORD }}` and GitHub injects the correct value based on the `environment:` tag
+
+**Example**:
+```yaml
+jobs:
+  deploy-dev:
+    environment: dev-backend  # GitHub injects dev's SSH_PASSWORD
+    steps:
+      - run: sshpass -e ssh ${{ secrets.SSH_PASSWORD }} ...
+  
+  deploy-prod:
+    environment: production-backend  # GitHub injects prod's SSH_PASSWORD
+    steps:
+      - run: sshpass -e ssh ${{ secrets.SSH_PASSWORD }} ...
+```
 
 #### 2. Application Secrets (Backend Only)
 Used by Django/Python backend:
@@ -104,16 +124,55 @@ Used by React at build time:
 
 The manifest defines **6 environments** matching our deployment architecture:
 
-| Environment | Type | Prefix | GitHub Environment | Purpose |
-|-------------|------|--------|-------------------|---------|
-| `dev-backend` | backend | `DEV` | `dev-backend` | Development Django API |
-| `dev-frontend` | frontend | `DEV` | `dev-frontend` | Development React UI |
-| `uat2-backend` | backend | `UAT` | `uat2-backend` | Staging Django API |
-| `uat2` | frontend | `STAGING` | `uat2` | Staging React UI ⚠️ |
-| `prod2-backend` | backend | `PROD` | `prod2-backend` | Production Django API |
-| `prod2-frontend` | frontend | `PROD` | `prod2-frontend` | Production React UI |
+| Environment | Type | GitHub Environment | Purpose |
+|-------------|------|-------------------|---------|
+| `dev-backend` | backend | `dev-backend` | Development Django API |
+| `dev-frontend` | frontend | `dev-frontend` | Development React UI |
+| `uat-backend` | backend | `uat-backend` | UAT/Staging Django API |
+| `uat-frontend` | frontend | `uat-frontend` | UAT/Staging React UI |
+| `production-backend` | backend | `production-backend` | Production Django API |
+| `production-frontend` | frontend | `production-frontend` | Production React UI |
 
-⚠️ **Note**: `uat2` uses `STAGING` prefix due to legacy naming (see [Legacy Exceptions](#legacy-exceptions))
+---
+
+## Activating External Services (UAT/Production)
+
+All features are **code-complete** in `development`. The remaining work to activate them in UAT/Production is **environment-scoped secrets**.
+
+### 1) Audit what’s missing (source of truth)
+
+```bash
+python config/manage_env.py audit
+```
+
+This compares GitHub Secrets (repo + environment) to `manifests/env.manifest.json` and reports **missing** and **zombie** secret names.
+
+**Note (Permissions):** the audit can only be trusted when run with a GitHub identity that can **list** repository + environment secret *names* in this repo. If it reports `0` secrets visible (and therefore flags everything as missing), run `gh auth status` and re-authenticate with an org-authorized account (or run the audit from an admin-maintainer machine).
+
+### 2) Set required secrets in the correct GitHub Environment
+
+Set these as **Environment Secrets** (not repo secrets), typically in `uat-backend` and `production-backend`:
+
+- `OPENAI_API_KEY` → AI suggestions + embeddings/RAG
+- `REDIS_URL` → caching, Celery workers, real-time features
+- `SENTRY_DSN` + `SENTRY_ENABLED=true` → error tracking/APM
+- `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_TENANT_ID` → Outlook/365 integration
+
+Example (CLI):
+```bash
+# UAT backend
+gh secret set OPENAI_API_KEY --env uat-backend --body "$OPENAI_API_KEY"
+
+# Production backend
+gh secret set OPENAI_API_KEY --env production-backend --body "$OPENAI_API_KEY"
+```
+
+### 3) Re-run audit, then deploy
+
+```bash
+python config/manage_env.py audit
+# then trigger the deploy workflow for uat / main
+```
 
 ---
 
@@ -129,7 +188,7 @@ Secrets exist at **two levels**:
 - Example: `DO_ACCESS_TOKEN`, `GITHUB_TOKEN`
 
 #### 2. Environment Secrets
-- Scoped to specific GitHub Environments (e.g., `dev-backend`, `uat2`)
+- Scoped to specific GitHub Environments (e.g., `dev-backend`, `uat-backend`)
 - Use for: Environment-specific configs (DB credentials, SSH passwords)
 - Example: `DEV_DB_HOST` in `dev-backend` environment
 
@@ -154,7 +213,7 @@ Most secrets follow a pattern defined in the manifest:
 ```
 
 For `dev-backend` (prefix=DEV): → `DEV_DB_HOST`  
-For `uat2-backend` (prefix=UAT): → `UAT_DB_HOST`
+For `uat-backend` (prefix=UAT): → `UAT_DB_HOST`
 
 #### Explicit Mapping
 Some secrets have explicit overrides:
@@ -162,7 +221,7 @@ Some secrets have explicit overrides:
 "BASTION_HOST": {
   "ci_secret_mapping": {
     "dev-backend": "DEV_HOST",
-    "uat2": "STAGING_HOST"
+    "uat-backend": "UAT_HOST"
   }
 }
 ```
@@ -205,12 +264,12 @@ Scanning Environment: dev-backend...
 
 #### ❌ Missing Secrets
 ```
-Scanning Environment: uat2...
+Scanning Environment: uat-backend...
   ❌ MISSING:
      - BASTION_HOST -> STAGING_HOST
      - BASTION_USER -> STAGING_USER
 ```
-**Action Required**: Add the missing secrets to the `uat2` GitHub Environment
+**Action Required**: Add the missing secrets to the `uat-backend` GitHub Environment
 
 ### Running Before Deployment
 **ALWAYS** run the audit before:
@@ -223,61 +282,11 @@ Scanning Environment: uat2...
 
 ## Legacy Exceptions
 
-### UAT Frontend Naming (`uat2` vs `uat2-frontend`)
+Legacy environment naming (`uat2`, `prod2`, etc.) existed in earlier manifest versions. The current v5 manifest standardizes on:
+- `uat-backend` / `uat-frontend`
+- `production-backend` / `production-frontend`
 
-**Why it's different:**
-- GitHub Environment is named `uat2` (not `uat2-frontend`)
-- Uses `STAGING_*` prefix instead of `UAT_*`
-- Predates our standardization effort
-
-**Manifest Configuration:**
-```json
-"uat2": {
-  "type": "frontend",
-  "prefix": "STAGING",
-  "url": "https://uat.meatscentral.com"
-}
-```
-
-**Secret Mappings:**
-- `BASTION_HOST` → `STAGING_HOST` (not `UAT_HOST`)
-- `BASTION_USER` → `STAGING_USER` (not `UAT_USER`)
-
-**Why We Keep It:**
-- Avoids password resets on production infrastructure
-- Maintains backward compatibility
-- No operational impact
-
-### Shared SSH Password (`SSH_PASSWORD`)
-
-**Scope**: UAT and Production environments
-
-**Configuration:**
-```json
-"BASTION_SSH_PASSWORD": {
-  "ci_secret_mapping": {
-    "uat2-backend": "SSH_PASSWORD",
-    "uat2": "SSH_PASSWORD",
-    "prod2-backend": "SSH_PASSWORD",
-    "prod2-frontend": "SSH_PASSWORD"
-  }
-}
-```
-
-**Why it's shared:**
-- Legacy infrastructure uses single SSH password for UAT/Prod droplets
-- Stored as global repository secret
-- Accessible to all UAT/Prod deployments
-
-**Security Note**: Dev environments use separate `DEV_SSH_PASSWORD` for isolation.
-
-### Production Frontend Naming
-
-**Secret Prefix**: `PRODUCTION_*` (not `PROD_*`)
-
-**Why:**
-- Matches existing secrets in production environment
-- Example: `PRODUCTION_HOST` instead of `PROD_HOST`
+If you encounter older docs or workflows referencing legacy names, treat them as historical and align to `manifests/env.manifest.json` + `python config/manage_env.py audit`.
 
 ---
 
@@ -285,7 +294,7 @@ Scanning Environment: uat2...
 
 ### Adding a New Environment Variable
 
-1. **Update the Manifest** (`config/env.manifest.json`)
+1. **Update the Manifest** (`manifests/env.manifest.json`)
    ```json
    "variables": {
      "application": {
@@ -307,8 +316,8 @@ Scanning Environment: uat2...
    ```bash
    # For each environment showing missing secrets:
    gh secret set DEV_NEW_VARIABLE --env dev-backend
-   gh secret set UAT_NEW_VARIABLE --env uat2-backend
-   gh secret set PROD_NEW_VARIABLE --env prod2-backend
+   gh secret set UAT_NEW_VARIABLE --env uat-backend
+   gh secret set PROD_NEW_VARIABLE --env production-backend
    ```
 
 4. **Verify**
@@ -360,7 +369,7 @@ Scanning Environment: uat2...
 **Debug Steps:**
 1. **Check the Manifest**: What secret name should it be?
    ```bash
-   grep -A5 "VARIABLE_NAME" config/env.manifest.json
+   grep -A5 "VARIABLE_NAME" manifests/env.manifest.json
    ```
 
 2. **Run Audit**: Is it actually missing?
@@ -386,9 +395,9 @@ Scanning Environment: uat2...
 **Possible Causes:**
 
 1. **Wrong Environment Name**
-   - Manifest: `uat2`
-   - GitHub: `uat2-frontend`
-   - **Fix**: Rename GitHub Environment or update manifest
+   - Manifest: `uat-backend`
+   - GitHub: `uat_backend` (typo / mismatch)
+   - **Fix**: Ensure GitHub Environment names exactly match `manifests/env.manifest.json`
 
 2. **Wrong Secret Name**
    - Manifest expects: `STAGING_HOST`
@@ -462,10 +471,10 @@ gh secret set SECRET_NAME --env dev-backend
 gh secret set SECRET_NAME
 
 # View manifest
-cat config/env.manifest.json | jq
+cat manifests/env.manifest.json | jq
 
 # Check manifest version
-jq '.version' config/env.manifest.json
+jq '.version' manifests/env.manifest.json
 ```
 
 ---

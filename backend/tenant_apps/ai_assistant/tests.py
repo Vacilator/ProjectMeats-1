@@ -41,6 +41,8 @@ class ChatSessionModelTest(TestCase):
         session = ChatSession.objects.create(
             title="Test Session",
             owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
             session_status=ChatSessionStatusChoices.ACTIVE,
         )
         
@@ -54,6 +56,8 @@ class ChatSessionModelTest(TestCase):
         session = ChatSession.objects.create(
             title="UUID Test",
             owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
         )
         
         self.assertIsInstance(session.id, uuid.UUID)
@@ -64,6 +68,8 @@ class ChatSessionModelTest(TestCase):
             session = ChatSession.objects.create(
                 title=f"Status {status}",
                 owner=self.user,
+                created_by=self.user,
+                modified_by=self.user,
                 session_status=status,
             )
             self.assertEqual(session.session_status, status)
@@ -78,6 +84,8 @@ class ChatSessionModelTest(TestCase):
         session = ChatSession.objects.create(
             title="With Context",
             owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
             context_data=context,
         )
         
@@ -89,6 +97,8 @@ class ChatSessionModelTest(TestCase):
         session = ChatSession.objects.create(
             title="My Chat",
             owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
         )
         
         self.assertIn("My Chat", str(session))
@@ -97,6 +107,8 @@ class ChatSessionModelTest(TestCase):
         """Test string representation without title."""
         session = ChatSession.objects.create(
             owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
         )
         
         self.assertIn("Session", str(session))
@@ -126,6 +138,8 @@ class ChatMessageModelTest(TestCase):
         cls.session = ChatSession.objects.create(
             title="Test Session",
             owner=cls.user,
+            created_by=cls.user,
+            modified_by=cls.user,
         )
 
     def test_create_user_message(self):
@@ -133,6 +147,8 @@ class ChatMessageModelTest(TestCase):
         message = ChatMessage.objects.create(
             session=self.session,
             owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
             message_type=MessageTypeChoices.USER,
             content="What suppliers have beef ribeye?",
         )
@@ -146,6 +162,8 @@ class ChatMessageModelTest(TestCase):
         message = ChatMessage.objects.create(
             session=self.session,
             owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
             message_type=MessageTypeChoices.ASSISTANT,
             content="I found 3 suppliers with beef ribeye in stock.",
         )
@@ -162,6 +180,8 @@ class ChatMessageModelTest(TestCase):
         message = ChatMessage.objects.create(
             session=self.session,
             owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
             message_type=MessageTypeChoices.ASSISTANT,
             content="Response",
             metadata=metadata,
@@ -176,6 +196,8 @@ class ChatMessageModelTest(TestCase):
         message = ChatMessage.objects.create(
             session=self.session,
             owner=self.user,
+            created_by=self.user,
+            modified_by=self.user,
             message_type=MessageTypeChoices.USER,
             content=long_content,
         )

@@ -2,7 +2,7 @@
 
 **Status**: ✅ COMPLETE  
 **Date**: 2026-02-09  
-**PR**: TBD  
+**PR**: #2731 — https://github.com/Meats-Central/ProjectMeats/pull/2731  
 **Related**: Phase 1 (#2727), Phase 2 (#2728)
 
 ---

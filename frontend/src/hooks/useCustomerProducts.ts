@@ -16,35 +16,7 @@
  *   } = useCustomerProducts(customerId);
  */
 import { useState, useCallback, useEffect } from 'react';
-import axios from 'axios';
-import { config } from '../config/runtime';
-
-const API_BASE_URL = config.API_BASE_URL;
-
-// Create axios instance
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-  xsrfCookieName: 'csrftoken',
-  xsrfHeaderName: 'X-CSRFToken',
-});
-
-// Request interceptor
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    config.headers.Authorization = `Token ${token}`;
-  }
-  const tenantId = localStorage.getItem('tenantId');
-  if (tenantId) {
-    config.headers['X-Tenant-ID'] = tenantId;
-  }
-  return config;
-});
+import { businessApi } from '../services/businessApi';
 
 // Types
 export interface Product {
@@ -109,8 +81,11 @@ export function useCustomerProducts(
   // Fetch all products
   const fetchAllProducts = useCallback(async () => {
     try {
-      const response = await apiClient.get<Product[]>('/products/');
-      const products = Array.isArray(response.data) ? response.data : [];
+      const response = await businessApi.get('system/products/', {
+        params: { is_active: true, page_size: 500 },
+      });
+      const data = response.data.results || response.data;
+      const products = Array.isArray(data) ? data : [];
       setAllProducts(products);
       return products;
     } catch (err: any) {
@@ -128,10 +103,19 @@ export function useCustomerProducts(
 
     try {
       // Build query string with multiple protein parameters
-      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type)}`).join('&');
-      const response = await apiClient.get<Product[]>(`/products/?${proteinParams}`);
-      const products = Array.isArray(response.data) ? response.data : [];
-      return products;
+      const normalizedProteins = proteinTypes
+        .map((t) => String(t).toLowerCase().trim())
+        .filter(Boolean);
+
+      const response = await businessApi.get<Product[]>('system/products/', {
+        params: {
+          is_active: true,
+          protein: normalizedProteins,
+          page_size: 500,
+        },
+      });
+      const data = response.data.results || response.data;
+      return Array.isArray(data) ? data : [];
     } catch (err: any) {
       console.error('Failed to fetch products by protein types:', err);
       return [];
@@ -146,14 +130,15 @@ export function useCustomerProducts(
 
     try {
       // Fetch customer details
-      const customerResponse = await apiClient.get<Customer>(`/customers/${custId}/`);
+      const customerResponse = await businessApi.get<Customer>(`customers/${custId}/`);
       const customer = customerResponse.data;
       const preferences = customer.preferred_protein_types || [];
       setCustomerPreferences(preferences);
 
       // Fetch associated products
-      const associatedResponse = await apiClient.get<Product[]>(`/customers/${custId}/products/`);
-      const associated = Array.isArray(associatedResponse.data) ? associatedResponse.data : [];
+      const associatedResponse = await businessApi.get<Product[]>(`customers/${custId}/products/`);
+      const associatedData = associatedResponse.data.results || associatedResponse.data;
+      const associated = Array.isArray(associatedData) ? associatedData : [];
       setAssociatedProducts(associated);
 
       // Fetch suggested products based on preferences
@@ -183,10 +168,11 @@ export function useCustomerProducts(
     }
 
     try {
-      const response = await apiClient.get<Product[]>(`/products/`, {
-        params: { search: query }
+      const response = await businessApi.get<Product[]>('system/products/', {
+        params: { search: query, is_active: true, page_size: 50 },
       });
-      return Array.isArray(response.data) ? response.data : [];
+      const data = response.data.results || response.data;
+      return Array.isArray(data) ? data : [];
     } catch (err: any) {
       console.error('Failed to search products:', err);
       return [];
@@ -213,11 +199,11 @@ export function useCustomerProducts(
 
   // Initial load
   useEffect(() => {
-    fetchAllProducts();
+    void fetchAllProducts();
     if (initialCustomerId) {
-      fetchProductsForCustomer(initialCustomerId);
+      void fetchProductsForCustomer(initialCustomerId);
     }
-  }, []);
+  }, [fetchAllProducts, fetchProductsForCustomer, initialCustomerId]);
 
   return {
     allProducts,

@@ -11,6 +11,17 @@ from django.db import models
 from django.contrib.contenttypes.models import ContentType
 
 
+ENTITY_ID_ALIASES = {
+    # Cockpit/editor-friendly aliases
+    'customer': 'customers.customer',
+    'supplier': 'suppliers.supplier',
+    'contact': 'contacts.contact',
+    'purchase_order': 'purchase_orders.purchaseorder',
+    'sales_order': 'sales_orders.salesorder',
+    'product': 'system.product',
+}
+
+
 def get_field_type_mapping(field):
     """
     Map Django field types to form field types.
@@ -59,24 +70,23 @@ def get_entity_models():
     """
     entities = []
     
-    # List of tenant_apps to scan
-    # NOTE: These are namespaced under tenant_apps.* in INSTALLED_APPS
-    tenant_apps = [
-        'tenant_apps.suppliers',
-        'tenant_apps.customers', 
-        'tenant_apps.products',
-        'tenant_apps.sales_orders',
-        'tenant_apps.purchase_orders',
-        'tenant_apps.invoices',
-        'tenant_apps.carriers',
-        'tenant_apps.contacts',
-        'tenant_apps.inquiries',
-        'tenant_apps.fulfillments',
-        'tenant_apps.locations',
-        'tenant_apps.plants',
+    # Labels must match AppConfig.label (not AppConfig.name/module path)
+    app_labels = [
+        'suppliers',
+        'customers',
+        'sales_orders',
+        'purchase_orders',
+        'invoices',
+        'contacts',
+        'inquiries',
+        'fulfillments',
+        'locations',
+        'plants',
+        # system-wide entities
+        'system',
     ]
     
-    for app_label in tenant_apps:
+    for app_label in app_labels:
         try:
             app_config = apps.get_app_config(app_label)
             
@@ -91,13 +101,23 @@ def get_entity_models():
                     if not f.auto_created or f.concrete
                 ])
                 
+                # Keep IDs stable across Django app refactors.
+                # - For tenant apps: emit both canonical short id (label.model) and legacy id (tenant_apps.<label>.<model>)
+                # - For system: emit label.model (e.g., system.product)
+                canonical_id = f"{model._meta.app_label}.{model._meta.model_name}"
+                legacy_id = None
+                if model._meta.app_label != 'system':
+                    legacy_id = f"tenant_apps.{model._meta.app_label}.{model._meta.model_name}"
+
                 entities.append({
-                    'id': f"{app_label}.{model._meta.model_name}",
-                    'app': app_label,
+                    'id': legacy_id or canonical_id,
+                    'canonical_id': canonical_id,
+                    'legacy_id': legacy_id,
+                    'app': model._meta.app_label,
                     'model': model._meta.model_name,
                     'label': model._meta.verbose_name.title(),
                     'label_plural': model._meta.verbose_name_plural.title(),
-                    'description': model.__doc__.strip().split('\n')[0] if model.__doc__ else '',
+                    'description': (model.__doc__ or '').strip().split('\n')[0],
                     'field_count': field_count,
                 })
         except LookupError:
@@ -118,22 +138,21 @@ def get_entity_fields(entity_id: str):
         List of field definitions with metadata
     """
     try:
-        # Handle both formats:
-        # 1. Full path: 'tenant_apps.suppliers.supplier'
-        # 2. Short path: 'suppliers.supplier'
-        parts = entity_id.split('.')
+        resolved = ENTITY_ID_ALIASES.get(entity_id, entity_id)
+
+        # Supported formats:
+        # - tenant_apps.<app_label>.<model_name> (legacy)
+        # - <app_label>.<model_name> (canonical)
+        parts = resolved.split('.')
         if len(parts) == 3 and parts[0] == 'tenant_apps':
-            # Full path format: tenant_apps.app_name.model_name
-            app_label = f"{parts[0]}.{parts[1]}"  # e.g., 'tenant_apps.suppliers'
-            model_name = parts[2]  # e.g., 'supplier'
+            app_label = parts[1]
+            model_name = parts[2]
         elif len(parts) == 2:
-            # Short path format: app_name.model_name
-            # Assume it's under tenant_apps
-            app_label = f"tenant_apps.{parts[0]}"
+            app_label = parts[0]
             model_name = parts[1]
         else:
             return []
-        
+
         model = apps.get_model(app_label, model_name)
     except (ValueError, LookupError) as e:
         print(f"[Entity Introspection] Failed to get model for '{entity_id}': {e}")
@@ -194,21 +213,18 @@ def get_entity_display_fields(entity_id: str):
         List of field names suitable for display
     """
     try:
-        # Handle both formats:
-        # 1. Full path: 'tenant_apps.suppliers.supplier'
-        # 2. Short path: 'suppliers.supplier'
-        parts = entity_id.split('.')
+        resolved = ENTITY_ID_ALIASES.get(entity_id, entity_id)
+
+        parts = resolved.split('.')
         if len(parts) == 3 and parts[0] == 'tenant_apps':
-            # Full path format
-            app_label = f"{parts[0]}.{parts[1]}"
+            app_label = parts[1]
             model_name = parts[2]
         elif len(parts) == 2:
-            # Short path format - assume tenant_apps
-            app_label = f"tenant_apps.{parts[0]}"
+            app_label = parts[0]
             model_name = parts[1]
         else:
             return []
-        
+
         model = apps.get_model(app_label, model_name)
     except (ValueError, LookupError):
         return []

@@ -7,12 +7,15 @@ for purchase orders, suppliers, customers, and other business entities.
 """
 import uuid
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from apps.tenants.models import Tenant
 
-from apps.core.models import OwnedModel, StatusModel, TenantManager
+from pgvector.django import VectorField
+
+from apps.core.models import OwnedModel, StatusModel, TenantAwareModel, TenantManager
 
 
 class ChatSessionStatusChoices(models.TextChoices):
@@ -122,19 +125,10 @@ class ChatMessage(OwnedModel):
         return f"{self.get_message_type_display()}: {preview}"
 
 
-class AIConfiguration(models.Model):
+class AIConfiguration(TenantAwareModel):
     """Configuration settings for AI providers and models."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="ai_configurations",
-        help_text="Tenant this aiconfiguration belongs to"
-    )
 
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     provider = models.CharField(max_length=50, default="openai")
     model_name = models.CharField(max_length=100, default="gpt-4o-mini")
     is_active = models.BooleanField(default=True)
@@ -148,3 +142,162 @@ class AIConfiguration(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.provider} - {self.model_name})"
+
+
+class AIFeedbackLog(TenantAwareModel):
+    """Human-in-the-loop feedback for extracted document data.
+
+    This is the core reinforcement flywheel: store what the AI extracted, what the user corrected,
+    and derived quality signals.
+
+    NOTE: `precision_delta` is stored for reporting; the exact scoring algorithm can evolve.
+    """
+
+    document_id = models.UUIDField(help_text="Upstream document identifier")
+    document_type = models.CharField(max_length=64, help_text="Classified document type")
+
+    original_extracted_data = models.JSONField(default=dict, blank=True)
+    user_corrected_data = models.JSONField(default=dict, blank=True)
+
+    confidence_score = models.FloatField(default=0.0, help_text="Model confidence from 0.0 to 1.0")
+    precision_delta = models.FloatField(default=0.0, help_text="Derived change ratio between original and corrected")
+
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_feedback_resolutions",
+    )
+
+    class Meta:
+        db_table = "ai_assistant_feedback_logs"
+        verbose_name = "AI Feedback Log"
+        verbose_name_plural = "AI Feedback Logs"
+        indexes = [
+            models.Index(fields=["tenant", "document_id"], name="ai_fb_tenant_doc_idx"),
+            models.Index(fields=["tenant", "document_type"], name="ai_fb_tenant_type_idx"),
+        ]
+
+    def _calculate_precision_delta(self) -> float:
+        orig = self.original_extracted_data or {}
+        corr = self.user_corrected_data or {}
+
+        if not isinstance(orig, dict) or not isinstance(corr, dict):
+            return 1.0
+
+        keys = set(orig.keys()) | set(corr.keys())
+        if not keys:
+            return 0.0
+
+        changed = sum(1 for k in keys if orig.get(k) != corr.get(k))
+        return changed / max(1, len(keys))
+
+    def save(self, *args, **kwargs):
+        self.precision_delta = float(self._calculate_precision_delta())
+        super().save(*args, **kwargs)
+
+
+class VectorMemory(TenantAwareModel):
+    """Tenant-scoped vector memory for PM-AS.
+
+    Stores embeddings for historical purchase orders and industry context snippets.
+    """
+
+    source_type = models.CharField(max_length=64, default='context', help_text='context|purchase_order|other')
+    document_id = models.UUIDField(null=True, blank=True)
+    content = models.TextField(blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+
+    embedding = VectorField(dimensions=1536)
+
+    class Meta:
+        db_table = 'ai_assistant_vector_memory'
+        verbose_name = 'Vector Memory'
+        verbose_name_plural = 'Vector Memory'
+        indexes = [
+            models.Index(fields=['tenant', 'source_type'], name='ai_vec_tenant_src_idx'),
+        ]
+
+
+class TenantKnowledgeFact(TenantAwareModel):
+    """Tenant-scoped knowledge facts for RAG.
+
+    These are short, durable facts learned from interactions and gatekept extraction.
+    Retrieval is done via pgvector similarity search.
+    """
+
+    domain_category = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Optional domain label (e.g. ordering, invoicing, cold_storage)',
+    )
+    fact_text = models.TextField(help_text='Canonical tenant fact text')
+    embedding = VectorField(
+        dimensions=1536,
+        null=True,
+        blank=True,
+        help_text='OpenAI text-embedding-3-small vector',
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'ai_assistant_tenant_knowledge_facts'
+        verbose_name = 'Tenant Knowledge Fact'
+        verbose_name_plural = 'Tenant Knowledge Facts'
+        indexes = [
+            models.Index(fields=['tenant', 'domain_category'], name='ai_kf_tenant_domain_idx'),
+        ]
+
+
+class AIDocument(TenantAwareModel):
+    """Tenant + user-scoped document uploads for the AI assistant."""
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='ai_documents',
+        help_text='User who uploaded this document',
+    )
+
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name='documents',
+        null=True,
+        blank=True,
+        help_text='Optional chat session this document was uploaded into',
+    )
+
+    file = models.FileField(
+        upload_to='ai_assistant/documents/%Y/%m/%d',
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['pdf', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx']
+            )
+        ],
+    )
+
+    original_filename = models.CharField(max_length=255, blank=True, default='')
+    content_type = models.CharField(max_length=128, blank=True, default='')
+    file_size = models.BigIntegerField(default=0)
+
+    processing_status = models.CharField(
+        max_length=20,
+        default='pending',
+        choices=[
+            ('pending', 'pending'),
+            ('processing', 'processing'),
+            ('completed', 'completed'),
+            ('failed', 'failed'),
+        ],
+    )
+
+    class Meta:
+        db_table = 'ai_assistant_documents'
+        verbose_name = 'AI Document'
+        verbose_name_plural = 'AI Documents'
+        indexes = [
+            models.Index(fields=['tenant', 'owner', 'created_on'], name='aidoc_tnt_owner_created_idx'),
+        ]

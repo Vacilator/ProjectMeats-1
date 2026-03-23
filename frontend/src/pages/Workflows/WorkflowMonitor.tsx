@@ -6,14 +6,13 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { adminClient } from '../../services/apiService';
 import { Activity, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, RefreshCw, Play, Filter } from 'lucide-react';
 import styled from 'styled-components';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://dev.meatscentral.com';
 
 interface WorkflowRun {
   id: string;
@@ -26,9 +25,7 @@ interface WorkflowRun {
   modified_on: string;
 }
 
-interface WorkflowMonitorProps {
-  tenantId?: string;
-}
+
 
 /* === Styled Components === */
 
@@ -362,7 +359,7 @@ const Spinner = styled.div`
 
 /* === Main Component === */
 
-export const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({ tenantId }) => {
+export const WorkflowMonitor: React.FC = () => {
   const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
@@ -385,15 +382,7 @@ export const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({ tenantId }) =>
         params.status = filter;
       }
 
-      const response = await axios.get(
-        `${API_BASE}/admin/system-config/api/runs/my-workflows/`,
-        {
-          params,
-          headers: {
-            Authorization: `Token ${localStorage.getItem('authToken')}`,
-          },
-        }
-      );
+      const response = await adminClient.get('/admin/system-config/api/runs/my-workflows/', { params });
       setWorkflows(response.data.results || []);
     } catch (error) {
       console.error('Failed to fetch workflows:', error);

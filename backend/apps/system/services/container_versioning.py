@@ -29,26 +29,49 @@ def hash_definition(definition: dict) -> str:
 
 
 def serialize_step(step_node: dict) -> dict:
+    """Serialize a step into form definition format.
+
+    Supports two shapes:
+    1) React Flow node dict: {id, type, data:{...}}
+    2) Nested step dict (from container.data.steps): {id?, name?, entity_type?, fields, order, mappings, ...}
+
+    This keeps URL/payload stability while allowing the frontend to save a single
+    nested structure through TenantWorkForm PUT.
     """
-    Serialize a formStep node into form definition format.
-    
-    Args:
-        step_node: Node data from React Flow
-        
-    Returns:
-        Serialized step definition
-    """
-    data = step_node.get('data', {})
-    
+
+    # Shape 1: React Flow node
+    if isinstance(step_node, dict) and 'data' in step_node:
+        data = step_node.get('data', {}) or {}
+        return {
+            'id': step_node.get('id'),
+            'order': data.get('order'),
+            'name': data.get('stepTitle') or data.get('label', 'Untitled Step'),
+            'description': data.get('stepDescription', ''),
+            'entity_type': data.get('entityType') or data.get('entity_type'),
+            'entity_action': data.get('entityAction') or data.get('entity_action'),
+            'fields': data.get('fields', []),
+            'field_mappings': data.get('fieldMappings') or data.get('field_mappings') or [],
+            'cascade_mappings': data.get('cascadeMappings') or data.get('cascade_mappings') or [],
+            'visibility': data.get('visibility', {}),
+            'navigation': data.get('navigation', {}),
+            'validation': data.get('validation', {}),
+        }
+
+    # Shape 2: already-nested step object
+    data = step_node or {}
     return {
-        'id': step_node['id'],
-        'name': data.get('stepTitle') or data.get('label', 'Untitled Step'),
-        'description': data.get('stepDescription', ''),
-        'entity_type': data.get('entityType'),
+        'id': data.get('id'),
+        'order': data.get('order'),
+        'name': data.get('name') or data.get('stepTitle') or data.get('label', 'Untitled Step'),
+        'description': data.get('description', ''),
+        'entity_type': data.get('entity_type') or data.get('entityType'),
+        'entity_action': data.get('entity_action') or data.get('entityAction'),
         'fields': data.get('fields', []),
+        'field_mappings': data.get('field_mappings') or data.get('fieldMappings') or [],
+        'cascade_mappings': data.get('cascade_mappings') or data.get('cascadeMappings') or [],
         'visibility': data.get('visibility', {}),
         'navigation': data.get('navigation', {}),
-        'validation': data.get('validation', {})
+        'validation': data.get('validation', {}),
     }
 
 
@@ -86,8 +109,14 @@ def has_container_changed(container_node: dict, existing_form: TenantForm) -> tu
     current_def = existing_form.form_definition
     container_data = container_node.get('data', {})
     
+    label_candidate = (
+        container_data.get('containerName')
+        or container_data.get('label')
+        or container_data.get('name')
+    )
+
     diff = {
-        'label_changed': container_data.get('label') != current_def.get('container_label'),
+        'label_changed': label_candidate != current_def.get('container_label'),
         'step_count_changed': False,
         'fields_changed': False
     }
@@ -128,12 +157,24 @@ def snapshot_container(
     container_data = container_node.get('data', {})
     
     # 1. Build form definition
+    container_label = (
+        container_data.get('containerName')
+        or container_data.get('label')
+        or container_data.get('name')
+        or 'Multi-Step Container'
+    )
+    container_description = (
+        container_data.get('containerDescription')
+        or container_data.get('description')
+        or ''
+    )
+
     definition = {
         'container_id': container_node['id'],
-        'container_label': container_data.get('label', 'Multi-Step Container'),
+        'container_label': container_label,
         'steps': [serialize_step(step) for step in child_steps],
         'layout': container_data.get('layout', {}),
-        'description': container_data.get('description', '')
+        'description': container_description,
     }
     
     definition_hash = hash_definition(definition)
@@ -155,7 +196,7 @@ def snapshot_container(
     
     new_form = TenantForm.objects.create(
         tenant=tenant,
-        name=f"Container: {container_data.get('label', 'Multi-Step Form')}",
+        name=f"Container: {container_label}",
         description=definition.get('description', ''),
         type=FormTypeChoices.MULTI_STEP,
         form_definition=definition,
@@ -172,46 +213,62 @@ def snapshot_container(
 
 
 def extract_container_definitions(nodes: list[dict]) -> list[dict]:
+    """Extract form containers and their steps.
+
+    Container types (canonical + legacy):
+    - formBook (canonical)
+    - formProcessGroup, formProcess, formMultiStepContainer (legacy aliases)
+
+    Step sources:
+    - Child nodes via parentId/parentNode (sub-flows)
+    - OR nested steps via container.data.steps (preferred for stable saves)
     """
-    Extract all formMultiStepContainer nodes and their children.
-    
-    Args:
-        nodes: List of all React Flow nodes
-        
-    Returns:
-        List of dicts with keys: 'container', 'children'
-    """
-    containers = []
-    
+
+    containers: list[dict] = []
+
+    container_types = {
+        'formBook',
+        'formProcessGroup',
+        'formProcess',
+        'formMultiStepContainer',
+        'smartWorkForm',
+    }
+
+    step_types = {
+        'form',
+        'formStepSingle',
+        'formStep',
+        'formReference',
+    }
+
     # Build parent-child map
-    children_by_parent = {}
-    container_nodes = {}
-    
+    children_by_parent: dict[str, list[dict]] = {}
+    container_nodes: dict[str, dict] = {}
+
     for node in nodes:
-        if node.get('type') == 'formMultiStepContainer':
-            container_nodes[node['id']] = node
-            children_by_parent[node['id']] = []
-        
-        # Check if node has a parent
+        node_id = node.get('id')
+        if not node_id:
+            continue
+
+        if node.get('type') in container_types:
+            container_nodes[node_id] = node
+            children_by_parent.setdefault(node_id, [])
+
         parent_id = node.get('parentId') or node.get('parentNode')
         if parent_id:
-            if parent_id not in children_by_parent:
-                children_by_parent[parent_id] = []
-            children_by_parent[parent_id].append(node)
-    
-    # Build result
+            children_by_parent.setdefault(parent_id, []).append(node)
+
     for container_id, container_node in container_nodes.items():
+        container_data = (container_node.get('data') or {}) if isinstance(container_node, dict) else {}
+
+        nested_steps = container_data.get('steps') if isinstance(container_data, dict) else None
+        if isinstance(nested_steps, list) and nested_steps:
+            containers.append({'container': container_node, 'children': nested_steps})
+            continue
+
         children = children_by_parent.get(container_id, [])
-        
-        # Filter to only formStep nodes
-        form_steps = [
-            child for child in children 
-            if child.get('type') in ('formStep', 'formReference')
-        ]
-        
-        containers.append({
-            'container': container_node,
-            'children': form_steps
-        })
-    
+        form_steps = [child for child in children if child.get('type') in step_types]
+
+        containers.append({'container': container_node, 'children': form_steps})
+
     return containers
