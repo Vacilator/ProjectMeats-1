@@ -14,6 +14,11 @@ import userEvent from '@testing-library/user-event';
 import { ThemeProvider, useTheme } from './ThemeContext';
 import { apiClient } from '../services/apiService';
 
+// ThemeProvider is mounted under AuthProvider in the app. Mock useAuth for unit tests.
+vi.mock('./AuthContext', () => ({
+  useAuth: () => ({ isAuthenticated: true }),
+}));
+
 vi.mock('../services/apiService', () => ({
   apiClient: {
     get: vi.fn(),

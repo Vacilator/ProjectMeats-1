@@ -11,13 +11,14 @@
  * Components now reference CSS variables (--color-primary) instead of hardcoded colors.
  * This allows the same component to look completely different for each tenant.
  */
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ConfigProvider } from 'antd';
 import { Theme, themes, injectTenantColors } from '../config/theme';
 import { getThemeConfig, applyCanvasTheme } from '../theme/themeConfig';
 import { getRuntimeConfig } from '../config/runtime';
 import { apiClient } from '../services/apiService';
 import { getAuthHeader } from '../services/jwtService';
+import { useAuth } from './AuthContext';
 
 type ThemeName = 'light' | 'dark' | 'high-contrast';
 
@@ -43,6 +44,8 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+
   // Initialize theme from localStorage or default to 'dark'
   const [themeName, setThemeName] = useState<ThemeName>(() => {
     const stored = localStorage.getItem('theme');
@@ -93,54 +96,59 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     syncThemeToBackend();
   }, [themeName]);
 
-  // Load tenant branding from backend on mount (only once)
-  useEffect(() => {
-    const loadTenantBranding = async (opts?: { bustLogoCache?: boolean }) => {
-      if (!getAuthHeader()) return;
+  const loadTenantBranding = useCallback(async (opts?: { bustLogoCache?: boolean }) => {
+    if (!getAuthHeader()) return;
 
-      try {
-        const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
-        const response = await apiClient.get('/tenants/current_theme/');
+    try {
+      const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
+      const response = await apiClient.get('/tenants/current_theme/');
 
-        const branding = {
-          logoUrl: response.data.logo_url,
-          primaryColorLight: response.data.primary_color_light,
-          primaryColorDark: response.data.primary_color_dark,
-          tenantName: response.data.name,
-        };
-        
-        // Fix logo URL if it's relative (starts with /)
-        if (branding.logoUrl && branding.logoUrl.startsWith('/')) {
-          const baseUrl = apiBaseUrl.replace('/api/v1', '');
-          branding.logoUrl = `${baseUrl}${branding.logoUrl}`;
-        }
+      const branding = {
+        logoUrl: response.data.logo_url,
+        primaryColorLight: response.data.primary_color_light,
+        primaryColorDark: response.data.primary_color_dark,
+        tenantName: response.data.name,
+      };
 
-        // Cache-bust the logo on explicit branding updates (avoids stale image after upload)
-        if (opts?.bustLogoCache && branding.logoUrl) {
-          const sep = branding.logoUrl.includes('?') ? '&' : '?';
-          branding.logoUrl = `${branding.logoUrl}${sep}v=${Date.now()}`;
-        }
-        
-        setTenantBranding(branding);
-      } catch (error) {
-        console.error('Failed to load tenant branding:', error);
+      if (branding.logoUrl && branding.logoUrl.startsWith('/')) {
+        const baseUrl = apiBaseUrl.replace('/api/v1', '');
+        branding.logoUrl = `${baseUrl}${branding.logoUrl}`;
       }
-    };
 
-    loadTenantBranding();
+      if (opts?.bustLogoCache && branding.logoUrl) {
+        const sep = branding.logoUrl.includes('?') ? '&' : '?';
+        branding.logoUrl = `${branding.logoUrl}${sep}v=${Date.now()}`;
+      }
 
-    // Listen for branding updates from Settings/Admin Profile pages
+      setTenantBranding(branding);
+    } catch (error) {
+      console.error('Failed to load tenant branding:', error);
+    }
+  }, []);
+
+  // Load tenant branding when auth becomes available.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setTenantBranding(null);
+      return;
+    }
+
+    void loadTenantBranding();
+  }, [isAuthenticated, loadTenantBranding]);
+
+  // Listen for branding updates from Settings/Admin Profile pages
+  useEffect(() => {
     const handleBrandingUpdate = () => {
       console.log('🔄 Tenant branding update event received, reloading...');
-      loadTenantBranding({ bustLogoCache: true });
+      void loadTenantBranding({ bustLogoCache: true });
     };
 
     window.addEventListener('tenant-branding-updated', handleBrandingUpdate);
-    
+
     return () => {
       window.removeEventListener('tenant-branding-updated', handleBrandingUpdate);
     };
-  }, []); // Only run once on mount and setup listener
+  }, [loadTenantBranding]);
 
   // NEW: Inject tenant colors into CSS variables when branding or theme changes
   useEffect(() => {
@@ -161,7 +169,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, [cssThemeMode, themeName, tenantBranding]);
 
-  // Load theme from backend on mount
+  // Load theme from backend when auth becomes available
   useEffect(() => {
     const loadThemeFromBackend = async () => {
       if (!getAuthHeader()) return;
@@ -179,8 +187,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       }
     };
 
-    loadThemeFromBackend();
-  }, []);
+    if (isAuthenticated) {
+      void loadThemeFromBackend();
+    }
+  }, [isAuthenticated]);
 
   const toggleTheme = () => {
     // Quick toggle between the two common modes.

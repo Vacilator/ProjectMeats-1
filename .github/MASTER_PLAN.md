@@ -52,6 +52,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-23 — Cockpit UX: Contextual “+ New …” CTA in profile tabs — PR: #3803
 - 2026-03-23 — Cockpit UX: Inline create Sales Order subview (URL-driven) — PR: #3804
 - 2026-03-23 — Cockpit UX: Notes & Calls drawer (unified timeline + add note) — PR: #3805
+- 2026-03-23 — Admin Branding: reliably load tenant logo/colors after login + cache-bust on update — PR: #TBD
 
 - 2026-03-22T16:39:58Z — EMERGENCY ROLLBACK: Reverted Workform Container UI to stable Friday baseline due to UX degradation.
 
