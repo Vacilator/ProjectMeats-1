@@ -133,7 +133,7 @@ const ActivityPage: React.FC = () => {
       setError('');
 
       const params = buildParams(filters, pageNum);
-      const response = await apiClient.get('/tenants/activity-logs/', { params });
+      const response = await apiClient.get('/activity-logs/', { params });
       const results = Array.isArray((response.data as any)?.results) ? (response.data as any).results : [];
 
       if (appendMode) {
@@ -182,7 +182,7 @@ const ActivityPage: React.FC = () => {
       if (appliedFilters.start_date) params.created_at__gte = appliedFilters.start_date;
       if (appliedFilters.end_date) params.created_at__lte = appliedFilters.end_date;
 
-      const response = await apiClient.get('/tenants/activity-logs/export/', {
+      const response = await apiClient.get('/activity-logs/export/', {
         params,
         responseType: 'blob',
       });

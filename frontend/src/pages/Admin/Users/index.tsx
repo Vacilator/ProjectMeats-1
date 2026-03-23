@@ -79,7 +79,7 @@ const UsersPage: React.FC = () => {
     queryKey: ['tenant-users'],
     enabled: canAccess,
     queryFn: async () => {
-      const response = await apiClient.get('/tenants/tenant-users/');
+      const response = await apiClient.get('/tenant-users/');
       const data = response.data.results || response.data;
       return Array.isArray(data) ? data : [];
     },
@@ -93,7 +93,7 @@ const UsersPage: React.FC = () => {
     queryKey: ['tenant-invitations'],
     enabled: canAccess,
     queryFn: async () => {
-      const response = await apiClient.get('/tenants/invitations/', {
+      const response = await apiClient.get('/invitations/', {
         params: { status: 'pending' },
       });
       const data = response.data.results || response.data;
@@ -147,7 +147,7 @@ const UsersPage: React.FC = () => {
   );
 
   const inviteMutation = useMutation({
-    mutationFn: async (data: { email: string; role: string }) => apiClient.post('/tenants/invitations/', data),
+    mutationFn: async (data: { email: string; role: string }) => apiClient.post('/invitations/', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
       toast.success('Invitation sent successfully');
@@ -161,7 +161,7 @@ const UsersPage: React.FC = () => {
 
   const updateRoleMutation = useMutation({
     mutationFn: async (data: { id: number; role: string }) =>
-      apiClient.patch(`/tenants/tenant-users/${data.id}/`, { role: data.role }),
+      apiClient.patch(`/tenant-users/${data.id}/`, { role: data.role }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
       toast.success('User role updated');
@@ -173,7 +173,7 @@ const UsersPage: React.FC = () => {
   });
 
   const deactivateMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.patch(`/tenants/tenant-users/${id}/`, { is_active: false }),
+    mutationFn: async (id: number) => apiClient.patch(`/tenant-users/${id}/`, { is_active: false }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
       toast.success('User deactivated');
@@ -185,7 +185,7 @@ const UsersPage: React.FC = () => {
   });
 
   const reactivateMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.patch(`/tenants/tenant-users/${id}/`, { is_active: true }),
+    mutationFn: async (id: number) => apiClient.patch(`/tenant-users/${id}/`, { is_active: true }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
       toast.success('User reactivated');
@@ -196,7 +196,7 @@ const UsersPage: React.FC = () => {
   });
 
   const revokeMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.post(`/tenants/invitations/${id}/revoke/`),
+    mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/revoke/`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
       toast.success('Invitation revoked');
@@ -207,7 +207,7 @@ const UsersPage: React.FC = () => {
   });
 
   const resendMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.post(`/tenants/invitations/${id}/resend/`),
+    mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/resend/`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
       toast.success('Invitation resent');

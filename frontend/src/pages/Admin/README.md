@@ -220,16 +220,16 @@ Breakpoints:
 All endpoints require authentication and tenant filtering.
 
 ### Users & Invitations
-- `GET /api/v1/tenants/tenant-users/` - List tenant users
-- `PATCH /api/v1/tenants/tenant-users/:id/` - Update tenant user (role, is_active)
-- `GET /api/v1/tenants/invitations/?status=pending` - List invitations
-- `POST /api/v1/tenants/invitations/` - Create invitation
-- `POST /api/v1/tenants/invitations/:id/resend/` - Resend invitation
-- `POST /api/v1/tenants/invitations/:id/revoke/` - Revoke invitation
+- `GET /api/v1/tenant-users/` - List tenant users
+- `PATCH /api/v1/tenant-users/:id/` - Update tenant user (role, is_active)
+- `GET /api/v1/invitations/?status=pending` - List invitations
+- `POST /api/v1/invitations/` - Create invitation
+- `POST /api/v1/invitations/:id/resend/` - Resend invitation
+- `POST /api/v1/invitations/:id/revoke/` - Revoke invitation
 
 ### Profile
-- `GET /api/v1/tenants/tenants/current/` - Get current tenant details
-- `PATCH /api/v1/tenants/tenants/:id/` - Update tenant (includes branding/logo)
+- `GET /api/v1/tenants/current/` - Get current tenant details
+- `PATCH /api/v1/tenants/:id/` - Update tenant (includes branding/logo)
 
 ### Option Lists
 - `GET /api/v1/system/choice-lists/` - List all choice lists
@@ -240,13 +240,13 @@ All endpoints require authentication and tenant filtering.
 - `PATCH /api/v1/system/tenant-overrides/:id/` - Update tenant override
 
 ### Configurations
-- `GET /api/v1/tenants/configurations/` - List tenant configurations
-- `POST /api/v1/tenants/configurations/bulk_update/` - Bulk update
-- `POST /api/v1/tenants/configurations/reset_category/` - Reset category
+- `GET /api/v1/configurations/` - List tenant configurations
+- `POST /api/v1/configurations/bulk_update/` - Bulk update
+- `POST /api/v1/configurations/reset_category/` - Reset category
 
 ### Activity Logs
-- `GET /api/v1/tenants/activity-logs/` - List logs
-- `GET /api/v1/tenants/activity-logs/export/` - Export CSV
+- `GET /api/v1/activity-logs/` - List logs
+- `GET /api/v1/activity-logs/export/` - Export CSV
 
 ## 🐛 Troubleshooting
 

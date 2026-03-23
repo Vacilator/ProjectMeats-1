@@ -27,18 +27,22 @@ export interface AdminPermissions {
   can_manage_customizations: boolean;
   can_view_audit_logs: boolean;
   can_manage_option_lists: boolean;
-  role: 'user' | 'manager' | 'admin' | 'owner' | 'superuser';
+  role: 'user' | 'readonly' | 'manager' | 'admin' | 'owner' | 'superuser';
 }
 
 /**
  * Hook to fetch and manage admin permissions for the current user.
  */
 export function useAdminPermissions() {
+  const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
+
   const query = useQuery<AdminPermissions>({
-    queryKey: ['admin', 'permissions'],
+    queryKey: ['admin', 'permissions', tenantId ?? 'none'],
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/tenants/tenants/admin_permissions/');
+        // NOTE: TenantViewSet is registered at /api/v1/tenants/
+        // so the admin permissions action is /api/v1/tenants/admin_permissions/
+        const response = await apiClient.get('/tenants/admin_permissions/');
         return response.data;
       } catch (error: any) {
         // If 401, let the axios interceptor handle it
