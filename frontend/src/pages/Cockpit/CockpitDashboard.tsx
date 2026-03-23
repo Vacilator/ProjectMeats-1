@@ -452,6 +452,18 @@ export const CockpitDashboard: React.FC = () => {
   const navigation = useCockpitNavigation();
   const pinnedTools = useCockpitPinnedTools();
 
+  const isSearchActive = cockpitQuery.trim().length > 0;
+  const isRecordActive = navigation.path.length > 0;
+  const showDashboardWidgets = !isSearchActive && !isRecordActive;
+
+  // Exit edit mode whenever the dashboard grid isn't visible (searching or viewing a record)
+  useEffect(() => {
+    if (isSearchActive || isRecordActive) {
+      setIsEditing(false);
+      setIsCatalogOpen(false);
+    }
+  }, [isRecordActive, isSearchActive]);
+
   // Load saved layout from backend API with localStorage fallback
   useEffect(() => {
     const loadLayout = async () => {
@@ -633,37 +645,38 @@ export const CockpitDashboard: React.FC = () => {
 
   return (
     <Container>
-      {/* Toolbar for search and edit mode */}
-      <ToolbarWrapper>
-        <ToolbarLeft>
-          {isEditing && <EditBadge>Editing Layout</EditBadge>}
-        </ToolbarLeft>
+      {/* Layout toolbar (only shown when dashboard widgets are visible) */}
+      {showDashboardWidgets && (
+        <ToolbarWrapper>
+          <ToolbarLeft>
+            {isEditing && <EditBadge>Editing Layout</EditBadge>}
+          </ToolbarLeft>
 
-        {/* Global search input lives in Header (Ctrl+K anywhere) */}
-        <ToolbarActions>
-          {isEditing ? (
-            <>
-              <ActionButton onClick={() => setIsCatalogOpen(true)}>
-                <Plus size={16} />
-                Add Widget
+          <ToolbarActions>
+            {isEditing ? (
+              <>
+                <ActionButton onClick={() => setIsCatalogOpen(true)}>
+                  <Plus size={16} />
+                  Add Widget
+                </ActionButton>
+                <ActionButton onClick={handleResetLayout}>
+                  <RotateCcw size={16} />
+                  Reset
+                </ActionButton>
+                <ActionButton $variant="primary" onClick={handleSaveLayout} disabled={isSaving}>
+                  <Lock size={16} />
+                  {isSaving ? 'Saving...' : 'Save & Lock'}
+                </ActionButton>
+              </>
+            ) : (
+              <ActionButton onClick={() => setIsEditing(true)}>
+                <Unlock size={16} />
+                Customize
               </ActionButton>
-              <ActionButton onClick={handleResetLayout}>
-                <RotateCcw size={16} />
-                Reset
-              </ActionButton>
-              <ActionButton $variant="primary" onClick={handleSaveLayout} disabled={isSaving}>
-                <Lock size={16} />
-                {isSaving ? 'Saving...' : 'Save & Lock'}
-              </ActionButton>
-            </>
-          ) : (
-            <ActionButton onClick={() => setIsEditing(true)}>
-              <Unlock size={16} />
-              Customize
-            </ActionButton>
-          )}
-        </ToolbarActions>
-      </ToolbarWrapper>
+            )}
+          </ToolbarActions>
+        </ToolbarWrapper>
+      )}
       
       {/* Guided Tour */}
       <CockpitTour enabled={true} />
@@ -685,8 +698,8 @@ export const CockpitDashboard: React.FC = () => {
         </HeroSearchInner>
       </HeroSearchSection>
 
-      {/* Widget Grid (hidden when a record is active) */}
-      {navigation.path.length === 0 && (
+      {/* Widget Grid (hidden when searching or a record is active) */}
+      {showDashboardWidgets && (
         <GridWrapper ref={containerRef} data-tour="search-results">
           {widgets.length === 0 ? (
             <EmptyState>
