@@ -28,6 +28,7 @@ from apps.system.models import (
     SystemChoiceList,
     SystemChoiceItem,
     SystemFieldSchema,
+    SystemConfiguration,
     TenantConfig,
     Product,
     ProductCategoryChoices,
@@ -916,10 +917,19 @@ class ConfigAuditLogAdmin(admin.ModelAdmin):
     user_display.short_description = 'User'
 
 
+class SystemConfigurationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'active_openai_model_id', 'updated_at')
+    readonly_fields = ('id', 'updated_at')
+
+    def has_add_permission(self, request):
+        return False  # Singleton row only
+
+
 # Register all models with custom admin site
 admin_site.register(SystemChoiceList, SystemChoiceListAdmin)
 admin_site.register(SystemChoiceItem, SystemChoiceItemAdmin)
 admin_site.register(SystemFieldSchema, SystemFieldSchemaAdmin)
+admin_site.register(SystemConfiguration, SystemConfigurationAdmin)
 admin_site.register(TenantConfig, TenantConfigAdmin)
 admin_site.register(Product, ProductAdmin)
 admin_site.register(TenantProductPreference, TenantProductPreferenceAdmin)

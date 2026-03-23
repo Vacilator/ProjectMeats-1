@@ -16,6 +16,7 @@ This module provides a 3-tier configuration system:
 """
 from apps.system.models.system_choice import SystemChoiceList, SystemChoiceItem
 from apps.system.models.system_schema import SystemFieldSchema
+from apps.system.models.system_configuration import SystemConfiguration
 from apps.system.models.tenant_config import TenantConfig
 from apps.system.models.product import Product, ProductCategoryChoices
 from apps.system.models.tenant_product_preference import TenantProductPreference
@@ -29,6 +30,7 @@ __all__ = [
     'SystemChoiceList',
     'SystemChoiceItem',
     'SystemFieldSchema',
+    'SystemConfiguration',
     'TenantConfig',
     'Product',
     'ProductCategoryChoices',

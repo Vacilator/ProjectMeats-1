@@ -223,7 +223,9 @@ class SwarmOrchestrator:
 
         executor = ToolExecutor()
 
-        model_name = 'gpt-4o-mini'
+        from apps.system.services.ai_model_resolver import get_active_openai_model_id
+
+        model_name = get_active_openai_model_id(fallback='gpt-4o-mini')
         temperature = float(getattr(settings, 'OPENAI_TEMPERATURE', 0.7) or 0.7)
         max_tokens = int(getattr(settings, 'OPENAI_MAX_TOKENS', 2000) or 2000)
 

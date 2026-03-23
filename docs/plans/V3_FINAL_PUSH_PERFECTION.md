@@ -162,6 +162,8 @@
 #### Checklist
 - [ ] Finalize an idempotent job that compiles `AIFeedbackLog` → JSONL instruction sets.
 - [ ] Redaction policy: strip PII/secrets and tenant-identifying data.
+- [x] DevOps IaC scripting for Nginx (Password Auth) — automated `nginx -t && systemctl reload nginx` in CI/CD.
+- [x] Database-driven Auto-Tuner — persist active model id in `SystemConfiguration.active_openai_model_id`.
 - [ ] Schedule:
   - management command + cron (or Celery beat)
   - alerting on failures

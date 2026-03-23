@@ -174,8 +174,12 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             client = OpenAI(api_key=openai_api_key)
 
             try:
+                from apps.system.services.ai_model_resolver import get_active_openai_model_id
+
+                model_name = get_active_openai_model_id(fallback='gpt-4o-mini')
+
                 completion = client.chat.completions.create(
-                    model='gpt-4o-mini',
+                    model=model_name,
                     messages=[
                         {'role': 'system', 'content': SWARM_SYSTEM_PROMPT},
                         {'role': 'user', 'content': user_message},
@@ -183,7 +187,6 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 )
                 response_text = ((completion.choices[0].message.content or '') if completion.choices else '').strip()
                 tokens_used = getattr(getattr(completion, 'usage', None), 'total_tokens', None)
-                model_name = 'gpt-4o-mini'
 
             except Exception as e:
                 logger.warning('OpenAI completion failed: %s', str(e), exc_info=True)
