@@ -128,21 +128,12 @@ const Suppliers: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      logger.debug('[Suppliers] Fetching tenant products from system catalog...');
-      const response = await apiClient.get('/system/products/my-products/');
-      logger.debug('[Suppliers] Tenant products fetched:', {
-        count: response.data?.length || 0,
-        sample: response.data?.[0],
-        fullResponse: response.data
-      });
-      
-      // System products return flat array (not paginated)
-      // Ensure we always have an array, even if response is unexpected
-      const productsData = Array.isArray(response.data) ? response.data : [];
+      logger.debug('[Suppliers] Fetching products from system catalog...');
+      const response = await apiClient.get('/system/products/', { params: { limit: 500 } });
+      const productsData = Array.isArray(response.data) ? response.data : (response.data.results || []);
       setProducts(productsData);
     } catch (error) {
-      logger.error('[Suppliers] Error fetching tenant products:', error);
-      // Set empty array on error to prevent map errors
+      logger.error('[Suppliers] Error fetching products:', error);
       setProducts([]);
     }
   };
@@ -150,33 +141,17 @@ const Suppliers: React.FC = () => {
   const fetchFilteredProducts = async (proteinTypes: string[]) => {
     try {
       logger.debug('[Suppliers] Fetching filtered products for protein types:', proteinTypes);
-      // Build query string with multiple protein parameters for system products
-      // Protein types are now lowercase slugs (beef, pork, poultry) matching system data
-      const proteinParams = proteinTypes.map(type => `protein=${encodeURIComponent(type.toLowerCase())}`).join('&');
-      const fullUrl = `/system/products/?${proteinParams}`;
-      logger.debug('[Suppliers] Request URL:', fullUrl);
-      
-      const response = await apiClient.get(fullUrl);
-      
-      // System products return flat array (not paginated)
-      // Ensure we always have an array, even if response is unexpected
-      const data = Array.isArray(response.data) ? response.data : [];
-      
-      logger.debug('[Suppliers] Filtered system products fetched:', {
-        count: data?.length || 0,
-        proteinTypes,
-        sample: data?.[0],
-        fullResponse: response.data
+
+      const response = await apiClient.get('/system/products/', {
+        params: { protein: proteinTypes.join(','), limit: 500 },
       });
-      
+      const data = Array.isArray(response.data) ? response.data : (response.data.results || []);
       setProducts(data);
-      
-      // Intentionally DO NOT auto-select all filtered products.
-      // We only constrain the available options so users can choose explicitly.
+
+      // Note: Auto-select logic intentionally removed to improve UX
       logger.debug(`[Suppliers] Loaded ${data.length} product(s) for protein types:`, proteinTypes);
     } catch (error) {
       logger.error('[Suppliers] Error fetching filtered products:', error);
-      // Set empty array on error to prevent map errors
       setProducts([]);
     }
   };
@@ -319,7 +294,6 @@ const Suppliers: React.FC = () => {
       const errorMessage = err.message || 'An unexpected error occurred. Please try again.';
       
       // Log detailed error information for debugging
-      // eslint-disable-next-line no-console
       logger.error('[Suppliers] Error saving supplier:', {
         message: errorMessage,
         error: err,

@@ -120,35 +120,26 @@ const Customers: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      // Use apiClient to automatically include Authorization headers
-      const response = await apiClient.get('/system/products/');
-      const raw = response.data as any;
-      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-      setProducts(data);
+      const response = await apiClient.get('/system/products/', { params: { limit: 500 } });
+      const productsData = Array.isArray(response.data)
+        ? response.data
+        : (response.data.results || []);
+      setProducts(productsData);
     } catch (error) {
       console.error('Error fetching products:', error);
-      // apiClient handles 401 automatically with token refresh
     }
   };
 
   const fetchFilteredProducts = async (proteinTypes: string[]) => {
     try {
-      // Use apiClient with proper params - automatically includes Authorization
       const response = await apiClient.get('/system/products/', {
-        params: {
-          protein: proteinTypes.map((t) => String(t).toLowerCase()),
-        },
+        params: { protein: proteinTypes.join(','), limit: 500 },
       });
-
-      const raw = response.data as any;
-      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      const data = Array.isArray(response.data) ? response.data : (response.data.results || []);
       setProducts(data);
-
-      // Intentionally DO NOT auto-select all filtered products.
-      // We only constrain the available options so users can choose preferred products explicitly.
+      // Note: Auto-select logic intentionally removed to improve UX
     } catch (error) {
       console.error('Error fetching filtered products:', error);
-      // apiClient handles 401 automatically with token refresh
     }
   };
 

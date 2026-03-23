@@ -94,17 +94,18 @@ class SystemProductViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             )
 
-        # Protein type filtering (supports multiple values, case-insensitive)
-        protein_types = self.request.query_params.getlist("protein", None)
-        if not protein_types:
-            protein_type = self.request.query_params.get("protein_type", None)
-            if protein_type:
-                protein_types = [protein_type]
+        # Protein type filtering (comma-separated, case-insensitive)
+        protein_param = self.request.query_params.get("protein") or self.request.query_params.get("protein_type")
 
-        if protein_types:
-            protein_types_lower = [pt.lower() for pt in protein_types]
-            queryset = queryset.filter(protein_type__in=protein_types_lower)
-            logger.debug(f"Filtered products by protein types: {protein_types_lower}")
+        if protein_param:
+            from django.db.models import Q
+
+            proteins = [p.strip() for p in protein_param.split(',')]
+            q_objects = Q()
+            for p in proteins:
+                q_objects |= Q(protein_type__iexact=p)
+            queryset = queryset.filter(q_objects)
+            logger.debug(f"Filtered products by protein types: {proteins}")
 
         return queryset
     
