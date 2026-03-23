@@ -173,12 +173,8 @@ const PlantProducts: React.FC = () => {
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const debouncedFetchSystemProducts = useCallback((search: string) => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => fetchSystemProducts(search), 350);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchSystemProducts = async (search?: string) => {
+  // system.Product is a shared tenant-agnostic catalog — no tenant filter needed
+  const fetchSystemProducts = useCallback(async (search?: string) => {
     setLoadingSystemProducts(true);
     try {
       const params: Record<string, string> = { page_size: '200' };
@@ -192,7 +188,12 @@ const PlantProducts: React.FC = () => {
     } finally {
       setLoadingSystemProducts(false);
     }
-  };
+  }, []); // apiClient, message, and state setters are all stable references
+
+  const debouncedFetchSystemProducts = useCallback((search: string) => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => fetchSystemProducts(search), 350);
+  }, [fetchSystemProducts]);
 
   const handleAddProducts = async () => {
     if (!selectedProductIds.length) {

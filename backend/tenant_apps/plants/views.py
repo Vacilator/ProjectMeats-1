@@ -159,6 +159,7 @@ class PlantViewSet(viewsets.ModelViewSet):
             return Response({'error': 'product is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            # system.Product is a shared, tenant-agnostic catalog visible to all tenants.
             product = Product.objects.get(id=product_id, is_active=True)
         except Product.DoesNotExist:
             return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
