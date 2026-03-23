@@ -229,9 +229,12 @@ const ProductListSection: React.FC<{
         const resp = await businessApi.get('/system/products/', {
           params: {
             search: q || undefined,
+            // Some environments allow client-set page sizing; some don't.
+            // Include both params for maximum compatibility.
             page_size: 50,
+            limit: 50,
             is_active: true,
-            ...(proteinFilter.length ? { protein: proteinFilter } : {}),
+            ...(proteinFilter.length ? { protein: proteinFilter.join(',') } : {}),
           },
         });
 
@@ -242,9 +245,14 @@ const ProductListSection: React.FC<{
           label: `${p.product_code ? `${p.product_code} - ` : ''}${p.name || p.effective_name || ''}`.trim() || String(p.id),
         }));
 
+        // Replace options for the current search (so the dropdown actually narrows),
+        // but keep currently-selected values so they don't disappear.
         setOptions((prev) => {
-          const map = new Map(prev.map((o) => [o.value, o] as const));
-          next.forEach((o) => map.set(o.value, o));
+          const selected = new Set(value.map(String));
+          const keep = prev.filter((o) => selected.has(o.value));
+          const map = new Map<string, { value: string; label: string }>();
+          keep.forEach((o) => map.set(o.value, o));
+          next.forEach((o: { value: string; label: string }) => map.set(o.value, o));
           return Array.from(map.values());
         });
       } catch (err) {
@@ -253,7 +261,7 @@ const ProductListSection: React.FC<{
         setLoadingOptions(false);
       }
     }, 250),
-    [proteinFilter.join('|')]
+    [proteinFilter.join('|'), value.join('|')]
   );
 
   useEffect(() => () => fetchOptions.cancel(), [fetchOptions]);

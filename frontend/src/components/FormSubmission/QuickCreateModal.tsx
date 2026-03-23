@@ -339,8 +339,11 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
         params: {
           search: search || undefined,
           is_active: true,
+          // Some environments allow client-set page sizing; some don't.
+          // Include both params for maximum compatibility.
           page_size: 50,
-          ...(normalizedProteins.length ? { protein: normalizedProteins } : {}),
+          limit: 50,
+          ...(normalizedProteins.length ? { protein: normalizedProteins.join(',') } : {}),
         },
       });
 

@@ -733,7 +733,13 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
     switch (actionType) {
       case 'create_po': {
+        // Cockpit requirement: embedded creation (no redirects) when the host provides inline create.
+        if (onOpenInlineCreate && activeEntity) {
+          onOpenInlineCreate('purchase_order', activeEntity);
+          return;
+        }
 
+        // Backwards-compatible fallback: redirect to entity page.
         const supplierId = entityId ? String(entityId) : '';
         const params = new URLSearchParams({ action: 'create' });
         if (supplierId) params.set('supplier_id', supplierId);
@@ -757,7 +763,21 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         window.dispatchEvent(new CustomEvent('pm:open-tool', { detail: { toolId: 'tool:email' } }));
         break;
       case 'create_so': {
+        // Cockpit requirement: embedded creation (no redirects).
+        // Preferred: full Universal form embedded for sales orders.
+        if (activeEntity && String(activeEntity.type).toLowerCase() === 'customer') {
+          const next = new URLSearchParams(searchParams);
+          next.set('cockpit_subview', 'create_so');
+          setSearchParams(next);
+          return;
+        }
 
+        if (onOpenInlineCreate && activeEntity) {
+          onOpenInlineCreate('sales_order', activeEntity);
+          return;
+        }
+
+        // Backwards-compatible fallback: redirect to entity page.
         const customerId = entityId ? String(entityId) : '';
         const params = new URLSearchParams({ action: 'create' });
         if (customerId) params.set('customer_id', customerId);
@@ -779,7 +799,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       default:
         console.warn('Unhandled quick action:', actionType, 'for entity', entityId);
     }
-  }, [navigate, navigation.path, onOpenInlineCreate, query]);
+  }, [navigate, navigation.path, onOpenInlineCreate, query, searchParams, setSearchParams]);
 
   /**
    * Toggle favorite
@@ -848,18 +868,49 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     return raw === 'customer' || raw === 'supplier';
   }, [activeEntity?.type]);
 
+  const buildCascadeContext = useCallback((source: SearchEntity | null, targetType: string) => {
+    if (!source) return {};
+
+    const sourceType = String(source.type ?? '').toLowerCase();
+    const sourceId = String(source.id ?? '').trim();
+    const target = String(targetType ?? '').toLowerCase();
+
+    if (!sourceType || !sourceId) return {};
+
+    const ctx: Record<string, any> = {
+      source: 'cockpit',
+      source_entity_type: sourceType,
+      source_entity_id: sourceId,
+    };
+
+    // Always include the "{type}_id" alias for safety.
+    ctx[`${sourceType}_id`] = sourceId;
+
+    if (sourceType === 'customer') {
+      ctx.customer = sourceId;
+      ctx.customer_id = sourceId;
+
+      if (target === 'sales_order' || target === 'invoice' || target === 'inquiry' || target === 'contact') {
+        ctx.customer = sourceId;
+      }
+    }
+
+    if (sourceType === 'supplier') {
+      ctx.supplier = sourceId;
+      ctx.supplier_id = sourceId;
+
+      if (target === 'purchase_order' || target === 'inquiry' || target === 'contact') {
+        ctx.supplier = sourceId;
+      }
+    }
+
+    return ctx;
+  }, []);
+
   const openQuickCreate = useCallback((type: string) => {
-    const ctxType = String(activeEntity?.type ?? '').toLowerCase();
-    const ctxId = String(activeEntity?.id ?? '');
-
-    const context = ctxType === 'customer'
-      ? { customer: ctxId }
-      : ctxType === 'supplier'
-      ? { supplier: ctxId }
-      : {};
-
+    const context = buildCascadeContext(activeEntity, type);
     setQuickCreateConfig({ isOpen: true, type, context });
-  }, [activeEntity]);
+  }, [activeEntity, buildCascadeContext]);
 
   const closeQuickCreate = useCallback(() => {
     setQuickCreateConfig({ isOpen: false, type: '', context: {} });
@@ -1109,53 +1160,57 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     if (activeRelationTab === 'orders') {
       const type = String(activeEntity.type).toLowerCase();
       const isSupplier = type === 'supplier';
-      const targetType = isSupplier ? 'purchase_order' : 'sales_order';
-      const label = isSupplier ? '+ New Purchase Order' : '+ New Sales Order';
+
+      if (isSupplier) {
+        return (
+          <Button
+            type="primary"
+            onClick={() => {
+              if (onOpenInlineCreate) {
+                onOpenInlineCreate('purchase_order', activeEntity);
+                return;
+              }
+              openQuickCreate('purchase_order');
+            }}
+          >
+            + New Purchase Order
+          </Button>
+        );
+      }
 
       return (
-        <Button
-          type="primary"
-          onClick={() => {
-            const actionType = isSupplier ? 'create_po' : 'create_so';
-            handleQuickAction({
-              id: `action:${actionType}`,
-              type: 'action',
-              name: label,
-              metadata: {
-                action: actionType,
-                entityId: activeEntity.id,
-              },
-            });
-          }}
-        >
-          {label}
+        <Button type="primary" onClick={openInlineCreateSalesOrder}>
+          + New Sales Order
+        </Button>
+      );
+    }
+
+    if (activeRelationTab === 'invoices') {
+      return (
+        <Button type="primary" onClick={() => openQuickCreate('invoice')}>
+          + New Invoice
+        </Button>
+      );
+    }
+
+    if (activeRelationTab === 'contacts') {
+      return (
+        <Button type="primary" onClick={() => openQuickCreate('contact')}>
+          + New Contact
         </Button>
       );
     }
 
     if (activeRelationTab === 'inquiries') {
       return (
-        <Button
-          type="primary"
-          onClick={() => {
-            const type = String(activeEntity.type).toLowerCase();
-            const entityType = type === 'supplier' ? 'supplier' : 'customer';
-            navigate('/inquiries', {
-              state: {
-                openCreateModal: true,
-                entityType,
-                entityId: String(activeEntity.id),
-              },
-            });
-          }}
-        >
+        <Button type="primary" onClick={() => openQuickCreate('inquiry')}>
           + New Inquiry
         </Button>
       );
     }
 
     return null;
-  }, [activeEntity, activeRelationTab, handleQuickAction, isPrimaryEntity, navigate, onOpenInlineCreate]);
+  }, [activeEntity, activeRelationTab, isPrimaryEntity, onOpenInlineCreate, openInlineCreateSalesOrder, openQuickCreate]);
 
   return (
     <Container>

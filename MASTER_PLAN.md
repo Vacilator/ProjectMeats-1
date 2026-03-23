@@ -24,6 +24,7 @@
 - Phase 8 (PM-AS): added staff-only swarm router preview endpoint `POST /api/v1/ai-assistant/swarm/invoke/` (PR #3693).
 - Phase 8 (PM-AS): added AIAgentWidget “Route preview” button to display router decision (PR #3694).
 - UI Hardening: Restored Form Process node rendering (avoids blank placeholder) by aligning nodeTypes/normalization to Friday baseline (PR #3778).
+- March 23, 2026 — Cockpit clicked-record fixes: embedded “+ New …” CTAs per tab (no redirects), improved cascade context keys, Preferred Products search now narrows results, and AI overview uses DB-resolved model ID — PR: #3892.
 
 ---
 
