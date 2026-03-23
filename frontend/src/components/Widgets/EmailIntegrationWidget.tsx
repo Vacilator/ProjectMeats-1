@@ -336,13 +336,15 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
 
   const handleConnect = async (provider: 'outlook' | 'gmail') => {
     try {
-      // Use secure apiClient to get the Microsoft URL, preserving JWT and Tenant headers
+      const backendProvider = provider === 'outlook' ? 'microsoft' : 'google';
+
+      // Use secure apiClient to get the OAuth URL, preserving JWT and Tenant headers.
+      // Backend returns JSON { auth_url } (not a redirect) so the SPA can do a top-level navigation.
       const response = await apiClient.get('/integrations/oauth/authorize/', {
-        params: { provider },
+        params: { provider: backendProvider },
       });
 
       if (response.data?.auth_url) {
-        // Safely redirect directly to Microsoft
         window.location.href = response.data.auth_url;
       } else {
         throw new Error('Authorization URL not received from server');
