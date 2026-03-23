@@ -127,9 +127,10 @@ Closes #
 
 ### Configuration Changes
 <!-- List any required configuration or environment variable changes -->
+**Authority**: `/manifests/env.manifest.json` (Version 5.1 - DO NOT guess secret names)
 - [ ] No configuration changes
-- [ ] Environment variables added/changed (documented below)
-- [ ] Secrets need to be updated
+- [ ] Environment variables added/changed (documented below AND in `/manifests/env.manifest.json`)
+- [ ] Secrets need to be updated in GitHub Environments
 
 ### Deployment Requirements
 - [ ] No special deployment requirements
@@ -202,6 +203,41 @@ Closes #
 - [ ] Tenant-aware queries implemented
 - [ ] Tested with multiple tenants
 - [ ] No cross-tenant data leakage
+
+### 🔒 Row-Level Security (RLS) - MANDATORY for Database Changes
+**⚠️ CRITICAL: All tenant-aware tables MUST have RLS policies**
+**Authority**: `/manifests/RLS_POLICIES.md` (33 policies across 25 tables)
+- [ ] Model inherits from `backend/apps/core/models.py:TenantAwareModel` (or has `tenant` ForeignKey)
+- [ ] Migration includes `RunSQL` operation for PostgreSQL RLS policy (if creating tenant-aware table)
+- [ ] RLS policy uses `current_setting('app.current_tenant')::uuid` pattern
+- [ ] Policy named following `{tablename}_tenant_isolation` convention
+- [ ] Reverse SQL provided for migration rollback
+- [ ] ViewSet filters by `tenant=request.tenant` in `get_queryset()`
+- [ ] `perform_create()` assigns `tenant=request.tenant`
+- [ ] No direct ORM queries bypass tenant filtering
+- [ ] Tested RLS enforcement with `psql` queries
+- [ ] Updated `/manifests/RLS_POLICIES.md` with new policy details (if applicable)
+
+### 🎨 UI Styling Standards (for Frontend Changes)
+- [ ] All colors use theme tokens from `theme.ts` or CSS custom properties (`rgb(var(--color-*))`)
+- [ ] No hardcoded hex/RGB values in component styles
+- [ ] AntD components use proper theme configuration
+- [ ] Standardized status colors used (success: `rgb(34, 197, 94)`, warning: `rgb(234, 179, 8)`, error: `rgb(239, 68, 68)`, info: `rgb(59, 130, 246)`)
+
+### 🌐 API Service Layer (for Frontend API Calls)
+- [ ] Uses `businessApi` or `workformsApi` service (NOT direct axios)
+- [ ] TypeScript interfaces defined for all API request/response types
+- [ ] Error handling follows service layer patterns
+- [ ] Token refresh logic not bypassed
+
+### 🔄 Migration Safety (Additive-Only Rule)
+**⚠️ CRITICAL: NEVER break existing workflows (5+ months of production data)**
+- [ ] No removed/renamed node types (use deprecation + alias pattern)
+- [ ] No deleted schema fields (mark as deprecated with fallback)
+- [ ] No removed API endpoints (deprecate + redirect for 6 months minimum)
+- [ ] No deleted database fields (mark unused, hide from API)
+- [ ] Migration logic provided for schema evolution (if changing field types)
+- [ ] Backward compatibility verified with existing workflow data
 
 ### Accessibility (for UI changes)
 - [ ] Keyboard navigation works

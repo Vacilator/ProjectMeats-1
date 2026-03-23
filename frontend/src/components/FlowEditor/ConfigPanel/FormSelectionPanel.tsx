@@ -1,17 +1,20 @@
 /**
  * FormSelectionPanel Component
  * 
- * First panel shown when configuring Form Step or Form Multi-Step Container nodes.
+ * First panel shown when configuring Form or Form Process nodes.
  * Allows user to choose between:
  * - Creating a new form (shows name input)
  * - Using an existing form (shows cascading dropdown)
  * 
  * Phase 2.2 of WF-ENH-2026-Q1
  * Created: 2026-02-06
+ * Updated: 2026-02-25 - Phase 2 Standardization
  */
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
+import * as Sentry from '@sentry/react';
 import workformsApi, { TenantForm } from '../../../services/workformsApi';
 import {
   Label,
@@ -26,8 +29,8 @@ import {
 // ============================================================================
 
 interface FormSelectionPanelProps {
-  /** Node type: 'formStep' or 'formMultiStepContainer' */
-  nodeType: 'formStep' | 'formMultiStepContainer';
+  /** Node type: 'formStep' or container */
+  nodeType: 'formStep' | 'formProcessGroup' | 'formBook';
   
   /** Currently selected form ID (if editing existing node) */
   selectedFormId?: string;
@@ -225,6 +228,13 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
       setExistingForms(forms);
     } catch (err: any) {
       console.error('[FormSelectionPanel] Failed to load forms:', err);
+      toast.error('Failed to load forms. Please refresh and try again.', {
+        duration: 4000,
+        icon: '⚠️',
+      });
+      Sentry.captureException(err, {
+        extra: { context: 'FormSelectionPanel.loadForms', filterType },
+      });
       setError(err.message || 'Failed to load forms');
     } finally {
       setLoading(false);
@@ -271,7 +281,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
 
   const canProceed = mode === 'new' ? newFormName.trim().length > 0 : !!selectedExistingFormId;
 
-  const nodeTypeLabel = nodeType === 'formStep' ? 'Form Step' : 'Multi-Step Form Container';
+  const nodeTypeLabel = nodeType === 'formStep' ? 'Form' : 'Form Process';
 
   return (
     <Container>
@@ -280,7 +290,7 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
         <Description>
           {nodeType === 'formStep' 
             ? 'Choose whether to create a new form or use an existing one from your library.'
-            : 'Choose whether to create a new multi-step form container or use an existing one.'}
+            : 'Choose whether to create a new form process or use an existing one.'}
         </Description>
       </div>
 
@@ -290,15 +300,19 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
           onClick={() => handleModeChange('new')}
           type="button"
         >
-          <OptionTitle>✨ Create New Form</OptionTitle>
+          <OptionTitle>
+            ✨ Create New {nodeTypeLabel}
+          </OptionTitle>
           <OptionDescription>
-            Start with a blank form and configure fields from entity schemas.
+            {nodeType === 'formStep'
+              ? 'Start with a blank form and configure fields from entity schemas.'
+              : 'Start a new form process container and add steps inside it.'}
           </OptionDescription>
         </OptionCard>
 
         {mode === 'new' && (
           <InputGroup>
-            <Label htmlFor="new-form-name">Form Name *</Label>
+            <Label htmlFor="new-form-name">{nodeTypeLabel} Name *</Label>
             <Input
               id="new-form-name"
               type="text"
@@ -316,9 +330,13 @@ export const FormSelectionPanel: React.FC<FormSelectionPanelProps> = ({
           onClick={() => handleModeChange('existing')}
           type="button"
         >
-          <OptionTitle>📋 Use Existing Form</OptionTitle>
+          <OptionTitle>
+            📋 Use Existing {nodeTypeLabel}
+          </OptionTitle>
           <OptionDescription>
-            Select a form from your library to reuse in this workflow.
+            {nodeType === 'formStep'
+              ? 'Select a form from your library to reuse in this workflow.'
+              : 'Select a form process from your library to reuse in this workflow.'}
           </OptionDescription>
         </OptionCard>
 

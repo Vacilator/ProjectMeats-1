@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import React from 'react';
+import { CockpitNavigationProvider } from '../../contexts/CockpitNavigationContext';
 
 // Mock axios with create method
 vi.mock('axios', () => ({
@@ -36,9 +37,11 @@ import { CommandPalette } from './CommandPalette';
 // This file is a module (required for TypeScript isolatedModules)
 export {};
 
-// Test wrapper with router context
+// Test wrapper with router + cockpit navigation context
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <BrowserRouter>{children}</BrowserRouter>
+  <BrowserRouter>
+    <CockpitNavigationProvider>{children}</CockpitNavigationProvider>
+  </BrowserRouter>
 );
 
 describe('CommandPalette', () => {

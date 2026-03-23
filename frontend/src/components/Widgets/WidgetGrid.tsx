@@ -13,11 +13,12 @@
  * Theme Compliance:
  * - Uses CSS custom properties
  */
-import React, { useState, useCallback, useEffect } from 'react';
-import GridLayout, { Layout } from 'react-grid-layout';
+import React, { useCallback } from 'react';
+import GridLayout, { LayoutItem } from 'react-grid-layout';
 import styled from 'styled-components';
 import { X } from 'lucide-react';
 import 'react-grid-layout/css/styles.css';
+import { WidgetInstanceProvider } from './WidgetInstanceContext';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -30,15 +31,14 @@ export interface WidgetConfig {
   props?: Record<string, any>;
 }
 
-export interface WidgetLayout extends Layout {
-  i: string;
-}
+export type WidgetLayout = LayoutItem;
 
 export interface WidgetGridProps {
   widgets: WidgetConfig[];
   layout: WidgetLayout[];
   onLayoutChange: (layout: WidgetLayout[]) => void;
   onRemoveWidget?: (widgetId: string) => void;
+  onPinWidget?: (widget: WidgetConfig) => void;
   renderWidget: (widget: WidgetConfig) => React.ReactNode;
   cols?: number;
   rowHeight?: number;
@@ -152,6 +152,7 @@ export const WidgetGrid: React.FC<WidgetGridProps> = ({
   layout,
   onLayoutChange,
   onRemoveWidget,
+  onPinWidget,
   renderWidget,
   cols = 12,
   rowHeight = 100,
@@ -160,7 +161,7 @@ export const WidgetGrid: React.FC<WidgetGridProps> = ({
   isEditing = false,
 }) => {
   const handleLayoutChange = useCallback(
-    (newLayout: Layout[]) => {
+    (newLayout: LayoutItem[]) => {
       onLayoutChange(newLayout as WidgetLayout[]);
     },
     [onLayoutChange]
@@ -203,7 +204,9 @@ export const WidgetGrid: React.FC<WidgetGridProps> = ({
                 <X size={14} />
               </RemoveButton>
             )}
-            {renderWidget(widget)}
+            <WidgetInstanceProvider widget={widget} onPinWidget={onPinWidget}>
+              {renderWidget(widget)}
+            </WidgetInstanceProvider>
           </WidgetWrapper>
         ))}
       </GridLayout>

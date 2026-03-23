@@ -7,7 +7,9 @@
  * Updated: 2026-02-03 - Phase 2 Forms & Flows Enhancement
  * - Added badge rendering support for action item counts
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { logger } from '@/utils/logger';
+
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import styled, { css } from 'styled-components';
 import { NavigationItem } from '../../config/navigation';
@@ -52,9 +54,10 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   // Changed from Set to string | null for exclusive accordion (only one open at a time)
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const isDarkMode = themeName === 'dark';
+  const lastPathnameRef = useRef(location.pathname);
   
   // Filter items based on user roles
-  const filterItemsByRole = (navItems: NavigationItem[]): NavigationItem[] => {
+  const filterItemsByRole = useCallback((navItems: NavigationItem[]): NavigationItem[] => {
     return navItems.filter(item => {
       // If no roles specified, show to everyone
       if (!item.roles || item.roles.length === 0) {
@@ -86,12 +89,21 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       }
       return item;
     });
-  };
+  }, [isAdmin, user]);
   
-  const filteredItems = filterItemsByRole(items);
+  const filteredItems = useMemo(() => filterItemsByRole(items), [filterItemsByRole, items]);
+  const filteredItemsRef = useRef<NavigationItem[]>(filteredItems);
 
-  // Auto-expand parent items when a child is active
   useEffect(() => {
+    filteredItemsRef.current = filteredItems;
+  }, [filteredItems]);
+
+  // Auto-expand parent items only when navigation occurs (preserve manual toggles)
+  useEffect(() => {
+    if (location.pathname === lastPathnameRef.current) {
+      return;
+    }
+
     const findActiveParent = (navItems: NavigationItem[]): string | null => {
       for (const item of navItems) {
         if (item.path === location.pathname && item.children) {
@@ -106,12 +118,14 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
       }
       return null;
     };
-    
-    const activeParent = findActiveParent(filteredItems);
+
+    const activeParent = findActiveParent(filteredItemsRef.current);
     if (activeParent) {
       setExpandedItem(activeParent);
     }
-  }, [location.pathname, filteredItems]);
+    lastPathnameRef.current = location.pathname;
+  // Run only on pathname change to avoid fighting user-driven expand/collapse
+  }, [location.pathname]);
 
   const toggleExpand = (label: string, e?: React.MouseEvent) => {
     if (e) {
@@ -194,7 +208,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('[NavigationMenu] Parent item clicked:', {
+              logger.debug('[NavigationMenu] Parent item clicked:', {
                 path: item.path,
                 label: item.label,
                 active,
@@ -202,10 +216,10 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
                 timestamp: new Date().toISOString()
               });
               if (item.path) {
-                console.log('[NavigationMenu] Navigating to:', item.path);
+                logger.debug('[NavigationMenu] Navigating to:', item.path);
                 navigate(item.path);
               } else {
-                console.warn('[NavigationMenu] No path defined for:', item.label);
+                logger.warn('[NavigationMenu] No path defined for:', item.label);
               }
             }}
             $theme={theme}
@@ -220,7 +234,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
             <ExpandButton 
               onClick={(e) => {
                 // Prevent navigation for chevron click, only toggle accordion
-                console.log('[NavigationMenu] ExpandButton clicked:', {
+                logger.debug('[NavigationMenu] ExpandButton clicked:', {
                   label: item.label,
                   isExpanded: isItemExpanded,
                   timestamp: new Date().toISOString()
@@ -244,7 +258,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
     return (
       <AccordionHeader
         onClick={(e) => {
-          console.log('[NavigationMenu] AccordionHeader clicked (no path):', {
+          logger.debug('[NavigationMenu] AccordionHeader clicked (no path):', {
             label: item.label,
             isExpanded: isItemExpanded,
             timestamp: new Date().toISOString()
@@ -615,7 +629,7 @@ const AccordionContent = styled.div<{ $isExpanded: boolean; $isDarkMode: boolean
   /* Ensure it doesn't block parent items */
   pointer-events: ${(props) => (props.$isExpanded ? 'auto' : 'none')};
   position: relative;
-  z-index: 1;
+  z-index: auto;
 `;
 
 const Badge = styled.span<{ $isDarkMode: boolean }>`

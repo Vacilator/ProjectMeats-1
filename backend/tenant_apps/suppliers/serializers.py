@@ -4,7 +4,7 @@ Suppliers serializers for ProjectMeats.
 Provides serialization for supplier API endpoints.
 """
 from rest_framework import serializers
-from tenant_apps.suppliers.models import Supplier
+from tenant_apps.suppliers.models import Supplier, SupplierAvailableItem
 from tenant_apps.locations.serializers import LocationListSerializer
 
 
@@ -44,7 +44,7 @@ class SupplierSerializer(serializers.ModelSerializer):
             "origin",
             "country_origin",
             "contacts",
-            "products",
+            "plants",
             "shipping_offered",
             "how_to_book_pickup",
             "offer_contracts",
@@ -67,14 +67,23 @@ class SupplierSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_on", "modified_on", "locations"]
 
-    def validate_name(self, value):
-        """Validate supplier name is provided and is a valid string."""
-        if not value or not isinstance(value, str) or not value.strip():
-            raise serializers.ValidationError("Supplier name is required and must be a non-empty string.")
-        return value.strip()
 
-    def validate_email(self, value):
-        """Validate email format if provided."""
-        if value and '@' not in value:
-            raise serializers.ValidationError("Invalid email format.")
-        return value
+class SupplierAvailableItemSerializer(serializers.ModelSerializer):
+    product_code = serializers.CharField(source='product.product_code', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    protein_type = serializers.CharField(source='product.protein_type', read_only=True)
+
+    class Meta:
+        model = SupplierAvailableItem
+        fields = [
+            'id',
+            'supplier',
+            'product',
+            'product_code',
+            'product_name',
+            'protein_type',
+            'is_active',
+            'created_on',
+            'modified_on',
+        ]
+        read_only_fields = ['id', 'created_on', 'modified_on', 'product_code', 'product_name', 'protein_type']

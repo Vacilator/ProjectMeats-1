@@ -161,16 +161,74 @@ class SupplierViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path='products')
     def products(self, request, pk=None):
         """
-        List all products associated with this supplier.
-        
+        List all available items (active and inactive) associated with this supplier.
+
         GET /api/v1/suppliers/{id}/products/
-        
-        Returns products that have this supplier in their M2M relationship.
+
+        Returns all SupplierAvailableItems regardless of is_active status.
+        Use the is_active field in the response to filter on the client if needed.
         Respects tenant isolation.
         """
-        from tenant_apps.products.serializers import ProductSerializer
-        
+        from tenant_apps.suppliers.serializers import SupplierAvailableItemSerializer
+
         supplier = self.get_object()
-        products = supplier.products.filter(tenant=request.tenant)
-        serializer = ProductSerializer(products, many=True)
+        items = supplier.available_items.filter(tenant=request.tenant).select_related('product')
+        serializer = SupplierAvailableItemSerializer(items, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='available-products')
+    def add_available_product(self, request, pk=None):
+        """
+        Add a system product to supplier's available items.
+
+        POST /api/v1/suppliers/{id}/available-products/
+        Body: { "product": "<system-product-uuid>" }
+        """
+        from tenant_apps.suppliers.models import SupplierAvailableItem
+        from tenant_apps.suppliers.serializers import SupplierAvailableItemSerializer
+        from apps.system.models import Product
+
+        supplier = self.get_object()
+        product_id = request.data.get('product')
+        if not product_id:
+            return Response({'error': 'product is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # system.Product is a shared, tenant-agnostic catalog visible to all tenants.
+            product = Product.objects.get(id=product_id, is_active=True)
+        except Product.DoesNotExist:
+            return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        item, created = SupplierAvailableItem.objects.get_or_create(
+            tenant=request.tenant,
+            supplier=supplier,
+            product=product,
+            defaults={'is_active': True},
+        )
+        if not created:
+            item.is_active = True
+            item.save(update_fields=['is_active'])
+
+        serializer = SupplierAvailableItemSerializer(item)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'], url_path='available-products/(?P<product_id>[^/.]+)')
+    def remove_available_product(self, request, pk=None, product_id=None):
+        """
+        Remove a system product from supplier's available items.
+
+        DELETE /api/v1/suppliers/{id}/available-products/{product_id}/
+        """
+        from tenant_apps.suppliers.models import SupplierAvailableItem
+
+        supplier = self.get_object()
+        try:
+            item = SupplierAvailableItem.objects.get(
+                tenant=request.tenant,
+                supplier=supplier,
+                product_id=product_id,
+            )
+            item.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except SupplierAvailableItem.DoesNotExist:
+            return Response({'error': 'Available item not found'}, status=status.HTTP_404_NOT_FOUND)

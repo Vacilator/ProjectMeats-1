@@ -6,22 +6,11 @@ Defines contact entities and related business logic.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 from django.db import models
-from apps.tenants.models import Tenant
-from apps.core.models import ContactTypeChoices, StatusChoices, TimestampModel, TenantManager
+from apps.core.models import ContactTypeChoices, StatusChoices, TenantAwareModel
 
 
-class Contact(TimestampModel):
+class Contact(TenantAwareModel):
     """Contact model for managing contact information."""
-    # Use custom manager for multi-tenancy
-    objects = TenantManager()
-    
-    # Multi-tenancy
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name="contacts",
-        help_text="Tenant this contact belongs to"
-    )
     
     # Parent entity relationships (optional - contact can belong to supplier or customer)
     supplier = models.ForeignKey(
@@ -30,7 +19,7 @@ class Contact(TimestampModel):
         null=True,
         blank=True,
         related_name="contact_persons",
-        help_text="Supplier this contact belongs to"
+        help_text="Supplier this contact belongs to",
     )
     customer = models.ForeignKey(
         'customers.Customer',
@@ -38,7 +27,26 @@ class Contact(TimestampModel):
         null=True,
         blank=True,
         related_name="contact_persons",
-        help_text="Customer this contact belongs to"
+        help_text="Customer this contact belongs to",
+    )
+
+    # Child entity relationships (optional)
+    # NOTE: These are additive and enable UI drill-down: Supplier -> Plant -> Contacts and Customer -> Location -> Contacts.
+    plant = models.ForeignKey(
+        'plants.Plant',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='contacts',
+        help_text='Plant this contact belongs to (optional)',
+    )
+    location = models.ForeignKey(
+        'locations.Location',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='contacts',
+        help_text='Location this contact belongs to (optional)',
     )
     
     # Status field for tracking active/inactive contacts
@@ -105,6 +113,10 @@ class Contact(TimestampModel):
         verbose_name_plural = "Contacts"
         indexes = [
             models.Index(fields=['tenant', 'last_name', 'first_name']),
+            models.Index(fields=['tenant', 'supplier']),
+            models.Index(fields=['tenant', 'customer']),
+            models.Index(fields=['tenant', 'plant']),
+            models.Index(fields=['tenant', 'location']),
         ]
 
     def __str__(self):

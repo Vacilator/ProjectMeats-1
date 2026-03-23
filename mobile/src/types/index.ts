@@ -63,8 +63,12 @@ export interface ApiError {
 // Navigation types
 export type RootStackParamList = {
   Login: undefined;
+  Guest: undefined;
+  Invite: { token?: string };
   Tenants: undefined;
   Home: undefined;
+  GuestHome: undefined;
+  WorkForms: undefined;
 };
 
 // Authentication types
@@ -76,6 +80,71 @@ export interface LoginRequest {
 export interface LoginResponse {
   token: string;
   user: User;
+}
+
+// Guest mode types
+export interface GuestSession {
+  guest_token: string;
+  tenant_id: string;
+  tenant_name: string;
+  tenant_slug: string;
+  expires_at: string;
+  permissions: string[];
+}
+
+export interface GuestUser {
+  id: null;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  is_active: boolean;
+  date_joined: string;
+  is_guest: true;
+}
+
+// Invite-only flow types
+export interface TenantInvite {
+  token: string;
+  tenant_id: string;
+  tenant_name: string;
+  tenant_slug: string;
+  invited_by: string;
+  invited_email: string;
+  role: 'admin' | 'manager' | 'user' | 'readonly';
+  expires_at: string;
+  is_expired: boolean;
+  is_accepted: boolean;
+}
+
+export interface InviteAcceptRequest {
+  token: string;
+  username: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+// WorkForms types (mobile parity with web Workform Editor)
+export interface WorkFormNode {
+  id: string;
+  type: string;
+  label: string;
+  description?: string;
+  position: { x: number; y: number };
+  data: Record<string, any>;
+}
+
+export interface WorkForm {
+  id: string;
+  name: string;
+  description?: string;
+  tenant: string;
+  is_active: boolean;
+  node_count: number;
+  nodes?: WorkFormNode[];
+  created_at: string;
+  updated_at: string;
 }
 
 // Common entity types (shared with backend)

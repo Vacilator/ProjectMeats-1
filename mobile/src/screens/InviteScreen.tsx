@@ -1,0 +1,358 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
+import { ApiService } from '../services/ApiService';
+import { RootStackParamList, TenantInvite, User } from '../types';
+
+type InviteScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Invite'>;
+type InviteScreenRouteProp = RouteProp<RootStackParamList, 'Invite'>;
+
+interface Props {
+  navigation: InviteScreenNavigationProp;
+  route: InviteScreenRouteProp;
+  onInviteAccepted: (token: string, user: User) => void;
+}
+
+export default function InviteScreen({ navigation, route, onInviteAccepted }: Props) {
+  const inviteToken = route.params?.token ?? '';
+
+  const [tokenInput, setTokenInput] = useState(inviteToken);
+  const [invite, setInvite] = useState<TenantInvite | null>(null);
+  const [validating, setValidating] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+
+  // Account creation fields (shown after invite is validated)
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+
+  const validateToken = useCallback(async (token: string) => {
+    if (!token.trim()) {
+      Alert.alert('Error', 'Please enter an invite token');
+      return;
+    }
+    setValidating(true);
+    try {
+      const result = await ApiService.validateInvite(token.trim());
+      if (result.is_expired) {
+        Alert.alert(
+          'Invite Expired',
+          'This invitation has expired. Please ask the workspace admin to send a new invite.'
+        );
+        return;
+      }
+      if (result.is_accepted) {
+        Alert.alert(
+          'Already Accepted',
+          'This invite has already been used. Please sign in with your existing account.'
+        );
+        return;
+      }
+      setInvite(result);
+      // Pre-fill email as username
+      setUsername(result.invited_email);
+    } catch (error: any) {
+      Alert.alert(
+        'Invalid Invite',
+        error.response?.status === 404
+          ? 'This invite token was not found. Please check the link or code and try again.'
+          : 'Unable to validate invite. Please try again.'
+      );
+    } finally {
+      setValidating(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (inviteToken) {
+      validateToken(inviteToken);
+    }
+  }, [inviteToken, validateToken]);
+
+  const handleAcceptInvite = async () => {
+    if (!invite) return;
+
+    if (!username.trim() || !password.trim()) {
+      Alert.alert('Error', 'Username and password are required');
+      return;
+    }
+    if (password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters');
+      return;
+    }
+
+    setAccepting(true);
+    try {
+      const response = await ApiService.acceptInvite({
+        token: invite.token,
+        username: username.trim(),
+        password,
+        first_name: firstName.trim() || undefined,
+        last_name: lastName.trim() || undefined,
+      });
+      onInviteAccepted(response.token, response.user);
+    } catch (error: any) {
+      const data = error.response?.data;
+      const message =
+        data?.username?.join(' ') ||
+        data?.password?.join(' ') ||
+        data?.detail ||
+        'Unable to accept the invite. Please try again.';
+      Alert.alert('Error', message);
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  // --- Token entry step ---
+  if (!invite) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.content}>
+            <Text style={styles.title}>Accept Invite</Text>
+            <Text style={styles.subtitle}>
+              Enter the invite token from your invitation email
+            </Text>
+
+            <View style={styles.form}>
+              <Text style={styles.label}>Invite Token</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Paste your invite token here"
+                value={tokenInput}
+                onChangeText={setTokenInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!validating}
+                multiline
+              />
+
+              <TouchableOpacity
+                style={[styles.primaryButton, validating && styles.disabledButton]}
+                onPress={() => validateToken(tokenInput)}
+                disabled={validating}
+              >
+                {validating ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Validate Invite</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+                disabled={validating}
+              >
+                <Text style={styles.backButtonText}>← Back to Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // --- Account creation step ---
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Create Your Account</Text>
+
+          <View style={styles.inviteBanner}>
+            <Text style={styles.inviteBannerTitle}>
+              You've been invited to{' '}
+              <Text style={styles.tenantName}>{invite.tenant_name}</Text>
+            </Text>
+            <Text style={styles.inviteBannerMeta}>
+              Role: <Text style={styles.roleText}>{invite.role}</Text>  •  Invited
+              by {invite.invited_by}
+            </Text>
+          </View>
+
+          <View style={styles.form}>
+            <Text style={styles.label}>Username / Email *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Choose a username"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!accepting}
+            />
+
+            <Text style={styles.label}>Password *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Min 8 characters"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!accepting}
+            />
+
+            <Text style={styles.label}>First Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Optional"
+              value={firstName}
+              onChangeText={setFirstName}
+              editable={!accepting}
+            />
+
+            <Text style={styles.label}>Last Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Optional"
+              value={lastName}
+              onChangeText={setLastName}
+              editable={!accepting}
+            />
+
+            <TouchableOpacity
+              style={[styles.primaryButton, accepting && styles.disabledButton]}
+              onPress={handleAcceptInvite}
+              disabled={accepting}
+            >
+              {accepting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Join Workspace</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setInvite(null)}
+              disabled={accepting}
+            >
+              <Text style={styles.backButtonText}>← Use a different token</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#7f8c8d',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  inviteBanner: {
+    backgroundColor: '#eafaf1',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 24,
+    width: '100%',
+    maxWidth: 320,
+    borderLeftWidth: 4,
+    borderLeftColor: '#27ae60',
+  },
+  inviteBannerTitle: {
+    fontSize: 15,
+    color: '#1e8449',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  tenantName: {
+    fontWeight: 'bold',
+  },
+  inviteBannerMeta: {
+    fontSize: 13,
+    color: '#7f8c8d',
+  },
+  roleText: {
+    color: '#2471a3',
+    fontWeight: '500',
+  },
+  form: {
+    width: '100%',
+    maxWidth: 320,
+  },
+  label: {
+    fontSize: 13,
+    color: '#5d6d7e',
+    marginBottom: 6,
+    marginLeft: 2,
+    fontWeight: '500',
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 16,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  primaryButton: {
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  backButton: {
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  backButtonText: {
+    color: '#3498db',
+    fontSize: 15,
+  },
+});

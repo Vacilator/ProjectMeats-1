@@ -168,9 +168,12 @@ class CustomerViewSet(viewsets.ModelViewSet):
         Returns products that have this customer in their M2M relationship.
         Respects tenant isolation.
         """
-        from tenant_apps.products.serializers import ProductSerializer
-        
+        # Customer.products still points to system.Product (Phase 8 three-tier catalog).
+        # Until Step 4 updates customer product selection to MasterProduct/SupplierAvailableItem,
+        # keep this endpoint working by returning system products.
+        from apps.system.serializers import SystemProductSerializer
+
         customer = self.get_object()
-        products = customer.products.filter(tenant=request.tenant)
-        serializer = ProductSerializer(products, many=True)
+        products = customer.products.all()
+        serializer = SystemProductSerializer(products, many=True)
         return Response(serializer.data)

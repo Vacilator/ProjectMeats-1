@@ -10,6 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useEntityList, useEntityFields } from '../../../services/schemaService';
+import { Select, PrimaryButton, SecondaryButton } from './shared/StyledComponents';
 
 const DiagnosticContainer = styled.div`
   padding: 20px;
@@ -56,27 +57,6 @@ const LogLine = styled.div<{ $type?: 'info' | 'success' | 'error' | 'warning' }>
   border-radius: 4px;
 `;
 
-const Select = styled.select`
-  width: 100%;
-  padding: 8px;
-  border: 1px solid rgb(var(--color-border));
-  border-radius: 4px;
-  margin: 10px 0;
-`;
-
-const Button = styled.button`
-  padding: 8px 16px;
-  background: rgb(var(--color-primary));
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-
-  &:hover {
-    background: rgba(var(--color-primary), 0.8);
-  }
-`;
 
 export const EntityFieldPickerDiagnostic: React.FC = () => {
   const [selectedEntity, setSelectedEntity] = useState<string>('');
@@ -212,10 +192,12 @@ export const EntityFieldPickerDiagnostic: React.FC = () => {
         </Select>
 
         <div>
-          <Button onClick={clearLogs}>Clear Logs</Button>
-          <Button onClick={testDirectFetch} disabled={!selectedEntity}>
+          <SecondaryButton type="button" onClick={clearLogs}>
+            Clear Logs
+          </SecondaryButton>
+          <PrimaryButton type="button" onClick={testDirectFetch} disabled={!selectedEntity}>
             Test Direct API Fetch
-          </Button>
+          </PrimaryButton>
         </div>
       </Section>
 

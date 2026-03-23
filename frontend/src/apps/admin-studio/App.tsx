@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { ConfigDashboard } from './pages/ConfigDashboard';
+import { Metrics } from './pages/Metrics';
 import { ChoiceListEditor } from './components/ChoiceListEditor';
 import { TenantConfigEditor } from './components/TenantConfigEditor';
 import { AuditLogViewer } from './components/AuditLogViewer';
@@ -20,6 +21,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/config" element={<ConfigDashboard />} />
+        <Route path="/metrics" element={<Metrics />} />
         <Route path="/config/choices" element={<ChoiceListEditorPage />} />
         <Route path="/config/choices/:slug" element={<ChoiceListEditorPage />} />
         <Route path="/config/tenant" element={<TenantConfigEditorPage />} />

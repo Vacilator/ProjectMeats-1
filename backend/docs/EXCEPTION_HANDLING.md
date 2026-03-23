@@ -138,7 +138,7 @@ All supplier endpoint tests pass successfully.
 ## Dependencies
 
 - Django REST Framework (already installed)
-- psycopg2-binary==2.9.9 (for PostgreSQL support with django-tenants)
+- psycopg2-binary==2.9.9 (PostgreSQL database driver)
 
 ## Usage
 

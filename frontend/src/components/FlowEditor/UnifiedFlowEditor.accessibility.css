@@ -1,0 +1,379 @@
+/**
+ * WCAG 2.1 Accessibility Styles for UnifiedFlowEditor
+ * Compliant with WCAG 2.1 Level AA standards
+ */
+
+/* ========================================
+   FOCUS INDICATORS (WCAG 2.4.7)
+   ======================================== */
+
+/* High-visibility focus outline for all interactive elements */
+.unified-flow-editor button:focus-visible,
+.unified-flow-editor input:focus-visible,
+.unified-flow-editor select:focus-visible,
+.unified-flow-editor textarea:focus-visible,
+.unified-flow-editor [role="button"]:focus-visible,
+.unified-flow-editor [tabindex]:focus-visible {
+  outline: 3px solid rgb(var(--color-primary));
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(var(--color-primary), 0.2);
+  z-index: 1000;
+}
+
+/* React Flow node focus states */
+.react-flow__node:focus,
+.react-flow__node:focus-visible {
+  outline: 3px solid rgb(var(--color-primary));
+  outline-offset: 4px;
+  box-shadow: 0 0 0 6px rgba(var(--color-primary), 0.15);
+}
+
+.react-flow__node.selected {
+  outline: 3px solid rgb(var(--color-success));
+  outline-offset: 4px;
+}
+
+/* Edge focus (keyboard selectable) */
+.react-flow__edge:focus,
+.react-flow__edge.selected {
+  filter: drop-shadow(0 0 8px rgba(var(--color-primary), 0.5));
+}
+
+/* Remove default browser focus styles */
+.unified-flow-editor :focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ========================================
+   KEYBOARD NAVIGATION HINTS
+   ======================================== */
+
+.keyboard-hint {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+}
+
+.unified-flow-editor:focus-within .keyboard-hint {
+  opacity: 1;
+}
+
+.keyboard-hint kbd {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 11px;
+  margin: 0 2px;
+}
+
+/* ========================================
+   SKIP LINKS (WCAG 2.4.1)
+   ======================================== */
+
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: rgb(var(--color-primary));
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 10000;
+  border-radius: 0 0 4px 0;
+  font-weight: 600;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 3px solid white;
+  outline-offset: 2px;
+}
+
+/* ========================================
+   ARIA LIVE REGION (WCAG 4.1.3)
+   ======================================== */
+
+.aria-announcer {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ========================================
+   HIGH CONTRAST MODE (WCAG 1.4.3)
+   ======================================== */
+
+@media (prefers-contrast: high) {
+  .unified-flow-editor {
+    border: 2px solid currentColor;
+  }
+
+  .react-flow__node {
+    border: 2px solid currentColor !important;
+  }
+
+  .react-flow__edge path {
+    stroke-width: 3px !important;
+  }
+
+  button, 
+  input, 
+  select, 
+  textarea {
+    border: 2px solid currentColor !important;
+  }
+}
+
+/* ========================================
+   REDUCED MOTION (WCAG 2.3.3)
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .unified-flow-editor *,
+  .unified-flow-editor *::before,
+  .unified-flow-editor *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep essential transitions for focus indicators */
+  .unified-flow-editor button:focus-visible,
+  .unified-flow-editor [tabindex]:focus-visible {
+    transition: none !important;
+  }
+}
+
+/* ========================================
+   COLOR CONTRAST (WCAG 1.4.3, 1.4.6)
+   ======================================== */
+
+/* Ensure text meets 4.5:1 contrast ratio (AA) */
+.low-contrast-fix {
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface));
+}
+
+/* Error states - 3:1 minimum for UI components */
+.error-state {
+  border: 2px solid rgb(var(--color-error)) !important;
+  background: rgba(var(--color-error), 0.1);
+}
+
+/* Success states */
+.success-state {
+  border: 2px solid rgb(var(--color-success)) !important;
+  background: rgba(var(--color-success), 0.1);
+}
+
+/* Warning states */
+.warning-state {
+  border: 2px solid rgb(var(--color-warning)) !important;
+  background: rgba(var(--color-warning), 0.1);
+}
+
+/* ========================================
+   TOUCH TARGETS (WCAG 2.5.5)
+   ======================================== */
+
+/* Minimum 44x44px touch target for mobile */
+@media (pointer: coarse) {
+  .unified-flow-editor button,
+  .unified-flow-editor [role="button"],
+  .unified-flow-editor .clickable {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px;
+  }
+
+  /* Node handles */
+  .react-flow__handle {
+    width: 16px !important;
+    height: 16px !important;
+    border-width: 3px !important;
+  }
+
+  /* Node drag handles */
+  .node-drag-handle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ========================================
+   TEXT RESIZE (WCAG 1.4.4)
+   ======================================== */
+
+/* Support up to 200% text zoom without breaking layout */
+.unified-flow-editor {
+  /* Use relative units */
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.unified-flow-editor h1 {
+  font-size: 2rem;
+}
+
+.unified-flow-editor h2 {
+  font-size: 1.5rem;
+}
+
+.unified-flow-editor h3 {
+  font-size: 1.25rem;
+}
+
+.unified-flow-editor p,
+.unified-flow-editor label,
+.unified-flow-editor button {
+  font-size: 1rem;
+}
+
+/* Prevent text truncation on zoom */
+.unified-flow-editor * {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* ========================================
+   SCREEN READER UTILITIES
+   ======================================== */
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Focusable when navigated to */
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
+}
+
+/* ========================================
+   LANDMARK REGIONS (WCAG 1.3.1)
+   ======================================== */
+
+.unified-flow-editor [role="region"] {
+  scroll-margin-top: 20px;
+}
+
+/* Toolbar region */
+.unified-flow-editor [role="toolbar"] {
+  background: rgb(var(--color-surface));
+  border-bottom: 1px solid rgb(var(--color-border));
+}
+
+/* Main canvas region */
+.unified-flow-editor [role="main"] {
+  flex: 1;
+  position: relative;
+}
+
+/* Complementary panels */
+.unified-flow-editor [role="complementary"] {
+  background: rgb(var(--color-surface-elevated));
+  border-left: 1px solid rgb(var(--color-border));
+}
+
+/* ========================================
+   HOVER AND POINTER MEDIA QUERIES
+   ======================================== */
+
+/* Only show hover effects on devices with hover capability */
+@media (hover: hover) {
+  .unified-flow-editor button:hover,
+  .unified-flow-editor [role="button"]:hover {
+    background: rgba(var(--color-primary), 0.1);
+  }
+}
+
+/* Increase hit areas for devices without precise pointers */
+@media (pointer: coarse) {
+  .unified-flow-editor [role="button"],
+  .unified-flow-editor button {
+    padding: 12px 16px;
+  }
+}
+
+/* ========================================
+   DARK MODE ADJUSTMENTS (WCAG 1.4.3)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+  /* Ensure sufficient contrast in dark mode */
+  .unified-flow-editor {
+    --focus-ring-color: rgb(147, 197, 253); /* Lighter blue */
+  }
+
+  .unified-flow-editor button:focus-visible,
+  .unified-flow-editor [tabindex]:focus-visible {
+    outline-color: var(--focus-ring-color);
+    box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.3);
+  }
+
+  /* Higher contrast for text */
+  .unified-flow-editor label,
+  .unified-flow-editor .label-text {
+    color: rgb(229, 231, 235); /* gray-200 */
+  }
+}
+
+/* ========================================
+   PRINT ACCESSIBILITY
+   ======================================== */
+
+@media print {
+  /* Skip links not needed in print */
+  .skip-link {
+    display: none;
+  }
+
+  /* Ensure focus indicators don't print */
+  .unified-flow-editor *:focus,
+  .unified-flow-editor *:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* High contrast for printed diagrams */
+  .react-flow__node {
+    border: 2px solid black !important;
+  }
+
+  .react-flow__edge path {
+    stroke: black !important;
+    stroke-width: 2px !important;
+  }
+}

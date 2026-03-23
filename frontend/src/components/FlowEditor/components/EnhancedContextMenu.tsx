@@ -211,7 +211,7 @@ export const EnhancedContextMenu: React.FC<EnhancedContextMenuProps> = React.mem
    */
   const canConvertToSubflow = useMemo(() => {
     // Only certain node types can become subflows
-    const convertibleTypes = ['formProcessGroup', 'formReference'];
+    const convertibleTypes = ['formBook', 'formProcessGroup', 'formReference'];
     return convertibleTypes.includes(node.type || '');
   }, [node.type]);
 

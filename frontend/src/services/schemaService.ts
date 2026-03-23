@@ -7,7 +7,9 @@
  * Created: 2026-02-12
  */
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from './apiService';
+import { logger } from '@/utils/logger';
+
+import { businessApi } from './businessApi';
 
 export interface EntityType {
   id: string;
@@ -47,12 +49,12 @@ export interface EntityFieldsResponse {
  */
 export const getEntityTypes = async (): Promise<EntityType[]> => {
   try {
-    const response = await apiClient.get<{ count: number; results: EntityType[] }>(
+    const response = await businessApi.get<{ count: number; results: EntityType[] }>(
       'system/entities/'
     );
     return response.data.results;
   } catch (error) {
-    console.warn('[SchemaService] API call failed, using hardcoded entities:', error);
+    logger.warn('[SchemaService] API call failed, using hardcoded entities:', error);
     // Return hardcoded entities as fallback
     return COMMON_ENTITY_TYPES;
   }
@@ -64,16 +66,16 @@ export const getEntityTypes = async (): Promise<EntityType[]> => {
  * @param entityId - Entity identifier (e.g., 'tenant_apps.suppliers.supplier')
  */
 export const getEntityFields = async (entityId: string): Promise<EntityField[]> => {
-  console.log('[SchemaService] Fetching fields for entity:', entityId);
+  logger.debug('[SchemaService] Fetching fields for entity:', entityId);
   
   try {
     // CRITICAL FIX: Encode entity ID for URL (handles tenant_apps.* dots correctly)
     const encodedEntityId = encodeURIComponent(entityId);
     const url = `system/entities/${encodedEntityId}/fields/`;
     
-    console.log('[SchemaService] Fetch URL:', url);
+    logger.debug('[SchemaService] Fetch URL:', url);
     
-    const response = await apiClient.get<EntityFieldsResponse>(url);
+    const response = await businessApi.get<EntityFieldsResponse>(url);
     
     // Normalize field data (backend uses field_type/is_required, frontend uses type/required)
     const normalizedFields = (response.data.fields || []).map(field => ({
@@ -82,7 +84,7 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
       required: field.is_required ?? field.required ?? false,
     }));
     
-    console.log('[SchemaService] Fields received:', {
+    logger.debug('[SchemaService] Fields received:', {
       entityId,
       fieldCount: normalizedFields.length,
       fields: normalizedFields.map(f => ({ name: f.name, type: f.type, required: f.required })),
@@ -90,7 +92,7 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
     
     return normalizedFields;
   } catch (error) {
-    console.error('[SchemaService] Failed to fetch fields for entity:', entityId, error);
+    logger.error('[SchemaService] Failed to fetch fields for entity:', entityId, error);
     // Return empty array instead of throwing to prevent UI crashes
     return [];
   }
@@ -102,8 +104,9 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
  * @param entityId - Entity identifier
  */
 export const getEntityDisplayFields = async (entityId: string): Promise<string[]> => {
-  const response = await apiClient.get<{ entity_id: string; display_fields: string[] }>(
-    `system/entities/${entityId}/display-fields/`
+  const encodedEntityId = encodeURIComponent(entityId);
+  const response = await businessApi.get<{ entity_id: string; display_fields: string[] }>(
+    `system/entities/${encodedEntityId}/display-fields/`
   );
   return response.data.display_fields;
 };
@@ -178,7 +181,7 @@ export const useEntityList = () => {
   // React Query's placeholderData only shows during loading, not when query "succeeds" with []
   const data = query.data && query.data.length > 0 ? query.data : COMMON_ENTITY_TYPES;
 
-  console.log('[useEntityList] Hook result:', {
+  logger.debug('[useEntityList] Hook result:', {
     apiReturned: query.data?.length ?? 0,
     usingFallback: data === COMMON_ENTITY_TYPES,
     finalEntityCount: data.length,
@@ -209,9 +212,6 @@ export const useEntityFields = (
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2, // Retry failed requests
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    onError: (error) => {
-      console.error(`Failed to fetch fields for entity "${entityId}":`, error);
-    },
     select: (fields) => ({
       entity_id: entityId!,
       field_count: fields.length,

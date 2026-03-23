@@ -39,11 +39,11 @@ function getRoleLabel(role: string): string {
 
 function getRoleColor(role: string): { bg: string; text: string } {
   const colors: Record<string, { bg: string; text: string }> = {
-    owner: { bg: 'rgba(var(--color-primary), 0.1)', text: 'rgb(var(--color-primary))' },
-    admin: { bg: 'rgba(59, 130, 246, 0.1)', text: 'rgb(59, 130, 246)' },
-    manager: { bg: 'rgba(34, 197, 94, 0.1)', text: 'rgb(34, 197, 94)' },
-    user: { bg: 'rgba(var(--color-text-secondary), 0.1)', text: 'rgb(var(--color-text-secondary))' },
-    readonly: { bg: 'rgba(107, 114, 128, 0.1)', text: 'rgb(107, 114, 128)' },
+    owner: { bg: 'rgba(var(--color-primary), 0.12)', text: 'rgb(var(--color-primary))' },
+    admin: { bg: 'rgba(var(--color-info), 0.12)', text: 'rgb(var(--color-info))' },
+    manager: { bg: 'rgba(var(--color-success), 0.12)', text: 'rgb(var(--color-success))' },
+    user: { bg: 'rgba(var(--color-text-secondary), 0.12)', text: 'rgb(var(--color-text-secondary))' },
+    readonly: { bg: 'rgba(var(--color-text-secondary), 0.12)', text: 'rgb(var(--color-text-secondary))' },
   };
   return colors[role] || colors.user;
 }

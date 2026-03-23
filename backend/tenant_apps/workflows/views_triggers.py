@@ -226,21 +226,11 @@ class WebhookReceiverAPIView(APIView):
                         status=status.HTTP_403_FORBIDDEN
                     )
         
-        # Execute workflow (synchronous for now - TODO: make async with Celery)
-        execution_log = WorkflowExecutionLog.objects.create(
-            workflow=workflow,
-            tenant=workflow.tenant,
-            trigger_data=request.data,
-            status='pending',
-            started_at=timezone.now()
-        )
+        # Execute workflow using execution engine
+        from .services.workflow_executor import execute_workflow
         
         try:
-            # TODO: Execute workflow actions
-            # For now, just mark as completed
-            execution_log.status = 'completed'
-            execution_log.completed_at = timezone.now()
-            execution_log.save(update_fields=['status', 'completed_at'])
+            execution_log = execute_workflow(workflow, request.data)
             
             # Update workflow stats
             workflow.last_run_at = timezone.now()
@@ -312,22 +302,11 @@ class ManualTriggerAPIView(APIView):
                 "workflow_name": workflow.name
             }, status=status.HTTP_200_OK)
         
-        # Execute workflow
-        execution_log = WorkflowExecutionLog.objects.create(
-            workflow=workflow,
-            tenant=workflow.tenant,
-            trigger_data=request.data,
-            triggered_by=request.user,
-            status='pending',
-            started_at=timezone.now()
-        )
+        # Execute workflow using execution engine
+        from .services.workflow_executor import execute_workflow
         
         try:
-            # TODO: Execute workflow actions
-            # For now, just mark as completed
-            execution_log.status = 'completed'
-            execution_log.completed_at = timezone.now()
-            execution_log.save(update_fields=['status', 'completed_at'])
+            execution_log = execute_workflow(workflow, request.data)
             
             # Update workflow stats
             workflow.last_run_at = timezone.now()

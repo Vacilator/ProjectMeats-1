@@ -14,4 +14,6 @@ export { MyTasksWidget } from './MyTasksWidget';
 export { TodaysNumbersWidget } from './TodaysNumbersWidget';
 export { ActionItemsWidget } from './ActionItemsWidget';
 export { CalendarWidget } from './CalendarWidget';
+export { EmailIntegrationWidget } from './EmailIntegrationWidget';
+export { EmailIngestionMonitorWidget } from './EmailIngestionMonitorWidget';
 export type { WidgetConfig, WidgetLayout } from './WidgetGrid';

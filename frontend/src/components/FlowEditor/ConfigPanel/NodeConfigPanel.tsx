@@ -17,14 +17,17 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
+import * as Sentry from '@sentry/react';
 import { X, HelpCircle, Play, Save, AlertCircle, Plus, Trash2, Edit2, Check, GripVertical, Download } from 'lucide-react';
 import { Node, Edge } from '@xyflow/react';
 import { FieldMappingPanel, FieldMapping } from './FieldMappingPanel';
 import { FormProcessConfigPanel } from './FormProcessConfigPanel';
-import axios from 'axios';
+import EntityFieldPicker, { type SelectedField } from './EntityFieldPicker';
 import { listTenantForms, getFormFields } from '../../../services/workformsApi';
+import { COMMON_ENTITY_TYPES } from '../../../services/schemaService';
 import {
-  Panel,
+  Panel as BasePanel,
   PanelHeader,
   PanelTitle,
   PanelContent,
@@ -40,7 +43,6 @@ import {
   EmptyState,
   EmptyIcon,
   EmptyText,
-  Button,
   PrimaryButton,
   SecondaryButton,
 } from './shared/StyledComponents';
@@ -73,6 +75,7 @@ interface FormField {
   required: boolean;
   placeholder?: string;
   defaultValue?: any;
+  options?: string[];
 }
 
 interface ConditionRule {
@@ -194,6 +197,12 @@ const HelpIcon = styled(HelpCircle)`
   &:hover {
     color: rgb(var(--color-text-secondary));
   }
+`;
+
+const SlidingPanel = styled(BasePanel)<{ $isOpen: boolean }>`
+  transform: translateX(${props => props.$isOpen ? '0' : '100%'});
+  opacity: ${props => props.$isOpen ? 1 : 0};
+  pointer-events: ${props => props.$isOpen ? 'auto' : 'none'};
 `;
 
 
@@ -499,6 +508,13 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         })
         .catch(error => {
           console.error('Failed to fetch forms:', error);
+          toast.error('Failed to load forms. Please refresh and try again.', {
+            duration: 4000,
+            icon: '⚠️',
+          });
+          Sentry.captureException(error, {
+            extra: { context: 'NodeConfigPanel.fetchForms', triggerType: formData.triggerType },
+          });
           setAvailableForms([]);
         })
         .finally(() => {
@@ -522,6 +538,13 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         })
         .catch(error => {
           console.error('Failed to fetch form fields:', error);
+          toast.error('Failed to load form fields. Please try selecting the form again.', {
+            duration: 4000,
+            icon: '⚠️',
+          });
+          Sentry.captureException(error, {
+            extra: { context: 'NodeConfigPanel.fetchFormFields', formId },
+          });
           setAvailableFormFields([]);
         })
         .finally(() => {
@@ -718,7 +741,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
           <FormField>
             <Label>
               Node Label <RequiredIndicator>*</RequiredIndicator>
-              <HelpIcon size={14} title="Display name for this node" />
+              <span title="Display name for this node">
+                <HelpIcon size={14} />
+              </span>
             </Label>
             <Input
               value={formData.label || ''}
@@ -775,60 +800,38 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
       <>
         <FormSection>
           <SectionTitle>Entity Configuration</SectionTitle>
-          
+
           <FormField>
             <Label>
-              Entity Type
-              <HelpIcon size={14} title="Select which business object this form creates or updates" />
+              Entity + Fields
+              <span title="Select entity and choose fields (mirrors Django Admin builder)">
+                <HelpIcon size={14} />
+              </span>
             </Label>
-            <Select
-              value={entityType}
-              onChange={(e) => {
-                try {
-                  handleFieldChange('entityType', e.target.value);
-                } catch (error) {
-                  console.error('[NodeConfigPanel] Error changing entity type:', error);
-                }
+
+            <EntityFieldPicker
+              selectedFields={((fields as any[]) || []).map((f: any, idx: number) => ({
+                ...f,
+                fieldId: f.fieldId || f.name || f.id || `${idx}`
+              })) as SelectedField[]}
+              onFieldsChange={(newFields: SelectedField[]) => {
+                handleFieldChange('fields', newFields);
+                handleFieldChange('selectedFields', newFields.map(f => f.name));
               }}
-            >
-              <option value="">Select entity type...</option>
-              <option value="supplier">Supplier</option>
-              <option value="customer">Customer</option>
-              <option value="contact">Contact</option>
-              <option value="carrier">Carrier</option>
-              <option value="product">Product</option>
-              <option value="purchase_order">Purchase Order</option>
-              <option value="sales_order">Sales Order</option>
-              <option value="invoice">Invoice</option>
-              <option value="inquiry">Inquiry</option>
-              <option value="fulfillment">Fulfillment</option>
-            </Select>
+              initialEntityType={(() => {
+                if (!entityType) return '';
+                if (String(entityType).includes('.')) return entityType;
+                const match = COMMON_ENTITY_TYPES.find(e => e.model === entityType || e.id.endsWith(`.${entityType}`));
+                return match?.id || entityType;
+              })()}
+              onEntityTypeChange={(newEntityType) => handleFieldChange('entityType', newEntityType)}
+              multiSelectMode
+            />
+
             <HelpText>
-              Choose the type of record this form will create or modify
+              Selecting an entity loads its schema via BusinessApi (system entity introspection) and lets you pick fields.
             </HelpText>
           </FormField>
-
-          {entityType && (
-            <FormField>
-              <Label>
-                Load Entity Fields
-                <HelpIcon size={14} title="Automatically add fields based on the selected entity schema" />
-              </Label>
-              <Button 
-                $variant="secondary" 
-                onClick={() => {
-                  // Placeholder: In production, fetch from API
-                  alert(`Would fetch fields for entity type: ${entityTypeDisplay}\n\nAPI endpoint: /api/admin/entities/${entityType}/fields/`);
-                }}
-              >
-                <Download size={16} />
-                Load Schema Fields
-              </Button>
-              <HelpText>
-                Import standard fields from the {entityTypeDisplay} entity
-              </HelpText>
-            </FormField>
-          )}
         </FormSection>
 
         <FormSection>
@@ -1542,7 +1545,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   return (
     <>
       <PanelOverlay $isOpen={isOpen} onClick={handleClose} />
-      <Panel $isOpen={isOpen}>
+      <SlidingPanel $isOpen={isOpen}>
         <PanelHeader>
           <HeaderLeft>
             <NodeIcon>⚙️</NodeIcon>
@@ -1589,7 +1592,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             {hasUnsavedChanges && ' *'}
           </Button>
         </PanelFooter>
-      </Panel>
+      </SlidingPanel>
     </>
   );
 };

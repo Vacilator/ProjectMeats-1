@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from PIL import Image
+import json
 import re
 from .models import Tenant, TenantUser, TenantDomain, TenantConfiguration
 
@@ -68,6 +69,7 @@ class TenantSerializer(serializers.ModelSerializer):
             "logo_url": theme_settings.get("logo_url"),
             "primary_color_light": theme_settings.get("primary_color_light"),
             "primary_color_dark": theme_settings.get("primary_color_dark"),
+            "theme_version": theme_settings.get("theme_version"),
         }
 
     def validate_slug(self, value):
@@ -148,22 +150,24 @@ class TenantSerializer(serializers.ModelSerializer):
         return value
     
     def validate_settings(self, value):
-        """
-        Validate settings JSON field, especially theme colors.
-        
-        Checks:
-        - Hex color format (#RRGGBB)
-        - Valid color values
-        
-        Args:
-            value: The settings dictionary
-        
-        Returns:
-            The validated settings dictionary
+        """Validate settings JSON field, especially theme colors.
+
+        Note: When the frontend submits tenant profile updates as multipart/form-data
+        (for logo uploads), JSON fields arrive as strings. Accept JSON strings here
+        and coerce to dict before validating.
         """
         if not value:
             return value
-        
+
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except Exception:
+                raise serializers.ValidationError('Invalid settings JSON')
+
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('Settings must be a JSON object')
+
         # Validate theme colors if present
         theme = value.get('theme', {})
         hex_pattern = re.compile(r'^#[0-9A-Fa-f]{6}$')
@@ -208,6 +212,12 @@ class TenantSerializer(serializers.ModelSerializer):
             logger.info(f"📤 Processing logo upload: {logo_file.name}")
             # Django's FileField handles the file save automatically
             instance.logo = logo_file
+        else:
+            request = self.context.get('request')
+            remove_logo_raw = getattr(request, 'data', {}).get('remove_logo') if request else None
+            if str(remove_logo_raw).lower() in ('1', 'true', 'yes', 'on'):
+                logger.info("🗑️  Removing tenant logo")
+                instance.logo = None
         
         # Handle settings atomically
         settings = validated_data.pop('settings', None)

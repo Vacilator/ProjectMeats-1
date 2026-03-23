@@ -44,19 +44,30 @@ class TenantFormFieldSerializer(serializers.ModelSerializer):
     # Include source step name for display
     auto_populate_source_step_name = serializers.SerializerMethodField()
     
+    # Phase 2.3: Cascading field metadata
+    cascade_parent_field_key = serializers.SerializerMethodField()
+    
     class Meta:
         model = TenantFormField
         fields = [
             'id', 'field_key', 'field_type', 'is_visible', 'is_required', 'order',
-            'custom_label', 'custom_help_text', 'default_value',
+            'custom_label', 'custom_help_text', 'default_value', 'validation_rules',
             'auto_populate_source_step', 'auto_populate_source_field',
-            'auto_populate_mode', 'auto_populate_source_step_name'
+            'auto_populate_mode', 'auto_populate_source_step_name',
+            'cascade_parent_field', 'cascade_filter_key', 'cascade_enabled',
+            'cascade_parent_field_key'
         ]
-        read_only_fields = ['id', 'auto_populate_source_step_name']
+        read_only_fields = ['id', 'auto_populate_source_step_name', 'cascade_parent_field_key']
     
     def get_auto_populate_source_step_name(self, obj):
         if obj.auto_populate_source_step:
             return obj.auto_populate_source_step.step_name or obj.auto_populate_source_step.entity_type
+        return None
+    
+    def get_cascade_parent_field_key(self, obj):
+        """Return parent field's field_key for frontend reference."""
+        if obj.cascade_parent_field:
+            return obj.cascade_parent_field.field_key
         return None
 
 
@@ -319,7 +330,12 @@ class WorkflowExecutionLogSerializer(serializers.ModelSerializer):
             'actions_executed', 'actions_failed', 'error_message',
             'execution_log', 'triggered_by'
         ]
-        read_only_fields = '__all__'
+        read_only_fields = [
+            'id', 'workflow', 'workflow_name', 'trigger_type', 'trigger_data',
+            'status', 'started_at', 'completed_at', 'duration_ms',
+            'actions_executed', 'actions_failed', 'error_message',
+            'execution_log', 'triggered_by'
+        ]
     
     def get_duration_ms(self, obj):
         if obj.completed_at and obj.started_at:
@@ -375,7 +391,11 @@ class FormSubmissionListSerializer(serializers.ModelSerializer):
             'created_by', 'created_by_name', 'progress',
             'created_at', 'updated_at', 'completed_at'
         ]
-        read_only_fields = '__all__'
+        read_only_fields = [
+            'id', 'form', 'form_name', 'form_icon', 'status',
+            'created_by', 'created_by_name', 'progress',
+            'created_at', 'updated_at', 'completed_at'
+        ]
     
     def get_created_by_name(self, obj):
         if obj.created_by:
@@ -667,14 +687,22 @@ class ActionItemSerializer(serializers.Serializer):
     assigned_at = serializers.DateTimeField()
     entity_type = serializers.CharField(required=False)
     entity_id = serializers.UUIDField(required=False)
+    # Optional PO value fields used by the frontend urgency × value sort matrix
+    related_po_value = serializers.FloatField(required=False, allow_null=True)
+    related_po_currency = serializers.CharField(required=False, allow_null=True)
 
 
 class ActionItemCountsSerializer(serializers.Serializer):
-    """Serializer for action item counts."""
+    """
+    Serializer for action item counts.
     
-    total = serializers.IntegerField()
-    overdue = serializers.IntegerField()
-    due_today = serializers.IntegerField()
-    due_this_week = serializers.IntegerField()
-    by_priority = serializers.DictField(child=serializers.IntegerField())
-    by_form = serializers.ListField(child=serializers.DictField())
+    All fields are nullable to handle graceful degradation when
+    database queries fail or tables are empty.
+    """
+    
+    total = serializers.IntegerField(required=False, allow_null=True, default=0)
+    overdue = serializers.IntegerField(required=False, allow_null=True, default=0)
+    due_today = serializers.IntegerField(required=False, allow_null=True, default=0)
+    due_this_week = serializers.IntegerField(required=False, allow_null=True, default=0)
+    by_priority = serializers.DictField(child=serializers.IntegerField(), required=False, allow_null=True, default=dict)
+    by_form = serializers.ListField(child=serializers.DictField(), required=False, allow_null=True, default=list)

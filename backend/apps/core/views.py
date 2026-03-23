@@ -1,13 +1,15 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny
+from rest_framework import status, viewsets
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, action
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework.serializers import ValidationError
 from apps.tenants.models import Tenant, TenantUser
 from apps.core.throttling import AuthRateThrottle
+from apps.core.models import UserFavorite
+from apps.core.serializers import UserFavoriteSerializer
 
 
 @api_view(["POST"])
@@ -325,6 +327,183 @@ class UserPreferencesViewSet(viewsets.ModelViewSet):
 # ==============================================================================
 
 from apps.core.throttling import BurstRateThrottle
+
+
+class RankedSearchView(APIView):
+    """
+    Universal search with intelligent ranking and smart labels.
+    
+    GET /api/v1/search/ranked/?q=query&date_range=7d&entity_types=customer,supplier
+    
+    Query Parameters:
+    - q: Search query string (required)
+    - date_range: Filter by activity date (7d, 30d, 90d, all) [default: all]
+    - entity_types: Comma-separated entity types to search [default: all]
+    - limit: Max results per entity type [default: 10]
+    
+    Features:
+    - 4-factor scoring (recency, relevance, value, activity)
+    - Smart labels ("Last contact: 3 days ago", etc.)
+    - Date range filters
+    - Tenant isolation
+    
+    Created: 2026-02-24 - Cockpit Phase 2A Smart Rankings Integration
+    """
+    
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [BurstRateThrottle]
+    
+    def get(self, request):
+        from apps.core.services import UniversalSearchService
+        from apps.system.services.ranking_service import EntityRanking, EntityLabels
+        
+        if not hasattr(request, 'tenant') or not request.tenant:
+            return Response(
+                {'error': 'Tenant context required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        query = request.query_params.get('q', '').strip()
+        if len(query) < 2:
+            return Response({
+                'query': query,
+                'results': [],
+                'total': 0,
+                'message': 'Query must be at least 2 characters'
+            })
+        
+        # Extract parameters
+        date_range = request.query_params.get('date_range', 'all')
+        entity_types_param = request.query_params.get('entity_types', '')
+        entity_types = [t.strip() for t in entity_types_param.split(',') if t.strip()] if entity_types_param else None
+        limit = min(int(request.query_params.get('limit', 10)), 50)
+        
+        # Validate date range
+        valid_ranges = ['7d', '30d', '90d', 'all']
+        if date_range not in valid_ranges:
+            date_range = 'all'
+        
+        # Use existing UniversalSearchService for base search
+        search_service = UniversalSearchService(tenant=request.tenant)
+        base_results_response = search_service.search(query, limit_per_type=limit, entity_types=entity_types)
+        
+        # Extract results array from response
+        base_results = base_results_response.get('results', [])
+        
+        # Apply date filter if specified
+        if date_range != 'all':
+            days = int(date_range.rstrip('d'))
+            cutoff_date = timezone.now() - timedelta(days=days)
+            base_results = self._filter_by_date(base_results, cutoff_date)
+        
+        # Enhance results with rankings and labels
+        enhanced_results = []
+        for result in base_results:
+            enhanced = self._enhance_result(result, query, request.tenant)
+            enhanced_results.append(enhanced)
+        
+        # Sort by score (descending)
+        enhanced_results.sort(key=lambda x: x.get('score', 0), reverse=True)
+        
+        return Response({
+            'query': query,
+            'results': enhanced_results,
+            'total': len(enhanced_results),
+            'applied_filters': {
+                'date_range': date_range,
+                'entity_types': entity_types or 'all'
+            }
+        })
+    
+    def _filter_by_date(self, results: list, cutoff_date) -> list:
+        """Filter results by last activity date"""
+        filtered = []
+        for result in results:
+            metadata = result.get('metadata', {})
+            last_activity = metadata.get('modified_at') or metadata.get('created_at')
+            
+            if last_activity:
+                # Handle both datetime objects and strings
+                if isinstance(last_activity, str):
+                    try:
+                        from dateutil import parser
+                        last_activity = parser.parse(last_activity)
+                    except:
+                        continue
+                
+                # Make cutoff_date timezone-aware if last_activity is
+                if timezone.is_aware(last_activity) and timezone.is_naive(cutoff_date):
+                    cutoff_date = timezone.make_aware(cutoff_date)
+                
+                if last_activity >= cutoff_date:
+                    filtered.append(result)
+        
+        return filtered
+    
+    def _enhance_result(self, result: dict, query: str, tenant) -> dict:
+        """
+        Enhance a search result with ranking score and smart labels.
+        """
+        from apps.system.services.ranking_service import EntityRanking, EntityLabels
+        
+        entity_type = result['type']
+        entity_id = result['id']
+        entity_name = result.get('title', '')
+        
+        # Get entity object for detailed scoring
+        entity_obj = self._get_entity_object(entity_type, entity_id, tenant)
+        
+        if not entity_obj:
+            # Fallback scoring without entity object
+            score = EntityRanking.score_relevance(query, entity_name)
+            labels = {}
+        else:
+            # Calculate full score
+            score = EntityRanking.calculate_total_score(
+                entity_type=entity_type,
+                entity=entity_obj,
+                query=query
+            )
+            
+            # Generate smart labels
+            labels = EntityLabels.get_labels(entity_type, entity_obj)
+        
+        # Add score and labels to result
+        result['score'] = score
+        result['labels'] = labels
+        
+        return result
+    
+    def _get_entity_object(self, entity_type: str, entity_id: int, tenant):
+        """
+        Fetch the actual entity object for detailed scoring.
+        """
+        try:
+            if entity_type == 'customer':
+                from apps.sales.models import Customer
+                return Customer.objects.filter(tenant=tenant, id=entity_id).first()
+            
+            elif entity_type == 'supplier':
+                from apps.procurement.models import Supplier
+                return Supplier.objects.filter(tenant=tenant, id=entity_id).first()
+            
+            elif entity_type == 'product':
+                from apps.inventory.models import Product
+                return Product.objects.filter(tenant=tenant, id=entity_id).first()
+            
+            elif entity_type == 'sales_order':
+                from apps.sales.models import SalesOrder
+                return SalesOrder.objects.filter(tenant=tenant, id=entity_id).first()
+            
+            elif entity_type == 'purchase_order':
+                from apps.procurement.models import PurchaseOrder
+                return PurchaseOrder.objects.filter(tenant=tenant, id=entity_id).first()
+            
+            return None
+            
+        except Exception as e:
+            print(f"[RankedSearchView] Error fetching {entity_type} {entity_id}: {e}")
+            return None
 
 
 class UniversalSearchView(APIView):
@@ -825,3 +1004,57 @@ class FeatureFlagsView(APIView):
             'user_id': request.user.id,
             'tenant_id': str(request.tenant.id) if hasattr(request, 'tenant') and request.tenant else None
         })
+
+
+
+# ============================================================================
+# Favorites ViewSet
+# ============================================================================
+
+class FavoritesViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing user favorites."""
+    serializer_class = UserFavoriteSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return UserFavorite.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    @action(detail=False, methods=['post'])
+    def toggle(self, request):
+        entity_type = request.data.get('entity_type')
+        entity_id = request.data.get('entity_id')
+        entity_title = request.data.get('entity_title', '')
+        
+        if not entity_type or not entity_id:
+            return Response({'error': 'entity_type and entity_id required'}, status=400)
+        
+        favorite = UserFavorite.objects.filter(
+            user=request.user, entity_type=entity_type, entity_id=entity_id
+        ).first()
+        
+        if favorite:
+            favorite.delete()
+            return Response({'action': 'removed', 'favorite': None})
+        else:
+            favorite = UserFavorite.objects.create(
+                user=request.user, entity_type=entity_type,
+                entity_id=entity_id, entity_title=entity_title
+            )
+            return Response({'action': 'added', 'favorite': UserFavoriteSerializer(favorite).data}, status=201)
+    
+    @action(detail=False, methods=['get'])
+    def check(self, request):
+        entity_type = request.query_params.get('entity_type')
+        entity_id = request.query_params.get('entity_id')
+        
+        if not entity_type or not entity_id:
+            return Response({'error': 'entity_type and entity_id required'}, status=400)
+        
+        is_favorited = UserFavorite.objects.filter(
+            user=request.user, entity_type=entity_type, entity_id=entity_id
+        ).exists()
+        
+        return Response({'is_favorited': is_favorited})

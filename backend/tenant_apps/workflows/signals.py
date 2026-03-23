@@ -55,6 +55,7 @@ def create_step_submissions(sender, instance, created, **kwargs):
             step_submissions.append(
                 FormStepSubmission(
                     submission=instance,
+                    tenant=instance.tenant,
                     step=step,
                     status=StepSubmissionStatus.NOT_STARTED,
                 )
@@ -197,7 +198,7 @@ def trigger_event_workflows(sender, instance, created=False, **kwargs):
         created: True if this is a new record
         **kwargs: Additional signal data
     """
-    from .models import TenantWorkflow, TriggerType
+    from .models import TenantWorkflow, TriggerType, WorkflowStatus
     from .tasks import execute_event_workflow
     
     # Determine entity type from model
@@ -217,7 +218,7 @@ def trigger_event_workflows(sender, instance, created=False, **kwargs):
         workflows = TenantWorkflow.objects.filter(
             tenant=instance.tenant,
             trigger_type=TriggerType.EVENT,
-            is_active=True,
+            status=WorkflowStatus.ACTIVE,
             trigger_config__entity_type=entity_type,
         ).select_related('tenant')
         
@@ -255,7 +256,7 @@ def register_entity_signals():
     from tenant_apps.purchase_orders.models import PurchaseOrder
     from tenant_apps.sales_orders.models import SalesOrder
     from tenant_apps.invoices.models import Invoice
-    from tenant_apps.products.models import Product
+    from tenant_apps.products.models import MasterProduct
     
     entity_models = [
         Supplier,
@@ -263,7 +264,7 @@ def register_entity_signals():
         PurchaseOrder,
         SalesOrder,
         Invoice,
-        Product,
+        MasterProduct,
     ]
     
     for model in entity_models:

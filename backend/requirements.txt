@@ -27,13 +27,13 @@ drf-spectacular==0.29.0
 # Development and Testing
 django-extensions==4.1
 pytest-django==4.12.0
-pytest-cov==7.0.0
+pytest-cov==7.1.0
 factory-boy==3.3.3
 
 # Code Quality
-black==26.1.0
+black==26.3.1
 flake8==7.3.0
-isort==8.0.0
+isort==8.0.1
 pre-commit==4.5.1
 
 # Feature Flags (Wave 0)
@@ -41,7 +41,7 @@ django-flags==5.2.0
 
 # Production (optional for development)
 gunicorn==25.1.0
-whitenoise==6.11.0
+whitenoise==6.12.0
 
 # Utilities
 python-decouple==3.8
@@ -51,9 +51,22 @@ psutil>=5.9.0  # For system health monitoring
 # HTTP requests
 requests>=2.31.0  # For GitHub API integration in bug reports
 
+# OpenAI (Phase 6.5: AI Document Understanding)
+openai>=1.0.0
+
+# Vector DB (Phase 8.0: Swarm Memory)
+pgvector>=0.2.7  # For PostgreSQL vector embeddings (RAG)
+
 # Email (SendGrid Web API)
 sendgrid>=6.11.0
 django-sendgrid-v5>=1.2.3
+
+# OAuth and Social Auth (Email Integrations)
+django-allauth>=0.61.0  # OAuth for Outlook/Microsoft and Gmail/Google
+msal>=1.28.0  # Microsoft Authentication Library for advanced Outlook features
+google-auth>=2.28.0  # Google auth for Gmail API
+google-auth-oauthlib>=1.2.0  # OAuth helpers for Gmail
+google-api-python-client>=2.120.0  # Gmail API client
 
 # PDF Generation
 reportlab>=4.0.0  # For generating PDF quotes and invoices
@@ -61,3 +74,11 @@ reportlab>=4.0.0  # For generating PDF quotes and invoices
 # Asynchronous Task Queue (Phase 5 Part 2)
 celery[redis]>=5.4.0  # Task queue for scheduled workflows and background jobs
 redis>=5.0.0  # Redis as Celery broker and result backend
+django-celery-beat>=2.5.0  # Database-backed periodic task scheduler
+
+# Real-time WebSockets (Phase 7.3)
+channels[daphne]>=4.0.0
+channels-redis>=4.2.0
+
+bleach==6.3.0
+sentry-sdk[django]>=2.0.0  # Error tracking and performance monitoring (Phase 6.4)

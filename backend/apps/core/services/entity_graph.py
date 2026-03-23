@@ -21,104 +21,148 @@ logger = logging.getLogger(__name__)
 
 
 # Entity relationship configuration
+# NOTE: app labels must match Django AppConfig.label (e.g., 'suppliers', not 'tenant_apps.suppliers').
 ENTITY_RELATIONSHIPS = {
     'supplier': {
-        'model': ('tenant_apps.suppliers', 'Supplier'),
+        'model': ('suppliers', 'Supplier'),
         'relationships': {
             'purchase_orders': {
-                'related_model': ('tenant_apps.purchase_orders', 'PurchaseOrder'),
+                'related_model': ('purchase_orders', 'PurchaseOrder'),
                 'field': 'supplier',
                 'reverse': True,
                 'label': 'Purchase Orders',
                 'direction': 'outgoing',
             },
-            'contacts': {
-                'related_model': ('tenant_apps.contacts', 'Contact'),
+            'recent_orders': {
+                # Cockpit UX alias: show supplier order history in a single panel.
+                'related_model': ('purchase_orders', 'PurchaseOrder'),
                 'field': 'supplier',
                 'reverse': True,
+                'label': 'Recent Orders',
+                'direction': 'outgoing',
+                'entity_type': 'purchase_order',
+            },
+            'contacts': {
+                # Contacts are associated via Supplier.contacts M2M in the primary UI,
+                # but we also support legacy Contact.supplier FK.
+                'computed': 'supplier_contacts',
+                'related_model': ('contacts', 'Contact'),
                 'label': 'Contacts',
                 'direction': 'outgoing',
+                'entity_type': 'contact',
             },
             'plants': {
-                'related_model': ('tenant_apps.plants', 'Plant'),
+                'related_model': ('plants', 'Plant'),
                 'field': 'supplier',
                 'reverse': True,
                 'label': 'Plants',
                 'direction': 'outgoing',
             },
-            'products': {
-                'related_model': ('tenant_apps.products', 'Product'),
-                'field': 'supplier',
-                'reverse': True,
-                'label': 'Products',
+            'related_products': {
+                # Products are system-wide; relate via orders instead of a direct FK.
+                'computed': 'supplier_related_products',
+                'related_model': ('system', 'Product'),
+                'label': 'Related Products',
                 'direction': 'outgoing',
             },
         },
     },
     'customer': {
-        'model': ('tenant_apps.customers', 'Customer'),
+        'model': ('customers', 'Customer'),
         'relationships': {
             'sales_orders': {
-                'related_model': ('tenant_apps.sales_orders', 'SalesOrder'),
+                'related_model': ('sales_orders', 'SalesOrder'),
                 'field': 'customer',
                 'reverse': True,
                 'label': 'Sales Orders',
                 'direction': 'outgoing',
             },
-            'contacts': {
-                'related_model': ('tenant_apps.contacts', 'Contact'),
+            'recent_orders': {
+                # Cockpit UX alias: customer "recent orders" are SalesOrders.
+                'related_model': ('sales_orders', 'SalesOrder'),
                 'field': 'customer',
                 'reverse': True,
+                'label': 'Recent Orders',
+                'direction': 'outgoing',
+                'entity_type': 'sales_order',
+            },
+            'contacts': {
+                # Contacts are associated via Customer.contacts M2M in the primary UI,
+                # but we also support legacy Contact.customer FK.
+                'computed': 'customer_contacts',
+                'related_model': ('contacts', 'Contact'),
                 'label': 'Contacts',
                 'direction': 'outgoing',
+                'entity_type': 'contact',
             },
             'invoices': {
-                'related_model': ('tenant_apps.invoices', 'Invoice'),
+                'related_model': ('invoices', 'Invoice'),
                 'field': 'customer',
                 'reverse': True,
                 'label': 'Invoices',
                 'direction': 'outgoing',
             },
+            'related_products': {
+                # Products are system-wide; relate via orders instead of a direct FK.
+                'computed': 'customer_related_products',
+                'related_model': ('system', 'Product'),
+                'label': 'Related Products',
+                'direction': 'outgoing',
+            },
         },
     },
     'purchase_order': {
-        'model': ('tenant_apps.purchase_orders', 'PurchaseOrder'),
+        'model': ('purchase_orders', 'PurchaseOrder'),
         'relationships': {
             'supplier': {
-                'related_model': ('tenant_apps.suppliers', 'Supplier'),
+                'related_model': ('suppliers', 'Supplier'),
                 'field': 'supplier',
                 'reverse': False,
                 'label': 'Supplier',
                 'direction': 'incoming',
             },
-            'line_items': {
-                'related_model': ('tenant_apps.purchase_orders', 'PurchaseOrderLine'),
-                'field': 'purchase_order',
-                'reverse': True,
-                'label': 'Line Items',
+            'product': {
+                'related_model': ('system', 'Product'),
+                'field': 'product',
+                'reverse': False,
+                'label': 'Product',
                 'direction': 'outgoing',
             },
         },
     },
     'sales_order': {
-        'model': ('tenant_apps.sales_orders', 'SalesOrder'),
+        'model': ('sales_orders', 'SalesOrder'),
         'relationships': {
             'customer': {
-                'related_model': ('tenant_apps.customers', 'Customer'),
+                'related_model': ('customers', 'Customer'),
                 'field': 'customer',
                 'reverse': False,
                 'label': 'Customer',
                 'direction': 'incoming',
             },
-            'line_items': {
-                'related_model': ('tenant_apps.sales_orders', 'SalesOrderLine'),
-                'field': 'sales_order',
-                'reverse': True,
-                'label': 'Line Items',
+            'supplier': {
+                'related_model': ('suppliers', 'Supplier'),
+                'field': 'supplier',
+                'reverse': False,
+                'label': 'Supplier',
+                'direction': 'incoming',
+            },
+            'product': {
+                'related_model': ('system', 'Product'),
+                'field': 'product',
+                'reverse': False,
+                'label': 'Product',
                 'direction': 'outgoing',
             },
+            'contact': {
+                'related_model': ('contacts', 'Contact'),
+                'field': 'contact',
+                'reverse': False,
+                'label': 'Contact',
+                'direction': 'incoming',
+            },
             'fulfillments': {
-                'related_model': ('tenant_apps.fulfillments', 'Fulfillment'),
+                'related_model': ('fulfillments', 'Fulfillment'),
                 'field': 'sales_order',
                 'reverse': True,
                 'label': 'Fulfillments',
@@ -127,29 +171,21 @@ ENTITY_RELATIONSHIPS = {
         },
     },
     'product': {
-        'model': ('tenant_apps.products', 'Product'),
-        'relationships': {
-            'supplier': {
-                'related_model': ('tenant_apps.suppliers', 'Supplier'),
-                'field': 'supplier',
-                'reverse': False,
-                'label': 'Supplier',
-                'direction': 'incoming',
-            },
-        },
+        'model': ('system', 'Product'),
+        'relationships': {},
     },
     'contact': {
-        'model': ('tenant_apps.contacts', 'Contact'),
+        'model': ('contacts', 'Contact'),
         'relationships': {
             'supplier': {
-                'related_model': ('tenant_apps.suppliers', 'Supplier'),
+                'related_model': ('suppliers', 'Supplier'),
                 'field': 'supplier',
                 'reverse': False,
                 'label': 'Supplier',
                 'direction': 'incoming',
             },
             'customer': {
-                'related_model': ('tenant_apps.customers', 'Customer'),
+                'related_model': ('customers', 'Customer'),
                 'field': 'customer',
                 'reverse': False,
                 'label': 'Customer',
@@ -158,17 +194,17 @@ ENTITY_RELATIONSHIPS = {
         },
     },
     'invoice': {
-        'model': ('tenant_apps.invoices', 'Invoice'),
+        'model': ('invoices', 'Invoice'),
         'relationships': {
             'customer': {
-                'related_model': ('tenant_apps.customers', 'Customer'),
+                'related_model': ('customers', 'Customer'),
                 'field': 'customer',
                 'reverse': False,
                 'label': 'Customer',
                 'direction': 'incoming',
             },
             'payments': {
-                'related_model': ('tenant_apps.invoices', 'PaymentTransaction'),
+                'related_model': ('invoices', 'PaymentTransaction'),
                 'field': 'invoice',
                 'reverse': True,
                 'label': 'Payments',
@@ -177,26 +213,14 @@ ENTITY_RELATIONSHIPS = {
         },
     },
     'plant': {
-        'model': ('tenant_apps.plants', 'Plant'),
+        'model': ('plants', 'Plant'),
         'relationships': {
             'supplier': {
-                'related_model': ('tenant_apps.suppliers', 'Supplier'),
+                'related_model': ('suppliers', 'Supplier'),
                 'field': 'supplier',
                 'reverse': False,
                 'label': 'Supplier',
                 'direction': 'incoming',
-            },
-        },
-    },
-    'carrier': {
-        'model': ('tenant_apps.carriers', 'Carrier'),
-        'relationships': {
-            'contacts': {
-                'related_model': ('tenant_apps.contacts', 'Contact'),
-                'field': 'carrier',
-                'reverse': True,
-                'label': 'Contacts',
-                'direction': 'outgoing',
             },
         },
     },
@@ -248,20 +272,166 @@ class EntityGraphService:
     def _get_display_name(self, obj, entity_type: str) -> str:
         """Get display name for an entity."""
         # Try common name fields
-        for field in ['name', 'title', 'order_number', 'invoice_number']:
+        for field in ['name', 'title', 'product_code', 'order_number', 'our_sales_order_num', 'invoice_number']:
             if hasattr(obj, field):
                 value = getattr(obj, field)
                 if value:
                     return str(value)
-        
+
         # Special case for contacts
         if entity_type == 'contact':
             first = getattr(obj, 'first_name', '')
             last = getattr(obj, 'last_name', '')
             if first or last:
                 return f"{first} {last}".strip()
-        
+
         return str(obj)
+
+    def _order_queryset_recent_first(self, qs):
+        """Order a queryset by the most reliable "recent" timestamp available."""
+        model = getattr(qs, 'model', None)
+        if not model:
+            return qs
+
+        candidates = [
+            'modified_on',
+            'updated_at',
+            'created_on',
+            'created_at',
+            'date_time_stamp',
+            'date_time_stamp_created',
+        ]
+        field_names = {f.name for f in model._meta.get_fields() if hasattr(f, 'name')}
+        for name in candidates:
+            if name in field_names:
+                return qs.order_by(f'-{name}')
+        return qs
+
+    def _get_computed_relationship_qs(self, computed: str, obj):
+        """Return a queryset for computed relationships.
+
+        Computed relationships are used when there is no direct FK to traverse
+        (e.g., system-wide Product related via tenant orders).
+        """
+        if computed == 'supplier_related_products':
+            return self._get_related_products_for_supplier(obj)
+        if computed == 'customer_related_products':
+            return self._get_related_products_for_customer(obj)
+        if computed == 'supplier_contacts':
+            return self._get_related_contacts_for_supplier(obj)
+        if computed == 'customer_contacts':
+            return self._get_related_contacts_for_customer(obj)
+        logger.warning(f"Unknown computed relationship: {computed}")
+        Product = self._get_model(('system', 'Product'))
+        return Product.objects.none() if Product else []
+
+    def _get_related_products_for_supplier(self, supplier):
+        Product = self._get_model(('system', 'Product'))
+        PurchaseOrder = self._get_model(('purchase_orders', 'PurchaseOrder'))
+        if not Product:
+            return []
+
+        qs = Product.objects.none()
+
+        # 1) Direct M2M association (preferred, matches Supplier UI)
+        try:
+            supplier_products = getattr(supplier, 'products', None)
+            if supplier_products is not None:
+                qs = qs | supplier_products.all()
+        except Exception as e:
+            logger.debug(f"supplier.products M2M lookup failed: {e}")
+
+        # 2) Order-derived association (fallback / extra signal)
+        if PurchaseOrder:
+            try:
+                product_ids = (
+                    PurchaseOrder.objects.filter(tenant=self.tenant, supplier=supplier)
+                    .exclude(product__isnull=True)
+                    .values_list('product_id', flat=True)
+                    .distinct()
+                )
+                qs = qs | Product.objects.filter(id__in=product_ids)
+            except Exception as e:
+                logger.warning(f"Failed to compute supplier related products from orders: {e}")
+
+        return qs.distinct()
+
+    def _get_related_contacts_for_supplier(self, supplier):
+        Contact = self._get_model(('contacts', 'Contact'))
+        if not Contact:
+            return []
+
+        qs = Contact.objects.none()
+
+        # 1) Direct M2M association (preferred, matches Supplier UI)
+        try:
+            supplier_contacts = getattr(supplier, 'contacts', None)
+            if supplier_contacts is not None:
+                qs = qs | supplier_contacts.all()
+        except Exception as e:
+            logger.debug(f"supplier.contacts M2M lookup failed: {e}")
+
+        # 2) Legacy FK association (Contact.supplier)
+        try:
+            qs = qs | Contact.objects.filter(tenant=self.tenant, supplier=supplier)
+        except Exception as e:
+            logger.debug(f"Contact.supplier FK lookup failed: {e}")
+
+        return qs.filter(tenant=self.tenant).distinct()
+
+    def _get_related_contacts_for_customer(self, customer):
+        Contact = self._get_model(('contacts', 'Contact'))
+        if not Contact:
+            return []
+
+        qs = Contact.objects.none()
+
+        # 1) Direct M2M association (preferred, matches Customer UI)
+        try:
+            customer_contacts = getattr(customer, 'contacts', None)
+            if customer_contacts is not None:
+                qs = qs | customer_contacts.all()
+        except Exception as e:
+            logger.debug(f"customer.contacts M2M lookup failed: {e}")
+
+        # 2) Legacy FK association (Contact.customer)
+        try:
+            qs = qs | Contact.objects.filter(tenant=self.tenant, customer=customer)
+        except Exception as e:
+            logger.debug(f"Contact.customer FK lookup failed: {e}")
+
+        return qs.filter(tenant=self.tenant).distinct()
+
+    def _get_related_products_for_customer(self, customer):
+        Product = self._get_model(('system', 'Product'))
+        SalesOrder = self._get_model(('sales_orders', 'SalesOrder'))
+        if not Product:
+            return []
+
+        qs = Product.objects.none()
+
+        # 1) Direct M2M association (preferred, matches Customer UI)
+        try:
+            customer_products = getattr(customer, 'products', None)
+            if customer_products is not None:
+                qs = qs | customer_products.all()
+        except Exception as e:
+            logger.debug(f"customer.products M2M lookup failed: {e}")
+
+        # 2) Order-derived association (fallback / extra signal)
+        if SalesOrder:
+            try:
+                product_ids = (
+                    SalesOrder.objects.filter(tenant=self.tenant, customer=customer)
+                    .exclude(product__isnull=True)
+                    .values_list('product_id', flat=True)
+                    .distinct()
+                )
+                qs = qs | Product.objects.filter(id__in=product_ids)
+            except Exception as e:
+                logger.warning(f"Failed to compute customer related products from orders: {e}")
+
+        return qs.distinct()
     
     def get_entity(self, entity_type: str, entity_id: int) -> Optional[Dict[str, Any]]:
         """
@@ -278,7 +448,10 @@ class EntityGraphService:
             return None
         
         try:
-            obj = Model.objects.filter(tenant=self.tenant, id=entity_id).first()
+            base_qs = Model.objects.all()
+            if hasattr(Model, 'tenant'):
+                base_qs = base_qs.filter(tenant=self.tenant)
+            obj = base_qs.filter(id=entity_id).first()
             if not obj:
                 return None
             
@@ -290,8 +463,8 @@ class EntityGraphService:
                 'name': self._get_display_name(obj, entity_type),
                 'icon': visuals.get('icon', 'File'),
                 'color': visuals.get('color', '#6b7280'),
-                'created_on': getattr(obj, 'created_on', None),
-                'updated_on': getattr(obj, 'updated_on', None),
+                'created_on': getattr(obj, 'created_on', None) or getattr(obj, 'created_at', None),
+                'updated_on': getattr(obj, 'modified_on', None) or getattr(obj, 'updated_at', None),
             }
         except Exception as e:
             logger.error(f"Error getting entity {entity_type}/{entity_id}: {e}")
@@ -317,65 +490,85 @@ class EntityGraphService:
             return []
         
         try:
-            obj = Model.objects.filter(tenant=self.tenant, id=entity_id).first()
+            base_qs = Model.objects.all()
+            if hasattr(Model, 'tenant'):
+                base_qs = base_qs.filter(tenant=self.tenant)
+            obj = base_qs.filter(id=entity_id).first()
             if not obj:
                 return []
             
-            relationships = []
+            relationships: List[Dict[str, Any]] = []
             
             for rel_name, rel_config in config.get('relationships', {}).items():
-                RelatedModel = self._get_model(rel_config['related_model'])
-                if not RelatedModel:
-                    continue
-                
-                # Get related objects
-                if rel_config['reverse']:
-                    # Reverse relationship (e.g., supplier.purchase_orders)
-                    filter_kwargs = {rel_config['field']: obj}
-                    if hasattr(RelatedModel, 'tenant'):
-                        filter_kwargs['tenant'] = self.tenant
-                    related_qs = RelatedModel.objects.filter(**filter_kwargs)
-                else:
-                    # Forward relationship (e.g., purchase_order.supplier)
-                    related_obj = getattr(obj, rel_config['field'], None)
-                    if related_obj:
-                        related_qs = RelatedModel.objects.filter(
-                            tenant=self.tenant, 
-                            id=related_obj.id
+                try:
+                    RelatedModel = (
+                        self._get_model(rel_config.get('related_model')) if rel_config.get('related_model') else None
+                    )
+                    if rel_config.get('computed'):
+                        related_qs = self._get_computed_relationship_qs(rel_config['computed'], obj)
+                        related_type = (
+                            rel_config.get('entity_type')
+                            or ('product' if rel_name == 'related_products' else rel_name.rstrip('s'))
                         )
                     else:
-                        related_qs = RelatedModel.objects.none()
-                
-                count = related_qs.count() if include_counts else None
-                
-                # Get sample items (first 3)
-                samples = []
-                for related_obj in related_qs[:3]:
-                    # Determine related entity type
-                    related_type = rel_name.rstrip('s')  # Simple pluralization
-                    if related_type == 'line_item':
-                        related_type = 'line_item'
-                    elif related_type == 'purchase_order':
-                        related_type = 'purchase_order'
-                    elif related_type == 'sales_order':
-                        related_type = 'sales_order'
-                    
+                        if not RelatedModel:
+                            continue
+                        # Get related objects
+                        if rel_config.get('reverse'):
+                            # Reverse relationship (e.g., supplier.purchase_orders)
+                            filter_kwargs = {rel_config['field']: obj}
+                            if hasattr(RelatedModel, 'tenant'):
+                                filter_kwargs['tenant'] = self.tenant
+                            related_qs = RelatedModel.objects.filter(**filter_kwargs)
+                        else:
+                            # Forward relationship (e.g., purchase_order.supplier)
+                            related_obj = getattr(obj, rel_config['field'], None)
+                            if related_obj:
+                                rel_base_qs = RelatedModel.objects.all()
+                                if hasattr(RelatedModel, 'tenant'):
+                                    rel_base_qs = rel_base_qs.filter(tenant=self.tenant)
+                                related_qs = rel_base_qs.filter(id=related_obj.id)
+                            else:
+                                related_qs = RelatedModel.objects.none()
+                        related_type = rel_config.get('entity_type') or rel_name.rstrip('s')
+
+                    # Prefer "recent-first" ordering when possible.
+                    try:
+                        related_qs = self._order_queryset_recent_first(related_qs)
+                    except Exception:
+                        pass
+
+                    count = related_qs.count() if include_counts else None
+
+                    # Get sample items (first 3)
+                    samples: List[Dict[str, Any]] = []
                     visuals = ENTITY_VISUALS.get(related_type, {})
-                    samples.append({
-                        'id': related_obj.id,
-                        'name': self._get_display_name(related_obj, related_type),
-                        'icon': visuals.get('icon', 'File'),
-                        'color': visuals.get('color', '#6b7280'),
-                    })
-                
-                relationships.append({
-                    'name': rel_name,
-                    'label': rel_config['label'],
-                    'direction': rel_config['direction'],
-                    'count': count,
-                    'samples': samples,
-                    'entity_type': rel_name.rstrip('s'),
-                })
+                    for related_obj in related_qs[:3]:
+                        samples.append(
+                            {
+                                'id': related_obj.id,
+                                'name': self._get_display_name(related_obj, related_type),
+                                'icon': visuals.get('icon', 'File'),
+                                'color': visuals.get('color', '#6b7280'),
+                            }
+                        )
+
+                    relationships.append(
+                        {
+                            'name': rel_name,
+                            'label': rel_config['label'],
+                            'direction': rel_config['direction'],
+                            'count': count,
+                            'samples': samples,
+                            'entity_type': related_type,
+                        }
+                    )
+                except Exception as e:
+                    # Never let a single misconfigured relationship wipe the entire panel.
+                    logger.warning(
+                        f"Error computing relationship '{rel_name}' for {entity_type}/{entity_id}: {e}"
+                    )
+                    continue
             
             return relationships
             
@@ -403,35 +596,51 @@ class EntityGraphService:
             return {'items': [], 'total': 0}
         
         Model = self._get_model(config['model'])
-        RelatedModel = self._get_model(rel_config['related_model'])
-        if not Model or not RelatedModel:
+        RelatedModel = self._get_model(rel_config.get('related_model')) if rel_config.get('related_model') else None
+        if not Model:
             return {'items': [], 'total': 0}
         
         try:
-            obj = Model.objects.filter(tenant=self.tenant, id=entity_id).first()
+            base_qs = Model.objects.all()
+            if hasattr(Model, 'tenant'):
+                base_qs = base_qs.filter(tenant=self.tenant)
+            obj = base_qs.filter(id=entity_id).first()
             if not obj:
                 return {'items': [], 'total': 0}
             
             # Get related queryset
-            if rel_config['reverse']:
-                filter_kwargs = {rel_config['field']: obj}
-                if hasattr(RelatedModel, 'tenant'):
-                    filter_kwargs['tenant'] = self.tenant
-                related_qs = RelatedModel.objects.filter(**filter_kwargs)
+            if rel_config.get('computed'):
+                related_qs = self._get_computed_relationship_qs(rel_config['computed'], obj)
+                related_type = (
+                    rel_config.get('entity_type')
+                    or ('product' if relationship_name == 'related_products' else relationship_name.rstrip('s'))
+                )
             else:
-                related_obj = getattr(obj, rel_config['field'], None)
-                if related_obj:
-                    related_qs = RelatedModel.objects.filter(
-                        tenant=self.tenant, 
-                        id=related_obj.id
-                    )
+                if not RelatedModel:
+                    return {'items': [], 'total': 0}
+                if rel_config.get('reverse'):
+                    filter_kwargs = {rel_config['field']: obj}
+                    if hasattr(RelatedModel, 'tenant'):
+                        filter_kwargs['tenant'] = self.tenant
+                    related_qs = RelatedModel.objects.filter(**filter_kwargs)
                 else:
-                    related_qs = RelatedModel.objects.none()
-            
+                    related_obj = getattr(obj, rel_config['field'], None)
+                    if related_obj:
+                        rel_base_qs = RelatedModel.objects.all()
+                        if hasattr(RelatedModel, 'tenant'):
+                            rel_base_qs = rel_base_qs.filter(tenant=self.tenant)
+                        related_qs = rel_base_qs.filter(id=related_obj.id)
+                    else:
+                        related_qs = RelatedModel.objects.none()
+                related_type = rel_config.get('entity_type') or relationship_name.rstrip('s')
+
+            try:
+                related_qs = self._order_queryset_recent_first(related_qs)
+            except Exception:
+                pass
+
             total = related_qs.count()
-            items = []
-            
-            related_type = relationship_name.rstrip('s')
+            items: List[Dict[str, Any]] = []
             visuals = ENTITY_VISUALS.get(related_type, {})
             
             for related_obj in related_qs[offset:offset + limit]:

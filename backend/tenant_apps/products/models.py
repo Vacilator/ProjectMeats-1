@@ -6,160 +6,61 @@ Master product list and related business logic.
 Implements tenant ForeignKey field for shared-schema multi-tenancy.
 """
 from django.db import models
-from apps.tenants.models import Tenant
-from apps.core.models import (
-    CartonTypeChoices,
-    EdibleInedibleChoices,
-    FreshOrFrozenChoices,
-    NetOrCatchChoices,
-    OriginChoices,
-    PackageTypeChoices,
-    ProteinTypeChoices,
-    TenantAwareModel,
-)
+
+from apps.core.models import ProteinTypeChoices, TenantAwareModel
 
 
-class Product(TenantAwareModel):
-    """Product model for master product list."""
+class MasterProduct(TenantAwareModel):
+    """Tenant-scoped master product definition.
 
-    # Product identification
-    product_code = models.CharField(
-        max_length=50,
-        unique=True,
-        help_text="Unique product code",
-    )
-    description_of_product_item = models.TextField(
-        db_index=True,
-        help_text="Detailed description of the product item",
-    )
+    NOTE:
+    This model intentionally excludes supplier/plant-specific attributes.
+    Supplier-specific variants belong in SupplierAvailableItem.
+    """
 
-    # Product characteristics
-    type_of_protein = models.CharField(
-        max_length=50,
-        choices=ProteinTypeChoices.choices,
-        blank=True,
-        default="",
-        help_text="Type of protein (e.g., Beef, Chicken, Pork)",
-    )
-    fresh_or_frozen = models.CharField(
-        max_length=20,
-        choices=FreshOrFrozenChoices.choices,
-        blank=True,
-        default="",
-        help_text="Product state (Fresh or Frozen)",
-    )
-    package_type = models.CharField(
-        max_length=50,
-        choices=PackageTypeChoices.choices,
-        blank=True,
-        default="",
-        help_text="Package type (e.g., Boxed wax lined, Combo bins)",
-    )
-    net_or_catch = models.CharField(
-        max_length=20,
-        choices=NetOrCatchChoices.choices,
-        blank=True,
-        default="",
-        help_text="Weight type (Net or Catch)",
-    )
-    edible_or_inedible = models.CharField(
-        max_length=50,
-        choices=EdibleInedibleChoices.choices,
-        blank=True,
-        default="",
-        help_text="Edible or inedible product",
-    )
-    tested_product = models.BooleanField(
-        default=False,
-        help_text="Is this a tested product?",
-    )
+    TYPE_CHOICES = [
+        ('whole', 'Whole'),
+        ('flat', 'Flat'),
+        ('point', 'Point'),
+    ]
 
-    # Supplier and sourcing information
-    supplier = models.ForeignKey(
-        "suppliers.Supplier",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="supplied_products",
-        help_text="Primary supplier for this product",
-    )
-    supplier_item_number = models.CharField(
-        max_length=100,
-        blank=True,
-        default="",
-        help_text="Supplier's item number",
-    )
-    plants_available = models.CharField(
-        max_length=200,
-        blank=True,
-        default="",
-        help_text="Plants where product is available (e.g., TX, WI, MI)",
-    )
-    origin = models.CharField(
-        max_length=100,
-        choices=OriginChoices.choices,
-        blank=True,
-        default="",
-        help_text="Product origin (Packer, Boxed Cold Storage)",
-    )
+    TRIM_CHOICES = [
+        ('trimmed', 'Trimmed'),
+        ('not_trimmed', 'Not Trimmed (commodity trimmed)'),
+        ('super_trimmed', 'Super Trimmed (x+)'),
+    ]
 
-    # Packaging details from Excel
-    carton_type = models.CharField(
-        max_length=50,
-        choices=CartonTypeChoices.choices,
-        blank=True,
-        default="",
-        help_text="Type of carton (e.g., Poly-Multiple, Waxed Lined)",
-    )
-    pcs_per_carton = models.CharField(
-        max_length=50,
-        blank=True,
-        default="",
-        help_text="Pieces per carton (e.g., 4/10)",
-    )
-    uom = models.CharField(
-        max_length=10,
-        blank=True,
-        default="",
-        help_text="Unit of measure (LB, KG)",
-    )
+    protein = models.CharField(max_length=50, choices=ProteinTypeChoices.choices)
+    item_name = models.CharField(max_length=100)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    trim = models.CharField(max_length=30, choices=TRIM_CHOICES)
 
-    # Generated/pulled fields from Excel (USDA, NAMP, UB codes)
-    namp = models.CharField(
-        max_length=50,
-        blank=True,
-        default="",
-        help_text="NAMP code",
-    )
-    usda = models.CharField(
-        max_length=50,
-        blank=True,
-        default="",
-        help_text="USDA code (auto-generated/pulled)",
-    )
-    ub = models.CharField(
-        max_length=50,
-        blank=True,
-        default="",
-        help_text="UB code (auto-generated/pulled)",
-    )
+    display_name = models.CharField(max_length=255, editable=False)
+    is_active = models.BooleanField(default=True)
 
-    # Additional details
-    unit_weight = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        blank=True,
-        null=True,
-        help_text="Standard unit weight",
-    )
-    is_active = models.BooleanField(
-        default=True,
-        help_text="Is this product active?",
-    )
     class Meta:
-        ordering = ["product_code"]
-        verbose_name = "Product"
-        verbose_name_plural = "Products"
+        ordering = ['display_name']
+        verbose_name = 'Master Product'
+        verbose_name_plural = 'Master Products'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'protein', 'item_name', 'type', 'trim'],
+                name='unique_master_product_per_tenant',
+            ),
+        ]
+
+    def _build_display_name(self) -> str:
+        protein = (self.protein or '').strip()
+        item_name = (self.item_name or '').strip()
+        type_label = (self.get_type_display() or '').title()
+        trim_label = (self.get_trim_display() or '').title()
+
+        parts = [p for p in [protein, item_name, type_label, trim_label] if p]
+        return ' '.join(parts)[:255]
+
+    def save(self, *args, **kwargs):
+        self.display_name = self._build_display_name()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.product_code} - {self.description_of_product_item[:50]}"
+        return self.display_name

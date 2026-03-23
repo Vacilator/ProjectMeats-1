@@ -14,7 +14,7 @@ import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Table, Input, Button, Modal, Form, Select, message, Tag, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
 
 // ============================================================================
@@ -431,6 +431,14 @@ const Plants: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space>
+          <Button
+            type="link"
+            icon={<AppstoreOutlined />}
+            onClick={() => navigate(`/plants/${record.id}/products`, { state: { plant: record } })}
+            size="small"
+          >
+            Products
+          </Button>
           <Button
             type="link"
             icon={<EditOutlined />}

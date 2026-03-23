@@ -20,7 +20,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
-import axios from 'axios';
+import { adminClient } from '@/services/apiService';
 import {
   useReactTable,
   getCoreRowModel,
@@ -674,7 +674,9 @@ const SortableRow: React.FC<{
             {columnId === 'label' && (
               <Input
                 value={value || ''}
-                onChange={(e) => onUpdate(row.original.id, 'label', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  onUpdate(row.original.id, 'label', e.target.value)
+                }
                 onBlur={() => {
                   // Auto-generate key from label
                   if (value) {
@@ -737,8 +739,11 @@ const SortableRow: React.FC<{
                 ) : (
                   <Input
                     value={Array.isArray(value) ? value.join(', ') : ''}
-                    onChange={(e) => {
-                      const options = e.target.value.split(',').map(o => o.trim()).filter(Boolean);
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const options = e.target.value
+                        .split(',')
+                        .map((o: string) => o.trim())
+                        .filter(Boolean);
                       onUpdate(row.original.id, 'options', options);
                     }}
                     placeholder="Option 1, Option 2, ..."
@@ -753,7 +758,9 @@ const SortableRow: React.FC<{
                   <input
                     type="checkbox"
                     checked={value || false}
-                    onChange={(e) => onUpdate(row.original.id, 'required', e.target.checked)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      onUpdate(row.original.id, 'required', e.target.checked)
+                    }
                     style={{ cursor: 'pointer' }}
                   />
                   <span style={{ fontSize: '0.75rem' }}>Required</span>
@@ -785,7 +792,9 @@ const SortableRow: React.FC<{
                       <input
                         type="checkbox"
                         checked={row.original.unique || false}
-                        onChange={(e) => onUpdate(row.original.id, 'unique', e.target.checked)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          onUpdate(row.original.id, 'unique', e.target.checked)
+                        }
                         style={{ cursor: 'pointer' }}
                       />
                       <span style={{ fontSize: '0.75rem' }}>Unique</span>
@@ -798,7 +807,13 @@ const SortableRow: React.FC<{
                           <ValidationInput
                             type="number"
                             value={row.original.minLength || ''}
-                            onChange={(e) => onUpdate(row.original.id, 'minLength', e.target.value ? parseInt(e.target.value) : undefined)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              onUpdate(
+                                row.original.id,
+                                'minLength',
+                                e.target.value ? parseInt(e.target.value) : undefined
+                              )
+                            }
                             placeholder="No min"
                           />
                         </ValidationRow>
@@ -807,7 +822,13 @@ const SortableRow: React.FC<{
                           <ValidationInput
                             type="number"
                             value={row.original.maxLength || ''}
-                            onChange={(e) => onUpdate(row.original.id, 'maxLength', e.target.value ? parseInt(e.target.value) : undefined)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              onUpdate(
+                                row.original.id,
+                                'maxLength',
+                                e.target.value ? parseInt(e.target.value) : undefined
+                              )
+                            }
                             placeholder="No max"
                           />
                         </ValidationRow>
@@ -816,7 +837,9 @@ const SortableRow: React.FC<{
                           <ValidationInput
                             type="text"
                             value={row.original.pattern || ''}
-                            onChange={(e) => onUpdate(row.original.id, 'pattern', e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              onUpdate(row.original.id, 'pattern', e.target.value)
+                            }
                             placeholder="Regex pattern"
                           />
                         </ValidationRow>
@@ -830,7 +853,13 @@ const SortableRow: React.FC<{
                           <ValidationInput
                             type="number"
                             value={row.original.minValue || ''}
-                            onChange={(e) => onUpdate(row.original.id, 'minValue', e.target.value ? parseInt(e.target.value) : undefined)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              onUpdate(
+                                row.original.id,
+                                'minValue',
+                                e.target.value ? parseInt(e.target.value) : undefined
+                              )
+                            }
                             placeholder="No min"
                           />
                         </ValidationRow>
@@ -839,7 +868,13 @@ const SortableRow: React.FC<{
                           <ValidationInput
                             type="number"
                             value={row.original.maxValue || ''}
-                            onChange={(e) => onUpdate(row.original.id, 'maxValue', e.target.value ? parseInt(e.target.value) : undefined)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              onUpdate(
+                                row.original.id,
+                                'maxValue',
+                                e.target.value ? parseInt(e.target.value) : undefined
+                              )
+                            }
                             placeholder="No max"
                           />
                         </ValidationRow>
@@ -1337,7 +1372,7 @@ const SchemaEditor: React.FC = () => {
                         document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       
       // Save schema to API - backend expects schema_config, not fields
-      const response = await axios.patch(
+      const response = await adminClient.patch(
         `/admin/system-config/api/studio/versions/${blueprintId}/schema/`,
         { 
           schema_config: fields.map((f, index) => ({
@@ -1477,7 +1512,7 @@ const SchemaEditor: React.FC = () => {
           type="text"
           placeholder="🔍 Search fields..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
         />
         
         {selectedFields.size > 0 && (

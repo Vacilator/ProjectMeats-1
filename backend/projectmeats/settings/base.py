@@ -2,13 +2,89 @@
 Base settings for ProjectMeats.
 Common configuration shared across all environments.
 
-Multi-Tenancy Architecture: SHARED SCHEMA ONLY
-==============================================
-ProjectMeats uses a shared-schema multi-tenancy approach:
-- All tenants share the same PostgreSQL schema
-- Tenant isolation is enforced via `tenant_id` foreign keys
-- Custom TenantMiddleware resolves tenant from domain/subdomain/header
-- NO django-tenants schema-based isolation
+================================================================================
+MULTI-TENANCY ARCHITECTURE: SHARED SCHEMA ONLY (ZERO SCHEMA ISOLATION)
+================================================================================
+
+**CRITICAL ARCHITECTURAL DECISION (December 2025):**
+
+ProjectMeats uses a **shared-schema multi-tenancy** approach exclusively:
+
+1. **Single PostgreSQL Schema**
+   - ALL tenants share the SAME PostgreSQL `public` schema
+   - NO separate schemas per tenant
+   - NO schema routing or switching logic
+
+2. **Tenant Isolation Mechanism**
+   - Business models have `tenant` ForeignKey to `apps.tenants.Tenant`
+   - Custom `TenantMiddleware` resolves tenant from request context
+   - ViewSets filter querysets: `queryset.filter(tenant=request.tenant)`
+   - Serializers assign tenant on creation: `serializer.save(tenant=request.tenant)`
+
+3. **Row-Level Security (RLS)**
+   - PostgreSQL RLS policies enforce database-level isolation
+   - Middleware sets `app.current_tenant` session variable before queries
+   - RLS policies use: `current_setting('app.current_tenant')::uuid`
+   - All tenant-aware tables MUST have RLS enabled in migrations
+
+4. **Tenant Resolution Order**
+   - `X-Tenant-ID` header (explicit API selection)
+   - Domain match via `TenantDomain` model lookup
+   - Subdomain matching using `tenant.slug` pattern
+   - Authenticated user's default tenant association
+
+5. **Middleware Stack**
+   The `TenantMiddleware` is positioned EARLY in the middleware chain to ensure
+   `request.tenant` is available for all subsequent processing:
+   
+   ```python
+   MIDDLEWARE = [
+       "corsheaders.middleware.CorsMiddleware",
+       "apps.tenants.middleware.TenantMiddleware",  # ← Sets request.tenant
+       "django.middleware.security.SecurityMiddleware",
+       # ... other middleware
+   ]
+   ```
+
+6. **Why Database-Level Isolation (RLS) Matters**
+   - **Defense in Depth**: Even if application logic fails, database prevents leaks
+   - **Performance**: Query planner optimizes with RLS knowledge
+   - **Audit Trail**: Database logs show RLS policy enforcements
+   - **Compliance**: Required for SOC 2, GDPR, HIPAA multi-tenant architectures
+
+7. **Migration Pattern for RLS**
+   ALL migrations creating tenant-aware tables MUST include:
+   ```python
+   from django.contrib.postgres.operations import RunSQL
+   
+   operations = [
+       migrations.CreateModel(...),
+       RunSQL(
+           sql="ALTER TABLE app_model ENABLE ROW LEVEL SECURITY; "
+               "CREATE POLICY model_tenant_isolation ON app_model "
+               "USING (tenant_id = current_setting('app.current_tenant')::uuid);",
+           reverse_sql="DROP POLICY IF EXISTS model_tenant_isolation ON app_model; "
+                      "ALTER TABLE app_model DISABLE ROW LEVEL SECURITY;"
+       ),
+   ]
+   ```
+
+**⚠️ ABSOLUTE PROHIBITIONS:**
+- ❌ NEVER use or suggest `django-tenants` package
+- ❌ NEVER use schema-based isolation patterns
+- ❌ NEVER use `migrate_schemas`, `migrate --tenant`, or similar commands
+- ❌ NEVER reference `docs/archive/` for current implementation patterns
+
+**✅ REQUIRED PRACTICES:**
+- ✅ ALWAYS use `tenant` ForeignKey on business models
+- ✅ ALWAYS filter by `.filter(tenant=request.tenant)` in ViewSets
+- ✅ ALWAYS use standard `python manage.py migrate` command
+- ✅ ALWAYS include RLS policies in tenant-aware table migrations
+
+**Authority**: This docstring + `docs/architecture/ARCHITECTURE.md`
+**Verification**: `ROW_LEVEL_SECURITY = True` flag (line 78 below)
+
+================================================================================
 """
 
 from pathlib import Path
@@ -24,7 +100,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # for tenant resolution based on domain/subdomain/headers. ALL apps run
 # in a shared PostgreSQL schema with tenant_id foreign keys for isolation.
 
-# Row-level security flag for auditing and future PostgreSQL RLS implementation
+# Row-level security flag for PostgreSQL RLS policy enforcement
 ROW_LEVEL_SECURITY = True
 
 # Common Django apps used across the application
@@ -39,6 +115,7 @@ _DJANGO_CORE_APPS = [
 
 # Third-party apps
 _THIRD_PARTY_APPS = [
+    "channels",  # Phase 7.3: WebSocket foundation (ASGI)
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_simplejwt.token_blacklist",  # JWT token blacklist (Wave S1)
@@ -47,6 +124,7 @@ _THIRD_PARTY_APPS = [
     "django_filters",
     "django_modal_actions",  # Modal dialogs for Django Admin actions
     "flags",  # Feature flags for gradual rollout (v2.0 Wave 0)
+    "django_celery_beat",  # Database-backed periodic task scheduler
 ]
 
 # ProjectMeats apps (all in shared schema with tenant_id isolation)
@@ -54,6 +132,8 @@ _PROJECT_APPS = [
     "apps.core",
     "apps.tenants",  # Tenant management (shared-schema approach)
     "apps.system",   # NEW: Centralized configuration system (v2.0 Wave 1)
+    "apps.email_integration",  # Email OAuth & webhooks (system-level)
+    "apps.integrations",  # Workflow email providers + tenant OAuth token store (ExternalAuthProvider)
     # NOTE: apps.schema_builder DELETED in v2.0 Wave 1 (0 records, superseded by workflows)
     # NOTE: shared_apps.system_config ARCHIVED 2026-02-14 (Phase 2 cleanup, superseded by apps.system)
     # Business apps (all use tenant_id for data isolation)
@@ -96,6 +176,9 @@ MIDDLEWARE = [
     "apps.tenants.middleware.TenantMiddleware",  # Must be after AuthenticationMiddleware to access request.user
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Phase 9: Security Hardening
+    "apps.core.middleware.hardening.SecurityHardeningMiddleware",  # CSP, security headers
+    "apps.core.middleware.hardening.RateLimitMiddleware",  # Rate limiting for auth endpoints
 ]
 
 ROOT_URLCONF = "projectmeats.urls"
@@ -117,6 +200,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "projectmeats.wsgi.application"
+ASGI_APPLICATION = "projectmeats.asgi.application"
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -394,11 +478,168 @@ LOGGING = {
     },
 }
 
-# Cache Configuration
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+# ==============================================================================
+# Cache Configuration (Redis with Fallback)
+# ==============================================================================
+# REDIS_URL format: redis://[:password]@host:port/db
+# If REDIS_URL is not set, falls back to local memory cache (development)
+
+REDIS_URL = os.environ.get("REDIS_URL")
+VALKEY_URL = os.environ.get("VALKEY_URL")
+
+if REDIS_URL:
+    # Redis cache for production (Phases 3, 8: Real-time search, parallelization)
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": 50,
+                    "retry_on_timeout": True,
+                },
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "SOCKET_TIMEOUT": 5,
+            },
+            "KEY_PREFIX": "pm",
+            "TIMEOUT": 300,  # 5 minutes default
+        }
     }
+else:
+    # Local memory cache (development/testing fallback)
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "projectmeats-cache",
+        }
+    }
+
+# ==============================================================================
+# Channels / WebSockets (Phase 7.3)
+# ==============================================================================
+# Use Redis-backed channel layer when available; otherwise fall back to in-memory.
+# IMPORTANT: Channel layer isolation is enforced at the application layer (tenant-scoped
+# groups). Any database access from consumers must still respect RLS.
+
+_CHANNEL_REDIS_URL = REDIS_URL or VALKEY_URL
+if _CHANNEL_REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [_CHANNEL_REDIS_URL],
+                "prefix": "pm",
+            },
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }
+
+# ==============================================================================
+# OpenAI API Configuration
+# ==============================================================================
+# Required for Phase 2: AI-Powered Forms & Workflows
+# - Field suggestions based on context
+# - Natural language query processing
+# - Dynamic workflow generation
+# - Intent recognition
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_ORG_ID = os.environ.get("OPENAI_ORG_ID")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4")
+OPENAI_MAX_TOKENS = int(os.environ.get("OPENAI_MAX_TOKENS", "2000"))
+OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.7"))
+
+# ==============================================================================
+# Sentry Configuration (Error Tracking & APM)
+# ==============================================================================
+# Phase 6.4: Real-time error tracking, performance monitoring, and alerting
+# Required for production observability and incident response
+
+SENTRY_ENABLED = os.environ.get("SENTRY_ENABLED", "").lower() in ("true", "1", "yes")
+SENTRY_DSN = os.environ.get("SENTRY_DSN")
+SENTRY_ENVIRONMENT = os.environ.get("SENTRY_ENVIRONMENT", "development")
+
+if SENTRY_ENABLED and SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    
+    # Determine sample rate based on environment
+    traces_sample_rate = 1.0  # Default for dev/uat
+    if SENTRY_ENVIRONMENT == "production":
+        traces_sample_rate = 0.1  # 10% sampling in production to reduce costs
+    
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(
+                transaction_style="url",  # Group by URL pattern
+                middleware_spans=True,    # Track middleware performance
+                signals_spans=True,       # Track Django signals
+            ),
+        ],
+        environment=SENTRY_ENVIRONMENT,
+        
+        # Performance Monitoring
+        traces_sample_rate=traces_sample_rate,
+        profiles_sample_rate=0.0,  # Disabled until needed (can enable later)
+        
+        # Error Filtering
+        before_send=lambda event, hint: (
+            # Filter out 404 errors to keep signal-to-noise ratio high
+            None if event.get("exception", {}).get("values", [{}])[0]
+                        .get("type") == "Http404" 
+            else event
+        ),
+        
+        # Release Tracking
+        release=os.environ.get("GIT_COMMIT_SHA", "unknown"),  # Set by CI/CD
+        
+        # Additional Options
+        send_default_pii=False,  # Don't send PII by default (GDPR compliance)
+        attach_stacktrace=True,   # Always include stacktraces
+        max_breadcrumbs=50,       # Keep more breadcrumbs for context
+    )
+
+# ==============================================================================
+# Microsoft OAuth Configuration (Phase 5)
+# ==============================================================================
+# Required for Outlook/Microsoft 365 integration
+# - Calendar synchronization
+# - Email integration  
+# - Contact synchronization
+# - SSO (Single Sign-On)
+
+MICROSOFT_CLIENT_ID = os.environ.get("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.environ.get("MICROSOFT_CLIENT_SECRET")
+MICROSOFT_TENANT_ID = os.environ.get("MICROSOFT_TENANT_ID", "common")
+MICROSOFT_REDIRECT_URI = os.environ.get(
+    "MICROSOFT_REDIRECT_URI",
+    "https://dev.meatscentral.com/integrations/microsoft/callback/"
+)
+MICROSOFT_AUTHORITY = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}"
+MICROSOFT_SCOPES = [
+    "User.Read",           # Read user profile
+    "Calendars.ReadWrite", # Read/write calendars
+    "Mail.Read",           # Read email
+    "Mail.Send",           # Send email
+    "Contacts.ReadWrite",  # Read/write contacts
+]
+
+
+def env(key: str, default=None):
+    """Small settings helper for env access (keeps config declarative)."""
+    return os.environ.get(key, default)
+
+
+MICROSOFT_OAUTH = {
+    'CLIENT_ID': env('MICROSOFT_CLIENT_ID'),
+    'REDIRECT_URI': env('MICROSOFT_REDIRECT_URI'),
 }
 
 # ==============================================================================
@@ -479,3 +720,41 @@ FLAGS = {
         {'condition': 'boolean', 'value': False},  # Coming in Wave F4
     ],
 }
+
+# ==============================================================================
+# Celery Configuration (Task Queue & Scheduled Jobs)
+# ==============================================================================
+# Celery is used for:
+# - Email polling (every 5 minutes)
+# - Scheduled workflow execution
+# - Background notifications
+# - AI processing jobs
+# ==============================================================================
+
+# Broker and result backend (Redis)
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+# Task serialization
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+
+# Task execution
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes soft limit
+
+# Task result expiration
+CELERY_RESULT_EXPIRES = 3600  # 1 hour
+
+# Worker configuration
+CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+
+# Beat scheduler (for periodic tasks)
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Timezone for scheduled tasks
+CELERY_TIMEZONE = 'UTC'
+CELERY_ENABLE_UTC = True

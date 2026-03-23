@@ -28,6 +28,7 @@ from apps.system.models import (
     SystemChoiceList,
     SystemChoiceItem,
     SystemFieldSchema,
+    SystemConfiguration,
     TenantConfig,
     Product,
     ProductCategoryChoices,
@@ -700,10 +701,11 @@ class ProductAdmin(admin.ModelAdmin):
     
     def fresh_or_frozen_display(self, obj):
         """Display fresh/frozen with icon."""
+        from django.utils.safestring import mark_safe
         if obj.is_fresh:
-            return format_html('<span style="color: green;">🥬 Fresh</span>')
+            return mark_safe('<span style="color: green;">🥬 Fresh</span>')
         elif obj.is_frozen:
-            return format_html('<span style="color: blue;">❄️ Frozen</span>')
+            return mark_safe('<span style="color: blue;">❄️ Frozen</span>')
         return '—'
     fresh_or_frozen_display.short_description = 'State'
     
@@ -915,10 +917,19 @@ class ConfigAuditLogAdmin(admin.ModelAdmin):
     user_display.short_description = 'User'
 
 
+class SystemConfigurationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'active_openai_model_id', 'updated_at')
+    readonly_fields = ('id', 'updated_at')
+
+    def has_add_permission(self, request):
+        return False  # Singleton row only
+
+
 # Register all models with custom admin site
 admin_site.register(SystemChoiceList, SystemChoiceListAdmin)
 admin_site.register(SystemChoiceItem, SystemChoiceItemAdmin)
 admin_site.register(SystemFieldSchema, SystemFieldSchemaAdmin)
+admin_site.register(SystemConfiguration, SystemConfigurationAdmin)
 admin_site.register(TenantConfig, TenantConfigAdmin)
 admin_site.register(Product, ProductAdmin)
 admin_site.register(TenantProductPreference, TenantProductPreferenceAdmin)

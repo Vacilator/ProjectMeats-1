@@ -156,8 +156,8 @@ def _populate_tenant_business_data(tenant, user, verbosity=1):
         pass
     
     try:
-        from tenant_apps.products.models import Product
-        Product.objects.filter(tenant=tenant).delete()
+        from apps.system.models import TenantProductPreference
+        TenantProductPreference.objects.filter(tenant=tenant).delete()
     except ImportError:
         pass
     
@@ -361,35 +361,41 @@ def _populate_tenant_business_data(tenant, user, verbosity=1):
         if verbosity >= 1:
             print(f"  ⚠️  Customer model not available: {e}")
     
-    # === STEP 7: Create Products (depends on Supplier, Protein) ===
+    # === STEP 7: Link Tenant to System Products (via TenantProductPreference) ===
+    # NEW ARCHITECTURE: Products are system-wide, tenants customize via preferences
     try:
-        from tenant_apps.products.models import Product
+        from apps.system.models import Product, TenantProductPreference
         
-        for i in range(1, 4):
-            product_defaults = {
-                'description_of_product_item': f"Test Product {i} - {tenant.name}",
-                'fresh_or_frozen': 'fresh',
-                'package_type': 'box',
-                'net_or_catch': 'net',
-                'is_active': True
-            }
-            
-            # Assign random Protein if available (type_of_protein is CharField, not FK)
-            if protein_objs:
-                product_defaults['type_of_protein'] = random.choice(['beef', 'pork', 'chicken', 'turkey'])
-            
-            Product.objects.get_or_create(
-                tenant=tenant,
-                product_code=f"PROD-{tenant.slug}-{i}",  # Globally unique
-                defaults=product_defaults
-            )
+        # Get random system products (varied selection per tenant)
+        system_products = list(Product.objects.filter(is_active=True)[:10])
         
-        if verbosity >= 2:
-            print(f"  📦 Created 3 products")
+        if not system_products:
+            if verbosity >= 1:
+                print(f"  ⚠️  No system products found. Run: python manage.py seed_system_products")
+        else:
+            # Create tenant preferences for random 5-7 products
+            num_products = random.randint(5, min(7, len(system_products)))
+            selected_products = random.sample(system_products, num_products)
+            
+            for product in selected_products:
+                # Create tenant preference (allows customization)
+                TenantProductPreference.objects.get_or_create(
+                    tenant=tenant,
+                    product=product,
+                    defaults={
+                        'is_active': True,
+                        'is_favorite': random.choice([True, False]),
+                        'sort_order': random.randint(0, 100),
+                        'preferred_supplier': random.choice(suppliers) if suppliers else None,
+                    }
+                )
+            
+            if verbosity >= 2:
+                print(f"  📦 Linked {num_products} system products to tenant")
             
     except ImportError as e:
         if verbosity >= 1:
-            print(f"  ⚠️  Product model not available: {e}")
+            print(f"  ⚠️  System Product models not available: {e}")
     
     # === STEP 8: Create PurchaseOrders (depends on Supplier, Carrier, Plant, Contact) ===
     try:

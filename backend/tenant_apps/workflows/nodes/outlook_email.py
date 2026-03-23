@@ -5,6 +5,7 @@ This node sends emails using the tenant's connected Microsoft account.
 Supports template variables from workflow context.
 """
 import logging
+import os
 import re
 from typing import Dict, Any, List
 from django.core.validators import validate_email
@@ -30,6 +31,17 @@ class OutlookEmailNode:
     """
     
     NODE_TYPE = 'outlook_email'
+    
+    @classmethod
+    def is_available(cls) -> bool:
+        """
+        Check if this node is available for use.
+        
+        Returns True only if Microsoft OAuth credentials are configured.
+        This prevents the node from appearing in the UI when integration
+        is not set up.
+        """
+        return bool(os.environ.get('MICROSOFT_CLIENT_ID'))
     
     def __init__(self, node_id: str, config: Dict[str, Any]):
         """

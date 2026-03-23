@@ -37,9 +37,9 @@ function getStatusLabel(status: string): string {
 
 function getStatusColor(status: string): { bg: string; text: string } {
   const colors: Record<string, { bg: string; text: string }> = {
-    active: { bg: 'rgba(34, 197, 94, 0.1)', text: 'rgb(34, 197, 94)' },
-    inactive: { bg: 'rgba(107, 114, 128, 0.1)', text: 'rgb(107, 114, 128)' },
-    invited: { bg: 'rgba(234, 179, 8, 0.1)', text: 'rgb(234, 179, 8)' },
+    active: { bg: 'rgba(var(--color-success), 0.12)', text: 'rgb(var(--color-success))' },
+    inactive: { bg: 'rgba(var(--color-text-secondary), 0.12)', text: 'rgb(var(--color-text-secondary))' },
+    invited: { bg: 'rgba(var(--color-warning), 0.12)', text: 'rgb(var(--color-warning))' },
   };
   return colors[status] || colors.active;
 }

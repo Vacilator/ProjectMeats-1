@@ -2,7 +2,8 @@
 
 **Date**: January 10, 2026  
 **Branch**: `fix/searchable-select-and-products`  
-**Status**: ✅ Implementation Complete
+**Status**: ✅ Implementation Complete  
+**PR**: #1861 — https://github.com/Meats-Central/ProjectMeats/pull/1861
 
 ---
 

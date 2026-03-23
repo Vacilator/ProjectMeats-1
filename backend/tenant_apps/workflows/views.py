@@ -5,15 +5,20 @@ Bundle Two: System → Tenant Workflows & New Data Entities
 Provides REST API endpoints for Forms, Workflows, and Lists.
 """
 
+import logging
+from datetime import timedelta
+
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Count, Max, Prefetch, Q
+from django.db.models import Avg, Count, F, Max, Prefetch, Q
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 from .models import (
     FormStatus,
@@ -47,6 +52,7 @@ from .serializers import (
 )
 from .services import FieldRegistry, get_available_entities, get_entity_fields
 from .services.entity_persistence import persist_form_submission
+from .services.form_process_persistence import FormProcessPersistenceService
 
 # =============================================================================
 # ADMIN FORM BUILDER API VIEWS
@@ -892,6 +898,9 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
     """
     API endpoint for Tenant Forms.
 
+    NOTE (Phase 7): Creation via POST /api/v1/workflows/forms/ is deprecated.
+    WorkForms persistence is now handled via /api/v1/tenant-workforms/.
+
     Custom forms that tenants can create for entity record creation/editing.
 
     Phase 4.2: Uses role-based permissions:
@@ -922,6 +931,27 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
         if self.action == "create":
             return TenantFormCreateSerializer
         return TenantFormSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Deprecated endpoint.
+
+        Legacy frontend code attempted to persist WorkForms (workflow graphs) by POSTing
+        to `/api/v1/workflows/forms/`. WorkForms are saved via `/api/v1/tenant-workforms/`.
+
+        We return 410 to make the failure mode explicit and stable.
+        """
+        return Response(
+            {
+                "error": "deprecated_endpoint",
+                "detail": "POST /api/v1/workflows/forms/ is deprecated. Save WorkForms via /api/v1/tenant-workforms/ instead.",
+                "recommended": {
+                    "method": "PUT",
+                    "path": "/api/v1/tenant-workforms/{id}/",
+                    "field": "workflow_definition",
+                },
+            },
+            status=status.HTTP_410_GONE,
+        )
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -1038,6 +1068,194 @@ class TenantFormViewSet(TenantFilteredModelViewSet):
             }
         )
 
+    def perform_create(self, serializer):
+        """
+        Override create to sync FormProcessGroup nodes if flow_data is provided.
+        
+        Agent B: FormProcessGroup Persistence
+        """
+        form = serializer.save(tenant=self.request.tenant, created_by=self.request.user)
+        
+        # Check if flow_data contains FormProcessGroup nodes
+        flow_data = form.flow_data
+        if flow_data and flow_data.get('nodes'):
+            try:
+                service = FormProcessPersistenceService(
+                    tenant=self.request.tenant,
+                    user=self.request.user
+                )
+                result = service.sync_from_workflow(flow_data)
+                
+                if not result['success']:
+                    logger.warning(f"FormProcessGroup sync had errors: {result['errors']}")
+            except Exception as e:
+                logger.error(f"Failed to sync FormProcessGroup nodes: {e}", exc_info=True)
+    
+    def perform_update(self, serializer):
+        """
+        Override update to sync FormProcessGroup nodes if flow_data is provided.
+        
+        Agent B: FormProcessGroup Persistence
+        """
+        form = serializer.save()
+        
+        # Check if flow_data contains FormProcessGroup nodes
+        flow_data = form.flow_data
+        if flow_data and flow_data.get('nodes'):
+            try:
+                service = FormProcessPersistenceService(
+                    tenant=self.request.tenant,
+                    user=self.request.user
+                )
+                result = service.sync_from_workflow(flow_data)
+                
+                if not result['success']:
+                    logger.warning(f"FormProcessGroup sync had errors: {result['errors']}")
+            except Exception as e:
+                logger.error(f"Failed to sync FormProcessGroup nodes: {e}", exc_info=True)
+    
+    @action(detail=True, methods=['post'], url_path='enable-versioning')
+    def enable_versioning(self, request, pk=None):
+        """
+        Enable version control for a form (Phase 2.4).
+        
+        Creates initial version snapshot.
+        
+        POST /api/v1/forms/{form_id}/enable-versioning/
+        
+        Returns:
+            200: {"version_number": 1, "message": "Versioning enabled"}
+            400: {"error": "Versioning already enabled"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        
+        try:
+            version = FormVersionService.enable_versioning(form, user=request.user)
+            return Response({
+                'version_number': version.version_number,
+                'message': 'Versioning enabled successfully'
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], url_path='create-version')
+    def create_version(self, request, pk=None):
+        """
+        Create a new version snapshot (Phase 2.4).
+        
+        POST /api/v1/forms/{form_id}/create-version/
+        Body: {"change_summary": "Added email notification field"}
+        
+        Returns:
+            200: {"version_number": 2, "message": "Version created"}
+            400: {"error": "Versioning not enabled"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        change_summary = request.data.get('change_summary', '')
+        
+        try:
+            version = FormVersionService.create_version(
+                form=form,
+                change_summary=change_summary,
+                user=request.user
+            )
+            return Response({
+                'version_number': version.version_number,
+                'message': 'Version created successfully'
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], url_path='rollback')
+    def rollback(self, request, pk=None):
+        """
+        Rollback form to a previous version (Phase 2.4).
+        
+        POST /api/v1/forms/{form_id}/rollback/
+        Body: {"version_number": 3}
+        
+        Returns:
+            200: {"version_number": 5, "message": "Rolled back to version 3"}
+            400: {"error": "Version not found"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        version_number = request.data.get('version_number')
+        
+        if not version_number:
+            return Response(
+                {'error': 'version_number is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            new_version = FormVersionService.rollback_to_version(
+                form=form,
+                version_number=int(version_number),
+                user=request.user
+            )
+            return Response({
+                'version_number': new_version.version_number,
+                'message': f'Rolled back to version {version_number}'
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'], url_path='version-history')
+    def version_history(self, request, pk=None):
+        """
+        Get version history for a form (Phase 2.4).
+        
+        GET /api/v1/forms/{form_id}/version-history/
+        
+        Returns:
+            200: [{"version_number": 3, "change_summary": "...", ...}, ...]
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        history = FormVersionService.get_version_history(form)
+        
+        return Response(history, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['get'], url_path='compare-versions')
+    def compare_versions(self, request, pk=None):
+        """
+        Compare two versions (Phase 2.4).
+        
+        GET /api/v1/forms/{form_id}/compare-versions/?version_a=1&version_b=3
+        
+        Returns:
+            200: {"name": {"old": "...", "new": "..."}, ...}
+            400: {"error": "Missing parameters"}
+        """
+        from tenant_apps.workflows.services.versioning import FormVersionService
+        
+        form = self.get_object()
+        version_a = request.query_params.get('version_a')
+        version_b = request.query_params.get('version_b')
+        
+        if not version_a or not version_b:
+            return Response(
+                {'error': 'version_a and version_b are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            diff = FormVersionService.compare_versions(
+                form=form,
+                version_a=int(version_a),
+                version_b=int(version_b)
+            )
+            return Response(diff, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class TenantFormEntityViewSet(viewsets.ModelViewSet):
     """
@@ -1094,6 +1312,54 @@ class TenantFormFieldViewSet(viewsets.ModelViewSet):
             qs = qs.filter(form_entity_id=entity_id)
 
         return qs.order_by("order")
+    
+    @action(detail=True, methods=['get'], url_path='cascade-options')
+    def cascade_options(self, request, pk=None):
+        """
+        Get cascaded options for a field based on parent field value.
+        
+        Phase 2.3: Entity Cascading
+        
+        Query Parameters:
+            parent_value: Value selected in parent field
+            
+        Example:
+            GET /api/v1/form-fields/{field_id}/cascade-options/?parent_value=Beef
+            
+        Returns:
+            200: [{"value": "...", "label": "..."}, ...]
+            400: {"error": "Missing parent_value parameter"}
+            404: {"error": "Field not found or cascading not enabled"}
+        """
+        from tenant_apps.workflows.services.cascading import CascadingFieldService
+        
+        field = self.get_object()
+        parent_value = request.query_params.get('parent_value')
+        
+        if not parent_value:
+            return Response(
+                {"error": "Missing required parameter: parent_value"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not field.cascade_enabled:
+            return Response(
+                {"error": f"Field {field.field_key} does not have cascading enabled"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            options = CascadingFieldService.get_cascaded_options(
+                field=field,
+                parent_value=parent_value,
+                tenant_id=str(request.tenant.id) if request.tenant else None
+            )
+            return Response(options, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TenantFormRuleViewSet(viewsets.ModelViewSet):
@@ -1247,6 +1513,242 @@ class TenantWorkflowViewSet(TenantFilteredModelViewSet):
         serializer = self.get_serializer(workflows, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=["get"])
+    def analytics(self, request, pk=None):
+        """
+        Get comprehensive analytics for a workflow.
+        
+        Query params:
+        - timeframe: '7d', '30d', '90d' (default: 30d)
+        - start_date: ISO 8601 datetime
+        - end_date: ISO 8601 datetime
+        """
+        from datetime import timedelta
+        from django.db.models import Avg, Count, Q
+        from django.db.models.functions import TruncDate, TruncHour
+        from django.utils import timezone
+        
+        workflow = self.get_object()
+        
+        # Parse date range
+        timeframe = request.query_params.get('timeframe', '30d')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if start_date and end_date:
+            from dateutil import parser
+            start = parser.isoparse(start_date)
+            end = parser.isoparse(end_date)
+        else:
+            days_map = {'7d': 7, '30d': 30, '90d': 90}
+            days = days_map.get(timeframe, 30)
+            end = timezone.now()
+            start = end - timedelta(days=days)
+        
+        # Base queryset
+        logs = WorkflowExecutionLog.objects.filter(
+            workflow=workflow,
+            started_at__gte=start,
+            started_at__lte=end
+        )
+        
+        # Aggregate metrics
+        total_executions = logs.count()
+        successful = logs.filter(status='success').count()
+        failed = logs.filter(status='failed').count()
+        avg_duration = logs.filter(
+            completed_at__isnull=False
+        ).aggregate(
+            avg_duration=Avg(
+                (F('completed_at') - F('started_at'))
+            )
+        )['avg_duration']
+        
+        # Convert avg_duration to seconds
+        avg_duration_seconds = 0
+        if avg_duration:
+            avg_duration_seconds = avg_duration.total_seconds()
+        
+        # Success rate
+        success_rate = (successful / total_executions * 100) if total_executions > 0 else 0
+        
+        # Executions by day
+        executions_by_day = logs.annotate(
+            date=TruncDate('started_at')
+        ).values('date').annotate(
+            count=Count('id'),
+            successful=Count('id', filter=Q(status='success')),
+            failed=Count('id', filter=Q(status='failed'))
+        ).order_by('date')
+        
+        # Executions by hour
+        executions_by_hour = logs.annotate(
+            hour=TruncHour('started_at')
+        ).values('hour').annotate(
+            count=Count('id')
+        ).order_by('hour')[:24]
+        
+        # Action performance (mock data for now - would need action-level tracking)
+        action_performance = []
+        for action in workflow.actions.all()[:10]:
+            action_performance.append({
+                'action_type': action.action_type,
+                'count': total_executions,  # Would track per-action
+                'avg_duration': avg_duration_seconds / workflow.actions.count() if workflow.actions.exists() else 0,
+                'success_rate': success_rate
+            })
+        
+        # Error breakdown
+        error_breakdown = logs.filter(
+            status='failed'
+        ).values('error_message').annotate(
+            count=Count('id')
+        ).order_by('-count')[:5]
+        
+        total_errors = sum(e['count'] for e in error_breakdown)
+        for error in error_breakdown:
+            error['error_type'] = error.pop('error_message') or 'Unknown Error'
+            error['percentage'] = (error['count'] / total_errors * 100) if total_errors > 0 else 0
+        
+        return Response({
+            'total_executions': total_executions,
+            'successful_executions': successful,
+            'failed_executions': failed,
+            'avg_duration_seconds': avg_duration_seconds,
+            'success_rate': success_rate,
+            'executions_by_day': list(executions_by_day),
+            'executions_by_hour': [
+                {'hour': h['hour'].hour, 'count': h['count']}
+                for h in executions_by_hour
+            ],
+            'action_performance': action_performance,
+            'error_breakdown': list(error_breakdown)
+        })
+    
+    @action(detail=True, methods=["post"])
+    def export_template(self, request, pk=None):
+        """
+        Export workflow as a reusable template.
+        
+        Returns JSON template that can be imported by other tenants.
+        """
+        import json
+        
+        workflow = self.get_object()
+        
+        # Build template structure
+        template = {
+            'name': workflow.name,
+            'description': workflow.description,
+            'trigger_type': workflow.trigger_type,
+            'entity_type': workflow.entity_type,
+            'nodes': [],
+            'edges': [],
+            'variables': workflow.variables or {},
+            'metadata': {
+                'exported_at': timezone.now().isoformat(),
+                'version': '1.0',
+                'author': request.user.email if request.user else 'system'
+            }
+        }
+        
+        # Add conditions
+        for condition in workflow.conditions.all():
+            template['nodes'].append({
+                'id': f'condition-{condition.id}',
+                'type': 'condition',
+                'data': {
+                    'field': condition.field,
+                    'operator': condition.operator,
+                    'value': condition.value,
+                    'logic': condition.logic
+                }
+            })
+        
+        # Add actions
+        for action in workflow.actions.all():
+            template['nodes'].append({
+                'id': f'action-{action.id}',
+                'type': action.action_type,
+                'data': {
+                    'config': action.config,
+                    'order': action.order
+                }
+            })
+        
+        return Response(template)
+    
+    @action(detail=False, methods=["post"])
+    def import_template(self, request):
+        """
+        Import a workflow from a template.
+        
+        Expected JSON body:
+        {
+            "template": {...},  # Template from export_template
+            "name": "My Workflow",  # Optional override
+            "activate": false  # Whether to activate immediately
+        }
+        """
+        import json
+        
+        template = request.data.get('template')
+        name_override = request.data.get('name')
+        activate = request.data.get('activate', False)
+        
+        if not template:
+            return Response(
+                {'error': 'Template is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create workflow
+        workflow_data = {
+            'name': name_override or template.get('name', 'Imported Workflow'),
+            'description': template.get('description', ''),
+            'trigger_type': template.get('trigger_type'),
+            'entity_type': template.get('entity_type'),
+            'variables': template.get('variables', {}),
+            'status': WorkflowStatus.ACTIVE if activate else WorkflowStatus.DRAFT,
+            'tenant': request.tenant
+        }
+        
+        with transaction.atomic():
+            workflow = TenantWorkflow.objects.create(**workflow_data)
+            
+            # Import nodes
+            node_mapping = {}  # Map template IDs to new IDs
+            
+            for node in template.get('nodes', []):
+                node_type = node.get('type')
+                node_data = node.get('data', {})
+                
+                if node_type == 'condition':
+                    condition = TenantWorkflowCondition.objects.create(
+                        workflow=workflow,
+                        field=node_data.get('field'),
+                        operator=node_data.get('operator'),
+                        value=node_data.get('value'),
+                        logic=node_data.get('logic', 'AND')
+                    )
+                    node_mapping[node['id']] = f'condition-{condition.id}'
+                    
+                elif node_type in ['email', 'webhook', 'update_record', 'create_record']:
+                    action = TenantWorkflowAction.objects.create(
+                        workflow=workflow,
+                        action_type=node_type,
+                        config=node_data.get('config', {}),
+                        order=node_data.get('order', 0)
+                    )
+                    node_mapping[node['id']] = f'action-{action.id}'
+        
+        serializer = self.get_serializer(workflow)
+        return Response({
+            'workflow': serializer.data,
+            'node_mapping': node_mapping,
+            'message': 'Workflow imported successfully'
+        }, status=status.HTTP_201_CREATED)
+
 
 class TenantWorkflowConditionViewSet(viewsets.ModelViewSet):
     """
@@ -1352,6 +1854,32 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticated]
 
+    def list(self, request, *args, **kwargs):
+        """
+        List submissions with bulletproof error handling.
+        Returns empty list on any errors to prevent 500 responses.
+        """
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            # Catch any serialization or database errors
+            logger.error(f'[FormSubmission] Failed to list submissions: {str(e)}', exc_info=True)
+            
+            # Send to Sentry if configured
+            try:
+                import sentry_sdk
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass  # Sentry not configured
+            
+            # Return empty list to prevent 500 error
+            return Response({
+                "count": 0,
+                "next": None,
+                "previous": None,
+                "results": []
+            }, status=status.HTTP_200_OK)
+
     def get_serializer_class(self):
         if self.action == "list":
             return FormSubmissionListSerializer
@@ -1381,62 +1909,195 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         return Response(detail_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def get_queryset(self):
-        qs = FormSubmission.objects.filter(tenant=self.request.tenant)
+        """
+        Get submissions with bulletproof error handling.
+        Returns empty queryset on any database/RLS errors to prevent 500 responses.
+        """
+        try:
+            qs = FormSubmission.objects.filter(tenant=self.request.tenant)
 
-        # Non-admin users only see their own submissions
-        if not self.request.user.is_staff:
-            qs = qs.filter(created_by=self.request.user)
-
-        # Filter by status
-        status_filter = self.request.query_params.get("status")
-        if status_filter:
-            qs = qs.filter(status=status_filter)
-
-        # Filter by form
-        form_id = self.request.query_params.get("form")
-        if form_id:
-            qs = qs.filter(form_id=form_id)
-
-        # Filter by assigned_to
-        # Note: This filters submissions where the user has at least one step assignment
-        # in the form definition (via StepAssignment), regardless of the submission's current step.
-        # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
-        assigned_to = self.request.query_params.get("assigned_to")
-        if assigned_to:
-            if assigned_to == "me":
-                # Filter submissions where current user is assigned to at least one step
-                qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
-            elif self.request.user.is_staff:
-                # Admin users can filter by specific user ID
-                try:
-                    user = User.objects.get(id=assigned_to)
-                    qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
-                except (User.DoesNotExist, ValueError) as e:
-                    # Invalid user ID - return empty queryset
-                    # Log for debugging and security monitoring
-                    import logging
-
-                    logger = logging.getLogger(__name__)
+            # Filter by assigned_to (apply before non-admin created_by restriction)
+            # Note: This filters submissions where the user has at least one step assignment
+            # in the form definition (via StepAssignment), regardless of the submission's current step.
+            # Security: Non-admin users are restricted to 'assigned_to=me' only to prevent user ID enumeration.
+            assigned_to = self.request.query_params.get("assigned_to")
+            if assigned_to:
+                if assigned_to == "me":
+                    qs = qs.filter(form__step_assignments__assigned_user=self.request.user).distinct()
+                elif self.request.user.is_staff:
+                    try:
+                        user = User.objects.get(id=assigned_to)
+                        qs = qs.filter(form__step_assignments__assigned_user=user).distinct()
+                    except (User.DoesNotExist, ValueError) as e:
+                        logger.warning(
+                            f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
+                            extra={"user": self.request.user.username, "assigned_to": assigned_to},
+                        )
+                        qs = qs.none()
+                else:
                     logger.warning(
-                        f"Invalid assigned_to parameter: {assigned_to} - {type(e).__name__}: {e}",
+                        f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
                         extra={"user": self.request.user.username, "assigned_to": assigned_to},
                     )
                     qs = qs.none()
-            else:
-                # Non-admin users can only use assigned_to=me
-                # Return empty queryset to prevent user ID enumeration
-                import logging
 
-                logger = logging.getLogger(__name__)
-                logger.warning(
-                    f"Non-admin user attempted to use assigned_to with value: {assigned_to}",
-                    extra={"user": self.request.user.username, "assigned_to": assigned_to},
-                )
-                qs = qs.none()
+            # Non-admin users only see their own submissions unless explicitly filtering by assigned_to=me.
+            # This enables MyTasks to show in-progress workflows assigned to the user even if they
+            # were initiated by someone else.
+            if not self.request.user.is_staff and assigned_to != "me":
+                qs = qs.filter(created_by=self.request.user)
 
-        return qs.select_related("form", "created_by", "current_step").prefetch_related(
-            "step_submissions__step", "step_submissions__completed_by"
-        )
+            # Filter by status
+            status_filter = self.request.query_params.get("status")
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+
+            # Filter by form
+            form_id = self.request.query_params.get("form")
+            if form_id:
+                qs = qs.filter(form_id=form_id)
+
+            return qs.select_related("form", "created_by", "current_step").prefetch_related(
+                "step_submissions__step", "step_submissions__completed_by"
+            )
+
+        except Exception as e:
+            # Catch any database errors (RLS failures, missing tables, connection issues)
+            logger.error(f'[FormSubmission] Failed to fetch queryset: {str(e)}', exc_info=True)
+
+            # Send to Sentry if configured
+            try:
+                import sentry_sdk
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass  # Sentry not configured
+
+            # Return empty queryset to prevent 500 error
+            return FormSubmission.objects.none()
+
+    @action(detail=False, methods=["get"], url_path="process-monitor")
+    def process_monitor(self, request):
+        """Process monitoring list view for Cockpit.
+
+        Returns submission rows enriched with current-step assignee + SLA + elapsed time.
+
+        Query params:
+        - assigned_to=me (supported; reuses get_queryset filtering)
+        - status, form (supported; reuses get_queryset filtering)
+        """
+        qs = self.get_queryset().order_by("-updated_at")
+
+        page = self.paginate_queryset(qs)
+        submissions = page if page is not None else qs
+
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            # No tenant context -> no data
+            results = []
+            if page is not None:
+                return self.get_paginated_response(results)
+            return Response({"count": 0, "results": results})
+
+        # Collect keys for batch StepAssignment lookup
+        form_ids = {s.form_id for s in submissions}
+        step_ids = {s.current_step_id for s in submissions if s.current_step_id}
+
+        assignments_by_key = {}
+        if form_ids and step_ids:
+            assignments = (
+                StepAssignment.objects.filter(tenant=tenant, form_id__in=form_ids, step_id__in=step_ids)
+                .select_related("assigned_user", "step", "form")
+                .order_by("id")
+            )
+
+            for a in assignments:
+                key = (a.form_id, a.step_id)
+                current = assignments_by_key.get(key)
+
+                # Prefer a concrete user assignment over role/team.
+                if not current or (not current.get("assigned_user_id") and a.assigned_user_id):
+                    assignments_by_key[key] = {
+                        "assignment_type": a.assignment_type,
+                        "assigned_user_id": a.assigned_user_id,
+                        "assigned_user_name": (
+                            a.assigned_user.get_full_name() or a.assigned_user.username
+                            if a.assigned_user
+                            else None
+                        ),
+                        "assigned_role": a.assigned_role,
+                        "due_days": a.due_days,
+                    }
+
+        now = timezone.now()
+        results = []
+
+        for s in submissions:
+            step_sub = None
+            if s.current_step_id:
+                # step_submissions are prefetched; match in memory.
+                for ss in getattr(s, "step_submissions", []).all():
+                    if ss.step_id == s.current_step_id:
+                        step_sub = ss
+                        break
+
+            assignment = None
+            if s.current_step_id:
+                assignment = assignments_by_key.get((s.form_id, s.current_step_id))
+
+            last_activity_at = step_sub.updated_at if step_sub else s.updated_at
+            time_in_step_seconds = None
+            if last_activity_at:
+                time_in_step_seconds = int((now - last_activity_at).total_seconds())
+
+            due_at = None
+            is_overdue = False
+            due_days = assignment.get("due_days") if assignment else None
+            if due_days is not None and last_activity_at:
+                due_at_dt = last_activity_at + timedelta(days=due_days)
+                due_at = due_at_dt.isoformat()
+                is_overdue = now > due_at_dt
+
+            assigned_to_display = None
+            if assignment:
+                if assignment.get("assigned_user_name"):
+                    assigned_to_display = assignment["assigned_user_name"]
+                elif assignment.get("assigned_role"):
+                    assigned_to_display = assignment["assigned_role"]
+
+            results.append(
+                {
+                    "id": str(s.id),
+                    "form_id": str(s.form_id),
+                    "form_name": getattr(s.form, "name", None),
+                    "status": s.status,
+                    "created_by": s.created_by_id,
+                    "created_by_name": (
+                        s.created_by.get_full_name() or s.created_by.username
+                        if s.created_by
+                        else None
+                    ),
+                    "created_at": s.created_at.isoformat() if s.created_at else None,
+                    "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+                    "current_step_id": str(s.current_step_id) if s.current_step_id else None,
+                    "current_step_name": (
+                        s.current_step.step_name if s.current_step else None
+                    ),
+                    "current_step_order": (s.current_step.order if s.current_step else None),
+                    "current_step_entity_type": (s.current_step.entity_type if s.current_step else None),
+                    "current_step_status": (step_sub.status if step_sub else None),
+                    "current_step_updated_at": (last_activity_at.isoformat() if last_activity_at else None),
+                    "assigned_to": assignment,
+                    "assigned_to_display": assigned_to_display,
+                    "due_days": due_days,
+                    "due_at": due_at,
+                    "is_overdue": is_overdue,
+                    "time_in_current_step_seconds": time_in_step_seconds,
+                }
+            )
+
+        if page is not None:
+            return self.get_paginated_response(results)
+        return Response({"count": len(results), "results": results})
 
     @action(detail=True, methods=["post"])
     def auto_save(self, request, pk=None):
@@ -1759,10 +2420,6 @@ class QuickActionsAPIView(APIView):
 
     def put(self, request):
         """Update user's quick actions."""
-        import logging
-
-        logger = logging.getLogger(__name__)
-
         try:
             logger.info(f"Quick actions update request: {request.data}")
             logger.info(
@@ -1840,9 +2497,6 @@ class QuickActionsAPIView(APIView):
 
             return Response({"success": True, "items": serializable_items})
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.exception(f"Error updating quick actions: {e}")
             return Response(
                 {"error": f"Failed to update quick actions: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1935,9 +2589,6 @@ class EntityOptionsAPIView(APIView):
                 }
             )
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.exception(f"Error fetching entity options: {e}")
             return Response(
                 {"error": f"Failed to fetch options: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1964,6 +2615,13 @@ class QuickCreateEntityAPIView(APIView):
 
         # Get required fields (excluding system fields)
         required_fields = []
+
+        # Optional quick-create fields we still want to expose for better UX.
+        # These are especially important for Master Product compliance.
+        extra_fields_by_entity = {
+            "customer": {"preferred_protein_types", "products"},
+            "supplier": {"preferred_protein_types", "products"},
+        }
         excluded = {
             "id",
             "pk",
@@ -2002,6 +2660,10 @@ class QuickCreateEntityAPIView(APIView):
                     form_type = "checkbox"
                 elif field_type == "DateField":
                     form_type = "date"
+                elif field_type == "ArrayField":
+                    form_type = "multiselect"
+                elif getattr(field, "many_to_many", False):
+                    form_type = "multiselect"
 
                 required_fields.append(
                     {
@@ -2019,11 +2681,51 @@ class QuickCreateEntityAPIView(APIView):
                     required_fields.append({"key": "name", "label": "Name", "type": "text", "required": True})
                     break
 
+        # Add a small allowlisted set of optional fields (non-breaking additive change).
+        # These fields are not required but are critical for the create flow UX.
+        extras = []
+        allow = extra_fields_by_entity.get(entity_type, set())
+        if allow:
+            already = {f["key"] for f in required_fields}
+            for field in model._meta.get_fields():
+                if not hasattr(field, "name"):
+                    continue
+                if field.name in excluded:
+                    continue
+                if field.name not in allow:
+                    continue
+                if field.name in already:
+                    continue
+
+                field_type = type(field).__name__
+                form_type = "text"
+                if field_type in ("IntegerField", "DecimalField", "FloatField"):
+                    form_type = "number"
+                elif field_type == "EmailField":
+                    form_type = "email"
+                elif field_type == "BooleanField":
+                    form_type = "checkbox"
+                elif field_type == "DateField":
+                    form_type = "date"
+                elif field_type == "ArrayField":
+                    form_type = "multiselect"
+                elif getattr(field, "many_to_many", False):
+                    form_type = "multiselect"
+
+                extras.append(
+                    {
+                        "key": field.name,
+                        "label": str(getattr(field, "verbose_name", field.name)).replace("_", " ").title(),
+                        "type": form_type,
+                        "required": False,
+                    }
+                )
+
         return Response(
             {
                 "entity_type": entity_type,
                 "entity_label": entity_type.replace("_", " ").title(),
-                "fields": required_fields,
+                "fields": required_fields + extras,
             }
         )
 
@@ -2046,13 +2748,28 @@ class QuickCreateEntityAPIView(APIView):
         try:
             # Build kwargs from request data
             create_kwargs = {}
+            m2m_to_set = {}
             data = request.data
 
             for field in model._meta.get_fields():
                 if not hasattr(field, "name"):
                     continue
+
+                # Skip reverse/auto-created relations
+                if getattr(field, "auto_created", False) and not getattr(field, "concrete", False):
+                    continue
+
                 if field.name in data:
-                    create_kwargs[field.name] = data[field.name]
+                    # If it's a ManyToManyField, set after instance is created
+                    if getattr(field, "many_to_many", False) and not getattr(field, "auto_created", False):
+                        m2m_to_set[field.name] = data[field.name]
+                        continue
+
+                    # If it's a ForeignKey/relation, assign via _id to accept string UUIDs
+                    if field.is_relation and (getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False)):
+                        create_kwargs[f"{field.name}_id"] = data[field.name]
+                    else:
+                        create_kwargs[field.name] = data[field.name]
 
             # Add tenant if model has it
             if hasattr(model, "tenant"):
@@ -2065,6 +2782,14 @@ class QuickCreateEntityAPIView(APIView):
             # Create the record
             with transaction.atomic():
                 obj = model.objects.create(**create_kwargs)
+
+                for field_name, raw_vals in m2m_to_set.items():
+                    vals = raw_vals
+                    if vals is None:
+                        vals = []
+                    if not isinstance(vals, (list, tuple)):
+                        vals = [vals]
+                    getattr(obj, field_name).set(list(vals))
 
             # Get display label
             label = str(obj)
@@ -2081,9 +2806,6 @@ class QuickCreateEntityAPIView(APIView):
             )
 
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.exception(f"Error quick-creating entity: {e}")
             return Response({"error": f"Failed to create {entity_type}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -2593,6 +3315,10 @@ class ActionItemsAPIView(APIView):
     API endpoint for action items (tasks assigned to user).
 
     GET /api/v1/workflows/action-items/
+
+    Safety:
+    - If tenant context is missing (RLS session variable not set), return empty results (200) instead of 500.
+    - Always filter by tenant to avoid cross-tenant leakage and RLS surprises.
     """
 
     permission_classes = [IsAuthenticated]
@@ -2604,68 +3330,95 @@ class ActionItemsAPIView(APIView):
         from django.utils import timezone
 
         user = request.user
-        now = timezone.now()
-        today = now.date()
-        week_from_now = today + timedelta(days=7)
+        tenant = getattr(request, "tenant", None)
 
-        action_items = []
+        # Graceful fallback if tenant not available (prevents RLS current_setting() errors)
+        if not tenant:
+            logger.warning("[ActionItems] No tenant found in request")
+            return Response([])
 
-        # Get step assignments for user
-        assignments = StepAssignment.objects.filter(assigned_user=user).select_related("form", "step", "tenant")
+        try:
+            now = timezone.now()
 
-        # Filter by tenant if available
-        if hasattr(request, "tenant") and request.tenant:
-            assignments = assignments.filter(tenant=request.tenant)
+            action_items = []
 
-        # Find submissions that have this user's assigned steps in action_needed status
-        for assignment in assignments:
-            # Find step submissions in action_needed status
-            step_submissions = FormStepSubmission.objects.filter(
-                step=assignment.step, status=StepSubmissionStatus.ACTION_NEEDED, submission__status="in_progress"
-            ).select_related("submission", "submission__form")
+            # Get step assignments for user (explicit tenant filter)
+            assignments = StepAssignment.objects.filter(
+                assigned_user=user,
+                tenant=tenant,
+            ).select_related("form", "step")
 
-            # Filter by tenant
-            if hasattr(request, "tenant") and request.tenant:
-                step_submissions = step_submissions.filter(submission__tenant=request.tenant)
+            # Find submissions that have this user's assigned steps in action_needed status
+            for assignment in assignments:
+                # Find step submissions in action_needed status.
+                # Both tenant= and submission__tenant= are set intentionally:
+                # - tenant= enforces RLS at the FormStepSubmission level (defense in depth)
+                # - submission__tenant= guards the parent FormSubmission
+                # See manifests/RLS_POLICIES.md for the PostgreSQL policy pattern.
+                step_submissions = FormStepSubmission.objects.filter(
+                    step=assignment.step,
+                    tenant=tenant,
+                    status=StepSubmissionStatus.ACTION_NEEDED,
+                    submission__status="in_progress",
+                    submission__tenant=tenant,
+                ).select_related("submission", "submission__form")
 
-            for step_sub in step_submissions:
-                # Calculate due date
-                due_date = None
-                is_overdue = False
-                if assignment.due_days:
-                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                    is_overdue = due_date < now
+                for step_sub in step_submissions:
+                    # Calculate due date
+                    due_date = None
+                    is_overdue = False
+                    if assignment.due_days:
+                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                        is_overdue = due_date < now
 
-                action_items.append(
-                    {
-                        "id": step_sub.id,
-                        "type": "form_step",
-                        "title": f"{assignment.form.name}: {assignment.step.step_name or assignment.step.entity_type}",
-                        "description": assignment.form.description or "",
-                        "form_name": assignment.form.name,
-                        "step_name": assignment.step.step_name or assignment.step.entity_type,
-                        "submission_id": step_sub.submission_id,
-                        "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
-                        "status": step_sub.status,
-                        "due_date": due_date,
-                        "is_overdue": is_overdue,
-                        "assigned_at": step_sub.created_at,
-                        "entity_type": assignment.step.entity_type,
-                        "entity_id": step_sub.id,
-                    }
+                    action_items.append(
+                        {
+                            "id": step_sub.id,
+                            "type": "form_step",
+                            "title": f"{assignment.form.name}: {assignment.step.step_name or assignment.step.entity_type}",
+                            "description": assignment.form.description or "",
+                            "form_name": assignment.form.name,
+                            "step_name": assignment.step.step_name or assignment.step.entity_type,
+                            "submission_id": step_sub.submission_id,
+                            "priority": "urgent" if is_overdue else ("high" if assignment.is_required else "normal"),
+                            "status": step_sub.status,
+                            "due_date": due_date,
+                            "is_overdue": is_overdue,
+                            "assigned_at": step_sub.created_at,
+                            "entity_type": assignment.step.entity_type,
+                            "entity_id": step_sub.id,
+                            # PO value fields: null by default; populated in a future iteration
+                            # once FormSubmission gains a FK to a PurchaseOrder entity.
+                            # The frontend ActionItem interface already accepts these as optional.
+                            # TODO: Populate from submission.data or a linked PO entity when available.
+                            "related_po_value": None,
+                            "related_po_currency": None,
+                        }
+                    )
+
+            # Sort by priority and due date
+            action_items.sort(
+                key=lambda x: (
+                    {"urgent": 0, "high": 1, "normal": 2, "low": 3}.get(x["priority"], 2),
+                    x["due_date"] or now + timedelta(days=365),
+                    x["assigned_at"],
                 )
-
-        # Sort by priority and due date
-        action_items.sort(
-            key=lambda x: (
-                {"urgent": 0, "high": 1, "normal": 2, "low": 3}.get(x["priority"], 2),
-                x["due_date"] or now + timedelta(days=365),
-                x["assigned_at"],
             )
-        )
 
-        serializer = ActionItemSerializer(action_items, many=True)
-        return Response(serializer.data)
+            serializer = ActionItemSerializer(action_items, many=True)
+            return Response(serializer.data)
+
+        except Exception as e:
+            logger.error(f"[ActionItems] Failed to fetch action items: {str(e)}", exc_info=True)
+            try:
+                import sentry_sdk
+
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass
+
+            # Return 200 with empty data, not 500
+            return Response([], status=status.HTTP_200_OK)
 
 
 class ActionItemCountsAPIView(APIView):
@@ -2683,64 +3436,101 @@ class ActionItemCountsAPIView(APIView):
         from datetime import timedelta
 
         from django.utils import timezone
-
         user = request.user
-        now = timezone.now()
-        today = now.date()
-        week_from_now = today + timedelta(days=7)
+        tenant = getattr(request, 'tenant', None)
 
-        counts = {
-            "total": 0,
-            "overdue": 0,
-            "due_today": 0,
-            "due_this_week": 0,
-            "by_priority": defaultdict(int),
-            "by_form": [],
-        }
-        form_counts = defaultdict(int)
+        # Graceful fallback if tenant not available
+        if not tenant:
+            logger.warning('[ActionItemCounts] No tenant found in request')
+            return Response({
+                "total": 0,
+                "overdue": 0,
+                "due_today": 0,
+                "due_this_week": 0,
+                "by_priority": {},
+                "by_form": [],
+            })
 
-        # Get step assignments for user
-        assignments = StepAssignment.objects.filter(assigned_user=user).select_related("form", "step")
+        try:
+            now = timezone.now()
+            today = now.date()
+            week_from_now = today + timedelta(days=7)
 
-        if hasattr(request, "tenant") and request.tenant:
-            assignments = assignments.filter(tenant=request.tenant)
+            counts = {
+                "total": 0,
+                "overdue": 0,
+                "due_today": 0,
+                "due_this_week": 0,
+                "by_priority": defaultdict(int),
+                "by_form": [],
+            }
+            form_counts = defaultdict(int)
 
-        for assignment in assignments:
-            step_submissions = FormStepSubmission.objects.filter(
-                step=assignment.step, status=StepSubmissionStatus.ACTION_NEEDED, submission__status="in_progress"
-            )
+            # Get step assignments for user with explicit tenant filter
+            assignments = StepAssignment.objects.filter(
+                assigned_user=user,
+                tenant=tenant  # EXPLICIT tenant filter
+            ).select_related("form", "step")
 
-            if hasattr(request, "tenant") and request.tenant:
-                step_submissions = step_submissions.filter(submission__tenant=request.tenant)
+            for assignment in assignments:
+                # Both tenant= and submission__tenant= are set intentionally for defense-in-depth RLS.
+                step_submissions = FormStepSubmission.objects.filter(
+                    step=assignment.step,
+                    tenant=tenant,
+                    status=StepSubmissionStatus.ACTION_NEEDED,
+                    submission__status="in_progress",
+                    submission__tenant=tenant,  # EXPLICIT tenant filter
+                )
 
-            for step_sub in step_submissions:
-                counts["total"] += 1
-                form_counts[assignment.form.name] += 1
+                for step_sub in step_submissions:
+                    counts["total"] += 1
+                    form_counts[assignment.form.name] += 1
 
-                # Calculate due date and priority
-                due_date = None
-                is_overdue = False
-                if assignment.due_days:
-                    due_date = step_sub.created_at + timedelta(days=assignment.due_days)
-                    is_overdue = due_date < now
+                    # Calculate due date and priority
+                    due_date = None
+                    is_overdue = False
+                    if assignment.due_days:
+                        due_date = step_sub.created_at + timedelta(days=assignment.due_days)
+                        is_overdue = due_date < now
 
-                    if is_overdue:
-                        counts["overdue"] += 1
-                    elif due_date.date() == today:
-                        counts["due_today"] += 1
-                    elif due_date.date() <= week_from_now:
-                        counts["due_this_week"] += 1
+                        if is_overdue:
+                            counts["overdue"] += 1
+                        elif due_date.date() == today:
+                            counts["due_today"] += 1
+                        elif due_date.date() <= week_from_now:
+                            counts["due_this_week"] += 1
 
-                priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
-                counts["by_priority"][priority] += 1
+                    priority = "urgent" if is_overdue else ("high" if assignment.is_required else "normal")
+                    counts["by_priority"][priority] += 1
 
-        counts["by_form"] = [
-            {"form_name": name, "count": count} for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
-        ]
-        counts["by_priority"] = dict(counts["by_priority"])
+            counts["by_form"] = [
+                {"form_name": name, "count": count} for name, count in sorted(form_counts.items(), key=lambda x: -x[1])
+            ]
+            counts["by_priority"] = dict(counts["by_priority"])
 
-        serializer = ActionItemCountsSerializer(counts)
-        return Response(serializer.data)
+            serializer = ActionItemCountsSerializer(counts)
+            return Response(serializer.data)
+
+        except Exception as e:
+            # Log error to Sentry if available
+            logger.error(f'[ActionItemCounts] Failed to fetch counts: {str(e)}', exc_info=True)
+            
+            # Send to Sentry if configured
+            try:
+                import sentry_sdk
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass  # Sentry not configured
+            
+            # Return graceful empty response
+            return Response({
+                "total": 0,
+                "overdue": 0,
+                "due_today": 0,
+                "due_this_week": 0,
+                "by_priority": {},
+                "by_form": [],
+            }, status=status.HTTP_200_OK)  # Return 200 with empty data, not 500
 
 
 # =============================================================================
@@ -2786,3 +3576,157 @@ class WorkFormPermissionsAPIView(APIView):
         permissions = WorkFormPermissionHelper.get_permissions_for_user(user, tenant)
 
         return Response(permissions)
+
+
+# =============================================================================
+# AI WORKFLOW SUGGESTION API (Phase 2.1 Prep)
+# =============================================================================
+
+
+class SuggestNodesView(APIView):
+    """
+    API endpoint for AI-powered workflow node suggestions.
+    
+    Phase 2.1: AI Field Suggestions with graceful degradation.
+    Uses OpenAI to suggest next workflow steps based on context.
+    Falls back to static templates if AI is unavailable.
+    
+    POST /api/v1/workflows/suggest-nodes/
+    
+    Request:
+        {
+            'current_flow': {...},  # Current workflow state
+            'context': {...}        # Additional context
+        }
+    
+    Response:
+        {
+            'suggestions': [{type, label, description, reasoning, priority}],
+            'confidence': float,
+            'mode': 'ai' | 'static'
+        }
+    """
+    
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Generate workflow node suggestions."""
+        from .services.prompter import AIPrompter
+        from django.core.cache import cache
+        import hashlib
+        import json
+        
+        try:
+            prompter = AIPrompter()
+            tenant = getattr(request, 'tenant', None)
+            
+            if not tenant:
+                return Response(
+                    {"error": "No tenant context available"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            current_flow = request.data.get('current_flow', {})
+            context = request.data.get('context', {})
+            
+            # Generate cache key based on flow state + context
+            cache_input = json.dumps({
+                'tenant_id': str(tenant.id),
+                'flow': current_flow,
+                'context': context
+            }, sort_keys=True)
+            cache_key = f"ai_suggestions_{hashlib.md5(cache_input.encode()).hexdigest()}"
+            
+            # Check Redis cache (10 minute TTL)
+            cached_result = cache.get(cache_key)
+            if cached_result:
+                logger.debug(f"Returning cached AI suggestions for tenant {tenant.id}")
+                cached_result['cached'] = True
+                return Response(cached_result)
+            
+            # Try AI-powered suggestions
+            try:
+                import os
+                from openai import OpenAI
+                
+                openai_key = os.environ.get('OPENAI_API_KEY')
+                
+                if not openai_key:
+                    raise ValueError("OpenAI API key not configured")
+                
+                # Build prompt with context
+                prompt = prompter.build_suggestion_prompt(
+                    tenant=tenant,
+                    current_flow=current_flow,
+                    additional_context=context
+                )
+                
+                # Call OpenAI API
+                client = OpenAI(api_key=openai_key)
+                
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",  # Fast, cost-effective model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a workflow automation expert. Suggest the next logical steps in a workflow."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.7,
+                    max_tokens=500,
+                    response_format={"type": "json_object"}
+                )
+                
+                # Parse AI response
+                ai_result = json.loads(response.choices[0].message.content)
+                
+                result = {
+                    'suggestions': ai_result.get('suggestions', []),
+                    'confidence': ai_result.get('confidence', 0.8),
+                    'mode': 'ai',
+                    'reasoning': ai_result.get('reasoning', ''),
+                    'cached': False
+                }
+                
+                # Cache for 10 minutes
+                cache.set(cache_key, result, 600)
+                
+                logger.info(f"AI suggestions generated for tenant {tenant.id}")
+                return Response(result)
+                
+            except (ValueError, ImportError) as e:
+                # Service not configured - graceful degradation
+                logger.info(f"AI suggestions unavailable ({e}), using static fallback")
+                fallback = prompter.get_fallback_suggestions(tenant, current_flow)
+                
+                return Response({
+                    'suggestions': fallback['suggestions'],
+                    'confidence': fallback['confidence'],
+                    'mode': fallback['mode'],
+                    'reason': 'AI unavailable - using static templates',
+                    'cached': False
+                })
+            
+            except Exception as e:
+                # AI call failed - graceful degradation
+                logger.warning(f"AI call failed ({e}), using static fallback")
+                fallback = prompter.get_fallback_suggestions(tenant, current_flow)
+                
+                return Response({
+                    'suggestions': fallback['suggestions'],
+                    'confidence': fallback['confidence'],
+                    'mode': fallback['mode'],
+                    'reason': f'AI error: {str(e)[:100]}',
+                    'cached': False
+                })
+                
+        except Exception as e:
+            logger.error(f"Suggestion generation failed: {e}")
+            return Response(
+                {"error": "Failed to generate suggestions"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

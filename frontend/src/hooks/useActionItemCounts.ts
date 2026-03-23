@@ -62,12 +62,13 @@ export function useActionItemCounts(
   const [counts, setCounts] = useState<ActionItemCounts>(DEFAULT_COUNTS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthFailure, setIsAuthFailure] = useState(false);
   const mountedRef = useRef(true);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const errorCountRef = useRef(0); // Track consecutive errors for backoff
 
   const fetchCounts = useCallback(async () => {
-    if (!enabled || !mountedRef.current) return;
+    if (!enabled || !mountedRef.current || isAuthFailure) return;
     
     setLoading(true);
     try {
@@ -81,6 +82,15 @@ export function useActionItemCounts(
       if (mountedRef.current) {
         const status = err.response?.status;
         errorCountRef.current += 1;
+        
+        // Handle authentication failure - stop all polling immediately
+        if (status === 401) {
+          console.error('[ActionItemCounts] Authentication failed. Stopping background polling.');
+          setIsAuthFailure(true);
+          setError('Authentication required');
+          setCounts(DEFAULT_COUNTS);
+          return;
+        }
         
         // Silent errors for 404 (no action items), 502 (backend issue), 503 (service unavailable)
         // These are expected during initial setup or backend maintenance
@@ -101,21 +111,23 @@ export function useActionItemCounts(
         setLoading(false);
       }
     }
-  }, [enabled]);
+  }, [enabled, isAuthFailure]);
 
   // Initial fetch
   useEffect(() => {
     mountedRef.current = true;
-    fetchCounts();
+    if (!isAuthFailure) {
+      fetchCounts();
+    }
     
     return () => {
       mountedRef.current = false;
     };
-  }, [fetchCounts]);
+  }, [fetchCounts, isAuthFailure]);
 
   // Polling with exponential backoff on errors
   useEffect(() => {
-    if (!enabled || pollingInterval <= 0) return;
+    if (!enabled || pollingInterval <= 0 || isAuthFailure) return;
     
     // Calculate backoff: double interval for each consecutive error (max 5 minutes)
     const backoffMultiplier = Math.min(Math.pow(2, errorCountRef.current), 10);
@@ -129,7 +141,7 @@ export function useActionItemCounts(
         pollingRef.current = null;
       }
     };
-  }, [fetchCounts, pollingInterval, enabled]);
+  }, [fetchCounts, pollingInterval, enabled, isAuthFailure]);
 
   return {
     counts,

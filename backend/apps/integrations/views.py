@@ -1,16 +1,27 @@
-"""
+"""apps.integrations.views
+
 OAuth integration views for external email providers.
 """
+
+import logging
 import secrets
 from datetime import timedelta
-from django.utils import timezone
+from urllib.parse import quote
+
+from django.core import signing
 from django.shortcuts import redirect
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from .microsoft.utils import get_microsoft_redirect_uri
 from .models import ExternalAuthProvider
 from .providers import MicrosoftGraphProvider
+from .providers.base import EmailProviderError, AuthenticationError
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -30,37 +41,83 @@ def get_auth_url(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    if not request.tenant:
-        return Response(
-            {"error": "Tenant not found"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Generate CSRF state token
-    state = secrets.token_urlsafe(32)
-    
-    # Store state in session for validation
+    # Resolve tenant context.
+    # IMPORTANT: This endpoint is often reached via full-page navigation (not XHR),
+    # so X-Tenant-ID header may be missing. Allow explicit tenant_id query param.
+    tenant_id = request.GET.get('tenant_id')
+    tenant = getattr(request, 'tenant', None)
+
+    if tenant_id:
+        from apps.tenants.models import Tenant, TenantUser
+
+        if not (
+            request.user.is_superuser
+            or TenantUser.objects.filter(tenant_id=tenant_id, user=request.user, is_active=True).exists()
+        ):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+        except Tenant.DoesNotExist:
+            return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not tenant:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Generate signed state token (fallback when session cookies are blocked).
+    nonce = secrets.token_urlsafe(16)
+    state = signing.dumps(
+        {"tenant_id": str(tenant.id), "provider": provider_type, "nonce": nonce},
+        salt='integrations.oauth.state',
+    )
+
+    # Store state + tenant in session for strict validation where possible.
     request.session[f'oauth_state_{provider_type}'] = state
-    request.session[f'oauth_tenant_{provider_type}'] = request.tenant.id
+    request.session[f'oauth_tenant_{provider_type}'] = str(tenant.id)
     
-    # Build redirect URI
-    redirect_uri = request.build_absolute_uri(f'/api/integrations/oauth/callback/{provider_type}/')
-    
+    # Build redirect URI (must match callback path and include /api/v1 sub-path routing)
+    callback_path = f'/api/v1/integrations/oauth/callback/{provider_type}/'
+    redirect_uri = get_microsoft_redirect_uri(request, callback_path=callback_path)
+
     # Get provider instance
     if provider_type == 'microsoft':
-        provider = MicrosoftGraphProvider(request.tenant.id)
+        try:
+            provider = MicrosoftGraphProvider(tenant.id)
+        except EmailProviderError as e:
+            return Response(
+                {
+                    "error": str(e),
+                    "code": "provider_not_configured",
+                    "provider": provider_type,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
     else:
         return Response(
             {"error": "Provider not implemented yet"},
             status=status.HTTP_501_NOT_IMPLEMENTED
         )
-    
-    # Generate auth URL
-    auth_response = provider.get_auth_url(redirect_uri, state)
-    
+
+    try:
+        # Generate auth URL
+        auth_response = provider.get_auth_url(redirect_uri, state)
+    except AuthenticationError as e:
+        return Response(
+            {
+                "error": str(e),
+                "code": "oauth_init_failed",
+                "provider": provider_type,
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    # By default we return JSON (existing behavior). Some UI flows prefer a direct 302.
+    if request.GET.get('redirect') in {'1', 'true', 'yes'}:
+        return redirect(auth_response.auth_url)
+
     return Response({
-        "auth_url": auth_response.auth_url,
-        "provider": provider_type,
+        'auth_url': auth_response.auth_url,
+        'provider': provider_type,
     })
 
 
@@ -81,39 +138,54 @@ def oauth_callback(request, provider_type):
     error = request.GET.get('error')
     if error:
         error_description = request.GET.get('error_description', 'Unknown error')
-        return redirect(f'/settings/integrations?error={error}&description={error_description}')
+        return redirect(f'/settings?error={error}&description={error_description}')
     
     # Get authorization code
     code = request.GET.get('code')
     if not code:
-        return redirect('/settings/integrations?error=no_code')
+        return redirect('/settings?error=no_code')
     
     # Validate state for CSRF protection
     state = request.GET.get('state')
     expected_state = request.session.get(f'oauth_state_{provider_type}')
-    
-    if not state or state != expected_state:
-        return redirect('/settings/integrations?error=invalid_state')
-    
-    # Get tenant from session
-    tenant_id = request.session.get(f'oauth_tenant_{provider_type}')
+
+    state_payload = None
+    if state and expected_state and state == expected_state:
+        # Session-based validation succeeded
+        state_payload = None
+    else:
+        # Fallback: allow signed state when session cookies are not preserved
+        try:
+            state_payload = signing.loads(state or '', salt='integrations.oauth.state', max_age=15 * 60)
+        except Exception:
+            state_payload = None
+
+        if not state_payload or state_payload.get('provider') != provider_type:
+            return redirect('/settings?error=invalid_state')
+
+    # Get tenant from session or signed payload
+    tenant_id = request.session.get(f'oauth_tenant_{provider_type}') or (state_payload or {}).get('tenant_id')
     if not tenant_id:
-        return redirect('/settings/integrations?error=no_tenant')
+        return redirect('/settings?error=no_tenant')
     
     try:
         from apps.tenants.models import Tenant
         tenant = Tenant.objects.get(id=tenant_id)
     except Tenant.DoesNotExist:
-        return redirect('/settings/integrations?error=tenant_not_found')
-    
+        return redirect('/settings?error=tenant_not_found')
+
     # Build redirect URI (must match the one used in get_auth_url)
-    redirect_uri = request.build_absolute_uri(f'/api/integrations/oauth/callback/{provider_type}/')
-    
+    callback_path = f'/api/v1/integrations/oauth/callback/{provider_type}/'
+    redirect_uri = get_microsoft_redirect_uri(request, callback_path=callback_path)
+
     # Get provider instance
     if provider_type == 'microsoft':
-        provider = MicrosoftGraphProvider(tenant.id)
+        try:
+            provider = MicrosoftGraphProvider(tenant.id)
+        except EmailProviderError as e:
+            return redirect(f"/settings?error=provider_not_configured&message={quote(str(e))}")
     else:
-        return redirect('/settings/integrations?error=provider_not_supported')
+        return redirect('/settings?error=provider_not_supported')
     
     try:
         # Exchange code for tokens
@@ -145,10 +217,12 @@ def oauth_callback(request, provider_type):
         request.session.pop(f'oauth_tenant_{provider_type}', None)
         
         # Redirect to success page
-        return redirect('/settings/integrations?success=connected')
-        
-    except Exception as e:
-        return redirect(f'/settings/integrations?error=exchange_failed&message={str(e)}')
+        return redirect('/settings?success=connected')
+
+    except (AuthenticationError, EmailProviderError) as e:
+        return redirect(f"/settings?error=exchange_failed&message={quote(str(e))}")
+    except Exception:
+        return redirect('/settings?error=exchange_failed')
 
 
 @api_view(['GET'])
@@ -225,3 +299,122 @@ def disconnect_provider(request):
             {"error": "Provider not found"},
             status=status.HTTP_404_NOT_FOUND
         )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def sync_emails(request):
+    """Manually trigger email sync for current tenant (synchronous).
+
+    This endpoint backs a user-initiated "Sync Now" action, so we execute inline
+    and return stats immediately. It should avoid hard-500s for common operational
+    issues and instead return clear error payloads.
+    """
+    tenant = getattr(request, 'tenant', None)
+    if not tenant:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    tenant_id = str(tenant.id)
+
+    # Preflight: ensure Outlook is actually connected for this tenant.
+    provider = ExternalAuthProvider.objects.filter(
+        tenant=tenant,
+        provider_type='microsoft',
+        is_active=True,
+    ).first()
+    if not provider:
+        return Response(
+            {
+                "error": "No active Microsoft account connected.",
+                "code": "not_connected",
+                "tenant_id": tenant_id,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
+
+        service = EmailIngestionService()
+        stats = service.poll_tenant_by_id(tenant_id)
+
+        if isinstance(stats, dict) and stats.get('error'):
+            return Response(
+                {
+                    "error": stats.get('error'),
+                    "code": "sync_failed",
+                    "tenant_id": tenant_id,
+                    "stats": stats,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "message": "Email sync completed",
+                "tenant_id": tenant_id,
+                "stats": stats,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        logger.error('Failed to sync emails for tenant %s: %s', tenant_id, str(e), exc_info=True)
+        return Response(
+            {
+                "error": f"Failed to sync emails: {str(e)}",
+                "code": "sync_exception",
+                "tenant_id": tenant_id,
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_email_logs(request):
+    """Get recent email ingestion logs for current tenant."""
+    tenant = getattr(request, 'tenant', None)
+    if not tenant:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Get query params
+    limit = min(int(request.GET.get('limit', 10)), 50)
+    status_filter = request.GET.get('status')
+
+    # Build queryset
+    from .models import EmailLog
+    queryset = EmailLog.objects.filter(tenant=tenant)
+
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+
+    # Get recent emails
+    emails = queryset.order_by('-created_at')[:limit]
+
+    # Serialize (contract expected by frontend IngestionMonitor.tsx)
+    email_data = []
+    for email in emails:
+        sender = email.sender_email
+        if email.sender_name:
+            sender = f"{email.sender_name} <{email.sender_email}>"
+
+        email_data.append(
+            {
+                "id": str(email.id),
+                "message_id": email.message_id,
+                "subject": email.subject,
+                "sender": sender,
+                "status": email.status,
+                "provider_type": email.provider.provider_type if email.provider else None,
+                "has_attachments": email.has_attachments,
+                "extracted_data": email.extracted_data,
+                "related_order_id": email.related_order_id,
+                "error_message": email.processing_error,
+                "created_at": email.created_at.isoformat(),
+                "processed_at": email.processed_at.isoformat() if email.processed_at else None,
+            }
+        )
+
+    return Response({"emails": email_data, "count": len(email_data)})
+

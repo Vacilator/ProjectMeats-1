@@ -1,26 +1,30 @@
 /**
  * WorkForms Editor Page
- * 
- * Visual editor for creating and editing forms/workflows.
- * Phase 4.1.2: Load, edit, and save forms
- * Phase 2.2.1: Editor modes (Wizard, Visual, Expert)
- * Phase 4.2: Role-based permissions (owner/admin/manager/user/readonly)
- * 
- * Created: 2026-02-04 - Phase 2.1 Visual Editor Foundation
- * Updated: 2026-02-04 - Phase 4.1.2 Enhanced with API integration
- * Updated: 2026-02-04 - Phase 2.2.1 Added editor mode system
- * Updated: 2026-02-04 - Phase 4.2 Added permission system
+ *
+ * NOTE (Phase 7 hardening): Saving and loading is now handled via TenantWorkForm
+ * endpoints (/api/v1/tenant-workforms/). The legacy /api/v1/workflows/forms/ save
+ * endpoint is deprecated and must not be used.
  */
-import React, { useState, useCallback, useEffect } from 'react';
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Node, Edge } from '@xyflow/react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Wand2, Eye, Code2, Lock } from 'lucide-react';
+
+import { logger } from '@/utils/logger';
 import { UnifiedFlowEditor } from '../../components/FlowEditor';
 import { FLOW_TEMPLATES } from '../../components/FlowEditor/templates/flowTemplates';
-import { apiClient } from '../../services/apiService';
-import { useWorkFormPermissions, canUseEditorMode, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
+import {
+  useWorkFormPermissions,
+  canUseEditorMode,
+  getUpgradeMessage,
+} from '../../hooks/useWorkFormPermissions';
+import {
+  loadWorkflow,
+  type LoadWorkflowResponse,
+} from '../../components/FlowEditor/utils/workflowPersistence';
 
 // ============================================================================
 // Types
@@ -28,22 +32,55 @@ import { useWorkFormPermissions, canUseEditorMode, getUpgradeMessage } from '../
 
 export type EditorMode = 'wizard' | 'visual' | 'expert';
 
+type Viewport = { x: number; y: number; zoom: number };
+
+const isViewport = (value: unknown): value is Viewport => {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as any;
+  return typeof v.x === 'number' && typeof v.y === 'number' && typeof v.zoom === 'number';
+};
+
 interface EditorModeConfig {
   id: EditorMode;
   label: string;
   icon: React.ComponentType<any>;
   description: string;
-  targetUser: string;
-  availableNodeTypes: string[];
-  features: string[];
 }
+
+const EDITOR_MODES: Record<EditorMode, EditorModeConfig> = {
+  wizard: {
+    id: 'wizard',
+    label: 'Wizard',
+    icon: Wand2,
+    description: 'Guided form creation with smart defaults',
+  },
+  visual: {
+    id: 'visual',
+    label: 'Visual',
+    icon: Eye,
+    description: 'Drag-and-drop editor with full node palette',
+  },
+  expert: {
+    id: 'expert',
+    label: 'Expert',
+    icon: Code2,
+    description: 'Advanced mode for power users and developers',
+  },
+};
+
+type WorkFormStatus = 'draft' | 'active' | 'archived';
 
 // ============================================================================
 // Styled Components
 // ============================================================================
 
 const PageContainer = styled.div`
-  padding: 20px;
+  /* Use screen real-estate: header + editor fill the page */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  height: calc(100vh - 60px);
   min-height: calc(100vh - 60px);
 `;
 
@@ -51,7 +88,17 @@ const PageHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  /* Keep core controls visible while editing */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
 `;
 
 const HeaderLeft = styled.div`
@@ -68,15 +115,14 @@ const BackButton = styled.button`
   font-size: 13px;
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  transition: all 0.15s ease;
-  
+
   &:hover {
     background: rgb(var(--color-background));
   }
 `;
 
 const PageTitle = styled.h1`
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: rgb(var(--color-text-primary));
   margin: 0;
@@ -86,182 +132,73 @@ const HeaderRight = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 `;
 
-const StatusBadge = styled.span<{ $status: string }>`
-  padding: 4px 12px;
+const ModeSwitcher = styled.div`
+  display: inline-flex;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  overflow: hidden;
+`;
+
+const ModeButton = styled.button<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  background: ${p => (p.$active ? 'rgb(var(--color-primary) / 0.12)' : 'rgb(var(--color-surface))')};
+  color: ${p => (p.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-primary))')};
+
+  &:not(:last-child) {
+    border-right: 1px solid rgb(var(--color-border));
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const StatusBadge = styled.span<{ $status: WorkFormStatus }>`
+  padding: 4px 10px;
   border-radius: var(--radius-sm);
   font-size: 12px;
-  font-weight: 600;
-  background: ${props => {
-    switch (props.$status) {
-      case 'published': return 'rgba(34, 197, 94, 0.2)';
-      case 'draft': return 'rgba(234, 179, 8, 0.2)';
-      default: return 'rgba(148, 163, 184, 0.2)';
-    }
-  }};
-  color: ${props => {
-    switch (props.$status) {
-      case 'published': return 'rgb(34, 197, 94)';
-      case 'draft': return 'rgb(234, 179, 8)';
-      default: return 'rgb(148, 163, 184)';
-    }
-  }};
-`;
-
-const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
-  padding: 8px 16px;
-  background: ${props => 
-    props.$variant === 'primary' 
-      ? 'rgb(var(--color-primary))' 
-      : 'rgb(var(--color-surface))'};
-  border: 1px solid ${props => 
-    props.$variant === 'primary' 
-      ? 'rgb(var(--color-primary))' 
-      : 'rgb(var(--color-border))'};
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  color: ${props => 
-    props.$variant === 'primary' 
-      ? 'white' 
-      : 'rgb(var(--color-text-primary))'};
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  &:hover {
-    opacity: 0.9;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  font-weight: 700;
+  border: 1px solid rgb(var(--color-border));
+  background: ${p =>
+    p.$status === 'active'
+      ? 'rgb(34 197 94 / 0.10)'
+      : p.$status === 'draft'
+        ? 'rgb(234 179 8 / 0.10)'
+        : 'rgb(148 163 184 / 0.10)'};
+  color: ${p =>
+    p.$status === 'active'
+      ? 'rgb(34, 197, 94)'
+      : p.$status === 'draft'
+        ? 'rgb(234, 179, 8)'
+        : 'rgb(148, 163, 184)'};
 `;
 
 const EditorWrapper = styled.div`
   background: rgb(var(--color-surface));
   border-radius: var(--radius-lg);
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-`;
-
-const SaveIndicator = styled.div<{ $visible: boolean }>`
-  padding: 8px 16px;
-  background: rgba(34, 197, 94, 0.9);
-  color: white;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: var(--radius-md);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  opacity: ${props => props.$visible ? 1 : 0};
-  transition: opacity 0.3s ease;
-`;
-
-const ModeSwitcher = styled.div`
-  display: flex;
-  gap: 8px;
-  padding: 4px;
-  background: rgb(var(--color-background));
-  border-radius: var(--radius-md);
   border: 1px solid rgb(var(--color-border));
+
+  /* Fill remaining height under sticky header */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 `;
-
-const ModeButton = styled.button<{ $active: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'transparent'};
-  color: ${props => props.$active ? 'white' : 'rgb(var(--color-text-secondary))'};
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-  
-  &:hover {
-    background: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgba(var(--color-primary), 0.1)'};
-    color: ${props => props.$active ? 'white' : 'rgb(var(--color-primary))'};
-  }
-`;
-
-const ModeIndicator = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: rgba(var(--color-primary), 0.1);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  color: rgb(var(--color-primary));
-  
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-`;
-
-// ============================================================================
-// Editor Mode Configuration
-// ============================================================================
-
-const EDITOR_MODES: Record<EditorMode, EditorModeConfig> = {
-  wizard: {
-    id: 'wizard',
-    label: 'Wizard',
-    icon: Wand2,
-    description: 'Guided, one-step-at-a-time form building (Typeform-style)',
-    targetUser: 'Business users, first-time creators',
-    availableNodeTypes: ['formStep', 'formField', 'conditionIf', 'actionEmail', 'endSuccess'],
-    features: ['guided-setup', 'templates-only', 'auto-connections', 'step-by-step'],
-  },
-  visual: {
-    id: 'visual',
-    label: 'Visual',
-    icon: Eye,
-    description: 'Full drag-drop canvas with visual workflow builder (Make/n8n-style)',
-    targetUser: 'Power users, process owners',
-    availableNodeTypes: ['*'], // Most nodes
-    features: ['drag-drop', 'custom-connections', 'basic-conditions', 'templates'],
-  },
-  expert: {
-    id: 'expert',
-    label: 'Expert',
-    icon: Code2,
-    description: 'Full control with code expressions and API integrations (Salesforce Flow-style)',
-    targetUser: 'Developers, automation specialists',
-    availableNodeTypes: ['*'], // All nodes
-    features: ['code-expressions', 'api-integrations', 'custom-scripts', 'subflows', 'advanced-logic'],
-  },
-};
-
-// ============================================================================
-// TypeScript Interfaces
-// ============================================================================
-
-interface TenantForm {
-  id: string;
-  name: string;
-  description: string;
-  status: 'draft' | 'active' | 'inactive';
-  icon: string;
-  entity_count: number;
-  is_multi_entity: boolean;
-  flow_data?: {
-    nodes: Node[];
-    edges: Edge[];
-  };
-  created_at: string;
-  updated_at: string;
-}
 
 // ============================================================================
 // Component
@@ -269,281 +206,174 @@ interface TenantForm {
 
 export const WorkFormsEditor: React.FC = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
+
   const templateId = searchParams.get('template');
-  const cloneId = searchParams.get('clone'); // For cloning existing forms
-  const previewMode = searchParams.get('mode') === 'preview'; // For preview mode
-  
-  // Phase 4.2: Permissions
+  const cloneId = searchParams.get('clone');
+  const previewMode = searchParams.get('mode') === 'preview';
+
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
-  
-  // State
-  const [status, setStatus] = useState<'draft' | 'active' | 'inactive'>('draft');
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSavedIndicator, setShowSavedIndicator] = useState(false);
-  const [flowName, setFlowName] = useState('New Flow');
+
+  const [editorMode, setEditorMode] = useState<EditorMode>('visual');
+  const [flowName, setFlowName] = useState('New WorkForm');
+  const [status, setStatus] = useState<WorkFormStatus>('draft');
   const [initialNodes, setInitialNodes] = useState<Node[]>([]);
   const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
+  const [initialWorkflowId, setInitialWorkflowId] = useState<string | undefined>(undefined);
+  const [initialViewport, setInitialViewport] = useState<Viewport | undefined>(undefined);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [editorMode, setEditorMode] = useState<EditorMode>('visual'); // Default to visual mode
-  const [isCloneMode, setIsCloneMode] = useState(false); // Track if cloning
-  
-  // DEBUG: Log permissions state (MUST be after state declarations)
-  useEffect(() => {
-    console.log('[Editor DEBUG]', {
-      permissionsLoading,
-      permissions,
-      can_edit: permissions.can_edit,
-      readOnly: !permissions.can_edit,
-      willRenderEditor: isInitialized && !permissionsLoading,
-      timestamp: new Date().toISOString()
-    });
-  }, [permissions, permissionsLoading, isInitialized]);
+  const [isCloneMode, setIsCloneMode] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Load existing form if editing
-  const { data: existingForm, isLoading: isLoadingForm } = useQuery<TenantForm>({
-    queryKey: ['tenant-form', id],
+  // Reset initialization when route params change.
+  useEffect(() => {
+    setIsInitialized(false);
+    setHasUnsavedChanges(false);
+    setIsCloneMode(false);
+  }, [id, templateId, cloneId]);
+
+  const existingWorkFormQuery = useQuery<LoadWorkflowResponse>({
+    queryKey: ['tenant-workform', id],
     queryFn: async () => {
-      console.log('[Editor] Loading form with ID:', id);
-      const response = await apiClient.get(`/workflows/forms/${id}/`);
-      console.log('[Editor] API Response:', response.data);
-      console.log('[Editor] Flow Data:', response.data?.flow_data);
-      return response.data;
+      if (!id) throw new Error('Missing workflow id');
+      return loadWorkflow(id);
     },
     enabled: !!id,
   });
 
-  // Load form for cloning
-  const { data: cloneForm, isLoading: isLoadingCloneForm } = useQuery<TenantForm>({
-    queryKey: ['tenant-form-clone', cloneId],
+  const cloneWorkFormQuery = useQuery<LoadWorkflowResponse>({
+    queryKey: ['tenant-workform-clone', cloneId],
     queryFn: async () => {
-      console.log('[Editor] Loading form for cloning with ID:', cloneId);
-      const response = await apiClient.get(`/workflows/forms/${cloneId}/`);
-      console.log('[Editor] Clone API Response:', response.data);
-      console.log('[Editor] Clone Flow Data:', response.data?.flow_data);
-      return response.data;
+      if (!cloneId) throw new Error('Missing clone id');
+      return loadWorkflow(cloneId);
     },
     enabled: !!cloneId,
   });
 
-  // Handle mode switching with validation
-  const handleModeSwitch = useCallback((newMode: EditorMode) => {
-    // In future: Add validation and warning dialogs if switching would lose features
-    // For now: Simple switch
-    setEditorMode(newMode);
-  }, []);
+  const isLoading = existingWorkFormQuery.isLoading || cloneWorkFormQuery.isLoading;
 
-  // Initialize editor with template or existing form
+  // Initialize editor with: clone → existing → template → blank
   useEffect(() => {
-    console.log('[Editor] Initialization check:', {
-      isInitialized,
-      hasCloneForm: !!cloneForm,
-      cloneId,
-      hasExistingForm: !!existingForm,
-      id,
-      templateId,
-      isLoadingForm,
-      isLoadingCloneForm
-    });
-    
-    if (isInitialized) {
-      console.log('[Editor] Already initialized, skipping');
-      return;
-    }
+    if (isInitialized) return;
 
-    // Load from cloned form
-    if (cloneForm && cloneId) {
-      console.log('[Editor] Setting up CLONE mode:', cloneForm);
-      setFlowName(`${cloneForm.name} (Copy)`);
-      setStatus('draft'); // Always start clones as draft
+    const clone = cloneWorkFormQuery.data;
+    if (clone && cloneId) {
+      setFlowName(`${clone.name} (Copy)`);
+      setStatus('draft');
+      setInitialNodes(clone.workflow_definition?.nodes || []);
+      setInitialEdges(clone.workflow_definition?.edges || []);
+      setInitialViewport(isViewport(clone.workflow_definition?.viewport) ? clone.workflow_definition?.viewport : undefined);
+      setInitialWorkflowId(undefined);
       setIsCloneMode(true);
-      
-      if (cloneForm.flow_data) {
-        console.log('[Editor] Setting clone nodes/edges:', {
-          nodes: cloneForm.flow_data.nodes?.length || 0,
-          edges: cloneForm.flow_data.edges?.length || 0
-        });
-        setInitialNodes(cloneForm.flow_data.nodes || []);
-        setInitialEdges(cloneForm.flow_data.edges || []);
-      } else {
-        console.warn('[Editor] Clone form has NO flow_data!');
-      }
-      
       setIsInitialized(true);
-      console.log('[Editor] ✅ Initialized in CLONE mode from form:', cloneId);
       return;
     }
 
-    // Load from existing form
-    if (existingForm && id) {
-      console.log('[Editor] Setting up EDIT mode:', existingForm);
-      setFlowName(existingForm.name);
-      setStatus(existingForm.status as 'draft' | 'active' | 'inactive');
-      
-      if (existingForm.flow_data) {
-        console.log('[Editor] Setting existing nodes/edges:', {
-          nodes: existingForm.flow_data.nodes?.length || 0,
-          edges: existingForm.flow_data.edges?.length || 0
-        });
-        setInitialNodes(existingForm.flow_data.nodes || []);
-        setInitialEdges(existingForm.flow_data.edges || []);
-      } else {
-        console.warn('[Editor] Existing form has NO flow_data!');
-      }
-      
+    const existing = existingWorkFormQuery.data;
+    if (existing && id) {
+      setFlowName(existing.name);
+      setStatus((existing.status as WorkFormStatus) || 'draft');
+      setInitialNodes(existing.workflow_definition?.nodes || []);
+      setInitialEdges(existing.workflow_definition?.edges || []);
+      setInitialViewport(isViewport(existing.workflow_definition?.viewport) ? existing.workflow_definition?.viewport : undefined);
+      setInitialWorkflowId(existing.id);
       setIsInitialized(true);
-      console.log('[Editor] ✅ Initialized in EDIT mode for form:', id);
       return;
     }
 
-    // Load from template
-    if (templateId && !id) {
-      const template = FLOW_TEMPLATES.find(t => t.id === templateId);
+    if (templateId && !id && !cloneId) {
+      const template = FLOW_TEMPLATES.find((t) => t.id === templateId);
       if (template) {
         setFlowName(template.name);
+        setStatus('draft');
         setInitialNodes(template.nodes);
         setInitialEdges(template.edges);
+        setInitialWorkflowId(undefined);
         setIsInitialized(true);
         return;
       }
     }
 
-    // Blank canvas
     if (!id && !templateId && !cloneId) {
+      // No forced defaults. Users can start blank or explicitly choose a template.
+      setStatus('draft');
+      setFlowName('New WorkForm');
+      setInitialNodes([]);
+      setInitialEdges([]);
+      setInitialViewport(undefined);
+      setInitialWorkflowId(undefined);
       setIsInitialized(true);
-      console.log('[Editor] Initialized with BLANK canvas');
     }
-  }, [existingForm, cloneForm, id, cloneId, templateId, isInitialized]);
+  }, [
+    cloneWorkFormQuery.data,
+    existingWorkFormQuery.data,
+    cloneId,
+    id,
+    templateId,
+    isInitialized,
+  ]);
 
-  // Save mutation
-  const saveMutation = useMutation({
-    mutationFn: async (data: { nodes: Node[]; edges: Edge[] }) => {
-      const payload = {
-        name: flowName,
-        description: `Flow with ${data.nodes.length} nodes`,
-        status: status,
-        flow_data: {
-          nodes: data.nodes,
-          edges: data.edges,
-        },
-      };
-
-      // Clone mode: Always create new (never update the original)
-      if (isCloneMode || !id) {
-        // Create new
-        const response = await apiClient.post('/workflows/forms/', payload);
-        return response.data;
-      } else {
-        // Update existing
-        const response = await apiClient.put(`/workflows/forms/${id}/`, payload);
-        return response.data;
-      }
-    },
-    onSuccess: (data) => {
-      // Invalidate queries to refresh catalog
-      queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
-      
-      // Show saved indicator
-      setShowSavedIndicator(true);
-      setTimeout(() => setShowSavedIndicator(false), 2000);
-
-      // If this was a new form or clone, navigate to edit mode
-      if ((!id || isCloneMode) && data.id) {
-        setIsCloneMode(false); // Exit clone mode after first save
-        navigate(`/workforms/editor/${data.id}`, { replace: true });
-      }
-    },
-    onError: (error: any) => {
-      console.error('Error saving flow:', error);
-      alert(error.response?.data?.error || 'Failed to save. Please try again.');
-    },
-  });
-
-  // Handle save
-  const handleSave = useCallback(async (nodes: Node[], edges: Edge[]) => {
-    setIsSaving(true);
-    
-    try {
-      await saveMutation.mutateAsync({ nodes, edges });
-    } catch (error) {
-      // Error handled in onError
-    } finally {
-      setIsSaving(false);
-    }
-  }, [saveMutation]);
-
-  // Publish mutation
-  const publishMutation = useMutation({
-    mutationFn: async () => {
-      if (!id) {
-        throw new Error('Cannot publish unsaved form');
-      }
-      const response = await apiClient.patch(`/workflows/forms/${id}/`, {
-        status: 'active',
-      });
-      return response.data;
-    },
-    onSuccess: () => {
-      // Invalidate queries to refresh catalog
-      queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
-      queryClient.invalidateQueries({ queryKey: ['tenant-form', id] });
-      
-      setStatus('active');
-      alert('Form published successfully!');
-    },
-    onError: (error: any) => {
-      console.error('Error publishing flow:', error);
-      alert(error.response?.data?.error || 'Failed to publish. Please try again.');
-    },
-  });
-
-  // Handle publish
-  const handlePublish = useCallback(() => {
-    if (!id) {
-      alert('Please save the form before publishing');
-      return;
-    }
-    publishMutation.mutate();
-  }, [id, publishMutation]);
-
-  // Handle back
   const handleBack = useCallback(() => {
     navigate('/workforms/catalog');
   }, [navigate]);
 
-  // Show loading state
-  if (id && isLoadingForm) {
+  const handleModeSwitch = useCallback((newMode: EditorMode) => {
+    setEditorMode(newMode);
+  }, []);
+
+  const readOnly = useMemo(() => previewMode || !permissions.can_edit, [previewMode, permissions.can_edit]);
+
+  const handleWorkflowSaved = useCallback(
+    (workflow: { id: string; name: string }) => {
+      setHasUnsavedChanges(false);
+
+      // After create/clone, move URL into edit mode so refresh works.
+      if (!id || isCloneMode) {
+        setIsCloneMode(false);
+        setInitialWorkflowId(workflow.id);
+        navigate(`/workforms/editor/${workflow.id}`, { replace: true });
+      }
+
+      // Keep header title stable if user saved under a different name inside the editor.
+      setFlowName(workflow.name);
+    },
+    [id, isCloneMode, navigate]
+  );
+
+  if ((id || cloneId) && isLoading) {
     return (
       <PageContainer>
         <div style={{ textAlign: 'center', padding: '4rem', color: 'rgb(var(--color-text-secondary))' }}>
-          Loading form...
+          Loading workform...
         </div>
       </PageContainer>
     );
+  }
+
+  if (existingWorkFormQuery.isError) {
+    logger.error('[WorkFormsEditor] Failed to load workflow', existingWorkFormQuery.error);
   }
 
   return (
     <PageContainer>
       <PageHeader>
         <HeaderLeft>
-          <BackButton onClick={handleBack}>
-            ← Back
-          </BackButton>
+          <BackButton onClick={handleBack}>← Back</BackButton>
           <div>
             <PageTitle>{flowName}</PageTitle>
+            <div style={{ fontSize: 12, color: 'rgb(var(--color-text-secondary))' }}>
+              {hasUnsavedChanges ? 'Unsaved changes' : 'All changes saved via TenantWorkForms'}
+            </div>
           </div>
         </HeaderLeft>
-        
+
         <HeaderRight>
-          {/* Editor Mode Switcher - Phase 4.2: Permission-aware */}
           <ModeSwitcher>
             {Object.values(EDITOR_MODES).map((mode) => {
               const Icon = mode.icon;
               const isAllowed = canUseEditorMode(permissions, mode.id);
               const isDisabled = !isAllowed || permissionsLoading;
-              
               return (
                 <ModeButton
                   key={mode.id}
@@ -551,37 +381,16 @@ export const WorkFormsEditor: React.FC = () => {
                   onClick={() => isAllowed && handleModeSwitch(mode.id)}
                   title={isAllowed ? mode.description : getUpgradeMessage('expert_mode', permissions.role)}
                   disabled={isDisabled}
-                  style={isDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                 >
-                  {!isAllowed && <Lock style={{ width: 12, height: 12, marginRight: 4 }} />}
+                  {!isAllowed && <Lock style={{ width: 12, height: 12 }} />}
                   <Icon />
                   <span>{mode.label}</span>
                 </ModeButton>
               );
             })}
           </ModeSwitcher>
-          
-          <SaveIndicator $visible={showSavedIndicator}>
-            ✓ Saved
-          </SaveIndicator>
-          
-          <StatusBadge $status={status}>
-            {status === 'active' ? 'Active' : status === 'draft' ? 'Draft' : 'Inactive'}
-          </StatusBadge>
-          
-          <ActionButton $variant="secondary">
-            Preview
-          </ActionButton>
-          
-          {/* Publish button - Phase 4.2: Only for admin/owner */}
-          <ActionButton 
-            $variant="primary" 
-            onClick={handlePublish}
-            disabled={!permissions.can_publish || status === 'active' || !id || publishMutation.isPending || permissionsLoading}
-            title={!permissions.can_publish ? getUpgradeMessage('publish', permissions.role) : ''}
-          >
-            {publishMutation.isPending ? 'Publishing...' : status === 'active' ? 'Published' : 'Publish'}
-          </ActionButton>
+
+          <StatusBadge $status={status}>{status}</StatusBadge>
         </HeaderRight>
       </PageHeader>
 
@@ -590,20 +399,27 @@ export const WorkFormsEditor: React.FC = () => {
           <UnifiedFlowEditor
             initialNodes={initialNodes}
             initialEdges={initialEdges}
-            onSave={handleSave}
+            initialViewport={initialViewport}
+            initialWorkflowId={initialWorkflowId}
+            initialWorkflowName={flowName}
+            initialWorkflowStatus={status}
+            onWorkflowSaved={handleWorkflowSaved}
+            onChange={() => setHasUnsavedChanges(true)}
             editorMode={editorMode}
-            readOnly={previewMode || !permissions.can_edit}
+            readOnly={readOnly}
             allowedNodeCategories={permissions.allowed_node_categories}
           />
         )}
         {permissionsLoading && (
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '400px',
-            color: 'rgb(var(--color-text-secondary))'
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '400px',
+              color: 'rgb(var(--color-text-secondary))',
+            }}
+          >
             Loading permissions...
           </div>
         )}
@@ -613,3 +429,4 @@ export const WorkFormsEditor: React.FC = () => {
 };
 
 export default WorkFormsEditor;
+

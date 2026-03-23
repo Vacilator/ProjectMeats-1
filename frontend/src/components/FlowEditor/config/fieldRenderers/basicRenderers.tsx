@@ -49,7 +49,12 @@ export function renderTextField(
         />
       ) : (
         <Input
-          type={field.type === 'number' ? 'number' : 'text'}
+          type={
+            field.type === 'number' ? 'number'
+            : field.type === 'email' ? 'email'
+            : field.type === 'password' ? 'password'
+            : 'text'
+          }
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}

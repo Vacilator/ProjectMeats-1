@@ -17,7 +17,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { useEntityList, useEntityFields, EntityType, EntityField } from '../../../services/schemaService';
-import workformsApi from '../../../services/workformsApi';
+import type { UpstreamVariable } from '../hooks/useUpstreamVariables';
 import {
   Section,
   SectionTitle,
@@ -50,21 +50,32 @@ export interface SelectedField extends EntityField {
   customLabel?: string;
   /** Whether field is checked in multi-select mode */
   checked?: boolean;
+  /** Optional cascade source (for relation fields) - upstream variable template to auto-populate */
+  cascadeFrom?: string;
 }
 
 interface EntityFieldPickerProps {
   /** Currently selected fields */
   selectedFields: SelectedField[];
-  
+
   /** Callback when fields change */
   onFieldsChange: (fields: SelectedField[]) => void;
-  
-  /** Initial entity type (optional) */
+
+  /** Optional upstream variables for cascade/autopopulate selection */
+  upstreamVariables?: UpstreamVariable[];
+
+  /** Initial entity type (optional, uncontrolled mode) */
   initialEntityType?: string;
-  
-  /** Callback when entity type changes */
+
+  /** Controlled entity type (preferred when embedded in a larger config panel) */
+  entityType?: string;
+
+  /** When true, the entity selector UI is hidden and entityType must be provided */
+  hideEntitySelector?: boolean;
+
+  /** Callback when entity type changes (uncontrolled mode only) */
   onEntityTypeChange?: (entityType: string) => void;
-  
+
   /** Enable multi-select mode with checkboxes (default: false) */
   multiSelectMode?: boolean;
 }
@@ -217,6 +228,22 @@ const RemoveButton = styled.button`
   }
 `;
 
+const CascadeRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+`;
+
+const CascadeLabel = styled.div`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const CascadeSelect = styled(Select)`
+  width: 100%;
+`;
+
 const DragHandle = styled.div`
   display: flex;
   align-items: center;
@@ -291,11 +318,14 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
 export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   selectedFields,
   onFieldsChange,
+  upstreamVariables = [],
   initialEntityType,
+  entityType,
+  hideEntitySelector = false,
   onEntityTypeChange,
   multiSelectMode = false,
 }) => {
-  const [selectedEntityType, setSelectedEntityType] = useState<string>(initialEntityType || '');
+  const [selectedEntityType, setSelectedEntityType] = useState<string>(entityType || initialEntityType || '');
   const [searchTerm, setSearchTerm] = useState('');
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
   const [fieldTypeFilter, setFieldTypeFilter] = useState<string>('all');
@@ -304,9 +334,12 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
 
   // Use React Query hooks from schemaService
   const { data: entities = [], isLoading: entitiesLoading, error: entitiesError, refetch: refetchEntities } = useEntityList();
+
+  const effectiveEntityType = entityType || selectedEntityType;
+
   const { data: fieldsData, isLoading: fieldsLoading, error: fieldsError, refetch: refetchFields } = useEntityFields(
-    selectedEntityType,
-    { enabled: !!selectedEntityType }
+    effectiveEntityType,
+    { enabled: !!effectiveEntityType }
   );
   
   // Timeout detection for fields loading
@@ -345,12 +378,43 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     new Set(availableFields.map(f => f.type.toLowerCase()))
   ).sort();
 
-  // Auto-select first entity if no initial type
+  // Keep internal state in sync when used as a controlled component
   useEffect(() => {
+    if (entityType) {
+      setSelectedEntityType(entityType);
+    }
+  }, [entityType]);
+
+  // Reactive cascade: watch initialEntityType prop changes (uncontrolled mode)
+  useEffect(() => {
+    if (initialEntityType && initialEntityType !== selectedEntityType) {
+      console.log('[EntityFieldPicker] initialEntityType changed, updating:', initialEntityType);
+      setSelectedEntityType(initialEntityType);
+      setSearchTerm('');
+      setFieldTypeFilter('all');
+      setCheckedFields(new Set());
+      resetFieldsTimeout();
+      // Clear stale selected fields when entity type changes via prop
+      onFieldsChange([]);
+      // Force a fresh fetch so cascaded field lists stay in sync with the new entity type
+      refetchFields();
+    }
+  }, [initialEntityType, selectedEntityType, resetFieldsTimeout, onFieldsChange, refetchFields]);
+
+  // Auto-select first entity in uncontrolled mode
+  useEffect(() => {
+    if (hideEntitySelector || entityType) return;
     if (!initialEntityType && entities.length > 0 && !selectedEntityType) {
       setSelectedEntityType(entities[0].id);
     }
-  }, [entities, initialEntityType, selectedEntityType]);
+  }, [entities, entityType, hideEntitySelector, initialEntityType, selectedEntityType]);
+
+  // Force refetch when the effective entity type changes to avoid stale field lists
+  useEffect(() => {
+    if (effectiveEntityType) {
+      refetchFields();
+    }
+  }, [effectiveEntityType, refetchFields]);
 
   const handleEntityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const entityType = e.target.value;
@@ -435,6 +499,23 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
     onFieldsChange(selectedFields.filter(f => f.fieldId !== fieldId));
   };
 
+  const handleUpdateSelectedField = (fieldId: string, updates: Partial<SelectedField>) => {
+    onFieldsChange(selectedFields.map(f => (f.fieldId === fieldId ? { ...f, ...updates } : f)));
+  };
+
+  const isRelationField = (field: SelectedField) => {
+    const t = String(field.type || '').toLowerCase();
+    return t.includes('foreign_key') || t.includes('many_to_many') || t.includes('one_to_one');
+  };
+
+  const upstreamVariableOptions = upstreamVariables
+    .slice()
+    .sort((a, b) => (a.nodeName + a.fieldLabel).localeCompare(b.nodeName + b.fieldLabel))
+    .map(v => ({
+      value: v.template,
+      label: `${v.nodeName} → ${v.fieldLabel}`,
+    }));
+
   const handleDragStart = (fieldId: string) => {
     setDraggedFieldId(fieldId);
   };
@@ -500,37 +581,48 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
   return (
     <Container>
       {/* Entity Selection */}
-      <Section>
-        <SectionTitle>Select Entity</SectionTitle>
-        <EntitySelector>
-          <Label htmlFor="entity-select">Entity Type *</Label>
-          <Select
-            id="entity-select"
-            value={selectedEntityType}
-            onChange={handleEntityChange}
-          >
-            <option value="">-- Select entity --</option>
-            {entities.map(entity => (
-              <option key={entity.id} value={entity.id}>
-                {entity.label_plural} {selectedEntityType === entity.id && availableFields.length > 0 ? `(${availableFields.length} fields)` : ''}
-              </option>
-            ))}
-          </Select>
-          {selectedEntityType && fieldsLoading && (
-            <LoadingText style={{ padding: '8px 0', textAlign: 'left', fontSize: '12px' }}>
-              Loading fields for {entities.find(e => e.id === selectedEntityType)?.label_plural}...
-            </LoadingText>
-          )}
-          {selectedEntityType && !fieldsLoading && availableFields.length === 0 && !fieldsError && (
-            <ErrorText style={{ marginTop: '8px', fontSize: '12px' }}>
-              No fields found for this entity. This may indicate a backend configuration issue.
-            </ErrorText>
-          )}
-        </EntitySelector>
-      </Section>
+      {!hideEntitySelector && !entityType && (
+        <Section>
+          <SectionTitle>Select Entity</SectionTitle>
+          <EntitySelector>
+            <Label htmlFor="entity-select">Entity Type *</Label>
+            <Select
+              id="entity-select"
+              value={selectedEntityType}
+              onChange={handleEntityChange}
+            >
+              <option value="">-- Select entity --</option>
+              {entities.map(entity => (
+                <option key={entity.id} value={entity.id}>
+                  {entity.label_plural} {selectedEntityType === entity.id && availableFields.length > 0 ? `(${availableFields.length} fields)` : ''}
+                </option>
+              ))}
+            </Select>
+            {selectedEntityType && fieldsLoading && (
+              <LoadingText style={{ padding: '8px 0', textAlign: 'left', fontSize: '12px' }}>
+                Loading fields for {entities.find(e => e.id === selectedEntityType)?.label_plural}...
+              </LoadingText>
+            )}
+            {selectedEntityType && !fieldsLoading && availableFields.length === 0 && !fieldsError && (
+              <ErrorText style={{ marginTop: '8px', fontSize: '12px' }}>
+                No fields found for this entity. This may indicate a backend configuration issue.
+              </ErrorText>
+            )}
+          </EntitySelector>
+        </Section>
+      )}
+
+      {hideEntitySelector && !effectiveEntityType && (
+        <Section>
+          <SectionTitle>Entity</SectionTitle>
+          <EmptyState>
+            ℹ️ Select an entity type first to see available fields
+          </EmptyState>
+        </Section>
+      )}
 
       {/* Available Fields */}
-      {selectedEntityType && (
+      {effectiveEntityType && (
         <Section>
           <SectionTitle>Available Fields</SectionTitle>
           <Input
@@ -733,11 +825,34 @@ export const EntityFieldPicker: React.FC<EntityFieldPickerProps> = ({
               >
                 <DragHandle>⋮⋮</DragHandle>
                 <FieldInfo>
-                  <FieldName>{field.label}</FieldName>
+                  <FieldName>{field.customLabel || field.label}</FieldName>
                   <FieldMeta>
                     <FieldBadge variant="type">{field.type}</FieldBadge>
                     {field.required && <FieldBadge variant="required">required</FieldBadge>}
                   </FieldMeta>
+
+                  {isRelationField(field) && upstreamVariableOptions.length > 0 && (
+                    <CascadeRow>
+                      <CascadeLabel>
+                        Cascade / auto-populate from upstream (optional)
+                      </CascadeLabel>
+                      <CascadeSelect
+                        value={field.cascadeFrom || ''}
+                        onChange={(e) =>
+                          handleUpdateSelectedField(field.fieldId, {
+                            cascadeFrom: e.target.value || undefined,
+                          })
+                        }
+                      >
+                        <option value="">— None —</option>
+                        {upstreamVariableOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </CascadeSelect>
+                    </CascadeRow>
+                  )}
                 </FieldInfo>
                 <RemoveButton onClick={() => handleRemoveField(field.fieldId)}>
                   Remove

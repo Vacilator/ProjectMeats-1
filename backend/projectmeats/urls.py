@@ -35,6 +35,8 @@ urlpatterns = [
     # API v1 endpoints
     path("api/v1/system/", include("apps.system.urls")),  # NEW: Centralized config system (v2.0 Wave 1)
     path("api/v1/", include("apps.tenants.urls")),  # Multi-tenancy endpoints (shared)
+    path('api/v1/integrations/', include('integrations.urls')),
+    path("api/v1/workflows/email/", include("apps.email_integration.urls")),  # Email integration & webhooks
     # NOTE: accounts_receivables DELETED in v2.0 Wave 1 (merged into invoices/accounting)
     path("api/v1/", include("tenant_apps.suppliers.urls")),
     path("api/v1/", include("tenant_apps.customers.urls")),
@@ -48,7 +50,6 @@ urlpatterns = [
     path("api/v1/", include("tenant_apps.invoices.urls")),                      # Legacy (deprecated)
     path("api/v1/accounting/", include("tenant_apps.invoices.urls")),           # NEW canonical path
     path("api/v1/", include("tenant_apps.locations.urls")),
-    path("api/v1/ai-assistant/", include("tenant_apps.ai_assistant.urls")),
     path("api/v1/", include("apps.core.urls")),  # Core shared utilities
     # Bug Reports → Feedback rename (v2.0 Wave 1 Week 3)
     path("api/v1/bug-reports/", include("tenant_apps.bug_reports.urls")),  # Legacy (deprecated)
@@ -73,6 +74,10 @@ urlpatterns = [
         name="redoc",
     ),
 ]
+
+# Optional apps
+if 'tenant_apps.ai_assistant' in settings.INSTALLED_APPS:
+    urlpatterns.append(path("api/v1/ai-assistant/", include("tenant_apps.ai_assistant.urls")))
 
 # Serve media files in development
 if settings.DEBUG:

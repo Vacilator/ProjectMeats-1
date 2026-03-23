@@ -6,7 +6,7 @@
 
 ---
 
-**Source of Truth**: `config/env.manifest.json` (v3.3)
+**Source of Truth**: `manifests/env.manifest.json` (v5.x)
 
 This document lists all environment variables required by ProjectMeats across different environments and deployment contexts.
 
@@ -115,10 +115,10 @@ ProjectMeats uses 6 GitHub environment contexts for secret scoping:
 |-------------|------|--------|-----------------|-----|
 | `dev-backend` | backend | `DEV` | `projectmeats.settings.development` | N/A |
 | `dev-frontend` | frontend | `DEV` | N/A | `https://dev.meatscentral.com` |
-| `uat2-backend` | backend | `UAT` | `projectmeats.settings.staging` | N/A |
-| `uat2` | frontend | `STAGING` | N/A | `https://uat.meatscentral.com` |
-| `prod2-backend` | backend | `PROD` | `projectmeats.settings.production` | N/A |
-| `prod2-frontend` | frontend | `PROD` | N/A | `https://meatscentral.com` |
+| `uat-backend` | backend | `UAT` | `projectmeats.settings.staging` | N/A |
+| `uat-frontend` | frontend | `UAT` | N/A | `https://uat.meatscentral.com` |
+| `production-backend` | backend | `PROD` | `projectmeats.settings.production` | N/A |
+| `production-frontend` | frontend | `PROD` | N/A | `https://meatscentral.com` |
 
 ### Environment-Aware Secret Resolution
 
@@ -219,7 +219,7 @@ gh secret list
 ### Best Practices
 
 1. **Single Source of Truth**
-   - All variable definitions live in `config/env.manifest.json`
+   - All variable definitions live in `manifests/env.manifest.json`
    - Never hardcode secret names in workflows or code
    - Update manifest FIRST, then add secrets
 
@@ -241,7 +241,7 @@ env:
 
 ✅ **DO**: Reference manifest and use environment scoping
 ```yaml
-environment: prod2-backend
+environment: production-backend
 env:
   DB_HOST: ${{ secrets.PROD_DB_HOST }}  # Scoped to environment
 ```
@@ -271,6 +271,6 @@ If deployment workflows fail with "secret not found":
 ---
 
 **Last Updated**: 2025-12-29  
-**Manifest Version**: `config/env.manifest.json` v3.3  
+**Manifest Version**: `manifests/env.manifest.json` v5.x  
 **Audit Command**: `python config/manage_env.py audit`  
 **GitHub Secrets**: https://github.com/Meats-Central/ProjectMeats/settings/secrets/actions

@@ -10,7 +10,11 @@ import {
   Supplier,
   Contact,
   Plant,
-  Carrier
+  Carrier,
+  GuestSession,
+  TenantInvite,
+  InviteAcceptRequest,
+  WorkForm,
 } from '../types';
 
 class ApiServiceClass {
@@ -224,6 +228,42 @@ class ApiServiceClass {
   // Health check
   async healthCheck(): Promise<any> {
     const response = await this.api.get('/health/');
+    return response.data;
+  }
+
+  // Guest mode endpoints
+  async loginAsGuest(tenantSlug: string, accessCode?: string): Promise<GuestSession> {
+    const payload: Record<string, string> = { tenant_slug: tenantSlug };
+    if (accessCode) {
+      payload.access_code = accessCode;
+    }
+    const response = await this.api.post('/auth/guest-session/', payload);
+    return response.data;
+  }
+
+  setGuestToken(guestToken: string) {
+    this.api.defaults.headers.common['Authorization'] = `GuestToken ${guestToken}`;
+  }
+
+  // Invite-only endpoints
+  async validateInvite(token: string): Promise<TenantInvite> {
+    const response = await this.api.get(`/auth/invites/${token}/`);
+    return response.data;
+  }
+
+  async acceptInvite(inviteData: InviteAcceptRequest): Promise<LoginResponse> {
+    const response = await this.api.post('/auth/invites/accept/', inviteData);
+    return response.data;
+  }
+
+  // WorkForms endpoints
+  async getWorkForms(): Promise<ApiResponse<WorkForm>> {
+    const response = await this.api.get('/workflows/');
+    return response.data;
+  }
+
+  async getWorkForm(id: string): Promise<WorkForm> {
+    const response = await this.api.get(`/workflows/${id}/`);
     return response.data;
   }
 }

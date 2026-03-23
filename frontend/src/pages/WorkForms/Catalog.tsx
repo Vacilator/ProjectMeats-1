@@ -3,22 +3,26 @@
  * 
  * Browse, create, and manage form flows.
  * Phase 4.1.1: Enhanced Catalog with "Create New" flow
+ * Phase 5: Tabbed View ("Logic" vs "Data")
  * 
  * Created: 2026-02-03
- * Updated: 2026-02-04 - Phase 4.1.1 Enhanced Catalog
+ * Updated: 2026-02-25 - Phase 5 Management UI
  * 
  * Features:
  * - Browse existing forms/workflows
+ * - Tabbed view: "Workflows" (Logic) and "Forms" (Data Capture)
  * - Create new from template OR blank canvas
  * - Search and filter
  * - Category organization
  * - Edit, clone, delete actions
  */
 import React, { useState } from 'react';
+import { logger } from '@/utils/logger';
+
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
-import { Plus, Search, Grid, List, Filter, Sparkles, FileText, Workflow, Clock, Star, Lock } from 'lucide-react';
+import { Plus, Search, Grid, List, Filter, Sparkles, FileText, Workflow, Clock, Star, Lock, Boxes, Database, Play, Loader } from 'lucide-react';
 import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -40,12 +44,21 @@ interface TenantForm {
   icon: string;
   entity_count: number;
   is_multi_entity: boolean;
+  is_system_template: boolean;
   created_at: string;
   updated_at: string;
+  flow_data?: any; // Add flow_data for advanced filtering
+  protein_type?: string; // NEW: Protein category (beef, pork, poultry, seafood, etc.)
+  department?: string; // NEW: Department (receiving, processing, packaging, quality_control)
+  can_quick_run?: boolean; // NEW: Flag if workflow supports one-click execution
 }
 
 type ViewMode = 'grid' | 'list';
 type FilterOption = 'all' | 'active' | 'draft' | 'recent' | 'favorites';
+type TabOption = 'workflows' | 'forms' | 'templates';
+type ProteinType = 'all' | 'beef' | 'pork' | 'poultry' | 'seafood' | 'lamb' | 'other';
+type Department = 'all' | 'receiving' | 'processing' | 'packaging' | 'quality_control' | 'shipping';
+
 
 // ============================================================================
 // Styled Components
@@ -95,7 +108,7 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.10);
   }
   
   &::placeholder {
@@ -120,13 +133,65 @@ const FilterBar = styled.div`
   flex-wrap: wrap;
 `;
 
+const TabsContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid rgb(var(--color-border));
+  margin-bottom: 1.5rem;
+`;
+
+const Tab = styled.button<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: transparent;
+  color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  
+  ${props => props.$active && `
+    border-bottom-color: rgb(var(--color-primary));
+  `}
+  
+  &:hover {
+    color: rgb(var(--color-primary));
+    background: rgb(var(--color-primary) / 0.05);
+  }
+  
+  svg {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+`;
+
+const TabBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  padding: 0 0.375rem;
+  border-radius: var(--radius-full);
+  background: rgb(var(--color-primary) / 0.15);
+  color: rgb(var(--color-primary));
+  font-size: 0.6875rem;
+  font-weight: 600;
+`;
+
 const FilterChip = styled.button<{ $active?: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   padding: 0.5rem 1rem;
   border: 1px solid ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
-  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  background: ${props => props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent'};
   color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   border-radius: var(--radius-full);
   font-size: 0.875rem;
@@ -136,7 +201,7 @@ const FilterChip = styled.button<{ $active?: boolean }>`
   
   &:hover {
     border-color: rgb(var(--color-primary));
-    background: rgba(var(--color-primary), 0.05);
+    background: rgb(var(--color-primary) / 0.05);
   }
   
   svg {
@@ -154,7 +219,7 @@ const ViewToggle = styled.div`
 
 const ViewButton = styled.button<{ $active?: boolean }>`
   padding: 0.5rem 0.75rem;
-  background: ${props => props.$active ? 'rgba(var(--color-primary), 0.1)' : 'transparent'};
+  background: ${props => props.$active ? 'rgb(var(--color-primary) / 0.10)' : 'transparent'};
   color: ${props => props.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-secondary))'};
   border: none;
   cursor: pointer;
@@ -165,12 +230,95 @@ const ViewButton = styled.button<{ $active?: boolean }>`
   }
   
   &:hover {
-    background: rgba(var(--color-primary), 0.05);
+    background: rgb(var(--color-primary) / 0.05);
   }
   
   svg {
     width: 1.25rem;
     height: 1.25rem;
+  }
+`;
+
+// NEW: Category filter bar for protein type and department
+const CategoryBar = styled.div`
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: rgb(var(--color-surface));
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+`;
+
+const CategoryLabel = styled.span`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary));
+  min-width: 80px;
+`;
+
+const CategorySelect = styled.select`
+  padding: 0.5rem 1rem;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+  }
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.10);
+  }
+`;
+
+// NEW: Quick Run button for instant workflow execution
+const QuickRunButton = styled.button<{ $isRunning?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: ${props => props.$isRunning 
+    ? 'rgb(234 179 8 / 0.10)' 
+    : 'linear-gradient(135deg, rgb(var(--color-success)) 0%, rgb(34, 197, 94) 100%)'
+  };
+  color: ${props => props.$isRunning ? 'rgb(234, 179, 8)' : 'white'};
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: ${props => props.$isRunning ? 'wait' : 'pointer'};
+  transition: all 0.2s;
+  opacity: ${props => props.$isRunning ? 0.7 : 1};
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgb(34 197 94 / 0.30);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+    ${props => props.$isRunning && `
+      animation: spin 1s linear infinite;
+    `}
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 `;
 
@@ -196,7 +344,7 @@ const FormCard = styled(Card)`
   
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgb(var(--color-text-primary) / 0.10);
   }
 `;
 
@@ -258,13 +406,13 @@ const StatusBadge = styled.span<{ $status: string }>`
   background: ${props => {
     switch (props.$status) {
       case 'active':
-        return 'rgba(34, 197, 94, 0.1)';
+        return 'rgb(34 197 94 / 0.10)';
       case 'draft':
-        return 'rgba(234, 179, 8, 0.1)';
+        return 'rgb(234 179 8 / 0.10)';
       case 'inactive':
-        return 'rgba(107, 114, 128, 0.1)';
+        return 'rgb(107 114 128 / 0.10)';
       default:
-        return 'rgba(var(--color-text-muted), 0.1)';
+        return 'rgb(var(--color-text-muted) / 0.10)';
     }
   }};
   color: ${props => {
@@ -324,17 +472,21 @@ const FormsFlowsCatalog: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filter, setFilter] = useState<FilterOption>('all');
+  const [activeTab, setActiveTab] = useState<TabOption>('workflows');
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [previewForm, setPreviewForm] = useState<TenantForm | null>(null);
+  const [proteinTypeFilter, setProteinTypeFilter] = useState<ProteinType>('all'); // NEW
+  const [departmentFilter, setDepartmentFilter] = useState<Department>('all'); // NEW
+  const [isQuickRunning, setIsQuickRunning] = useState<string | null>(null); // NEW: Track running workflow ID
   
   // Phase 4.2: Get user permissions
   const { permissions, isLoading: permissionsLoading } = useWorkFormPermissions();
 
   // Debug: Log when previewForm changes
   React.useEffect(() => {
-    console.log('[Catalog] previewForm state changed:', previewForm);
+    logger.debug('[Catalog] previewForm state changed:', previewForm);
     if (previewForm) {
-      console.log('[Catalog] Modal should now be visible for form:', previewForm.name);
+      logger.debug('[Catalog] Modal should now be visible for form:', previewForm.name);
     }
   }, [previewForm]);
 
@@ -344,28 +496,28 @@ const FormsFlowsCatalog: React.FC = () => {
     queryFn: async () => {
       try {
         const response = await apiClient.get('/workflows/forms/');
-        console.log('[Catalog] API Response:', response.data);
+        logger.debug('[Catalog] API Response:', response.data);
         
         // Handle both paginated and non-paginated responses
         const data = response.data;
         
         // If paginated response with results array
         if (data && typeof data === 'object' && 'results' in data) {
-          console.log('[Catalog] Returning paginated results:', data.results?.length || 0);
+          logger.debug('[Catalog] Returning paginated results:', data.results?.length || 0);
           return Array.isArray(data.results) ? data.results : [];
         }
         
         // If direct array response
         if (Array.isArray(data)) {
-          console.log('[Catalog] Returning direct array:', data.length);
+          logger.debug('[Catalog] Returning direct array:', data.length);
           return data;
         }
         
         // Fallback to empty array
-        console.warn('[Catalog] Unexpected API response format:', data);
+        logger.warn('[Catalog] Unexpected API response format:', data);
         return [];
       } catch (error) {
-        console.error('[Catalog] Error fetching forms:', error);
+        logger.error('[Catalog] Error fetching forms:', error);
         return [];
       }
     },
@@ -374,19 +526,54 @@ const FormsFlowsCatalog: React.FC = () => {
   // Log error if query failed
   React.useEffect(() => {
     if (error) {
-      console.error('[Catalog] Query error:', error);
+      logger.error('[Catalog] Query error:', error);
     }
   }, [error]);
 
-  // Filter forms based on search and filter
+  // Helper to determine if a form should be classified as a Workflow (Logic)
+  const isWorkflow = React.useCallback((form: TenantForm) => {
+    if (form.is_multi_entity) return true;
+    if (form.entity_count && form.entity_count > 1) return true;
+
+    // Inspect flow_data to see if it uses advanced workflow nodes
+    if (form.flow_data?.nodes && Array.isArray(form.flow_data.nodes)) {
+      const hasAdvancedNodes = form.flow_data.nodes.some((n: any) =>
+        n.type === 'formProcessGroup' ||
+        n.type === 'formProcess' ||
+        n.type === 'formMultiStepContainer' ||
+        n.type === 'conditionIf' ||
+        n.type === 'conditionSwitch' ||
+        (n.type && n.type.startsWith('action')) ||
+        (n.type && n.type.startsWith('trigger') && n.type !== 'triggerManual') ||
+        (n.type && n.type.startsWith('document'))
+      );
+      if (hasAdvancedNodes) return true;
+    }
+
+    return false;
+  }, []);
+
+  // Filter forms based on search, filter, and tab
   const filteredForms = React.useMemo(() => {
     // Safety check: ensure forms is an array
     if (!forms || !Array.isArray(forms)) {
-      console.warn('[Catalog] Forms is not an array:', forms, 'isLoading:', isLoading);
+      logger.warn('[Catalog] Forms is not an array:', forms, 'isLoading:', isLoading);
       return [];
     }
     
     let filtered = forms;
+    
+    // Apply tab filter first
+    if (activeTab === 'workflows') {
+      // Workflows: Forms with logic/automation nodes or multi-step containers
+      filtered = filtered.filter(form => !form.is_system_template && isWorkflow(form));
+    } else if (activeTab === 'forms') {
+      // Forms: Simple single-step data capture forms
+      filtered = filtered.filter(form => !form.is_system_template && !isWorkflow(form));
+    } else if (activeTab === 'templates') {
+      // Templates: Industry-standard system templates
+      filtered = filtered.filter(form => form.is_system_template === true);
+    }
     
     // Apply search filter
     if (searchQuery) {
@@ -394,6 +581,16 @@ const FormsFlowsCatalog: React.FC = () => {
         form.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         form.description?.toLowerCase().includes(searchQuery.toLowerCase())
       );
+    }
+
+    // NEW: Apply protein type filter
+    if (proteinTypeFilter !== 'all') {
+      filtered = filtered.filter(form => form.protein_type === proteinTypeFilter);
+    }
+
+    // NEW: Apply department filter
+    if (departmentFilter !== 'all') {
+      filtered = filtered.filter(form => form.department === departmentFilter);
     }
     
     // Apply status filter
@@ -412,7 +609,18 @@ const FormsFlowsCatalog: React.FC = () => {
     }
     
     return filtered;
-  }, [forms, searchQuery, filter]);
+  }, [forms, searchQuery, filter, activeTab, proteinTypeFilter, departmentFilter, isWorkflow]);
+
+  // Count forms by type for tab badges
+  const workflowsCount = React.useMemo(() => {
+    if (!forms || !Array.isArray(forms)) return 0;
+    return forms.filter(f => !f.is_system_template && isWorkflow(f)).length;
+  }, [forms, isWorkflow]);
+
+  const formsCount = React.useMemo(() => {
+    if (!forms || !Array.isArray(forms)) return 0;
+    return forms.filter(f => !f.is_system_template && !isWorkflow(f)).length;
+  }, [forms, isWorkflow]);
 
   // Handle template selection
   const handleTemplateSelect = (template: FlowTemplate) => {
@@ -426,20 +634,43 @@ const FormsFlowsCatalog: React.FC = () => {
     navigate('/workforms/editor');
   };
 
+  // NEW: Handle Quick Run (one-click workflow execution)
+  const handleQuickRun = async (formId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent card click from triggering
+    setIsQuickRunning(formId);
+    try {
+      logger.info('[Catalog] Quick Run initiated for form:', formId);
+      // Create a new submission and navigate directly to the editor
+      const response = await apiClient.post(`/forms/${formId}/submissions/`, {
+        quick_run: true,
+        auto_save: true,
+      });
+      const submissionId = response.data.id;
+      logger.info('[Catalog] Submission created:', submissionId);
+      // Navigate to in-progress view with the new submission
+      navigate(`/workforms/in-progress/${submissionId}`);
+    } catch (error) {
+      logger.error('[Catalog] Quick Run failed:', error);
+      alert('Failed to start workflow. Please try again.');
+    } finally {
+      setIsQuickRunning(null);
+    }
+  };
+
   // Handle edit form (now opens preview modal)
   const handleEditForm = (formId: string) => {
-    console.log('[Catalog] handleEditForm called with formId:', formId);
-    console.log('[Catalog] Current forms array:', forms);
-    console.log('[Catalog] Looking for form with id:', formId);
+    logger.debug('[Catalog] handleEditForm called with formId:', formId);
+    logger.debug('[Catalog] Current forms array:', forms);
+    logger.debug('[Catalog] Looking for form with id:', formId);
     
     const form = forms?.find(f => f.id === formId);
-    console.log('[Catalog] Found form:', form);
+    logger.debug('[Catalog] Found form:', form);
     
     if (form) {
-      console.log('[Catalog] Setting previewForm state to:', form);
+      logger.debug('[Catalog] Setting previewForm state to:', form);
       setPreviewForm(form);
     } else {
-      console.error('[Catalog] Form not found for id:', formId);
+      logger.error('[Catalog] Form not found for id:', formId);
     }
   };
 
@@ -477,6 +708,66 @@ const FormsFlowsCatalog: React.FC = () => {
           </Button>
         </HeaderActions>
       </Header>
+
+      {/* Phase 5: Tabbed View - Logic vs Data + Templates (Phase 2.2) */}
+      <TabsContainer>
+        <Tab
+          $active={activeTab === 'workflows'}
+          onClick={() => setActiveTab('workflows')}
+        >
+          <Workflow size={18} />
+          Workflows (Logic)
+          {workflowsCount > 0 && <TabBadge>{workflowsCount}</TabBadge>}
+        </Tab>
+        <Tab
+          $active={activeTab === 'forms'}
+          onClick={() => setActiveTab('forms')}
+        >
+          <Database size={18} />
+          Forms (Data)
+          {formsCount > 0 && <TabBadge>{formsCount}</TabBadge>}
+        </Tab>
+        <Tab
+          $active={activeTab === 'templates'}
+          onClick={() => setActiveTab('templates')}
+        >
+          <Boxes size={18} />
+          Industry Templates
+          <TabBadge style={{ background: 'rgb(var(--color-success))' }}>
+            {forms.filter(f => f.is_system_template).length}
+          </TabBadge>
+        </Tab>
+      </TabsContainer>
+
+      {/* NEW: Category Filters for Protein Type and Department */}
+      <CategoryBar>
+        <CategoryLabel>Protein Type:</CategoryLabel>
+        <CategorySelect 
+          value={proteinTypeFilter} 
+          onChange={(e) => setProteinTypeFilter(e.target.value as ProteinType)}
+        >
+          <option value="all">All Types</option>
+          <option value="beef">🥩 Beef</option>
+          <option value="pork">🐖 Pork</option>
+          <option value="poultry">🐔 Poultry</option>
+          <option value="seafood">🐟 Seafood</option>
+          <option value="lamb">🐑 Lamb</option>
+          <option value="other">🥓 Other</option>
+        </CategorySelect>
+
+        <CategoryLabel>Department:</CategoryLabel>
+        <CategorySelect 
+          value={departmentFilter} 
+          onChange={(e) => setDepartmentFilter(e.target.value as Department)}
+        >
+          <option value="all">All Departments</option>
+          <option value="receiving">📦 Receiving</option>
+          <option value="processing">⚙️ Processing</option>
+          <option value="packaging">📦 Packaging</option>
+          <option value="quality_control">✅ Quality Control</option>
+          <option value="shipping">🚚 Shipping</option>
+        </CategorySelect>
+      </CategoryBar>
 
       <FilterBar>
         <FilterChip
@@ -580,6 +871,30 @@ const FormsFlowsCatalog: React.FC = () => {
                     {form.status}
                   </StatusBadge>
                 </FormMeta>
+                
+                {/* NEW: Quick Run Button (if workflow supports it) */}
+                {form.can_quick_run && form.status === 'active' && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <QuickRunButton
+                      $isRunning={isQuickRunning === form.id}
+                      onClick={(e) => handleQuickRun(form.id, e)}
+                      disabled={isQuickRunning === form.id}
+                      title="Start this workflow with one click"
+                    >
+                      {isQuickRunning === form.id ? (
+                        <>
+                          <Loader size={16} />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <Play size={16} />
+                          Quick Run
+                        </>
+                      )}
+                    </QuickRunButton>
+                  </div>
+                )}
               </CardContent>
             </FormCard>
           ))}
@@ -590,7 +905,7 @@ const FormsFlowsCatalog: React.FC = () => {
             <FormCard key={form.id}>
               <CardContent
                 onClick={(e) => {
-                  console.log('[Catalog] CardContent (List) CLICKED!', form.id, e);
+                  logger.debug('[Catalog] CardContent (List) CLICKED!', form.id, e);
                   handleEditForm(form.id);
                 }}
                 style={{ cursor: 'pointer' }}
@@ -617,6 +932,30 @@ const FormsFlowsCatalog: React.FC = () => {
                     </StatusBadge>
                   </FormMeta>
                 </FormCardHeader>
+                
+                {/* NEW: Quick Run Button (if workflow supports it) */}
+                {form.can_quick_run && form.status === 'active' && (
+                  <div style={{ marginTop: '1rem', marginLeft: '4rem' }}>
+                    <QuickRunButton
+                      $isRunning={isQuickRunning === form.id}
+                      onClick={(e) => handleQuickRun(form.id, e)}
+                      disabled={isQuickRunning === form.id}
+                      title="Start this workflow with one click"
+                    >
+                      {isQuickRunning === form.id ? (
+                        <>
+                          <Loader size={16} />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <Play size={16} />
+                          Quick Run
+                        </>
+                      )}
+                    </QuickRunButton>
+                  </div>
+                )}
               </CardContent>
             </FormCard>
           ))}
@@ -636,14 +975,14 @@ const FormsFlowsCatalog: React.FC = () => {
         <FormPreviewModal
           form={previewForm}
           onClose={() => {
-            console.log('[Catalog] Closing preview modal');
+            logger.debug('[Catalog] Closing preview modal');
             setPreviewForm(null);
           }}
         />
       )}
       
       {/* Debug: Show preview state */}
-      {console.log('[Catalog] Current previewForm state:', previewForm)}
+      {logger.debug('[Catalog] Current previewForm state:', previewForm)}
     </Container>
   );
 };

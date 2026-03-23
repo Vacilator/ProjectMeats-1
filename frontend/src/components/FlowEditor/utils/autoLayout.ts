@@ -21,13 +21,15 @@ export interface LayoutOptions {
   nodeSpacing?: number;
   rankSpacing?: number;
   edgeSpacing?: number;
+  align?: 'UL' | 'UR' | 'DL' | 'DR';
 }
 
 const DEFAULT_OPTIONS: Required<LayoutOptions> = {
-  direction: 'TB', // Top to Bottom
+  direction: 'TB', // Default Top to Bottom; callers can override
   nodeSpacing: 50,
   rankSpacing: 100,
   edgeSpacing: 20,
+  align: 'UL',
 };
 
 /**
@@ -39,11 +41,18 @@ export const getLayoutedElements = (
   options: LayoutOptions = {}
 ): { nodes: Node[]; edges: Edge[] } => {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  
-  // Create a new dagre graph
+
+  // CRITICAL FIX: dagre crashes on grouped nodes (parentId).
+  // We only layout top-level nodes on the global canvas.
+  const topLevelNodes = nodes.filter((n) => !n.parentId);
+  const topLevelNodeIds = new Set(topLevelNodes.map((n) => n.id));
+
+  // Only route edges where both source and target are top-level
+  const topLevelEdges = edges.filter(
+    (e) => topLevelNodeIds.has(e.source) && topLevelNodeIds.has(e.target)
+  );
+
   const dagreGraph = new dagre.graphlib.Graph();
-  
-  // Set graph options
   dagreGraph.setGraph({
     rankdir: opts.direction,
     nodesep: opts.nodeSpacing,
@@ -52,47 +61,40 @@ export const getLayoutedElements = (
     marginx: 50,
     marginy: 50,
   });
-  
-  // Default edge config
+
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  
-  // Add nodes to dagre
-  nodes.forEach((node) => {
-    // Use measured dimensions or defaults
+
+  topLevelNodes.forEach((node) => {
     const width = node.width || 280;
     const height = node.height || 100;
-    
-    dagreGraph.setNode(node.id, {
-      width,
-      height,
-    });
+    dagreGraph.setNode(node.id, { width, height });
   });
-  
-  // Add edges to dagre
-  edges.forEach((edge) => {
+
+  topLevelEdges.forEach((edge) => {
     dagreGraph.setEdge(edge.source, edge.target);
   });
-  
-  // Calculate layout
+
   dagre.layout(dagreGraph);
-  
-  // Apply calculated positions to nodes
+
+  // Apply positions back to top-level nodes, keep child nodes unchanged
   const layoutedNodes = nodes.map((node) => {
+    if (node.parentId) return node; // Skip child nodes
+
     const nodeWithPosition = dagreGraph.node(node.id);
-    
-    // Dagre gives center positions, React Flow uses top-left
+    if (!nodeWithPosition) return node;
+
     const x = nodeWithPosition.x - (node.width || 280) / 2;
     const y = nodeWithPosition.y - (node.height || 100) / 2;
-    
+
     return {
       ...node,
       position: { x, y },
     };
   });
-  
+
   return {
     nodes: layoutedNodes,
-    edges,
+    edges, // Return all edges original array
   };
 };
 

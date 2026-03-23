@@ -14,6 +14,7 @@ import { DelegateTaskModal, DelegationData, User } from '../../components/Delega
 import { DelegationHistory } from '../../components/Delegation';
 import { workflowExecutionService } from '../../services/workflowExecutionService';
 import { WorkflowExecution } from '../../types/workflows';
+import { compareTasksSmart, isAtRiskTask, daysUntilDue } from '../../utils/taskPrioritization';
 
 // Styled Components
 const Container = styled.div`
@@ -28,6 +29,18 @@ const Header = styled.div`
   align-items: center;
   margin-bottom: 24px;
 `;
+
+const StatsBar = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(234, 179, 8, 0.05) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+`;
+
 
 const Title = styled.h1`
   font-size: 28px;
@@ -142,14 +155,21 @@ const TaskList = styled.div`
   gap: 12px;
 `;
 
-const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean }>`
+const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean; $isAtRisk?: boolean }>`
   display: flex;
   align-items: flex-start;
   padding: 16px 20px;
-  background: rgb(var(--color-surface, 255 255 255));
+  background: ${props => props.$isAtRisk 
+    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgb(var(--color-surface, 255 255 255)) 100%)'
+    : 'rgb(var(--color-surface, 255 255 255))'
+  };
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: ${props => props.$isAtRisk 
+    ? '0 2px 8px rgba(239, 68, 68, 0.2)'
+    : '0 1px 3px rgba(0, 0, 0, 0.1)'
+  };
   border-left: 4px solid ${props => {
+    if (props.$isAtRisk) return 'rgb(239, 68, 68)';
     if (props.$isOverdue) return 'rgb(239, 68, 68)';
     switch (props.$priority) {
       case 'urgent': return 'rgb(239, 68, 68)';
@@ -163,7 +183,10 @@ const TaskCard = styled.div<{ $priority: string; $isOverdue: boolean }>`
 
   &:hover {
     transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: ${props => props.$isAtRisk
+      ? '0 4px 12px rgba(239, 68, 68, 0.3)'
+      : '0 4px 12px rgba(0, 0, 0, 0.1)'
+    };
   }
 `;
 
@@ -234,6 +257,25 @@ const OverdueBadge = styled.span`
   text-transform: uppercase;
   background: rgba(239, 68, 68, 0.1);
   color: rgb(239, 68, 68);
+`;
+
+const AtRiskBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: rgba(239, 68, 68, 0.15);
+  color: rgb(239, 68, 68);
+  animation: pulse 2s ease-in-out infinite;
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
 `;
 
 const TaskActions = styled.div`
@@ -508,7 +550,7 @@ export const MyTasks: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'due_date' | 'priority' | 'form'>('due_date');
+  const [sortBy, setSortBy] = useState<'smart' | 'due_date' | 'priority' | 'form'>('smart');
   
   // Delegation state
   const [showDelegateModal, setShowDelegateModal] = useState(false);
@@ -540,15 +582,26 @@ export const MyTasks: React.FC = () => {
   const fetchWorkflowExecutions = useCallback(async () => {
     setWorkflowsLoading(true);
     setWorkflowsError('');
+    setWorkflowExecutions([]);
     try {
       const response = await workflowExecutionService.getExecutions({
         status: 'in_progress',
         assigned_to: 'me',
+        page_size: 25,
       });
       setWorkflowExecutions(response.results);
     } catch (err) {
       console.error('Failed to fetch workflow executions:', err);
-      setWorkflowsError('Failed to load workflows. Please try again.');
+      const status = (err as any)?.response?.status;
+
+      // Degrade gracefully: prefer the normal empty-state UI over a scary error banner.
+      // (This page already has a Retry button.)
+      if (status === 404 || status === 403) {
+        setWorkflowsError('No workflows available for your tenant yet.');
+      } else {
+        setWorkflowsError('');
+      }
+      setWorkflowExecutions([]);
     } finally {
       setWorkflowsLoading(false);
     }
@@ -565,7 +618,7 @@ export const MyTasks: React.FC = () => {
     try {
       await workflowExecutionService.resumeExecution(execution.id);
       // Navigate to the workflow
-      window.location.href = `/workflows/submissions/${execution.id}`;
+      window.location.href = `/workflows/run/${execution.id}`;
     } catch (err) {
       console.error('Failed to resume workflow:', err);
       alert('Failed to resume workflow. Please try again.');
@@ -589,6 +642,8 @@ export const MyTasks: React.FC = () => {
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
   };
+
+  // daysUntilDue imported from shared taskPrioritization util
 
   // Filter and sort action items
   const filteredItems = useMemo(() => {
@@ -620,6 +675,8 @@ export const MyTasks: React.FC = () => {
     // Sort
     items.sort((a, b) => {
       switch (sortBy) {
+        case 'smart':
+          return compareTasksSmart(a, b);
         case 'due_date':
           if (!a.due_date && !b.due_date) return 0;
           if (!a.due_date) return 1;
@@ -640,11 +697,28 @@ export const MyTasks: React.FC = () => {
     return items;
   }, [actionItems, priorityFilter, statusFilter, searchQuery, sortBy]);
 
+  // Calculate "At Risk" tasks (high-value + overdue/due soon)
+  const isAtRisk = (item: ActionItem): boolean => isAtRiskTask(item);
+
+  const atRiskStats = useMemo(() => {
+    const atRiskItems = filteredItems.filter(isAtRisk);
+    const totalValue = atRiskItems.reduce((sum, item) => sum + (item.related_po_value ?? 0), 0);
+    const overdue = atRiskItems.filter(item => item.is_overdue).length;
+    const dueSoon = atRiskItems.filter(item => !item.is_overdue).length;
+    return { count: atRiskItems.length, totalValue, overdue, dueSoon };
+  }, [filteredItems]);
+
+  const riskStats = useMemo(() => {
+    const atRiskItems = filteredItems.filter(isAtRisk);
+    const totalValue = atRiskItems.reduce((sum, item) => sum + (item.related_po_value ?? 0), 0);
+    return { count: atRiskItems.length, totalValue };
+  }, [filteredItems]);
+
   // Handle task click
   const handleTaskClick = (item: ActionItem) => {
     // Navigate to the form submission
     if (item.submission_id) {
-      window.location.href = `/workflows/submissions/${item.submission_id}`;
+      window.location.href = `/workflows/run/${item.submission_id}`;
     }
   };
   
@@ -780,6 +854,16 @@ export const MyTasks: React.FC = () => {
             <StatValue>{actionItemCounts.due_this_week}</StatValue>
             <StatLabel>Due This Week</StatLabel>
           </StatCard>
+          <StatCard $variant="danger">
+            <StatValue>{riskStats.count}</StatValue>
+            <StatLabel>At Risk (≤2 days &gt;= $10k)</StatLabel>
+          </StatCard>
+          <StatCard>
+            <StatValue>
+              {riskStats.totalValue > 0 ? `$${riskStats.totalValue.toLocaleString()}` : '$0'}
+            </StatValue>
+            <StatLabel>At Risk Value</StatLabel>
+          </StatCard>
           <StatCard>
             <StatValue>{actionItemCounts.total}</StatValue>
             <StatLabel>Total Tasks</StatLabel>
@@ -821,8 +905,9 @@ export const MyTasks: React.FC = () => {
           <FilterLabel>Sort By:</FilterLabel>
           <FilterSelect
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'due_date' | 'priority' | 'form')}
+            onChange={(e) => setSortBy(e.target.value as 'smart' | 'due_date' | 'priority' | 'form')}
           >
+            <option value="smart">Urgency × Value (Recommended)</option>
             <option value="due_date">Due Date</option>
             <option value="priority">Priority</option>
             <option value="form">Form Name</option>
@@ -852,49 +937,61 @@ export const MyTasks: React.FC = () => {
         </EmptyState>
       ) : (
         <TaskList>
-          {filteredItems.map((item) => (
-            <TaskCard
-              key={item.id}
-              $priority={item.priority}
-              $isOverdue={item.is_overdue}
-              onClick={() => handleTaskClick(item)}
-              role="button"
-              tabIndex={0}
-              onKeyPress={(e) => e.key === 'Enter' && handleTaskClick(item)}
-            >
-              <TaskContent>
-                <TaskTitle>{item.title}</TaskTitle>
-                {item.description && (
-                  <TaskDescription>{item.description}</TaskDescription>
-                )}
-                <TaskMeta>
-                  {item.form_name && (
+          {filteredItems.map((item) => {
+            const itemIsAtRisk = isAtRisk(item);
+            return (
+              <TaskCard
+                key={item.id}
+                $priority={item.priority}
+                $isOverdue={item.is_overdue}
+                $isAtRisk={itemIsAtRisk}
+                onClick={() => handleTaskClick(item)}
+                role="button"
+                tabIndex={0}
+                onKeyPress={(e) => e.key === 'Enter' && handleTaskClick(item)}
+              >
+                <TaskContent>
+                  <TaskTitle>{item.title}</TaskTitle>
+                  {item.description && (
+                    <TaskDescription>{item.description}</TaskDescription>
+                  )}
+                  <TaskMeta>
+                    {item.form_name && (
+                      <TaskMetaItem>
+                        📋 {item.form_name}
+                        {item.step_name && ` → ${item.step_name}`}
+                      </TaskMetaItem>
+                    )}
                     <TaskMetaItem>
-                      📋 {item.form_name}
-                      {item.step_name && ` → ${item.step_name}`}
+                      📅 {formatDueDate(item.due_date)}
                     </TaskMetaItem>
-                  )}
-                  <TaskMetaItem>
-                    📅 {formatDueDate(item.due_date)}
-                  </TaskMetaItem>
-                  <PriorityBadge $priority={item.priority}>
-                    {item.priority}
-                  </PriorityBadge>
-                  {item.is_overdue && (
-                    <OverdueBadge>Overdue</OverdueBadge>
-                  )}
-                </TaskMeta>
-              </TaskContent>
-              <TaskActions onClick={(e) => e.stopPropagation()}>
-                <SecondaryButton onClick={(e) => handleDelegateClick(e, item)}>
-                  Delegate
-                </SecondaryButton>
-                <ActionButton onClick={() => handleTaskClick(item)}>
-                  Open
-                </ActionButton>
-              </TaskActions>
-            </TaskCard>
-          ))}
+                    {typeof item.related_po_value === 'number' && (
+                      <TaskMetaItem>
+                        💰 {item.related_po_currency || 'USD'} {item.related_po_value.toLocaleString()}
+                      </TaskMetaItem>
+                    )}
+                    <PriorityBadge $priority={item.priority}>
+                      {item.priority}
+                    </PriorityBadge>
+                    {item.is_overdue && (
+                      <OverdueBadge>Overdue</OverdueBadge>
+                    )}
+                    {itemIsAtRisk && (
+                      <AtRiskBadge>⚠️ At Risk</AtRiskBadge>
+                    )}
+                  </TaskMeta>
+                </TaskContent>
+                <TaskActions onClick={(e) => e.stopPropagation()}>
+                  <SecondaryButton onClick={(e) => handleDelegateClick(e, item)}>
+                    Delegate
+                  </SecondaryButton>
+                  <ActionButton onClick={() => handleTaskClick(item)}>
+                    Open
+                  </ActionButton>
+                </TaskActions>
+              </TaskCard>
+            );
+          })}
         </TaskList>
       )}
       

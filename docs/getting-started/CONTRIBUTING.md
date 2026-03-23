@@ -2,7 +2,7 @@
 
 **Status**: ✅ CURRENT  
 **Category**: Getting Started  
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-03-18
 
 ---
 
@@ -48,17 +48,19 @@ Welcome to ProjectMeats! This guide will help you contribute effectively to our 
 - ❌ Never create new branches from old feature branches
 
 **Why This Matters:**
-- Reduces repository clutter (we had 254 stale branches!)
+- Reduces repository clutter (we had 328+ stale branches!)
 - Prevents confusion about which branches are active
 - Reduces technical debt
 - Improves repository performance
 - Makes it easier to find relevant work
 
 **Automated Cleanup:**
-The repository includes automated workflows that:
-- Delete merged branches after 7 days
-- Prune stale branch references
-- Monitor branch health
+The repository runs [`branch-cleanup.yml`](../../.github/workflows/branch-cleanup.yml) every Monday at 02:00 UTC. It:
+- Deletes branches already merged into `development`, `uat`, or `main`.
+- Deletes feature branches with **no commits in the last 30 days**.
+- Can be triggered manually via `workflow_dispatch` with `dry_run=true` to preview deletions without acting on them.
+
+Protected branches (`development`, `uat`, `main`, `release/*`, `hotfix/*`) are **never** touched by automated cleanup.
 
 **Manual Cleanup:**
 ```bash
@@ -105,6 +107,31 @@ All branches **must** follow this format: `<type>/<description>`
 - ✅ `fix/login-validation-error`
 - ❌ `add-customer-export` (missing type)
 - ❌ `Feature/AddExport` (wrong case - use lowercase)
+
+### Golden State Verification (Required)
+
+**Every CI/CD workflow runs this check as its first job.** A failing golden-state check blocks the entire pipeline. Run it locally before every PR:
+
+```bash
+bash scripts/verify_golden_state.sh
+```
+
+The script checks:
+
+| Check | What it verifies |
+|-------|-----------------|
+| `env.manifest.json` | Secret source-of-truth is present |
+| `manage_env.py audit_secrets` | Secret audit tooling is functional |
+| SSH tunnel (port 5433) | Migrations use the secure bastion pattern |
+| `--network host` | Migration containers use host networking |
+| Frontend health check | Frontend verified directly (not via proxy) |
+| No `django-tenants` | Shared-schema multi-tenancy only |
+| `GOLDEN_PIPELINE.md` | Deployment documentation exists |
+| `CONFIGURATION_AND_SECRETS.md` | Secrets documentation exists |
+| No archived-doc references | Workflows reference live docs only |
+| `run-name:` in pipeline | Pipeline has a descriptive run name |
+
+See [`docs/GOLDEN_PIPELINE.md`](../GOLDEN_PIPELINE.md) and [`docs/PIPELINE_FINAL_VERIFICATION.md`](../PIPELINE_FINAL_VERIFICATION.md) for the authoritative reference.
 
 ### PR Title Convention
 

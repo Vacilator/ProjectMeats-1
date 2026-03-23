@@ -547,7 +547,7 @@ class FormSubmissionAdmin(TenantFilteredAdmin):
     """Admin for form submissions."""
     
     list_display = ['form_name', 'status_badge', 'created_by', 'progress_display', 'created_at', 'updated_at']
-    list_filter = ['status', 'form', 'tenant', 'created_at']
+    list_filter = ['status', 'form', 'created_at']
     search_fields = ['form__name', 'created_by__username', 'created_by__first_name', 'created_by__last_name']
     readonly_fields = ['id', 'form_snapshot', 'created_at', 'updated_at', 'completed_at']
     ordering = ['-updated_at']
@@ -555,7 +555,7 @@ class FormSubmissionAdmin(TenantFilteredAdmin):
     
     fieldsets = [
         ('Submission Details', {
-            'fields': ('tenant', 'form', 'status', 'created_by'),
+            'fields': ('form', 'status', 'created_by'),
         }),
         ('Progress', {
             'fields': ('current_step',),

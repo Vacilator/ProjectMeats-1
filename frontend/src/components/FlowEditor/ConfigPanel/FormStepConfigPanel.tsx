@@ -1,23 +1,24 @@
 /**
- * Form Step Configuration Panel
+ * Form Configuration Panel
  * 
- * Configuration panel for form steps (multi-step form containers).
- * Manages step-level settings including visibility, navigation, and validation.
+ * Configuration panel for forms and form processes.
+ * Manages form-level settings including visibility, navigation, and validation.
  * 
  * Features:
- * - Step title and description editing
- * - Conditional visibility for entire step
+ * - Form title and description editing
+ * - Conditional visibility for entire form
  * - Navigation controls (back/skip/auto-advance)
- * - Step-level validation rules
+ * - Form-level validation rules
  * - Field list management (add/edit/delete/reorder)
  * 
  * Phase E.2: Panel Migration - Batch 1 (1 of 3)
- * Migrated to use shared styled components from ConfigPanel/shared
+ * Updated: 2026-02-25 - Phase 2 Standardization
  * 
  * Changes:
  * - Replaced 30+ local styled components with shared components
  * - Massive code reduction expected (40%+)
  * - Maintained exact same functionality
+ * - Updated terminology: "Form Step" → "Form"
  * 
  * Created: 2026-02-04 - Phase 5 Field/Step/Mapping Enhancements
  * Last Updated: 2026-02-18 - Phase E.2 Panel Migration
@@ -26,13 +27,15 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { 
   ChevronDown, ChevronUp, GripVertical, Plus, Edit2, Trash2, 
-  Eye, EyeOff, CheckCircle, Database
+  Eye, EyeOff, CheckCircle, Database, Zap
 } from 'lucide-react';
 import { ConditionBuilder, ConditionRule, ConditionLogic } from './ConditionBuilder';
 import type { FormField, FormFieldType } from './FormFieldConfigPanel';
 import { useEntityList, useEntityFields, EntityField } from '../../../services/schemaService';
 import { EntityFieldPicker, SelectedField } from './EntityFieldPicker';
 import { FieldPropertiesEditor, FieldProperties } from './FieldPropertiesEditor';
+import { useAutoMapping } from '../hooks/useAutoMapping';
+import { AutoMappingSuggestionsPanel } from '../components/AutoMappingSuggestionsPanel';
 
 // Import shared styled components
 import {
@@ -94,6 +97,7 @@ export interface FormStepData {
 
 export interface FormStepConfigPanelProps {
   step: FormStepData;
+  nodeId?: string;  // Phase 7: Added for Smart Auto-Map
   onChange: (step: FormStepData) => void;
   onClose: () => void;
   onEditField?: (field: FormField) => void;
@@ -361,6 +365,7 @@ const mapEntityFieldTypeToFormFieldType = (djangoType: string): FormFieldType =>
 
 export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
   step,
+  nodeId,
   onChange,
   onClose,
   onEditField,
@@ -403,6 +408,18 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
     { enabled: !!localStep.entityType }
   );
   const availableEntityFields = fieldsData?.fields || [];
+  
+  // Phase 7: Smart Auto-Map integration
+  const {
+    suggestions,
+    loading: autoMappingLoading,
+    error: autoMappingError,
+    generateSuggestions,
+    applySuggestion,
+    applyAllSuggestions,
+    clearSuggestions,
+  } = useAutoMapping();
+  const [showAutoMapping, setShowAutoMapping] = useState<boolean>(false);
   
   // Phase A.3: Filter available fields by search term and type
   const filteredEntityFields = availableEntityFields
@@ -592,7 +609,9 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
                 {entities.length > 0 ? (
                   entities.map(entity => (
                     <option key={entity.id} value={entity.id}>
-                      {entity.label_plural} ({entity.field_count} fields)
+                      {entity.field_count > 0
+                        ? `${entity.label_plural} (${entity.field_count} fields)`
+                        : entity.label_plural}
                     </option>
                   ))
                 ) : !entitiesLoading && (
@@ -619,6 +638,82 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
             </StyledFormField>
           </SectionContent>
         </Section>
+
+        {/* Phase 7: Smart Auto-Map - Intelligent Field Suggestions */}
+        {localStep.entityType && localStep.fields.length === 0 && (
+          <Section>
+            <SectionHeader onClick={() => setShowAutoMapping(!showAutoMapping)}>
+              <SectionTitle>
+                <Zap size={14} style={{ marginRight: '4px', display: 'inline', verticalAlign: 'middle' }} />
+                Smart Auto-Map
+                {suggestions && suggestions.suggestions.length > 0 && (
+                  <span style={{ 
+                    marginLeft: '8px', 
+                    fontSize: '12px', 
+                    color: 'rgb(var(--color-primary))',
+                    fontWeight: 'normal'
+                  }}>
+                    ({suggestions.suggestions.length} suggestions)
+                  </span>
+                )}
+              </SectionTitle>
+              {showAutoMapping ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </SectionHeader>
+            <SectionContent $collapsed={!showAutoMapping}>
+              <div style={{ marginBottom: '16px' }}>
+                <HelpText>
+                  Automatically suggest field mappings from upstream nodes based on name similarity and type compatibility.
+                </HelpText>
+                <PrimaryButton
+                  onClick={() => {
+                    if (nodeId) {
+                      generateSuggestions(nodeId);
+                    }
+                  }}
+                  disabled={autoMappingLoading || !nodeId}
+                  style={{ marginTop: '12px' }}
+                >
+                  {autoMappingLoading ? 'Analyzing...' : 'Generate Suggestions'}
+                </PrimaryButton>
+              </div>
+              
+              {suggestions && suggestions.suggestions.length > 0 && (
+                <AutoMappingSuggestionsPanel
+                  suggestions={suggestions.suggestions}
+                  loading={autoMappingLoading}
+                  error={autoMappingError}
+                  onAccept={(suggestion) => {
+                    if (nodeId) {
+                      applySuggestion(nodeId, suggestion);
+                    }
+                    // Note: Field mapping will be applied to node data
+                    // The actual field addition to localStep.fields would need
+                    // additional logic to convert mapping to form field
+                  }}
+                  onReject={(suggestionId) => {
+                    // Filter out rejected suggestion
+                    // This would need additional state management
+                  }}
+                  onApplyAll={() => {
+                    if (nodeId) {
+                      applyAllSuggestions(nodeId);
+                    }
+                  }}
+                  onClose={() => {
+                    clearSuggestions();
+                    setShowAutoMapping(false);
+                  }}
+                />
+              )}
+              
+              {autoMappingError && (
+                <ErrorMessage style={{ marginTop: '12px' }}>
+                  {autoMappingError}
+                </ErrorMessage>
+              )}
+            </SectionContent>
+          </Section>
+        )}
 
         {/* Fields Management */}
         <Section>
@@ -767,13 +862,19 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
-                  checked={localStep.navigation?.allowBack !== false}
-                  onChange={(e) => handleUpdate({
-                    navigation: {
-                      ...localStep.navigation,
-                      allowBack: e.target.checked,
-                    }
-                  })}
+                  checked={(localStep.navigation?.allowBack ?? true) === true}
+                  onChange={(e) =>
+                    handleUpdate({
+                      navigation: {
+                        allowBack: e.target.checked,
+                        allowSkip: localStep.navigation?.allowSkip ?? false,
+                        autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                        backLabel: localStep.navigation?.backLabel,
+                        nextLabel: localStep.navigation?.nextLabel,
+                        skipLabel: localStep.navigation?.skipLabel,
+                      },
+                    })
+                  }
                 />
                 Allow Back Button
               </CheckboxLabel>
@@ -784,13 +885,19 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
-                  checked={localStep.navigation?.allowSkip === true}
-                  onChange={(e) => handleUpdate({
-                    navigation: {
-                      ...localStep.navigation,
-                      allowSkip: e.target.checked,
-                    }
-                  })}
+                  checked={(localStep.navigation?.allowSkip ?? false) === true}
+                  onChange={(e) =>
+                    handleUpdate({
+                      navigation: {
+                        allowBack: localStep.navigation?.allowBack ?? true,
+                        allowSkip: e.target.checked,
+                        autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                        backLabel: localStep.navigation?.backLabel,
+                        nextLabel: localStep.navigation?.nextLabel,
+                        skipLabel: localStep.navigation?.skipLabel,
+                      },
+                    })
+                  }
                 />
                 Allow Skip Button
               </CheckboxLabel>
@@ -801,13 +908,19 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <CheckboxLabel>
                 <Checkbox
                   type="checkbox"
-                  checked={localStep.navigation?.autoAdvance === true}
-                  onChange={(e) => handleUpdate({
-                    navigation: {
-                      ...localStep.navigation,
-                      autoAdvance: e.target.checked,
-                    }
-                  })}
+                  checked={(localStep.navigation?.autoAdvance ?? false) === true}
+                  onChange={(e) =>
+                    handleUpdate({
+                      navigation: {
+                        allowBack: localStep.navigation?.allowBack ?? true,
+                        allowSkip: localStep.navigation?.allowSkip ?? false,
+                        autoAdvance: e.target.checked,
+                        backLabel: localStep.navigation?.backLabel,
+                        nextLabel: localStep.navigation?.nextLabel,
+                        skipLabel: localStep.navigation?.skipLabel,
+                      },
+                    })
+                  }
                 />
                 Auto-advance on Completion
               </CheckboxLabel>
@@ -819,36 +932,54 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <Input
                 type="text"
                 value={localStep.navigation?.backLabel || ''}
-                onChange={(e) => handleUpdate({
-                  navigation: {
-                    ...localStep.navigation,
-                    backLabel: e.target.value,
-                  }
-                })}
+                onChange={(e) =>
+                  handleUpdate({
+                    navigation: {
+                      allowBack: localStep.navigation?.allowBack ?? true,
+                      allowSkip: localStep.navigation?.allowSkip ?? false,
+                      autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                      backLabel: e.target.value,
+                      nextLabel: localStep.navigation?.nextLabel,
+                      skipLabel: localStep.navigation?.skipLabel,
+                    },
+                  })
+                }
                 placeholder="Back (default)"
               />
               <Input
                 type="text"
                 value={localStep.navigation?.nextLabel || ''}
-                onChange={(e) => handleUpdate({
-                  navigation: {
-                    ...localStep.navigation,
-                    nextLabel: e.target.value,
-                  }
-                })}
+                onChange={(e) =>
+                  handleUpdate({
+                    navigation: {
+                      allowBack: localStep.navigation?.allowBack ?? true,
+                      allowSkip: localStep.navigation?.allowSkip ?? false,
+                      autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                      backLabel: localStep.navigation?.backLabel,
+                      nextLabel: e.target.value,
+                      skipLabel: localStep.navigation?.skipLabel,
+                    },
+                  })
+                }
                 placeholder="Next (default)"
                 style={{ marginTop: '8px' }}
               />
-              {localStep.navigation?.allowSkip && (
+              {(localStep.navigation?.allowSkip ?? false) && (
                 <Input
                   type="text"
                   value={localStep.navigation?.skipLabel || ''}
-                  onChange={(e) => handleUpdate({
-                    navigation: {
-                      ...localStep.navigation,
-                      skipLabel: e.target.value,
-                    }
-                  })}
+                  onChange={(e) =>
+                    handleUpdate({
+                      navigation: {
+                        allowBack: localStep.navigation?.allowBack ?? true,
+                        allowSkip: localStep.navigation?.allowSkip ?? false,
+                        autoAdvance: localStep.navigation?.autoAdvance ?? false,
+                        backLabel: localStep.navigation?.backLabel,
+                        nextLabel: localStep.navigation?.nextLabel,
+                        skipLabel: e.target.value,
+                      },
+                    })
+                  }
                   placeholder="Skip (default)"
                   style={{ marginTop: '8px' }}
                 />
@@ -920,12 +1051,15 @@ export const FormStepConfigPanel: React.FC<FormStepConfigPanelProps> = ({
               <Label>Custom Validation Message (Optional)</Label>
               <TextArea
                 value={localStep.validation?.customMessage || ''}
-                onChange={(e) => handleUpdate({
-                  validation: {
-                    ...localStep.validation,
-                    customMessage: e.target.value,
-                  }
-                })}
+                onChange={(e) =>
+                  handleUpdate({
+                    validation: {
+                      ...localStep.validation,
+                      mode: localStep.validation?.mode ?? 'all',
+                      customMessage: e.target.value,
+                    },
+                  })
+                }
                 placeholder="e.g., Please complete all required fields before continuing."
               />
               <HelpText>

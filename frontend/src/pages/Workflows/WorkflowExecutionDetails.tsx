@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import { adminClient } from '../../services/apiService';
 import { Clock, CheckCircle, Activity, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://dev.meatscentral.com';
 
 interface StepDetail {
   index: number;
@@ -39,14 +38,7 @@ export const WorkflowExecutionDetails: React.FC = () => {
 
   const fetchRunDetails = async () => {
     try {
-      const response = await axios.get(
-        `${API_BASE}/admin/system-config/api/runs/${runId}/`,
-        {
-          headers: {
-            Authorization: `Token ${localStorage.getItem('authToken')}`,
-          },
-        }
-      );
+      const response = await adminClient.get(`/admin/system-config/api/runs/${runId}/`);
       setRunData(response.data);
     } catch (error) {
       console.error('Failed to fetch run details:', error);
@@ -57,14 +49,7 @@ export const WorkflowExecutionDetails: React.FC = () => {
 
   const fetchExecutionLog = async () => {
     try {
-      const response = await axios.get(
-        `${API_BASE}/admin/system-config/api/runs/${runId}/execution-log/`,
-        {
-          headers: {
-            Authorization: `Token ${localStorage.getItem('authToken')}`,
-          },
-        }
-      );
+      const response = await adminClient.get(`/admin/system-config/api/runs/${runId}/execution-log/`);
       setExecutionLog(response.data.timeline || []);
     } catch (error) {
       console.error('Failed to fetch execution log:', error);

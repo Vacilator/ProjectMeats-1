@@ -37,8 +37,6 @@ import {
   CloseButton,
   PanelContent,
   PanelFooter,
-  Section,
-  Label,
   LabelContainer,
   Input,
   TextArea,
@@ -46,7 +44,15 @@ import {
   PrimaryButton,
   SecondaryButton,
   ErrorMessage,
-  InfoMessage,
+  EmptyState,
+  EmptyIcon,
+  EmptyText,
+  FormSection,
+  SectionTitle,
+  FormField,
+  FieldLabel,
+  RequiredIndicator,
+  FieldHelp,
 } from './shared/StyledComponents';
 
 // ============================================================================
@@ -96,21 +102,21 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
   onClose,
   onUpdate,
 }) => {
+  const nodeData = (node.data ?? {}) as Partial<CreateRecordData> & Record<string, any>;
+
   const [formData, setFormData] = useState<CreateRecordData>({
-    label: node.data.label || 'Create Record',
-    entity: node.data.entity || '',
-    fieldMappings: node.data.fieldMappings || [],
-    description: node.data.description || '',
+    label: nodeData.label || 'Create Record',
+    entity: nodeData.entity || '',
+    fieldMappings: nodeData.fieldMappings || [],
+    description: nodeData.description || '',
   });
   
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   // Get available form fields from previous nodes (simplified - in production would traverse graph)
-  const formFields = [
-    // This would be populated from previous form step nodes
-    // For now, returning empty array - will be populated when integrated with flow
-  ];
+  const formFields: Array<{ id: string; label: string; type: string }> = [];
+
 
   const handleFieldChange = (field: keyof CreateRecordData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -276,18 +282,14 @@ export const CreateRecordConfigPanel: React.FC<CreateRecordConfigPanelProps> = (
         </PanelContent>
 
         <PanelFooter>
-          <Button $variant="ghost" onClick={handleClose}>
+          <SecondaryButton onClick={handleClose}>
             Cancel
-          </Button>
-          <Button 
-            $variant="primary" 
-            onClick={handleSave}
-            disabled={!formData.entity}
-          >
+          </SecondaryButton>
+          <PrimaryButton onClick={handleSave} disabled={!formData.entity}>
             <Save size={14} />
             Save Configuration
             {hasUnsavedChanges && ' *'}
-          </Button>
+          </PrimaryButton>
         </PanelFooter>
       </Panel>
     </>

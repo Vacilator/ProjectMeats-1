@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { X, Search, Check, FileText, Calendar, Users } from 'lucide-react';
 import { adminClient } from '../../services/apiService';
 import type { FormDefinition } from '../form-builder';
+import { useTranslation } from '../../i18n';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -307,6 +308,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
   onSelect,
   currentFormId,
 }) => {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFormId, setSelectedFormId] = useState<string | undefined>(currentFormId);
   
@@ -356,7 +358,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
     <Overlay $isOpen={isOpen} onClick={onClose}>
       <Modal onClick={(e) => e.stopPropagation()}>
         <Header>
-          <Title>Select a Form</Title>
+          <Title>{t('forms.selectAForm')}</Title>
           <CloseButton onClick={onClose}>
             <X size={20} />
           </CloseButton>
@@ -369,7 +371,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
             </SearchIcon>
             <SearchInput
               type="text"
-              placeholder="Search forms..."
+              placeholder={t('forms.searchForms')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoFocus
@@ -379,12 +381,12 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
         
         <Content>
           {isLoading ? (
-            <LoadingState>Loading forms...</LoadingState>
+            <LoadingState>{t('forms.loadingForms')}</LoadingState>
           ) : filteredForms.length === 0 ? (
             <EmptyState>
               <EmptyIcon>📋</EmptyIcon>
               <EmptyText>
-                {searchQuery ? 'No forms match your search' : 'No forms available'}
+                {searchQuery ? t('forms.noFormsMatch') : t('forms.noForms')}
               </EmptyText>
             </EmptyState>
           ) : (
@@ -411,7 +413,7 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
                       {form.entity_count > 0 && (
                         <MetaItem>
                           <Users size={12} />
-                          {form.entity_count} submissions
+                          {t('forms.submissions', { count: form.entity_count })}
                         </MetaItem>
                       )}
                     </FormMeta>
@@ -428,13 +430,13 @@ export const FormSelectorModal: React.FC<FormSelectorModalProps> = ({
         </Content>
         
         <Footer>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             $variant="primary"
             onClick={handleSelect}
             disabled={!selectedFormId}
           >
-            Select Form
+            {t('forms.selectForm')}
           </Button>
         </Footer>
       </Modal>

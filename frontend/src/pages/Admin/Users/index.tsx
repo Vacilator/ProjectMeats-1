@@ -1,30 +1,34 @@
 /**
- * Users & Invitations Page - Phase 1B Complete Implementation
- * 
- * Features:
- * - User list with AdminTable
- * - Invite users with email/role
- * - Edit user roles
- * - Deactivate users
- * - Pending invitations with revoke
- * 
- * Created: 2026-02-09
+ * Users & Invitations Page
+ *
+ * Tenant admin management for users, invitations, and roles.
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../../../services/apiService';
-import { AdminTable } from '../../../components/Admin/AdminTable';
-import { ConfirmDialog } from '../../../components/Admin/ConfirmDialog';
-import { RoleBadge } from '../../../components/Admin/RoleBadge';
-import { StatusBadge } from '../../../components/Admin/StatusBadge';
-import { useToast } from '../../../hooks/useToast';
-import { useAdminPermissions } from '../../../hooks/useAdminPermissions';
-import Modal from '../../../components/Modal/Modal';
+import { Search } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/services/apiService';
+import {
+  AdminGuard,
+  AdminPage,
+  AdminSection,
+  AdminTable,
+  ConfirmDialog,
+  LoadingSkeleton,
+  RoleBadge,
+  StatusBadge,
+} from '@/components/Admin';
+import { Button } from '@/components/ui/Button';
+import { useToast } from '@/hooks/useToast';
+import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { useAuth } from '@/contexts/AuthContext';
+import Modal from '@/components/Modal/Modal';
 
 interface TenantUser {
   id: number;
-  user: {
+  // Backend may return a user ID (numeric) plus flat identity fields.
+  // Some older payloads may return a nested user object.
+  user: number | {
     id: number;
     username: string;
     email: string;
@@ -33,6 +37,10 @@ interface TenantUser {
   };
   role: 'owner' | 'admin' | 'manager' | 'user' | 'readonly';
   is_active: boolean;
+  username?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -49,8 +57,12 @@ interface Invitation {
 const UsersPage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { permissions, isLoading: permissionsLoading } = useAdminPermissions();
+  const { user: currentUser } = useAuth();
+  const { permissions } = useAdminPermissions();
+  const canAccess =
+    permissions.can_manage_users || permissions.can_invite_users || permissions.can_change_roles;
 
+  const [searchQuery, setSearchQuery] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
@@ -59,30 +71,83 @@ const UsersPage: React.FC = () => {
   const [inviteRole, setInviteRole] = useState<string>('user');
   const [editRole, setEditRole] = useState<string>('user');
 
-  const { data: users = [], isLoading: usersLoading } = useQuery<TenantUser[]>({
+  const {
+    data: users = [],
+    isLoading: usersLoading,
+    isError: usersIsError,
+  } = useQuery<TenantUser[]>({
     queryKey: ['tenant-users'],
+    enabled: canAccess,
     queryFn: async () => {
       const response = await apiClient.get('/tenant-users/');
       const data = response.data.results || response.data;
-      // Ensure we always return an array
       return Array.isArray(data) ? data : [];
     },
   });
 
-  const { data: invitations = [] } = useQuery<Invitation[]>({
+  const {
+    data: invitations = [],
+    isLoading: invitationsLoading,
+    isError: invitationsIsError,
+  } = useQuery<Invitation[]>({
     queryKey: ['tenant-invitations'],
+    enabled: canAccess,
     queryFn: async () => {
-      const response = await apiClient.get('/invitations/?status=pending');
+      const response = await apiClient.get('/invitations/', {
+        params: { status: 'pending' },
+      });
       const data = response.data.results || response.data;
-      // Ensure we always return an array
       return Array.isArray(data) ? data : [];
     },
   });
+
+  const normalizedQuery = useMemo(() => searchQuery.trim().toLowerCase(), [searchQuery]);
+
+  const getUserId = (row: TenantUser): number | undefined =>
+    typeof row.user === 'number' ? row.user : row.user?.id;
+
+  const getUsername = (row: TenantUser): string =>
+    row.username ?? (typeof row.user === 'object' && row.user ? row.user.username : '');
+
+  const getEmail = (row: TenantUser): string =>
+    row.email ?? (typeof row.user === 'object' && row.user ? row.user.email : '');
+
+  const getFirstName = (row: TenantUser): string =>
+    row.first_name ?? (typeof row.user === 'object' && row.user ? row.user.first_name : '');
+
+  const getLastName = (row: TenantUser): string =>
+    row.last_name ?? (typeof row.user === 'object' && row.user ? row.user.last_name : '');
+
+  const getDisplayName = (row: TenantUser): string => {
+    const first = getFirstName(row);
+    const last = getLastName(row);
+    const full = `${first} ${last}`.trim();
+    return full || getUsername(row) || getEmail(row) || `User ${getUserId(row) ?? ''}`.trim();
+  };
+
+  const matchesUser = (row: TenantUser) => {
+    if (!normalizedQuery) return true;
+    const name = getDisplayName(row).toLowerCase();
+    const username = getUsername(row).toLowerCase();
+    const email = getEmail(row).toLowerCase();
+
+    return username.includes(normalizedQuery) || email.includes(normalizedQuery) || name.includes(normalizedQuery);
+  };
+
+  const matchesInvitation = (row: Invitation) => {
+    if (!normalizedQuery) return true;
+    return row.email.toLowerCase().includes(normalizedQuery) || (row.role || '').toLowerCase().includes(normalizedQuery);
+  };
+
+  const activeUsers = useMemo(() => users.filter((u) => u.is_active).filter(matchesUser), [users, normalizedQuery]);
+  const inactiveUsers = useMemo(() => users.filter((u) => !u.is_active).filter(matchesUser), [users, normalizedQuery]);
+  const pendingInvitations = useMemo(
+    () => invitations.filter((inv) => inv.status === 'pending' || !inv.status).filter(matchesInvitation),
+    [invitations, normalizedQuery]
+  );
 
   const inviteMutation = useMutation({
-    mutationFn: async (data: { email: string; role: string }) => {
-      return await apiClient.post('/invitations/', data);
-    },
+    mutationFn: async (data: { email: string; role: string }) => apiClient.post('/invitations/', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
       toast.success('Invitation sent successfully');
@@ -95,9 +160,8 @@ const UsersPage: React.FC = () => {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: async (data: { id: number; role: string }) => {
-      return await apiClient.patch(`/tenant-users/${data.id}/`, { role: data.role });
-    },
+    mutationFn: async (data: { id: number; role: string }) =>
+      apiClient.patch(`/tenant-users/${data.id}/`, { role: data.role }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
       toast.success('User role updated');
@@ -109,9 +173,7 @@ const UsersPage: React.FC = () => {
   });
 
   const deactivateMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return await apiClient.patch(`/tenant-users/${id}/`, { is_active: false });
-    },
+    mutationFn: async (id: number) => apiClient.patch(`/tenant-users/${id}/`, { is_active: false }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
       toast.success('User deactivated');
@@ -122,167 +184,338 @@ const UsersPage: React.FC = () => {
     },
   });
 
-  const revokeMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return await apiClient.post(`/invitations/${id}/revoke/`);
+  const reactivateMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.patch(`/tenant-users/${id}/`, { is_active: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+      toast.success('User reactivated');
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to reactivate');
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/revoke/`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
       toast.success('Invitation revoked');
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to revoke invitation');
+    },
   });
 
-  const columns = [
-    {
-      key: 'user.username',
-      label: 'User',
-      sortable: true,
-      render: (_: any, row: TenantUser) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>
-            {row.user.first_name && row.user.last_name
-              ? `${row.user.first_name} ${row.user.last_name}`
-              : row.user.username}
-          </div>
-          <div style={{ fontSize: '12px', color: 'rgb(var(--color-text-secondary))' }}>
-            {row.user.email}
-          </div>
-        </div>
-      ),
+  const resendMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/resend/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-invitations'] });
+      toast.success('Invitation resent');
     },
-    {
-      key: 'role',
-      label: 'Role',
-      sortable: true,
-      render: (value: string) => <RoleBadge role={value as any} />,
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to resend invitation');
     },
-    {
-      key: 'is_active',
-      label: 'Status',
-      sortable: true,
-      render: (value: boolean) => <StatusBadge status={value ? 'active' : 'inactive'} />,
-    },
-    {
-      key: 'created_at',
-      label: 'Joined',
-      sortable: true,
-      render: (value: string) => new Date(value).toLocaleDateString(),
-    },
-  ];
+  });
 
-  const actions = [
-    {
-      label: 'Edit',
-      icon: '✏️',
-      onClick: (user: TenantUser) => {
-        setSelectedUser(user);
-        setEditRole(user.role);
-        setShowEditModal(true);
+  const columns = useMemo(
+    () => [
+      {
+        key: 'username',
+        label: 'User',
+        sortable: true,
+        render: (_: any, row: TenantUser) => (
+          <div>
+            <div style={{ fontWeight: 600 }}>{getDisplayName(row)}</div>
+            <div style={{ fontSize: '12px', color: 'rgb(var(--color-text-secondary))' }}>{getEmail(row)}</div>
+          </div>
+        ),
       },
-      hidden: () => !permissions.can_change_roles,
-    },
-    {
-      label: 'Deactivate',
-      icon: '🚫',
-      onClick: (user: TenantUser) => {
-        setSelectedUser(user);
-        setShowDeactivateConfirm(true);
+      {
+        key: 'role',
+        label: 'Role',
+        sortable: true,
+        render: (value: string) => <RoleBadge role={value as any} />,
       },
-      variant: 'danger' as const,
-      hidden: (row: TenantUser) => !permissions.can_manage_users || !row.is_active,
-    },
-  ];
+      {
+        key: 'is_active',
+        label: 'Status',
+        sortable: true,
+        render: (value: boolean) => <StatusBadge status={value ? 'active' : 'inactive'} />,
+      },
+      {
+        key: 'created_at',
+        label: 'Joined',
+        sortable: true,
+        render: (value: string) => new Date(value).toLocaleDateString(),
+      },
+    ],
+    []
+  );
 
-  if (permissionsLoading) {
-    return <PageContainer><div>Loading...</div></PageContainer>;
-  }
+  const actions = useMemo(
+    () => [
+      {
+        label: 'Edit',
+        icon: '✏️',
+        onClick: (user: TenantUser) => {
+          setSelectedUser(user);
+          setEditRole(user.role);
+          setShowEditModal(true);
+        },
+        hidden: () => !permissions.can_change_roles,
+      },
+      {
+        label: 'Deactivate',
+        icon: '🚫',
+        onClick: (user: TenantUser) => {
+          const targetUserId = getUserId(user);
+          if (currentUser?.id && targetUserId && targetUserId === currentUser.id) {
+            toast.error('You cannot deactivate yourself');
+            return;
+          }
+          setSelectedUser(user);
+          setShowDeactivateConfirm(true);
+        },
+        variant: 'danger' as const,
+        hidden: (row: TenantUser) => {
+          const targetUserId = getUserId(row);
+          return (
+            !permissions.can_manage_users ||
+            !row.is_active ||
+            (currentUser?.id && targetUserId ? targetUserId === currentUser.id : false)
+          );
+        },
+      },
+      {
+        label: 'Reactivate',
+        icon: '✅',
+        onClick: (user: TenantUser) => reactivateMutation.mutate(user.id),
+        hidden: (row: TenantUser) => !permissions.can_manage_users || row.is_active,
+      },
+    ],
+    [
+      permissions.can_change_roles,
+      permissions.can_manage_users,
+      currentUser?.id,
+      reactivateMutation,
+      toast,
+    ]
+  );
 
   return (
-    <PageContainer>
-      <PageHeader>
-        <div>
-          <PageTitle>👥 Users & Invitations</PageTitle>
-          <PageDescription>Manage users, roles, and permissions</PageDescription>
-        </div>
-        {permissions.can_invite_users && (
-          <PrimaryButton onClick={() => setShowInviteModal(true)}>
-            ✉️ Invite User
-          </PrimaryButton>
-        )}
-      </PageHeader>
+    <AdminPage
+      title="Users & Invitations"
+      description="Invite users, manage roles, and control access for your tenant."
+      icon="👥"
+      actions={
+        <>
+          {permissions.can_invite_users && (
+            <Button variant="primary" size="sm" onClick={() => setShowInviteModal(true)}>
+              ✉️ Invite User
+            </Button>
+          )}
+        </>
+      }
+      headerExtras={
+        canAccess ? (
+          <SearchRow>
+            <SearchIcon aria-hidden="true" />
+            <SearchInput
+              type="text"
+              value={searchQuery}
+              placeholder="Search users and invitations…"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search users and invitations"
+            />
+          </SearchRow>
+        ) : null
+      }
+    >
+      <AdminGuard
+        feature="manage_users"
+        allow={(p) => p.can_manage_users || p.can_invite_users || p.can_change_roles}
+        loadingFallback={<LoadingSkeleton type="table" rows={6} columns={4} />}
+      >
+        <>
+          {(usersIsError || invitationsIsError) && (
+            <AdminSection>
+              <InlineError role="alert">
+                Failed to load admin user data. Please refresh and try again.
+              </InlineError>
+            </AdminSection>
+          )}
 
-      <Section>
-        <SectionTitle>Active Users ({users.filter(u => u.is_active).length})</SectionTitle>
-        <AdminTable
-          columns={columns}
-          data={users.filter(u => u.is_active)}
-          actions={actions}
-          loading={usersLoading}
-          emptyState={{
-            icon: '👥',
-            title: 'No users',
-            message: 'Invite team members to get started.',
-          }}
-        />
-      </Section>
+          <AdminSection title={`Active Users (${activeUsers.length})`}>
+            <AdminTable
+              columns={columns as any}
+              data={activeUsers}
+              actions={actions as any}
+              loading={usersLoading}
+              emptyState={{
+                icon: '👥',
+                title: 'No users',
+                message: permissions.can_invite_users
+                  ? 'Invite team members to get started.'
+                  : 'No users were returned for this tenant.',
+                ...(permissions.can_invite_users
+                  ? {
+                      action: {
+                        label: 'Invite User',
+                        onClick: () => setShowInviteModal(true),
+                      },
+                    }
+                  : {}),
+              }}
+            />
+          </AdminSection>
 
-      {invitations.length > 0 && (
-        <Section>
-          <SectionTitle>Pending Invitations ({invitations.length})</SectionTitle>
-          {invitations.map((inv) => (
-            <InvitationRow key={inv.id}>
-              <div>
-                <div style={{ fontWeight: 500 }}>{inv.email}</div>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                  <RoleBadge role={inv.role as any} />
-                  <span style={{ fontSize: '12px' }}>
-                    Expires {new Date(inv.expires_at).toLocaleDateString()}
-                  </span>
+          {inactiveUsers.length > 0 && (
+            <AdminSection title={`Inactive Users (${inactiveUsers.length})`}>
+              <AdminTable
+                columns={columns as any}
+                data={inactiveUsers}
+                actions={actions as any}
+                loading={usersLoading}
+                emptyState={{
+                  icon: '👥',
+                  title: 'No inactive users',
+                  message: 'Deactivated users will appear here.',
+                }}
+              />
+            </AdminSection>
+          )}
+
+          <AdminSection title={`Pending Invitations (${pendingInvitations.length})`}>
+            {invitationsLoading ? (
+              <LoadingSkeleton type="list" rows={3} />
+            ) : pendingInvitations.length === 0 ? (
+              <EmptyInvites>
+                <div style={{ fontWeight: 650 }}>No pending invitations</div>
+                <div style={{ color: 'rgb(var(--color-text-secondary))', fontSize: 13 }}>
+                  {normalizedQuery
+                    ? 'Try clearing your search to see invitations.'
+                    : permissions.can_invite_users
+                      ? 'Invite a teammate to get started.'
+                      : 'You don’t have permission to invite users.'}
                 </div>
-              </div>
-              <SecondaryButton onClick={() => revokeMutation.mutate(inv.id)}>
-                Revoke
-              </SecondaryButton>
-            </InvitationRow>
-          ))}
-        </Section>
-      )}
+                {permissions.can_invite_users && (
+                  <div>
+                    <Button variant="primary" size="sm" onClick={() => setShowInviteModal(true)}>
+                      ✉️ Invite User
+                    </Button>
+                  </div>
+                )}
+              </EmptyInvites>
+            ) : (
+              <InvitationList role="list">
+                {pendingInvitations.map((inv) => (
+                  <InvitationRow key={inv.id} role="listitem">
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{inv.email}</div>
+                      <MetaRow>
+                        <RoleBadge role={inv.role as any} />
+                        <MetaText>Expires {new Date(inv.expires_at).toLocaleDateString()}</MetaText>
+                      </MetaRow>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => resendMutation.mutate(inv.id)}
+                        disabled={resendMutation.isPending}
+                      >
+                        Resend
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => revokeMutation.mutate(inv.id)}
+                        disabled={revokeMutation.isPending}
+                      >
+                        Revoke
+                      </Button>
+                    </div>
+                  </InvitationRow>
+                ))}
+              </InvitationList>
+            )}
+          </AdminSection>
+        </>
+      </AdminGuard>
 
       <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Invite User">
-        <Form onSubmit={(e) => { e.preventDefault(); inviteMutation.mutate({ email: inviteEmail, role: inviteRole }); }}>
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+            inviteMutation.mutate({ email: inviteEmail, role: inviteRole });
+          }}
+        >
           <FormGroup>
-            <Label>Email *</Label>
-            <Input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required />
+            <Label htmlFor="invite-email">Email *</Label>
+            <Input
+              id="invite-email"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              required
+              autoComplete="email"
+            />
           </FormGroup>
           <FormGroup>
-            <Label>Role *</Label>
-            <Select value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
+            <Label htmlFor="invite-role">Role *</Label>
+            <Select id="invite-role" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+              <option value="readonly">Read Only</option>
               <option value="user">User</option>
               <option value="manager">Manager</option>
-              {permissions.role === 'owner' && <option value="admin">Admin</option>}
+              {(permissions.role === 'admin' || permissions.role === 'owner' || permissions.role === 'superuser') && (
+                <option value="admin">Admin</option>
+              )}
+              {(permissions.role === 'owner' || permissions.role === 'superuser') && (
+                <option value="owner">Owner</option>
+              )}
             </Select>
           </FormGroup>
           <ButtonGroup>
-            <SecondaryButton type="button" onClick={() => setShowInviteModal(false)}>Cancel</SecondaryButton>
-            <PrimaryButton type="submit">Send Invitation</PrimaryButton>
+            <Button variant="outline" type="button" onClick={() => setShowInviteModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={inviteMutation.isPending}>
+              {inviteMutation.isPending ? 'Sending…' : 'Send Invitation'}
+            </Button>
           </ButtonGroup>
         </Form>
       </Modal>
 
       <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Role">
-        <Form onSubmit={(e) => { e.preventDefault(); selectedUser && updateRoleMutation.mutate({ id: selectedUser.id, role: editRole }); }}>
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (selectedUser) {
+              updateRoleMutation.mutate({ id: selectedUser.id, role: editRole });
+            }
+          }}
+        >
           <FormGroup>
-            <Label>Role *</Label>
-            <Select value={editRole} onChange={e => setEditRole(e.target.value)}>
+            <Label htmlFor="edit-role">Role *</Label>
+            <Select id="edit-role" value={editRole} onChange={(e) => setEditRole(e.target.value)}>
               <option value="readonly">Read Only</option>
               <option value="user">User</option>
               <option value="manager">Manager</option>
-              {permissions.role === 'owner' && <option value="admin">Admin</option>}
+              {(permissions.role === 'admin' || permissions.role === 'owner' || permissions.role === 'superuser') && (
+                <option value="admin">Admin</option>
+              )}
+              {(permissions.role === 'owner' || permissions.role === 'superuser') && (
+                <option value="owner">Owner</option>
+              )}
             </Select>
           </FormGroup>
           <ButtonGroup>
-            <SecondaryButton type="button" onClick={() => setShowEditModal(false)}>Cancel</SecondaryButton>
-            <PrimaryButton type="submit">Save</PrimaryButton>
+            <Button variant="outline" type="button" onClick={() => setShowEditModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={updateRoleMutation.isPending}>
+              {updateRoleMutation.isPending ? 'Saving…' : 'Save'}
+            </Button>
           </ButtonGroup>
         </Form>
       </Modal>
@@ -290,31 +523,156 @@ const UsersPage: React.FC = () => {
       <ConfirmDialog
         isOpen={showDeactivateConfirm}
         onClose={() => setShowDeactivateConfirm(false)}
-        onConfirm={() => selectedUser && deactivateMutation.mutate(selectedUser.id)}
+        onConfirm={() => {
+          if (!selectedUser) return;
+          const targetUserId = getUserId(selectedUser);
+          if (currentUser?.id && targetUserId && targetUserId === currentUser.id) {
+            toast.error('You cannot deactivate yourself');
+            setShowDeactivateConfirm(false);
+            return;
+          }
+          deactivateMutation.mutate(selectedUser.id);
+        }}
         title="Deactivate User"
-        message={`Deactivate ${selectedUser?.user.username}? They will lose access.`}
+        message={`Deactivate ${selectedUser ? getDisplayName(selectedUser) : 'this user'}? They will lose access.`}
         confirmText="Deactivate"
         confirmVariant="danger"
       />
-    </PageContainer>
+    </AdminPage>
   );
 };
 
-const PageContainer = styled.div`padding: 24px; max-width: 1400px; margin: 0 auto;`;
-const PageHeader = styled.div`display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px;`;
-const PageTitle = styled.h1`font-size: 28px; font-weight: 700; color: rgb(var(--color-text-primary)); margin: 0 0 8px 0;`;
-const PageDescription = styled.p`font-size: 14px; color: rgb(var(--color-text-secondary)); margin: 0;`;
-const Section = styled.div`margin-bottom: 32px;`;
-const SectionTitle = styled.h2`font-size: 18px; font-weight: 600; margin: 0 0 16px 0;`;
-const InvitationRow = styled.div`display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgb(var(--color-surface)); border: 1px solid rgb(var(--color-border)); border-radius: var(--radius-md); margin-bottom: 12px;`;
-const Form = styled.form`display: flex; flex-direction: column; gap: 20px;`;
-const FormGroup = styled.div`display: flex; flex-direction: column; gap: 8px;`;
-const Label = styled.label`font-size: 14px; font-weight: 500;`;
-const Input = styled.input`padding: 10px 12px; border: 1px solid rgb(var(--color-border)); border-radius: var(--radius-md); font-size: 14px; &:focus { outline: none; border-color: rgb(var(--color-primary)); }`;
-const Select = styled.select`padding: 10px 12px; border: 1px solid rgb(var(--color-border)); border-radius: var(--radius-md); font-size: 14px;`;
-const ButtonGroup = styled.div`display: flex; gap: 12px; justify-content: flex-end;`;
-const Button = styled.button`padding: 10px 20px; border-radius: var(--radius-md); font-size: 14px; font-weight: 500; cursor: pointer; border: none;`;
-const PrimaryButton = styled(Button)`background: rgb(var(--color-primary)); color: white;`;
-const SecondaryButton = styled(Button)`background: rgb(var(--color-surface)); color: rgb(var(--color-text-primary)); border: 1px solid rgb(var(--color-border));`;
+const InlineError = styled.div`
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-error) / 0.08);
+  border: 1px solid rgb(var(--color-error) / 0.25);
+  color: rgb(var(--color-error));
+  font-size: 14px;
+`;
+
+const EmptyInvites = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+`;
+
+const InvitationList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const InvitationRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+`;
+
+const MetaRow = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+`;
+
+const MetaText = styled.span`
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const SearchRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-surface));
+  min-width: 320px;
+`;
+
+const SearchIcon = styled(Search)`
+  width: 18px;
+  height: 18px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  font-size: 14px;
+
+  &::placeholder {
+    color: rgb(var(--color-text-secondary));
+  }
+`;
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const Label = styled.label`
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--color-text-primary));
+`;
+
+const Input = styled.input`
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+
+  &:focus {
+    outline: none;
+    border-color: rgba(var(--color-primary), 0.8);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.12);
+  }
+`;
+
+const Select = styled.select`
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+
+  &:focus {
+    outline: none;
+    border-color: rgba(var(--color-primary), 0.8);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.12);
+  }
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+`;
 
 export default UsersPage;

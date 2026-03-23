@@ -1,69 +1,55 @@
-/**
- * Customizations Page
- * 
- * Tenant-specific customizations (branding, colors, layouts)
- * Admin Workspace section
- * 
- * Created: 2026-02-04
- */
 import React from 'react';
-import styled from 'styled-components';
+import { useQuery } from '@tanstack/react-query';
+import { Palette } from 'lucide-react';
+import { apiClient } from '@/services/apiService';
+import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
+import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
 
-const PageContainer = styled.div`
-  padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-`;
-
-const PageHeader = styled.div`
-  margin-bottom: 32px;
-`;
-
-const PageTitle = styled.h1`
-  font-size: 28px;
-  font-weight: 700;
-  color: rgb(var(--color-text-primary));
-  margin: 0 0 8px 0;
-`;
-
-const PageDescription = styled.p`
-  font-size: 14px;
-  color: rgb(var(--color-text-secondary));
-  margin: 0;
-`;
-
-const ContentCard = styled.div`
-  background: rgb(var(--color-surface));
-  border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
-  padding: 32px;
-`;
-
-const PlaceholderText = styled.p`
-  font-size: 14px;
-  color: rgb(var(--color-text-secondary));
-  text-align: center;
-  margin: 48px 0;
-`;
+interface TenantCurrent {
+  id: string;
+  name: string;
+}
 
 const CustomizationsPage: React.FC = () => {
-  return (
-    <PageContainer>
-      <PageHeader>
-        <PageTitle>🎨 Customizations</PageTitle>
-        <PageDescription>
-          Customize your tenant's branding, colors, and layout preferences
-        </PageDescription>
-      </PageHeader>
+  const currentTenantQuery = useQuery<TenantCurrent>({
+    queryKey: ['tenants', 'current'],
+    queryFn: async () => {
+      const res = await apiClient.get('/tenants/current/');
+      return res.data;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
 
-      <ContentCard>
-        <PlaceholderText>
-          Customization interface coming soon.
-          <br />
-          This page will allow you to customize branding, colors, logos, and layout preferences.
-        </PlaceholderText>
-      </ContentCard>
-    </PageContainer>
+  return (
+    <AdminPage
+      title="Customizations"
+      description="Tenant-specific UI preferences and extensibility."
+      icon={<Palette size={18} />}
+    >
+      <AdminGuard
+        feature="customizations"
+        allow={(p) => p.can_manage_customizations}
+        loadingFallback={<LoadingSkeleton type="card" rows={2} />}
+      >
+        {currentTenantQuery.isLoading ? (
+          <LoadingSkeleton type="card" rows={2} />
+        ) : currentTenantQuery.isError ? (
+          <EmptyState
+            icon="🏢"
+            title="Tenant unavailable"
+            message="We couldn't resolve the current tenant. Please select a tenant and try again."
+          />
+        ) : !currentTenantQuery.data?.id ? (
+          <EmptyState
+            icon="🏢"
+            title="Select a tenant"
+            message="Choose a tenant to manage choice list customizations."
+          />
+        ) : (
+          <TenantChoiceOverride tenantId={currentTenantQuery.data.id} />
+        )}
+      </AdminGuard>
+    </AdminPage>
   );
 };
 

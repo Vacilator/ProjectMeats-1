@@ -378,11 +378,23 @@ export const WorkflowExecutionModal: React.FC<WorkflowExecutionProps> = ({
   const currentNode = workflow.nodes.find(n => n.id === currentNodeId);
 
   // Workflow context (Phase 5)
-  const workflowContext = useWorkflowContext({
-    initialData: execution?.data || {},
-    nodes: workflow.nodes,
-    currentNodeId,
-  });
+  const workflowContext = useWorkflowContext(workflow.nodes as any, currentNodeId);
+
+  // Hydrate context from persisted execution data (resume)
+  const didHydrateRef = useRef<string | null>(null);
+  useEffect(() => {
+    const execId = execution?.id || null;
+    if (!execId || didHydrateRef.current === execId) return;
+    didHydrateRef.current = execId;
+
+    const data = execution?.data;
+    if (!data || typeof data !== 'object') return;
+
+    Object.entries(data as Record<string, any>).forEach(([nodeId, nodeData]) => {
+      if (!nodeId || !nodeData || typeof nodeData !== 'object') return;
+      workflowContext.setNodeData(nodeId, nodeData as Record<string, any>);
+    });
+  }, [execution?.id, execution?.data, workflowContext]);
 
   // Auto-save state
   const [lastSaved, setLastSaved] = useState<Date | null>(null);

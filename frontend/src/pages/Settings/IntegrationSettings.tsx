@@ -3,7 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle, Mail, ExternalLink } from 'lucide-react';
-import axios from 'axios';
+import { apiClient as axios } from '../../services/apiService';
 
 interface Connection {
   provider: string;
@@ -52,7 +52,7 @@ export const IntegrationSettings: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.get<ConnectionStatus>('/api/v1/integrations/oauth/status/');
+      const response = await axios.get<ConnectionStatus>('/integrations/oauth/status/');
       setConnections(response.data.connections);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch connection status');
@@ -61,16 +61,11 @@ export const IntegrationSettings: React.FC = () => {
     }
   };
 
-  const handleConnect = async (provider: string) => {
-    try {
-      setError(null);
-      const response = await axios.get(`/api/v1/integrations/oauth/authorize/?provider=${provider}`);
-      
-      // Redirect to OAuth authorization URL
-      window.location.href = response.data.auth_url;
-    } catch (err: any) {
-      setError(err.response?.data?.error || `Failed to connect to ${provider}`);
-    }
+  const handleConnect = (provider: string) => {
+    setError(null);
+    const tenantId = localStorage.getItem('tenantId');
+    const tenantParam = tenantId ? `&tenant_id=${encodeURIComponent(tenantId)}` : '';
+    window.location.href = `/api/v1/integrations/oauth/authorize/?provider=${encodeURIComponent(provider)}&redirect=1${tenantParam}`;
   };
 
   const handleDisconnect = async (provider: string) => {
@@ -82,7 +77,7 @@ export const IntegrationSettings: React.FC = () => {
     setError(null);
 
     try {
-      await axios.post('/api/v1/integrations/oauth/disconnect/', { provider });
+      await axios.post('/integrations/oauth/disconnect/', { provider });
       setSuccess('Email account disconnected successfully');
       fetchConnectionStatus();
     } catch (err: any) {

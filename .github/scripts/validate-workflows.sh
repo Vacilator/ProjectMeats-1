@@ -83,10 +83,19 @@ check_required_secrets() {
 # Check for cache configuration
 check_cache_config() {
     log_info "Checking Docker cache configuration..."
-    
-    local workflows=(.github/workflows/*-deployment.yml)
+
+    local workflows=()
+    shopt -s nullglob
+    workflows=(.github/workflows/*-deployment.yml)
+    shopt -u nullglob
+
+    if [[ ${#workflows[@]} -eq 0 ]]; then
+        log_info "No *-deployment.yml workflows found (skipping cache checks)"
+        return 0
+    fi
+
     local failed=0
-    
+
     for workflow in "${workflows[@]}"; do
         if ! grep -q "actions/cache@v3" "$workflow"; then
             log_warn "No cache configuration in $workflow"
@@ -109,9 +118,17 @@ check_cache_config() {
 # Check for health checks
 check_health_checks() {
     log_info "Checking for health check steps..."
-    
-    local workflows=(.github/workflows/*-deployment.yml)
-    
+
+    local workflows=()
+    shopt -s nullglob
+    workflows=(.github/workflows/*-deployment.yml)
+    shopt -u nullglob
+
+    if [[ ${#workflows[@]} -eq 0 ]]; then
+        log_info "No *-deployment.yml workflows found (skipping health check discovery)"
+        return 0
+    fi
+
     for workflow in "${workflows[@]}"; do
         if ! grep -q "health" "$workflow"; then
             log_warn "No health check found in $workflow"
@@ -119,7 +136,7 @@ check_health_checks() {
             log_info "✓ Health check found in $workflow"
         fi
     done
-    
+
     return 0
 }
 
@@ -170,9 +187,17 @@ check_error_handling() {
 # Check for timeout configurations
 check_timeouts() {
     log_info "Checking workflow timeouts..."
-    
-    local workflows=(.github/workflows/*-deployment.yml)
-    
+
+    local workflows=()
+    shopt -s nullglob
+    workflows=(.github/workflows/*-deployment.yml)
+    shopt -u nullglob
+
+    if [[ ${#workflows[@]} -eq 0 ]]; then
+        log_info "No *-deployment.yml workflows found (skipping timeout checks)"
+        return 0
+    fi
+
     for workflow in "${workflows[@]}"; do
         if ! grep -q "timeout-minutes" "$workflow"; then
             log_warn "No timeout configured in $workflow"
@@ -180,42 +205,61 @@ check_timeouts() {
             log_info "✓ Timeout configured in $workflow"
         fi
     done
-    
+
     return 0
 }
 
 # Check for retry logic
 check_retry_logic() {
     log_info "Checking retry logic in health checks..."
-    
-    local workflows=(.github/workflows/*-deployment.yml)
+
+    local workflows=()
+    shopt -s nullglob
+    workflows=(.github/workflows/*-deployment.yml)
+    shopt -u nullglob
+
+    if [[ ${#workflows[@]} -eq 0 ]]; then
+        log_info "No *-deployment.yml workflows found (skipping retry checks)"
+        return 0
+    fi
+
     local has_retry=0
-    
+
     for workflow in "${workflows[@]}"; do
         if grep -q "for i in" "$workflow" || grep -q "MAX_ATTEMPTS" "$workflow"; then
             ((has_retry++))
         fi
     done
-    
+
     if [[ $has_retry -gt 0 ]]; then
         log_info "✓ Retry logic found in $has_retry workflows"
     else
         log_warn "No retry logic found in workflows"
     fi
-    
+
     return 0
 }
 
 # Check for migration safety
 check_migration_safety() {
     log_info "Checking migration safety..."
-    
+
+    local workflows=()
+    shopt -s nullglob
+    workflows=(.github/workflows/*-deployment.yml)
+    shopt -u nullglob
+
+    if [[ ${#workflows[@]} -eq 0 ]]; then
+        log_info "No *-deployment.yml workflows found (skipping migration-safety checks)"
+        return 0
+    fi
+
     # Check if makemigrations is still in CI (should be removed)
-    if grep -r "makemigrations" .github/workflows/*-deployment.yml | grep -v "^#"; then
+    if grep -r "makemigrations" "${workflows[@]}" | grep -v "^#"; then
         log_error "Found makemigrations in deployment workflows (should be removed)"
         return 1
     fi
-    
+
     log_info "✓ No dynamic migration generation in CI"
     return 0
 }
@@ -223,9 +267,17 @@ check_migration_safety() {
 # Check for proper concurrency control
 check_concurrency() {
     log_info "Checking concurrency control..."
-    
-    local workflows=(.github/workflows/*-deployment.yml)
-    
+
+    local workflows=()
+    shopt -s nullglob
+    workflows=(.github/workflows/*-deployment.yml)
+    shopt -u nullglob
+
+    if [[ ${#workflows[@]} -eq 0 ]]; then
+        log_info "No *-deployment.yml workflows found (skipping concurrency checks)"
+        return 0
+    fi
+
     for workflow in "${workflows[@]}"; do
         if grep -q "concurrency:" "$workflow"; then
             log_info "✓ Concurrency control in $workflow"
@@ -233,7 +285,7 @@ check_concurrency() {
             log_warn "No concurrency control in $workflow"
         fi
     done
-    
+
     return 0
 }
 

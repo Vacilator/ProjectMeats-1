@@ -121,6 +121,8 @@ const getEdgeStyle = (edgeType?: string, animated?: boolean) => {
 
 export const CustomEdge = React.memo<EdgeProps<CustomEdgeData>>(({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -151,17 +153,41 @@ export const CustomEdge = React.memo<EdgeProps<CustomEdgeData>>(({
 
   const handleAddNode = (event: React.MouseEvent) => {
     event.stopPropagation();
-    // TODO: Implement add node between edges
-    console.log('Add node between edges:', id);
+
+    window.dispatchEvent(
+      new CustomEvent('insert-node-between', {
+        detail: {
+          edgeId: id,
+          // Keep the originally requested keys for compatibility with existing handlers
+          source: sourceX,
+          target: targetX,
+          // Helpful extras (no behavior change if ignored)
+          sourceNodeId: source,
+          targetNodeId: target,
+          sourceY,
+          targetY,
+        },
+      })
+    );
   };
 
   return (
     <>
+      {/* Invisible thick hitbox under the visible edge to prevent hover flicker */}
+      <path
+        d={edgePath}
+        className="react-flow__edge-path"
+        fill="none"
+        style={{ stroke: 'transparent', strokeWidth: 30, strokeOpacity: 0 }}
+        pointerEvents="stroke"
+      />
+
       {/* Main edge path */}
       <path
         id={id}
         className="react-flow__edge-path"
         d={edgePath}
+        fill="none"
         style={edgeStyle}
         markerEnd={markerEnd}
       />

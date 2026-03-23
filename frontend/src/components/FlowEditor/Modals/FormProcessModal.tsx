@@ -549,7 +549,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
       case 1:
         return (
           <FormSelectionPanel
-            nodeType="formMultiStepContainer"
+            nodeType="formBook"
             selectedFormId={state.selectedWorkflowId || undefined}
             onSelectionChange={handleContainerSelection}
             onProceed={handleProceedFromStep1}
@@ -674,7 +674,7 @@ export const FormProcessModal: React.FC<ContainerModalProps> = ({
           <HeaderLeft>
             <ContainerIcon>📦</ContainerIcon>
             <div>
-              <ModalTitle>Configure Multi-Step Container</ModalTitle>
+              <ModalTitle>Configure Form Process</ModalTitle>
             </div>
           </HeaderLeft>
           <CloseButton onClick={onClose} aria-label="Close modal">
