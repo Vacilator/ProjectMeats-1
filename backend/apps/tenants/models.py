@@ -182,6 +182,9 @@ class Tenant(models.Model):
             "primary_color_light": primary_color_light,
             "primary_color_dark": primary_color_dark,
             "name": self.name,
+            # Stable cache-busting key for frontend logo/theme assets.
+            # Additive-only: consumers can ignore this field.
+            "theme_version": self.updated_at.isoformat() if self.updated_at else None,
         }
 
     def set_theme_colors(self, light_color=None, dark_color=None):

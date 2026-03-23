@@ -28,6 +28,7 @@ export interface TenantTheme {
   primary_color_light: string;
   primary_color_dark: string;
   name: string;
+  theme_version?: string | null;
 }
 
 // Tenant API Service Class

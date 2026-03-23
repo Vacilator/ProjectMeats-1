@@ -17,7 +17,6 @@ import { Theme, themes, injectTenantColors } from '../config/theme';
 import { getThemeConfig, applyCanvasTheme } from '../theme/themeConfig';
 import { getRuntimeConfig } from '../config/runtime';
 import { apiClient } from '../services/apiService';
-import { getAuthHeader } from '../services/jwtService';
 import { useAuth } from './AuthContext';
 
 type ThemeName = 'light' | 'dark' | 'high-contrast';
@@ -27,6 +26,7 @@ interface TenantBranding {
   primaryColorLight: string;
   primaryColorDark: string;
   tenantName: string;
+  themeVersion?: string | null;
 }
 
 interface ThemeContextType {
@@ -84,7 +84,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Sync theme to backend when it changes
   useEffect(() => {
     const syncThemeToBackend = async () => {
-      if (!getAuthHeader()) return;
+      if (!isAuthenticated) return;
 
       try {
         await apiClient.patch('/preferences/me/', { theme: themeName });
@@ -93,38 +93,57 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       }
     };
 
-    syncThemeToBackend();
-  }, [themeName]);
+    void syncThemeToBackend();
+  }, [isAuthenticated, themeName]);
 
-  const loadTenantBranding = useCallback(async (opts?: { bustLogoCache?: boolean }) => {
-    if (!getAuthHeader()) return;
+  const loadTenantBranding = useCallback(
+    async (opts?: { bustLogoCache?: boolean }) => {
+      if (!isAuthenticated) return;
 
-    try {
-      const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
-      const response = await apiClient.get('/tenants/current_theme/');
-
-      const branding = {
-        logoUrl: response.data.logo_url,
-        primaryColorLight: response.data.primary_color_light,
-        primaryColorDark: response.data.primary_color_dark,
-        tenantName: response.data.name,
+      const upsertQueryParam = (url: string, key: string, value: string) => {
+        try {
+          const parsed = new URL(url, window.location.origin);
+          parsed.searchParams.set(key, value);
+          return parsed.toString();
+        } catch {
+          const sep = url.includes('?') ? '&' : '?';
+          return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+        }
       };
 
-      if (branding.logoUrl && branding.logoUrl.startsWith('/')) {
-        const baseUrl = apiBaseUrl.replace('/api/v1', '');
-        branding.logoUrl = `${baseUrl}${branding.logoUrl}`;
-      }
+      try {
+        const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
+        const response = await apiClient.get('/tenants/current_theme/');
 
-      if (opts?.bustLogoCache && branding.logoUrl) {
-        const sep = branding.logoUrl.includes('?') ? '&' : '?';
-        branding.logoUrl = `${branding.logoUrl}${sep}v=${Date.now()}`;
-      }
+        const branding: TenantBranding = {
+          logoUrl: response.data.logo_url,
+          primaryColorLight: response.data.primary_color_light,
+          primaryColorDark: response.data.primary_color_dark,
+          tenantName: response.data.name,
+          themeVersion: response.data.theme_version,
+        };
 
-      setTenantBranding(branding);
-    } catch (error) {
-      console.error('Failed to load tenant branding:', error);
-    }
-  }, []);
+        if (branding.logoUrl && branding.logoUrl.startsWith('/')) {
+          const baseUrl = apiBaseUrl.replace('/api/v1', '');
+          branding.logoUrl = `${baseUrl}${branding.logoUrl}`;
+        }
+
+        if (branding.logoUrl) {
+          const version = branding.themeVersion;
+          if (version) {
+            branding.logoUrl = upsertQueryParam(branding.logoUrl, 'v', String(version));
+          } else if (opts?.bustLogoCache) {
+            branding.logoUrl = upsertQueryParam(branding.logoUrl, 'v', String(Date.now()));
+          }
+        }
+
+        setTenantBranding(branding);
+      } catch (error) {
+        console.error('Failed to load tenant branding:', error);
+      }
+    },
+    [isAuthenticated]
+  );
 
   // Load tenant branding when auth becomes available.
   useEffect(() => {
@@ -172,8 +191,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Load theme from backend when auth becomes available
   useEffect(() => {
     const loadThemeFromBackend = async () => {
-      if (!getAuthHeader()) return;
-
       try {
         const response = await apiClient.get('/preferences/me/');
 

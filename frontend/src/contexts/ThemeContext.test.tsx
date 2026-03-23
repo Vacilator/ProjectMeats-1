@@ -313,6 +313,7 @@ describe('ThemeContext', () => {
               logo_url: null,
               primary_color_light: '#fff',
               primary_color_dark: '#000',
+              theme_version: '2026-03-23T00:00:00Z',
             },
           });
         }
@@ -389,6 +390,7 @@ describe('ThemeContext', () => {
               logo_url: '/media/logos/acme.png',
               primary_color_light: '#3498db',
               primary_color_dark: '#2980b9',
+              theme_version: '2026-03-23T00:00:00Z',
             },
           });
         }
@@ -420,6 +422,7 @@ describe('ThemeContext', () => {
               logo_url: '/media/logo.png',
               primary_color_light: '#fff',
               primary_color_dark: '#000',
+              theme_version: '2026-03-23T00:00:00Z',
             },
           });
         }
@@ -436,7 +439,7 @@ describe('ThemeContext', () => {
       );
       
       await waitFor(() => {
-        expect(screen.getByTestId('logo')).toHaveTextContent('http://localhost:8000/media/logo.png');
+        expect(screen.getByTestId('logo')).toHaveTextContent('http://localhost:8000/media/logo.png?v=2026-03-23T00%3A00%3A00Z');
       });
     });
 
@@ -484,6 +487,7 @@ describe('ThemeContext', () => {
               logo_url: null,
               primary_color_light: '#fff',
               primary_color_dark: '#000',
+              theme_version: callCount === 1 ? 'v1' : 'v2',
             },
           });
         }

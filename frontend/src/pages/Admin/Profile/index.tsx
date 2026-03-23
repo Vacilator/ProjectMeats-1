@@ -21,10 +21,12 @@ interface Tenant {
   address: string;
   website: string;
   logo: string | null;
+  updated_at: string;
   branding: {
     logo_url: string | null;
     primary_color_light: string;
     primary_color_dark: string;
+    theme_version?: string | null;
   };
 }
 
@@ -69,15 +71,33 @@ const rgbToHex = (r: number, g: number, b: number): string => {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 };
 
-const normalizeLogoUrl = (logoUrl: string | null | undefined): string | null => {
+const upsertQueryParam = (url: string, key: string, value: string) => {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    parsed.searchParams.set(key, value);
+    return parsed.toString();
+  } catch {
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+  }
+};
+
+const normalizeLogoUrl = (logoUrl: string | null | undefined, cacheKey?: string | null): string | null => {
   if (!logoUrl) return null;
   if (logoUrl.startsWith('data:')) return logoUrl;
-  if (logoUrl.startsWith('/')) {
+
+  let normalized = logoUrl;
+  if (normalized.startsWith('/')) {
     const apiBaseUrl = getRuntimeConfig('API_BASE_URL', 'http://localhost:8000/api/v1');
     const baseUrl = apiBaseUrl.replace('/api/v1', '');
-    return `${baseUrl}${logoUrl}`;
+    normalized = `${baseUrl}${normalized}`;
   }
-  return logoUrl;
+
+  if (cacheKey) {
+    normalized = upsertQueryParam(normalized, 'v', cacheKey);
+  }
+
+  return normalized;
 };
 
 const AdminProfilePage: React.FC = () => {
@@ -137,7 +157,7 @@ const AdminProfilePage: React.FC = () => {
       primary_color_dark: tenant.branding?.primary_color_dark || defaults.dark,
     });
 
-    setLogoPreview(normalizeLogoUrl(tenant.branding?.logo_url) || null);
+    setLogoPreview(normalizeLogoUrl(tenant.branding?.logo_url, tenant.updated_at) || null);
     setLogoFile(null);
     setRemoveLogo(false);
   }, [tenant, defaults.dark, defaults.light]);
@@ -188,7 +208,7 @@ const AdminProfilePage: React.FC = () => {
       JSON.stringify(current) !== JSON.stringify(formData) ||
       Boolean(logoFile) ||
       removeLogo ||
-      (tenant.branding?.logo_url || null) !== (logoPreview || null)
+      (normalizeLogoUrl(tenant.branding?.logo_url, tenant.updated_at) || null) !== (logoPreview || null)
     );
   }, [defaults.dark, defaults.light, formData, logoFile, logoPreview, removeLogo, tenant]);
 
@@ -300,7 +320,7 @@ const AdminProfilePage: React.FC = () => {
     });
 
     setLogoFile(null);
-    setLogoPreview(normalizeLogoUrl(tenant.branding?.logo_url) || null);
+    setLogoPreview(normalizeLogoUrl(tenant.branding?.logo_url, tenant.updated_at) || null);
     setRemoveLogo(false);
   };
 
