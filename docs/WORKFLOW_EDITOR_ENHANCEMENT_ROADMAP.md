@@ -5,6 +5,8 @@ This file is a legacy duplicate of the canonical roadmap:
 
 The canonical roadmap is now structured into the four **Vanguards** for Version 3.0.
 
+Latest: ✅ Vanguard: Main Inquiry Flow Template – Complete
+
 (Kept for backwards references; prefer the workforms doc.)
 
 ---
