@@ -82,15 +82,38 @@ class EmailIngestionService:
         tenant = provider.tenant
         logger.info(f"Polling inbox for tenant: {tenant.name}")
         
-        # Refresh token if needed
+        # Refresh token if needed (never crash sync if refresh fails)
         if provider.is_token_expired():
             logger.info(f"Refreshing expired token for tenant {tenant.name}")
-            provider.refresh_if_needed()
-        
-        # Get access token
-        access_token = provider.get_decrypted_token('access')
+            try:
+                provider.refresh_if_needed()
+            except Exception as e:
+                logger.warning(
+                    'Token refresh failed tenant=%s provider_id=%s: %s',
+                    tenant.id,
+                    provider.id,
+                    str(e),
+                    exc_info=True,
+                )
+                self.stats['errors'] += 1
+
+        # Get access token (decrypt errors must not bubble to API)
+        try:
+            access_token = provider.get_decrypted_token('access')
+        except Exception as e:
+            logger.error(
+                'Failed to decrypt access token tenant=%s provider_id=%s: %s',
+                tenant.id,
+                provider.id,
+                str(e),
+                exc_info=True,
+            )
+            self.stats['errors'] += 1
+            return
+
         if not access_token:
             logger.error(f"No access token for tenant {tenant.name}")
+            self.stats['errors'] += 1
             return
         
         # Initialize Microsoft Graph provider

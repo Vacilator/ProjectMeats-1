@@ -174,7 +174,9 @@ class ExternalAuthProvider(models.Model):
         
         refresh_token = self.get_decrypted_token('refresh')
         if not refresh_token:
-            raise ValueError("No refresh token available")
+            # Microsoft may not return a refresh token depending on scopes/policies.
+            # Avoid crashing ingestion; caller can proceed (Graph calls will simply return no data if token is expired).
+            return False
         
         # Refresh the token
         token_response = provider.refresh_token(refresh_token)

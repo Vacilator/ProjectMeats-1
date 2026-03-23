@@ -304,12 +304,32 @@ def disconnect_provider(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def sync_emails(request):
-    """Manually trigger email sync for current tenant."""
+    """Manually trigger email sync for current tenant.
+
+    This endpoint must NEVER hard-500 for common operational issues (missing provider,
+    missing refresh token, broker unavailable). Instead, return a clear error payload.
+    """
     tenant = getattr(request, 'tenant', None)
     if not tenant:
         return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
 
     tenant_id = str(tenant.id)
+
+    # Preflight: ensure Outlook is actually connected for this tenant.
+    provider = ExternalAuthProvider.objects.filter(
+        tenant=tenant,
+        provider_type='microsoft',
+        is_active=True,
+    ).first()
+    if not provider:
+        return Response(
+            {
+                "error": "No active Microsoft account connected.",
+                "code": "not_connected",
+                "tenant_id": tenant_id,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     try:
         from apps.integrations.tasks import sync_single_tenant
@@ -317,34 +337,61 @@ def sync_emails(request):
         # Prefer async Celery dispatch.
         try:
             task = sync_single_tenant.delay(tenant_id)
-            return Response({
-                "message": "Email sync started",
-                "task_id": task.id,
-                "tenant_id": tenant_id,
-                "mode": "async",
-            }, status=status.HTTP_202_ACCEPTED)
+            return Response(
+                {
+                    "message": "Email sync started",
+                    "task_id": task.id,
+                    "tenant_id": tenant_id,
+                    "mode": "async",
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
         except Exception as celery_exc:
             # If the broker/worker path is unavailable, run a best-effort sync inline
             # so "Sync Now" still works in environments without Celery.
-            logger.warning('Celery dispatch failed; falling back to inline email sync: %s', str(celery_exc), exc_info=True)
+            logger.warning(
+                'Celery dispatch failed; falling back to inline email sync: %s',
+                str(celery_exc),
+                exc_info=True,
+            )
 
             from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
             service = EmailIngestionService()
             stats = service.poll_tenant_by_id(tenant_id)
 
-            return Response({
-                "message": "Email sync completed",
-                "tenant_id": tenant_id,
-                "mode": "sync",
-                "stats": stats,
-            }, status=status.HTTP_200_OK)
+            if isinstance(stats, dict) and stats.get('error'):
+                return Response(
+                    {
+                        "error": stats.get('error'),
+                        "code": "sync_failed",
+                        "tenant_id": tenant_id,
+                        "mode": "sync",
+                        "stats": stats,
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+            return Response(
+                {
+                    "message": "Email sync completed",
+                    "tenant_id": tenant_id,
+                    "mode": "sync",
+                    "stats": stats,
+                },
+                status=status.HTTP_200_OK,
+            )
 
     except Exception as e:
         logger.error('Failed to start email sync for tenant %s: %s', tenant_id, str(e), exc_info=True)
+        # Surface as 503 (operational) instead of 500 to avoid frontend treating it as a crash.
         return Response(
-            {"error": f"Failed to start sync: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {
+                "error": f"Failed to start sync: {str(e)}",
+                "code": "sync_exception",
+                "tenant_id": tenant_id,
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
 
