@@ -165,6 +165,9 @@ describe('UnifiedFlowEditor - E2E Integration Tests', () => {
       const portal = document.getElementById('config-portal');
       expect(portal).toBeInTheDocument();
       expect(portal?.style.display).toBe('none');
+
+      // Regression: portal must render above fullscreen canvas (EditorContainer z-index: 9990)
+      expect(portal?.style.zIndex).toBe('10050');
     });
 
     it('should load existing form when formId provided', async () => {
