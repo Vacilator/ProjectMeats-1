@@ -31,6 +31,7 @@ server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
     server_name ${DOMAIN_NAME};
+    client_max_body_size 50M;
     
     # MIME types configuration for proper content type handling
     include /etc/nginx/mime.types;
