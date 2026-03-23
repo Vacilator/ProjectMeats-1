@@ -21,6 +21,9 @@ interface DryRunDebuggerProps {
 }
 
 interface ExecutionStep {
+  id: string;
+  timestamp: number;
+  action: 'test-step' | 'step-into' | 'step-over' | 'continue' | 'breakpoint' | 'reset';
   nodeId: string;
   nodeName: string;
   status: 'pending' | 'running' | 'success' | 'error';
@@ -123,6 +126,31 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     return outgoing[0]?.target ?? null;
   }, [getContainerChildIds, getEdges, getNodeById, isContainerNode]);
 
+  const recordTimelineStep = useCallback(
+    (nodeId: string, action: ExecutionStep['action'], status: ExecutionStep['status'] = 'success') => {
+      const node = getNodeById(nodeId);
+      if (!node) return;
+
+      const entry: ExecutionStep = {
+        id: `step_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        timestamp: Date.now(),
+        action,
+        nodeId,
+        nodeName: (node.data?.label as string | undefined) || nodeId,
+        status,
+        input: mockInput,
+        output: generateMockOutput(node, mockInput),
+        duration: 0,
+      };
+
+      setExecutionHistory((prev) => {
+        const next = [...prev, entry];
+        return next.length > 200 ? next.slice(next.length - 200) : next;
+      });
+    },
+    [getNodeById, mockInput]
+  );
+
   const stepInto = useCallback(() => {
     if (!selectedNode) return;
 
@@ -142,6 +170,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
 
     // "Execute" current node
     markNodesExecuted([currentId]);
+    recordTimelineStep(currentId, 'step-into');
 
     const nextId = getNextNodeIdStepInto(currentId);
     if (!nextId) {
@@ -155,8 +184,11 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     // Move cursor to next node; if it's a breakpoint, pause there.
     setDebugActiveNodeId(nextId);
 
-    if (hasBreakpoint) return;
-  }, [debug.activeNodeId, debug.isActive, getNextNodeIdStepInto, getNodeById, isTerminalNode, markNodesExecuted, selectedNode, setDebugActiveNodeId, startDebugSession, stopDebugSession]);
+    if (hasBreakpoint) {
+      recordTimelineStep(nextId, 'breakpoint', 'pending');
+      return;
+    }
+  }, [debug.activeNodeId, debug.isActive, getNextNodeIdStepInto, getNodeById, isTerminalNode, markNodesExecuted, recordTimelineStep, selectedNode, setDebugActiveNodeId, startDebugSession, stopDebugSession]);
 
   const stepOver = useCallback(() => {
     if (!selectedNode) return;
@@ -176,6 +208,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     }
 
     markNodesExecuted([currentId]);
+    recordTimelineStep(currentId, 'step-over');
 
     const nextId = getNextNodeIdStepOver(currentId);
     if (!nextId) {
@@ -186,8 +219,11 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     const nextNode = getNodeById(nextId);
     const hasBreakpoint = Boolean((nextNode?.data as any)?.hasBreakpoint);
     setDebugActiveNodeId(nextId);
-    if (hasBreakpoint) return;
-  }, [debug.activeNodeId, debug.isActive, getNextNodeIdStepOver, getNodeById, isTerminalNode, markNodesExecuted, selectedNode, setDebugActiveNodeId, startDebugSession, stopDebugSession]);
+    if (hasBreakpoint) {
+      recordTimelineStep(nextId, 'breakpoint', 'pending');
+      return;
+    }
+  }, [debug.activeNodeId, debug.isActive, getNextNodeIdStepOver, getNodeById, isTerminalNode, markNodesExecuted, recordTimelineStep, selectedNode, setDebugActiveNodeId, startDebugSession, stopDebugSession]);
 
   const handleContinue = useCallback(() => {
     if (!selectedNode) return;
@@ -227,6 +263,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       // Update cursor to next and stop if breakpoint
       setDebugActiveNodeId(nextId);
       if (hasBreakpoint) {
+        recordTimelineStep(nextId, 'breakpoint', 'pending');
         break;
       }
 
@@ -234,8 +271,11 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       steps += 1;
     }
 
-    markNodesExecuted(executedNow);
-  }, [debug.activeNodeId, debug.isActive, getNextNodeIdStepInto, getNodeById, isTerminalNode, markNodesExecuted, selectedNode, setDebugActiveNodeId, startDebugSession, stopDebugSession]);
+    if (executedNow.length > 0) {
+      executedNow.forEach((id) => recordTimelineStep(id, 'continue'));
+      markNodesExecuted(executedNow);
+    }
+  }, [debug.activeNodeId, debug.isActive, getNextNodeIdStepInto, getNodeById, isTerminalNode, markNodesExecuted, recordTimelineStep, selectedNode, setDebugActiveNodeId, startDebugSession, stopDebugSession]);
 
   const handleRunStep = async () => {
     if (!selectedNode) return;
@@ -247,16 +287,24 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     setIsRunning(true);
     const startTime = Date.now();
 
+    const stepId = `step_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
     // Simulate execution
     const step: ExecutionStep = {
+      id: stepId,
+      timestamp: Date.now(),
+      action: 'test-step',
       nodeId: selectedNode.id,
-      nodeName: selectedNode.data?.label || selectedNode.id,
+      nodeName: (selectedNode.data?.label as string | undefined) || selectedNode.id,
       status: 'running',
       input: mockInput,
       output: {},
     };
 
-    setExecutionHistory((prev) => [...prev, step]);
+    setExecutionHistory((prev) => {
+      const next = [...prev, step];
+      return next.length > 200 ? next.slice(next.length - 200) : next;
+    });
 
     // Simulate processing delay
     await new Promise((resolve) => setTimeout(resolve, 600));
@@ -266,11 +314,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     const duration = Date.now() - startTime;
 
     setExecutionHistory((prev) =>
-      prev.map((s) =>
-        s.nodeId === selectedNode.id && s.status === 'running'
-          ? { ...s, status: 'success', output, duration }
-          : s
-      )
+      prev.map((s) => (s.id === stepId ? { ...s, status: 'success', output, duration } : s))
     );
 
     markNodesExecuted([selectedNode.id]);
@@ -280,6 +324,14 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
   
   const handleReset = () => {
     setExecutionHistory([]);
+
+    if (debug.isActive) {
+      resetDebugSession();
+    }
+
+    if (selectedNode) {
+      recordTimelineStep(selectedNode.id, 'reset', 'pending');
+    }
   };
   
   const handleExportResults = () => {
@@ -471,8 +523,8 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
           </StepButton>
 
           <StepButton
-            onClick={resetDebugSession}
-            disabled={!debug.isActive}
+            onClick={handleReset}
+            disabled={isRunning}
             title="Reset timeline"
           >
             <RotateCcw size={18} />
@@ -533,23 +585,25 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
           </Section>
         )}
         
-        {/* Execution History */}
+        {/* Execution Timeline */}
         {executionHistory.length > 0 && (
           <Section>
-            <SectionTitle>Execution History ({executionHistory.length})</SectionTitle>
+            <SectionTitle>Execution Timeline ({executionHistory.length})</SectionTitle>
             <HistoryList>
-              {executionHistory.map((step, index) => (
-                <HistoryItem key={index} $status={step.status}>
+              {executionHistory.map((step) => (
+                <HistoryItem key={step.id} $status={step.status}>
                   <HistoryIcon $status={step.status}>
                     {step.status === 'running' && '⏳'}
                     {step.status === 'success' && '✓'}
                     {step.status === 'error' && '✗'}
+                    {step.status === 'pending' && '•'}
                   </HistoryIcon>
                   <HistoryDetails>
                     <HistoryName>{step.nodeName}</HistoryName>
-                    {step.duration && (
-                      <HistoryDuration>{step.duration}ms</HistoryDuration>
-                    )}
+                    <HistoryDuration>
+                      {step.action}
+                      {step.duration ? ` · ${step.duration}ms` : ''}
+                    </HistoryDuration>
                   </HistoryDetails>
                 </HistoryItem>
               ))}
