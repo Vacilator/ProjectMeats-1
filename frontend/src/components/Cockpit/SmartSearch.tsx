@@ -27,6 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityProfileHeader } from './EntityProfileHeader';
+import { AIOverviewCard } from './AIOverviewCard';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -974,11 +975,14 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
       <ContentArea>
         {activeStep && (
-          <EntityProfileHeader
-            entityType={activeStep.type}
-            entityId={String(activeStep.id)}
-            onNavigateToEntity={handleNavigateToEntity}
-          />
+          <>
+            <AIOverviewCard entityType={activeStep.type} entityId={String(activeStep.id)} />
+            <EntityProfileHeader
+              entityType={activeStep.type}
+              entityId={String(activeStep.id)}
+              onNavigateToEntity={handleNavigateToEntity}
+            />
+          </>
         )}
 
         {isLoading ? (
