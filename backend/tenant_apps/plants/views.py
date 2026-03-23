@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -120,3 +121,73 @@ class PlantViewSet(viewsets.ModelViewSet):
                 {'error': 'Failed to create plant', 'details': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['get'], url_path='available-products')
+    def available_products(self, request, pk=None):
+        """
+        List all system products associated with this plant.
+
+        GET /api/v1/plants/{id}/available-products/
+        """
+        from tenant_apps.plants.models import PlantAssociatedProduct
+        from apps.system.serializers import SystemProductSerializer
+
+        plant = self.get_object()
+        links = PlantAssociatedProduct.objects.filter(
+            tenant=request.tenant,
+            plant=plant,
+        ).select_related('product')
+        products = [link.product for link in links]
+        serializer = SystemProductSerializer(products, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='available-products')
+    def add_available_product(self, request, pk=None):
+        """
+        Add a system product to plant's available products.
+
+        POST /api/v1/plants/{id}/available-products/
+        Body: { "product": "<system-product-uuid>" }
+        """
+        from tenant_apps.plants.models import PlantAssociatedProduct
+        from apps.system.models import Product
+        from apps.system.serializers import SystemProductSerializer
+
+        plant = self.get_object()
+        product_id = request.data.get('product')
+        if not product_id:
+            return Response({'error': 'product is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            product = Product.objects.get(id=product_id, is_active=True)
+        except Product.DoesNotExist:
+            return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        _, created = PlantAssociatedProduct.objects.get_or_create(
+            tenant=request.tenant,
+            plant=plant,
+            product=product,
+        )
+        serializer = SystemProductSerializer(product)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'], url_path='available-products/(?P<product_id>[^/.]+)')
+    def remove_available_product(self, request, pk=None, product_id=None):
+        """
+        Remove a system product from plant's available products.
+
+        DELETE /api/v1/plants/{id}/available-products/{product_id}/
+        """
+        from tenant_apps.plants.models import PlantAssociatedProduct
+
+        plant = self.get_object()
+        try:
+            link = PlantAssociatedProduct.objects.get(
+                tenant=request.tenant,
+                plant=plant,
+                product_id=product_id,
+            )
+            link.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except PlantAssociatedProduct.DoesNotExist:
+            return Response({'error': 'Product association not found'}, status=status.HTTP_404_NOT_FOUND)
