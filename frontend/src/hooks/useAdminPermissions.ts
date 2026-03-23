@@ -50,6 +50,27 @@ export function useAdminPermissions() {
           throw error;
         }
 
+        // Common failure mode: stale/missing tenant context (X-Tenant-ID) can cause a 404.
+        // Repair tenant context by resolving /tenants/current/ (which has a server-side fallback)
+        // and retry once.
+        if (error.response?.status === 404) {
+          try {
+            const current = await apiClient.get('/tenants/current/');
+            const currentTenantId = current.data?.id;
+
+            if (currentTenantId) {
+              localStorage.setItem('tenantId', String(currentTenantId));
+              if (current.data?.name) localStorage.setItem('tenantName', String(current.data.name));
+              if (current.data?.slug) localStorage.setItem('tenantSlug', String(current.data.slug));
+
+              const retry = await apiClient.get('/tenants/admin_permissions/');
+              return retry.data;
+            }
+          } catch (retryError) {
+            // ignore; fall through to default permissions
+          }
+        }
+
         console.error('[useAdminPermissions] Failed to fetch permissions:', {
           status: error.response?.status,
           data: error.response?.data,
@@ -101,7 +122,14 @@ function getDefaultPermissions(): AdminPermissions {
  */
 export function isAdminOrOwner(permissions: AdminPermissions | undefined): boolean {
   if (!permissions) return false;
-  return permissions.role === 'admin' || permissions.role === 'owner' || permissions.role === 'superuser';
+  // Managers have limited Admin Workspace access (e.g., invitations, view-only areas).
+  // Page-level guards still enforce fine-grained permissions.
+  return (
+    permissions.role === 'admin' ||
+    permissions.role === 'owner' ||
+    permissions.role === 'superuser' ||
+    permissions.role === 'manager'
+  );
 }
 
 /**

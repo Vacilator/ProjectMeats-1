@@ -5,6 +5,9 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
+import { useQuery } from '@tanstack/react-query';
+
+import Modal from '@/components/Modal/Modal';
 import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, AdminSection, ConfirmDialog, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { Button } from '@/components/ui/Button';
@@ -38,10 +41,26 @@ const CATEGORIES: Array<{ key: Category; label: string; icon: string }> = [
   { key: 'advanced', label: 'Advanced', icon: '🔧' },
 ];
 
+interface TenantCurrent {
+  id: string;
+  name: string;
+}
+
 const ConfigurationsPage: React.FC = () => {
   const toast = useToast();
   const { permissions } = useAdminPermissions();
   const canManage = permissions.can_manage_configurations;
+
+  const currentTenantQuery = useQuery<TenantCurrent>({
+    queryKey: ['tenants', 'current', 'configurations'],
+    queryFn: async () => {
+      const res = await apiClient.get('/tenants/current/');
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const tenantId = currentTenantQuery.data?.id;
 
   const [activeCategory, setActiveCategory] = useState<Category>('general');
   const [configurations, setConfigurations] = useState<Configuration[]>([]);
@@ -53,16 +72,32 @@ const ConfigurationsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [showModifiedOnly, setShowModifiedOnly] = useState(false);
 
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    category: activeCategory,
+    key: '',
+    display_name: '',
+    description: '',
+    data_type: 'string' as Configuration['data_type'],
+    value: '',
+    default_value: '',
+    is_required: false,
+  });
+
   useEffect(() => {
     if (!canManage) return;
+    if (currentTenantQuery.isLoading) return;
     loadConfigurations();
-  }, [canManage]);
+  }, [canManage, currentTenantQuery.isLoading, tenantId]);
 
   const loadConfigurations = async () => {
     try {
       setLoading(true);
       setLoadError(null);
-      const response = await apiClient.get('/configurations/');
+      const response = await apiClient.get('/configurations/', {
+        params: tenantId ? { tenant: tenantId } : undefined,
+      });
       const raw = response.data as any;
       const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setConfigurations(data);
@@ -187,6 +222,100 @@ const ConfigurationsPage: React.FC = () => {
     setShowResetConfirm(true);
   };
 
+  const openCreateModal = () => {
+    setCreateForm({
+      category: activeCategory,
+      key: '',
+      display_name: '',
+      description: '',
+      data_type: 'string',
+      value: '',
+      default_value: '',
+      is_required: false,
+    });
+    setShowCreateModal(true);
+  };
+
+  const handleCreate = async () => {
+    const payload = {
+      category: createForm.category,
+      key: createForm.key.trim(),
+      display_name: createForm.display_name.trim() || createForm.key.trim(),
+      description: createForm.description.trim(),
+      data_type: createForm.data_type,
+      value: createForm.value,
+      default_value: createForm.default_value,
+      is_required: createForm.is_required,
+      is_system: false,
+    };
+
+    if (!payload.key || !payload.display_name) {
+      toast.error('Key and display name are required');
+      return;
+    }
+
+    if (payload.data_type === 'json') {
+      try {
+        JSON.parse(payload.value || '');
+      } catch {
+        toast.error('Value must be valid JSON');
+        return;
+      }
+    }
+
+    if (payload.data_type === 'boolean') {
+      const v = String(payload.value || '').toLowerCase();
+      if (!['true', 'false', '1', '0', 'yes', 'no'].includes(v)) {
+        toast.error("Boolean value must be 'true' or 'false'");
+        return;
+      }
+    }
+
+    setIsCreating(true);
+    try {
+      await apiClient.post('/configurations/', payload);
+      toast.success('Configuration created');
+      setShowCreateModal(false);
+      await loadConfigurations();
+    } catch (error: any) {
+      console.error('Failed to create configuration:', error);
+      toast.error(error?.response?.data?.error || 'Failed to create configuration');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleResetOne = async (configId: string) => {
+    try {
+      await apiClient.post(`/configurations/${configId}/reset/`);
+      toast.success('Reset to default');
+      await loadConfigurations();
+    } catch (error: any) {
+      console.error('Failed to reset configuration:', error);
+      toast.error(error?.response?.data?.error || 'Failed to reset configuration');
+    }
+  };
+
+  const handleDeleteOne = async (config: Configuration) => {
+    if (config.is_system) {
+      toast.error('System configurations cannot be deleted');
+      return;
+    }
+
+    if (!window.confirm(`Delete configuration "${config.display_name}"?`)) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/configurations/${config.id}/`);
+      toast.success('Configuration deleted');
+      await loadConfigurations();
+    } catch (error: any) {
+      console.error('Failed to delete configuration:', error);
+      toast.error(error?.response?.data?.error || 'Failed to delete configuration');
+    }
+  };
+
   const confirmReset = async () => {
     try {
       setSaving(true);
@@ -220,6 +349,14 @@ const ConfigurationsPage: React.FC = () => {
       actions={
         canManage ? (
           <Actions>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openCreateModal}
+              disabled={saving || currentTenantQuery.isLoading}
+            >
+              Add
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -317,7 +454,12 @@ const ConfigurationsPage: React.FC = () => {
                 message={
                   normalizedSearch || showModifiedOnly
                     ? 'No configurations match your filters.'
-                    : 'No configurations exist in this category.'
+                    : 'No configurations exist in this category yet.'
+                }
+                action={
+                  canManage && !normalizedSearch && !showModifiedOnly
+                    ? { label: 'Add configuration', onClick: openCreateModal }
+                    : undefined
                 }
               />
             ) : (
@@ -332,11 +474,30 @@ const ConfigurationsPage: React.FC = () => {
                       <FieldBadges>
                         {changes[config.id] !== undefined && <ModifiedBadge>Modified</ModifiedBadge>}
                         {config.is_system && <SystemBadge>System</SystemBadge>}
-                        {changes[config.id] !== undefined && (
-                          <RevertButton type="button" onClick={() => clearChange(config.id)}>
-                            Revert
-                          </RevertButton>
-                        )}
+                        <RowActions>
+                          <RowActionButton
+                            type="button"
+                            onClick={() => handleResetOne(config.id)}
+                            disabled={saving || isCreating || !config.default_value}
+                            title={!config.default_value ? 'No default value available' : 'Reset to default'}
+                          >
+                            Reset
+                          </RowActionButton>
+                          <RowActionButton
+                            type="button"
+                            onClick={() => handleDeleteOne(config)}
+                            disabled={saving || isCreating || config.is_system}
+                            title={config.is_system ? 'System config' : 'Delete'}
+                            $danger
+                          >
+                            Delete
+                          </RowActionButton>
+                          {changes[config.id] !== undefined && (
+                            <RevertButton type="button" onClick={() => clearChange(config.id)}>
+                              Revert
+                            </RevertButton>
+                          )}
+                        </RowActions>
                       </FieldBadges>
                     </FieldHeader>
 
@@ -405,6 +566,129 @@ const ConfigurationsPage: React.FC = () => {
             confirmText="Reset"
             confirmVariant="danger"
           />
+
+          <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} maxWidth="720px">
+            <CreateModalContent>
+              <CreateHeader>
+                <CreateTitle>Add Configuration</CreateTitle>
+                <CreateSubtitle>
+                  Creating a configuration adds a tenant-specific setting. This is safe and reversible.
+                </CreateSubtitle>
+              </CreateHeader>
+
+              <CreateGrid>
+                <CreateField>
+                  <CreateLabel>Category</CreateLabel>
+                  <Select
+                    value={createForm.category}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, category: e.target.value as Category }))}
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c.key} value={c.key}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </Select>
+                </CreateField>
+
+                <CreateField>
+                  <CreateLabel>Key</CreateLabel>
+                  <TextInput
+                    value={createForm.key}
+                    onChange={(e) =>
+                      setCreateForm((p) => ({
+                        ...p,
+                        key: e.target.value,
+                        display_name: p.display_name || e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. session_timeout"
+                  />
+                </CreateField>
+
+                <CreateField>
+                  <CreateLabel>Display name</CreateLabel>
+                  <TextInput
+                    value={createForm.display_name}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, display_name: e.target.value }))}
+                    placeholder="e.g. Session Timeout"
+                  />
+                </CreateField>
+
+                <CreateField>
+                  <CreateLabel>Type</CreateLabel>
+                  <Select
+                    value={createForm.data_type}
+                    onChange={(e) =>
+                      setCreateForm((p) => ({ ...p, data_type: e.target.value as Configuration['data_type'] }))
+                    }
+                  >
+                    <option value="string">String</option>
+                    <option value="integer">Integer</option>
+                    <option value="float">Float</option>
+                    <option value="boolean">Boolean</option>
+                    <option value="json">JSON</option>
+                  </Select>
+                </CreateField>
+
+                <CreateField style={{ gridColumn: '1 / -1' }}>
+                  <CreateLabel>Description</CreateLabel>
+                  <TextArea
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
+                    rows={3}
+                    placeholder="What does this setting control?"
+                  />
+                </CreateField>
+
+                <CreateField style={{ gridColumn: '1 / -1' }}>
+                  <CreateLabel>Value</CreateLabel>
+                  <TextArea
+                    value={createForm.value}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, value: e.target.value }))}
+                    rows={createForm.data_type === 'json' ? 6 : 3}
+                    placeholder={
+                      createForm.data_type === 'json'
+                        ? '{"enabled": true}'
+                        : createForm.data_type === 'boolean'
+                          ? 'true'
+                          : 'Enter a value'
+                    }
+                  />
+                </CreateField>
+
+                <CreateField style={{ gridColumn: '1 / -1' }}>
+                  <CreateLabel>Default value (optional)</CreateLabel>
+                  <TextArea
+                    value={createForm.default_value}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, default_value: e.target.value }))}
+                    rows={2}
+                    placeholder="Used by Reset"
+                  />
+                </CreateField>
+
+                <CreateField style={{ gridColumn: '1 / -1' }}>
+                  <Toggle>
+                    <ToggleInput
+                      type="checkbox"
+                      checked={createForm.is_required}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, is_required: e.target.checked }))}
+                    />
+                    <span>Required</span>
+                  </Toggle>
+                </CreateField>
+              </CreateGrid>
+
+              <CreateActions>
+                <Button variant="outline" size="sm" onClick={() => setShowCreateModal(false)} disabled={isCreating}>
+                  Cancel
+                </Button>
+                <Button variant="primary" size="sm" onClick={handleCreate} disabled={isCreating}>
+                  {isCreating ? 'Creating…' : 'Create'}
+                </Button>
+              </CreateActions>
+            </CreateModalContent>
+          </Modal>
         </>
       </AdminGuard>
     </AdminPage>
@@ -548,6 +832,37 @@ const FieldBadges = styled.div`
   flex-wrap: wrap;
 `;
 
+const RowActions = styled.div`
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+`;
+
+const RowActionButton = styled.button<{ $danger?: boolean }>`
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: ${(p) => (p.$danger ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-primary))')};
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: ${(p) => (p.$danger ? 'rgba(var(--color-error), 0.55)' : 'rgba(var(--color-primary), 0.55)')};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
+`;
+
 const ModifiedBadge = styled.span`
   padding: 2px 8px;
   border-radius: var(--radius-full);
@@ -651,6 +966,76 @@ const CheckboxInput = styled.input`
 const CheckboxLabel = styled.span`
   font-size: 13px;
   color: rgb(var(--color-text-primary));
+`;
+
+const CreateModalContent = styled.div`
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+`;
+
+const CreateHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const CreateTitle = styled.h2`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: rgb(var(--color-text-primary));
+`;
+
+const CreateSubtitle = styled.p`
+  margin: 0;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const CreateGrid = styled.div`
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const CreateField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const CreateLabel = styled.div`
+  font-size: 12px;
+  font-weight: 650;
+  color: rgb(var(--color-text-primary));
+`;
+
+const Select = styled.select`
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: rgba(var(--color-primary), 0.8);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.12);
+  }
+`;
+
+const CreateActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 `;
 
 export default ConfigurationsPage;
