@@ -64,7 +64,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-23 — Beautified Cockpit Entity Profile Header (Inline edit UX + Preferred Products) — PR: #3833.
 - 2026-03-23 — Product selection filtered by preferred_protein_types (Master Data compliance) — PR: #3841.
 - 2026-03-23 — Modal create flows aligned to Master Products (Cockpit quick-create + product-association modals w/ protein filtering) — PR: #TBD.
-- 2026-03-23 — Admin Workspace: Configurations create/reset/delete + permissions tenant-context auto-repair (fixes missing Admin Workspace sidebar for valid users) — PR: #TBD.
+- 2026-03-23 — Admin Workspace: Configurations create/reset/delete + permissions tenant-context auto-repair (fixes missing Admin Workspace sidebar for valid users) — PR: #3844.
 
 - 2026-03-22T16:39:58Z — EMERGENCY ROLLBACK: Reverted Workform Container UI to stable Friday baseline due to UX degradation.
 
