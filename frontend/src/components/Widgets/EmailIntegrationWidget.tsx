@@ -334,12 +334,23 @@ export const EmailIntegrationWidget: React.FC<EmailIntegrationWidgetProps> = ({ 
     onRefresh?.();
   };
 
-  const handleConnect = (provider: 'outlook' | 'gmail') => {
-    // Initiate OAuth flow
-    const baseUrl = window.location.origin;
-    const redirectUri = `${baseUrl}/auth/email/callback`;
-    const authUrl = `/api/v1/workflows/email-accounts/connect/${provider}/?redirect_uri=${encodeURIComponent(redirectUri)}`;
-    window.location.href = authUrl;
+  const handleConnect = async (provider: 'outlook' | 'gmail') => {
+    try {
+      // Use secure apiClient to get the Microsoft URL, preserving JWT and Tenant headers
+      const response = await apiClient.get('/integrations/oauth/authorize/', {
+        params: { provider },
+      });
+
+      if (response.data?.auth_url) {
+        // Safely redirect directly to Microsoft
+        window.location.href = response.data.auth_url;
+      } else {
+        throw new Error('Authorization URL not received from server');
+      }
+    } catch (err: any) {
+      console.error('Failed to initiate OAuth connection:', err);
+      alert(err.response?.data?.error || 'Failed to initiate connection. Please try again.');
+    }
   };
 
   const handleDisconnect = async (accountId: number) => {
