@@ -159,11 +159,20 @@ const ConfigurationsPage: React.FC = () => {
       setSaving(true);
       const configurationsToUpdate = Object.entries(changes).map(([id, value]) => ({ id, value }));
 
-      await apiClient.post('/configurations/bulk_update/', {
+      const response = await apiClient.post('/configurations/bulk_update/', {
         configurations: configurationsToUpdate,
       });
 
-      toast.success(`Saved ${configurationsToUpdate.length} configuration(s)`);
+      const errors = Array.isArray((response.data as any)?.errors) ? (response.data as any).errors : [];
+      if (errors.length > 0) {
+        const first = errors[0];
+        toast.error(
+          `Saved ${configurationsToUpdate.length - errors.length}/${configurationsToUpdate.length}, with ${errors.length} error(s): ${first?.error || 'Update failed'}`
+        );
+      } else {
+        toast.success(`Saved ${configurationsToUpdate.length} configuration(s)`);
+      }
+
       setChanges({});
       await loadConfigurations();
     } catch (error) {
@@ -181,11 +190,17 @@ const ConfigurationsPage: React.FC = () => {
   const confirmReset = async () => {
     try {
       setSaving(true);
-      await apiClient.post('/configurations/reset_category/', {
+      const response = await apiClient.post('/configurations/reset_category/', {
         category: activeCategory,
       });
 
-      toast.success(`Reset ${activeCategory} configurations to defaults`);
+      const resetCount = (response.data as any)?.reset_count;
+      toast.success(
+        typeof resetCount === 'number'
+          ? `Reset ${resetCount} configuration(s) in ${activeCategory}`
+          : `Reset ${activeCategory} configurations to defaults`
+      );
+
       setChanges({});
       await loadConfigurations();
     } catch (error) {

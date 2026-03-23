@@ -23,6 +23,7 @@ import {
   Plus, Save, Eye, EyeOff, GripVertical, X, Settings, Info
 } from 'lucide-react';
 import { apiClient } from '../../services/apiService';
+import { useToast } from '../../hooks/useToast';
 import Modal from '../Modal/Modal';
 
 // ============================================================================
@@ -69,6 +70,7 @@ interface TenantChoiceOverrideProps {
 export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
   tenantId,
 }) => {
+  const toast = useToast();
   const [choiceLists, setChoiceLists] = useState<SystemChoiceList[]>([]);
   const [selectedList, setSelectedList] = useState<SystemChoiceList | null>(null);
   const [systemItems, setSystemItems] = useState<SystemChoiceItem[]>([]);
@@ -87,13 +89,17 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
     setIsLoading(true);
     try {
       const response = await apiClient.get('/system/choice-lists/');
-      setChoiceLists(response.data.results || response.data);
+      const raw = response.data as any;
+      const lists = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setChoiceLists(lists);
     } catch (error) {
       console.error('[TenantChoiceOverride] Failed to load choice lists:', error);
+      toast.error('Failed to load choice lists');
+      setChoiceLists([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   /**
    * Load system items and tenant override for selected list
@@ -139,10 +145,15 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
       }
     } catch (error) {
       console.error('[TenantChoiceOverride] Failed to load list data:', error);
+      toast.error('Failed to load list data');
+      setSystemItems([]);
+      setTenantOverride(null);
+      setDisabledItems(new Set());
+      setCustomOrder([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   /**
    * Initial load
@@ -257,13 +268,15 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
         is_default: false,
       });
 
+      toast.success('Added custom item');
       await loadListData(selectedList);
       setIsAddCustomModalOpen(false);
       setNewCustomItem({ value: '', label: '' });
     } catch (error) {
       console.error('[TenantChoiceOverride] Failed to add custom item:', error);
+      toast.error('Failed to add custom item');
     }
-  }, [selectedList, newCustomItem, systemItems.length, loadListData]);
+  }, [selectedList, newCustomItem, systemItems.length, loadListData, toast]);
 
   /**
    * Save tenant override
@@ -287,15 +300,15 @@ export const TenantChoiceOverride: React.FC<TenantChoiceOverrideProps> = ({
         await apiClient.post('/system/tenant-overrides/', overrideData);
       }
 
+      toast.success('Saved customizations');
       await loadListData(selectedList);
-      alert('Override saved successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('[TenantChoiceOverride] Failed to save override:', error);
-      alert('Failed to save override');
+      toast.error(error?.response?.data?.error || 'Failed to save customizations');
     } finally {
       setIsSaving(false);
     }
-  }, [selectedList, tenantId, disabledItems, customOrder, tenantOverride, loadListData]);
+  }, [selectedList, disabledItems, customOrder, tenantOverride, loadListData, toast]);
 
   /**
    * Reset to defaults
