@@ -1,8 +1,8 @@
 /**
- * Supplier Available Products Management Page
+ * Plant Available Products Management Page
  * 
- * Manages the list of system products that a supplier has available.
- * Uses SupplierAvailableItem model (supplier + system.Product).
+ * Manages the list of system products available at a specific plant.
+ * Uses PlantAssociatedProduct model (plant + system.Product).
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
@@ -12,27 +12,22 @@ import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
 
-interface AvailableItem {
-  id: number;
-  product: string;
-  product_code: string;
-  product_name: string;
-  protein_type?: string;
-  is_active: boolean;
-}
-
 interface SystemProduct {
   id: string;
   product_code: string;
   name: string;
+  description?: string;
   protein_type?: string;
   category?: string;
   is_active?: boolean;
 }
 
-interface Supplier {
+interface Plant {
   id: number;
   name: string;
+  code: string;
+  supplier?: number;
+  supplier_name?: string;
 }
 
 const PageContainer = styled.div`
@@ -121,15 +116,15 @@ const LoadingContainer = styled.div`
   height: 300px;
 `;
 
-const SupplierProducts: React.FC = () => {
+const PlantProducts: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [items, setItems] = useState<AvailableItem[]>([]);
+  const [products, setProducts] = useState<SystemProduct[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState<string>('');
-  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [plant, setPlant] = useState<Plant | null>(null);
 
   // Add modal state
   const [addModalVisible, setAddModalVisible] = useState<boolean>(false);
@@ -140,37 +135,37 @@ const SupplierProducts: React.FC = () => {
   const [addingProducts, setAddingProducts] = useState<boolean>(false);
 
   useEffect(() => {
-    if (location.state?.supplier) {
-      setSupplier(location.state.supplier);
+    if (location.state?.plant) {
+      setPlant(location.state.plant);
     } else if (id) {
-      fetchSupplier();
+      fetchPlant();
     }
   }, [id, location.state]);
 
   useEffect(() => {
-    if (id) fetchItems();
+    if (id) fetchProducts();
   }, [id]);
 
-  const fetchSupplier = async () => {
+  const fetchPlant = async () => {
     if (!id) return;
     try {
-      const response = await apiClient.get(`/suppliers/${id}/`);
-      setSupplier(response.data);
+      const response = await apiClient.get(`/plants/${id}/`);
+      setPlant(response.data);
     } catch (error) {
-      console.error('Error fetching supplier:', error);
-      message.error('Failed to load supplier details');
+      console.error('Error fetching plant:', error);
+      message.error('Failed to load plant details');
     }
   };
 
-  const fetchItems = async () => {
+  const fetchProducts = async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const response = await apiClient.get(`/suppliers/${id}/products/`);
-      setItems(Array.isArray(response.data) ? response.data : []);
+      const response = await apiClient.get(`/plants/${id}/available-products/`);
+      setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching available products:', error);
-      message.error('Failed to load available products');
+      console.error('Error fetching plant products:', error);
+      message.error('Failed to load plant products');
     } finally {
       setLoading(false);
     }
@@ -209,13 +204,13 @@ const SupplierProducts: React.FC = () => {
     try {
       await Promise.all(
         selectedProductIds.map(productId =>
-          apiClient.post(`/suppliers/${id}/available-products/`, { product: productId })
+          apiClient.post(`/plants/${id}/available-products/`, { product: productId })
         )
       );
       message.success(`Added ${selectedProductIds.length} product(s) successfully`);
       setAddModalVisible(false);
       setSelectedProductIds([]);
-      fetchItems();
+      fetchProducts();
     } catch (error) {
       console.error('Error adding products:', error);
       message.error('Failed to add products');
@@ -224,17 +219,17 @@ const SupplierProducts: React.FC = () => {
     }
   };
 
-  const handleRemoveItem = async (item: AvailableItem) => {
+  const handleRemoveProduct = async (productId: string) => {
     Modal.confirm({
-      title: 'Remove Available Product',
-      content: `Remove "${item.product_name || item.product_code}" from this supplier's available products?`,
+      title: 'Remove Product',
+      content: "Remove this product from the plant's available products?",
       okText: 'Remove',
       okType: 'danger',
       onOk: async () => {
         try {
-          await apiClient.delete(`/suppliers/${id}/available-products/${item.product}/`);
+          await apiClient.delete(`/plants/${id}/available-products/${productId}/`);
           message.success('Product removed successfully');
-          fetchItems();
+          fetchProducts();
         } catch (error) {
           console.error('Error removing product:', error);
           message.error('Failed to remove product');
@@ -243,27 +238,27 @@ const SupplierProducts: React.FC = () => {
     });
   };
 
-  const filteredItems = items.filter(item => {
+  const filteredProducts = products.filter(p => {
     if (!searchText) return true;
     const s = searchText.toLowerCase();
     return (
-      (item.product_code || '').toLowerCase().includes(s) ||
-      (item.product_name || '').toLowerCase().includes(s) ||
-      (item.protein_type || '').toLowerCase().includes(s)
+      (p.product_code || '').toLowerCase().includes(s) ||
+      (p.name || '').toLowerCase().includes(s) ||
+      (p.protein_type || '').toLowerCase().includes(s)
     );
   });
 
-  const columns: ColumnsType<AvailableItem> = [
+  const columns: ColumnsType<SystemProduct> = [
     {
       title: 'Product Code',
       dataIndex: 'product_code',
       key: 'product_code',
-      sorter: (a, b) => (a.product_code || '').localeCompare(b.product_code || ''),
+      sorter: (a, b) => a.product_code.localeCompare(b.product_code),
     },
     {
-      title: 'Product Name',
-      dataIndex: 'product_name',
-      key: 'product_name',
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
       ellipsis: true,
     },
     {
@@ -273,12 +268,18 @@ const SupplierProducts: React.FC = () => {
       render: (val: string) => val ? <Tag>{val}</Tag> : '-',
     },
     {
+      title: 'Category',
+      dataIndex: 'category',
+      key: 'category',
+      render: (val: string) => val || '-',
+    },
+    {
       title: 'Status',
       dataIndex: 'is_active',
       key: 'status',
       render: (isActive: boolean) => (
-        <Tag color={isActive ? 'green' : 'red'}>
-          {isActive ? 'Active' : 'Inactive'}
+        <Tag color={isActive !== false ? 'green' : 'red'}>
+          {isActive !== false ? 'Active' : 'Inactive'}
         </Tag>
       ),
     },
@@ -293,7 +294,7 @@ const SupplierProducts: React.FC = () => {
             type="link"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => handleRemoveItem(record)}
+            onClick={() => handleRemoveProduct(record.id)}
             size="small"
           >
             Remove
@@ -307,19 +308,20 @@ const SupplierProducts: React.FC = () => {
     <PageContainer>
       <PageHeader>
         <TitleSection>
-          <PageTitle>Supplier Available Products</PageTitle>
+          <PageTitle>Plant Available Products</PageTitle>
           <PageSubtitle>
-            Products available from {supplier?.name || 'this supplier'}
+            Products available at {plant ? `${plant.name} (${plant.code})` : 'this plant'}
           </PageSubtitle>
         </TitleSection>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/suppliers')}>
-          Back to Suppliers
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/suppliers/plants')}>
+          Back to Plants
         </Button>
       </PageHeader>
 
-      {supplier && (
+      {plant && (
         <ContextBanner>
-          Viewing available products for: <span>{supplier.name}</span>
+          Viewing available products for plant: <span>{plant.name} ({plant.code})</span>
+          {plant.supplier_name && <> — Supplier: <span>{plant.supplier_name}</span></>}
         </ContextBanner>
       )}
 
@@ -344,10 +346,10 @@ const SupplierProducts: React.FC = () => {
       <ContentCard>
         {loading ? (
           <LoadingContainer><Spin size="large" /></LoadingContainer>
-        ) : filteredItems.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <EmptyState>
             <h3>No Available Products</h3>
-            <p>This supplier doesn't have any products listed as available yet.</p>
+            <p>This plant doesn't have any available products listed yet.</p>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { setAddModalVisible(true); fetchSystemProducts(); }}>
               Add Products
             </Button>
@@ -355,7 +357,7 @@ const SupplierProducts: React.FC = () => {
         ) : (
           <Table
             columns={columns}
-            dataSource={filteredItems}
+            dataSource={filteredProducts}
             rowKey="id"
             pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Total ${total} products` }}
             scroll={{ x: 900 }}
@@ -364,7 +366,7 @@ const SupplierProducts: React.FC = () => {
       </ContentCard>
 
       <Modal
-        title="Add Available Products"
+        title="Add Products to Plant"
         open={addModalVisible}
         onOk={handleAddProducts}
         onCancel={() => { setAddModalVisible(false); setSelectedProductIds([]); setProductSearchText(''); }}
@@ -383,7 +385,7 @@ const SupplierProducts: React.FC = () => {
         <Table
           size="small"
           loading={loadingSystemProducts}
-          dataSource={systemProducts.filter(p => !items.find(existing => existing.product === p.id))}
+          dataSource={systemProducts.filter(p => !products.find(existing => existing.id === p.id))}
           rowKey="id"
           rowSelection={{
             selectedRowKeys: selectedProductIds,
@@ -402,4 +404,4 @@ const SupplierProducts: React.FC = () => {
   );
 };
 
-export default SupplierProducts;
+export default PlantProducts;

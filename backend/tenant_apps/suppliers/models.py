@@ -263,34 +263,33 @@ class SupplierPlant(TenantAwareModel):
 
 
 class SupplierAvailableItem(TenantAwareModel):
-    """Supplier-specific availability for a MasterProduct."""
+    """Supplier-specific availability for a system Product."""
 
     supplier = models.ForeignKey(
         'Supplier',
         on_delete=models.CASCADE,
         related_name='available_items',
     )
-    master_product = models.ForeignKey(
-        'products.MasterProduct',
+    product = models.ForeignKey(
+        'system.Product',
         on_delete=models.PROTECT,
-        related_name='supplier_variants',
+        related_name='supplier_available_items',
     )
 
-    product_code = models.CharField(max_length=100, blank=True, default='')
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ['supplier', 'master_product__display_name']
+        ordering = ['supplier', 'product__name']
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'supplier', 'master_product'],
-                name='unique_supplier_master_product_per_tenant',
+                fields=['tenant', 'supplier', 'product'],
+                name='unique_supplier_product_per_tenant',
             )
         ]
         indexes = [
             models.Index(fields=['tenant', 'supplier']),
-            models.Index(fields=['tenant', 'master_product']),
+            models.Index(fields=['tenant', 'product'], name='suppliers_s_tenant__product_idx'),
         ]
 
     def __str__(self):
-        return f"{self.supplier} - {self.master_product.display_name}"
+        return f"{self.supplier} - {self.product.name}"

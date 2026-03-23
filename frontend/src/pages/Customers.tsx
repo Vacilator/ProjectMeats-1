@@ -16,7 +16,7 @@ const Customers: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { theme } = useTheme();
-  const [products, setProducts] = useState<Array<{ id: number; product_code: string; description_of_product_item: string }>>([]);
+  const [products, setProducts] = useState<Array<{ id: string; product_code: string; name: string; protein_type: string }>>([]);
   const [formData, setFormData] = useState({
     name: '',
     contact_person: '',
@@ -29,7 +29,7 @@ const Customers: React.FC = () => {
     country: '',
     industry_array: [] as string[], // Phase 4: ArrayField integration
     preferred_protein_types: [] as string[], // Phase 4: ArrayField integration
-    products: [] as number[], // Product IDs for M2M
+    products: [] as string[], // Product UUIDs for M2M
   });
 
   // Auto-open form if ?action=create in URL
@@ -71,7 +71,7 @@ const Customers: React.FC = () => {
   const fetchProducts = async () => {
     try {
       // Use apiClient to automatically include Authorization headers
-      const response = await apiClient.get('/products/');
+      const response = await apiClient.get('/system/products/');
       const raw = response.data as any;
       const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setProducts(data);
@@ -84,9 +84,9 @@ const Customers: React.FC = () => {
   const fetchFilteredProducts = async (proteinTypes: string[]) => {
     try {
       // Use apiClient with proper params - automatically includes Authorization
-      const response = await apiClient.get('/products/', {
+      const response = await apiClient.get('/system/products/', {
         params: {
-          protein: proteinTypes, // axios will serialize array properly
+          protein: proteinTypes,
         },
       });
 
@@ -95,8 +95,8 @@ const Customers: React.FC = () => {
       setProducts(data);
 
       if (data.length > 0) {
-        // Auto-select filtered products
-        const filteredProductIds = data.map((p: any) => p.id).filter((id: any) => typeof id === 'number');
+        // Auto-select filtered products (system.Product uses UUID strings)
+        const filteredProductIds: string[] = data.map((p: any) => p.id).filter((id: any) => typeof id === 'string');
         if (filteredProductIds.length) {
           setFormData((prev) => ({
             ...prev,
@@ -339,9 +339,9 @@ const Customers: React.FC = () => {
 
                 <FormGroup $fullWidth>
                   <MultiSelect
-                    value={formData.products.map(String)}
-                    onChange={(values) => setFormData({ ...formData, products: values.map(Number) })}
-                    options={products.map(p => ({ value: String(p.id), label: `${p.product_code} - ${p.description_of_product_item}` }))}
+                    value={formData.products}
+                    onChange={(values) => setFormData({ ...formData, products: values })}
+                    options={products.map(p => ({ value: p.id, label: `${p.product_code}${p.name ? ' - ' + p.name : ''}` }))}
                     label="Products"
                     placeholder="Select products to associate (hold Ctrl/Cmd for multiple)"
                   />
