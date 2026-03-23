@@ -36,6 +36,7 @@ class EntityViewSet(viewsets.ViewSet):
         'contact': ('contacts', 'Contact'),
         'purchase_order': ('purchase_orders', 'PurchaseOrder'),
         'sales_order': ('sales_orders', 'SalesOrder'),
+        'invoice': ('invoices', 'Invoice'),
     }
     
     @action(detail=True, methods=['get'], url_path='relationships')
@@ -262,8 +263,8 @@ class EntityViewSet(viewsets.ViewSet):
     def _get_default_relationships(self, entity_type):
         """Return default relationship types for each entity."""
         defaults = {
-            # Cockpit UX defaults (continuous browsing): emphasize the three primary panels.
-            'customer': ['contacts', 'recent_orders', 'related_products'],
+            # Cockpit UX defaults (continuous browsing): emphasize the primary panels.
+            'customer': ['contacts', 'recent_orders', 'invoices', 'related_products'],
             'supplier': ['contacts', 'recent_orders', 'related_products'],
             'product': ['purchase_orders', 'sales_orders'],
             # Keep lightweight, reliable relationships for order-like entities.
@@ -284,6 +285,8 @@ class EntityViewSet(viewsets.ViewSet):
                 return self._get_contacts_for_customer(entity, tenant)
             if rel_type in ('sales_orders', 'recent_orders'):
                 return self._get_sales_orders_for_customer(entity, tenant)
+            if rel_type == 'invoices':
+                return self._get_invoices_for_customer(entity, tenant)
             if rel_type in ('related_products', 'products'):
                 return self._get_related_products_for_customer(entity, tenant)
             # Legacy key (PurchaseOrder has no customer FK in current schema)
@@ -329,6 +332,8 @@ class EntityViewSet(viewsets.ViewSet):
                 return self._get_product_for_so(entity)
             if rel_type == 'contact':
                 return self._get_contact_for_so(entity, tenant)
+            if rel_type == 'invoice':
+                return self._get_invoice_for_so(entity, tenant)
 
         # Contact relationships
         if entity_type == 'contact':
@@ -370,6 +375,19 @@ class EntityViewSet(viewsets.ViewSet):
             return {
                 "count": qs.count(),
                 "items": [self._serialize_entity(so, 'sales_order') for so in qs[:10]],
+            }
+        except LookupError:
+            return None
+
+    def _get_invoices_for_customer(self, customer, tenant):
+        """Get invoices for a customer."""
+        try:
+            Invoice = apps.get_model('invoices', 'Invoice')
+            qs = Invoice.objects.filter(tenant=tenant, customer=customer)
+            qs = self._order_queryset_recent_first(qs)
+            return {
+                "count": qs.count(),
+                "items": [self._serialize_entity(inv, 'invoice') for inv in qs[:10]],
             }
         except LookupError:
             return None
@@ -569,6 +587,19 @@ class EntityViewSet(viewsets.ViewSet):
             }
         return None
 
+    def _get_invoice_for_so(self, sales_order, tenant):
+        """Get invoice for a sales order (if any)."""
+        try:
+            Invoice = apps.get_model('invoices', 'Invoice')
+            qs = Invoice.objects.filter(tenant=tenant, sales_order=sales_order)
+            qs = self._order_queryset_recent_first(qs)
+            return {
+                "count": qs.count(),
+                "items": [self._serialize_entity(inv, 'invoice') for inv in qs[:10]],
+            }
+        except LookupError:
+            return None
+
     def _get_product_for_po(self, purchase_order):
         """Get product for a purchase order (system Product)."""
         if hasattr(purchase_order, 'product') and purchase_order.product:
@@ -629,6 +660,11 @@ class EntityViewSet(viewsets.ViewSet):
                 getattr(entity, 'our_sales_order_num', None)
                 or getattr(entity, 'delivery_po_num', None)
                 or f"Sales Order {entity.pk}"
+            )
+        elif entity_type == 'invoice':
+            base['title'] = (
+                getattr(entity, 'invoice_number', None)
+                or f"Invoice {entity.pk}"
             )
         elif entity_type == 'product':
             base['title'] = (

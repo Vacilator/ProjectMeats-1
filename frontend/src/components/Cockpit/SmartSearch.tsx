@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import { useNavigate } from 'react-router-dom';
+import { Tabs, Spin } from 'antd';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { EntityProfileHeader } from './EntityProfileHeader';
@@ -448,7 +449,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isRelationsLoading, setIsRelationsLoading] = useState(false);
+
+  const [activeRelationTab, setActiveRelationTab] = useState<'orders' | 'invoices' | 'contacts' | 'more'>('orders');
+  const [relationTabData, setRelationTabData] = useState<Record<string, { items: SearchEntity[]; count: number }>>({});
+  const [loadingRelationTab, setLoadingRelationTab] = useState<string | null>(null);
 
   /**
    * Load favorites from localStorage
@@ -480,7 +486,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       return;
     }
 
-    setIsLoading(true);
+    setIsSearching(true);
 
     try {
       console.log('[SmartSearch] Searching for:', searchQuery);
@@ -523,7 +529,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       });
       setResults({});
     } finally {
-      setIsLoading(false);
+      setIsSearching(false);
     }
   }, []);
 
@@ -554,7 +560,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Load relational chunks for an entity using Entity Graph API + Fuzzy Discovery
    */
   const loadRelationalChunks = useCallback(async (entity: SearchEntity) => {
-    setIsLoading(true);
+    setIsRelationsLoading(true);
 
     try {
       console.log('[SmartSearch] Loading relationships for:', entity);
@@ -647,7 +653,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       console.error('[SmartSearch] Failed to load relational chunks:', error);
       setRelationalChunks([]);
     } finally {
-      setIsLoading(false);
+      setIsRelationsLoading(false);
     }
   }, []);
 
@@ -802,20 +808,87 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     });
   }, [navigation]);
 
-  // Continuous browsing: whenever the breadcrumb path changes, load the active entity's relations.
+  const activeEntity = useMemo(() => {
+    if (!activeStep) return null;
+
+    const rawType = String(activeStep.type ?? '').toLowerCase();
+    const canonicalType = rawType === 'customers'
+      ? 'customer'
+      : rawType === 'suppliers'
+      ? 'supplier'
+      : rawType;
+
+    return {
+      id: String(activeStep.id),
+      type: canonicalType,
+      name: activeStep.label,
+      subtitle: activeStep.subtitle,
+    } satisfies SearchEntity;
+  }, [activeStep]);
+
+  const isPrimaryEntity = useMemo(() => {
+    const raw = String(activeEntity?.type ?? '').toLowerCase();
+    return raw === 'customer' || raw === 'supplier';
+  }, [activeEntity?.type]);
+
+  const loadRelationshipTab = useCallback(async (tabKey: 'orders' | 'invoices' | 'contacts', entity: SearchEntity) => {
+    const relationshipType = tabKey === 'orders'
+      ? 'recent_orders'
+      : tabKey === 'contacts'
+      ? 'contacts'
+      : 'invoices';
+
+    setLoadingRelationTab(tabKey);
+    try {
+      const response = await businessApi.get(
+        `/system/entities/${encodeURIComponent(entity.type)}/${encodeURIComponent(entity.id)}/relationships/`,
+        { params: { relationship_types: relationshipType } }
+      );
+
+      const items = (response.data?.relationships?.[relationshipType] ?? []) as any[];
+      const count = Number(response.data?.counts?.[relationshipType] ?? items.length);
+
+      const mapped: SearchEntity[] = items.map((item: any) => ({
+        id: String(item.id ?? ''),
+        type: String(item.type ?? 'unknown'),
+        name: item.title || item.name || `${item.type} #${item.id}`,
+        subtitle: formatEntitySubtitle(item),
+        metadata: (item.metadata ?? {}) as Record<string, unknown>,
+      }));
+
+      setRelationTabData(prev => ({
+        ...prev,
+        [tabKey]: { items: mapped, count },
+      }));
+    } catch (error) {
+      console.error('[SmartSearch] Failed to load relationship tab:', tabKey, error);
+      setRelationTabData(prev => ({
+        ...prev,
+        [tabKey]: { items: [], count: 0 },
+      }));
+    } finally {
+      setLoadingRelationTab(prev => (prev === tabKey ? null : prev));
+    }
+  }, []);
+
+  // Continuous browsing: when the breadcrumb path changes, load the most relevant panel.
   useEffect(() => {
-    if (!activeStep) {
+    if (!activeEntity) {
       setRelationalChunks([]);
+      setRelationTabData({});
+      setLoadingRelationTab(null);
       return;
     }
 
-    loadRelationalChunks({
-      id: activeStep.id,
-      type: activeStep.type,
-      name: activeStep.label,
-      subtitle: activeStep.subtitle,
-    });
-  }, [activeStep, loadRelationalChunks]);
+    if (isPrimaryEntity) {
+      setActiveRelationTab('orders');
+      setRelationTabData({});
+      void loadRelationshipTab('orders', activeEntity);
+      return;
+    }
+
+    void loadRelationalChunks(activeEntity);
+  }, [activeEntity, isPrimaryEntity, loadRelationalChunks, loadRelationshipTab]);
 
   /**
    * Render search results (top-5 per type)
@@ -890,8 +963,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   /**
    * Render relational chunks
    */
-  const renderRelationalChunks = () => {
-    if (relationalChunks.length === 0) {
+  const renderRelationalChunks = (chunks: RelationalChunk[] = relationalChunks) => {
+    if (chunks.length === 0) {
       return (
         <EmptyState>
           <EmptyIcon>
@@ -905,7 +978,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       );
     }
 
-    return relationalChunks.map(chunk => (
+    return chunks.map(chunk => (
       <Section key={chunk.type}>
         <SectionHeader>
           <SectionTitle>
@@ -976,24 +1049,147 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       <ContentArea>
         {activeStep && (
           <>
-            <AIOverviewCard entityType={activeStep.type} entityId={String(activeStep.id)} />
+            <AIOverviewCard entityType={activeEntity?.type ?? activeStep.type} entityId={String(activeStep.id)} />
             <EntityProfileHeader
-              entityType={activeStep.type}
+              entityType={activeEntity?.type ?? activeStep.type}
               entityId={String(activeStep.id)}
               onNavigateToEntity={handleNavigateToEntity}
+              variant={isPrimaryEntity ? 'compact' : 'full'}
             />
           </>
         )}
 
-        {isLoading ? (
+        {activeStep ? (
+          isPrimaryEntity ? (
+            <Tabs
+              activeKey={activeRelationTab}
+              onChange={(nextKey) => {
+                const key = nextKey as typeof activeRelationTab;
+                setActiveRelationTab(key);
+                if (!activeEntity) return;
+
+                if (key === 'more') {
+                  if (relationalChunks.length === 0 && !isRelationsLoading) {
+                    void loadRelationalChunks(activeEntity);
+                  }
+                  return;
+                }
+
+                const typed = key as 'orders' | 'invoices' | 'contacts';
+                if (!relationTabData[typed] && loadingRelationTab !== typed) {
+                  void loadRelationshipTab(typed, activeEntity);
+                }
+              }}
+              items={([
+                {
+                  key: 'orders',
+                  label: `Orders${relationTabData.orders ? ` (${relationTabData.orders.count})` : ''}`,
+                  children: loadingRelationTab === 'orders' ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : relationTabData.orders?.items?.length ? (
+                    <ResultGrid>
+                      {relationTabData.orders.items.map(item => (
+                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
+                          <ResultIcon $color={getEntityColor(item.type)}>
+                            {getEntityIcon(item.type)}
+                          </ResultIcon>
+                          <ResultContent>
+                            <ResultTitle>{item.name}</ResultTitle>
+                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          </ResultContent>
+                        </ResultCard>
+                      ))}
+                    </ResultGrid>
+                  ) : (
+                    <EmptyState>
+                      <EmptyIcon><FileText size={48} /></EmptyIcon>
+                      <EmptyTitle>No orders yet</EmptyTitle>
+                      <EmptyMessage>Orders will appear here once created</EmptyMessage>
+                    </EmptyState>
+                  ),
+                },
+                {
+                  key: 'invoices',
+                  label: `Invoices${relationTabData.invoices ? ` (${relationTabData.invoices.count})` : ''}`,
+                  children: loadingRelationTab === 'invoices' ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : relationTabData.invoices?.items?.length ? (
+                    <ResultGrid>
+                      {relationTabData.invoices.items.map(item => (
+                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
+                          <ResultIcon $color={getEntityColor(item.type)}>
+                            {getEntityIcon(item.type)}
+                          </ResultIcon>
+                          <ResultContent>
+                            <ResultTitle>{item.name}</ResultTitle>
+                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          </ResultContent>
+                        </ResultCard>
+                      ))}
+                    </ResultGrid>
+                  ) : (
+                    <EmptyState>
+                      <EmptyIcon><FileText size={48} /></EmptyIcon>
+                      <EmptyTitle>No invoices yet</EmptyTitle>
+                      <EmptyMessage>Invoices will appear here once issued</EmptyMessage>
+                    </EmptyState>
+                  ),
+                },
+                {
+                  key: 'contacts',
+                  label: `Contacts${relationTabData.contacts ? ` (${relationTabData.contacts.count})` : ''}`,
+                  children: loadingRelationTab === 'contacts' ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : relationTabData.contacts?.items?.length ? (
+                    <ResultGrid>
+                      {relationTabData.contacts.items.map(item => (
+                        <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
+                          <ResultIcon $color={getEntityColor(item.type)}>
+                            {getEntityIcon(item.type)}
+                          </ResultIcon>
+                          <ResultContent>
+                            <ResultTitle>{item.name}</ResultTitle>
+                            {item.subtitle && <ResultSubtitle>{item.subtitle}</ResultSubtitle>}
+                          </ResultContent>
+                        </ResultCard>
+                      ))}
+                    </ResultGrid>
+                  ) : (
+                    <EmptyState>
+                      <EmptyIcon><Users size={48} /></EmptyIcon>
+                      <EmptyTitle>No contacts yet</EmptyTitle>
+                      <EmptyMessage>Contacts will appear here once added</EmptyMessage>
+                    </EmptyState>
+                  ),
+                },
+                {
+                  key: 'more',
+                  label: 'More',
+                  children: isRelationsLoading ? (
+                    <div style={{ padding: 12 }}><Spin /></div>
+                  ) : (
+                    renderRelationalChunks()
+                  ),
+                },
+              ] as any[])}
+            />
+          ) : isRelationsLoading ? (
+            <EmptyState>
+              <EmptyIcon>
+                <Search size={48} />
+              </EmptyIcon>
+              <EmptyTitle>Loading record context…</EmptyTitle>
+            </EmptyState>
+          ) : (
+            renderRelationalChunks()
+          )
+        ) : isSearching ? (
           <EmptyState>
             <EmptyIcon>
               <Search size={48} />
             </EmptyIcon>
-            <EmptyTitle>{activeStep ? 'Loading record context…' : 'Searching…'}</EmptyTitle>
+            <EmptyTitle>Searching…</EmptyTitle>
           </EmptyState>
-        ) : activeStep ? (
-          renderRelationalChunks()
         ) : (
           renderSearchResults()
         )}
