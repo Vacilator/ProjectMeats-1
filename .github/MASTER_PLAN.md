@@ -65,7 +65,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 - 2026-03-23 — Product selection filtered by preferred_protein_types (Master Data compliance) — PR: #3841.
 - 2026-03-23 — Modal create flows aligned to Master Products (Cockpit quick-create + product-association modals w/ protein filtering) — PR: #TBD.
 - 2026-03-23 — Admin Workspace: Configurations create/reset/delete + permissions tenant-context auto-repair (fixes missing Admin Workspace sidebar for valid users) — PR: #3844.
-- 2026-03-23 — Admin Workspace: persist resolved tenant context from admin_permissions (prevents Billing/Option Lists/Customizations/Configurations from appearing “broken” due to missing X-Tenant-ID) — PR: #TBD.
+- 2026-03-23 — Admin Workspace: persist resolved tenant context from admin_permissions (prevents Billing/Option Lists/Customizations/Configurations from appearing “broken” due to missing X-Tenant-ID) — PR: #3848.
 - 2026-03-23 — Email ingestion manual sync converted to synchronous execution (500 fix) — PR: #3845.
 - 2026-03-23 — Suppliers/Customers: punch-in drill-down navigation (Suppliers→Plants + details + Contacts; Customers→Locations + details + Contacts) — PR: #3846.
 - 2026-03-23 — Cockpit: Preferred/Active Products sections (editable, searchable multi-select) + “New Inquiry/PO/SO” CTAs open full create forms — PR: #3847.
