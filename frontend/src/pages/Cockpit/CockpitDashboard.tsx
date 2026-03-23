@@ -426,9 +426,16 @@ const WidgetIcon = styled.span`
 // Component
 // ============================================================================
 
+type InlineActionState = {
+  action: 'create' | 'edit';
+  entityType: string;
+  contextData: any;
+} | null;
+
 export const CockpitDashboard: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
+  const [inlineAction, setInlineAction] = useState<InlineActionState>(null);
   const [layout, setLayout] = useState<WidgetLayout[]>(DEFAULT_LAYOUT);
   const [isEditing, setIsEditing] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -455,6 +462,37 @@ export const CockpitDashboard: React.FC = () => {
   const isSearchActive = cockpitQuery.trim().length > 0;
   const isRecordActive = navigation.path.length > 0;
   const showDashboardWidgets = !isSearchActive && !isRecordActive;
+
+  const generateSmartContext = useCallback((sourceEntity: any, targetType: string) => {
+    if (!sourceEntity) return {};
+
+    const sourceType = String(sourceEntity.entityType ?? sourceEntity.type ?? '').toLowerCase();
+    const sourceId = String(sourceEntity.id ?? sourceEntity.entityId ?? '').trim();
+    if (!sourceType || !sourceId) return {};
+
+    const context: any = {};
+
+    if (sourceType === 'customer' && (targetType === 'sales_order' || targetType === 'inquiry' || targetType === 'invoice')) {
+      context.customer = sourceId;
+    }
+    if (sourceType === 'supplier' && (targetType === 'purchase_order' || targetType === 'inquiry')) {
+      context.supplier = sourceId;
+    }
+
+    context[`${sourceType}_id`] = sourceId;
+    return context;
+  }, []);
+
+  const openInlineCreate = useCallback(
+    (targetType: string, currentRecord: any) => {
+      setInlineAction({
+        action: 'create',
+        entityType: targetType,
+        contextData: generateSmartContext(currentRecord, targetType),
+      });
+    },
+    [generateSmartContext]
+  );
 
   // Exit edit mode whenever the dashboard grid isn't visible (searching or viewing a record)
   useEffect(() => {
@@ -684,16 +722,26 @@ export const CockpitDashboard: React.FC = () => {
       {/* Breadcrumb navigation bar - Elevated above search and grid */}
       {navigation.path.length > 0 && (
         <div style={{ padding: '16px 24px 0 24px' }}>
-          <BreadcrumbBar />
+          <BreadcrumbBar
+            extraCrumbs={
+              inlineAction
+                ? [{ label: `New ${inlineAction.entityType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}` }]
+                : []
+            }
+          />
         </div>
       )}
 
       {/* Hero Search (SmartSearch) */}
       <HeroSearchSection>
         <HeroSearchInner>
-          <SmartSearch 
-            query={cockpitQuery} 
+          <SmartSearch
+            query={cockpitQuery}
             onQueryChange={handleQueryChange}
+            inlineAction={inlineAction}
+            onInlineCancel={() => setInlineAction(null)}
+            onInlineSuccess={() => setInlineAction(null)}
+            onOpenInlineCreate={openInlineCreate}
           />
         </HeroSearchInner>
       </HeroSearchSection>
