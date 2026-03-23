@@ -171,14 +171,16 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
 
   // Get schema for this node type (now always returns a schema via fallback)
   const schema = useMemo(() => {
-    if (!node?.type) return null;
-    
-    const resolvedSchema = schemaRegistry.getSchema(node.type);
-    
+    const semanticNodeType = ((node?.data as any)?.nodeType as string | undefined) || node?.type;
+    if (!semanticNodeType) return null;
+
+    const resolvedSchema = schemaRegistry.getSchema(semanticNodeType);
+
     // Debug logging for schema resolution
     const isFallback = resolvedSchema?.version?.includes('fallback');
     console.log('[DynamicConfigPanel] Schema resolution:', {
-      nodeType: node.type,
+      nodeType: semanticNodeType,
+      runtimeType: node.type,
       nodeId: node.id,
       schemaDisplayName: resolvedSchema?.displayName,
       isFallback,
@@ -186,7 +188,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     });
     
     return resolvedSchema;
-  }, [node?.type, node?.id]);
+  }, [node?.type, node?.id, node?.data]);
 
   // Reset form data when node changes
   useEffect(() => {
@@ -209,7 +211,7 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
         <EmptyStateIcon>⚙️</EmptyStateIcon>
         <EmptyStateTitle>Unable to Load Configuration</EmptyStateTitle>
         <EmptyStateMessage>
-          Node type: {node?.type || 'unknown'}
+          Node type: {(((node?.data as any)?.nodeType as string | undefined) || node?.type || 'unknown')}
         </EmptyStateMessage>
       </EmptyStateContainer>
     );

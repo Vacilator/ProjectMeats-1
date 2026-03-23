@@ -39,7 +39,7 @@ export function normalizeNodeData(node: Node): Node {
 
     return {
       ...node,
-      type: 'default',
+      type: 'formProcessContainer',
       data: {
         ...(node.data || {}),
         nodeType: canonicalNodeType,

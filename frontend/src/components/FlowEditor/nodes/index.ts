@@ -30,6 +30,8 @@ export type { FormReferenceNodeData } from './FormReferenceNode';
 export { FormProcessNode } from './FormProcessNode';
 export type { ContainerNodeData } from './FormProcessNode';
 
+export { FormProcessContainerNode } from './FormProcessContainerNode';
+
 export { TriggerNode } from './TriggerNode';
 export type { TriggerNodeData } from './TriggerNode';
 

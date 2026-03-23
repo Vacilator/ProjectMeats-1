@@ -108,6 +108,7 @@ import {
 import {
   FormNode,
   FormProcessNode,
+  FormProcessContainerNode,
   FormStepNode,
   FormStepSingleNode,
   FormReferenceNode,
@@ -1667,8 +1668,8 @@ const staticNodeTypes = {
   form: FormStepNode, // Form Step (Page)
   formStepSingle: FormStepSingleNode, // Backward compatibility
 
-  // Form Process containers render as STANDARD React Flow default nodes (no custom purple container)
-  // Container behavior is driven by node.data.nodeType === 'formProcess' + parentId grouping.
+  // Form Process: non-purple container renderer with toolbar (Add Step + Edit)
+  formProcessContainer: FormProcessContainerNode,
 
   smartWorkForm: SmartWorkFormNode,
 
@@ -7892,8 +7893,8 @@ function getReactFlowNodeType(nodeTypeId: string): string {
   // Force all triggers to use the rich Unified Trigger node & schema
   if (nodeTypeId.startsWith('trigger')) return 'trigger';
 
-  // Form Process: render containers as STANDARD React Flow default nodes
-  if (isFormProcessContainerType(nodeTypeId)) return 'default';
+  // Form Process: render containers as a dedicated non-purple container node
+  if (isFormProcessContainerType(nodeTypeId)) return 'formProcessContainer';
 
   // Preserve specific types for all other nodes so their specific schemas load
   return nodeTypeId;
