@@ -7,10 +7,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Table, Input, Button, Modal, message, Tag, Space, Spin } from 'antd';
+import { Table, Input, Button, Modal, message, Tag, Space, Spin, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { apiClient } from '../../services/apiService';
+import { PROTEIN_TYPE_CHOICES } from '../../utils/constants/choices';
 
 interface AvailableItem {
   id: number;
@@ -179,11 +180,14 @@ const SupplierProducts: React.FC = () => {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // system.Product is a shared tenant-agnostic catalog — no tenant filter needed
+  const [proteinFilter, setProteinFilter] = useState<string[]>([]);
+
   const fetchSystemProducts = useCallback(async (search?: string) => {
     setLoadingSystemProducts(true);
     try {
-      const params: Record<string, string> = { page_size: '200' };
+      const params: Record<string, any> = { page_size: '500', is_active: true };
       if (search) params.search = search;
+      if (proteinFilter.length) params.protein = proteinFilter.map((t) => String(t).toLowerCase());
       const response = await apiClient.get('/system/products/', { params });
       const data = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       setSystemProducts(data);
@@ -193,12 +197,18 @@ const SupplierProducts: React.FC = () => {
     } finally {
       setLoadingSystemProducts(false);
     }
-  }, []); // apiClient, message, and state setters are all stable references
+  }, [proteinFilter]); // apiClient, message, and state setters are all stable references
 
   const debouncedFetchSystemProducts = useCallback((search: string) => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => fetchSystemProducts(search), 350);
   }, [fetchSystemProducts]);
+
+  useEffect(() => {
+    if (addModalVisible) {
+      void fetchSystemProducts(productSearchText);
+    }
+  }, [addModalVisible, fetchSystemProducts, productSearchText, proteinFilter.join('|')]);
 
   const handleAddProducts = async () => {
     if (!selectedProductIds.length) {
@@ -367,19 +377,34 @@ const SupplierProducts: React.FC = () => {
         title="Add Available Products"
         open={addModalVisible}
         onOk={handleAddProducts}
-        onCancel={() => { setAddModalVisible(false); setSelectedProductIds([]); setProductSearchText(''); }}
+        onCancel={() => { setAddModalVisible(false); setSelectedProductIds([]); setProductSearchText(''); setProteinFilter([]); }}
         okText="Add Selected"
         confirmLoading={addingProducts}
         width={700}
       >
-        <Input
-          placeholder="Search products..."
-          prefix={<SearchOutlined />}
-          value={productSearchText}
-          onChange={(e) => { setProductSearchText(e.target.value); debouncedFetchSystemProducts(e.target.value); }}
-          style={{ marginBottom: 16 }}
-          allowClear
-        />
+        <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+          <Input
+            placeholder="Search products..."
+            prefix={<SearchOutlined />}
+            value={productSearchText}
+            onChange={(e) => { setProductSearchText(e.target.value); debouncedFetchSystemProducts(e.target.value); }}
+            style={{ flex: 1 }}
+            allowClear
+          />
+          <div style={{ width: 260 }}>
+            <span style={{ display: 'block', fontSize: 12, marginBottom: 6, color: 'rgb(var(--color-text-secondary))' }}>
+              Protein filter
+            </span>
+            <Select
+              mode="multiple"
+              value={proteinFilter}
+              onChange={(vals) => setProteinFilter(vals)}
+              options={PROTEIN_TYPE_CHOICES.map((o) => ({ value: o.value, label: o.label }))}
+              placeholder="All proteins"
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
         <Table
           size="small"
           loading={loadingSystemProducts}
@@ -393,6 +418,7 @@ const SupplierProducts: React.FC = () => {
             { title: 'Code', dataIndex: 'product_code', key: 'product_code', width: 150 },
             { title: 'Name', dataIndex: 'name', key: 'name' },
             { title: 'Protein Type', dataIndex: 'protein_type', key: 'protein_type', width: 120 },
+            { title: 'Category', dataIndex: 'category', key: 'category', width: 140 },
           ]}
           pagination={{ pageSize: 10 }}
           scroll={{ y: 300 }}
