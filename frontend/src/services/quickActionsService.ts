@@ -413,11 +413,13 @@ export const entityOptionsService = {
   async searchOptions(
     entityType: string,
     query: string,
-    cancelKey?: string
+    cancelKey?: string,
+    filterParams?: Record<string, any>
   ): Promise<EntityOptionsResponse & { total_count: number; has_more: boolean }> {
+    const params = { q: query, ...(filterParams ?? {}) };
     const config = cancelKey 
-      ? { params: { q: query }, cancelToken: cancelTokenManager.create(cancelKey).token }
-      : { params: { q: query } };
+      ? { params, cancelToken: cancelTokenManager.create(cancelKey).token }
+      : { params };
     
     try {
       const response = await apiClient.get(`/workflows/entity-options/${entityType}/`, config);

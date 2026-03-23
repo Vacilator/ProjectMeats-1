@@ -130,14 +130,9 @@ const Suppliers: React.FC = () => {
       
       setProducts(data);
       
-      // Auto-select filtered products
-      const filteredProductIds = data.map((p: any) => p.id);
-      setFormData(prev => ({
-        ...prev,
-        products: [...new Set([...prev.products, ...filteredProductIds])] // Merge and dedupe
-      }));
-      
-      logger.debug(`[Suppliers] ✓ Auto-added ${filteredProductIds.length} products matching protein types:`, proteinTypes);
+      // Intentionally DO NOT auto-select all filtered products.
+      // We only constrain the available options so users can choose explicitly.
+      logger.debug(`[Suppliers] Loaded ${data.length} product(s) for protein types:`, proteinTypes);
     } catch (error) {
       logger.error('[Suppliers] Error fetching filtered products:', error);
       // Set empty array on error to prevent map errors

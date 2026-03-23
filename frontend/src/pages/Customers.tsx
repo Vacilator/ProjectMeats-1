@@ -86,7 +86,7 @@ const Customers: React.FC = () => {
       // Use apiClient with proper params - automatically includes Authorization
       const response = await apiClient.get('/system/products/', {
         params: {
-          protein: proteinTypes,
+          protein: proteinTypes.map((t) => String(t).toLowerCase()),
         },
       });
 
@@ -94,16 +94,8 @@ const Customers: React.FC = () => {
       const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
       setProducts(data);
 
-      if (data.length > 0) {
-        // Auto-select filtered products (system.Product uses UUID strings)
-        const filteredProductIds: string[] = data.map((p: any) => p.id).filter((id: any) => typeof id === 'string');
-        if (filteredProductIds.length) {
-          setFormData((prev) => ({
-            ...prev,
-            products: [...new Set([...prev.products, ...filteredProductIds])],
-          }));
-        }
-      }
+      // Intentionally DO NOT auto-select all filtered products.
+      // We only constrain the available options so users can choose preferred products explicitly.
     } catch (error) {
       console.error('Error fetching filtered products:', error);
       // apiClient handles 401 automatically with token refresh

@@ -26,6 +26,11 @@ interface SmartProductAutocompleteProps {
   value: string;
   onChange: (productId: string, product: Product) => void;
   suggestedProducts?: Product[];
+  /**
+   * Optional filter for master catalog search.
+   * Accepts a single protein type or list (e.g. 'beef' or ['beef','pork']).
+   */
+  proteinTypeFilter?: string | string[];
   placeholder?: string;
   disabled?: boolean;
   error?: boolean;
@@ -278,6 +283,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
   value,
   onChange,
   suggestedProducts = [],
+  proteinTypeFilter,
   placeholder = 'Search products...',
   disabled = false,
   error = false,
@@ -339,25 +345,34 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
       try {
         setLoading(true);
         
-        // Use Cockpit search endpoint for unified search
-        const response = await businessApi.get('system/search/', {
+        const normalizedProteinFilter = (() => {
+          if (!proteinTypeFilter) return undefined;
+          const raw = Array.isArray(proteinTypeFilter) ? proteinTypeFilter : [proteinTypeFilter];
+          const normalized = raw
+            .map((t) => String(t).toLowerCase().trim())
+            .filter(Boolean);
+          return normalized.length ? normalized : undefined;
+        })();
+
+        // Query master product catalog directly so we can apply protein filtering.
+        const response = await businessApi.get('system/products/', {
           params: {
-            query: query,
-            types: 'product',
-            limit: 20,
+            search: query,
+            is_active: true,
+            page_size: 20,
+            ...(normalizedProteinFilter ? { protein: normalizedProteinFilter } : {}),
           },
         });
-        
-        const products = response.data.results
-          .filter((r: any) => r.type === 'product')
-          .map((r: any) => r.data);
-        
+
+        const raw = response.data as any;
+        const products = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+
         // Mark suggested products
         const enrichedResults = products.map((p: Product) => ({
           ...p,
-          is_suggested: suggestedProducts.some(sp => sp.id === p.id),
+          is_suggested: suggestedProducts.some(sp => String(sp.id) === String((p as any).id)),
         }));
-        
+
         setResults(enrichedResults);
       } catch (err) {
         console.error('Search failed:', err);
@@ -366,7 +381,7 @@ export const SmartProductAutocomplete: React.FC<SmartProductAutocompleteProps> =
         setLoading(false);
       }
     }, 300),
-    [suggestedProducts]
+    [suggestedProducts, proteinTypeFilter]
   );
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -27,6 +27,7 @@ interface SearchableSelectProps {
   disabled?: boolean;
   initialOptions?: Option[];
   threshold?: number; // Number of options before switching to search mode
+  filterParams?: Record<string, any>;
 }
 
 const spin = keyframes`
@@ -204,6 +205,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   disabled = false,
   initialOptions = [],
   threshold = 50,
+  filterParams,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [options, setOptions] = useState<Option[]>(initialOptions);
@@ -229,7 +231,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     if (initialOptions.length === 0 && entityType) {
       loadOptions();
     }
-  }, [entityType]);
+  }, [entityType, filterParams, initialOptions.length]);
 
   // Handle outside clicks
   useEffect(() => {
@@ -257,7 +259,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setIsLoading(true);
     try {
       const cancelKey = `search-${entityType}-${Date.now()}`;
-      const response = await entityOptionsService.searchOptions(entityType, query, cancelKey);
+      const response = await entityOptionsService.searchOptions(entityType, query, cancelKey, filterParams);
       setOptions(response.options);
       setTotalCount(response.total_count);
       
@@ -284,7 +286,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     searchTimeoutRef.current = setTimeout(() => {
       loadOptions(query);
     }, 300);
-  }, [entityType]);
+  }, [entityType, filterParams]);
 
   const handleToggle = () => {
     if (disabled) return;
