@@ -10,6 +10,17 @@ from apps.tenants.models import Tenant, TenantUser, TenantInvitation
 class TenantInvitationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating tenant invitations."""
 
+    def _get_is_reusable(self) -> bool:
+        """Parse the is_reusable flag from initial_data safely.
+
+        DRF may provide booleans as strings (e.g. "false"), which are truthy in Python.
+        """
+        raw = self.initial_data.get('is_reusable', False)
+        try:
+            return serializers.BooleanField().to_internal_value(raw)
+        except serializers.ValidationError:
+            return bool(raw)
+
     def validate_role(self, value: str) -> str:
         """Restrict role assignment on invitations.
 
@@ -58,55 +69,48 @@ class TenantInvitationCreateSerializer(serializers.ModelSerializer):
         """Ensure email doesn't already belong to a user in this tenant."""
         tenant = self.context.get('tenant')
         if not tenant:
-            raise serializers.ValidationError("Tenant context is required")
-        
-        # Skip email validation for reusable invitations
-        # (checked via initial_data to avoid needing email field to be passed)
-        is_reusable = self.initial_data.get('is_reusable', False)
+            raise serializers.ValidationError('Tenant context is required')
+
+        is_reusable = self._get_is_reusable()
+
+        # For reusable invitations we treat blank email as NULL to avoid accidental uniqueness constraints.
         if is_reusable:
-            return value  # Allow None/blank for reusable
-        
+            normalized = (value or '').strip().lower()
+            return normalized or None
+
         # For regular invitations, email is required
-        if not value:
-            raise serializers.ValidationError("Email is required for non-reusable invitations")
-        
+        normalized = (value or '').strip().lower()
+        if not normalized:
+            raise serializers.ValidationError('Email is required for non-reusable invitations')
+
         # Check if user with this email already exists in the tenant
-        existing_user = User.objects.filter(email=value).first()
+        existing_user = User.objects.filter(email__iexact=normalized).first()
         if existing_user:
-            tenant_user = TenantUser.objects.filter(
-                tenant=tenant,
-                user=existing_user,
-                is_active=True
-            ).first()
+            tenant_user = TenantUser.objects.filter(tenant=tenant, user=existing_user, is_active=True).first()
             if tenant_user:
-                raise serializers.ValidationError(
-                    f"User with this email is already a member of {tenant.name}"
-                )
-        
-        # Check for pending invitation
-        pending_invitation = TenantInvitation.objects.filter(
-            tenant=tenant,
-            email=value,
-            status='pending'
-        ).first()
+                raise serializers.ValidationError(f'User with this email is already a member of {tenant.name}')
+
+        # Check for pending invitation (case-insensitive)
+        pending_invitation = (
+            TenantInvitation.objects.filter(tenant=tenant, email__iexact=normalized, status='pending')
+            .order_by('-created_at')
+            .first()
+        )
         if pending_invitation and not pending_invitation.is_expired:
-            raise serializers.ValidationError(
-                "A pending invitation already exists for this email"
-            )
-        
-        return value
+            raise serializers.ValidationError('A pending invitation already exists for this email')
+
+        return normalized
     
     def create(self, validated_data):
         """Create invitation with tenant and inviter from context."""
         tenant = self.context.get('tenant')
         request = self.context.get('request')
         invited_by = request.user if request else None
-        
-        invitation = TenantInvitation.objects.create(
-            tenant=tenant,
-            invited_by=invited_by,
-            **validated_data
-        )
+
+        if not tenant:
+            raise serializers.ValidationError({'tenant': 'Tenant context is required'})
+
+        invitation = TenantInvitation.objects.create(tenant=tenant, invited_by=invited_by, **validated_data)
         return invitation
 
 
