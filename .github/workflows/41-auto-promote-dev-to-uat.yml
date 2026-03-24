@@ -1,4 +1,4 @@
-name: Auto Promote: Dev → UAT
+name: "Auto Promote: Dev → UAT"
 
 run-name: >-
   ${{
