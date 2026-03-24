@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — Admin Workspace: Billing “Manage Plan” modal wired to Tenant Configurations — PR: #3913.
 - 2026-03-24 — Admin Workspace: consolidate Customizations into Option Lists (Tenant Overrides tab) — PR: #3912.
 - 2026-03-24 — FlowEditor: System Choice Lists selectable for dropdown field options — PR: #3909.
 - 2026-03-24 — Workforms: Custom Tenant Lists "Coming Soon" placeholder CTA (ready to wire TenantListModal) — PR: #3907.
