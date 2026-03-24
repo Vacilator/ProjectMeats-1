@@ -199,7 +199,7 @@ interface UnifiedFlowEditorProps {
   initialWorkflowName?: string;
   initialWorkflowDescription?: string;
   initialWorkflowStatus?: 'draft' | 'active' | 'archived';
-  onWorkflowSaved?: (workflow: { id: string; name: string }) => void;
+  onWorkflowSaved?: (workflow: { id: string; name: string; status?: 'draft' | 'active' | 'archived' }) => void;
 
   readOnly?: boolean;
   editorMode?: EditorMode;
@@ -4945,7 +4945,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   /**
    * Save workflow to backend
    */
-  const handleSaveWorkflow = useCallback(async () => {
+  const handleSaveWorkflow = useCallback(async (opts?: { status?: 'draft' | 'active' | 'archived' }) => {
     if (isSaving) return; // Prevent double-save
     
     // Phase 8.5: Validate containers before saving
@@ -4960,9 +4960,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     
     setIsSaving(true);
     
+    const statusToSave = opts?.status ?? currentWorkflowStatus;
+
     // Show loading toast
     const loadingToast = toast.loading(
-      currentWorkflowId ? 'Updating workflow...' : 'Creating workflow...'
+      statusToSave === 'active'
+        ? (currentWorkflowId ? 'Publishing workflow...' : 'Publishing new workflow...')
+        : (currentWorkflowId ? 'Updating workflow...' : 'Creating workflow...')
     );
     
     try {
@@ -4977,7 +4981,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         viewport,
         currentWorkflowId, // Undefined = create new, string = update existing
         currentWorkflowDescription, // Phase 8.2: Use description from state
-        currentWorkflowStatus // Phase 8.2: Use status from state
+        statusToSave // Phase 8.2: Use status from action (save vs publish)
       );
       
       // Update current workflow ID if this was a new workflow
@@ -4985,7 +4989,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setCurrentWorkflowId(savedWorkflow.id);
       }
 
-      onWorkflowSaved?.({ id: savedWorkflow.id, name: savedWorkflow.name });
+      setCurrentWorkflowStatus((savedWorkflow.status as 'draft' | 'active' | 'archived') || statusToSave);
+      onWorkflowSaved?.({
+        id: savedWorkflow.id,
+        name: savedWorkflow.name,
+        status: (savedWorkflow.status as 'draft' | 'active' | 'archived') || statusToSave,
+      });
 
       // Refresh any UI surfaces that list available forms/workforms.
       queryClient.invalidateQueries({ queryKey: ['tenant-forms'] });
@@ -4994,9 +5003,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setHasUnsavedChanges(false);
       logger.debug('✅ Workflow saved:', savedWorkflow.name);
       
+      const verb = statusToSave === 'active'
+        ? 'published'
+        : (currentWorkflowId ? 'updated' : 'created');
+
       // Show success toast
       toast.success(
-        `Workflow "${savedWorkflow.name}" ${currentWorkflowId ? 'updated' : 'created'} successfully!`,
+        `Workflow "${savedWorkflow.name}" ${verb} successfully!`,
         { id: loadingToast }
       );
     } catch (error) {
@@ -5011,6 +5024,16 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       setIsSaving(false);
     }
   }, [nodes, edges, currentWorkflowId, currentWorkflowName, isSaving, reactFlowInstance, validateContainers, currentWorkflowDescription, currentWorkflowStatus, onWorkflowSaved, queryClient]);
+
+  const handlePublishWorkflow = useCallback(async () => {
+    if (validationResult.errorCount > 0) {
+      setShowValidationDrawer(true);
+      toast.error('Fix validation errors before publishing.');
+      return;
+    }
+
+    await handleSaveWorkflow({ status: 'active' });
+  }, [handleSaveWorkflow, validationResult.errorCount]);
 
   // Populate forward ref now that the real save handler exists.
   handleSaveRef.current = () => {
@@ -7137,7 +7160,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             )}
           </LoadMenuContainer>
           <ToolbarButton 
-            onClick={handleSaveWorkflow} 
+            onClick={() => handleSaveWorkflow()} 
             title="Save Workflow (Ctrl+S)"
             disabled={isSaving}
             style={hasUnsavedChanges ? {
@@ -7148,6 +7171,32 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           >
             <Save size={14} style={{ marginRight: '4px' }} />
             {isSaving ? 'Saving...' : 'Save'}
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={handlePublishWorkflow}
+            title={
+              currentWorkflowStatus === 'active'
+                ? 'Workflow is published'
+                : (validationResult.errorCount > 0
+                    ? 'Fix validation errors before publishing'
+                    : 'Publish Workflow')
+            }
+            disabled={
+              isSaving ||
+              nodes.length === 0 ||
+              currentWorkflowStatus === 'active' ||
+              validationResult.errorCount > 0
+            }
+            style={currentWorkflowStatus !== 'active' ? {
+              background: 'rgb(var(--color-success) / 0.12)',
+              color: 'rgb(var(--color-success))',
+              borderColor: 'rgb(var(--color-success) / 0.35)',
+              fontWeight: 700,
+            } : {}}
+          >
+            <CheckCircle size={14} style={{ marginRight: '4px' }} />
+            {currentWorkflowStatus === 'active' ? 'Published' : 'Publish'}
           </ToolbarButton>
           
           {/* Task 1: Workflow Execution Integration */}
