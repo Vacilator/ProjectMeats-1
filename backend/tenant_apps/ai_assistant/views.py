@@ -367,8 +367,16 @@ class SwarmToolsOpenAPIView(APIView):
         except Exception:
             logger.warning('tools/openapi: failed to load outlook connection status', exc_info=True)
 
+        if outlook['connected']:
+            tools = DEFAULT_OPENAI_TOOLS
+        else:
+            tools = [
+                t for t in DEFAULT_OPENAI_TOOLS
+                if t.get('function', {}).get('name') == 'search_cockpit_records'
+            ]
+
         payload = {
-            'tools': DEFAULT_OPENAI_TOOLS if outlook['connected'] else [],
+            'tools': tools,
             'capabilities': {'outlook': outlook},
         }
 
@@ -593,14 +601,46 @@ class AIFeedbackViewSet(viewsets.ReadOnlyModelViewSet):
 class ToolsOpenAPIView(APIView):
     """Compatibility endpoint for the frontend widget.
 
-    Returns a stable, minimal payload so polling never hard-fails if tool schemas
-    or external integrations are unavailable.
+    Returns OpenAI ChatCompletions-compatible tool schemas.
+
+    Reliability mandate:
+    - Always return a safe list (never 500)
+    - Do not advertise email tools unless Outlook is connected for this tenant
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({'tools': []}, status=status.HTTP_200_OK)
+        tenant = getattr(request, 'tenant', None)
+
+        try:
+            from apps.integrations.models import ExternalAuthProvider
+
+            provider = (
+                ExternalAuthProvider.objects.filter(
+                    tenant=tenant,
+                    provider_type='microsoft',
+                    is_active=True,
+                )
+                .select_related('tenant')
+                .first()
+                if tenant
+                else None
+            )
+
+            outlook_connected = bool(provider and not provider.is_token_expired())
+        except Exception:
+            outlook_connected = False
+
+        if outlook_connected:
+            tools = DEFAULT_OPENAI_TOOLS
+        else:
+            tools = [
+                t for t in DEFAULT_OPENAI_TOOLS
+                if t.get('function', {}).get('name') == 'search_cockpit_records'
+            ]
+
+        return Response({'tools': tools}, status=status.HTTP_200_OK)
 
 
 class PendingReviewView(APIView):

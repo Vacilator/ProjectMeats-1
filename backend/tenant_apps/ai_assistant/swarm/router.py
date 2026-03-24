@@ -167,7 +167,14 @@ class SwarmOrchestrator:
     def build_context(self, *, event_type: EventType, payload: Dict[str, Any], correlation_id: Optional[str] = None) -> AgentContext:
         return AgentContext(tenant_id=self.tenant_id, event_type=event_type, payload=payload, correlation_id=correlation_id)
 
-    def run_tool_loop(self, *, user_message: str, tenant: Any, history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def run_tool_loop(
+        self,
+        *,
+        user_message: str,
+        tenant: Any,
+        user: Any = None,
+        history: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
         """Run bounded tool loop and return final assistant response + trace.
 
         Returns:
@@ -222,7 +229,14 @@ class SwarmOrchestrator:
         outlook_expired = bool(provider.is_token_expired()) if provider else False
         outlook_connected = bool(provider and not outlook_expired)
 
-        tools = DEFAULT_OPENAI_TOOLS if outlook_connected else []
+        # Always allow safe internal search tools; only advertise Outlook tools when connected.
+        if outlook_connected:
+            tools = DEFAULT_OPENAI_TOOLS
+        else:
+            tools = [
+                t for t in DEFAULT_OPENAI_TOOLS
+                if t.get('function', {}).get('name') == 'search_cockpit_records'
+            ]
 
         messages: List[Dict[str, Any]] = [
             {
@@ -298,7 +312,7 @@ class SwarmOrchestrator:
                 except Exception:
                     args = {}
 
-                result = executor.execute(tool_name, args, tenant)
+                result = executor.execute(tool_name, args, tenant, user)
                 messages.append(
                     {
                         'role': 'tool',
