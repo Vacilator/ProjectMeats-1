@@ -117,6 +117,7 @@ export interface FlowEditorContextValue {
 
   // Config panel context (Phase E.1): eliminate prop drilling for panel-specific data
   tenantLists: Array<{ id: string; name: string }>;
+  systemChoiceLists: Array<{ id: string; slug: string; name: string }>;
   availableFields: Array<{ key: string; label: string; type: string }>;
   currentNodeId: string | null;
 }
@@ -139,6 +140,7 @@ export interface FlowEditorProviderProps {
 
   // Config panel context
   tenantLists?: Array<{ id: string; name: string }>;
+  systemChoiceLists?: Array<{ id: string; slug: string; name: string }>;
   availableFields?: Array<{ key: string; label: string; type: string }>;
   currentNodeId?: string | null;
 }
@@ -153,6 +155,7 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
   onModeChange,
   onSelectionChange,
   tenantLists = [],
+  systemChoiceLists = [],
   availableFields = [],
   currentNodeId = null,
 }) => {
@@ -415,6 +418,7 @@ export const FlowEditorProvider: React.FC<FlowEditorProviderProps> = ({
 
     // Config panel context
     tenantLists,
+    systemChoiceLists,
     availableFields,
     currentNodeId,
   };

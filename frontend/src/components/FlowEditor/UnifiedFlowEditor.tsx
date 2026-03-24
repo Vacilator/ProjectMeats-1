@@ -2858,6 +2858,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!editingField, // Only fetch when needed
   });
+
+  // Fetch system choice lists for dropdown options (SystemChoiceList)
+  const { data: systemChoiceLists = [] } = useQuery({
+    queryKey: ['system', 'choice-lists'],
+    queryFn: async () => {
+      const response = await adminClient.get('/system/choice-lists/');
+      const raw = response.data as unknown;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === 'object') {
+        const obj = raw as Record<string, unknown>;
+        if (Array.isArray(obj.results)) return obj.results;
+      }
+      return [];
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!editingField,
+  });
   
   // Drag-drop state for ghost preview and smart snapping
   const [isDragging, setIsDragging] = useState(false);
@@ -6814,6 +6831,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
     <FlowEditorProvider
       tenantLists={tenantLists}
+      systemChoiceLists={systemChoiceLists}
       availableFields={selectedFormStep?.data?.fields || []}
       currentNodeId={selectedFormStep?.id || null}
     >

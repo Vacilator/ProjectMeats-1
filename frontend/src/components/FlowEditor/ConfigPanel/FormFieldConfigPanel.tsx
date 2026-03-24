@@ -86,8 +86,9 @@ export interface FormField {
   
   // Multi-option fields (select, radio, multi-select)
   options?: {
-    source: 'manual' | 'tenant-list' | 'entity';
+    source: 'manual' | 'system-choice-list' | 'tenant-list' | 'entity';
     manualOptions?: string[];
+    systemChoiceListSlug?: string;
     tenantListId?: string;
     entityType?: string;
     entityField?: string;
@@ -353,7 +354,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
   onChange,
   onClose,
 }) => {
-  const { tenantLists, availableFields, currentNodeId } = useFlowEditor();
+  const { tenantLists, systemChoiceLists, availableFields, currentNodeId } = useFlowEditor();
   // Ensure required arrays are always initialized
   const [localField, setLocalField] = useState<FormField>({
     ...field,
@@ -661,6 +662,7 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                   }
                 >
                   <option value="manual">Manual Entry</option>
+                  <option value="system-choice-list">System Choice List</option>
                   <option value="tenant-list">Tenant List</option>
                   <option value="entity">Entity (Database)</option>
                 </Select>
@@ -682,6 +684,31 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     placeholder="Option 1&#10;Option 2&#10;Option 3"
                   />
                   <HelpText>Enter each option on a new line</HelpText>
+                </FormField>
+              )}
+
+              {localField.options?.source === 'system-choice-list' && (
+                <FormField>
+                  <Label>Select System Choice List</Label>
+                  <Select
+                    value={localField.options?.systemChoiceListSlug || ''}
+                    onChange={(e) =>
+                      handleUpdate({
+                        options: {
+                          ...(localField.options ?? { source: 'system-choice-list' }),
+                          systemChoiceListSlug: e.target.value,
+                        },
+                      })
+                    }
+                  >
+                    <option value="">Choose a list...</option>
+                    {systemChoiceLists.map((list) => (
+                      <option key={list.id} value={list.slug}>
+                        {list.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <HelpText>Options will be loaded from the selected system choice list.</HelpText>
                 </FormField>
               )}
 
