@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — Admin Workspace: Organization Profile save hardened (avoid multipart PATCH 502s) — PR: #3924.
 - 2026-03-24 — Workforms: restored Publish button (status=active) in FlowEditor toolbar — PR: #3923.
 - 2026-03-24 — Restored and Expanded AI Tool Registry: Microsoft Graph Email Sync, Outlook Email Drafting, and Database Search natively connected to the Swarm — PR: #3922.
 - 2026-03-24 — Fixed theme token fallbacks (Defined missing CSS vars to prevent UI elements rendering black) — PR: #3921.
