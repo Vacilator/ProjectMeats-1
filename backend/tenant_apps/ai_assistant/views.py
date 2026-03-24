@@ -6,12 +6,15 @@ and AI-powered business intelligence for meat market operations.
 """
 import logging
 import time
+from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import Avg
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from openai import OpenAI
 from pgvector.django import CosineDistance
-from rest_framework import filters, permissions, status, viewsets
+from rest_framework import filters, mixins, permissions, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -23,6 +26,8 @@ from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, Cha
 from .serializers import (
     AIDocumentSerializer,
     AIFeedbackLogSerializer,
+    AIFeedbackSubmitSerializer,
+    AILearningMetricsSerializer,
     AIConfigurationSerializer,
     ChatBotRequestSerializer,
     ChatBotResponseSerializer,
@@ -267,6 +272,51 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class AILearningMetricsAPIView(APIView):
+    """Tenant-scoped learning metrics for the Cockpit dashboard."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tenant = getattr(request, 'tenant', None)
+        tenant_id = getattr(tenant, 'id', None)
+        if not tenant_id:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        total_docs = AIDocument.objects.filter(tenant_id=tenant_id).count()
+
+        resolved = AIFeedbackLog.objects.filter(tenant_id=tenant_id, resolved_by__isnull=False)
+        corrections = resolved.exclude(user_corrected_data={}).count()
+
+        avg_precision_delta = resolved.aggregate(avg=Avg('precision_delta')).get('avg')
+        precision_score = 1.0 - float(avg_precision_delta or 0.0)
+        precision_score = max(0.0, min(1.0, precision_score))
+
+        start = timezone.now() - timedelta(days=29)
+        trend_qs = (
+            AIFeedbackLog.objects.filter(tenant_id=tenant_id, created_on__gte=start)
+            .annotate(day=TruncDate('created_on'))
+            .values('day')
+            .annotate(confidence=Avg('confidence_score'))
+            .order_by('day')
+        )
+        confidence_trend = [
+            {'day': str(row['day']), 'confidence': float(row.get('confidence') or 0.0)}
+            for row in trend_qs
+        ]
+
+        payload = {
+            'totalDocumentsParsed': int(total_docs),
+            'correctionsLearned': int(corrections),
+            'precisionScore': float(precision_score),
+            'confidenceTrend': confidence_trend,
+        }
+        # Defensive schema validation
+        out = AILearningMetricsSerializer(data=payload)
+        out.is_valid(raise_exception=True)
+        return Response(out.data, status=status.HTTP_200_OK)
 
 
 class AIDocumentViewSet(viewsets.ModelViewSet):
@@ -575,14 +625,32 @@ class PendingReviewAPIView(APIView):
         return Response({'results': payload}, status=status.HTTP_200_OK)
 
 
-class AIFeedbackViewSet(viewsets.ReadOnlyModelViewSet):
-    """Staff-only read access to AIFeedbackLog (for debugging/auditing)."""
+class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Feedback endpoint for HITL.
+
+    - `POST /api/v1/ai-assistant/feedback/`: tenant-scoped correction submission (used by HITLReviewCard)
+    - `GET /api/v1/ai-assistant/feedback/`: staff-only auditing
+
+    NOTE: We keep reads staff-only to avoid leaking internal training payloads.
+    """
 
     serializer_class = AIFeedbackLogSerializer
-    permission_classes = [IsAdminUser]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['created_on']
     ordering = ['-created_on']
+
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
+    throttle_scope = 'ai_feedback'
+
+    def get_permissions(self):
+        if self.action in ['create']:
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return AIFeedbackSubmitSerializer
+        return AIFeedbackLogSerializer
 
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
@@ -596,6 +664,53 @@ class AIFeedbackViewSet(viewsets.ReadOnlyModelViewSet):
             return AIFeedbackLog.objects.none()
 
         return qs.filter(tenant_id=tenant_id)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tenant = getattr(request, 'tenant', None)
+        tenant_id = getattr(tenant, 'id', None)
+        if not tenant_id:
+            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        document_id = serializer.validated_data['document_id']
+        document_type = (serializer.validated_data.get('document_type') or 'unknown').strip() or 'unknown'
+        original = serializer.validated_data.get('original_extracted_data') or {}
+        corrected = serializer.validated_data.get('user_corrected_data') or {}
+        confidence = float(serializer.validated_data.get('confidence_score') or 0.0)
+
+        row = (
+            AIFeedbackLog.objects.filter(tenant_id=tenant_id, document_id=document_id)
+            .order_by('-created_on')
+            .first()
+        )
+        created = False
+        if row is None:
+            row = AIFeedbackLog.objects.create(
+                tenant_id=tenant_id,
+                document_id=document_id,
+                document_type=document_type,
+                original_extracted_data=original,
+                user_corrected_data=corrected,
+                confidence_score=confidence,
+                resolved_by=request.user,
+            )
+            created = True
+        else:
+            row.document_type = row.document_type or document_type
+            row.original_extracted_data = original or (row.original_extracted_data or {})
+            row.user_corrected_data = corrected
+            row.confidence_score = confidence or row.confidence_score
+            row.resolved_by = request.user
+            row.save()
+
+        payload = {
+            'id': str(row.id),
+            'created': created,
+            'document_id': str(row.document_id),
+        }
+        return Response(payload, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
 class ToolsOpenAPIView(APIView):

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, Col, Row, Statistic, Typography } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import {
   Line,
   LineChart,
@@ -8,6 +9,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+
+import { businessApi } from '@/services/businessApi';
 
 const { Text } = Typography;
 
@@ -33,8 +36,22 @@ export const AILearningMetricsWidget: React.FC<AILearningMetricsWidgetProps> = (
     });
   }, []);
 
+  const { data, isLoading } = useQuery({
+    queryKey: ['ai-learning-metrics'],
+    queryFn: async () => {
+      const res = await businessApi.get<NonNullable<AILearningMetricsWidgetProps['metrics']>>(
+        '/ai-assistant/metrics/',
+      );
+      return res.data;
+    },
+    enabled: !metrics,
+    staleTime: 60_000,
+    retry: 1,
+  });
+
   const m =
     metrics ??
+    data ??
     ({
       totalDocumentsParsed: 312,
       correctionsLearned: 47,
@@ -47,6 +64,7 @@ export const AILearningMetricsWidget: React.FC<AILearningMetricsWidgetProps> = (
       title="AI Learning Metrics"
       style={{ width: '100%' }}
       styles={{ body: { padding: 16 } }}
+      loading={isLoading}
     >
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={8}>

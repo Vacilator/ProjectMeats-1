@@ -86,8 +86,25 @@ export const HITLReviewCard: React.FC<HITLReviewCardProps> = ({
         }
       }
 
-      // NOTE: /ai-assistant/feedback/ is staff-only read-only in this repo.
-      // Resolving a pending review item is the supported write path.
+      // Preferred write path per prompt contract.
+      try {
+        await businessApi.post('/ai-assistant/feedback/', {
+          document_id: documentId,
+          document_type: String((extractedData as any)?.document_type || 'unknown'),
+          original_extracted_data: extractedData,
+          user_corrected_data: corrected,
+        });
+
+        message.success('Thanks — saved your corrections and queued them for learning.');
+        onEmitChatMessage?.('✅ Confirmed. I saved your corrections and will use them to improve future extractions.');
+        onSubmitted?.();
+        return;
+      } catch (e: any) {
+        const code = e?.response?.status;
+        // Backward-compatible fallback for older deployments.
+        if (![404, 405].includes(code)) throw e;
+      }
+
       const resolvedId = await resolveFeedbackId();
       if (!resolvedId) {
         message.error('Unable to submit corrections (no review item found / insufficient permissions).');
