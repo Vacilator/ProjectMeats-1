@@ -81,21 +81,13 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
 
     setLoading(true);
     try {
+      // CRITICAL: trailing slash before query params prevents redirect loops (Nginx/Django APPEND_SLASH)
+      const logsUrl = `/workspace/activity-logs/?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}&limit=20`;
+      const callsUrl = `/workspace/scheduled-calls/?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}&limit=20`;
+
       const [logsResp, callsResp] = await Promise.all([
-        businessApi.get('/workspace/activity-logs/', {
-          params: {
-            entity_type: entityType,
-            entity_id: entityId,
-            limit: 20,
-          },
-        }),
-        businessApi.get('/workspace/scheduled-calls/', {
-          params: {
-            entity_type: entityType,
-            entity_id: entityId,
-            limit: 20,
-          },
-        }),
+        businessApi.get(logsUrl),
+        businessApi.get(callsUrl),
       ]);
 
       const logs = normalizeList(logsResp.data) as ActivityLog[];
@@ -133,7 +125,8 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
 
       setItems(timeline);
     } catch (err) {
-      console.error('[NotesAndCallsDrawer] Failed to load timeline', err);
+      // Non-fatal: suppress console noise on intermittent 5xx/502s.
+      console.debug('[NotesAndCallsDrawer] Failed to load timeline (non-fatal)', err);
       setItems([]);
     } finally {
       setLoading(false);
