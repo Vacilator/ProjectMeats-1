@@ -14,7 +14,7 @@ interface LogContext {
   component?: string;
   user?: string;
   tenant?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 type LogContextOrData = LogContext | unknown;
@@ -55,15 +55,18 @@ class Logger {
     level: LogLevel,
     message: string,
     context?: LogContext,
-    data?: any
+    data?: unknown
   ): void {
     const formattedMessage = this.formatMessage(level, message, context);
     
-    const consoleMethod = level === 'debug' || level === 'info' 
-      ? console.log 
-      : level === 'warn' 
-        ? console.warn 
-        : console.error;
+    const consoleMethod =
+      level === 'debug'
+        ? console.debug
+        : level === 'info'
+          ? console.info
+          : level === 'warn'
+            ? console.warn
+            : console.error;
 
     if (data !== undefined) {
       if (context?.metadata) {
@@ -81,9 +84,9 @@ class Logger {
   /**
    * Debug-level logging (development only)
    */
-  debug(message: string, data?: any): void;
-  debug(message: string, context?: LogContext, data?: any): void;
-  debug(message: string, contextOrData?: LogContextOrData, data?: any): void {
+  debug(message: string, data?: unknown): void;
+  debug(message: string, context?: LogContext, data?: unknown): void;
+  debug(message: string, contextOrData?: LogContextOrData, data?: unknown): void {
     if (!this.shouldLog('debug')) return;
 
     if (contextOrData && typeof contextOrData === 'object' && !Array.isArray(contextOrData)) {
@@ -101,9 +104,9 @@ class Logger {
   /**
    * Info-level logging (development only by default)
    */
-  info(message: string, data?: any): void;
-  info(message: string, context?: LogContext, data?: any): void;
-  info(message: string, contextOrData?: LogContextOrData, data?: any): void {
+  info(message: string, data?: unknown): void;
+  info(message: string, context?: LogContext, data?: unknown): void;
+  info(message: string, contextOrData?: LogContextOrData, data?: unknown): void {
     if (!this.shouldLog('info')) return;
 
     if (contextOrData && typeof contextOrData === 'object' && !Array.isArray(contextOrData)) {
@@ -121,9 +124,9 @@ class Logger {
   /**
    * Warning-level logging (always logged)
    */
-  warn(message: string, data?: any): void;
-  warn(message: string, context?: LogContext, data?: any): void;
-  warn(message: string, contextOrData?: LogContextOrData, data?: any): void {
+  warn(message: string, data?: unknown): void;
+  warn(message: string, context?: LogContext, data?: unknown): void;
+  warn(message: string, contextOrData?: LogContextOrData, data?: unknown): void {
     if (!this.shouldLog('warn')) return;
 
     const ctx =
@@ -156,9 +159,9 @@ class Logger {
   /**
    * Error-level logging (always logged)
    */
-  error(message: string, data?: any): void;
-  error(message: string, context?: LogContext, data?: any): void;
-  error(message: string, contextOrData?: LogContextOrData, data?: any): void {
+  error(message: string, data?: unknown): void;
+  error(message: string, context?: LogContext, data?: unknown): void;
+  error(message: string, contextOrData?: LogContextOrData, data?: unknown): void {
     if (!this.shouldLog('error')) return;
 
     const ctx =
