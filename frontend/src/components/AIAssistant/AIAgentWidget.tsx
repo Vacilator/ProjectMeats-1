@@ -605,6 +605,10 @@ export const AIAgentWidget: React.FC = () => {
   }, [expanded, sessionId]);
 
   useEffect(() => {
+    const onToggle = () => {
+      setExpanded((prev) => !prev);
+    };
+
     // Widget contract events.
     const onReviewRequired = (event: Event) => {
       const e = event as CustomEvent<ReviewRequiredDetail>;
@@ -638,12 +642,14 @@ export const AIAgentWidget: React.FC = () => {
       setDetail({});
     };
 
+    window.addEventListener('pm:ai-toggle', onToggle as EventListener);
     window.addEventListener('pm:ai-review-required', onReviewRequired as EventListener);
     window.addEventListener('pm:ai-thinking', onThinking as EventListener);
     window.addEventListener('pm:ai-learning', onThinking as EventListener);
     window.addEventListener('pm:ai-idle', onIdle as EventListener);
 
     return () => {
+      window.removeEventListener('pm:ai-toggle', onToggle as EventListener);
       window.removeEventListener('pm:ai-review-required', onReviewRequired as EventListener);
       window.removeEventListener('pm:ai-thinking', onThinking as EventListener);
       window.removeEventListener('pm:ai-learning', onThinking as EventListener);
