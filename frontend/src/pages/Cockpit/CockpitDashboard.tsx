@@ -37,6 +37,7 @@ import {
   EmailIngestionMonitorWidget,
 } from '../../components/Widgets';
 import { CockpitTour, SmartSearch, BreadcrumbBar } from '../../components/Cockpit';
+import { AILearningMetricsWidget } from '../../components/Cockpit/AILearningMetricsWidget';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitPinnedTools } from '../../contexts/CockpitPinnedToolsContext';
@@ -745,6 +746,13 @@ export const CockpitDashboard: React.FC = () => {
           />
         </HeroSearchInner>
       </HeroSearchSection>
+
+      {/* Phase 3: AI Learning Metrics */}
+      {showDashboardWidgets && (
+        <div style={{ padding: '16px 24px 0' }}>
+          <AILearningMetricsWidget />
+        </div>
+      )}
 
       {/* Widget Grid (hidden when searching or a record is active) */}
       {showDashboardWidgets && (

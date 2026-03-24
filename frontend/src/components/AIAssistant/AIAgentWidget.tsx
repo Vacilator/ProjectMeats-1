@@ -16,6 +16,7 @@ import {
 
 import { useToast } from '../../hooks/useToast';
 import { businessApi } from '../../services/businessApi';
+import { HITLReviewCard } from './HITLReviewCard';
 
 type AgentState = 'idle' | 'thinking' | 'action_required';
 
@@ -493,6 +494,9 @@ const toUiMessages = (server: ServerMessage[]): ChatMessage[] => {
   return out;
 };
 
+const hasHumanReviewMessage = (msgs: ChatMessage[]) =>
+  msgs.some((m) => Boolean(m.metadata?.requires_human_review));
+
 export const AIAgentWidget: React.FC = () => {
   const toast = useToast();
 
@@ -588,7 +592,10 @@ export const AIAgentWidget: React.FC = () => {
         const res = await businessApi.get(`/ai-assistant/ai-sessions/${sessionId}/messages/`);
         const serverMsgs = normalizeServerMessages(res.data);
         const ui = toUiMessages(serverMsgs);
-        if (ui.length) setMessages(ui);
+        if (ui.length) {
+          setMessages(ui);
+          setState(hasHumanReviewMessage(ui) ? 'action_required' : 'idle');
+        }
       } catch {
         // ignore
       }
@@ -765,6 +772,10 @@ export const AIAgentWidget: React.FC = () => {
             },
           ]
     );
+
+    if (ui.length) {
+      setState(hasHumanReviewMessage(ui) ? 'action_required' : 'idle');
+    }
   };
 
   const handleNewChat = async () => {
@@ -1171,27 +1182,55 @@ export const AIAgentWidget: React.FC = () => {
                 if (files.length) void addAttachments(files);
               }}
             >
-              {messages.map((m) => (
-                <Bubble key={m.id} $role={m.role}>
-                  {m.role === 'document' ? (
-                    <DocumentRow>
-                      <FileText size={16} />
-                      <DocumentMeta>
-                        {m.metadata?.file_url ? (
-                          <a href={m.metadata.file_url} target="_blank" rel="noreferrer">
-                            {m.metadata?.original_filename || m.content}
-                          </a>
-                        ) : (
-                          <div>{m.metadata?.original_filename || m.content}</div>
-                        )}
-                        <div>{m.metadata?.content_type || 'Document'}</div>
-                      </DocumentMeta>
-                    </DocumentRow>
-                  ) : (
-                    m.content
-                  )}
-                </Bubble>
-              ))}
+              {messages.map((m) => {
+                const requiresReview = Boolean(m.metadata?.requires_human_review);
+                const extractedData = (m.metadata?.extracted_data || m.metadata?.original_extracted_data) as
+                  | Record<string, unknown>
+                  | undefined;
+                const documentId = (m.metadata?.document_id || m.metadata?.documentId) as string | undefined;
+                const feedbackId = (m.metadata?.feedback_id || m.metadata?.feedbackId || m.metadata?.feedback_log_id) as
+                  | string
+                  | undefined;
+
+                return (
+                  <Bubble key={m.id} $role={m.role}>
+                    {m.role === 'document' ? (
+                      <DocumentRow>
+                        <FileText size={16} />
+                        <DocumentMeta>
+                          {m.metadata?.file_url ? (
+                            <a href={m.metadata.file_url} target="_blank" rel="noreferrer">
+                              {m.metadata?.original_filename || m.content}
+                            </a>
+                          ) : (
+                            <div>{m.metadata?.original_filename || m.content}</div>
+                          )}
+                          <div>{m.metadata?.content_type || 'Document'}</div>
+                        </DocumentMeta>
+                      </DocumentRow>
+                    ) : (
+                      m.content
+                    )}
+
+                    {requiresReview && extractedData && documentId ? (
+                      <HITLReviewCard
+                        extractedData={extractedData}
+                        documentId={documentId}
+                        feedbackId={feedbackId}
+                        onEmitChatMessage={(content) =>
+                          setMessages((prev) => [
+                            ...prev,
+                            { id: newId(), role: 'assistant', content, createdAt: Date.now() },
+                          ])
+                        }
+                        onSubmitted={() => {
+                          if (sessionId) void loadSessionMessages(sessionId);
+                        }}
+                      />
+                    ) : null}
+                  </Bubble>
+                );
+              })}
               <div ref={messagesEndRef} />
             </Messages>
 
