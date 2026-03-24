@@ -225,18 +225,23 @@ const ENABLE_FULL_DYNAMIC_MODE = true;
 
 const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   width: 100%;
-  /* Better default sizing on page load */
-  height: ${props => props.$isFullscreen ? '100vh' : 'clamp(640px, calc(100vh - 220px), 980px)'};
-  background: rgb(var(--color-background));
-  border: ${props => props.$isFullscreen ? 'none' : '1px solid rgb(var(--color-border))'};
-  border-radius: ${props => props.$isFullscreen ? '0' : 'var(--radius-lg)'};
-  overflow: hidden;
-  position: ${props => props.$isFullscreen ? 'fixed' : 'relative'};
-  top: ${props => props.$isFullscreen ? '0' : 'auto'};
-  left: ${props => props.$isFullscreen ? '0' : 'auto'};
-  right: ${props => props.$isFullscreen ? '0' : 'auto'};
-  bottom: ${props => props.$isFullscreen ? '0' : 'auto'};
-  z-index: ${props => props.$isFullscreen ? '9990' : 'auto'};
+  height: ${(props) => (props.$isFullscreen ? '100vh' : '100%')};
+  min-height: ${(props) => (props.$isFullscreen ? '100vh' : '640px')};
+
+  position: ${(props) => (props.$isFullscreen ? 'fixed' : 'relative')};
+  top: ${(props) => (props.$isFullscreen ? '0' : 'auto')};
+  left: ${(props) => (props.$isFullscreen ? '0' : 'auto')};
+  right: ${(props) => (props.$isFullscreen ? '0' : 'auto')};
+  bottom: ${(props) => (props.$isFullscreen ? '0' : 'auto')};
+  z-index: ${(props) => (props.$isFullscreen ? '9990' : 'auto')};
+
+  overflow: hidden; /* Prevent page scroll / blank bottom space */
+  background: rgb(var(--color-bg-layout));
+  display: flex;
+  flex-direction: column;
+
+  border: ${(props) => (props.$isFullscreen ? 'none' : '1px solid rgb(var(--color-border))')};
+  border-radius: ${(props) => (props.$isFullscreen ? '0' : 'var(--radius-lg)')};
   
   /* Phase 7.2: Smart Snapping - Connection Line Animation */
   @keyframes dash {
@@ -791,15 +796,16 @@ const ProgressDot = styled.div<{ $active: boolean; $completed: boolean }>`
 
 const EditorWrapper = styled.div`
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 `;
 
 const NodePalette = styled.div`
   position: absolute;
-  top: 12px;
+  top: 64px; /* Increased from 12px to clear the top Toolbar */
   left: 12px;
   width: 220px;
-  max-height: calc(100% - 24px);
+  max-height: calc(100% - 120px); /* Decreased to clear the bottom ViewportToolbar */
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
   border-radius: var(--radius-lg);
@@ -1117,9 +1123,17 @@ const Toolbar = styled.div`
   position: absolute;
   top: 12px;
   right: 12px;
+  left: 12px; /* Anchor left to allow full width wrapping */
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   z-index: 10;
+  pointer-events: none; /* Let canvas clicks pass through empty flex space */
+
+  & > * {
+    pointer-events: auto; /* Re-enable clicks on the actual buttons */
+  }
 `;
 
 const ToolbarButton = styled.button`
@@ -7285,9 +7299,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         </ModeSelectorContainer>
       )}
 
+      <EditorWrapper>
       {/* React Flow Canvas - Visual Mode */}
       {normalizedEditorMode === 'visual' && (
         <DebugAwareReactFlow
+        style={{ width: '100%', height: '100%' }}
         nodes={nodesForCanvas}
         edges={edgesForCanvas}
         onNodesChange={onNodesChange}
@@ -7776,7 +7792,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           </WizardCard>
         </WizardContainer>
       )}
-      
+      </EditorWrapper>
 
       {/* Drag Ghost Preview */}
       {isDragging && dragPosition && dragNodeType && (
