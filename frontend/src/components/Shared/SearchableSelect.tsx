@@ -35,7 +35,7 @@ import styled from 'styled-components';
 export interface SearchableSelectOption {
   id: number | string;
   name: string;
-  [key: string]: any; // Allow additional fields
+  [key: string]: unknown; // Allow additional fields
 }
 
 interface SearchableSelectProps {

@@ -69,7 +69,6 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
         }
         value={value}
         onChange={(newValues) => {
-          console.debug('[MultiSelect] New values:', newValues);
           onChange(newValues as string[]);
         }}
         options={options}
