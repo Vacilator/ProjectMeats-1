@@ -298,8 +298,8 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     icon: '🔁',
     color: '#f59e0b',
     description: 'Iterate over a collection',
-    maxInputs: 1,
-    maxOutputs: 1,
+    maxInputs: 2,
+    maxOutputs: 2,
     requiresConfig: true,
   },
   
@@ -310,8 +310,8 @@ export const NODE_TYPE_REGISTRY: Record<string, NodeTypeDefinition> = {
     icon: '🔄',
     color: '#f59e0b',
     description: 'Repeat until condition is false',
-    maxInputs: 1,
-    maxOutputs: 1,
+    maxInputs: 2,
+    maxOutputs: 2,
     requiresConfig: true,
   },
   
