@@ -13,7 +13,15 @@
  * Created: 2026-02-26 - Gap Analysis Phase 1.1
  */
 import { useState, useEffect, useCallback } from 'react';
-import Joyride, { CallBackProps, STATUS, Step, Styles } from 'react-joyride';
+import {
+  EVENTS,
+  STATUS,
+  type EventData,
+  type Options,
+  type PartialDeep,
+  type Step,
+  type Styles,
+} from 'react-joyride';
 
 export interface TourConfig {
   name: string;
@@ -43,10 +51,10 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
   }, [tourConfig.name, tourConfig.autoStart]);
 
   const handleJoyrideCallback = useCallback(
-    (data: CallBackProps) => {
-      const { status, index, type } = data;
+    (data: EventData) => {
+      const { status, index, type, action } = data;
 
-      if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status as STATUS)) {
+      if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
         // Mark tour as completed
         const completedTours = JSON.parse(
           localStorage.getItem(TOUR_STORAGE_KEY) || '[]'
@@ -62,8 +70,8 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
 
         setRun(false);
         setStepIndex(0);
-      } else if (type === 'step:after') {
-        setStepIndex(index + (data.action === 'prev' ? -1 : 1));
+      } else if (type === EVENTS.STEP_AFTER) {
+        setStepIndex(index + (action === 'prev' ? -1 : 1));
       }
     },
     [tourConfig.name]
@@ -166,7 +174,7 @@ export const workflowEditorTourSteps: Step[] = [
       </div>
     ),
     placement: 'left',
-    disableBeacon: true,
+    skipBeacon: true,
   },
   {
     target: 'body',
@@ -246,7 +254,7 @@ export const catalogTourSteps: Step[] = [
       </div>
     ),
     placement: 'top',
-    disableBeacon: true,
+    skipBeacon: true,
   },
   {
     target: 'body',
@@ -265,15 +273,18 @@ export const catalogTourSteps: Step[] = [
 /**
  * Custom styles for tour tooltips
  */
-export const tourStyles: Styles = {
-  options: {
-    primaryColor: '#667eea',
-    textColor: '#2c3e50',
-    backgroundColor: '#ffffff',
-    overlayColor: 'rgba(0, 0, 0, 0.5)',
-    arrowColor: '#ffffff',
-    zIndex: 10000,
-  },
+export const tourOptions: Partial<Options> = {
+  primaryColor: 'rgb(var(--color-primary))',
+  textColor: 'rgb(var(--color-text-primary))',
+  backgroundColor: 'rgb(var(--color-background))',
+  arrowColor: 'rgb(var(--color-background))',
+  overlayColor: 'rgba(0, 0, 0, 0.5)',
+  zIndex: 10000,
+  showProgress: true,
+  buttons: ['back', 'close', 'primary', 'skip'],
+};
+
+export const tourStyles: PartialDeep<Styles> = {
   tooltip: {
     borderRadius: '8px',
     padding: '16px',
@@ -288,18 +299,19 @@ export const tourStyles: Styles = {
   tooltipContent: {
     padding: '8px 0',
   },
-  buttonNext: {
-    backgroundColor: '#667eea',
+  buttonPrimary: {
+    backgroundColor: 'rgb(var(--color-primary))',
     borderRadius: '6px',
     fontSize: '14px',
     fontWeight: 500,
     padding: '8px 16px',
+    color: '#fff',
   },
   buttonBack: {
-    color: '#667eea',
+    color: 'rgb(var(--color-primary))',
     marginRight: '8px',
   },
   buttonSkip: {
-    color: '#999',
+    color: 'rgb(var(--color-text-secondary))',
   },
 };

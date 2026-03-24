@@ -55,7 +55,14 @@ vi.mock('@sentry/react', () => ({
 }));
 
 vi.mock('react-joyride', () => ({
-  default: () => null,
+  Joyride: () => null,
+  EVENTS: {
+    STEP_AFTER: 'step:after',
+  },
+  STATUS: {
+    FINISHED: 'finished',
+    SKIPPED: 'skipped',
+  },
 }));
 
 // Mock React Flow

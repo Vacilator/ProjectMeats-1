@@ -39,12 +39,13 @@ import toast, { Toaster } from 'react-hot-toast'; // Phase 8.1
 import * as Sentry from '@sentry/react'; // Error tracking
 import { logger } from '../../utils/logger'; // Centralized logging
 import { isTypingInInput } from './utils/keyboardUtils'; // Phase 4
-import Joyride from 'react-joyride'; // Gap Analysis Phase 1.1
+import { Joyride } from 'react-joyride'; // Gap Analysis Phase 1.1
 import { useRenderPerformance } from '../../utils/performance'; // Phase 7.5
 import { 
-  useOnboardingTour, 
-  workflowEditorTourSteps, 
-  tourStyles 
+  useOnboardingTour,
+  workflowEditorTourSteps,
+  tourOptions,
+  tourStyles,
 } from './hooks/useOnboardingTour'; // Gap Analysis Phase 1.1
 import {
   ReactFlow,
@@ -8172,10 +8173,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         steps={tourSteps}
         run={runTour}
         stepIndex={tourStepIndex}
-        callback={handleTourCallback}
+        onEvent={handleTourCallback}
         continuous
-        showProgress
-        showSkipButton
+        options={tourOptions}
         styles={tourStyles}
         locale={{
           back: 'Back',
