@@ -17,6 +17,7 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
+import { Modal } from 'antd';
 import { useReactFlow } from '@xyflow/react';
 import ReactSelect from 'react-select';
 import { Eye, EyeOff, ChevronDown, ChevronUp, Zap } from 'lucide-react';
@@ -416,6 +417,20 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
     setCollapsedSections(newCollapsed);
   };
 
+  const openCreateCustomTenantList = () => {
+    Modal.info({
+      title: 'Create Custom Tenant List (Coming Soon)',
+      content: (
+        <div>
+          <p>
+            Custom Tenant Lists will support workflow-specific dropdown fields (tenant-owned choice lists).
+          </p>
+          <p>For now, this is a placeholder. If/when a TenantListModal exists, we can wire it here.</p>
+        </div>
+      ),
+    });
+  };
+
   return (
     <Container>
       <PanelHeader>
@@ -685,13 +700,16 @@ export const FormFieldConfigPanel: React.FC<FormFieldConfigPanelProps> = ({
                     }
                   >
                     <option value="">Choose a list...</option>
-                    {tenantLists.map(list => (
+                    {tenantLists.map((list) => (
                       <option key={list.id} value={list.id}>
                         {list.name}
                       </option>
                     ))}
                   </Select>
-                  <HelpText>Options will be loaded from the selected tenant list</HelpText>
+                  <HelpText>Options will be loaded from the selected tenant list.</HelpText>
+                  <SecondaryButton type="button" onClick={openCreateCustomTenantList}>
+                    Create Custom Tenant List (Coming Soon)
+                  </SecondaryButton>
                 </FormField>
               )}
 
