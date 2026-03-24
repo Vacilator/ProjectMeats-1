@@ -163,15 +163,24 @@ const AdminProfilePage: React.FC = () => {
   }, [tenant, defaults.dark, defaults.light]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      // IMPORTANT: Do NOT set Content-Type for FormData.
-      // Axios will attach the correct multipart boundary, and apiClient interceptor
-      // removes the default application/json header for FormData payloads.
-      const response = await apiClient.patch(`/tenants/${tenant?.id}/`, data, {
-        headers: {
-          Accept: 'application/json',
-        },
-      });
+    mutationFn: async (data: FormData | Record<string, unknown>) => {
+      const url = `/tenants/${tenant?.id}/`;
+
+      // Prefer JSON PATCH unless we truly need multipart.
+      // This avoids proxy/backend edge cases where multipart parsing can yield 502s.
+      const isMultipart = typeof FormData !== 'undefined' && data instanceof FormData;
+
+      if (isMultipart) {
+        // IMPORTANT: Do NOT set Content-Type for FormData.
+        // Axios will attach the correct multipart boundary, and apiClient interceptor
+        // removes the default application/json header for FormData payloads.
+        const response = await apiClient.patch(url, data, {
+          headers: { Accept: 'application/json' },
+        });
+        return response.data;
+      }
+
+      const response = await apiClient.patch(url, data);
       return response.data;
     },
     onSuccess: () => {
@@ -329,29 +338,46 @@ const AdminProfilePage: React.FC = () => {
 
     if (!tenant) return;
 
-    const formDataToSubmit = new FormData();
-
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key !== 'primary_color_light' && key !== 'primary_color_dark') {
-        formDataToSubmit.append(key, value);
-      }
-    });
-
-    if (logoFile) {
-      formDataToSubmit.append('logo', logoFile);
-    } else if (removeLogo) {
-      formDataToSubmit.append('remove_logo', '1');
-    }
-
     const settings = {
       theme: {
         primary_color_light: formData.primary_color_light,
         primary_color_dark: formData.primary_color_dark,
       },
     };
-    formDataToSubmit.append('settings', JSON.stringify(settings));
 
-    updateProfileMutation.mutate(formDataToSubmit);
+    // Only use multipart when a file is involved (upload/remove).
+    if (logoFile || removeLogo) {
+      const formDataToSubmit = new FormData();
+
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key !== 'primary_color_light' && key !== 'primary_color_dark') {
+          formDataToSubmit.append(key, value);
+        }
+      });
+
+      if (logoFile) {
+        formDataToSubmit.append('logo', logoFile);
+      }
+
+      if (removeLogo) {
+        formDataToSubmit.append('remove_logo', '1');
+      }
+
+      // Serializer accepts JSON strings for multipart.
+      formDataToSubmit.append('settings', JSON.stringify(settings));
+      updateProfileMutation.mutate(formDataToSubmit);
+      return;
+    }
+
+    // JSON PATCH path (more reliable for non-file edits)
+    const payload: Record<string, unknown> = {
+      ...Object.fromEntries(
+        Object.entries(formData).filter(([key]) => key !== 'primary_color_light' && key !== 'primary_color_dark')
+      ),
+      settings,
+    };
+
+    updateProfileMutation.mutate(payload);
   };
 
   const colorErrors = useMemo(() => {
