@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — Restored automated environment promotion PR creation (development→uat, uat→main) — PR: #3916.
 - 2026-03-24 — Fixed Email OData 400 crash patterns (14-day local filtering) & wired Real OpenAI Chatbot with Email Context injection — PR: #3915.
 - 2026-03-24 — Admin Workspace: fixed Invite User 500 by hardening invitation create validation + IntegrityError handling — PR: #3914.
 - 2026-03-24 — Admin Workspace: Billing “Manage Plan” modal wired to Tenant Configurations — PR: #3913.
