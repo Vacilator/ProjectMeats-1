@@ -1943,8 +1943,11 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   const [nodes, setNodes, onNodesChangeBase] = useNodesState(normalizedInitialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [nodeIdCounter, setNodeIdCounter] = useState(normalizedInitialNodes.length + 1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const generateNodeId = useCallback(() => {
+    return `node-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+  }, []);
 
   const queryClient = useQueryClient();
   
@@ -3088,32 +3091,35 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setWizardState(prev => ({ ...prev, flowName: name }));
   }, []);
   
-  const wizardAddNode = useCallback((nodeType: string) => {
-    const newNode = {
-      id: `node-${nodeIdCounter}`,
-      type: nodeType,
-      position: { x: 250 + (wizardState.addedNodeCount * 200), y: 100 },
-      data: { label: NODE_TYPE_REGISTRY[nodeType]?.label || 'New Node' },
-    };
-    
-    setNodes((nds) => [...nds, newNode]);
-    setNodeIdCounter((c) => c + 1);
-    setWizardState(prev => ({ 
-      ...prev, 
-      addedNodeCount: prev.addedNodeCount + 1,
-    }));
-    
-    // Auto-connect to previous node if exists
-    if (nodes.length > 0 && wizardState.addedNodeCount > 0) {
-      const prevNode = nodes[nodes.length - 1];
-      const newEdge: Edge = {
-        id: `edge-${prevNode.id}-${newNode.id}`,
-        source: prevNode.id,
-        target: newNode.id,
+  const wizardAddNode = useCallback(
+    (nodeType: string) => {
+      const newNodeId = generateNodeId();
+      const newNode = {
+        id: newNodeId,
+        type: nodeType,
+        position: { x: 250 + wizardState.addedNodeCount * 200, y: 100 },
+        data: { label: NODE_TYPE_REGISTRY[nodeType]?.label || 'New Node' },
       };
-      setEdges((eds) => [...eds, newEdge]);
-    }
-  }, [nodeIdCounter, wizardState.addedNodeCount, nodes, setNodes, setEdges]);
+
+      setNodes((nds) => [...nds, newNode]);
+      setWizardState((prev) => ({
+        ...prev,
+        addedNodeCount: prev.addedNodeCount + 1,
+      }));
+
+      // Auto-connect to previous node if exists
+      if (nodes.length > 0 && wizardState.addedNodeCount > 0) {
+        const prevNode = nodes[nodes.length - 1];
+        const newEdge: Edge = {
+          id: `edge-${prevNode.id}-${newNode.id}`,
+          source: prevNode.id,
+          target: newNode.id,
+        };
+        setEdges((eds) => [...eds, newEdge]);
+      }
+    },
+    [generateNodeId, wizardState.addedNodeCount, nodes, setNodes, setEdges]
+  );
   
   const getNodeSuggestionsForFlowType = (flowType: FlowType): string[] => {
     // Use actual NODE_TYPE_REGISTRY IDs instead of generic names
@@ -3562,8 +3568,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       const isNewContainer = isFormProcessContainerType(nodeTypeId);
 
-      const containerNodeId = `node-${nodeIdCounter}`;
-      const newNodeId = containerNodeId;
+      const newNodeId = generateNodeId();
       const reactFlowType = getReactFlowNodeType(nodeTypeId);
 
       // Ensure default dimensions upfront (prevents React Flow dimension errors)
@@ -3597,8 +3602,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
 
       const spawnDefaultFormPages = (parentId: string) => {
-        const page1Id = `node-${nodeIdCounter + 1}`;
-        const page2Id = `node-${nodeIdCounter + 2}`;
+        const page1Id = generateNodeId();
+        const page2Id = generateNodeId();
 
         const makePage = (id: string, index: number): Node => ({
           id,
@@ -3661,18 +3666,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
         const nodesToAdd: Node[] = [newNode];
         let selectedId = newNodeId;
-        let counterDelta = 1;
 
         if (isNewContainer) {
           const { pageNodes, pageIds } = spawnDefaultFormPages(newNodeId);
           nodesToAdd.push(...pageNodes);
           selectedId = pageIds[0];
-          counterDelta = 3;
         }
 
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
 
-        setNodeIdCounter((prev) => prev + counterDelta);
         setPendingInsertEdgeId(null);
         setPendingInsertAnchorNodeId(null);
         setSelectedNodeId(selectedId);
@@ -3737,18 +3739,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
         const nodesToAdd: Node[] = [newNode];
         let selectedId = newNodeId;
-        let counterDelta = 1;
 
         if (isNewContainer) {
           const { pageNodes, pageIds } = spawnDefaultFormPages(newNodeId);
           nodesToAdd.push(...pageNodes);
           selectedId = pageIds[0];
-          counterDelta = 3;
         }
 
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
 
-        setNodeIdCounter((prev) => prev + counterDelta);
         setSelectedNodeId(selectedId);
         setSelectedNode(null);
 
@@ -3779,18 +3778,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
         const nodesToAdd: Node[] = [newNode];
         let selectedId = newNodeId;
-        let counterDelta = 1;
 
         if (isNewContainer) {
           const { pageNodes, pageIds } = spawnDefaultFormPages(newNodeId);
           nodesToAdd.push(...pageNodes);
           selectedId = pageIds[0];
-          counterDelta = 3;
         }
 
         const nextNodes = selectOnly([...nodes, ...nodesToAdd], selectedId);
 
-        setNodeIdCounter((prev) => prev + counterDelta);
         setPendingInsertAnchorNodeId(null);
         setSelectedNodeId(selectedId);
         setSelectedNode(null);
@@ -3826,7 +3822,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       pendingInsertAnchorNodeId,
       edges,
       nodes,
-      nodeIdCounter,
+      generateNodeId,
       selectedNode,
       selectedNodeId,
       applyAutoLayoutImmediate,
@@ -4133,8 +4129,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         ? { width: 600, height: 400 } // Larger for containers
         : undefined; // Let React Flow calculate for regular nodes
 
+      const newNodeId = generateNodeId();
       const newNode: Node = {
-        id: `node-${nodeIdCounter}`,
+        id: newNodeId,
         type: getReactFlowNodeType(type),
         position,
         ...(defaultDimensions && { style: defaultDimensions }), // Only set if defined
@@ -4237,9 +4234,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             ...nodes.slice(parentIndex + 1),
           ];
           
-          // Don't call setNodes here - batch all updates into ONE call below to avoid race conditions
-          setNodeIdCounter((prev) => prev + 1);
-          
           // Phase 3.3: Trigger auto-layout for container
           logger.debug(`[Container] Triggering auto-layout for container ${targetContainer.id}`);
           const layoutResult = calculateContainerLayout(
@@ -4325,13 +4319,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       const nodesToAdd: Node[] = [newNode];
       const edgesToAdd: Edge[] = [];
-      let counterDelta = 1;
 
       // Auto-spawn TWO default Form Steps inside a new Form Process container
       // (Validation requires 2 steps minimum; this keeps the node immediately usable.)
       if (isContainerNode) {
-        const page1Id = `node-${nodeIdCounter + 1}`;
-        const page2Id = `node-${nodeIdCounter + 2}`;
+        const page1Id = generateNodeId();
+        const page2Id = generateNodeId();
 
         const makePage = (id: string, index: number): Node => ({
           id,
@@ -4354,7 +4347,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         });
 
         nodesToAdd.push(makePage(page1Id, 0), makePage(page2Id, 1));
-        counterDelta = 3;
       }
 
       const updatedNodes = nodes.concat(nodesToAdd);
@@ -4422,14 +4414,12 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setHasUnsavedChanges(true);
       }
 
-      setNodeIdCounter((prev) => prev + counterDelta);
-
       // Clear nearby node state
       setNearbyNode(null);
       setPendingInsertEdgeId(null);
     },
     [
-      nodeIdCounter,
+      generateNodeId,
       setNodes,
       reactFlowInstance,
       nodes,
@@ -6401,16 +6391,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     setHistory(newHistory);
     setHistoryIndex(0);
     
-    // Update node ID counter based on loaded nodes
-    const maxId = Math.max(
-      0,
-      ...template.nodes.map(n => {
-        const match = n.id.match(/node-(\d+)/);
-        return match ? parseInt(match[1], 10) : 0;
-      })
-    );
-    setNodeIdCounter(maxId + 1);
-    
     // Close modal
     setIsTemplateModalOpen(false);
     
@@ -6432,9 +6412,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Reset history
     setHistory([{ nodes: [], edges: [] }]);
     setHistoryIndex(0);
-    
-    // Reset node ID counter
-    setNodeIdCounter(1);
     
     // Close modal
     setIsTemplateModalOpen(false);
