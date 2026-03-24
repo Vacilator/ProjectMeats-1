@@ -6,7 +6,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.contrib.auth.models import User
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from typing import Any, Type
 from rest_framework.serializers import Serializer
 from django.db.models import QuerySet
@@ -110,7 +110,29 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        return super().create(request, *args, **kwargs)
+        try:
+            return super().create(request, *args, **kwargs)
+        except IntegrityError as e:
+            logger.warning(
+                "Invitation create failed due to database constraint",
+                extra={"tenant_id": str(tenant.id), "error": str(e)},
+                exc_info=True,
+            )
+            # Most common cause: duplicate pending invitation for same tenant/email.
+            return Response(
+                {'error': 'Unable to create invitation. A pending invitation may already exist for this email.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            logger.error(
+                "Unexpected error creating invitation",
+                extra={"tenant_id": str(tenant.id), "payload": request.data},
+                exc_info=True,
+            )
+            return Response(
+                {'error': 'Failed to create invitation'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
     
     @action(detail=True, methods=['post'])
     def resend(self, request, pk=None):
