@@ -22,7 +22,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import styled, { keyframes } from 'styled-components';
-import { CheckCircle, AlertCircle, XCircle, Info, Pencil, Trash2, Plus } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Info, Pencil, Trash2, Plus, AlertTriangle } from 'lucide-react';
 
 // ============================================================================
 // Types
@@ -432,6 +432,29 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
       setEdges((eds) => eds.filter((edge) => edge.id !== id));
     };
 
+    const handleConvertToErrorEdge = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEdges((eds) =>
+          eds.map((edge) =>
+            edge.id === id
+              ? {
+                  ...edge,
+                  type: 'error',
+                  data: {
+                    ...(edge.data as any),
+                    pmPrevType: edge.type,
+                    animated: true,
+                    label: (edge.data as any)?.label ?? 'Catch',
+                  },
+                }
+              : edge
+          )
+        );
+      },
+      [id, setEdges]
+    );
+
     const dataKeys = useMemo(() => {
       const sourceNode = source ? getNode(source) : undefined;
       const keys: string[] = [];
@@ -581,6 +604,9 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
               </EdgeBtn>
               <EdgeBtn title="Edit Edge" onClick={handleEditEdge}>
                 <Pencil size={14} />
+              </EdgeBtn>
+              <EdgeBtn title="Convert to Error Edge" onClick={handleConvertToErrorEdge}>
+                <AlertTriangle size={14} />
               </EdgeBtn>
               <EdgeBtn title="Delete Edge" onClick={handleDeleteEdge}>
                 <Trash2 size={14} />

@@ -122,6 +122,7 @@ import {
   DocumentNode,
   UtilityNode,
   TerminalNode,
+  LoopNode,
 } from './nodes';
 import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, EnhancedConnectionEdge } from './edges';
 import { FormBuilder } from '../form-builder';
@@ -1752,6 +1753,7 @@ Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   if (typeId.startsWith('trigger')) dynamicNodeTypes[typeId] = TriggerNode;
   else if (typeId.startsWith('action')) dynamicNodeTypes[typeId] = ActionNode;
   else if (typeId.startsWith('condition') || typeId === 'parallelPath') dynamicNodeTypes[typeId] = ConditionIfNode;
+  else if (typeId.startsWith('loop')) dynamicNodeTypes[typeId] = LoopNode;
   else if (typeId.startsWith('wait') || typeId.startsWith('timer') || typeId.startsWith('pending')) dynamicNodeTypes[typeId] = WaitStateNode;
   else if (typeId.startsWith('document')) dynamicNodeTypes[typeId] = DocumentNode;
   else if (typeId.startsWith('terminal') || typeId.startsWith('end')) dynamicNodeTypes[typeId] = TerminalNode;

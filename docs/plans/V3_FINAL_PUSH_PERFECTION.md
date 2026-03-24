@@ -137,7 +137,7 @@
   - deterministic ordering
   - max iteration safety cap
   - per-iteration tracing/ActivityLog
-- [ ] Frontend:
+- [x] Frontend:
   - node UI + config schema
   - visualization of loop scope
 
@@ -151,9 +151,9 @@
 - [ ] Update executor to support:
   - normal edges vs error edges
   - structured error payload (code/message/nodeId)
-- [ ] UI:
-  - visually distinct edge type
-  - config panel support
+- [x] UI:
+  - visually distinct edge type (dashed red, animated)
+  - convert standard edge ↔ error edge from edge toolbar
 
 ---
 
