@@ -1,0 +1,150 @@
+name: Auto Promote: Dev → UAT
+
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' && format('Manual Promote: {0} → {1}', inputs.head, inputs.base) ||
+    format('Auto Promote: {0} → {1}', github.event.workflow_run.head_branch, 'uat')
+  }}
+
+on:
+  workflow_run:
+    workflows: ["Master Pipeline"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      head:
+        description: 'Head branch to promote'
+        required: true
+        default: 'development'
+        type: string
+      base:
+        description: 'Base branch to open PR into'
+        required: true
+        default: 'uat'
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: auto-promote-dev-uat
+  cancel-in-progress: false
+
+jobs:
+  create-promotion-pr:
+    name: Create PR (development → uat)
+    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'development'
+        ) ||
+        github.event_name == 'workflow_dispatch'
+      }}
+
+    steps:
+      - name: Resolve branches
+        id: branches
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WF_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          INPUT_HEAD: ${{ inputs.head }}
+          INPUT_BASE: ${{ inputs.base }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "head=$INPUT_HEAD" >> "$GITHUB_OUTPUT"
+            echo "base=$INPUT_BASE" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "head=$WF_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "base=uat" >> "$GITHUB_OUTPUT"
+
+      - name: Verify deploy-dev succeeded (avoid false promotions)
+        if: ${{ github.event_name == 'workflow_run' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Ensure the specific env deploy job succeeded in the triggering pipeline.
+          jobs_json=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100")
+
+          echo "$jobs_json" | jq -e '.jobs[]? | select(.name | test("deploy-dev"; "i")) | select(.conclusion == "success")' > /dev/null \
+            || {
+              echo "deploy-dev job not found or not successful; skipping promotion";
+              exit 0;
+            }
+
+      - name: Check for commits to promote
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ steps.branches.outputs.base }}
+          HEAD: ${{ steps.branches.outputs.head }}
+        run: |
+          set -euo pipefail
+
+          ahead=$(gh api "repos/$REPO/compare/$BASE...$HEAD" --jq '.ahead_by')
+          if [ "$ahead" -eq 0 ]; then
+            echo "No commits to promote ($HEAD is not ahead of $BASE)."
+            exit 0
+          fi
+
+      - name: Skip if PR already exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE: ${{ steps.branches.outputs.base }}
+          HEAD: ${{ steps.branches.outputs.head }}
+        run: |
+          set -euo pipefail
+
+          existing=$(gh pr list --base "$BASE" --head "$HEAD" --state open --json number --jq 'length')
+          if [ "$existing" -ne 0 ]; then
+            echo "Promotion PR already open ($HEAD -> $BASE); skipping."
+            exit 0
+          fi
+
+      - name: Create promotion PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE: ${{ steps.branches.outputs.base }}
+          HEAD: ${{ steps.branches.outputs.head }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          title="Promote $HEAD → $BASE"
+          body=$(cat <<- 'EOF'
+          Auto-created promotion PR.
+
+          Trigger:
+          - Workflow run: RUN_URL
+          - Run ID: RUN_ID
+          - SHA: SHA
+
+          Notes:
+          - This PR does NOT bypass any gates. UAT validation + deployment checks must pass.
+          - Review required before merge.
+          EOF
+          )
+
+          body=${body//RUN_URL/$RUN_URL}
+          body=${body//RUN_ID/$RUN_ID}
+          body=${body//SHA/$SHA}
+
+          gh pr create \
+            --base "$BASE" \
+            --head "$HEAD" \
+            --title "$title" \
+            --body "$body"
