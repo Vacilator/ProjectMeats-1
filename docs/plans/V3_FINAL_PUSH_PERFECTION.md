@@ -178,7 +178,8 @@
 - [ ] Smooth expand/collapse and “glow” states for action_required.
 - [ ] Stable polling/backoff with skeleton loaders.
 - [x] AI file upload UI (Paperclip + immediate upload + filename pill).
-- [ ] Review cards UX:
+- [x] Review cards UX:
+  - [x] HITL Review Card UI (editable extracted fields + confirm)
   - summarize pending items
   - allow resolve/approve actions
   - clear empty state
@@ -187,7 +188,8 @@
 
 ### 3.3 Swarm analytics in Cockpit
 #### Checklist
-- [ ] Expose basic metrics to Cockpit:
+- [x] Expose basic metrics to Cockpit:
+  - [x] AI Learning Metrics Dashboard (parsed docs, corrections learned, precision)
   - # feedback items
   - accuracy trend (accepted vs corrected)
   - time-to-resolution
