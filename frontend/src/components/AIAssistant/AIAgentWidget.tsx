@@ -1,3 +1,14 @@
+/**
+ * AIAgentWidget
+ *
+ * Bottom-right, always-available AI surface.
+ *
+ * Responsibilities:
+ * - Send user chat to backend AI endpoints
+ * - Display assistant responses and HITL review cards when required
+ * - React to global UX shortcuts (e.g., Cmd/Ctrl+J) via window events
+ */
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import {
@@ -34,7 +45,7 @@ type ChatMessage = {
   role: ChatMessageRole;
   content: string;
   createdAt: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 };
 
 type OutlookStatus = {
@@ -56,7 +67,7 @@ type ServerMessage = {
   id: string;
   message_type: 'user' | 'assistant' | 'system' | 'document';
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_on?: string;
 };
 
@@ -467,15 +478,21 @@ const Input = styled.input`
 
 const newId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-const normalizeSessions = (raw: any): ServerSession[] => {
-  if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw?.results)) return raw.results;
+const normalizeSessions = (raw: unknown): ServerSession[] => {
+  if (Array.isArray(raw)) return raw as ServerSession[];
+  if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    if (Array.isArray(obj.results)) return obj.results as ServerSession[];
+  }
   return [];
 };
 
-const normalizeServerMessages = (raw: any): ServerMessage[] => {
-  if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw?.results)) return raw.results;
+const normalizeServerMessages = (raw: unknown): ServerMessage[] => {
+  if (Array.isArray(raw)) return raw as ServerMessage[];
+  if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    if (Array.isArray(obj.results)) return obj.results as ServerMessage[];
+  }
   return [];
 };
 
@@ -552,19 +569,21 @@ export const AIAgentWidget: React.FC = () => {
 
     const loadOutlookStatus = async () => {
       try {
-        const res = await businessApi.get<{ connections?: any[] }>('/integrations/oauth/status/');
+        const res = await businessApi.get<{ connections?: unknown[] }>('/integrations/oauth/status/');
         const connections = Array.isArray(res.data?.connections) ? res.data.connections : [];
-        const outlook = connections.find((c) => c?.provider === 'microsoft');
+        const outlook = connections
+          .map((c) => (c && typeof c === 'object' ? (c as Record<string, unknown>) : null))
+          .find((c) => c?.provider === 'microsoft');
         if (!outlook) {
           setOutlookStatus({ connected: false, expired: false });
           return;
         }
 
         setOutlookStatus({
-          connected: !outlook.is_expired,
-          expired: Boolean(outlook.is_expired),
-          connectedEmail: outlook.connected_email,
-          connectedName: outlook.connected_name,
+          connected: !Boolean(outlook?.is_expired),
+          expired: Boolean(outlook?.is_expired),
+          connectedEmail: typeof outlook?.connected_email === 'string' ? outlook.connected_email : undefined,
+          connectedName: typeof outlook?.connected_name === 'string' ? outlook.connected_name : undefined,
         });
       } catch {
         setOutlookStatus(null);
@@ -710,7 +729,7 @@ export const AIAgentWidget: React.FC = () => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        const doc: any = res.data ?? {};
+        const doc = (res.data && typeof res.data === 'object' ? (res.data as Record<string, unknown>) : {}) || {};
         const next: UploadedAttachment = {
           id: String(doc.id || `${Date.now()}`),
           original_filename: String(doc.original_filename || file.name),
@@ -725,8 +744,12 @@ export const AIAgentWidget: React.FC = () => {
 
       // The backend creates a DOCUMENT ChatMessage on upload (session-bound), so refresh history.
       await loadSessionMessages(sid);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to upload attachment(s)');
+    } catch (e: unknown) {
+      const errObj = e && typeof e === 'object' ? (e as Record<string, unknown>) : null;
+      const response = errObj?.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : null;
+      const data = response?.data && typeof response.data === 'object' ? (response.data as Record<string, unknown>) : null;
+      const serverError = typeof data?.error === 'string' ? data.error : null;
+      toast.error(serverError || 'Failed to upload attachment(s)');
     } finally {
       setUploadingAttachments((n) => Math.max(0, n - accepted.length));
     }
@@ -740,7 +763,7 @@ export const AIAgentWidget: React.FC = () => {
       context_data: { ui_source: 'AIAgentWidget' },
     });
 
-    const nextId = (res.data as any)?.id as string | undefined;
+    const nextId = res.data?.id;
     if (!nextId) throw new Error('Failed to create session');
 
     setSessionId(nextId);
@@ -792,7 +815,7 @@ export const AIAgentWidget: React.FC = () => {
         context_data: { ui_source: 'AIAgentWidget' },
       });
 
-      const nextId = (res.data as any)?.id as string | undefined;
+      const nextId = res.data?.id;
       if (!nextId) throw new Error('Failed to create session');
 
       setSessionsOpen(false);
@@ -816,9 +839,12 @@ export const AIAgentWidget: React.FC = () => {
         },
       ]);
       setState('idle');
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string'
+        ? (e as { message: string }).message
+        : null;
       setState('action_required');
-      toast.error(e?.message || 'Failed to start new session');
+      toast.error(msg || 'Failed to start new session');
     }
   };
 
@@ -844,17 +870,33 @@ export const AIAgentWidget: React.FC = () => {
   const handleListTools = async () => {
     setState('thinking');
     try {
-      const res = await businessApi.get<any>('/ai-assistant/tools/openapi/');
+      const res = await businessApi.get<unknown>('/ai-assistant/tools/openapi/');
 
-      const tools = Array.isArray(res.data?.tools) ? res.data.tools : [];
+      const dataObj = res.data && typeof res.data === 'object' ? (res.data as Record<string, unknown>) : null;
+      const tools = Array.isArray(dataObj?.tools) ? dataObj.tools : [];
       const toolNamesFromTools = tools
-        .map((t: any) => t?.function?.name as string | undefined)
-        .filter((x: any): x is string => typeof x === 'string' && x.length > 0);
+        .map((t: unknown) => {
+          const toolObj = t && typeof t === 'object' ? (t as Record<string, unknown>) : null;
+          const fnObj = toolObj?.function && typeof toolObj.function === 'object'
+            ? (toolObj.function as Record<string, unknown>)
+            : null;
+          const name = fnObj?.name;
+          return typeof name === 'string' ? name : undefined;
+        })
+        .filter((x): x is string => typeof x === 'string' && x.length > 0);
 
-      const openapi = res.data?.openapi ?? res.data;
-      const paths = openapi?.paths ?? {};
+      const openapi = (dataObj?.openapi ?? dataObj) as unknown;
+      const openapiObj = openapi && typeof openapi === 'object' ? (openapi as Record<string, unknown>) : null;
+      const paths = (openapiObj?.paths && typeof openapiObj.paths === 'object'
+        ? (openapiObj.paths as Record<string, unknown>)
+        : {}) as Record<string, unknown>;
       const toolNamesFromOpenApi = Object.keys(paths)
-        .map((p) => paths[p]?.post?.operationId as string | undefined)
+        .map((p) => {
+          const pathObj = paths[p] && typeof paths[p] === 'object' ? (paths[p] as Record<string, unknown>) : null;
+          const postObj = pathObj?.post && typeof pathObj.post === 'object' ? (pathObj.post as Record<string, unknown>) : null;
+          const operationId = postObj?.operationId;
+          return typeof operationId === 'string' ? operationId : undefined;
+        })
         .filter((x): x is string => !!x);
 
       const toolNames = Array.from(new Set([...toolNamesFromTools, ...toolNamesFromOpenApi])).sort();
@@ -901,7 +943,7 @@ export const AIAgentWidget: React.FC = () => {
 
     setState('thinking');
     try {
-      const res = await businessApi.post<any>('/ai-assistant/swarm/invoke/', {
+      const res = await businessApi.post<unknown>('/ai-assistant/swarm/invoke/', {
         event_type: 'user_chat',
         payload: {
           message,
@@ -911,10 +953,11 @@ export const AIAgentWidget: React.FC = () => {
         correlation_id: sessionId ?? undefined,
       });
 
-      const chain = Array.isArray(res.data?.agent_chain) ? res.data.agent_chain.join(' → ') : '—';
-      const intent = res.data?.intent ?? '—';
-      const urgency = res.data?.urgency ?? '—';
-      const notes = res.data?.notes ? `\nNotes: ${res.data.notes}` : '';
+      const dataObj = res.data && typeof res.data === 'object' ? (res.data as Record<string, unknown>) : null;
+      const chain = Array.isArray(dataObj?.agent_chain) ? (dataObj.agent_chain as unknown[]).join(' → ') : '—';
+      const intent = typeof dataObj?.intent === 'string' ? dataObj.intent : '—';
+      const urgency = typeof dataObj?.urgency === 'string' ? dataObj.urgency : '—';
+      const notes = typeof dataObj?.notes === 'string' && dataObj.notes.length ? `\nNotes: ${dataObj.notes}` : '';
 
       setMessages((m) => [
         ...m,
@@ -977,8 +1020,11 @@ export const AIAgentWidget: React.FC = () => {
     if (text === '/pending') {
       setState('thinking');
       try {
-        const res = await businessApi.get<any>('/ai-assistant/review/pending/');
-        const items = (res.data?.pending_reviews || res.data?.results || []) as any[];
+        const res = await businessApi.get<unknown>('/ai-assistant/review/pending/');
+        const dataObj = res.data && typeof res.data === 'object' ? (res.data as Record<string, unknown>) : null;
+        const pending = Array.isArray(dataObj?.pending_reviews) ? dataObj.pending_reviews : null;
+        const results = Array.isArray(dataObj?.results) ? dataObj.results : null;
+        const items = (pending ?? results ?? []) as unknown[];
 
         if (!items.length) {
           appendAssistant('No pending review items (or you are not staff).');
@@ -987,16 +1033,17 @@ export const AIAgentWidget: React.FC = () => {
         }
 
         const lines = items.slice(0, 10).map((it) => {
-          const id = String(it.id || '');
+          const obj = it && typeof it === 'object' ? (it as Record<string, unknown>) : {};
+          const id = String(obj.id || '');
           const prefix = id ? `${id.slice(0, 8)}…` : '—';
-          const docType = it.document_type || 'unknown';
-          const conf = typeof it.confidence_score === 'number' ? it.confidence_score.toFixed(2) : '—';
+          const docType = typeof obj.document_type === 'string' ? obj.document_type : 'unknown';
+          const conf = typeof obj.confidence_score === 'number' ? obj.confidence_score.toFixed(2) : '—';
           return `- ${prefix} ${docType} (confidence=${conf})`;
         });
 
         appendAssistant(`Pending review items:\n${lines.join('\n')}`);
         setState('idle');
-      } catch (e: any) {
+      } catch {
         appendAssistant('Pending review queue unavailable (requires staff permissions).');
         setState('idle');
       }
@@ -1010,8 +1057,12 @@ export const AIAgentWidget: React.FC = () => {
         const prefix = rest ? rest.split(/\s+/)[0] : '';
         const jsonStr = rest ? rest.slice(prefix.length).trim() : '';
 
-        const pendingRes = await businessApi.get<any>('/ai-assistant/review/pending/');
-        const items = (pendingRes.data?.pending_reviews || pendingRes.data?.results || []) as any[];
+        const pendingRes = await businessApi.get<unknown>('/ai-assistant/review/pending/');
+        const pendingObj =
+          pendingRes.data && typeof pendingRes.data === 'object' ? (pendingRes.data as Record<string, unknown>) : null;
+        const pending = Array.isArray(pendingObj?.pending_reviews) ? pendingObj.pending_reviews : null;
+        const results = Array.isArray(pendingObj?.results) ? pendingObj.results : null;
+        const items = (pending ?? results ?? []) as unknown[];
 
         if (!items.length) {
           appendAssistant('No pending review items (or you are not staff).');
@@ -1020,7 +1071,10 @@ export const AIAgentWidget: React.FC = () => {
         }
 
         const target = prefix
-          ? items.find((it) => String(it.id || '').startsWith(prefix))
+          ? items.find((it) => {
+              const obj = it && typeof it === 'object' ? (it as Record<string, unknown>) : {};
+              return String(obj.id || '').startsWith(prefix);
+            })
           : items[0];
 
         if (!target) {
@@ -1029,7 +1083,7 @@ export const AIAgentWidget: React.FC = () => {
           return;
         }
 
-        let corrected: any = undefined;
+        let corrected: unknown = undefined;
         if (jsonStr) {
           try {
             corrected = JSON.parse(jsonStr);
@@ -1047,7 +1101,7 @@ export const AIAgentWidget: React.FC = () => {
 
         appendAssistant(`Resolved review item: ${feedbackId.slice(0, 8)}…`);
         setState('idle');
-      } catch (e: any) {
+      } catch {
         appendAssistant('Resolve failed (requires staff permissions).');
         setState('idle');
       }
@@ -1076,8 +1130,12 @@ export const AIAgentWidget: React.FC = () => {
       setAttachments([]);
 
       setState('idle');
-    } catch (err: any) {
-      const serverError = err?.response?.data?.error || err?.response?.data?.detail;
+    } catch (err: unknown) {
+      const errObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errObj?.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : null;
+      const data = response?.data && typeof response.data === 'object' ? (response.data as Record<string, unknown>) : null;
+      const serverError = (typeof data?.error === 'string' ? data.error : null) ??
+        (typeof data?.detail === 'string' ? data.detail : null);
       const message =
         typeof serverError === 'string' && serverError.length
           ? serverError

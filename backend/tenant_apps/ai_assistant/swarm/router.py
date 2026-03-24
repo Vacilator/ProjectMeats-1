@@ -54,7 +54,24 @@ class SwarmDecision:
 
 
 class SwarmOrchestrator:
-    """Router + tool-loop orchestrator for PM-AS."""
+    """Router + tool-loop orchestrator for PM-AS.
+
+    Args:
+        tenant_id: Active tenant UUID (string). Used for tenant-scoped tool execution and RAG isolation.
+
+    Primary responsibilities:
+        - Route inbound events (email/user_chat/webhook) to an agent chain (best-effort heuristic).
+        - Build an AgentContext for downstream agents.
+        - Execute a **bounded** OpenAI tool loop (LLM ↔ tools) and return a stable response payload.
+
+    Side effects:
+        - May call external services (OpenAI, Microsoft Graph tools) depending on tenant integrations.
+        - May read tenant-scoped models (e.g., ExternalAuthProvider) to determine tool availability.
+
+    Safety:
+        - Tool loop is bounded via `SWARM_TOOL_MAX_ROUNDS` to prevent infinite recursion.
+        - RAG/tool failures must degrade gracefully (fall back to plain chat response).
+    """
 
     def __init__(self, *, tenant_id: str):
         if not tenant_id:

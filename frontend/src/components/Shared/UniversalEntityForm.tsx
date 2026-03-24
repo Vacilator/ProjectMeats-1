@@ -1,3 +1,18 @@
+/**
+ * UniversalEntityForm
+ *
+ * Schema-driven create/edit form surface.
+ *
+ * Responsibilities:
+ * - Fetch entity schema + existing values (edit)
+ * - Render fields via DynamicFormEngine
+ * - Provide tenant-safe, service-layer-backed persistence
+ *
+ * Notes:
+ * - All requests must go through businessApi/apiClient (service layer)
+ * - Foreign keys should use SearchableSelect to avoid massive dropdowns
+ */
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Spin, message, Select, Skeleton } from 'antd';
 import styled from 'styled-components';
@@ -6,16 +21,16 @@ import { apiClient } from '../../services/apiService';
 import DynamicFormEngine from '../../features/system/DynamicFormEngine';
 import { SearchableSelect } from './SearchableSelect';
 
-interface UniversalEntityFormProps {
+export interface UniversalEntityFormProps {
   entityType: string;
   entityId?: string | number;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (result: any) => void;
+  onSuccess?: (result: unknown) => void;
   initialValues?: Record<string, unknown>;
 }
 
-type SchemaChoice = { value: any; label: string };
+type SchemaChoice = { value: unknown; label: string };
 
 type BackendField = {
   key: string;
@@ -100,7 +115,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [schema, setSchema] = useState<BackendSchema | null>(null);
-  const [fkValues, setFkValues] = useState<Record<string, any>>({});
+  const [fkValues, setFkValues] = useState<Record<string, unknown>>({});
   const [fkOptions, setFkOptions] = useState<Record<string, Array<{ id: string | number; name: string }>>>({});
   const [productOptions, setProductOptions] = useState<Record<string, Array<{ value: string; label: string }>>>({});
   const [loadingProducts, setLoadingProducts] = useState<Record<string, boolean>>({});
@@ -119,20 +134,35 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       // 2) Fallback: DRF OPTIONS on the resource endpoint
       try {
         const resp = await apiClient.options(endpoint);
-        const actions = (resp.data as any)?.actions;
-        const postFields = actions?.POST || {};
 
-        const fields: BackendField[] = Object.entries(postFields).map(([key, meta]: any) => {
-          const choices = Array.isArray(meta?.choices)
-            ? meta.choices.map((c: any) => ({ value: c?.value, label: c?.display_name ?? String(c?.value) }))
+        const data = resp.data as unknown;
+        const actions =
+          data && typeof data === 'object' && 'actions' in data
+            ? ((data as Record<string, unknown>).actions as Record<string, unknown> | undefined)
+            : undefined;
+
+        const postFields = (actions && 'POST' in actions ? (actions.POST as Record<string, unknown>) : {}) || {};
+
+        const fields: BackendField[] = Object.entries(postFields).map(([key, meta]) => {
+          const metaObj = (meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : {}) || {};
+          const choicesRaw = metaObj.choices;
+          const choices = Array.isArray(choicesRaw)
+            ? choicesRaw.map((c: unknown) => {
+                const choice = (c && typeof c === 'object' ? (c as Record<string, unknown>) : {}) || {};
+                const value = choice.value;
+                const label =
+                  (typeof choice.display_name === 'string' && choice.display_name) ||
+                  (value != null ? String(value) : '');
+                return { value, label };
+              })
             : null;
 
           return {
             key,
-            label: meta?.label || key,
-            type: mapDrfOptionsType(meta?.type),
-            required: Boolean(meta?.required),
-            help_text: meta?.help_text || '',
+            label: (typeof metaObj.label === 'string' && metaObj.label) || key,
+            type: mapDrfOptionsType(typeof metaObj.type === 'string' ? metaObj.type : undefined),
+            required: Boolean(metaObj.required),
+            help_text: (typeof metaObj.help_text === 'string' && metaObj.help_text) || '',
             choices,
           };
         });
@@ -158,10 +188,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
         // Prefill FK values from initialValues if present.
         setFkValues((prev) => ({ ...prev, ...(initialValues || {}) }));
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!mounted) return;
         setSchema(null);
-        message.error(err?.response?.data?.error || 'Failed to load form schema');
+        const errorMessage =
+          typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error === 'string'
+            ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+            : 'Failed to load form schema';
+        message.error(errorMessage);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -200,11 +234,24 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
         try {
           const resp = await apiClient.get(relatedEndpoint, { params: { page_size: 200 } });
-          const rows = Array.isArray((resp.data as any)?.results) ? (resp.data as any).results : (resp.data as any);
-          const options = (Array.isArray(rows) ? rows : []).map((r: any) => ({
-            id: r.id,
-            name: r.name || r.company_name || r.full_name || r.email || String(r.id),
-          }));
+          const payload = resp.data as unknown;
+
+          const payloadObj =
+            typeof payload === 'object' && payload ? (payload as Record<string, unknown>) : null;
+          const rows = Array.isArray(payloadObj?.results) ? payloadObj?.results : payload;
+
+          const options = (Array.isArray(rows) ? rows : []).map((r: unknown) => {
+            const row = (r && typeof r === 'object' ? (r as Record<string, unknown>) : {}) || {};
+            return {
+              id: (row.id as string | number | undefined) ?? '',
+              name:
+                (typeof row.name === 'string' && row.name) ||
+                (typeof row.company_name === 'string' && row.company_name) ||
+                (typeof row.full_name === 'string' && row.full_name) ||
+                (typeof row.email === 'string' && row.email) ||
+                String(row.id ?? ''),
+            };
+          });
 
           if (cancelled) return;
           setFkOptions((prev) => ({ ...prev, [f.key]: options }));
@@ -232,7 +279,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       .map((f) => ({
         key: f.key,
         label: f.label || f.key,
-        type: (f.choices?.length ? 'select' : (f.type as any)) || 'text',
+        type: f.choices?.length ? 'select' : String(f.type ?? 'text'),
         required: Boolean(f.required),
         options: f.choices?.map((c) => String(c.value)) || undefined,
         placeholder: f.placeholder || undefined,
@@ -240,17 +287,24 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       }));
   }, [schema?.fields]);
 
-  const dynamicSchema = useMemo(() => {
+  type DynamicSchema = {
+    step_index: number;
+    name: string;
+    description?: string;
+    fields: typeof scalarFields;
+  };
+
+  const dynamicSchema: DynamicSchema = useMemo(() => {
     return {
       step_index: 0,
       name: schema?.name || `Universal Form: ${entityType}`,
       description: schema?.description,
       fields: scalarFields,
-    } as any;
+    };
   }, [entityType, scalarFields, schema?.description, schema?.name]);
 
   const submit = useCallback(
-    async (data: Record<string, any>) => {
+    async (data: Record<string, unknown>) => {
       const payload = { ...data };
 
       // Merge FK values into payload.
@@ -274,9 +328,10 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
         onSuccess?.(resp.data);
         onClose();
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[UniversalEntityForm] Submit failed:', err);
-        message.error(err?.response?.data?.error || err?.response?.data?.detail || 'Failed to submit form');
+        const typed = err as { response?: { data?: { error?: string; detail?: string } } };
+        message.error(typed?.response?.data?.error || typed?.response?.data?.detail || 'Failed to submit form');
         throw err;
       }
     },
@@ -291,17 +346,24 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           const resp = await businessApi.get('/system/products/', {
             params: { search: q || undefined, page_size: 50, is_active: true },
           });
-          const raw = resp.data as any;
-          const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
-          const opts = rows.map((p: any) => ({
-            value: String(p.id),
-            label: `${p.product_code ? `${p.product_code} - ` : ''}${p.name || p.effective_name || ''}`.trim() || String(p.id),
-          }));
+          const payload = resp.data as unknown;
+          const payloadObj =
+            typeof payload === 'object' && payload ? (payload as Record<string, unknown>) : null;
+          const rows = Array.isArray(payload) ? payload : (Array.isArray(payloadObj?.results) ? payloadObj?.results : []);
+
+          const opts = rows.map((p: unknown) => {
+            const row = (p && typeof p === 'object' ? (p as Record<string, unknown>) : {}) || {};
+            const id = row.id;
+            const code = typeof row.product_code === 'string' ? row.product_code : '';
+            const name = typeof row.name === 'string' ? row.name : typeof row.effective_name === 'string' ? row.effective_name : '';
+            const label = `${code ? `${code} - ` : ''}${name}`.trim() || String(id ?? '');
+            return { value: String(id ?? ''), label };
+          });
           setProductOptions((prev) => ({
             ...prev,
             [fieldKey]: (() => {
               const map = new Map((prev[fieldKey] || []).map((o) => [o.value, o] as const));
-              opts.forEach((o: any) => map.set(o.value, o));
+              opts.forEach((o) => map.set(o.value, o));
               return Array.from(map.values());
             })(),
           }));
@@ -341,7 +403,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                   const isProduct = related.includes('system.product') || String(f.key).toLowerCase().includes('product');
 
                   if (isProduct) {
-                    const value = fkValues[f.key] as any;
+                    const value = fkValues[f.key] as string | number | undefined;
                     return (
                       <div key={f.key}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: 'rgb(var(--color-text-secondary))', marginBottom: 6 }}>
@@ -369,7 +431,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                         {f.label || f.key}
                       </div>
                       <SearchableSelect
-                        value={(fkValues[f.key] as any) ?? ''}
+                        value={(fkValues[f.key] as string | number | undefined) ?? ''}
                         options={options}
                         onChange={(next) => setFkValues((prev) => ({ ...prev, [f.key]: next }))}
                         placeholder={`Select ${f.label || f.key}`}
@@ -382,7 +444,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
             <DynamicFormEngine
               schema={dynamicSchema}
-              initialValues={(initialValues || {}) as any}
+              initialValues={initialValues || {}}
               onSubmit={(data) => {
                 void submit(data);
               }}
