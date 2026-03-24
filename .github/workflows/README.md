@@ -62,7 +62,7 @@ These workflows help with project management and automation:
 These workflows automate PR creation between environments while enforcing CI/CD gates:
 
 ### 41-auto-promote-dev-to-uat.yml
-- **Trigger**: After successful `11-dev-deployment.yml` completion
+- **Trigger**: After successful `Master Pipeline` dev deployment completion
 - **Purpose**: Creates PR from `development` → `uat`
 - **Process**:
   1. Triggered when dev deployment succeeds
@@ -75,7 +75,7 @@ These workflows automate PR creation between environments while enforcing CI/CD 
   - CI/CD tests must pass
 
 ### 42-auto-promote-uat-to-main.yml
-- **Trigger**: After successful `12-uat-deployment.yml` completion
+- **Trigger**: After successful `Master Pipeline` UAT deployment completion
 - **Purpose**: Creates PR from `uat` → `main`
 - **Process**:
   1. Triggered when UAT deployment succeeds
