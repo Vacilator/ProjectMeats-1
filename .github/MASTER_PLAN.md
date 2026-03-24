@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — Phase 3 AI Swarm UX: HITL Review Card + AI Learning Metrics Dashboard — PR: #3897.
 - 2026-03-24 — WorkFormEngine: loop-body scheduling + error-edge try/catch routing — PR: #3896.
 - 2026-03-24 — FlowEditor control-flow UX: LoopNode (2-in/2-out) + ErrorEdge conversion toggle — PR: #3894.
 - 2026-03-23 — Universal Form Standardization, AntD Searchable MultiSelect, and Live AI Overviews — PR: #3875.
