@@ -51,12 +51,6 @@ const CARDS: WorkspaceCard[] = [
     path: '/workspace/billing',
     icon: '💳',
   },
-  {
-    title: 'Customizations',
-    description: 'Tenant-specific dropdown/choice customizations and overrides.',
-    path: '/workspace/customizations',
-    icon: '🎨',
-  },
 ];
 
 const AdminWorkspaceHome: React.FC = () => {

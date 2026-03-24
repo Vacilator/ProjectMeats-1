@@ -79,7 +79,6 @@ import InquiryTemplates from './pages/InquiryTemplates';
 import InquiryAnalytics from './pages/InquiryAnalytics';
 import OptionListsPage from './pages/Admin/OptionLists';
 import ConfigurationsPage from './pages/Admin/Configurations';
-import CustomizationsPage from './pages/Admin/Customizations';
 import UsersPage from './pages/Admin/Users';
 import AdminProfilePage from './pages/Admin/Profile';
 import BillingPage from './pages/Admin/Billing';
@@ -338,11 +337,10 @@ const App: React.FC = () => {
                     <ConfigurationsPage />
                   </AdminErrorBoundary>
                 } />
-                <Route path="workspace/customizations" element={
-                  <AdminErrorBoundary fallbackTitle="Customizations Error">
-                    <CustomizationsPage />
-                  </AdminErrorBoundary>
-                } />
+                <Route
+                  path="workspace/customizations"
+                  element={<Navigate to="/workspace/option-lists?tab=overrides" replace />}
+                />
                 <Route path="workspace/users" element={
                   <AdminErrorBoundary fallbackTitle="Users Management Error">
                     <UsersPage />
