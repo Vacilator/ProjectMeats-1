@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — Fixed theme token fallbacks (Defined missing CSS vars to prevent UI elements rendering black) — PR: #3921.
 - 2026-03-24 — Hardened network request resiliency (Fixed trailing slashes causing 502 loops & added 500 error circuit breakers) — PR: #3920.
 - 2026-03-24 — Fixed Workform Editor CSS viewport height + layout overlaps (Eliminated blank bottom space; NodePalette cushions; Toolbar flex-wrapping) — PR: #3919.
 - 2026-03-24 — Fixed Workform Editor React Crash #310 (Migrated from sequential counters to unique IDs to prevent hook collisions) — PR: #3918.
