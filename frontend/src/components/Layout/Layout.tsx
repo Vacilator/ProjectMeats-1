@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import styled from 'styled-components';
 import Sidebar from './Sidebar';
@@ -11,6 +11,7 @@ import { AIAgentWidget } from '../AIAssistant/AIAgentWidget';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../config/theme';
+import { useGlobalShortcuts } from '../../hooks/useGlobalShortcuts';
 
 const Layout: React.FC = () => {
   const { sidebarOpen, setSidebarOpen } = useNavigation();
@@ -27,29 +28,11 @@ const Layout: React.FC = () => {
     setSidebarHovered(isHovered);
   };
 
-  // Global keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K = Universal Search (CommandPalette)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowCommandPalette(true);
-      }
-      // Cmd/Ctrl + Shift + K = AI Command Center (Omnibox)
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'K') {
-        e.preventDefault();
-        setShowOmnibox(true);
-      }
-      // Forward slash = Quick search (when not in input)
-      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
-        e.preventDefault();
-        setShowCommandPalette(true);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  useGlobalShortcuts({
+    onOpenCommandPalette: () => setShowCommandPalette(true),
+    onOpenOmnibox: () => setShowOmnibox(true),
+    onToggleAIAgentWidget: () => window.dispatchEvent(new CustomEvent('pm:ai-toggle')),
+  });
 
   const handleOmniboxSubmit = (command: string) => {
     // For now, just log the command. In a real app, this would be sent to the AI service

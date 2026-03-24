@@ -24,7 +24,8 @@
  * />
  * ```
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import Fuse from 'fuse.js';
 import styled from 'styled-components';
 
 // ============================================================================
@@ -224,6 +225,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -235,13 +238,43 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const selectedOption = safeOptions.find(opt => opt && String(opt.id) === String(value));
   const displayValue = selectedOption ? selectedOption.name : '';
 
-  // Filter options based on search query with null checks
-  const filteredOptions = safeOptions.filter(option => 
-    option && 
-    option.name && 
-    typeof option.name === 'string' &&
-    option.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const searchableOptions = useMemo(
+    () => safeOptions.filter((option): option is SearchableSelectOption => !!option && typeof option.name === 'string'),
+    [safeOptions]
   );
+
+  useEffect(() => {
+    // Debounce + "typing..." indicator to make the dropdown feel responsive under load.
+    setIsTyping(true);
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+      setIsTyping(false);
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fuse = useMemo(() => {
+    return new Fuse(searchableOptions, {
+      keys: ['name'],
+      includeScore: true,
+      threshold: 0.35,
+      ignoreLocation: true,
+      minMatchCharLength: 1,
+    });
+  }, [searchableOptions]);
+
+  const filteredOptions = useMemo(() => {
+    const query = debouncedQuery.trim();
+    if (!query) {
+      return searchableOptions;
+    }
+
+    return fuse
+      .search(query)
+      .map((result) => result.item)
+      .filter((option) => option && typeof option.name === 'string');
+  }, [debouncedQuery, fuse, searchableOptions]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -349,6 +382,11 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           <LoadingState>
             <Spinner />
             Loading options...
+          </LoadingState>
+        ) : isTyping ? (
+          <LoadingState>
+            <Spinner />
+            Typing...
           </LoadingState>
         ) : filteredOptions.length === 0 ? (
           <EmptyState>

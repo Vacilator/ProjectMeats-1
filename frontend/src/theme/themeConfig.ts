@@ -18,13 +18,13 @@ export type ThemeMode = 'light' | 'dark' | 'high-contrast';
  */
 export const lightTheme: ThemeConfig = {
   token: {
-    colorPrimary: '#667eea',
-    colorSuccess: '#22c55e',
-    colorWarning: '#eab308',
-    colorError: '#ef4444',
-    colorInfo: '#3b82f6',
-    colorTextBase: '#2c3e50',
-    colorBgBase: '#ffffff',
+    colorPrimary: 'rgb(var(--color-primary))',
+    colorSuccess: 'rgb(34, 197, 94)',
+    colorWarning: 'rgb(234, 179, 8)',
+    colorError: 'rgb(239, 68, 68)',
+    colorInfo: 'rgb(59, 130, 246)',
+    colorTextBase: 'rgb(var(--color-text-primary))',
+    colorBgBase: 'rgb(var(--color-background))',
     fontSize: 14,
     borderRadius: 6,
   },
@@ -49,15 +49,15 @@ export const lightTheme: ThemeConfig = {
  */
 export const darkTheme: ThemeConfig = {
   token: {
-    colorPrimary: '#818cf8',
-    colorSuccess: '#4ade80',
-    colorWarning: '#fbbf24',
-    colorError: '#f87171',
-    colorInfo: '#60a5fa',
-    colorTextBase: '#e5e7eb',
-    colorBgBase: '#1a1a1a',
-    colorBgContainer: '#262626',
-    colorBorder: '#404040',
+    colorPrimary: 'rgb(var(--color-primary))',
+    colorSuccess: 'rgb(34, 197, 94)',
+    colorWarning: 'rgb(234, 179, 8)',
+    colorError: 'rgb(239, 68, 68)',
+    colorInfo: 'rgb(59, 130, 246)',
+    colorTextBase: 'rgb(var(--color-text-primary))',
+    colorBgBase: 'rgb(var(--color-background))',
+    colorBgContainer: 'rgb(var(--color-surface))',
+    colorBorder: 'rgb(var(--color-border))',
     fontSize: 14,
     borderRadius: 6,
   },
@@ -85,14 +85,14 @@ export const darkTheme: ThemeConfig = {
  */
 export const highContrastTheme: ThemeConfig = {
   token: {
-    colorPrimary: '#0000ff',
-    colorSuccess: '#008000',
-    colorWarning: '#ffaa00',
-    colorError: '#cc0000',
-    colorInfo: '#0066cc',
-    colorTextBase: '#000000',
-    colorBgBase: '#ffffff',
-    colorBorder: '#000000',
+    colorPrimary: 'rgb(var(--color-primary))',
+    colorSuccess: 'rgb(0, 128, 0)',
+    colorWarning: 'rgb(255, 170, 0)',
+    colorError: 'rgb(204, 0, 0)',
+    colorInfo: 'rgb(0, 102, 204)',
+    colorTextBase: 'rgb(var(--color-text-primary))',
+    colorBgBase: 'rgb(var(--color-background))',
+    colorBorder: 'rgb(var(--color-border))',
     fontSize: 16, // Larger for accessibility
     borderRadius: 2, // Sharper edges for clarity
     lineWidth: 2, // Thicker borders
