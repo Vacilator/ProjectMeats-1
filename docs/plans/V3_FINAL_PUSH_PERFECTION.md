@@ -211,6 +211,7 @@
 
 ### 4.3 Search quality & performance
 - [x] Fuzzy-search tuning and debounce standards.
+- [x] Route-level lazy loading for heavy surfaces (Cockpit, WorkForms Editor) with Skeleton fallbacks.
 - [ ] Results rendering virtualization where needed.
 
 ### 4.4 Theme compliance
