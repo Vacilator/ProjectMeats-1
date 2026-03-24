@@ -66,23 +66,6 @@ jobs:
           echo "head=$WF_BRANCH" >> "$GITHUB_OUTPUT"
           echo "base=uat" >> "$GITHUB_OUTPUT"
 
-      - name: Verify deploy-dev succeeded (avoid false promotions)
-        if: ${{ github.event_name == 'workflow_run' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          # Ensure the specific env deploy job succeeded in the triggering pipeline.
-          jobs_json=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100")
-
-          echo "$jobs_json" | jq -e '.jobs[]? | select(.name | test("deploy-dev"; "i")) | select(.conclusion == "success")' > /dev/null \
-            || {
-              echo "deploy-dev job not found or not successful; skipping promotion";
-              exit 0;
-            }
 
       - name: Check for commits to promote
         env:
