@@ -198,18 +198,55 @@ def pin_workflow_versions(workflow_id):
 
 
 @shared_task(name='system.execute_workform_loop_item')
-def execute_workform_loop_item(workform_id: str, loop_node_id: str, index: int, item: object):
-    """Vanguard 1 scaffold: execute a single loop iteration item.
+def execute_workform_loop_item(
+    workform_id: str,
+    loop_node_id: str,
+    loop_body_start_node_id: str,
+    index: int,
+    item: object,
+    base_context: dict | None = None,
+):
+    """Execute a single loop iteration by running the loop-body subgraph.
 
-    This is a placeholder. The full implementation should:
-    - load the TenantWorkForm by ID
-    - run the loop-body subgraph with `variables.item`/`variables.index`
-    - persist execution logs
+    Inputs:
+    - loop_body_start_node_id: the node at the head of the Loop Body edge.
+    - base_context: serialized context from the parent execution (trigger + variables).
+
+    Behavior:
+    - Runs a bounded sub-traversal starting at loop_body_start_node_id.
+    - Stops if it reaches loop_node_id again (cycle boundary) or terminates naturally.
     """
+    from apps.system.models import TenantWorkForm
+    from apps.system.services.workform_engine import WorkFormEngine
+
     logger.info('[LoopItem] workform=%s loop_node=%s index=%s', workform_id, loop_node_id, index)
+
+    workform = TenantWorkForm.objects.get(id=workform_id)
+
+    initial_context = dict(base_context or {})
+    initial_context.setdefault('trigger', {})
+    initial_context.setdefault('variables', {})
+    initial_context.setdefault('errors', [])
+
+    # Per-iteration variables
+    initial_context['variables'] = {
+        **dict(initial_context.get('variables') or {}),
+        'item': item,
+        'index': index,
+    }
+
+    engine = WorkFormEngine(workform, initial_context=initial_context)
+    result = engine.execute(
+        trigger_payload=initial_context.get('trigger'),
+        start_node_id=loop_body_start_node_id,
+        stop_node_ids=[loop_node_id],
+    )
+
     return {
-        'success': True,
+        'success': result.success,
         'workform_id': workform_id,
         'loop_node_id': loop_node_id,
+        'loop_body_start_node_id': loop_body_start_node_id,
         'index': index,
+        'error': result.error,
     }

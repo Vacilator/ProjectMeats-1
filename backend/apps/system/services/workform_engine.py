@@ -54,17 +54,27 @@ class WorkFormEngine:
 
         self.action_executor = ActionExecutor(workform.tenant, self.context)
 
-    def execute(self, trigger_payload: Optional[Dict[str, Any]] = None) -> ExecutionResult:
+    def execute(
+        self,
+        trigger_payload: Optional[Dict[str, Any]] = None,
+        *,
+        start_node_id: Optional[str] = None,
+        stop_node_ids: Optional[List[str]] = None,
+    ) -> ExecutionResult:
         self.context.setdefault('trigger', trigger_payload or {})
 
-        start_id = self._find_start_node_id()
+        start_id = start_node_id or self._find_start_node_id()
         if not start_id:
             return ExecutionResult(success=False, context=self.context, error='No start/trigger node found')
+
+        stop_set = set(stop_node_ids or [])
 
         current_id: Optional[str] = start_id
         visited_guard = 0
 
         while current_id:
+            if current_id in stop_set:
+                break
             visited_guard += 1
             if visited_guard > 5000:
                 return ExecutionResult(success=False, context=self.context, error='Traversal guard tripped (possible cycle)')
@@ -79,10 +89,21 @@ class WorkFormEngine:
             if node_type.startswith('end') or node_type.startswith('terminal'):
                 break
 
-            # Loop nodes (placeholder)
+            # Loop nodes
             if node_type.startswith('loop'):
-                self._handle_loop_node(node)
-                current_id = self._next_node_id(current_id, prefer_error=False)
+                loop_body_start = self._next_node_id(current_id, prefer_error=False, source_handle='loop-body')
+                on_complete = self._next_node_id(current_id, prefer_error=False, source_handle='on-complete')
+
+                # Enqueue sub-executions for each array item down the Loop Body edge.
+                if loop_body_start:
+                    self._handle_loop_node(node, loop_body_start_node_id=loop_body_start)
+
+                # Continue down the On Complete path (or fall back to first non-error edge).
+                current_id = on_complete or self._next_node_id(
+                    current_id,
+                    prefer_error=False,
+                    exclude_source_handles={'loop-body'},
+                )
                 continue
 
             # Action nodes: wrap with try/except and route to error edge if present
@@ -105,7 +126,7 @@ class WorkFormEngine:
                         current_id = error_target
                         continue
 
-                    raise
+                    return ExecutionResult(success=False, context=self.context, error=str(e))
 
             # Default: traverse first non-error outgoing edge
             current_id = self._next_node_id(current_id, prefer_error=False)
@@ -141,8 +162,24 @@ class WorkFormEngine:
                 return nid
         return None
 
-    def _next_node_id(self, source_id: str, *, prefer_error: bool) -> Optional[str]:
+    def _next_node_id(
+        self,
+        source_id: str,
+        *,
+        prefer_error: bool,
+        source_handle: Optional[str] = None,
+        exclude_source_handles: Optional[set[str]] = None,
+    ) -> Optional[str]:
         outgoing = [e for e in self.edges if isinstance(e, dict) and e.get('source') == source_id]
+        exclude_source_handles = exclude_source_handles or set()
+
+        def _handle_of(edge: Dict[str, Any]) -> Optional[str]:
+            return edge.get('sourceHandle') or edge.get('source_handle')
+
+        if source_handle:
+            outgoing = [e for e in outgoing if _handle_of(e) == source_handle]
+        else:
+            outgoing = [e for e in outgoing if _handle_of(e) not in exclude_source_handles]
 
         if prefer_error:
             for e in outgoing:
@@ -169,7 +206,7 @@ class WorkFormEngine:
 
         self.context['variables']['last_action_result'] = result
 
-    def _handle_loop_node(self, node: Dict[str, Any]) -> None:
+    def _handle_loop_node(self, node: Dict[str, Any], *, loop_body_start_node_id: str) -> None:
         data = node.get('data') or {}
         config = data.get('config') or {}
 
@@ -188,12 +225,19 @@ class WorkFormEngine:
         if len(items) > max_iterations:
             items = items[:max_iterations]
 
+        base_context = {
+            'trigger': self.context.get('trigger', {}),
+            'variables': dict(self.context.get('variables', {})),
+        }
+
         for idx, item in enumerate(items):
             execute_workform_loop_item.delay(
                 workform_id=str(self.workform.id),
                 loop_node_id=str(node.get('id')),
+                loop_body_start_node_id=str(loop_body_start_node_id),
                 index=idx,
                 item=item,
+                base_context=base_context,
             )
 
     def _resolve_array(self, expr: Any) -> Optional[Any]:

@@ -134,9 +134,9 @@
   - body sub-workflow (container)
   - output aggregation strategy (collect results)
 - [ ] Backend execution:
-  - deterministic ordering
-  - max iteration safety cap
-  - per-iteration tracing/ActivityLog
+  - [x] deterministic ordering
+  - [x] max iteration safety cap
+  - [ ] per-iteration tracing/ActivityLog
 - [x] Frontend:
   - node UI + config schema
   - visualization of loop scope
@@ -148,7 +148,7 @@
 - [ ] Define error propagation model:
   - which node failures route to error edges
   - what error payload is passed along
-- [ ] Update executor to support:
+- [x] Update executor to support:
   - normal edges vs error edges
   - structured error payload (code/message/nodeId)
 - [x] UI:
