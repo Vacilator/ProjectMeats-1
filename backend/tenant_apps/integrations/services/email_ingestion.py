@@ -119,8 +119,8 @@ class EmailIngestionService:
         # Initialize Microsoft Graph provider
         graph_provider = MicrosoftGraphProvider(tenant.id)
         
-        # Fetch recent emails (last 7 days)
-        cutoff_date = timezone.now() - timedelta(days=7)
+        # Fetch recent emails (last 14 days)
+        cutoff_date = timezone.now() - timedelta(days=14)
         emails = self._fetch_inbox_messages(
             graph_provider,
             access_token,
@@ -188,19 +188,23 @@ class EmailIngestionService:
             
             messages = data.get('value', [])
 
-            # Local Python filtering
+            # Local Python filtering (defensive against Graph filtering quirks)
             filtered_messages = []
             for msg in messages:
                 subject = msg.get('subject', '').lower()
+                body_preview = msg.get('bodyPreview', '').lower()
                 has_attachments = msg.get('hasAttachments', False)
 
-                matches_keyword = any(keyword in subject for keyword in self.ORDER_KEYWORDS)
-                if matches_keyword or has_attachments:
+                # Check if order keywords exist in subject OR body, OR if it has attachments
+                is_order_related = any(
+                    (kw in subject) or (kw in body_preview)
+                    for kw in self.ORDER_KEYWORDS
+                )
+
+                if is_order_related or has_attachments:
                     filtered_messages.append(msg)
 
-            logger.info(
-                f"Fetched {len(messages)} total, filtered down to {len(filtered_messages)} order-related messages"
-            )
+            logger.info(f"Fetched {len(messages)} total, filtered down to {len(filtered_messages)} target emails")
             return filtered_messages
             
         except requests.exceptions.RequestException as e:

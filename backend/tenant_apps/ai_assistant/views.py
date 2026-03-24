@@ -178,13 +178,40 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
 
             try:
                 from apps.system.services.ai_model_resolver import get_active_openai_model_id
+                from apps.integrations.models import EmailLog
 
                 model_name = get_active_openai_model_id(fallback='gpt-4o-mini')
+
+                # --- RAG-lite context injection: last 5 ingested emails for this tenant ---
+                tenant = getattr(request, 'tenant', None)
+                recent_emails = (
+                    EmailLog.objects.filter(tenant=tenant).order_by('-received_at')[:5]
+                    if tenant
+                    else EmailLog.objects.none()
+                )
+
+                email_context = 'Here are the most recently received emails in the system:\n'
+                for email in recent_emails:
+                    body_snippet = (email.body_text or '')[:300]
+                    email_context += (
+                        f"- Date: {email.received_at}, From: {email.sender_name} <{email.sender_email}>\n"
+                        f"  Subject: {email.subject}\n"
+                        f"  Has Attachments: {email.has_attachments}\n"
+                        f"  Body Snippet: {body_snippet}...\n\n"
+                    )
+
+                system_prompt = (
+                    'You are a helpful AI assistant for meat market operations. '
+                    "You have direct access to the user's recently ingested emails. "
+                    'Always use the context below when answering email-related questions.\n\n'
+                    f'{email_context}\n'
+                    f'{SWARM_SYSTEM_PROMPT}'
+                )
 
                 completion = client.chat.completions.create(
                     model=model_name,
                     messages=[
-                        {'role': 'system', 'content': SWARM_SYSTEM_PROMPT},
+                        {'role': 'system', 'content': system_prompt},
                         {'role': 'user', 'content': user_message},
                     ],
                 )
