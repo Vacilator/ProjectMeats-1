@@ -1094,7 +1094,13 @@ export const AIAgentWidget: React.FC = () => {
           }
         }
 
-        const feedbackId = String(target.id);
+        const targetObj = target && typeof target === 'object' ? (target as Record<string, unknown>) : {};
+        const feedbackId = String(targetObj.id ?? '');
+        if (!feedbackId) {
+          appendAssistant('Resolve failed: review item did not have an id.');
+          setState('idle');
+          return;
+        }
         await businessApi.post(`/ai-assistant/review/${feedbackId}/resolve/`, {
           user_corrected_data: corrected ?? null,
         });
@@ -1262,14 +1268,37 @@ export const AIAgentWidget: React.FC = () => {
                       <DocumentRow>
                         <FileText size={16} />
                         <DocumentMeta>
-                          {m.metadata?.file_url ? (
-                            <a href={m.metadata.file_url} target="_blank" rel="noreferrer">
-                              {m.metadata?.original_filename || m.content}
-                            </a>
-                          ) : (
-                            <div>{m.metadata?.original_filename || m.content}</div>
-                          )}
-                          <div>{m.metadata?.content_type || 'Document'}</div>
+                          {(() => {
+                            const fileUrl =
+                              m.metadata && typeof m.metadata === 'object' && typeof (m.metadata as any).file_url === 'string'
+                                ? ((m.metadata as any).file_url as string)
+                                : undefined;
+                            const originalFilename =
+                              m.metadata &&
+                              typeof m.metadata === 'object' &&
+                              typeof (m.metadata as any).original_filename === 'string'
+                                ? ((m.metadata as any).original_filename as string)
+                                : undefined;
+
+                            const label = originalFilename ?? m.content;
+
+                            return fileUrl ? (
+                              <a href={fileUrl} target="_blank" rel="noreferrer">
+                                {label}
+                              </a>
+                            ) : (
+                              <div>{label}</div>
+                            );
+                          })()}
+                          <div>
+                            {(() => {
+                              const ct =
+                                m.metadata && typeof m.metadata === 'object' && typeof (m.metadata as any).content_type === 'string'
+                                  ? ((m.metadata as any).content_type as string)
+                                  : undefined;
+                              return ct ?? 'Document';
+                            })()}
+                          </div>
                         </DocumentMeta>
                       </DocumentRow>
                     ) : (

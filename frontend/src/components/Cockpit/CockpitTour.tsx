@@ -12,7 +12,16 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
+import {
+  EVENTS,
+  Joyride,
+  STATUS,
+  type EventData,
+  type Options,
+  type PartialDeep,
+  type Step,
+  type Styles,
+} from 'react-joyride';
 
 const TOUR_COMPLETED_KEY = 'cockpit_tour_completed';
 
@@ -45,7 +54,7 @@ const tourSteps: Step[] = [
       </div>
     ),
     placement: 'center',
-    disableBeacon: true,
+    skipBeacon: true,
   },
   {
     target: '[data-tour="search-input"]',
@@ -161,8 +170,8 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
     }
   }, [enabled]);
 
-  const handleJoyrideCallback = (data: CallBackProps) => {
-    const { status } = data;
+  const handleJoyrideCallback = (data: EventData) => {
+    const { status, type } = data;
 
     // Tour finished or skipped
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status as any)) {
@@ -194,47 +203,52 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
 
   if (!enabled) return null;
 
+  const options: Partial<Options> = {
+    primaryColor: 'rgb(var(--color-primary))',
+    textColor: 'rgb(var(--color-text-primary))',
+    backgroundColor: 'rgb(var(--color-background))',
+    arrowColor: 'rgb(var(--color-background))',
+    overlayColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 10000,
+    showProgress: true,
+    buttons: ['back', 'close', 'primary', 'skip'],
+    closeButtonAction: 'skip',
+  };
+
+  const styles: PartialDeep<Styles> = {
+    tooltip: {
+      borderRadius: '8px',
+      padding: '1.5rem',
+      fontSize: '0.9375rem',
+    },
+    tooltipContent: {
+      padding: '0.5rem 0',
+    },
+    buttonPrimary: {
+      backgroundColor: 'rgb(var(--color-primary))',
+      color: '#fff',
+      borderRadius: '4px',
+      padding: '0.5rem 1rem',
+      fontSize: '0.875rem',
+      fontWeight: 500,
+    },
+    buttonBack: {
+      color: 'rgb(var(--color-text-secondary))',
+      marginRight: '0.5rem',
+    },
+    buttonSkip: {
+      color: 'rgb(var(--color-text-secondary))',
+    },
+  };
+
   return (
     <Joyride
       steps={tourSteps}
       run={runTour}
       continuous
-      showProgress
-      showSkipButton
-      callback={handleJoyrideCallback}
-      styles={{
-        options: {
-          primaryColor: 'rgb(var(--color-primary))',
-          textColor: 'rgb(var(--color-text-primary))',
-          backgroundColor: 'rgb(var(--color-background))',
-          arrowColor: 'rgb(var(--color-background))',
-          overlayColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 10000,
-        },
-        tooltip: {
-          borderRadius: '8px',
-          padding: '1.5rem',
-          fontSize: '0.9375rem',
-        },
-        tooltipContent: {
-          padding: '0.5rem 0',
-        },
-        buttonNext: {
-          backgroundColor: 'rgb(var(--color-primary))',
-          color: '#fff',
-          borderRadius: '4px',
-          padding: '0.5rem 1rem',
-          fontSize: '0.875rem',
-          fontWeight: 500,
-        },
-        buttonBack: {
-          color: 'rgb(var(--color-text-secondary))',
-          marginRight: '0.5rem',
-        },
-        buttonSkip: {
-          color: 'rgb(var(--color-text-secondary))',
-        },
-      }}
+      options={options}
+      styles={styles}
+      onEvent={handleJoyrideCallback}
       locale={{
         back: 'Back',
         close: 'Close',
@@ -242,15 +256,6 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
         next: 'Next',
         open: 'Open',
         skip: 'Skip Tour',
-      }}
-      floaterProps={{
-        disableAnimation: false,
-        styles: {
-          arrow: {
-            length: 10,
-            spread: 20,
-          },
-        },
       }}
     />
   );
@@ -261,7 +266,6 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
  */
 export const resetCockpitTour = () => {
   localStorage.removeItem(TOUR_COMPLETED_KEY);
-  console.log('[CockpitTour] Tour reset - will run on next Cockpit visit');
 };
 
 /**
