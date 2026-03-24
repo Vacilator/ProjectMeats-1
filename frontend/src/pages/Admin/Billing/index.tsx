@@ -1,6 +1,22 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Card, Col, Row, Space, Statistic, Table, Tag, Typography, message } from 'antd';
+import {
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DownloadOutlined } from '@ant-design/icons';
 
@@ -25,6 +41,26 @@ interface InvoiceRow {
   status: InvoiceStatus;
 }
 
+interface TenantConfiguration {
+  id: string;
+  key: string;
+  value: string;
+  category: string;
+  data_type: 'string' | 'integer' | 'float' | 'boolean' | 'json';
+}
+
+interface ManagePlanFormValues {
+  planName: string;
+  billingCycle: 'Monthly' | 'Annual';
+  userLimit: number;
+}
+
+const BILLING_CONFIG_KEYS = {
+  planName: 'billing.plan_name',
+  billingCycle: 'billing.billing_cycle',
+  userLimit: 'billing.user_limit',
+} as const;
+
 const BillingPage: React.FC = () => {
   const currentTenantQuery = useQuery<TenantCurrent>({
     queryKey: ['tenants', 'current', 'billing-dashboard'],
@@ -37,17 +73,131 @@ const BillingPage: React.FC = () => {
 
   const tenant = currentTenantQuery.data;
 
+  const billingConfigsQuery = useQuery<TenantConfiguration[]>({
+    queryKey: ['tenant-configurations', 'billing'],
+    queryFn: async () => {
+      const res = await apiClient.get('/configurations/', { params: { search: 'billing.' } });
+      const raw = res.data as unknown;
+      const data = Array.isArray(raw)
+        ? raw
+        : typeof raw === 'object' && raw !== null && Array.isArray((raw as any).results)
+          ? (raw as any).results
+          : [];
+      return data as TenantConfiguration[];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const billingConfigByKey = useMemo(() => {
+    const map = new Map<string, TenantConfiguration>();
+    (billingConfigsQuery.data || []).forEach((c) => {
+      if (c?.key) map.set(c.key, c);
+    });
+    return map;
+  }, [billingConfigsQuery.data]);
+
+  const planName = billingConfigByKey.get(BILLING_CONFIG_KEYS.planName)?.value || 'Enterprise Tier';
+  const billingCycle =
+    (billingConfigByKey.get(BILLING_CONFIG_KEYS.billingCycle)?.value as ManagePlanFormValues['billingCycle'] | undefined) ||
+    'Monthly';
+  const userLimit = Number(billingConfigByKey.get(BILLING_CONFIG_KEYS.userLimit)?.value || 50);
+
   // Mock subscription/payment/invoice data for initial dashboard render.
-  const planName = 'Enterprise Tier';
-  const billingCycle = 'Monthly';
   const nextBillingDate = '2026-04-01';
-  const userLimit = 50;
   const activeUsers = tenant?.user_count ?? 0;
 
   const paymentMethod = {
     brand: 'Visa',
     last4: '4242',
     exp: '12/27',
+  };
+
+  const [isManagePlanOpen, setIsManagePlanOpen] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [managePlanForm] = Form.useForm<ManagePlanFormValues>();
+
+  const openManagePlan = () => {
+    managePlanForm.setFieldsValue({
+      planName,
+      billingCycle: billingCycle === 'Annual' ? 'Annual' : 'Monthly',
+      userLimit: Number.isFinite(userLimit) ? userLimit : 50,
+    });
+    setIsManagePlanOpen(true);
+  };
+
+  const upsertConfig = async (cfg: {
+    key: string;
+    value: string;
+    display_name: string;
+    description: string;
+    data_type: TenantConfiguration['data_type'];
+    category: string;
+    default_value?: string;
+  }) => {
+    const existing = billingConfigByKey.get(cfg.key);
+
+    if (existing?.id) {
+      await apiClient.patch(`/configurations/${existing.id}/`, { value: cfg.value });
+      return;
+    }
+
+    await apiClient.post('/configurations/', {
+      category: cfg.category,
+      key: cfg.key,
+      display_name: cfg.display_name,
+      description: cfg.description,
+      value: cfg.value,
+      data_type: cfg.data_type,
+      default_value: cfg.default_value ?? '',
+      is_system: false,
+      is_required: false,
+    });
+  };
+
+  const savePlan = async () => {
+    try {
+      const values = await managePlanForm.validateFields();
+      setIsSavingPlan(true);
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.planName,
+        display_name: 'Billing Plan Name',
+        description: 'Display name for the tenant billing plan shown in the Admin Workspace Billing dashboard.',
+        value: values.planName.trim() || 'Enterprise Tier',
+        data_type: 'string',
+        default_value: 'Enterprise Tier',
+      });
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.billingCycle,
+        display_name: 'Billing Cycle',
+        description: 'Billing cycle for the tenant plan (Monthly or Annual).',
+        value: values.billingCycle,
+        data_type: 'string',
+        default_value: 'Monthly',
+      });
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.userLimit,
+        display_name: 'Plan User Limit',
+        description: 'Maximum active users allowed by the tenant billing plan (display-only unless enforced elsewhere).',
+        value: String(values.userLimit),
+        data_type: 'integer',
+        default_value: '50',
+      });
+
+      await billingConfigsQuery.refetch();
+      message.success('Plan updated.');
+      setIsManagePlanOpen(false);
+    } catch (e: any) {
+      if (e?.errorFields) return; // antd validation
+      message.error('Failed to update plan.');
+    } finally {
+      setIsSavingPlan(false);
+    }
   };
 
   const invoices: InvoiceRow[] = [
@@ -127,6 +277,46 @@ const BillingPage: React.FC = () => {
       description="Subscription, payment method, and invoice history."
       icon="💳"
     >
+      <Modal
+        title="Manage Plan"
+        open={isManagePlanOpen}
+        onCancel={() => setIsManagePlanOpen(false)}
+        onOk={() => void savePlan()}
+        okText="Save"
+        confirmLoading={isSavingPlan}
+        destroyOnClose
+      >
+        <Form form={managePlanForm} layout="vertical" preserve={false}>
+          <Form.Item
+            label="Plan name"
+            name="planName"
+            rules={[{ required: true, message: 'Plan name is required' }]}
+          >
+            <Input placeholder="e.g., Enterprise Tier" />
+          </Form.Item>
+
+          <Form.Item label="Billing cycle" name="billingCycle" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { value: 'Monthly', label: 'Monthly' },
+                { value: 'Annual', label: 'Annual' },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="User limit"
+            name="userLimit"
+            rules={[{ required: true, type: 'number', min: 1, message: 'User limit must be at least 1' }]}
+          >
+            <InputNumber min={1} style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Text type="secondary">
+            This updates the tenant Billing dashboard display values via Tenant Configurations.
+          </Text>
+        </Form>
+      </Modal>
       <AdminGuard
         feature="billing"
         allow={(p) => p.can_manage_billing}
@@ -153,10 +343,7 @@ const BillingPage: React.FC = () => {
                 <Card
                   title="Current Subscription"
                   extra={
-                    <Button
-                      type="primary"
-                      onClick={() => message.info('Plan management will be connected shortly.')}
-                    >
+                    <Button type="primary" onClick={openManagePlan} loading={billingConfigsQuery.isFetching}>
                       Manage Plan
                     </Button>
                   }
