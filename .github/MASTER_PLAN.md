@@ -43,6 +43,8 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — Dependabot: bump frontend TypeScript to 6.0.2 — PR: #3890.
+- 2026-03-24 — Dependabot: bump frontend lucide-react to 1.0.1 — PR: #3888.
 - 2026-03-24 — Golden Standard Sweep (Docs/Typing): ARCHITECTURE_V3 reference + docstrings + removed remaining TS `any` in key UI components — PR: #3903.
 - 2026-03-24 — Golden Standard Sweep (Frontend): route-level lazy loading + logger/type hardening — PR: #3900.
 - 2026-03-24 — Phase 4 polish: global keyboard shortcuts + SearchableSelect fuzzy search + theme token strictness — PR: #3899.
