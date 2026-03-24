@@ -325,7 +325,7 @@ export const WorkFormsEditor: React.FC = () => {
   const readOnly = useMemo(() => previewMode || !permissions.can_edit, [previewMode, permissions.can_edit]);
 
   const handleWorkflowSaved = useCallback(
-    (workflow: { id: string; name: string }) => {
+    (workflow: { id: string; name: string; status?: WorkFormStatus }) => {
       setHasUnsavedChanges(false);
 
       // After create/clone, move URL into edit mode so refresh works.
@@ -337,6 +337,10 @@ export const WorkFormsEditor: React.FC = () => {
 
       // Keep header title stable if user saved under a different name inside the editor.
       setFlowName(workflow.name);
+
+      if (workflow.status) {
+        setStatus(workflow.status);
+      }
     },
     [id, isCloneMode, navigate]
   );
