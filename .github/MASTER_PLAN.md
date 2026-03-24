@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — Golden Standard Sweep (Docs/Typing): ARCHITECTURE_V3 reference + docstrings + removed remaining TS `any` in key UI components — PR: #3903.
 - 2026-03-24 — Golden Standard Sweep (Frontend): route-level lazy loading + logger/type hardening — PR: #3900.
 - 2026-03-24 — Phase 4 polish: global keyboard shortcuts + SearchableSelect fuzzy search + theme token strictness — PR: #3899.
 - 2026-03-24 — Phase 3 AI Swarm UX: HITL Review Card + AI Learning Metrics Dashboard — PR: #3897.
