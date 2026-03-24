@@ -64,3 +64,7 @@ export type { ParallelPathNodeData } from './ParallelPathNode';
 
 export { SubWorkflowNode } from './SubWorkflowNode';
 export type { SubWorkflowNodeData } from './SubWorkflowNode';
+
+// Phase 2: Control Flow — Loop
+export { LoopNode } from './LoopNode';
+export type { LoopNodeData } from './LoopNode';
