@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — Restored and Expanded AI Tool Registry: Microsoft Graph Email Sync, Outlook Email Drafting, and Database Search natively connected to the Swarm — PR: #3922.
 - 2026-03-24 — Fixed theme token fallbacks (Defined missing CSS vars to prevent UI elements rendering black) — PR: #3921.
 - 2026-03-24 — Hardened network request resiliency (Fixed trailing slashes causing 502 loops & added 500 error circuit breakers) — PR: #3920.
 - 2026-03-24 — Fixed Workform Editor CSS viewport height + layout overlaps (Eliminated blank bottom space; NodePalette cushions; Toolbar flex-wrapping) — PR: #3919.
