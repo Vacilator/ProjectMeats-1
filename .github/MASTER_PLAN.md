@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — Fixed Workform Editor CSS viewport height + layout overlaps (Eliminated blank bottom space; NodePalette cushions; Toolbar flex-wrapping) — PR: #3919.
 - 2026-03-24 — Fixed Workform Editor React Crash #310 (Migrated from sequential counters to unique IDs to prevent hook collisions) — PR: #3918.
 - 2026-03-24 — Restored automated environment promotion PR creation (development→uat, uat→main) — PR: #3916.
 - 2026-03-24 — Fixed Email OData 400 crash patterns (14-day local filtering) & wired Real OpenAI Chatbot with Email Context injection — PR: #3915.
