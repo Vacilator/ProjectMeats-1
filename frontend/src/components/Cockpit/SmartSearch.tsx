@@ -678,7 +678,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
       setRelationalChunks(chunks);
     } catch (error) {
-      console.error('[SmartSearch] Failed to load relational chunks:', error);
+      // Non-fatal: keep UI responsive even if relationships endpoint is temporarily unhealthy.
+      console.debug('[SmartSearch] Failed to load relational chunks (non-fatal):', error);
       setRelationalChunks([]);
     } finally {
       setIsRelationsLoading(false);
@@ -933,10 +934,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
     setLoadingRelationTab(tabKey);
     try {
-      const response = await businessApi.get(
-        `/system/entities/${encodeURIComponent(entity.type)}/${encodeURIComponent(entity.id)}/relationships/`,
-        { params: { relationship_types: relationshipType } }
-      );
+      // CRITICAL: trailing slash before query params prevents redirect loops (Nginx/Django APPEND_SLASH)
+      const url = `/system/entities/${encodeURIComponent(entity.type)}/${encodeURIComponent(entity.id)}/relationships/?relationship_types=${encodeURIComponent(relationshipType)}`;
+      const response = await businessApi.get(url);
 
       const items = (response.data?.relationships?.[relationshipType] ?? []) as any[];
       const count = Number(response.data?.counts?.[relationshipType] ?? items.length);
@@ -954,7 +954,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         [tabKey]: { items: mapped, count },
       }));
     } catch (error) {
-      console.error('[SmartSearch] Failed to load relationship tab:', tabKey, error);
+      // Non-fatal: avoid noisy console errors for intermittent 5xxs.
+      console.debug('[SmartSearch] Failed to load relationship tab (non-fatal):', tabKey, error);
       setRelationTabData(prev => ({
         ...prev,
         [tabKey]: { items: [], count: 0 },
