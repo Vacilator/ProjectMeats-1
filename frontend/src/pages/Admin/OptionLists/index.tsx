@@ -8,6 +8,7 @@
  * - System Choice Lists vs Custom Tenant Lists
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button, Card, Input, Modal, Space, Table, Tabs, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -16,11 +17,13 @@ import { apiClient } from '@/services/apiService';
 import { AdminGuard, AdminPage, EmptyState, LoadingSkeleton } from '@/components/Admin';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 
+import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
+
 import { OptionListModal } from './OptionListModal';
 
 const { Text } = Typography;
 
-type ActiveTabKey = 'system' | 'custom';
+type ActiveTabKey = 'system' | 'custom' | 'overrides';
 
 interface SystemChoiceList {
   id: string;
@@ -54,6 +57,7 @@ const OptionListsPage: React.FC = () => {
     permissions.role === 'admin' ||
     permissions.role === 'superuser';
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<ActiveTabKey>('system');
   const [lists, setLists] = useState<SystemChoiceList[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +66,14 @@ const OptionListsPage: React.FC = () => {
 
   // Mock data placeholder for Custom Tenant Lists (workflow-specific dropdowns)
   const [customLists] = useState<CustomTenantList[]>([]);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'system' || tab === 'custom' || tab === 'overrides') {
+      setActiveTab(tab);
+    }
+    // Only run on mount / tab param change
+  }, [searchParams]);
 
   useEffect(() => {
     if (!canView) return;
@@ -265,7 +277,14 @@ const OptionListsPage: React.FC = () => {
           <Card>
             <Tabs
               activeKey={activeTab}
-              onChange={(key) => setActiveTab(key as ActiveTabKey)}
+              onChange={(key) => {
+                const next = key as ActiveTabKey;
+                setActiveTab(next);
+
+                const nextParams = new URLSearchParams(searchParams);
+                nextParams.set('tab', next);
+                setSearchParams(nextParams, { replace: true });
+              }}
               items={[
                 {
                   key: 'system',
@@ -308,6 +327,25 @@ const OptionListsPage: React.FC = () => {
                         pagination={{ pageSize: 10, showSizeChanger: true }}
                       />
                     ),
+                },
+                {
+                  key: 'overrides',
+                  label: 'Tenant Overrides',
+                  children: !permissions.tenant_id ? (
+                    <EmptyState
+                      icon="🏢"
+                      title="Tenant unavailable"
+                      message="We couldn't resolve the current tenant for overrides. Try reloading the page."
+                    />
+                  ) : permissions.can_manage_customizations ? (
+                    <TenantChoiceOverride tenantId={String(permissions.tenant_id)} />
+                  ) : (
+                    <EmptyState
+                      icon="🔒"
+                      title="No access"
+                      message="Only tenant administrators can manage choice list overrides."
+                    />
+                  ),
                 },
               ]}
             />
