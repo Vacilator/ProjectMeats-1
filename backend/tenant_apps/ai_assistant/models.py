@@ -177,6 +177,8 @@ class AIFeedbackLog(TenantAwareModel):
         indexes = [
             models.Index(fields=["tenant", "document_id"], name="ai_fb_tenant_doc_idx"),
             models.Index(fields=["tenant", "document_type"], name="ai_fb_tenant_type_idx"),
+            # Optimizes the pending-review queue: tenant + unresolved + confidence + time.
+            models.Index(fields=["tenant", "resolved_by", "confidence_score", "created_on"], name="ai_fb_queue_idx"),
         ]
 
     def _calculate_precision_delta(self) -> float:

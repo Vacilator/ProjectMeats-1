@@ -15,6 +15,7 @@ from rest_framework import filters, permissions, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -114,6 +115,8 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
     """Simplified chat API for frontend integration."""
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
+    throttle_scope = 'ai_chat'
 
     @action(detail=False, methods=["post"])
     def chat(self, request):
@@ -627,6 +630,8 @@ class AIAgentChatView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
+    throttle_scope = 'ai_chat'
 
     def post(self, request):
         return ChatBotAPIViewSet().chat(request)
@@ -639,6 +644,8 @@ class PendingReviewResolveAPIView(APIView):
     """
 
     permission_classes = [IsAdminUser]
+    throttle_classes = [UserRateThrottle, ScopedRateThrottle]
+    throttle_scope = 'ai_feedback'
 
     def post(self, request, feedback_id):
         serializer = PendingReviewResolveRequestSerializer(data=request.data)
