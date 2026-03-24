@@ -43,6 +43,7 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 
 ### PR Log (append-only)
 
+- 2026-03-24 — FlowEditor control-flow UX: LoopNode (2-in/2-out) + ErrorEdge conversion toggle — PR: #3894.
 - 2026-03-23 — Universal Form Standardization, AntD Searchable MultiSelect, and Live AI Overviews — PR: #3875.
 - 2026-03-23 — Fixed Protein-to-Product cascading filters (Backend case-sensitivity, URL serialization, and removed aggressive UX auto-add) — PR: #3874.
 - 2026-03-23 — Admin Workspace Finalization: Option Lists enhancement & Billing Dashboard implementation — PR: #3873.
