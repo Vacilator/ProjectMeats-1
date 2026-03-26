@@ -56,15 +56,18 @@ interface ManagePlanFormValues {
 }
 
 interface PaymentMethodFormValues {
-  brand: string;
-  last4: string;
-  exp: string;
+  billingPortalUrl: string;
 }
 
 const BILLING_CONFIG_KEYS = {
   planName: 'billing.plan_name',
   billingCycle: 'billing.billing_cycle',
   userLimit: 'billing.user_limit',
+
+  /** If provided, the UI will open this URL to manage payment methods (e.g., Stripe customer portal). */
+  billingPortalUrl: 'billing.portal_url',
+
+  // Optional display-only fields (can be populated by an external billing integration later).
   paymentBrand: 'billing.payment_method_brand',
   paymentLast4: 'billing.payment_method_last4',
   paymentExp: 'billing.payment_method_exp',
@@ -112,11 +115,14 @@ const BillingPage: React.FC = () => {
       | undefined) || 'Monthly';
   const userLimit = Number(billingConfigByKey.get(BILLING_CONFIG_KEYS.userLimit)?.value || 50);
 
-  const paymentBrand = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentBrand)?.value || 'Visa';
-  const paymentLast4 = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentLast4)?.value || '4242';
-  const paymentExp = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentExp)?.value || '12/27';
+  const billingPortalUrl = billingConfigByKey.get(BILLING_CONFIG_KEYS.billingPortalUrl)?.value || '';
+
+  const paymentBrand = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentBrand)?.value || '';
+  const paymentLast4 = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentLast4)?.value || '';
+  const paymentExp = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentExp)?.value || '';
 
   const planOptions = useMemo(() => {
+    // Intentionally fixed choices: you can select a plan, but you can't edit plan names.
     const defaults = ['Starter', 'Growth', 'Enterprise Tier'];
     const unique = new Set<string>([...defaults, planName].filter(Boolean));
     return Array.from(unique).map((value) => ({ value, label: value }));
@@ -145,11 +151,23 @@ const BillingPage: React.FC = () => {
 
   const openPaymentMethod = () => {
     paymentMethodForm.setFieldsValue({
-      brand: paymentBrand,
-      last4: paymentLast4,
-      exp: paymentExp,
+      billingPortalUrl,
     });
     setIsPaymentMethodOpen(true);
+  };
+
+  const openBillingPortal = () => {
+    const url = String(billingPortalUrl || '').trim();
+    if (!url) {
+      openPaymentMethod();
+      return;
+    }
+
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      message.error('Failed to open billing portal.');
+    }
   };
 
   const upsertConfig = async (cfg: {
@@ -235,41 +253,21 @@ const BillingPage: React.FC = () => {
 
       await upsertConfig({
         category: 'integrations',
-        key: BILLING_CONFIG_KEYS.paymentBrand,
-        display_name: 'Payment Method Brand',
-        description: 'Card brand shown in the Admin Workspace Billing dashboard (display-only).',
-        value: values.brand.trim(),
-        data_type: 'string',
-        default_value: 'Visa',
-      });
-
-      await upsertConfig({
-        category: 'integrations',
-        key: BILLING_CONFIG_KEYS.paymentLast4,
-        display_name: 'Payment Method Last 4',
+        key: BILLING_CONFIG_KEYS.billingPortalUrl,
+        display_name: 'Billing Portal URL',
         description:
-          'Last 4 digits of the payment method shown in the Billing dashboard (display-only).',
-        value: values.last4.trim(),
+          'URL to a secure billing portal (e.g., Stripe customer portal) for managing payment methods.',
+        value: String(values.billingPortalUrl || '').trim(),
         data_type: 'string',
-        default_value: '4242',
-      });
-
-      await upsertConfig({
-        category: 'integrations',
-        key: BILLING_CONFIG_KEYS.paymentExp,
-        display_name: 'Payment Method Expiration',
-        description: 'Expiration (MM/YY) shown in the Billing dashboard (display-only).',
-        value: values.exp.trim(),
-        data_type: 'string',
-        default_value: '12/27',
+        default_value: '',
       });
 
       await billingConfigsQuery.refetch();
-      message.success('Payment method updated.');
+      message.success('Billing portal saved.');
       setIsPaymentMethodOpen(false);
     } catch (e: any) {
       if (e?.errorFields) return;
-      message.error('Failed to update payment method.');
+      message.error('Failed to save billing portal.');
     } finally {
       setIsSavingPaymentMethod(false);
     }
@@ -401,7 +399,7 @@ const BillingPage: React.FC = () => {
       </Modal>
 
       <Modal
-        title="Update Payment Method"
+        title="Manage Payment Method"
         open={isPaymentMethodOpen}
         onCancel={() => setIsPaymentMethodOpen(false)}
         onOk={() => void savePaymentMethod()}
@@ -411,38 +409,22 @@ const BillingPage: React.FC = () => {
       >
         <Form form={paymentMethodForm} layout="vertical" preserve={false}>
           <Form.Item
-            label="Brand"
-            name="brand"
-            rules={[{ required: true, message: 'Brand is required' }]}
-          >
-            <Input placeholder="e.g., Visa" />
-          </Form.Item>
-
-          <Form.Item
-            label="Last 4"
-            name="last4"
+            label="Billing portal URL"
+            name="billingPortalUrl"
             rules={[
-              { required: true, message: 'Last 4 digits are required' },
-              { pattern: /^\d{4}$/, message: 'Enter exactly 4 digits' },
+              {
+                required: true,
+                message: 'Add a billing portal URL to manage payment methods securely (no card data stored in ProjectMeats).',
+              },
+              { type: 'url', message: 'Enter a valid URL (https://...)' },
             ]}
           >
-            <Input inputMode="numeric" maxLength={4} placeholder="4242" />
-          </Form.Item>
-
-          <Form.Item
-            label="Expiration (MM/YY)"
-            name="exp"
-            rules={[
-              { required: true, message: 'Expiration is required' },
-              { pattern: /^(0[1-9]|1[0-2])\/(\d{2})$/, message: 'Use MM/YY format (e.g., 12/27)' },
-            ]}
-          >
-            <Input placeholder="12/27" />
+            <Input placeholder="https://billing.example.com/portal" />
           </Form.Item>
 
           <Text type="secondary">
-            Display-only for now. When Stripe/portal integration is enabled, this will be replaced
-            by a secure customer portal flow.
+            This opens your secure billing portal (e.g., Stripe customer portal) to update cards.
+            ProjectMeats does not store card details.
           </Text>
         </Form>
       </Modal>
@@ -504,13 +486,33 @@ const BillingPage: React.FC = () => {
               <Col xs={24} lg={12}>
                 <Card
                   title="Payment Method"
-                  extra={<Button onClick={openPaymentMethod}>Update Payment Method</Button>}
+                  extra={
+                    <Button onClick={openBillingPortal}>
+                      {billingPortalUrl ? 'Manage Payment Method' : 'Set Billing Portal'}
+                    </Button>
+                  }
                 >
                   <Space direction="vertical" size={4}>
-                    <Text strong>
-                      {paymentBrand} ending in {paymentLast4}
-                    </Text>
-                    <Text type="secondary">Expires {paymentExp}</Text>
+                    {billingPortalUrl ? (
+                      <>
+                        <Text strong>Managed in billing portal</Text>
+                        {paymentBrand && paymentLast4 ? (
+                          <Text type="secondary">
+                            {paymentBrand} ending in {paymentLast4}
+                            {paymentExp ? ` • Expires ${paymentExp}` : ''}
+                          </Text>
+                        ) : (
+                          <Text type="secondary">Payment details will appear once connected.</Text>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <Text strong>No billing portal configured</Text>
+                        <Text type="secondary">
+                          Add a secure billing portal URL to manage payment methods (no card data stored in ProjectMeats).
+                        </Text>
+                      </>
+                    )}
                     <Text type="secondary">Tenant: {tenant.name}</Text>
                   </Space>
                 </Card>
