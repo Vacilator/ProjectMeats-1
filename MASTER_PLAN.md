@@ -61,6 +61,71 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
+## Gaps & Improvements (Repo audit output)
+
+This section captures the highest-signal gaps found during repo review, with concrete acceptance criteria.
+
+### 1) Documentation consistency (avoid contradictory “100% complete” claims)
+**Gap:** Multiple docs (e.g. `ROADMAP.md`, some verification reports) contain “100% complete / all phases complete” statements that can conflict with the real operational backlog.
+
+**Plan:**
+- Add explicit “reference/historical” banners to non-canonical docs.
+- Ensure only `MASTER_PLAN.md` claims current-state status.
+
+**Acceptance criteria:**
+- No non-canonical doc presents itself as the current source of truth without a pointer to `MASTER_PLAN.md`.
+
+### 2) Verification levels (make “done” unambiguous)
+**Gap:** “Merged” is sometimes treated as “verified”. This blurs true readiness.
+
+**Plan:** adopt a lightweight evidence rubric in this master plan:
+- **Merged**: PR merged.
+- **Tested**: relevant repo tests/scripts run (existing tooling only).
+- **Verified (manual)**: user-facing flow spot-checked.
+
+**Acceptance criteria:**
+- New “done” entries in the snapshot include at least: PR/commit + verification level.
+
+### 3) Local backend test ergonomics (extensions/infrastructure assumptions)
+**Gap:** Some environments cannot run backend tests due to missing PostgreSQL extensions (e.g. `vector` / pgvector).
+
+**Plan:**
+- Document a supported local testing path (Docker Postgres image with required extensions, or a fallback test profile).
+- Ensure CI remains the authoritative verification channel when local infra is incomplete.
+
+**Acceptance criteria:**
+- A contributor can follow existing docs/scripts to run backend tests without bespoke manual DB tinkering.
+
+### 4) Multi-tenant safety + RLS drift prevention
+**Gap:** Tenant context and RLS policies remain a recurring failure mode.
+
+**Plan:**
+- Every new tenant-aware table migration must include RLS policy (per `docs/workforms/MIGRATION_STANDARDS.md`).
+- Keep “tenant-required” API contracts explicit (fail fast with 400/403, not 500).
+
+**Acceptance criteria:**
+- No tenant-scoped create endpoints throw unhandled IntegrityError/permission errors in normal use.
+
+### 5) Frontend API contract drift
+**Gap:** Some pages historically bypassed the service layer or used inconsistent URL shapes (trailing slash / tenant in path).
+
+**Plan:**
+- Enforce “service layer only” (`businessApi` / `workformsApi`) and normalize endpoint shapes.
+
+**Acceptance criteria:**
+- New frontend code does not introduce raw axios instances or hardcoded `/api/v1/tenants/{id}` paths.
+
+### 6) Operational reliability (promotion + deploy workflows)
+**Gap:** Auto-promotion and deployment workflows are critical and require ongoing observability.
+
+**Plan:**
+- Keep promotion workflows green and ensure failures are actionable (clear logs, no silent success).
+
+**Acceptance criteria:**
+- Promotion PR creation is reproducible (dev→uat, uat→main/prod) and failures surface as failed jobs (not “success with no-op”).
+
+---
+
 ## Appendix: Historical Plan Notes (for context)
 
 
