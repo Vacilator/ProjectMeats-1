@@ -49,6 +49,23 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
 - 2026-03-26 — Tenant Option Lists (Tenant Lists) create 500 hardened — PR: #3950.
 - 2026-03-26 — Email Ingestion “Sync Now” correctness + pagination + error surfacing — PR: #3951.
+- 2026-03-26 — Docs: canonicalize Master Plan — PR: #3952.
+- 2026-03-26 — Docs: master plan gap audit — PR: #3953.
+- 2026-03-26 — Unify Inquiry create form across Cockpit — PR: #3956.
+- 2026-03-26 — Add EntityFormSurface consolidation layer — PR: #3957.
+- 2026-03-26 — Harden UniversalEntityForm submit + key-field ordering — PR: #3958.
+- 2026-03-26 — Add key_fields to universal form schema — PR: #3959.
+- 2026-03-26 — Cockpit: fix +New entity create modal — PR: #3960.
+- 2026-03-26 — Cockpit: + New call purpose + inquiry modal — PR: #3961.
+- 2026-03-26 — Docs: demote non-canonical roadmaps — PR: #3962.
+- 2026-03-26 — FlowEditor: auto-map Apply shows Apply Changes — PR: #3963.
+- 2026-03-26 — FlowEditor: Form Process node not transparent — PR: #3964.
+- 2026-03-26 — Backend: prevent RLS-related 500s — PR: #3965.
+- 2026-03-26 — Cockpit: confirm + navigate after create — PR: #3966.
+- 2026-03-26 — Email sync: find new order emails reliably — PR: #3967.
+- 2026-03-26 — Admin Billing: payment method portal + plan select — PR: #3968.
+- 2026-03-26 — Forms: migrate SalesOrders/Claims to EntityFormSurface — PR: #3969.
+- 2026-03-26 — Fix Admin Invitations 500 when email fails — PR: #3970.
 
 - 2026-03-24 — Fixed global Ant Design theme corruption (Sanitized background tokens causing pure black component rendering) — PR: #3925.
 - 2026-03-24 — Admin Workspace: Organization Profile save hardened (avoid multipart PATCH 502s) — PR: #3924.
