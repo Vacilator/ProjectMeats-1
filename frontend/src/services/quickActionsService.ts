@@ -5,33 +5,7 @@
  * Supports request cancellation via AbortController.
  */
 import axios, { CancelTokenSource } from 'axios';
-import { config } from '../config/runtime';
-
-const API_BASE_URL = config.API_BASE_URL;
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-  xsrfCookieName: 'csrftoken',
-  xsrfHeaderName: 'X-CSRFToken',
-});
-
-// Request interceptor for authentication
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    config.headers.Authorization = `Token ${token}`;
-  }
-  const tenantId = localStorage.getItem('tenantId');
-  if (tenantId) {
-    config.headers['X-Tenant-ID'] = tenantId;
-  }
-  return config;
-});
+import { apiClient } from './apiService';
 
 // Cancel token manager for request cancellation
 class CancelTokenManager {
