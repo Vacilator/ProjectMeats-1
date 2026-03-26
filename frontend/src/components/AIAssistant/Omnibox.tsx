@@ -41,8 +41,6 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
       setSuggestions([]);
     }
     setSelectedSuggestionIndex(-1);
-    // sampleCommands is static and doesn't need to be in dependencies
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [command]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

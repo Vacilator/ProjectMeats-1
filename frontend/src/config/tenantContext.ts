@@ -15,6 +15,8 @@
  * - custom-tenant.com -> { tenant: 'custom-tenant', environment: 'production' }
  */
 
+import { logger } from '../utils/logger';
+
 export interface TenantInfo {
   tenant: string | null;
   environment: 'development' | 'uat' | 'production';
@@ -209,12 +211,10 @@ export function initializeTenantContext(): TenantInfo {
   
   // Log in development mode only (without exposing full API URL)
   if (process.env.NODE_ENV === 'development') {
-    // eslint-disable-next-line no-console
-    console.log('[Tenant Context] Initialized:', {
+    logger.debug('[Tenant Context] Initialized', {
       hostname: window.location.hostname,
       tenant: context.tenant || 'none',
       environment: context.environment,
-      // Don't log full API URL to avoid exposing endpoint structure
     });
   }
   
