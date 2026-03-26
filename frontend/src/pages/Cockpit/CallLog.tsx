@@ -16,13 +16,14 @@
  * 
  * Updated: 2026-02-03 - Renamed from "Call Log" to "Calls"
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { Calendar, Badge, Segmented } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { ActivityFeed } from '../../components/Shared/ActivityFeed';
 import { ScheduleCallModal } from '../../components/Shared/ScheduleCallModal';
+import { InquiryCallModal } from '../../components/Calls/InquiryCallModal';
 import { apiClient } from '../../services/apiService';
 import { formatToLocal } from '../../utils/formatters';
 
@@ -85,6 +86,45 @@ const PageTitle = styled.h1`
 const HeaderActions = styled.div`
   display: flex;
   gap: 0.75rem;
+`;
+
+const DropdownContainer = styled.div`
+  position: relative;
+`;
+
+const DropdownMenu = styled.div<{ $open: boolean }>`
+  display: ${(p) => (p.$open ? 'block' : 'none')};
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  min-width: 220px;
+  z-index: 2000;
+  overflow: hidden;
+`;
+
+const DropdownItem = styled.button`
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 0.875rem;
+  color: rgb(var(--color-text-primary));
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(var(--color-primary), 0.08);
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid rgb(var(--color-border));
+  }
 `;
 
 const PrimaryButton = styled.button`
@@ -612,6 +652,34 @@ export const CallLog: React.FC = () => {
   const [selectedCall, setSelectedCall] = useState<ScheduledCall | null>(null);
   const [entityFilter, setEntityFilter] = useState<EntityFilter | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [defaultCallPurpose, setDefaultCallPurpose] = useState<string | undefined>(undefined);
+  const [showInquiryCallModal, setShowInquiryCallModal] = useState(false);
+
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
+  const newMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDocClick = (ev: MouseEvent) => {
+      if (!newMenuRef.current) return;
+      if (newMenuRef.current.contains(ev.target as Node)) return;
+      setNewMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const startNew = (purpose: string) => {
+    setNewMenuOpen(false);
+
+    if (purpose === 'inquiry') {
+      setShowInquiryCallModal(true);
+      return;
+    }
+
+    setDefaultCallPurpose(purpose);
+    setShowScheduleModal(true);
+  };
 
   // Phase 2: Edit & Delete state
   const [editingCall, setEditingCall] = useState<ScheduledCall | null>(null);
@@ -975,7 +1043,7 @@ export const CallLog: React.FC = () => {
       return (
         <EmptyState>
           <p>No scheduled calls found.</p>
-          <p>Click "Schedule New Call" to get started.</p>
+          <p>Click "+ New" to get started.</p>
         </EmptyState>
       );
     }
@@ -1063,17 +1131,40 @@ export const CallLog: React.FC = () => {
       <PageHeader>
         <PageTitle>Calls</PageTitle>
         <HeaderActions>
-          <PrimaryButton onClick={() => setShowScheduleModal(true)}>
-            + Schedule New Call
-          </PrimaryButton>
+          <DropdownContainer ref={newMenuRef}>
+            <PrimaryButton type="button" onClick={() => setNewMenuOpen((v) => !v)}>
+              + New
+            </PrimaryButton>
+            <DropdownMenu $open={newMenuOpen} role="menu" aria-label="New call">
+              <DropdownItem type="button" onClick={() => startNew('follow_up')}>Follow-up</DropdownItem>
+              <DropdownItem type="button" onClick={() => startNew('inquiry')}>Inquiry</DropdownItem>
+              <DropdownItem type="button" onClick={() => startNew('complaint')}>Complaint</DropdownItem>
+              <DropdownItem type="button" onClick={() => startNew('order')}>Order</DropdownItem>
+              <DropdownItem type="button" onClick={() => startNew('support')}>Support</DropdownItem>
+              <DropdownItem type="button" onClick={() => startNew('other')}>Other</DropdownItem>
+            </DropdownMenu>
+          </DropdownContainer>
         </HeaderActions>
       </PageHeader>
+
+      <InquiryCallModal
+        isOpen={showInquiryCallModal}
+        onClose={() => setShowInquiryCallModal(false)}
+        onSuccess={() => {
+          void fetchScheduledCalls();
+          setShowInquiryCallModal(false);
+        }}
+      />
 
       {/* Schedule Modal - Create */}
       <ScheduleCallModal
         isOpen={showScheduleModal}
-        onClose={() => setShowScheduleModal(false)}
+        onClose={() => {
+          setShowScheduleModal(false);
+          setDefaultCallPurpose(undefined);
+        }}
         onSuccess={fetchScheduledCalls}
+        defaultCallPurpose={defaultCallPurpose}
       />
 
       {/* Edit Modal */}
