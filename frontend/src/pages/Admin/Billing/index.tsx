@@ -55,10 +55,19 @@ interface ManagePlanFormValues {
   userLimit: number;
 }
 
+interface PaymentMethodFormValues {
+  brand: string;
+  last4: string;
+  exp: string;
+}
+
 const BILLING_CONFIG_KEYS = {
   planName: 'billing.plan_name',
   billingCycle: 'billing.billing_cycle',
   userLimit: 'billing.user_limit',
+  paymentBrand: 'billing.payment_method_brand',
+  paymentLast4: 'billing.payment_method_last4',
+  paymentExp: 'billing.payment_method_exp',
 } as const;
 
 const BillingPage: React.FC = () => {
@@ -98,23 +107,32 @@ const BillingPage: React.FC = () => {
 
   const planName = billingConfigByKey.get(BILLING_CONFIG_KEYS.planName)?.value || 'Enterprise Tier';
   const billingCycle =
-    (billingConfigByKey.get(BILLING_CONFIG_KEYS.billingCycle)?.value as ManagePlanFormValues['billingCycle'] | undefined) ||
-    'Monthly';
+    (billingConfigByKey.get(BILLING_CONFIG_KEYS.billingCycle)?.value as
+      | ManagePlanFormValues['billingCycle']
+      | undefined) || 'Monthly';
   const userLimit = Number(billingConfigByKey.get(BILLING_CONFIG_KEYS.userLimit)?.value || 50);
 
-  // Mock subscription/payment/invoice data for initial dashboard render.
+  const paymentBrand = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentBrand)?.value || 'Visa';
+  const paymentLast4 = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentLast4)?.value || '4242';
+  const paymentExp = billingConfigByKey.get(BILLING_CONFIG_KEYS.paymentExp)?.value || '12/27';
+
+  const planOptions = useMemo(() => {
+    const defaults = ['Starter', 'Growth', 'Enterprise Tier'];
+    const unique = new Set<string>([...defaults, planName].filter(Boolean));
+    return Array.from(unique).map((value) => ({ value, label: value }));
+  }, [planName]);
+
+  // Mock subscription/invoice data for initial dashboard render.
   const nextBillingDate = '2026-04-01';
   const activeUsers = tenant?.user_count ?? 0;
-
-  const paymentMethod = {
-    brand: 'Visa',
-    last4: '4242',
-    exp: '12/27',
-  };
 
   const [isManagePlanOpen, setIsManagePlanOpen] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [managePlanForm] = Form.useForm<ManagePlanFormValues>();
+
+  const [isPaymentMethodOpen, setIsPaymentMethodOpen] = useState(false);
+  const [isSavingPaymentMethod, setIsSavingPaymentMethod] = useState(false);
+  const [paymentMethodForm] = Form.useForm<PaymentMethodFormValues>();
 
   const openManagePlan = () => {
     managePlanForm.setFieldsValue({
@@ -123,6 +141,15 @@ const BillingPage: React.FC = () => {
       userLimit: Number.isFinite(userLimit) ? userLimit : 50,
     });
     setIsManagePlanOpen(true);
+  };
+
+  const openPaymentMethod = () => {
+    paymentMethodForm.setFieldsValue({
+      brand: paymentBrand,
+      last4: paymentLast4,
+      exp: paymentExp,
+    });
+    setIsPaymentMethodOpen(true);
   };
 
   const upsertConfig = async (cfg: {
@@ -163,7 +190,7 @@ const BillingPage: React.FC = () => {
         category: 'integrations',
         key: BILLING_CONFIG_KEYS.planName,
         display_name: 'Billing Plan Name',
-        description: 'Display name for the tenant billing plan shown in the Admin Workspace Billing dashboard.',
+        description: 'Selected tenant billing plan shown in the Admin Workspace Billing dashboard.',
         value: values.planName.trim() || 'Enterprise Tier',
         data_type: 'string',
         default_value: 'Enterprise Tier',
@@ -183,7 +210,8 @@ const BillingPage: React.FC = () => {
         category: 'integrations',
         key: BILLING_CONFIG_KEYS.userLimit,
         display_name: 'Plan User Limit',
-        description: 'Maximum active users allowed by the tenant billing plan (display-only unless enforced elsewhere).',
+        description:
+          'Maximum active users allowed by the tenant billing plan (display-only unless enforced elsewhere).',
         value: String(values.userLimit),
         data_type: 'integer',
         default_value: '50',
@@ -197,6 +225,53 @@ const BillingPage: React.FC = () => {
       message.error('Failed to update plan.');
     } finally {
       setIsSavingPlan(false);
+    }
+  };
+
+  const savePaymentMethod = async () => {
+    try {
+      const values = await paymentMethodForm.validateFields();
+      setIsSavingPaymentMethod(true);
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.paymentBrand,
+        display_name: 'Payment Method Brand',
+        description: 'Card brand shown in the Admin Workspace Billing dashboard (display-only).',
+        value: values.brand.trim(),
+        data_type: 'string',
+        default_value: 'Visa',
+      });
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.paymentLast4,
+        display_name: 'Payment Method Last 4',
+        description:
+          'Last 4 digits of the payment method shown in the Billing dashboard (display-only).',
+        value: values.last4.trim(),
+        data_type: 'string',
+        default_value: '4242',
+      });
+
+      await upsertConfig({
+        category: 'integrations',
+        key: BILLING_CONFIG_KEYS.paymentExp,
+        display_name: 'Payment Method Expiration',
+        description: 'Expiration (MM/YY) shown in the Billing dashboard (display-only).',
+        value: values.exp.trim(),
+        data_type: 'string',
+        default_value: '12/27',
+      });
+
+      await billingConfigsQuery.refetch();
+      message.success('Payment method updated.');
+      setIsPaymentMethodOpen(false);
+    } catch (e: any) {
+      if (e?.errorFields) return;
+      message.error('Failed to update payment method.');
+    } finally {
+      setIsSavingPaymentMethod(false);
     }
   };
 
@@ -288,11 +363,16 @@ const BillingPage: React.FC = () => {
       >
         <Form form={managePlanForm} layout="vertical" preserve={false}>
           <Form.Item
-            label="Plan name"
+            label="Plan"
             name="planName"
-            rules={[{ required: true, message: 'Plan name is required' }]}
+            rules={[{ required: true, message: 'Plan is required' }]}
           >
-            <Input placeholder="e.g., Enterprise Tier" />
+            <Select
+              options={planOptions}
+              showSearch
+              optionFilterProp="label"
+              placeholder="Select a plan"
+            />
           </Form.Item>
 
           <Form.Item label="Billing cycle" name="billingCycle" rules={[{ required: true }]}>
@@ -307,13 +387,62 @@ const BillingPage: React.FC = () => {
           <Form.Item
             label="User limit"
             name="userLimit"
-            rules={[{ required: true, type: 'number', min: 1, message: 'User limit must be at least 1' }]}
+            rules={[
+              { required: true, type: 'number', min: 1, message: 'User limit must be at least 1' },
+            ]}
           >
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
 
           <Text type="secondary">
             This updates the tenant Billing dashboard display values via Tenant Configurations.
+          </Text>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Update Payment Method"
+        open={isPaymentMethodOpen}
+        onCancel={() => setIsPaymentMethodOpen(false)}
+        onOk={() => void savePaymentMethod()}
+        okText="Save"
+        confirmLoading={isSavingPaymentMethod}
+        destroyOnClose
+      >
+        <Form form={paymentMethodForm} layout="vertical" preserve={false}>
+          <Form.Item
+            label="Brand"
+            name="brand"
+            rules={[{ required: true, message: 'Brand is required' }]}
+          >
+            <Input placeholder="e.g., Visa" />
+          </Form.Item>
+
+          <Form.Item
+            label="Last 4"
+            name="last4"
+            rules={[
+              { required: true, message: 'Last 4 digits are required' },
+              { pattern: /^\d{4}$/, message: 'Enter exactly 4 digits' },
+            ]}
+          >
+            <Input inputMode="numeric" maxLength={4} placeholder="4242" />
+          </Form.Item>
+
+          <Form.Item
+            label="Expiration (MM/YY)"
+            name="exp"
+            rules={[
+              { required: true, message: 'Expiration is required' },
+              { pattern: /^(0[1-9]|1[0-2])\/(\d{2})$/, message: 'Use MM/YY format (e.g., 12/27)' },
+            ]}
+          >
+            <Input placeholder="12/27" />
+          </Form.Item>
+
+          <Text type="secondary">
+            Display-only for now. When Stripe/portal integration is enabled, this will be replaced
+            by a secure customer portal flow.
           </Text>
         </Form>
       </Modal>
@@ -343,7 +472,11 @@ const BillingPage: React.FC = () => {
                 <Card
                   title="Current Subscription"
                   extra={
-                    <Button type="primary" onClick={openManagePlan} loading={billingConfigsQuery.isFetching}>
+                    <Button
+                      type="primary"
+                      onClick={openManagePlan}
+                      loading={billingConfigsQuery.isFetching}
+                    >
                       Manage Plan
                     </Button>
                   }
@@ -362,10 +495,7 @@ const BillingPage: React.FC = () => {
                       />
                     </Col>
                     <Col span={12}>
-                      <Statistic
-                        title="Active Users"
-                        value={`${activeUsers}/${userLimit}`}
-                      />
+                      <Statistic title="Active Users" value={`${activeUsers}/${userLimit}`} />
                     </Col>
                   </Row>
                 </Card>
@@ -374,18 +504,13 @@ const BillingPage: React.FC = () => {
               <Col xs={24} lg={12}>
                 <Card
                   title="Payment Method"
-                  extra={
-                    <Button onClick={() => message.info('Payment method updates will be available soon.')}
-                    >
-                      Update Payment Method
-                    </Button>
-                  }
+                  extra={<Button onClick={openPaymentMethod}>Update Payment Method</Button>}
                 >
                   <Space direction="vertical" size={4}>
                     <Text strong>
-                      {paymentMethod.brand} ending in {paymentMethod.last4}
+                      {paymentBrand} ending in {paymentLast4}
                     </Text>
-                    <Text type="secondary">Expires {paymentMethod.exp}</Text>
+                    <Text type="secondary">Expires {paymentExp}</Text>
                     <Text type="secondary">Tenant: {tenant.name}</Text>
                   </Space>
                 </Card>
