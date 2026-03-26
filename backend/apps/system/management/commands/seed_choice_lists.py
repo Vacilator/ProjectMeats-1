@@ -161,7 +161,6 @@ class Command(BaseCommand):
                             'model_field_path': list_def.get('model_field_path', ''),
                             'is_extensible': list_def.get('is_extensible', True),
                             'is_reorderable': list_def.get('is_reorderable', True),
-                            'is_active': True,
                         }
                     )
                     

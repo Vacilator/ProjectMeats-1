@@ -158,6 +158,11 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
                 context={'choice_list': choice_list, 'tenant': tenant}
             )
             serializer.is_valid(raise_exception=True)
+
+            # RLS: ensure session vars are set on the active connection for this write.
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
             
             item = SystemChoiceItem.objects.create(
                 choice_list=choice_list,
@@ -217,6 +222,12 @@ class SystemChoiceListViewSet(viewsets.ReadOnlyModelViewSet):
         serializer.is_valid(raise_exception=True)
         
         tenant = getattr(request, 'tenant', None)
+
+        if tenant:
+            # RLS: ensure session vars are set on the active connection for this write.
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
         
         for item_data in serializer.validated_data['items']:
             item_id = item_data['id']
@@ -430,6 +441,11 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
 
             raise ValidationError('Tenant context required.')
 
+        # RLS: ensure session vars are set on the active connection for this write.
+        from apps.tenants.rls import set_current_tenant
+
+        set_current_tenant(str(tenant.id))
+
         instance = serializer.save(tenant=tenant, updated_by=self.request.user)
 
         try:
@@ -472,6 +488,12 @@ class TenantChoiceOverrideViewSet(viewsets.ModelViewSet):
             'disabled_system_items': list(instance.disabled_system_items or []),
             'display_config': instance.display_config or {},
         }
+
+        if tenant:
+            # RLS: ensure session vars are set on the active connection for this write.
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
 
         updated = serializer.save(updated_by=self.request.user)
 
