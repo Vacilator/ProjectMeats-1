@@ -13,6 +13,7 @@
  */
 
 import { getTenantContext } from './tenantContext';
+import { logger } from '../utils/logger';
 
 // Extend Window interface to include ENV
 declare global {
@@ -148,19 +149,17 @@ export { getRuntimeConfig, getRuntimeConfigBoolean, getRuntimeConfigNumber };
 // Log configuration source in development
 // Note: This only runs once when the module is first imported
 if (isDevelopment) {
-  // eslint-disable-next-line no-console
-  console.log('[Runtime Config] Loaded from:', 
-    window.ENV ? 'window.ENV (runtime)' : 'import.meta.env (build-time)'
-  );
-  
+  logger.debug('[Runtime Config] Loaded', {
+    source: window.ENV ? 'window.ENV (runtime)' : 'import.meta.env (build-time)',
+  });
+
   try {
     const tenantContext = getTenantContext();
-    // eslint-disable-next-line no-console
-    console.log('[Runtime Config] Multi-tenancy:', {
+    logger.debug('[Runtime Config] Multi-tenancy', {
       tenant: tenantContext.tenant || 'none',
       environment: tenantContext.environment,
     });
-  } catch (error) {
+  } catch {
     // Ignore errors in development logging
   }
 }
