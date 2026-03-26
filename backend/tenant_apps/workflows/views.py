@@ -9,11 +9,12 @@ import logging
 from datetime import timedelta
 
 from django.contrib.auth.models import User
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Avg, Count, F, Max, Prefetch, Q
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -853,12 +854,20 @@ class TenantFilteredModelViewSet(viewsets.ModelViewSet):
         return qs.none()
 
     def perform_create(self, serializer):
-        """Set tenant and created_by on create."""
-        save_kwargs = {}
-        if hasattr(self.request, "tenant") and self.request.tenant:
-            save_kwargs["tenant"] = self.request.tenant
-        if hasattr(serializer.Meta.model, "created_by"):
+        """Set tenant and created_by on create.
+
+        Important: tenant context is mandatory for all tenant-scoped models.
+        Without this, the DB unique constraints / RLS can surface as 500s.
+        """
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
+
+        save_kwargs = {"tenant": tenant}
+
+        if hasattr(serializer.Meta.model, "created_by") and getattr(self.request, "user", None):
             save_kwargs["created_by"] = self.request.user
+
         serializer.save(**save_kwargs)
 
 
@@ -877,6 +886,16 @@ class TenantListViewSet(TenantFilteredModelViewSet):
     queryset = TenantList.objects.all()
     serializer_class = TenantListSerializer
     permission_classes = [IsTenantAdminOrOwnerOrReadOnly]
+
+    def create(self, request, *args, **kwargs):
+        """Create list with a friendly error instead of 500 on IntegrityError."""
+        try:
+            return super().create(request, *args, **kwargs)
+        except IntegrityError:
+            return Response(
+                {"error": "A custom list with this name already exists for this tenant."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
     def get_queryset(self):
         qs = super().get_queryset()
