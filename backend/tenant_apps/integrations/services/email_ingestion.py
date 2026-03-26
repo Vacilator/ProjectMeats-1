@@ -21,11 +21,30 @@ class EmailIngestionService:
     Multi-tenant aware - iterates through all active tenants with valid tokens.
     """
     
-    # Keywords to identify order-related emails
+    # Keywords to identify order-related emails.
+    # NOTE: Keep these fairly specific to avoid false positives.
     ORDER_KEYWORDS = [
-        'order', 'purchase', 'quote', 'invoice', 'po ', 'p.o.', 
-        'req ', 'requisition', 'meat', 'beef', 'pork', 'chicken',
-        'delivery', 'shipment'
+        'purchase order',
+        'sales order',
+        'order confirmation',
+        'order #',
+        'invoice',
+        'quote',
+        'requisition',
+        'req ',
+        'po ',
+        'po#',
+        'p.o.',
+        'p/o',
+        'delivery',
+        'shipment',
+        'bol',
+        'bill of lading',
+        'packing list',
+        'meat',
+        'beef',
+        'pork',
+        'chicken',
     ]
     
     def __init__(self, tenant: Tenant | None = None):
@@ -35,10 +54,17 @@ class EmailIngestionService:
 
         self.stats = {
             'tenants_processed': 0,
+            # Count of Graph messages scanned (before keyword/attachment filtering)
+            'emails_scanned': 0,
+            # Count of messages that matched our order heuristics
+            'emails_matched': 0,
+            # Count of messages returned from fetch stage (matched set)
             'emails_fetched': 0,
             'emails_saved': 0,
             'emails_skipped': 0,
             'errors': 0,
+            'errors_detail': [],
+            'last_cutoff': None,
         }
     
     def poll_all_tenants(self) -> Dict[str, int]:
@@ -96,6 +122,7 @@ class EmailIngestionService:
                     exc_info=True,
                 )
                 self.stats['errors'] += 1
+                self.stats.setdefault('errors_detail', []).append('Token refresh failed; reconnect Outlook if this persists.')
 
         # Get access token (decrypt errors must not bubble to API)
         try:
@@ -109,18 +136,34 @@ class EmailIngestionService:
                 exc_info=True,
             )
             self.stats['errors'] += 1
+            self.stats.setdefault('errors_detail', []).append('Failed to decrypt Microsoft access token. Check OAUTH_ENCRYPTION_KEY / reconnect Outlook.')
             return
 
         if not access_token:
             logger.error(f"No access token for tenant {tenant.name}")
             self.stats['errors'] += 1
+            self.stats.setdefault('errors_detail', []).append('No Microsoft access token available. Reconnect Outlook.')
             return
         
         # Initialize Microsoft Graph provider
         graph_provider = MicrosoftGraphProvider(tenant.id)
+
+        # Validate token before claiming "no emails".
+        try:
+            if not graph_provider.validate_token(access_token):
+                self.stats['errors'] += 1
+                self.stats.setdefault('errors_detail', []).append('Microsoft token is invalid/expired. Reconnect Outlook to re-authorize Mail.ReadWrite.')
+                return
+        except Exception:
+            # Don't fail the request, but ensure we don't silently report "no emails".
+            self.stats['errors'] += 1
+            self.stats.setdefault('errors_detail', []).append('Token validation failed. Outlook connection may be unhealthy.')
+            return
         
         # Fetch recent emails (last 14 days)
         cutoff_date = timezone.now() - timedelta(days=14)
+        self.stats['last_cutoff'] = cutoff_date.isoformat()
+
         emails = self._fetch_inbox_messages(
             graph_provider,
             access_token,
@@ -167,12 +210,14 @@ class EmailIngestionService:
         # Filter by date only at the API level, then do keyword filtering locally in Python.
         filter_query = f"receivedDateTime ge {since_str}"
         
-        # Microsoft Graph API endpoint with filters
+        # Microsoft Graph API endpoint with filters.
+        # NOTE: We intentionally use /me/messages (not just Inbox) because many orgs
+        # auto-file order emails into subfolders.
         url = f"{provider.GRAPH_API_BASE}/me/messages"
         params = {
             '$filter': filter_query,
             '$select': 'id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId',
-            '$top': 100,  # Fetch more and filter locally
+            '$top': 100,
             '$orderby': 'receivedDateTime desc'
         }
         
@@ -182,33 +227,55 @@ class EmailIngestionService:
         }
         
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            
-            messages = data.get('value', [])
+            # Pull up to a few pages to avoid missing emails when the mailbox is busy.
+            all_messages: List[Dict[str, Any]] = []
+            next_url = url
+            next_params = params
+            page = 0
+
+            while next_url and page < 5 and len(all_messages) < 500:
+                response = requests.get(next_url, headers=headers, params=next_params, timeout=30)
+                response.raise_for_status()
+                data = response.json() or {}
+
+                batch = data.get('value', []) or []
+                all_messages.extend(batch)
+
+                next_url = data.get('@odata.nextLink')
+                next_params = None  # nextLink already contains query string
+                page += 1
+
+            self.stats['emails_scanned'] += len(all_messages)
 
             # Local Python filtering (defensive against Graph filtering quirks)
-            filtered_messages = []
-            for msg in messages:
-                subject = msg.get('subject', '').lower()
-                body_preview = msg.get('bodyPreview', '').lower()
-                has_attachments = msg.get('hasAttachments', False)
+            filtered_messages: List[Dict[str, Any]] = []
+            for msg in all_messages:
+                subject = (msg.get('subject') or '').lower()
+                body_preview = (msg.get('bodyPreview') or '').lower()
+                has_attachments = bool(msg.get('hasAttachments', False))
 
-                # Check if order keywords exist in subject OR body, OR if it has attachments
-                is_order_related = any(
-                    (kw in subject) or (kw in body_preview)
-                    for kw in self.ORDER_KEYWORDS
-                )
+                haystack = f"{subject}\n{body_preview}"
+
+                # Check if order keywords exist in subject/body, OR if it has attachments
+                is_order_related = any(kw in haystack for kw in self.ORDER_KEYWORDS)
 
                 if is_order_related or has_attachments:
                     filtered_messages.append(msg)
 
-            logger.info(f"Fetched {len(messages)} total, filtered down to {len(filtered_messages)} target emails")
+            self.stats['emails_matched'] += len(filtered_messages)
+
+            logger.info(
+                'Graph scan complete: total=%s matched=%s (since=%s)',
+                len(all_messages),
+                len(filtered_messages),
+                since_str,
+            )
             return filtered_messages
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to fetch inbox messages: {str(e)}")
+            logger.error(f"Failed to fetch inbox messages: {str(e)}", exc_info=True)
+            self.stats['errors'] += 1
+            self.stats.setdefault('errors_detail', []).append(f'Graph fetch failed: {type(e).__name__}')
             return []
     
     def _save_email_log(
