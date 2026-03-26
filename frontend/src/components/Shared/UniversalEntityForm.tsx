@@ -66,6 +66,14 @@ const normalizeEntityKey = (entityType: string): string => {
   // Common UI paths → introspection aliases.
   if (lower === 'sales-orders' || lower === 'sales_orders') return 'sales_order';
   if (lower === 'purchase-orders' || lower === 'purchase_orders') return 'purchase_order';
+
+  // Plural resources commonly used in UI routes.
+  if (lower === 'customers' || lower === 'customer') return 'customer';
+  if (lower === 'suppliers' || lower === 'supplier') return 'supplier';
+  if (lower === 'contacts' || lower === 'contact') return 'contact';
+  if (lower === 'products' || lower === 'product') return 'product';
+  if (lower === 'invoices' || lower === 'invoice') return 'invoice';
+
   if (lower === 'inquiries' || lower === 'inquiry') return 'inquiries.inquiry';
   if (lower === 'claims' || lower === 'claim') return 'invoices.claim';
 
