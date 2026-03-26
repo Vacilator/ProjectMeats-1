@@ -514,6 +514,31 @@ export const SecondaryButton = styled(Button).attrs({ $variant: 'secondary' as c
 export const DangerButton = styled(Button).attrs({ $variant: 'danger' as const })``;
 
 /**
+ * Icon Button - Small square button for icons
+ */
+export const IconButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-secondary));
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+    color: rgb(var(--color-primary));
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+`;
+
+/**
  * Add Button - Button for adding items
  */
 export const AddButton = styled.button`
