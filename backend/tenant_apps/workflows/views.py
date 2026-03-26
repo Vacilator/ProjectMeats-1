@@ -36,7 +36,13 @@ from .models import (
     WorkflowExecutionLog,
     WorkflowStatus,
 )
-from .permissions import CanEditWorkForm, CanPublishWorkForm, IsTenantAdminOrOwner, WorkFormPermissionHelper
+from .permissions import (
+    CanEditWorkForm,
+    CanPublishWorkForm,
+    IsTenantAdminOrOwner,
+    IsTenantAdminOrOwnerOrReadOnly,
+    WorkFormPermissionHelper,
+)
 from .serializers import (
     TenantFormCreateSerializer,
     TenantFormEntitySerializer,
@@ -870,6 +876,7 @@ class TenantListViewSet(TenantFilteredModelViewSet):
 
     queryset = TenantList.objects.all()
     serializer_class = TenantListSerializer
+    permission_classes = [IsTenantAdminOrOwnerOrReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
