@@ -72,6 +72,14 @@ class ReportsSummaryAPIView(APIView):
         if not tenant:
             return Response({"error": "Tenant context required"}, status=400)
 
+        # Ensure RLS session vars exist for any tenant-scoped models queried below.
+        try:
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
+        except Exception:
+            logger.exception("Reports: failed to set RLS session vars")
+
         dr = _get_date_range(request)
         now = timezone.now()
 
@@ -241,6 +249,13 @@ class PurchaseOrderTrendsAPIView(APIView):
         if not tenant:
             return Response({"error": "Tenant context required"}, status=400)
 
+        try:
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
+        except Exception:
+            logger.exception("Reports: failed to set RLS session vars")
+
         dr = _get_date_range(request)
 
         from tenant_apps.purchase_orders.models import PurchaseOrder
@@ -280,6 +295,13 @@ class TopSuppliersAPIView(APIView):
         tenant = getattr(request, "tenant", None)
         if not tenant:
             return Response({"error": "Tenant context required"}, status=400)
+
+        try:
+            from apps.tenants.rls import set_current_tenant
+
+            set_current_tenant(str(tenant.id))
+        except Exception:
+            logger.exception("Reports: failed to set RLS session vars")
 
         dr = _get_date_range(request)
         try:
