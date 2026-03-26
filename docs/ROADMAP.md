@@ -1,6 +1,8 @@
-# ProjectMeats Development Roadmap
+# ProjectMeats Development Roadmap (Reference)
 
-**Status**: 🔄 LIVING DOCUMENT  
+**Authority:** This is **not** the canonical status tracker. For current truth and backlog, see `MASTER_PLAN.md`.
+
+**Status**: Reference / historical context  
 **Category**: Reference  
 **Last Updated**: 2026-02-01
 
