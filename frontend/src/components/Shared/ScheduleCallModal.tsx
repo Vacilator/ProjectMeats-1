@@ -26,7 +26,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 import UniversalEntityForm from './UniversalEntityForm';
 import { CallTimer } from '../Calls';
 
@@ -392,8 +392,8 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   const fetchEntityOptions = async (type: EntityType) => {
     setLoadingEntities(true);
     try {
-      const endpoint = type === 'supplier' ? 'suppliers/' : 'customers/';
-      const response = await apiClient.get(endpoint);
+      const endpoint = type === 'supplier' ? '/suppliers/' : '/customers/';
+      const response = await businessApi.get(endpoint);
       const data = response.data.results || response.data;
       
       // Map to consistent format
@@ -467,10 +467,10 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
 
       if (isEditMode && initialData?.id) {
         // Update existing call
-        await apiClient.patch(`workspace/scheduled-calls/${initialData.id}/`, payload);
+        await businessApi.patch(`/workspace/scheduled-calls/${initialData.id}/`, payload);
       } else {
         // Create new call
-        await apiClient.post('workspace/scheduled-calls/', payload);
+        await businessApi.post('/workspace/scheduled-calls/', payload);
       }
 
       // Success

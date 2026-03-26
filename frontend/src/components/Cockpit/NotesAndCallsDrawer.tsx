@@ -126,7 +126,6 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
       setItems(timeline);
     } catch (err) {
       // Non-fatal: suppress console noise on intermittent 5xx/502s.
-      console.debug('[NotesAndCallsDrawer] Failed to load timeline (non-fatal)', err);
       setItems([]);
     } finally {
       setLoading(false);

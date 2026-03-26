@@ -24,7 +24,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { ActivityFeed } from '../../components/Shared/ActivityFeed';
 import { ScheduleCallModal } from '../../components/Shared/ScheduleCallModal';
 import { InquiryCallModal } from '../../components/Calls/InquiryCallModal';
-import { apiClient } from '../../services/apiService';
+import { businessApi } from '../../services/businessApi';
 import { formatToLocal } from '../../utils/formatters';
 
 // ============================================================================
@@ -703,7 +703,7 @@ export const CallLog: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get('workspace/scheduled-calls/');
+      const response = await businessApi.get('/workspace/scheduled-calls/');
       const callsData = response.data.results || response.data;
 
       // Sort by scheduled_for (upcoming first)
@@ -732,7 +732,7 @@ export const CallLog: React.FC = () => {
 
   const handleCompleteCall = async (callId: number) => {
     try {
-      await apiClient.patch(`workspace/scheduled-calls/${callId}/`, {
+      await businessApi.patch(`/workspace/scheduled-calls/${callId}/`, {
         is_completed: true,
         outcome: 'Completed from call log',
       });
@@ -779,7 +779,7 @@ export const CallLog: React.FC = () => {
     }
     
     try {
-      await apiClient.delete(`workspace/scheduled-calls/${callId}/`);
+      await businessApi.delete(`/workspace/scheduled-calls/${callId}/`);
       await fetchScheduledCalls();
     } catch (err: any) {
       console.error('Failed to delete call:', err);
@@ -891,7 +891,7 @@ export const CallLog: React.FC = () => {
         .format('YYYY-MM-DDTHH:mm:ss');
       
       // Update backend
-      await apiClient.patch(`workspace/scheduled-calls/${draggedCall.id}/`, {
+      await businessApi.patch(`/workspace/scheduled-calls/${draggedCall.id}/`, {
         scheduled_for: newScheduledFor,
       });
       
