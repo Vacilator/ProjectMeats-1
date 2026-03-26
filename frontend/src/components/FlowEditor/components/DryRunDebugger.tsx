@@ -354,18 +354,6 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     URL.revokeObjectURL(url);
   };
   
-  if (!selectedNode) {
-    return (
-      <DebuggerContainer>
-        <EmptyState>
-          <Eye size={48} color="rgb(var(--color-text-tertiary))" />
-          <h3>No Node Selected</h3>
-          <p>Select a node to test it with mock data</p>
-        </EmptyState>
-      </DebuggerContainer>
-    );
-  }
-  
   const currentStep = executionHistory[executionHistory.length - 1];
 
   const executionVariables = useMemo(() => {
@@ -381,6 +369,18 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
       output: currentStep?.output ?? {},
     };
   }, [currentStep, mockInput]);
+
+  if (!selectedNode) {
+    return (
+      <DebuggerContainer>
+        <EmptyState>
+          <Eye size={48} color="rgb(var(--color-text-tertiary))" />
+          <h3>No Node Selected</h3>
+          <p>Select a node to test it with mock data</p>
+        </EmptyState>
+      </DebuggerContainer>
+    );
+  }
   
   return (
     <DebuggerContainer>
