@@ -1,0 +1,247 @@
+"""Reports API endpoints.
+
+Purpose: Provide business-friendly aggregated metrics for the Reports page without
+forcing the frontend to pull entire entity lists (performance + correctness).
+
+All endpoints are tenant-scoped via request.tenant.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, Optional, Tuple
+
+from django.db.models import Avg, Count, Sum
+from django.db.models.functions import TruncMonth
+from django.utils import timezone
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+
+@dataclass(frozen=True)
+class DateRange:
+    start: date
+    end: date
+
+
+def _parse_iso_date(raw: Optional[str]) -> Optional[date]:
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(str(raw))
+    except ValueError:
+        return None
+
+
+def _get_date_range(request) -> DateRange:
+    """Get date range from query params (start/end), default last 30 days."""
+    start = _parse_iso_date(request.query_params.get("start"))
+    end = _parse_iso_date(request.query_params.get("end"))
+
+    today = timezone.localdate()
+    if not end:
+        end = today
+    if not start:
+        start = end - timedelta(days=30)
+
+    if start > end:
+        start, end = end, start
+
+    return DateRange(start=start, end=end)
+
+
+class ReportsSummaryAPIView(APIView):
+    """High-level business summary for Reports."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=400)
+
+        dr = _get_date_range(request)
+        now = timezone.now()
+
+        # Local imports (avoid import cycles)
+        from tenant_apps.purchase_orders.models import PurchaseOrder
+        from tenant_apps.sales_orders.models import SalesOrder
+        from tenant_apps.inquiries.models import Inquiry
+        from tenant_apps.cockpit.models import ScheduledCall
+        from tenant_apps.suppliers.models import Supplier
+        from tenant_apps.customers.models import Customer
+        from tenant_apps.contacts.models import Contact
+        from tenant_apps.workflows.models import FormSubmission, FormSubmissionStatus
+
+        po_qs = PurchaseOrder.objects.for_tenant(tenant).filter(order_date__gte=dr.start, order_date__lte=dr.end)
+        po_agg = po_qs.aggregate(
+            count=Count("id"),
+            total_amount=Sum("total_amount"),
+            avg_amount=Avg("total_amount"),
+        )
+
+        so_qs = SalesOrder.objects.for_tenant(tenant).filter(
+            date_time_stamp__date__gte=dr.start,
+            date_time_stamp__date__lte=dr.end,
+        )
+        so_agg = so_qs.aggregate(
+            count=Count("id"),
+            total_amount=Sum("total_amount"),
+            total_weight=Sum("total_weight"),
+            avg_amount=Avg("total_amount"),
+        )
+
+        inquiry_qs = Inquiry.objects.filter(tenant=tenant, inquiry_date__date__gte=dr.start, inquiry_date__date__lte=dr.end)
+        inquiry_total = inquiry_qs.count()
+        inquiry_won = inquiry_qs.filter(status="accepted").count()
+        inquiry_lost = inquiry_qs.filter(status="rejected").count()
+        inquiry_closed = inquiry_won + inquiry_lost
+        inquiry_win_rate = (inquiry_won / inquiry_closed * 100) if inquiry_closed else 0
+
+        # Calls
+        calls_qs = ScheduledCall.objects.filter(tenant=tenant, scheduled_for__date__gte=dr.start, scheduled_for__date__lte=dr.end)
+        calls_total = calls_qs.count()
+        calls_completed = calls_qs.filter(is_completed=True).count()
+        calls_overdue = calls_qs.filter(is_completed=False, scheduled_for__lt=now).count()
+        calls_upcoming = calls_qs.filter(is_completed=False, scheduled_for__gte=now).count()
+        calls_completion_rate = (calls_completed / calls_total * 100) if calls_total else 0
+
+        # WorkForms submissions
+        submissions_qs = FormSubmission.objects.filter(tenant=tenant, created_at__date__gte=dr.start, created_at__date__lte=dr.end)
+        submissions_total = submissions_qs.count()
+        submissions_completed = submissions_qs.filter(status=FormSubmissionStatus.COMPLETED).count()
+        submissions_in_progress = submissions_qs.filter(status=FormSubmissionStatus.IN_PROGRESS).count()
+        submissions_completion_rate = (submissions_completed / submissions_total * 100) if submissions_total else 0
+
+        # Master data
+        suppliers_count = Supplier.objects.for_tenant(tenant).count()
+        customers_count = Customer.objects.for_tenant(tenant).count()
+        contacts_count = Contact.objects.for_tenant(tenant).count()
+
+        return Response(
+            {
+                "date_range": {"start": dr.start.isoformat(), "end": dr.end.isoformat()},
+                "summary": {
+                    "purchase_orders": {
+                        "count": int(po_agg.get("count") or 0),
+                        "total_amount": float(po_agg.get("total_amount") or 0),
+                        "avg_amount": float(po_agg.get("avg_amount") or 0),
+                    },
+                    "sales_orders": {
+                        "count": int(so_agg.get("count") or 0),
+                        "total_amount": float(so_agg.get("total_amount") or 0),
+                        "total_weight": float(so_agg.get("total_weight") or 0),
+                        "avg_amount": float(so_agg.get("avg_amount") or 0),
+                    },
+                    "inquiries": {
+                        "total": int(inquiry_total),
+                        "won": int(inquiry_won),
+                        "lost": int(inquiry_lost),
+                        "win_rate": round(inquiry_win_rate, 1),
+                    },
+                    "calls": {
+                        "total": int(calls_total),
+                        "completed": int(calls_completed),
+                        "upcoming": int(calls_upcoming),
+                        "overdue": int(calls_overdue),
+                        "completion_rate": round(calls_completion_rate, 1),
+                    },
+                    "workforms": {
+                        "submissions_total": int(submissions_total),
+                        "completed": int(submissions_completed),
+                        "in_progress": int(submissions_in_progress),
+                        "completion_rate": round(submissions_completion_rate, 1),
+                    },
+                    "master_data": {
+                        "suppliers": int(suppliers_count),
+                        "customers": int(customers_count),
+                        "contacts": int(contacts_count),
+                    },
+                },
+            }
+        )
+
+
+class PurchaseOrderTrendsAPIView(APIView):
+    """Trend series for purchase orders (month buckets)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=400)
+
+        dr = _get_date_range(request)
+
+        from tenant_apps.purchase_orders.models import PurchaseOrder
+
+        qs = (
+            PurchaseOrder.objects.for_tenant(tenant)
+            .filter(order_date__gte=dr.start, order_date__lte=dr.end)
+            .annotate(bucket=TruncMonth("order_date"))
+            .values("bucket")
+            .annotate(
+                orders=Count("id"),
+                value=Sum("total_amount"),
+                averageValue=Avg("total_amount"),
+            )
+            .order_by("bucket")
+        )
+
+        data = [
+            {
+                "date": (row["bucket"].date().isoformat() if isinstance(row["bucket"], datetime) else str(row["bucket"])),
+                "orders": int(row["orders"] or 0),
+                "value": float(row["value"] or 0),
+                "averageValue": float(row["averageValue"] or 0),
+            }
+            for row in qs
+        ]
+
+        return Response({"date_range": {"start": dr.start.isoformat(), "end": dr.end.isoformat()}, "data": data})
+
+
+class TopSuppliersAPIView(APIView):
+    """Top suppliers by PO value for a date range."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response({"error": "Tenant context required"}, status=400)
+
+        dr = _get_date_range(request)
+        try:
+            limit = int(request.query_params.get("limit", 10))
+        except ValueError:
+            limit = 10
+        limit = max(1, min(limit, 25))
+
+        from tenant_apps.purchase_orders.models import PurchaseOrder
+
+        rows = (
+            PurchaseOrder.objects.for_tenant(tenant)
+            .filter(order_date__gte=dr.start, order_date__lte=dr.end)
+            .values("supplier__name")
+            .annotate(
+                orders=Count("id"),
+                revenue=Sum("total_amount"),
+            )
+            .order_by("-revenue")[:limit]
+        )
+
+        data = [
+            {
+                "name": r["supplier__name"] or "Unknown",
+                "orders": int(r["orders"] or 0),
+                "revenue": float(r["revenue"] or 0),
+                "rating": 0,
+            }
+            for r in rows
+        ]
+
+        return Response({"date_range": {"start": dr.start.isoformat(), "end": dr.end.isoformat()}, "data": data})

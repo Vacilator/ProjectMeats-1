@@ -57,7 +57,7 @@ const PurchaseOrderTrends: React.FC<PurchaseOrderTrendsProps> = ({ data, height 
             yAxisId="left"
             type="monotone"
             dataKey="orders"
-            stroke="#3498db"
+            stroke={`rgb(var(--color-info))`}
             strokeWidth={2}
             name="Number of Orders"
           />
@@ -65,7 +65,7 @@ const PurchaseOrderTrends: React.FC<PurchaseOrderTrendsProps> = ({ data, height 
             yAxisId="right"
             type="monotone"
             dataKey="value"
-            stroke="#2ecc71"
+            stroke={`rgb(var(--color-success))`}
             strokeWidth={2}
             name="Total Value ($)"
           />
@@ -73,7 +73,7 @@ const PurchaseOrderTrends: React.FC<PurchaseOrderTrendsProps> = ({ data, height 
             yAxisId="right"
             type="monotone"
             dataKey="averageValue"
-            stroke="#f39c12"
+            stroke={`rgb(var(--color-warning))`}
             strokeWidth={2}
             strokeDasharray="5 5"
             name="Average Order Value ($)"
