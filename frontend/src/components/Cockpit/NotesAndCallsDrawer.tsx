@@ -204,8 +204,8 @@ export const NotesAndCallsDrawer: React.FC<NotesAndCallsDrawerProps> = ({
                     <div style={{ whiteSpace: 'pre-wrap', color: 'rgb(var(--color-text-primary))' }}>
                       {item.content}
                     </div>
-                    {item.meta?.created_by_name && (
-                      <Text type="secondary">By: {String(item.meta.created_by_name)}</Text>
+                    {typeof item.meta?.created_by_name === 'string' && (
+                      <Text type="secondary">By: {item.meta.created_by_name}</Text>
                     )}
                   </div>
                 }

@@ -19,8 +19,6 @@ import {
   FormField,
   Label,
   Select,
-  Input,
-  TextArea,
   HelpText,
   PrimaryButton,
   SecondaryButton,
