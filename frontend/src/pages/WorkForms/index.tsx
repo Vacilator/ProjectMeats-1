@@ -171,8 +171,9 @@ const TabBadge = styled.span`
   padding: 0 6px;
   font-size: 11px;
   font-weight: 600;
-  color: white;
-  background: rgb(239, 68, 68); /* Error red for action items */
+  color: rgb(var(--color-text-primary));
+  background: rgba(var(--color-error), 0.15);
+  border: 1px solid rgba(var(--color-error), 0.35);
   border-radius: 10px;
 `;
 

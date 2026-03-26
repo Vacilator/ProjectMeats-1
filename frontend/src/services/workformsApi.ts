@@ -157,6 +157,15 @@ export const getAvailableWorkForms = async (params?: {
   return Array.isArray(data) ? data : [];
 };
 
+export interface FormSubmissionCreateResponse {
+  id: string;
+}
+
+export const createFormSubmission = async (formId: string): Promise<FormSubmissionCreateResponse> => {
+  const response = await apiClient.post('/workflows/form-submissions/', { form: formId });
+  return response.data;
+};
+
 // ============================================================================
 // Entity APIs (Phase 1.1-1.3)
 // ============================================================================
