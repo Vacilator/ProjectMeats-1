@@ -170,6 +170,12 @@ const ModalFooter = styled.div`
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border-color, #dee2e6);
   background: var(--bg-secondary, #f8f9fa);
+
+  /* Keep the save action visible in embedded mode */
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
@@ -301,9 +307,15 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
       setEntityLabel(response.entity_label);
       
       // Initialize form data with empty values (plus optional context prefill)
+      // Use type-appropriate defaults to avoid sending invalid placeholders.
       const initialData: Record<string, any> = { ...(mergedContext || {}) };
       response.fields.forEach((f) => {
-        if (initialData[f.key] === undefined) {
+        if (initialData[f.key] !== undefined) return;
+        if (f.type === 'checkbox') {
+          initialData[f.key] = false;
+        } else if (f.type === 'multiselect') {
+          initialData[f.key] = [];
+        } else {
           initialData[f.key] = '';
         }
       });
@@ -401,12 +413,52 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const response = await entityOptionsService.quickCreate(entityType, formData);
+      // Avoid sending empty-string placeholders; these can break numeric/FK/boolean fields
+      // and cause "Save" to appear non-functional.
+      const payload: Record<string, any> = {};
+
+      // Include context values first (if any)
+      Object.entries(mergedContext || {}).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        if (typeof v === 'string' && v.trim() === '') return;
+        if (Array.isArray(v) && v.length === 0) return;
+        payload[k] = v;
+      });
+
+      fields.forEach((field) => {
+        const raw = formData[field.key];
+
+        // Skip empty values
+        if (raw === undefined || raw === null) return;
+        if (typeof raw === 'string' && raw.trim() === '') return;
+        if (Array.isArray(raw) && raw.filter((x) => String(x).trim() !== '').length === 0) return;
+
+        if (field.type === 'number') {
+          const n = typeof raw === 'number' ? raw : Number(raw);
+          if (!Number.isFinite(n)) return;
+          payload[field.key] = n;
+          return;
+        }
+
+        if (field.type === 'checkbox') {
+          payload[field.key] = Boolean(raw);
+          return;
+        }
+
+        if (field.type === 'multiselect') {
+          payload[field.key] = Array.isArray(raw) ? raw : [raw];
+          return;
+        }
+
+        payload[field.key] = raw;
+      });
+
+      const response = await entityOptionsService.quickCreate(entityType, payload);
       onCreated({ value: response.value, label: response.label });
       onClose();
     } catch (err: any) {
       console.error('Failed to create entity:', err);
-      const errorMessage = err.response?.data?.error || 'Failed to create record';
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || 'Failed to create record';
       setErrors({ _general: errorMessage });
     } finally {
       setIsSubmitting(false);
@@ -486,10 +538,18 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         disabled={isSubmitting}
                         style={{ width: '100%' }}
                       />
+                    ) : field.type === 'checkbox' ? (
+                      <input
+                        id={`quick-create-${field.key}`}
+                        type="checkbox"
+                        checked={Boolean(formData[field.key])}
+                        onChange={(e) => handleInputChange(field.key, e.target.checked)}
+                        disabled={isSubmitting}
+                      />
                     ) : (
                       <Input
                         id={`quick-create-${field.key}`}
-                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                         value={formData[field.key] || ''}
                         onChange={(e) => handleInputChange(field.key, e.target.value)}
                         className={errors[field.key] ? 'error' : ''}
@@ -593,10 +653,18 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
                         disabled={isSubmitting}
                         style={{ width: '100%' }}
                       />
+                    ) : field.type === 'checkbox' ? (
+                      <input
+                        id={`quick-create-${field.key}`}
+                        type="checkbox"
+                        checked={Boolean(formData[field.key])}
+                        onChange={(e) => handleInputChange(field.key, e.target.checked)}
+                        disabled={isSubmitting}
+                      />
                     ) : (
                       <Input
                         id={`quick-create-${field.key}`}
-                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'}
+                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                         value={formData[field.key] || ''}
                         onChange={(e) => handleInputChange(field.key, e.target.value)}
                         className={errors[field.key] ? 'error' : ''}
