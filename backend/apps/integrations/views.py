@@ -344,15 +344,36 @@ def sync_emails(request):
                     "error": stats.get('error'),
                     "code": "sync_failed",
                     "tenant_id": tenant_id,
+                    "provider_email": provider.connected_email,
                     "stats": stats,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # If Graph/token/decrypt failed, do NOT report "no new emails".
+        if isinstance(stats, dict) and stats.get('errors', 0) and stats.get('emails_scanned', 0) == 0:
+            detail = None
+            try:
+                detail = (stats.get('errors_detail') or [None])[0]
+            except Exception:
+                detail = None
+
+            return Response(
+                {
+                    "error": detail or "Email sync failed. Outlook connection may be expired or misconfigured.",
+                    "code": "sync_failed",
+                    "tenant_id": tenant_id,
+                    "provider_email": provider.connected_email,
+                    "stats": stats,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
         return Response(
             {
                 "message": "Email sync completed",
                 "tenant_id": tenant_id,
+                "provider_email": provider.connected_email,
                 "stats": stats,
             },
             status=status.HTTP_200_OK,

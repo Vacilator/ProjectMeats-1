@@ -271,14 +271,23 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
       const stats = response.data?.stats;
 
       if (stats) {
-        if (stats.emails_saved > 0) {
-          message.success(`Sync complete: Found and saved ${stats.emails_saved} new emails.`);
-        } else if (stats.emails_skipped > 0) {
-          message.info(
-            `Sync complete: Found ${stats.emails_skipped} order emails, but they were already in the system.`
-          );
+        const scanned = stats.emails_scanned ?? 0;
+        const matched = stats.emails_matched ?? 0;
+        const saved = stats.emails_saved ?? 0;
+        const skipped = stats.emails_skipped ?? 0;
+        const errors = stats.errors ?? 0;
+
+        if (errors > 0) {
+          const detail = (stats.errors_detail && stats.errors_detail[0]) ? String(stats.errors_detail[0]) : undefined;
+          message.warning(detail ? `Sync warnings: ${detail}` : 'Sync completed with warnings.');
+        }
+
+        if (saved > 0) {
+          message.success(`Saved ${saved} new emails (matched ${matched}, scanned ${scanned}).`);
+        } else if (skipped > 0) {
+          message.info(`${skipped} emails already logged (matched ${matched}, scanned ${scanned}).`);
         } else {
-          message.info('Sync complete: Scanned recent emails, no new order-related emails found.');
+          message.info(`No new matching emails (matched ${matched}, scanned ${scanned}).`);
         }
       } else {
         message.success('Email sync completed.');
