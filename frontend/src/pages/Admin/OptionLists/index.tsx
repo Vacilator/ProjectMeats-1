@@ -339,7 +339,13 @@ const OptionListsPage: React.FC = () => {
     >
       <AdminGuard
         feature="option_lists"
-        allow={(p) => p.can_manage_option_lists || p.role === 'manager'}
+        allow={(p) =>
+          p.can_manage_option_lists ||
+          p.role === 'manager' ||
+          p.role === 'owner' ||
+          p.role === 'admin' ||
+          p.role === 'superuser'
+        }
         loadingFallback={<LoadingSkeleton type="card" rows={2} />}
       >
         {loading ? (
