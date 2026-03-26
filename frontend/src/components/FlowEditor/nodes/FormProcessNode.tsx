@@ -63,9 +63,8 @@ const ContainerWrapper = styled.div<{ isExpanded: boolean }>`
   max-width: ${props => props.isExpanded ? 'none' : '400px'};
   
   /* Phase B: Visual containment for sub-flows pattern */
-  background: ${props => props.isExpanded 
-    ? 'rgba(139, 92, 246, 0.04)' // Subtle purple tint when expanded to show container area
-    : 'rgba(var(--color-background-secondary), 0.95)'};
+  /* Keep background opaque so the container is not transparent on the canvas */
+  background: rgb(var(--color-surface));
   
   /* FIX: Ensure border always renders, even when collapsed */
   border-width: 2px;
