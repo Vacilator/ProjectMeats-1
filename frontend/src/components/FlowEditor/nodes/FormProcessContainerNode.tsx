@@ -14,13 +14,17 @@ type Props = {
 const Container = styled.div<{ $selected: boolean }>`
   min-width: 220px;
   padding: 10px 12px;
-  background: rgb(var(--color-background));
-  border: 1px solid rgb(var(--color-primary));
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   color: rgb(var(--color-text-primary));
   box-shadow:
     0 0 0 1px rgb(var(--color-primary) / 0.12),
     ${(p) => (p.$selected ? '0 0 0 3px rgb(var(--color-primary) / 0.25)' : 'none')};
+
+  &:hover {
+    border-color: rgb(var(--color-primary));
+  }
 `;
 
 const TitleRow = styled.div`

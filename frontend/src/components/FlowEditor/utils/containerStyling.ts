@@ -45,7 +45,9 @@ export function getContainerTheme(
 
   // Collapsed state - lighter visual weight
   if (!isExpanded) {
-    theme.background = 'rgba(var(--color-surface), 0.95)';
+    // NOTE: theme RGB tokens are stored as "r g b" and must be wrapped with rgb(... / alpha)
+    // (not rgba(var(--token), a)).
+    theme.background = 'rgb(var(--color-surface) / 0.95)';
     theme.shadow = '0 1px 4px rgba(0, 0, 0, 0.08)';
     theme.headerBackground = 'rgba(102, 126, 234, 0.05)';
   }
