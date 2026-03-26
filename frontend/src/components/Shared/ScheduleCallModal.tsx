@@ -62,6 +62,12 @@ interface ScheduleCallModalProps {
    * Only applied in create mode.
    */
   defaultCallPurpose?: string;
+  /**
+   * Used by entry points that already know the target entity (e.g. Cockpit entity detail).
+   * Only applied in create mode.
+   */
+  defaultEntityType?: EntityType;
+  defaultEntityId?: string | number;
 }
 
 // Restrict to only Supplier and Customer per requirements
@@ -322,6 +328,8 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   onSuccess,
   initialData,
   defaultCallPurpose,
+  defaultEntityType,
+  defaultEntityId,
 }) => {
   const isEditMode = !!initialData?.id;
   
@@ -365,8 +373,14 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
     } else if (isOpen) {
       resetForm();
       setCallPurpose(defaultCallPurpose || 'follow_up');
+      if (defaultEntityType) {
+        setEntityType(defaultEntityType);
+      }
+      if (defaultEntityId !== undefined && defaultEntityId !== null && String(defaultEntityId).trim() !== '') {
+        setEntityId(String(defaultEntityId));
+      }
     }
-  }, [initialData, isOpen, defaultCallPurpose]);
+  }, [initialData, isOpen, defaultCallPurpose, defaultEntityId, defaultEntityType]);
 
   // Fetch entity options when entity type changes
   useEffect(() => {
