@@ -20,6 +20,7 @@ import { useAdminPermissions } from '@/hooks/useAdminPermissions';
 import { TenantChoiceOverride } from '@/components/Admin/TenantChoiceOverride';
 
 import { OptionListModal } from './OptionListModal';
+import { TenantListModal, type TenantList } from './TenantListModal';
 
 const { Text } = Typography;
 
@@ -38,14 +39,7 @@ interface SystemChoiceList {
   updated_at: string;
 }
 
-interface CustomTenantList {
-  id: string;
-  slug: string;
-  name: string;
-  description?: string;
-  items_count: number;
-  updated_at: string;
-}
+type CustomTenantList = TenantList;
 
 const OptionListsPage: React.FC = () => {
   const { permissions } = useAdminPermissions();
@@ -64,8 +58,10 @@ const OptionListsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingList, setEditingList] = useState<SystemChoiceList | null>(null);
 
-  // Mock data placeholder for Custom Tenant Lists (workflow-specific dropdowns)
-  const [customLists] = useState<CustomTenantList[]>([]);
+  const [customLists, setCustomLists] = useState<CustomTenantList[]>([]);
+  const [customLoading, setCustomLoading] = useState(false);
+  const [editingCustomList, setEditingCustomList] = useState<CustomTenantList | null>(null);
+  const [customModalOpen, setCustomModalOpen] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -78,6 +74,7 @@ const OptionListsPage: React.FC = () => {
   useEffect(() => {
     if (!canView) return;
     void loadChoiceLists();
+    void loadCustomLists();
   }, [canView]);
 
   const loadChoiceLists = async () => {
@@ -89,10 +86,26 @@ const OptionListsPage: React.FC = () => {
       setLists(data);
     } catch (error) {
       console.error('Failed to load choice lists:', error);
-      message.error('Failed to load option lists');
+      message.error('Failed to load system option lists');
       setLists([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCustomLists = async () => {
+    setCustomLoading(true);
+    try {
+      const response = await apiClient.get('/workflows/lists/');
+      const raw = response.data as any;
+      const data = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setCustomLists(data);
+    } catch (error) {
+      console.error('Failed to load custom tenant lists:', error);
+      message.error('Failed to load custom tenant lists');
+      setCustomLists([]);
+    } finally {
+      setCustomLoading(false);
     }
   };
 
@@ -114,25 +127,46 @@ const OptionListsPage: React.FC = () => {
 
     return customLists.filter((list) => {
       const name = (list.name || '').toLowerCase();
-      const slug = (list.slug || '').toLowerCase();
       const desc = (list.description || '').toLowerCase();
-      return name.includes(q) || slug.includes(q) || desc.includes(q);
+      const id = String(list.id || '').toLowerCase();
+      return name.includes(q) || desc.includes(q) || id.includes(q);
     });
   }, [customLists, searchQuery]);
 
   const openCreateCustomList = () => {
-    Modal.info({
-      title: 'Create Custom Tenant List (Coming Soon)',
-      content: (
-        <div>
-          <p>
-            Custom Tenant Lists will support workflow-specific dropdown fields (tenant-owned choice lists).
-          </p>
-          <p>
-            For now, this is a placeholder. If/when a TenantListModal exists, we can wire it here.
-          </p>
-        </div>
-      ),
+    if (!canEdit) {
+      Modal.info({
+        title: 'Access restricted',
+        content: 'Only tenant administrators can create custom option lists.',
+      });
+      return;
+    }
+
+    setEditingCustomList(null);
+    setCustomModalOpen(true);
+  };
+
+  const confirmDeleteCustomList = (record: CustomTenantList) => {
+    if (!canEdit) {
+      message.info('Only tenant administrators can delete custom option lists.');
+      return;
+    }
+
+    Modal.confirm({
+      title: `Delete custom list "${record.name}"?`,
+      content: 'This will permanently delete the list and all of its options.',
+      okText: 'Delete',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await apiClient.delete(`/workflows/lists/${record.id}/`);
+          message.success('Custom list deleted');
+          await loadCustomLists();
+        } catch (err: any) {
+          message.error(err?.response?.data?.error || 'Failed to delete custom list');
+        }
+      },
     });
   };
 
@@ -216,7 +250,7 @@ const OptionListsPage: React.FC = () => {
         <Space direction="vertical" size={0}>
           <Text strong>{value}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            <code>{record.slug}</code>
+            <code>{record.id}</code>
           </Text>
         </Space>
       ),
@@ -229,10 +263,18 @@ const OptionListsPage: React.FC = () => {
     },
     {
       title: 'Items',
-      dataIndex: 'items_count',
-      key: 'items_count',
+      dataIndex: 'option_count',
+      key: 'option_count',
       width: 90,
-      render: (count: number) => <Text>{count}</Text>,
+      render: (count: number) => <Text>{count ?? 0}</Text>,
+    },
+    {
+      title: 'Active',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 90,
+      render: (isActive: boolean) =>
+        isActive ? <Tag color="green">Active</Tag> : <Tag>Inactive</Tag>,
     },
     {
       title: 'Updated',
@@ -240,6 +282,28 @@ const OptionListsPage: React.FC = () => {
       key: 'updated_at',
       width: 140,
       render: (iso: string) => <Text>{iso ? new Date(iso).toLocaleDateString() : '—'}</Text>,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 200,
+      render: (_: unknown, record) => (
+        <Space>
+          <Button
+            type="default"
+            disabled={!canEdit}
+            onClick={() => {
+              setEditingCustomList(record);
+              setCustomModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button danger disabled={!canEdit} onClick={() => confirmDeleteCustomList(record)}>
+            Delete
+          </Button>
+        </Space>
+      ),
     },
   ];
 
@@ -262,7 +326,14 @@ const OptionListsPage: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ width: 320 }}
           />
-          <Button icon={<ReloadOutlined />} onClick={loadChoiceLists} loading={loading} />
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => {
+              void loadChoiceLists();
+              void loadCustomLists();
+            }}
+            loading={loading || customLoading}
+          />
         </Space>
       }
     >
@@ -316,8 +387,12 @@ const OptionListsPage: React.FC = () => {
                     filteredCustomLists.length === 0 ? (
                       <EmptyState
                         icon="🧩"
-                        title="No custom lists yet"
-                        message="Create custom tenant lists for workflow-specific dropdown fields."
+                        title={searchQuery ? 'No matches' : 'No custom lists yet'}
+                        message={
+                          searchQuery
+                            ? 'No custom tenant lists match your search.'
+                            : 'Create custom tenant lists for workflow-specific dropdown fields.'
+                        }
                       />
                     ) : (
                       <Table
@@ -325,6 +400,7 @@ const OptionListsPage: React.FC = () => {
                         columns={customColumns}
                         dataSource={filteredCustomLists}
                         pagination={{ pageSize: 10, showSizeChanger: true }}
+                        loading={customLoading}
                       />
                     ),
                 },
@@ -366,6 +442,17 @@ const OptionListsPage: React.FC = () => {
             }}
           />
         )}
+
+        <TenantListModal
+          isOpen={customModalOpen}
+          canEdit={canEdit}
+          initial={editingCustomList}
+          onClose={() => {
+            setCustomModalOpen(false);
+            setEditingCustomList(null);
+          }}
+          onSaved={() => void loadCustomLists()}
+        />
       </AdminGuard>
     </AdminPage>
   );
