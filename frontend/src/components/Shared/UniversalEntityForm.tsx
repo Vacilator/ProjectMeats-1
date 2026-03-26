@@ -28,6 +28,9 @@ export interface UniversalEntityFormProps {
   onClose: () => void;
   onSuccess?: (result: unknown) => void;
   initialValues?: Record<string, unknown>;
+
+  /** Optional override for prioritizing key fields first. */
+  keyFields?: string[];
 }
 
 type SchemaChoice = { value: unknown; label: string };
@@ -71,8 +74,10 @@ const normalizeEntityKey = (entityType: string): string => {
 
 const normalizeEntityEndpoint = (entityType: string): string => {
   const lower = String(entityType || '').toLowerCase();
-  if (lower === 'sales-orders' || lower === 'sales_orders' || lower === 'sales_order') return 'sales-orders/';
-  if (lower === 'purchase-orders' || lower === 'purchase_orders' || lower === 'purchase_order') return 'purchase-orders/';
+  if (lower === 'sales-orders' || lower === 'sales_orders' || lower === 'sales_order')
+    return 'sales-orders/';
+  if (lower === 'purchase-orders' || lower === 'purchase_orders' || lower === 'purchase_order')
+    return 'purchase-orders/';
   if (lower === 'inquiries' || lower === 'inquiry') return 'inquiries/';
   if (lower === 'claims' || lower === 'claim') return 'claims/';
   return `${lower.replace(/^\/+/, '').replace(/\/+$/, '')}/`;
@@ -97,7 +102,13 @@ const mapDrfOptionsType = (t: string | undefined): string => {
   if (type.includes('boolean')) return 'checkbox';
   if (type.includes('date') && !type.includes('datetime')) return 'date';
   if (type.includes('datetime')) return 'datetime';
-  if (type.includes('decimal') || type.includes('float') || type.includes('integer') || type.includes('number')) return 'number';
+  if (
+    type.includes('decimal') ||
+    type.includes('float') ||
+    type.includes('integer') ||
+    type.includes('number')
+  )
+    return 'number';
   if (type.includes('email')) return 'email';
   if (type.includes('url')) return 'url';
   if (type.includes('choice') || type.includes('select')) return 'select';
@@ -112,12 +123,18 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   onClose,
   onSuccess,
   initialValues,
+  keyFields,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [schema, setSchema] = useState<BackendSchema | null>(null);
   const [fkValues, setFkValues] = useState<Record<string, unknown>>({});
-  const [fkOptions, setFkOptions] = useState<Record<string, Array<{ id: string | number; name: string }>>>({});
-  const [productOptions, setProductOptions] = useState<Record<string, Array<{ value: string; label: string }>>>({});
+  const [fkOptions, setFkOptions] = useState<
+    Record<string, Array<{ id: string | number; name: string }>>
+  >({});
+  const [productOptions, setProductOptions] = useState<
+    Record<string, Array<{ value: string; label: string }>>
+  >({});
   const [loadingProducts, setLoadingProducts] = useState<Record<string, boolean>>({});
 
   const schemaEntityKey = useMemo(() => normalizeEntityKey(entityType), [entityType]);
@@ -141,14 +158,17 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             ? ((data as Record<string, unknown>).actions as Record<string, unknown> | undefined)
             : undefined;
 
-        const postFields = (actions && 'POST' in actions ? (actions.POST as Record<string, unknown>) : {}) || {};
+        const postFields =
+          (actions && 'POST' in actions ? (actions.POST as Record<string, unknown>) : {}) || {};
 
         const fields: BackendField[] = Object.entries(postFields).map(([key, meta]) => {
-          const metaObj = (meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : {}) || {};
+          const metaObj =
+            (meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : {}) || {};
           const choicesRaw = metaObj.choices;
           const choices = Array.isArray(choicesRaw)
             ? choicesRaw.map((c: unknown) => {
-                const choice = (c && typeof c === 'object' ? (c as Record<string, unknown>) : {}) || {};
+                const choice =
+                  (c && typeof c === 'object' ? (c as Record<string, unknown>) : {}) || {};
                 const value = choice.value;
                 const label =
                   (typeof choice.display_name === 'string' && choice.display_name) ||
@@ -167,7 +187,11 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
           };
         });
 
-        return { name: `Universal Form: ${entityType}`, description: 'Auto-derived from OPTIONS.', fields };
+        return {
+          name: `Universal Form: ${entityType}`,
+          description: 'Auto-derived from OPTIONS.',
+          fields,
+        };
       } catch (err) {
         throw err;
       }
@@ -192,7 +216,8 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         if (!mounted) return;
         setSchema(null);
         const errorMessage =
-          typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error === 'string'
+          typeof (err as { response?: { data?: { error?: string } } })?.response?.data?.error ===
+          'string'
             ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
             : 'Failed to load form schema';
         message.error(errorMessage);
@@ -212,7 +237,9 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   useEffect(() => {
     if (!isOpen || !schema?.fields?.length) return;
 
-    const fkFields = schema.fields.filter((f) => !shouldSkipField(f.key) && Boolean(f.related_entity));
+    const fkFields = schema.fields.filter(
+      (f) => !shouldSkipField(f.key) && Boolean(f.related_entity)
+    );
     if (!fkFields.length) return;
 
     let cancelled = false;
@@ -220,15 +247,22 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
     const loadFk = async () => {
       for (const f of fkFields) {
         const related = String(f.related_entity || '').toLowerCase();
-        if (!related || related.includes('system.product') || String(f.key).toLowerCase().includes('product')) {
+        if (
+          !related ||
+          related.includes('system.product') ||
+          String(f.key).toLowerCase().includes('product')
+        ) {
           continue;
         }
 
         // Minimal mapping for top FK types.
-        const relatedEndpoint = related.includes('customers.') ? 'customers/' :
-          related.includes('suppliers.') ? 'suppliers/' :
-          related.includes('contacts.') ? 'contacts/' :
-          null;
+        const relatedEndpoint = related.includes('customers.')
+          ? 'customers/'
+          : related.includes('suppliers.')
+            ? 'suppliers/'
+            : related.includes('contacts.')
+              ? 'contacts/'
+              : null;
 
         if (!relatedEndpoint) continue;
 
@@ -269,11 +303,13 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
   }, [isOpen, schema?.fields]);
 
   const fkFields = useMemo(() => {
-    return (schema?.fields ?? []).filter((f) => !shouldSkipField(f.key) && Boolean(f.related_entity));
+    return (schema?.fields ?? []).filter(
+      (f) => !shouldSkipField(f.key) && Boolean(f.related_entity)
+    );
   }, [schema?.fields]);
 
   const scalarFields = useMemo(() => {
-    return (schema?.fields ?? [])
+    const raw = (schema?.fields ?? [])
       .filter((f) => !shouldSkipField(f.key))
       .filter((f) => !f.related_entity)
       .map((f) => ({
@@ -285,7 +321,66 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         placeholder: f.placeholder || undefined,
         help_text: f.help_text,
       }));
-  }, [schema?.fields]);
+
+    const normalized = schemaEntityKey.toLowerCase();
+    const defaultKeyFields: Record<string, string[]> = {
+      customer: [
+        'name',
+        'contact_person',
+        'email',
+        'phone',
+        'street_address',
+        'city',
+        'state',
+        'zip_code',
+      ],
+      supplier: [
+        'name',
+        'contact_person',
+        'email',
+        'phone',
+        'street_address',
+        'city',
+        'state',
+        'zip_code',
+      ],
+      contact: ['full_name', 'email', 'phone', 'contact_type'],
+      'inquiries.inquiry': [
+        'entity_type',
+        'customer',
+        'supplier',
+        'contact_name',
+        'contact_email',
+        'contact_phone',
+        'valid_until',
+      ],
+      inquiry: [
+        'entity_type',
+        'customer',
+        'supplier',
+        'contact_name',
+        'contact_email',
+        'contact_phone',
+        'valid_until',
+      ],
+      sales_order: ['customer', 'order_date', 'delivery_date', 'status', 'notes'],
+      purchase_order: ['supplier', 'order_date', 'delivery_date', 'status', 'notes'],
+      invoice: ['customer', 'invoice_date', 'status', 'notes'],
+      product: ['name', 'product_code', 'protein_type', 'packaging_type', 'weight_unit'],
+    };
+
+    const preferred =
+      (keyFields && keyFields.length ? keyFields : defaultKeyFields[normalized]) || [];
+    if (!preferred.length) return raw;
+
+    const rank = new Map(preferred.map((k, idx) => [k.toLowerCase(), idx] as const));
+    return [...raw].sort((a, b) => {
+      const ra = rank.has(a.key.toLowerCase()) ? (rank.get(a.key.toLowerCase()) as number) : 9999;
+      const rb = rank.has(b.key.toLowerCase()) ? (rank.get(b.key.toLowerCase()) as number) : 9999;
+      if (ra !== rb) return ra - rb;
+      return a.label.localeCompare(b.label);
+    });
+  }, [keyFields, schema?.fields, schemaEntityKey]);
 
   type DynamicSchema = {
     step_index: number;
@@ -322,6 +417,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       }
 
       try {
+        setSubmitting(true);
         const resp = entityId
           ? await apiClient.patch(`${endpoint}${entityId}/`, payload)
           : await apiClient.post(endpoint, payload);
@@ -331,55 +427,71 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
       } catch (err: unknown) {
         console.error('[UniversalEntityForm] Submit failed:', err);
         const typed = err as { response?: { data?: { error?: string; detail?: string } } };
-        message.error(typed?.response?.data?.error || typed?.response?.data?.detail || 'Failed to submit form');
-        throw err;
+        message.error(
+          typed?.response?.data?.error || typed?.response?.data?.detail || 'Failed to submit form'
+        );
+      } finally {
+        setSubmitting(false);
       }
     },
     [endpoint, entityId, fkFields, fkValues, initialValues, onClose, onSuccess]
   );
 
   const fetchProducts = useMemo(
-    () =>
-      async (fieldKey: string, q: string) => {
-        setLoadingProducts((prev) => ({ ...prev, [fieldKey]: true }));
-        try {
-          const resp = await businessApi.get('/system/products/', {
-            params: { search: q || undefined, page_size: 50, is_active: true },
-          });
-          const payload = resp.data as unknown;
-          const payloadObj =
-            typeof payload === 'object' && payload ? (payload as Record<string, unknown>) : null;
-          const rows = Array.isArray(payload) ? payload : (Array.isArray(payloadObj?.results) ? payloadObj?.results : []);
+    () => async (fieldKey: string, q: string) => {
+      setLoadingProducts((prev) => ({ ...prev, [fieldKey]: true }));
+      try {
+        const resp = await businessApi.get('/system/products/', {
+          params: { search: q || undefined, page_size: 50, is_active: true },
+        });
+        const payload = resp.data as unknown;
+        const payloadObj =
+          typeof payload === 'object' && payload ? (payload as Record<string, unknown>) : null;
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payloadObj?.results)
+            ? payloadObj?.results
+            : [];
 
-          const opts = rows.map((p: unknown) => {
-            const row = (p && typeof p === 'object' ? (p as Record<string, unknown>) : {}) || {};
-            const id = row.id;
-            const code = typeof row.product_code === 'string' ? row.product_code : '';
-            const name = typeof row.name === 'string' ? row.name : typeof row.effective_name === 'string' ? row.effective_name : '';
-            const label = `${code ? `${code} - ` : ''}${name}`.trim() || String(id ?? '');
-            return { value: String(id ?? ''), label };
-          });
-          setProductOptions((prev) => ({
-            ...prev,
-            [fieldKey]: (() => {
-              const map = new Map((prev[fieldKey] || []).map((o) => [o.value, o] as const));
-              opts.forEach((o) => map.set(o.value, o));
-              return Array.from(map.values());
-            })(),
-          }));
-        } catch (err) {
-          console.error('[UniversalEntityForm] Failed to search products:', err);
-        } finally {
-          setLoadingProducts((prev) => ({ ...prev, [fieldKey]: false }));
-        }
-      },
+        const opts = rows.map((p: unknown) => {
+          const row = (p && typeof p === 'object' ? (p as Record<string, unknown>) : {}) || {};
+          const id = row.id;
+          const code = typeof row.product_code === 'string' ? row.product_code : '';
+          const name =
+            typeof row.name === 'string'
+              ? row.name
+              : typeof row.effective_name === 'string'
+                ? row.effective_name
+                : '';
+          const label = `${code ? `${code} - ` : ''}${name}`.trim() || String(id ?? '');
+          return { value: String(id ?? ''), label };
+        });
+        setProductOptions((prev) => ({
+          ...prev,
+          [fieldKey]: (() => {
+            const map = new Map((prev[fieldKey] || []).map((o) => [o.value, o] as const));
+            opts.forEach((o) => map.set(o.value, o));
+            return Array.from(map.values());
+          })(),
+        }));
+      } catch (err) {
+        console.error('[UniversalEntityForm] Failed to search products:', err);
+      } finally {
+        setLoadingProducts((prev) => ({ ...prev, [fieldKey]: false }));
+      }
+    },
     []
   );
 
   return (
     <Modal
       open={isOpen}
-      onCancel={onClose}
+      onCancel={() => {
+        if (submitting) return;
+        onClose();
+      }}
+      maskClosable={!submitting}
+      keyboard={!submitting}
       footer={null}
       width={720}
       destroyOnClose
@@ -400,13 +512,22 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
                 {fkFields.map((f) => {
                   const related = String(f.related_entity || '').toLowerCase();
-                  const isProduct = related.includes('system.product') || String(f.key).toLowerCase().includes('product');
+                  const isProduct =
+                    related.includes('system.product') ||
+                    String(f.key).toLowerCase().includes('product');
 
                   if (isProduct) {
                     const value = fkValues[f.key] as string | number | undefined;
                     return (
                       <div key={f.key}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'rgb(var(--color-text-secondary))', marginBottom: 6 }}>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: 'rgb(var(--color-text-secondary))',
+                            marginBottom: 6,
+                          }}
+                        >
                           {f.label || f.key}
                         </div>
                         <Select
@@ -427,7 +548,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
                   const options = fkOptions[f.key] || [];
                   return (
                     <div key={f.key}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'rgb(var(--color-text-secondary))', marginBottom: 6 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: 'rgb(var(--color-text-secondary))',
+                          marginBottom: 6,
+                        }}
+                      >
                         {f.label || f.key}
                       </div>
                       <SearchableSelect
@@ -445,10 +573,14 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             <DynamicFormEngine
               schema={dynamicSchema as any}
               initialValues={initialValues || {}}
+              isSubmitting={submitting}
               onSubmit={(data) => {
                 void submit(data);
               }}
-              onCancel={onClose}
+              onCancel={() => {
+                if (submitting) return;
+                onClose();
+              }}
             />
           </>
         )}
