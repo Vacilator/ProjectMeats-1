@@ -1,3 +1,70 @@
-from django.test import TestCase
+from datetime import timedelta
 
-# Create your tests here.
+from django.contrib.auth.models import User
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.test import APITestCase
+from unittest.mock import patch
+
+from apps.tenants.models import Tenant, TenantUser
+from apps.integrations.models import ExternalAuthProvider
+
+
+class EmailSyncTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpass123')
+        self.tenant = Tenant.objects.create(
+            name='Test Tenant',
+            slug='test-tenant',
+            contact_email='test@example.com',
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role='owner')
+
+        ExternalAuthProvider.objects.create(
+            tenant=self.tenant,
+            provider_type='microsoft',
+            is_active=True,
+            connected_email='test@tenant.com',
+            token_expiry=timezone.now() + timedelta(days=1),
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id')
+    def test_sync_emails_soft_fails_on_exception(self, poll_tenant_by_id):
+        poll_tenant_by_id.side_effect = RuntimeError('boom')
+
+        resp = self.client.post(
+            '/api/v1/integrations/email/sync/',
+            {},
+            format='json',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data.get('ok'), False)
+        self.assertEqual(resp.data.get('code'), 'sync_exception')
+        self.assertIn('boom', resp.data.get('error', ''))
+
+    @patch('tenant_apps.integrations.services.email_ingestion.EmailIngestionService.poll_tenant_by_id')
+    def test_sync_emails_soft_fails_when_graph_returns_zero_scanned_with_errors(self, poll_tenant_by_id):
+        poll_tenant_by_id.return_value = {
+            'errors': 1,
+            'emails_scanned': 0,
+            'errors_detail': ['Token invalid/expired'],
+            'emails_matched': 0,
+            'emails_fetched': 0,
+            'emails_saved': 0,
+            'emails_skipped': 0,
+        }
+
+        resp = self.client.post(
+            '/api/v1/integrations/email/sync/',
+            {},
+            format='json',
+            HTTP_X_TENANT_ID=str(self.tenant.id),
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data.get('ok'), False)
+        self.assertEqual(resp.data.get('code'), 'sync_failed')
+        self.assertEqual(resp.data.get('error'), 'Token invalid/expired')

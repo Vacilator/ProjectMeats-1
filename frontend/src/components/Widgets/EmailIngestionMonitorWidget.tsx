@@ -268,7 +268,16 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
         await new Promise((resolve) => setTimeout(resolve, 1500 - elapsedTime));
       }
 
+      const ok = response.data?.ok;
+      const hint = response.data?.hint;
       const stats = response.data?.stats;
+
+      if (ok === false) {
+        const err = response.data?.error || 'Email sync failed.';
+        message.error(hint ? `${err} ${hint}` : err);
+        await fetchEmailLogs();
+        return;
+      }
 
       if (stats) {
         const scanned = stats.emails_scanned ?? 0;
@@ -293,7 +302,7 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
         message.success('Email sync completed.');
       }
 
-      fetchEmailLogs();
+      await fetchEmailLogs();
     } catch (error: any) {
       console.error('Failed to trigger sync:', error);
       message.error(error?.response?.data?.error || 'Failed to start email sync');
