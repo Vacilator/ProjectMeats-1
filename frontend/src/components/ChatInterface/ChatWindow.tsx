@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { ChatSession, ChatMessage } from '../../types';
 import { chatApi, chatSessionsApi, documentsApi } from '../../services/aiService';
+import { logger } from '../../utils/logger';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 
@@ -42,7 +43,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
         setMessages(messagesData);
         onSessionChange?.(sessionData);
       } catch (err) {
-        console.error('Error loading session:', err);
+        logger.error('[ChatWindow] Error loading session:', err);
         setError('Failed to load chat session');
       } finally {
         setLoading(false);
@@ -93,7 +94,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
         setMessages(updatedMessages);
       }
     } catch (err) {
-      console.error('Error sending message:', err);
+      logger.error('[ChatWindow] Error sending message:', err);
       setError('Failed to send message. Please try again.');
     } finally {
       setLoading(false);
@@ -117,7 +118,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
         status: uploadResponse.processing_status,
       };
     } catch (err) {
-      console.error('Error uploading document:', err);
+      logger.error('[ChatWindow] Error uploading document:', err);
       setError('Failed to upload document. Please try again.');
       throw err;
     } finally {
@@ -235,7 +236,7 @@ const ChatContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f9fafb;
+  background: rgb(var(--color-background));
 `;
 
 const ErrorBanner = styled.div`
@@ -243,9 +244,9 @@ const ErrorBanner = styled.div`
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: #fef2f2;
-  border-bottom: 1px solid #fecaca;
-  color: #dc2626;
+  background: rgba(var(--color-error), 0.12);
+  border-bottom: 1px solid rgba(var(--color-error), 0.25);
+  color: rgb(var(--color-error));
   font-size: 14px;
 `;
 
@@ -260,7 +261,7 @@ const ErrorText = styled.span`
 const ErrorClose = styled.button`
   background: none;
   border: none;
-  color: #dc2626;
+  color: rgb(var(--color-error));
   cursor: pointer;
   font-size: 18px;
   padding: 0;
@@ -285,15 +286,15 @@ const LoadingContainer = styled.div`
   justify-content: center;
   flex: 1;
   gap: 16px;
-  color: #6b7280;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const LoadingSpinner = styled.div`
   width: 32px;
   height: 32px;
-  border: 3px solid #e5e7eb;
+  border: 3px solid rgb(var(--color-border-light));
   border-radius: 50%;
-  border-top-color: #667eea;
+  border-top-color: rgb(var(--color-primary));
   animation: spin 1s linear infinite;
 
   @keyframes spin {
@@ -328,13 +329,13 @@ const WelcomeIcon = styled.div`
 const WelcomeTitle = styled.h1`
   font-size: 28px;
   font-weight: 700;
-  color: #111827;
+  color: rgb(var(--color-text-primary));
   margin: 0 0 16px 0;
 `;
 
 const WelcomeSubtitle = styled.p`
   font-size: 18px;
-  color: #6b7280;
+  color: rgb(var(--color-text-secondary));
   line-height: 1.6;
   margin: 0 0 48px 0;
 `;
@@ -350,13 +351,13 @@ const FeatureItem = styled.div`
   background: rgb(var(--color-surface));
   padding: 24px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgb(var(--color-border));
   text-align: left;
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: #d1d5db;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: rgb(var(--color-border));
+    box-shadow: var(--shadow-md);
     transform: translateY(-2px);
   }
 `;
@@ -369,21 +370,21 @@ const FeatureIcon = styled.div`
 const FeatureTitle = styled.h3`
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: rgb(var(--color-text-primary));
   margin: 0 0 8px 0;
 `;
 
 const FeatureDescription = styled.p`
   font-size: 14px;
-  color: #6b7280;
+  color: rgb(var(--color-text-secondary));
   line-height: 1.5;
   margin: 0;
 `;
 
 const InputArea = styled.div`
   padding: 16px 20px 20px 20px;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border-top: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-background));
 `;
 
 export default ChatWindow;

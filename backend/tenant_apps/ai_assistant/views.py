@@ -164,8 +164,14 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                 modified_by=request.user,
             )
 
-            # Generate AI response (live OpenAI - direct completion call)
-            openai_api_key = getattr(settings, 'OPENAI_API_KEY', None)
+            # Generate AI response (OpenAI via Swarm bounded tool loop)
+            import os
+
+            tenant = getattr(request, 'tenant', None)
+            if not tenant:
+                return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+            openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
             if not openai_api_key:
                 return Response(
                     {
@@ -179,59 +185,115 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            client = OpenAI(api_key=openai_api_key)
-
             try:
                 from apps.system.services.ai_model_resolver import get_active_openai_model_id
                 from apps.integrations.models import EmailLog
+                from .swarm.router import SwarmOrchestrator
 
                 model_name = get_active_openai_model_id(fallback='gpt-4o-mini')
 
+                history = []
+
                 # --- RAG-lite context injection: last 5 ingested emails for this tenant ---
-                tenant = getattr(request, 'tenant', None)
-                recent_emails = (
-                    EmailLog.objects.filter(tenant=tenant).order_by('-received_at')[:5]
-                    if tenant
-                    else EmailLog.objects.none()
-                )
+                try:
+                    recent_emails = EmailLog.objects.filter(tenant=tenant).order_by('-received_at')[:5]
+                    if recent_emails:
+                        email_context = 'Here are the most recently received emails in the system:\n'
+                        for email in recent_emails:
+                            body_snippet = (email.body_text or '')[:300]
+                            email_context += (
+                                f"- Date: {email.received_at}, From: {email.sender_name} <{email.sender_email}>\n"
+                                f"  Subject: {email.subject}\n"
+                                f"  Has Attachments: {email.has_attachments}\n"
+                                f"  Body Snippet: {body_snippet}...\n\n"
+                            )
+                        history.append(
+                            {
+                                'role': 'system',
+                                'content': (
+                                    'You have access to recently ingested emails for this tenant. '
+                                    'Use this context when answering email-related questions.\n\n'
+                                    f'{email_context}'
+                                ),
+                            }
+                        )
+                except Exception:
+                    pass
 
-                email_context = 'Here are the most recently received emails in the system:\n'
-                for email in recent_emails:
-                    body_snippet = (email.body_text or '')[:300]
-                    email_context += (
-                        f"- Date: {email.received_at}, From: {email.sender_name} <{email.sender_email}>\n"
-                        f"  Subject: {email.subject}\n"
-                        f"  Has Attachments: {email.has_attachments}\n"
-                        f"  Body Snippet: {body_snippet}...\n\n"
+                # Include recent session message history (excluding this user message)
+                try:
+                    recent = (
+                        ChatMessage.objects.filter(session=session)
+                        .exclude(id=user_msg.id)
+                        .order_by('-created_on')[:20]
                     )
+                    for row in reversed(list(recent)):
+                        role = None
+                        if row.message_type == MessageTypeChoices.USER:
+                            role = 'user'
+                        elif row.message_type == MessageTypeChoices.ASSISTANT:
+                            role = 'assistant'
+                        elif row.message_type == MessageTypeChoices.SYSTEM:
+                            role = 'system'
+                        elif row.message_type == MessageTypeChoices.DOCUMENT:
+                            role = 'system'
 
-                system_prompt = (
-                    'You are a helpful AI assistant for meat market operations. '
-                    "You have direct access to the user's recently ingested emails. "
-                    'Always use the context below when answering email-related questions.\n\n'
-                    f'{email_context}\n'
-                    f'{SWARM_SYSTEM_PROMPT}'
+                        if not role:
+                            continue
+
+                        content = (row.content or '').strip()
+                        if not content:
+                            continue
+
+                        if row.message_type == MessageTypeChoices.DOCUMENT:
+                            content = f"[Document] {content[:500]}"
+
+                        history.append({'role': role, 'content': content})
+                except Exception:
+                    pass
+
+                orch = SwarmOrchestrator(tenant_id=str(getattr(tenant, 'id', '') or ''))
+                result = orch.run_tool_loop(
+                    user_message=user_message,
+                    tenant=tenant,
+                    user=request.user,
+                    history=history,
                 )
 
-                completion = client.chat.completions.create(
-                    model=model_name,
-                    messages=[
-                        {'role': 'system', 'content': system_prompt},
-                        {'role': 'user', 'content': user_message},
-                    ],
-                )
-                response_text = ((completion.choices[0].message.content or '') if completion.choices else '').strip()
-                tokens_used = getattr(getattr(completion, 'usage', None), 'total_tokens', None)
+                response_text = str(result.get('response') or '').strip()
+                tokens_used = None
+
+                tools_used = []
+                try:
+                    trace = result.get('messages') or []
+                    for msg in trace:
+                        if not isinstance(msg, dict) or msg.get('role') != 'assistant':
+                            continue
+                        tool_calls = msg.get('tool_calls')
+                        if not isinstance(tool_calls, list):
+                            continue
+                        for tc in tool_calls:
+                            if not isinstance(tc, dict):
+                                continue
+                            fn = tc.get('function')
+                            if not isinstance(fn, dict):
+                                continue
+                            name = fn.get('name')
+                            if isinstance(name, str) and name:
+                                tools_used.append(name)
+                except Exception:
+                    pass
 
             except Exception as e:
-                logger.warning('OpenAI completion failed: %s', str(e), exc_info=True)
+                logger.warning('Swarm tool loop failed: %s', str(e), exc_info=True)
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
             metadata = {
                 'model': model_name,
                 'provider': 'openai',
                 'tokens_used': tokens_used,
-                'response_type': 'openai',
+                'response_type': 'swarm_tool_loop',
+                'tools_used': sorted(list(set(tools_used))) if tools_used else [],
             }
 
             # Create AI response message
