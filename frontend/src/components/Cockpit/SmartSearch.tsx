@@ -1306,13 +1306,34 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               inline={true}
               contextData={quickCreateConfig.context}
               onClose={closeQuickCreate}
-              onCreated={() => {
+              onCreated={(created) => {
+                const createdId = String(created?.value ?? '').trim();
+                const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
+                const createdType = rawType === 'customers' ? 'customer' : rawType === 'suppliers' ? 'supplier' : rawType;
+
+                // If this was a top-level create (no active entity context), navigate directly to the new record.
+                if (!activeEntity && createdId) {
+                  handleSelectEntity({
+                    id: createdId,
+                    type: createdType,
+                    name: String(created?.label ?? `New ${formatEntityLabel(createdType)}`),
+                  });
+
+                  if (query?.trim()) {
+                    void searchEntities(query);
+                  }
+
+                  closeQuickCreate();
+                  return;
+                }
+
                 if (activeEntity) {
                   if (activeRelationTab !== 'more') {
                     void loadRelationshipTab(activeRelationTab, activeEntity);
                   }
                   void loadRelationalChunks(activeEntity);
                 }
+
                 closeQuickCreate();
               }}
             />
