@@ -1,31 +1,68 @@
-# ProjectMeats Master Plan - Phase Tracking & Technical Debt
+# MASTER_PLAN.md (Canonical)
 
-**Status**: 🔄 LIVING DOCUMENT  
-**Last Updated**: March 23, 2026  
-**Current Focus**: Phase 7 Stabilization + Production Credential Configuration 🚀  
-**Overall Progress**: 100% (all 9 phases complete) — external secrets required for UAT/Production activation  
-**Infrastructure Status**: All phases fully operational in dev
+**Status**: 🔄 Living document (canonical source of truth)  
+**Last Updated**: 2026-03-26  
+**Primary Focus**: Phase 7 (Intelligent Workform Editor) stability + business-usable Admin/Cockpit workflows  
 
-**Latest Progress (Power Automate UX)**  
-- Vanguard: Inquiry-Flow-Template v2 – First in Use Template + Full Fields/Cascading + Aesthetic Polish.
-- Vanguard: Cockpit-Detail-View-Template – Complete.
-- Vanguard: Cockpit Customer Detail View – Complete & Whiteboard-Accurate.
-- Vanguard: Workform Editor UX Polish – Auto-realign + Line fix + Circular Add Button.
-- Vanguard: Workform Editor Node Palette – Trigger-only on blank canvas; hide Triggers + End Points after Trigger placed.
-- Vanguard: Workform Editor Guided Empty State – Trigger-first CTAs (Add Manual Trigger / Use Template / Browse Triggers).
-- Vanguard: Microsoft Outlook Connect Button – Fixed for admin_test_development_1 (full OAuth flow).
-- Completed Batch 2: disabled manual node dragging/connecting, defaulted edges to inline insertion type, added "+" edge event listener to open the node palette with context, and enforced strict top-to-bottom auto-layout centering.
-- Hotfix: restored dev-site load by fixing nodeConfigSchemas TDZ initialization ordering (PR #3557).
-- Ops hardening: env secret audit aligned to manifests/env.manifest.json v5.1 + email_integration model/schema cleanup (PR #3558).
-- Frontend deps: safe Vite 8 upgrade (Tailwind pinned to 3.4.19 pending dedicated v4 migration) (PR #3559).
-- Deploy unblock: add missing integrations EmailLog migration + RLS policy (PR #3561) — dev pipeline green; dev site/health now 200.
-- Ops: harden migration validation script to match shared-schema and validate tenant_apps too (PR #3563).
-- Docs: clean up remaining django-tenants/migrate_schemas guidance in backend readmes (PR #3565).
-- Phase 8 (PM-AS): added staff-only swarm router preview endpoint `POST /api/v1/ai-assistant/swarm/invoke/` (PR #3693).
-- Phase 8 (PM-AS): added AIAgentWidget “Route preview” button to display router decision (PR #3694).
-- UI Hardening: Restored Form Process node rendering (avoids blank placeholder) by aligning nodeTypes/normalization to Friday baseline (PR #3778).
-- March 23, 2026 — Cockpit clicked-record fixes: embedded “+ New …” CTAs per tab (no redirects), improved cascade context keys, Preferred Products search now narrows results, and AI overview uses DB-resolved model ID — PR: #3892.
-- March 23, 2026 — Cockpit: added “+ New…” dropdown on the More tab to guarantee embedded creation access from every tab — PR: #3893.
+This file is the **canonical plan + current truth snapshot**.
+- **PR execution log (append-only):** `.github/MASTER_PLAN.md`
+- **Reference roadmaps:** `ROADMAP.md`, `UI_ROADMAP.md` (may contain outdated “100% complete” claims; do not treat as authoritative)
+
+---
+
+## Reality Snapshot (as of 2026-03-26)
+
+### What is actively in progress
+- **Type-check hardening:** `pr-golden-sweep-typecheck` (tracked in SQL session todos)
+- **Docs:** Master Plan consolidation + gap audit (this work)
+
+### Recently shipped fixes (evidence)
+- Reports Summary 500 fixed — PR #3949
+- Tenant Option Lists (Tenant Lists) create 500 hardened — PR #3950
+- Email Ingestion “Sync Now” correctness + pagination + error surfacing — PR #3951
+
+### Current blockers / external dependencies
+- Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
+
+---
+
+## Source-of-Truth Rules
+
+1. **This file** defines:
+   - what is “done” vs “in progress” vs “pending”
+   - what counts as evidence
+   - what we execute next
+2. “Done” requires evidence:
+   - merged PR/commit + verification note (tests/manual/CI)
+3. Plans and historical notes below may be retained for context, but **the snapshot + status tables above override old statements**.
+
+---
+
+## Backlog (High-signal, execution-ordered)
+
+### P0 — Stability / correctness
+- Finish TypeScript type-check hardening (`npm run type-check` clean).
+- Workforms Editor: maintain hook safety, node config save UX, and layout predictability.
+
+### P0 — Business usability
+- Admin Workspace: option lists/system lists visibility + custom list create/edit flows.
+- Email ingestion monitor: correctness, diagnostics, and attachment-aware detection.
+
+### P1 — Operational excellence
+- CI automation: promotion PRs dev→uat and uat→prod/main remain green and observable.
+- Documentation hygiene: demote/label duplicated roadmaps, remove contradictory “100% complete” claims.
+
+---
+
+## Evidence Index (where to look)
+- `.github/MASTER_PLAN.md` (append-only PR log)
+- `docs/prompts/last-25-prompts-2026-03-24.md` (prompt backlog inputs)
+- Verification artifacts: `PHASE_VERIFICATION_COMPLETE.md`, `EXECUTION_SUMMARY.txt`
+
+---
+
+## Appendix: Historical Plan Notes (for context)
+
 
 ---
 

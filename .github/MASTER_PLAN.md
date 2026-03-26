@@ -4,7 +4,10 @@
 > 
 > Blueprint: `docs/plans/V3_FINAL_PUSH_PERFECTION.md`
 
-This file is the **PR-referenceable execution log** for ongoing initiatives. It complements the repo-root `MASTER_PLAN.md` (the living plan).
+This file is the **append-only PR-referenceable execution log**.
+
+- **Canonical plan + status snapshot:** repo-root `MASTER_PLAN.md`
+- This file should not claim global completion percentages; it should only record shipped PRs and notable operational notes.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
@@ -42,6 +45,10 @@ This file is the **PR-referenceable execution log** for ongoing initiatives. It 
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
 ### PR Log (append-only)
+
+- 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
+- 2026-03-26 — Tenant Option Lists (Tenant Lists) create 500 hardened — PR: #3950.
+- 2026-03-26 — Email Ingestion “Sync Now” correctness + pagination + error surfacing — PR: #3951.
 
 - 2026-03-24 — Fixed global Ant Design theme corruption (Sanitized background tokens causing pure black component rendering) — PR: #3925.
 - 2026-03-24 — Admin Workspace: Organization Profile save hardened (avoid multipart PATCH 502s) — PR: #3924.
