@@ -454,6 +454,11 @@ const QuickCreateModal: React.FC<QuickCreateModalProps> = ({
       });
 
       const response = await entityOptionsService.quickCreate(entityType, payload);
+
+      if (!response || response.success !== true || !response.value) {
+        throw new Error('Failed to create record');
+      }
+
       onCreated({ value: response.value, label: response.label });
       onClose();
     } catch (err: any) {
