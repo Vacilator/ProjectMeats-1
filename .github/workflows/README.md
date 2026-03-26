@@ -64,6 +64,7 @@ These workflows automate PR creation between environments while enforcing CI/CD 
 ### 41-auto-promote-dev-to-uat.yml
 - **Trigger**: After successful `Master Pipeline` dev deployment completion
 - **Purpose**: Creates PR from `development` → `uat`
+- **Auth**: Uses the `PAT` repo secret for PR creation (GITHUB_TOKEN PR creation may be blocked by repo settings).
 - **Process**:
   1. Triggered when dev deployment succeeds
   2. Checks if PR already exists
@@ -77,6 +78,7 @@ These workflows automate PR creation between environments while enforcing CI/CD 
 ### 42-auto-promote-uat-to-main.yml
 - **Trigger**: After successful `Master Pipeline` UAT deployment completion
 - **Purpose**: Creates PR from `uat` → `main`
+- **Auth**: Uses the `PAT` repo secret for PR creation (GITHUB_TOKEN PR creation may be blocked by repo settings).
 - **Process**:
   1. Triggered when UAT deployment succeeds
   2. Checks if PR already exists
