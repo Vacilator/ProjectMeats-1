@@ -99,10 +99,40 @@ class SystemFormSchemaView(APIView):
                 }
             )
 
+        # Key fields: best-effort "most likely needed" subset for create/edit.
+        # This keeps the API additive-only: clients can ignore it.
+        key_field_candidates = [
+            'name',
+            'title',
+            'status',
+            'email',
+            'phone',
+            'contact_person',
+            'full_name',
+            'customer',
+            'supplier',
+            'entity_type',
+            'order_date',
+            'delivery_date',
+            'invoice_date',
+            'valid_until',
+        ]
+
+        # Always include required fields.
+        required_keys = [f['key'] for f in mapped_fields if f.get('required')]
+
+        # Then include common candidates if present.
+        present = {f['key'] for f in mapped_fields}
+        key_fields = []
+        for k in required_keys + key_field_candidates:
+            if k in present and k not in key_fields:
+                key_fields.append(k)
+
         schema = {
             'name': f'Universal Form: {entity_type}',
             'description': 'Auto-generated schema (V3.0 Phase 1).',
             'fields': mapped_fields,
+            'key_fields': key_fields,
         }
 
         return Response(schema, status=status.HTTP_200_OK)
