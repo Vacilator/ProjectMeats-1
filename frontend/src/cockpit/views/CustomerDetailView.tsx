@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
+
+import { InquiryCreateModal } from '@/components/Inquiry';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Mail, MapPin, Phone, Plus, Sparkles, StickyNote } from 'lucide-react';
@@ -453,6 +455,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
   const [leftFilter, setLeftFilter] = useState('');
   const [activeTab, setActiveTab] = useState<DetailTab>('products');
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
+  const [isInquiryCreateOpen, setIsInquiryCreateOpen] = useState(false);
 
   const entityQuery = useQuery({
     queryKey: ['cockpit-entity', canonicalType, entityId],
@@ -556,13 +559,7 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
     setIsNewMenuOpen(false);
 
     if (action === 'inquiry') {
-      navigate('/inquiries', {
-        state: {
-          openCreateModal: true,
-          entityType: canonicalType,
-          entityId: String(entityId),
-        },
-      });
+      setIsInquiryCreateOpen(true);
       return;
     }
 
@@ -593,6 +590,17 @@ export const CustomerDetailView: React.FC<CustomerDetailViewProps> = ({
 
   return (
     <Page>
+      <InquiryCreateModal
+        isOpen={isInquiryCreateOpen}
+        onClose={() => setIsInquiryCreateOpen(false)}
+        onSuccess={() => {
+          void countsQuery.refetch();
+          void tabItemsQuery.refetch();
+          setIsInquiryCreateOpen(false);
+        }}
+        initialEntityType={canonicalType ?? undefined}
+        initialEntityId={entityId}
+      />
       <StickyHeader>
         <HeaderInner>
           <div style={{ minWidth: 0 }}>
