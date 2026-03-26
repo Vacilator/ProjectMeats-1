@@ -52,9 +52,9 @@ const SupplierPerformanceChart: React.FC<SupplierPerformanceChartProps> = ({
             }}
           />
           <Legend />
-          <Bar yAxisId="left" dataKey="orders" fill="#3498db" name="Orders" />
-          <Bar yAxisId="left" dataKey="revenue" fill="#2ecc71" name="Revenue ($)" />
-          <Bar yAxisId="right" dataKey="rating" fill="#f39c12" name="Rating (1-5)" />
+          <Bar yAxisId="left" dataKey="orders" fill={`rgb(var(--color-info))`} name="Orders" />
+          <Bar yAxisId="left" dataKey="revenue" fill={`rgb(var(--color-success))`} name="Revenue ($)" />
+          <Bar yAxisId="right" dataKey="rating" fill={`rgb(var(--color-warning))`} name="Rating (1-5)" />
         </BarChart>
       </ResponsiveContainer>
     </ChartContainer>
@@ -71,7 +71,7 @@ const ChartContainer = styled.div`
 
 const ChartTitle = styled.h3`
   margin: 0 0 20px 0;
-  color: #2c3e50;
+  color: rgb(var(--color-text-primary));
   font-size: 18px;
   font-weight: 600;
 `;

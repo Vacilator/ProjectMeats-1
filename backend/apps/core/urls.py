@@ -5,6 +5,7 @@ from . import views
 from .jwt_serializers import TenantAwareTokenObtainPairView
 from . import entity_views  # Phase 1: WorkForms Enhancement
 from . import calendar_views
+from . import report_views
 from apps.system import workform_views  # Phase 1: WorkForms Enhancement
 
 # Create a router for ViewSets
@@ -50,6 +51,11 @@ urlpatterns = [
     path("workspace/stats/quick/", views.WorkspaceStatsView.as_view(), name="workspace-stats"),
     path("workspace/activity/recent/", views.WorkspaceActivityView.as_view(), name="workspace-activity"),
     path("workspace/calls/upcoming/", views.WorkspaceCallsView.as_view(), name="workspace-calls"),
+
+    # Reports API (Cockpit)
+    path("reports/summary/", report_views.ReportsSummaryAPIView.as_view(), name="reports-summary"),
+    path("reports/trends/purchase-orders/", report_views.PurchaseOrderTrendsAPIView.as_view(), name="reports-po-trends"),
+    path("reports/top/suppliers/", report_views.TopSuppliersAPIView.as_view(), name="reports-top-suppliers"),
 
     # Calendar API (placeholder until Phase 5 integrations are configured)
     path("calendar/events/", calendar_views.CalendarEventsView.as_view(), name="calendar-events"),
