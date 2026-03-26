@@ -27,6 +27,7 @@ This file is the **canonical plan + current truth snapshot**.
 - Email sync: find new order emails reliably — PR #3967
 - Admin Billing: payment method portal + plan select — PR #3968
 - Admin Invitations: avoid 500 when email fails — PR #3970
+- Reports: use tenant-aware service + show warnings — PR #3972
 
 ### Current blockers / external dependencies
 - Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
