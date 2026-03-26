@@ -43,9 +43,8 @@ import { PageContainer } from '../../components/ui/PageContainer';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { TemplateSelector } from '../../components/FlowEditor/templates/TemplateSelector';
-import { FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';
-import { apiClient } from '../../services/apiService';
-import { getAvailableWorkForms } from '../../services/workformsApi';
+import { FLOW_TEMPLATES, FlowTemplate } from '../../components/FlowEditor/templates/flowTemplates';
+import { createFormSubmission, getAvailableWorkForms } from '../../services/workformsApi';
 import { useWorkFormPermissions, getUpgradeMessage } from '../../hooks/useWorkFormPermissions';
 
 // ============================================================================
@@ -318,11 +317,11 @@ const QuickRunButton = styled.button<{ $isRunning?: boolean }>`
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: ${(props) =>
-    props.$isRunning
-      ? 'rgb(234 179 8 / 0.10)'
-      : 'linear-gradient(135deg, rgb(var(--color-success)) 0%, rgb(34, 197, 94) 100%)'};
-  color: ${(props) => (props.$isRunning ? 'rgb(234, 179, 8)' : 'white')};
-  border: none;
+    props.$isRunning ? 'rgba(var(--color-warning), 0.10)' : 'rgba(var(--color-success), 0.12)'};
+  color: ${(props) => (props.$isRunning ? 'rgb(var(--color-warning))' : 'rgb(var(--color-success))')};
+  border: 1px solid
+    ${(props) =>
+      props.$isRunning ? 'rgba(var(--color-warning), 0.35)' : 'rgba(var(--color-success), 0.35)'};
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 600;
@@ -332,7 +331,7 @@ const QuickRunButton = styled.button<{ $isRunning?: boolean }>`
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgb(34 197 94 / 0.3);
+    box-shadow: 0 4px 12px rgb(var(--color-success) / 0.18);
   }
 
   &:disabled {
@@ -444,13 +443,12 @@ const StatusBadge = styled.span<{ $status: string }>`
   background: ${(props) => {
     switch (props.$status) {
       case 'active':
-        return 'rgb(34 197 94 / 0.10)';
+        return 'rgba(var(--color-success), 0.10)';
       case 'draft':
-        return 'rgb(234 179 8 / 0.10)';
+        return 'rgba(var(--color-warning), 0.10)';
       case 'archived':
-        return 'rgb(148 163 184 / 0.15)';
       case 'inactive':
-        return 'rgb(107 114 128 / 0.10)';
+        return 'rgb(var(--color-text-muted) / 0.10)';
       default:
         return 'rgb(var(--color-text-muted) / 0.10)';
     }
@@ -458,13 +456,12 @@ const StatusBadge = styled.span<{ $status: string }>`
   color: ${(props) => {
     switch (props.$status) {
       case 'active':
-        return 'rgb(34, 197, 94)';
+        return 'rgb(var(--color-success))';
       case 'draft':
-        return 'rgb(234, 179, 8)';
+        return 'rgb(var(--color-warning))';
       case 'archived':
-        return 'rgb(148, 163, 184)';
       case 'inactive':
-        return 'rgb(107, 114, 128)';
+        return 'rgb(var(--color-text-muted))';
       default:
         return 'rgb(var(--color-text-muted))';
     }
@@ -627,8 +624,7 @@ const FormsFlowsCatalog: React.FC = () => {
       // Forms: Simple single-step data capture forms
       filtered = filtered.filter((form) => !form.is_system_template && !isWorkflow(form));
     } else if (activeTab === 'templates') {
-      // Templates: Industry-standard system templates
-      filtered = filtered.filter((form) => form.is_system_template === true);
+      return [];
     }
 
     // Apply search filter
@@ -698,11 +694,8 @@ const FormsFlowsCatalog: React.FC = () => {
     try {
       logger.info('[Catalog] Quick Run initiated for form:', formId);
       // Create a new submission and navigate directly to the editor
-      const response = await apiClient.post(`/forms/${formId}/submissions/`, {
-        quick_run: true,
-        auto_save: true,
-      });
-      const submissionId = response.data.id;
+      const submission = await createFormSubmission(formId);
+      const submissionId = submission.id;
       logger.info('[Catalog] Submission created:', submissionId);
       // Navigate to in-progress view with the new submission
       navigate(`/workforms/in-progress/${submissionId}`);
@@ -773,80 +766,132 @@ const FormsFlowsCatalog: React.FC = () => {
         <Tab $active={activeTab === 'templates'} onClick={() => setActiveTab('templates')}>
           <Boxes size={18} />
           Industry Templates
-          <TabBadge style={{ background: 'rgb(var(--color-success))' }}>
-            {forms.filter((f) => f.is_system_template).length}
-          </TabBadge>
+          <TabBadge style={{ background: 'rgb(var(--color-success))' }}>{FLOW_TEMPLATES.length}</TabBadge>
         </Tab>
       </TabsContainer>
 
-      {/* NEW: Category Filters for Protein Type and Department */}
-      <CategoryBar>
-        <CategoryLabel>Protein Type:</CategoryLabel>
-        <CategorySelect
-          value={proteinTypeFilter}
-          onChange={(e) => setProteinTypeFilter(e.target.value as ProteinType)}
-        >
-          <option value="all">All Types</option>
-          <option value="beef">🥩 Beef</option>
-          <option value="pork">🐖 Pork</option>
-          <option value="poultry">🐔 Poultry</option>
-          <option value="seafood">🐟 Seafood</option>
-          <option value="lamb">🐑 Lamb</option>
-          <option value="other">🥓 Other</option>
-        </CategorySelect>
-
-        <CategoryLabel>Department:</CategoryLabel>
-        <CategorySelect
-          value={departmentFilter}
-          onChange={(e) => setDepartmentFilter(e.target.value as Department)}
-        >
-          <option value="all">All Departments</option>
-          <option value="receiving">📦 Receiving</option>
-          <option value="processing">⚙️ Processing</option>
-          <option value="packaging">📦 Packaging</option>
-          <option value="quality_control">✅ Quality Control</option>
-          <option value="shipping">🚚 Shipping</option>
-        </CategorySelect>
-      </CategoryBar>
-
-      <FilterBar>
-        <FilterChip $active={filter === 'all'} onClick={() => setFilter('all')}>
-          All Forms
-        </FilterChip>
-        <FilterChip $active={filter === 'active'} onClick={() => setFilter('active')}>
-          <Sparkles size={14} />
-          Active
-        </FilterChip>
-        <FilterChip $active={filter === 'draft'} onClick={() => setFilter('draft')}>
-          <FileText size={14} />
-          Drafts
-        </FilterChip>
-        <FilterChip $active={filter === 'recent'} onClick={() => setFilter('recent')}>
-          <Clock size={14} />
-          Recent
-        </FilterChip>
-
-        <div style={{ marginLeft: 'auto' }}>
-          <ViewToggle>
-            <ViewButton
-              $active={viewMode === 'grid'}
-              onClick={() => setViewMode('grid')}
-              title="Grid view"
+      {activeTab !== 'templates' && (
+        <>
+          {/* NEW: Category Filters for Protein Type and Department */}
+          <CategoryBar>
+            <CategoryLabel>Protein Type:</CategoryLabel>
+            <CategorySelect
+              value={proteinTypeFilter}
+              onChange={(e) => setProteinTypeFilter(e.target.value as ProteinType)}
             >
-              <Grid />
-            </ViewButton>
-            <ViewButton
-              $active={viewMode === 'list'}
-              onClick={() => setViewMode('list')}
-              title="List view"
-            >
-              <List />
-            </ViewButton>
-          </ViewToggle>
-        </div>
-      </FilterBar>
+              <option value="all">All Types</option>
+              <option value="beef">🥩 Beef</option>
+              <option value="pork">🐖 Pork</option>
+              <option value="poultry">🐔 Poultry</option>
+              <option value="seafood">🐟 Seafood</option>
+              <option value="lamb">🐑 Lamb</option>
+              <option value="other">🥓 Other</option>
+            </CategorySelect>
 
-      {isLoading ? (
+            <CategoryLabel>Department:</CategoryLabel>
+            <CategorySelect
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value as Department)}
+            >
+              <option value="all">All Departments</option>
+              <option value="receiving">📦 Receiving</option>
+              <option value="processing">⚙️ Processing</option>
+              <option value="packaging">📦 Packaging</option>
+              <option value="quality_control">✅ Quality Control</option>
+              <option value="shipping">🚚 Shipping</option>
+            </CategorySelect>
+          </CategoryBar>
+
+          <FilterBar>
+            <FilterChip $active={filter === 'all'} onClick={() => setFilter('all')}>
+              All Forms
+            </FilterChip>
+            <FilterChip $active={filter === 'active'} onClick={() => setFilter('active')}>
+              <Sparkles size={14} />
+              Active
+            </FilterChip>
+            <FilterChip $active={filter === 'draft'} onClick={() => setFilter('draft')}>
+              <FileText size={14} />
+              Drafts
+            </FilterChip>
+            <FilterChip $active={filter === 'recent'} onClick={() => setFilter('recent')}>
+              <Clock size={14} />
+              Recent
+            </FilterChip>
+
+            <div style={{ marginLeft: 'auto' }}>
+              <ViewToggle>
+                <ViewButton
+                  $active={viewMode === 'grid'}
+                  onClick={() => setViewMode('grid')}
+                  title="Grid view"
+                >
+                  <Grid />
+                </ViewButton>
+                <ViewButton
+                  $active={viewMode === 'list'}
+                  onClick={() => setViewMode('list')}
+                  title="List view"
+                >
+                  <List />
+                </ViewButton>
+              </ViewToggle>
+            </div>
+          </FilterBar>
+        </>
+      )}
+
+      {activeTab === 'templates' ? (
+        (() => {
+          const filteredTemplates = FLOW_TEMPLATES.filter((t) => {
+            const q = searchQuery.trim().toLowerCase();
+            if (!q) return true;
+            return (
+              t.name.toLowerCase().includes(q) ||
+              t.description.toLowerCase().includes(q) ||
+              t.tags.some((tag) => tag.toLowerCase().includes(q))
+            );
+          });
+
+          if (filteredTemplates.length === 0) {
+            return (
+              <EmptyState>
+                <EmptyStateIcon>📦</EmptyStateIcon>
+                <EmptyStateTitle>No templates found</EmptyStateTitle>
+                <EmptyStateDescription>Try adjusting your search</EmptyStateDescription>
+              </EmptyState>
+            );
+          }
+
+          return (
+            <GridContainer>
+              {filteredTemplates.map((template) => (
+                <FormCard key={template.id}>
+                  <CardContent onClick={() => handleTemplateSelect(template)} style={{ cursor: 'pointer' }}>
+                    <FormCardHeader>
+                      <FormIcon>{template.thumbnail || '📋'}</FormIcon>
+                      <FormInfo>
+                        <FormTitle>{template.name}</FormTitle>
+                        <FormDescription>{template.description || 'No description'}</FormDescription>
+                      </FormInfo>
+                    </FormCardHeader>
+                    <FormMeta>
+                      <MetaItem>
+                        <Boxes size={14} />
+                        {template.category}
+                      </MetaItem>
+                      <MetaItem>
+                        <Star size={14} />
+                        {template.difficulty}
+                      </MetaItem>
+                    </FormMeta>
+                  </CardContent>
+                </FormCard>
+              ))}
+            </GridContainer>
+          );
+        })()
+      ) : isLoading ? (
         <LoadingState>Loading forms...</LoadingState>
       ) : filteredForms.length === 0 ? (
         <EmptyState>
@@ -931,8 +976,7 @@ const FormsFlowsCatalog: React.FC = () => {
           {filteredForms.map((form) => (
             <FormCard key={form.id}>
               <CardContent
-                onClick={(e) => {
-                  logger.debug('[Catalog] CardContent (List) CLICKED!', { component: 'Catalog', metadata: { formId: form.id } }, e);
+                onClick={() => {
                   handleEditForm(form.id);
                 }}
                 style={{ cursor: 'pointer' }}
