@@ -14,12 +14,19 @@ This file is the **canonical plan + current truth snapshot**.
 
 ### What is actively in progress
 - **Type-check hardening:** `pr-golden-sweep-typecheck` (tracked in SQL session todos)
-- **Docs:** Master Plan consolidation + gap audit (this work)
 
 ### Recently shipped fixes (evidence)
 - Reports Summary 500 fixed — PR #3949
-- Tenant Option Lists (Tenant Lists) create 500 hardened — PR #3950
+- Tenant Lists create 500 fixed/hardened — PR #3950
 - Email Ingestion “Sync Now” correctness + pagination + error surfacing — PR #3951
+- Docs: canonicalize Master Plan + gap audit + demote non-canonical roadmaps — PR #3952, #3953, #3962
+- Forms consolidation: unify inquiry create + add EntityFormSurface + harden UniversalEntityForm + expose key_fields + migrate SalesOrders/Claims — PR #3956, #3957, #3958, #3959, #3969
+- Cockpit create UX: +New entity modal fix + +New call purpose/inquiry modal + confirm+navigate after create — PR #3960, #3961, #3966
+- FlowEditor: auto-map Apply shows Apply Changes + Form Process node not transparent — PR #3963, #3964
+- Backend: prevent RLS-related 500s — PR #3965
+- Email sync: find new order emails reliably — PR #3967
+- Admin Billing: payment method portal + plan select — PR #3968
+- Admin Invitations: avoid 500 when email fails — PR #3970
 
 ### Current blockers / external dependencies
 - Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
