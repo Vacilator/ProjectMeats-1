@@ -45,10 +45,13 @@ const SupplierPerformanceChart: React.FC<SupplierPerformanceChartProps> = ({
           <YAxis yAxisId="left" />
           <YAxis yAxisId="right" orientation="right" />
           <Tooltip
-            formatter={(value: number, name: string) => {
-              if (name === 'revenue') return [`$${value.toLocaleString()}`, 'Revenue'];
-              if (name === 'rating') return [`${value}/5`, 'Rating'];
-              return [value, name];
+            formatter={(value, name) => {
+              const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+              const label = typeof name === 'string' ? name : String(name ?? '');
+
+              if (label === 'revenue') return [`$${numericValue.toLocaleString()}`, 'Revenue'];
+              if (label === 'rating') return [`${numericValue}/5`, 'Rating'];
+              return [numericValue, label];
             }}
           />
           <Legend />

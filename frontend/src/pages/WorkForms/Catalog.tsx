@@ -613,7 +613,7 @@ const FormsFlowsCatalog: React.FC = () => {
   const filteredForms = React.useMemo(() => {
     // Safety check: ensure forms is an array
     if (!forms || !Array.isArray(forms)) {
-      logger.warn('[Catalog] Forms is not an array:', forms, 'isLoading:', isLoading);
+      logger.warn('[Catalog] Forms is not an array', { component: 'Catalog', metadata: { forms, isLoading } });
       return [];
     }
 
@@ -747,7 +747,7 @@ const FormsFlowsCatalog: React.FC = () => {
             disabled={!permissions.can_create || permissionsLoading}
             title={
               !permissions.can_create
-                ? getUpgradeMessage(permissions.role, 'create')
+                ? getUpgradeMessage('create', permissions.role)
                 : 'Create a new form or workflow'
             }
           >
@@ -932,7 +932,7 @@ const FormsFlowsCatalog: React.FC = () => {
             <FormCard key={form.id}>
               <CardContent
                 onClick={(e) => {
-                  logger.debug('[Catalog] CardContent (List) CLICKED!', form.id, e);
+                  logger.debug('[Catalog] CardContent (List) CLICKED!', { component: 'Catalog', metadata: { formId: form.id } }, e);
                   handleEditForm(form.id);
                 }}
                 style={{ cursor: 'pointer' }}

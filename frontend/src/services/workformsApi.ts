@@ -443,6 +443,18 @@ export const validateWorkForm = async (
   return response.data;
 };
 
+export interface SuggestNodesResponse {
+  suggestions: any[];
+  confidence?: number;
+  mode?: 'ai' | 'static';
+  cached?: boolean;
+}
+
+export const suggestNodes = async (payload: any): Promise<SuggestNodesResponse> => {
+  const response = await apiClient.post('/suggest-nodes/', payload);
+  return response.data;
+};
+
 // ============================================================================
 // Container APIs (Phase 4)
 // ============================================================================
@@ -547,6 +559,7 @@ const workformsApi = {
   cloneWorkForm,
   getWorkFormUsage,
   validateWorkForm,
+  suggestNodes,
   
   // Container utilities
   listWorkFormContainers,

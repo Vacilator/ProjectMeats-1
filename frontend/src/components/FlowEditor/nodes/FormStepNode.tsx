@@ -8,7 +8,7 @@
 
 import React, { useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react';
+import { Handle, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react';
 
 type PreviewField = {
   id: string;
@@ -181,7 +181,7 @@ const PreviewMore = styled.div`
   margin-top: 2px;
 `;
 
-export const FormStepNode = React.memo<NodeProps<FormStepNodeData>>(({ id, data, selected }) => {
+export const FormStepNode = React.memo<NodeProps<Node<FormStepNodeData>>>(({ id, data, selected }) => {
   const { setNodes } = useReactFlow();
 
   const fields = Array.isArray(data.fields) ? data.fields : [];

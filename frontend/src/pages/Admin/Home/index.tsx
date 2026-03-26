@@ -67,15 +67,11 @@ const AdminWorkspaceHome: React.FC = () => {
       description="Tenant administration tools for users, configuration, and auditing."
       icon="⚙️"
       actions={
-        <Button
-          as={Link as any}
-          to="/workspace/users"
-          variant="primary"
-          size="sm"
-          disabled={isLoading}
-        >
-          Manage Users
-        </Button>
+        <Link to="/workspace/users" style={{ textDecoration: 'none' }}>
+          <Button variant="primary" size="sm" disabled={isLoading}>
+            Manage Users
+          </Button>
+        </Link>
       }
       headerExtras={
         <MetaBar>

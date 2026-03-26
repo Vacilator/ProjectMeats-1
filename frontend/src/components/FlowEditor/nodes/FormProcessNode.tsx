@@ -48,7 +48,7 @@ export interface ContainerNodeData extends BaseNodeData {
   isDropTarget?: boolean;
 }
 
-export interface FormProcessNodeProps extends NodeProps<ContainerNodeData> {
+export interface FormProcessNodeProps extends NodeProps<Node<ContainerNodeData>> {  
   // REFACTORED: No longer need drop handlers (handled by main ReactFlow)
   // No longer need allNodes/allEdges props (use hooks directly)
 }
@@ -504,7 +504,18 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
   const allEdges = useEdges();
   const { setNodes } = useReactFlow();
   
-  const nodeDef = getNodeTypeDefinition('formProcess');
+  const nodeDef =
+    getNodeTypeDefinition('formProcess') ??
+    ({
+      id: 'formProcess',
+      name: 'Form Process',
+      category: 'form',
+      icon: '📚',
+      color: 'rgb(var(--color-primary))',
+      description: 'Multi-step form container',
+      maxInputs: 1,
+      maxOutputs: 1,
+    } as any);
   
   // Calculate statistics from child nodes
   const stats = useMemo(() => {
@@ -524,10 +535,11 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
     childNodes.forEach(node => {
       const nodeType = node.type || 'unknown';
       nodeTypes[nodeType] = (nodeTypes[nodeType] || 0) + 1;
-      
+
       // Track form references
-      if (node.data?.tenantFormId) {
-        formRefs.add(node.data.tenantFormId);
+      const tenantFormId = (node.data as any)?.tenantFormId;
+      if (typeof tenantFormId === 'string' && tenantFormId.length > 0) {
+        formRefs.add(tenantFormId);
       }
     });
     
@@ -689,7 +701,7 @@ export const FormProcessNode = React.memo<FormProcessNodeProps>(({
                               <StepNumber>{stepNum}</StepNumber>
                               <StepNodeInfo>
                                 <div className="node-label">
-                                  {childNode.data?.label || 'Unnamed Node'}
+                                  {String((childNode.data as any)?.label ?? 'Unnamed Node')}
                                 </div>
                                 <div className="node-type">
                                   {childNode.type || 'unknown'}

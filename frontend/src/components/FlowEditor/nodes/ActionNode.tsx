@@ -12,7 +12,7 @@
  */
 import React from 'react';
 import styled from 'styled-components';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 
@@ -173,7 +173,7 @@ function getActionDetails(data: ActionNodeData) {
 // Component
 // ============================================================================
 
-export const ActionNode = React.memo<NodeProps<ActionNodeData>>((props) => {
+export const ActionNode = React.memo<NodeProps<Node<ActionNodeData>>>((props) => {
   const { data, selected, id } = props;
   const { actionType = 'email' } = data; // Default to 'email' if undefined
   
@@ -195,11 +195,11 @@ export const ActionNode = React.memo<NodeProps<ActionNodeData>>((props) => {
     id: 'actionEmail',
     name: 'Send Email',
     category: 'action' as const,
-    color: 'rgb(59, 130, 246)',
-    icon: 'Mail',
+    color: '#3b82f6',
+    icon: '✉️',
+    description: 'Send an email',
     maxInputs: 1,
     maxOutputs: 1,
-    config: {},
   };
   
   const { items } = getActionDetails(data);

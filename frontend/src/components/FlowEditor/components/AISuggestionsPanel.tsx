@@ -288,7 +288,7 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
       
       try {
         // Call backend API for AI-powered suggestions
-        const response = await workformsApi.post('/suggest-nodes/', {
+        const { suggestions: apiSuggestions, confidence, mode: responseMode, cached } = await workformsApi.suggestNodes({
           current_flow: {
             nodes: nodes.map(n => ({ id: n.id, type: n.type, data: n.data })),
             edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })),
@@ -301,8 +301,6 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
           }
         });
         
-        const { suggestions: apiSuggestions, confidence, mode: responseMode, cached } = response.data;
-        
         // Convert API suggestions to NodeSuggestion format
         const formattedSuggestions: NodeSuggestion[] = apiSuggestions.map((s: any) => ({
           nodeType: s.type || 'basic',
@@ -314,7 +312,7 @@ export const AISuggestionsPanel: React.FC<AISuggestionsPanelProps> = ({
         }));
         
         setSuggestions(formattedSuggestions);
-        setMode(responseMode);
+        setMode(responseMode === 'ai' || responseMode === 'static' ? responseMode : 'static');
         setIsCached(cached || false);
         setError(null);
         

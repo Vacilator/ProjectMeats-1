@@ -10,7 +10,7 @@
  */
 import React from 'react';
 import styled from 'styled-components';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 
@@ -197,7 +197,7 @@ const FIELD_TYPE_ICONS: Record<FormFieldType, string> = {
 // Component
 // ============================================================================
 
-export const FormStepSingleNode = React.memo<NodeProps<FormStepNodeData>>((props) => {
+export const FormStepSingleNode = React.memo<NodeProps<Node<FormStepNodeData>>>((props) => {
   const { data, selected, id } = props;
   const nodeTypeDef = getNodeTypeDefinition('formStepSingle');
   
@@ -209,9 +209,9 @@ export const FormStepSingleNode = React.memo<NodeProps<FormStepNodeData>>((props
     category: 'form' as const,
     color: '#3b82f6',  // Match registry color
     icon: '📋',  // Match registry icon
+    description: 'Collect information from a user via a form step',
     maxInputs: 1,
     maxOutputs: 1,
-    config: {},
   };
   
   const { stepTitle, fields = [] } = data;

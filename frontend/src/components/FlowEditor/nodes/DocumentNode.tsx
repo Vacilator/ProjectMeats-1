@@ -16,7 +16,7 @@
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import styled from 'styled-components';
 import { FileText, FilePlus, FileCheck, FolderOpen, Layers } from 'lucide-react';
 import { BaseNode, BaseNodeData } from './BaseNode';
@@ -131,7 +131,7 @@ const getDocumentTypeInfo = (documentType: DocumentType) => {
 // Component
 // ============================================================================
 
-export const DocumentNode = React.memo<NodeProps<DocumentNodeData>>(({ data, id, selected }) => {
+export const DocumentNode = React.memo<NodeProps<Node<DocumentNodeData>>>(({ data, id, selected }) => {
   const {
     documentType,
     template,
@@ -222,12 +222,12 @@ export const DocumentNode = React.memo<NodeProps<DocumentNodeData>>(({ data, id,
       nodeType={{
         id: 'document',
         name: typeInfo.label,
-        category: 'action',
+        category: 'document',
         color: typeInfo.color,
-        icon: 'FileText',
+        icon: '📄',
+        description: typeInfo.label,
         maxInputs: 1,
         maxOutputs: 1,
-        config: {},
       }}
     />
   );

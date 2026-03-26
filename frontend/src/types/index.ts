@@ -42,6 +42,11 @@ export interface UserProfile {
   is_active: boolean;
   is_staff?: boolean;
   is_superuser?: boolean;
+  /**
+   * Optional user role string.
+   * Some API responses include a global role; others provide per-tenant roles via `tenants`.
+   */
+  role?: string;
   tenants?: UserTenant[];
 }
 
@@ -267,6 +272,12 @@ export interface Product {
   product_code: string;
   description_of_product_item: string;
   type_of_protein?: string;
+  /** Legacy field name used by some endpoints/exports */
+  protein_type?: string;
+  /** Optional display fields used by search/autocomplete results */
+  name?: string;
+  description?: string;
+  avg_price?: number;
   fresh_or_frozen?: string;
   package_type?: string;
   net_or_catch?: string;

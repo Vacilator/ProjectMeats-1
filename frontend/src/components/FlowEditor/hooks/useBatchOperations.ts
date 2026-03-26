@@ -240,7 +240,7 @@ export function useBatchOperations(
 
     // Deselect existing nodes
     setNodes((nodes) =>
-      nodes.map((node) => ({ ...node, selected: false })).concat(pastedNodes)
+      (nodes.map((node) => ({ ...node, selected: false })) as Node[]).concat(pastedNodes)
     );
     setEdges((edges) => edges.concat(pastedEdges));
 

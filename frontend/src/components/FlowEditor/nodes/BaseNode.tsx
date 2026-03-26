@@ -21,7 +21,7 @@ import { NodeIcon, NodeIconType } from '../components/NodeIcons';
 // TypeScript Interfaces
 // ============================================================================
 
-export interface BaseNodeData {
+export interface BaseNodeData extends Record<string, unknown> {
   label?: string;
   status?: 'draft' | 'active' | 'error' | 'disabled';
   stepNumber?: number;
@@ -55,7 +55,7 @@ export interface BaseNodeProps {
   id: string;
   data: BaseNodeData;
   selected?: boolean;
-  nodeType: NodeTypeDefinition;
+  nodeType?: NodeTypeDefinition;
   /** Optional override for the header drag handle class */
   dragHandleClassName?: string;
 }
@@ -355,14 +355,26 @@ const ExpandButton = styled(ControlButton)`
 // Component
 // ============================================================================
 
+const FALLBACK_NODE_TYPE: NodeTypeDefinition = {
+  id: 'unknown',
+  name: 'Node',
+  category: 'utility',
+  icon: '⬛',
+  color: 'rgb(var(--color-border))',
+  description: 'Unknown node type',
+  maxInputs: 1,
+  maxOutputs: 1,
+};
+
 export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> = ({
   id,
   data,
   selected = false,
-  nodeType,
+  nodeType: nodeTypeProp,
   dragHandleClassName,
   children,
 }) => {
+  const nodeType = nodeTypeProp ?? FALLBACK_NODE_TYPE;
   const {
     label = nodeType.name,
     status = 'draft',

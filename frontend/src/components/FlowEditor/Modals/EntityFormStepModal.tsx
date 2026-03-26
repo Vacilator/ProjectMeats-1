@@ -383,8 +383,8 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
   useEffect(() => {
     if (isOpen && initialData) {
       // Determine the correct step based on configuration state
-      let startStep = 1;
-      
+      let startStep: WizardStep = 1;
+
       if (initialData.mode === 'existing' && initialData.formId) {
         // Editing an existing form - skip to preview (step 3)
         startStep = 3;
@@ -393,7 +393,7 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
         startStep = 2;
       }
       // Otherwise, start at step 1 for new/unconfigured forms
-      
+
       setState(prev => ({
         ...prev,
         mode: initialData.mode,
@@ -440,18 +440,19 @@ export const EntityFormStepModal: React.FC<EntityFormStepModalProps> = ({
       setState(prev => ({ ...prev, loading: true, error: null }));
       try {
         const form = await workformsApi.getTenantForm(state.selectedFormId);
-        
-        // Safely extract fields from flow_data (backend uses flow_data, not form_definition)
-        const fields = form.flow_data?.fields 
-          ? form.flow_data.fields.map((field, index) => ({
-              ...field,
-              fieldId: `field-${index}`,
-            }))
-          : [];
-        
+
+        // Backward/forward compatibility: some endpoints return `form_definition`, others return `flow_data`.
+        const definition = (form as any).form_definition ?? (form as any).flow_data;
+        const rawFields: unknown[] = Array.isArray(definition?.fields) ? definition.fields : [];
+
+        const fields: FieldConfig[] = rawFields.map((field: unknown, index: number) => ({
+          ...(field as Record<string, unknown>),
+          fieldId: `field-${index}`,
+        })) as unknown as FieldConfig[];
+
         setState(prev => ({
           ...prev,
-          entityType: form.entity_type || '',
+          entityType: (form as any).entity_type || '',
           fields,
           currentStep: 3,
           loading: false,

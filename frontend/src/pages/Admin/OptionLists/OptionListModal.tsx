@@ -536,7 +536,7 @@ export const OptionListModal: React.FC<OptionListModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} maxWidth="800px">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Option List" maxWidth="800px">
       <ModalContent>
         <Header>
           <Title>Edit {listName}</Title>

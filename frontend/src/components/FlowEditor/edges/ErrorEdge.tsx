@@ -8,14 +8,14 @@
  * Created: 2026-02-17
  */
 import React, { useCallback, useState } from 'react';
-import { EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType, EdgeToolbar, useReactFlow } from '@xyflow/react';
+import { type Edge, EdgeProps, getBezierPath, EdgeLabelRenderer, MarkerType, EdgeToolbar, useReactFlow } from '@xyflow/react';
 import styled, { keyframes } from 'styled-components';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface ErrorEdgeData {
+interface ErrorEdgeData extends Record<string, unknown> {
   label?: string;
   errorType?: string;
   animated?: boolean;
@@ -124,7 +124,7 @@ const ErrorBadge = styled.div`
 // Component
 // ============================================================================
 
-export const ErrorEdge = React.memo<EdgeProps<ErrorEdgeData>>(({
+export const ErrorEdge = React.memo<EdgeProps<Edge<ErrorEdgeData>>>(({
   id,
   sourceX,
   sourceY,

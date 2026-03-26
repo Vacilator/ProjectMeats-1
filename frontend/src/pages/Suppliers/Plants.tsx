@@ -494,8 +494,8 @@ const Plants: React.FC = () => {
       </TableControls>
 
       <StyledTable
-        columns={columns}
-        dataSource={filteredPlants}
+        columns={columns as any}
+        dataSource={filteredPlants as any}
         rowKey="id"
         loading={loading}
         pagination={{

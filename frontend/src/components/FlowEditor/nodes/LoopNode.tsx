@@ -9,7 +9,7 @@
 
 import React from 'react';
 import styled from 'styled-components';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { Card } from 'antd';
 import { Repeat } from 'lucide-react';
 
@@ -62,7 +62,7 @@ export interface LoopNodeData extends BaseNodeData {
   onDelete?: () => void;
 }
 
-export interface LoopNodeProps extends NodeProps<LoopNodeData> {}
+export interface LoopNodeProps extends NodeProps<Node<LoopNodeData>> {}
 
 // ============================================================================
 // Styled Components

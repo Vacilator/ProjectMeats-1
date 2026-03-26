@@ -128,14 +128,17 @@ export function useCollaboration({ workflowId, tenantId }: UseCollaborationArgs)
   }, [wsUrl, clearReconnectTimer]);
 
   const handleMessage = useCallback((raw: MessageEvent) => {
-    let msg: CollaborationMessage | null = null;
+    let parsed: unknown;
 
     try {
-      msg = JSON.parse(String(raw.data));
+      parsed = JSON.parse(String(raw.data));
     } catch {
       return;
     }
 
+    if (!parsed || typeof parsed !== 'object') return;
+
+    const msg = parsed as CollaborationMessage;
     const now = Date.now();
 
     if (msg.type === 'presence_state' && msg.data && typeof msg.data === 'object') {

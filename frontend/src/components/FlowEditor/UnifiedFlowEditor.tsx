@@ -64,6 +64,7 @@ import {
   OnSelectionChangeParams,
   useReactFlow,
   MarkerType,
+  ConnectionLineType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './UnifiedFlowEditor.responsive.css'; // Gap Analysis Phase 1.2
@@ -131,6 +132,7 @@ import { useFormBuilder } from './hooks/useFormBuilder';
 import { ValidationDrawer } from './components/ValidationDrawer';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
+import type { FormStepData } from './Modals/EntityFormStepModal';
 import { schemaRegistry } from './config/schemaRegistry';
 import { calculateContainerLayout, autoConnectSequentialSteps, LAYOUT_CONSTANTS } from './utils/containerLayout'; // Phase 3-4
 import { NodeContextMenu, useContextMenu } from './NodeContextMenu'; // Phase E.3
@@ -139,7 +141,12 @@ import { saveWorkflow, loadWorkflow, listWorkflows, deleteWorkflow, type Workflo
 import { workformsApi } from '../../services/workformsApi'; // Task 2: Ghost Node Deletion
 import { sortNodesTopologically } from './utils/nodeSorting'; // Phase 2 Critical Fix
 import { normalizeNodeData, normalizeNodes } from './utils/nodeNormalization'; // Fix test imports
-import { NodeConfigPanelWithShadow, TabbedConfigPanelWithShadow } from './ConfigPanel';
+import {
+  NodeConfigPanelWithShadow,
+  TabbedConfigPanelWithShadow,
+  FormStepConfigPanel,
+  FormFieldConfigPanel,
+} from './ConfigPanel';
 import { getLayoutedElements, alignNodesHorizontally, alignNodesVertically, distributeNodesHorizontally, distributeNodesVertically } from './utils/autoLayout'; // Phase 2: UI/UX
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'; // Phase 2: UI/UX
 import { useCollaboration } from './hooks/useCollaboration'; // Phase 9.2
@@ -154,8 +161,6 @@ import { FlowEditorProvider, useFlowEditor } from './context';
 // Error Boundary (2026-02-21 Comprehensive Enhancements)
 import { ErrorBoundary } from './ErrorBoundary';
 // NUCLEAR CLEANUP: All hardcoded panels removed - DynamicConfigPanel is now the ONLY renderer
-import { FormStepConfigPanel } from './ConfigPanel/FormStepConfigPanel'; // Phase 7: Re-enabled for Smart Auto-Map
-// import { FormFieldConfigPanel } from './ConfigPanel/FormFieldConfigPanel';
 // import { SectionConfigPanel } from './ConfigPanel/SectionConfigPanel';
 // import { DocumentConfigPanel } from './ConfigPanel/DocumentConfigPanel';
 // import { CreateRecordConfigPanel } from './ConfigPanel/CreateRecordConfigPanel';
@@ -1730,9 +1735,11 @@ const ToggleSwitch = styled.button<{ $active: boolean }>`
 // ============================================================================
 
 // Static node types (not containers that need node access)
-// NOTE: NodeTypes typing is overly strict with mixed memo/FC node components;
-// we cast here to keep editor typing stable while runtime behavior remains unchanged.
-const staticNodeTypes = {
+// NOTE: React.memo() node components type as NamedExoticComponent which is not assignable to
+// React.ComponentType under strict NodeTypes. Keep a loose registry and cast at the ReactFlow boundary.
+type AnyNodeComponent = React.ComponentType<any>;
+
+const staticNodeTypes: Record<string, AnyNodeComponent> = {
   // Form nodes (Phase E - 2026-02-19)
   form: FormStepNode, // Form Step (Page)
   formStepSingle: FormStepSingleNode, // Backward compatibility
@@ -1757,11 +1764,11 @@ const staticNodeTypes = {
   document: DocumentNode,
   utility: UtilityNode,
   terminal: TerminalNode,
-} as unknown as NodeTypes;
+};
 
 // Dynamically build the full registry map statically ONCE outside the component.
 // This avoids TDZ / initialization crashes seen when building nodeTypes inside hooks.
-const dynamicNodeTypes: NodeTypes = { ...staticNodeTypes };
+const dynamicNodeTypes: Record<string, AnyNodeComponent> = { ...staticNodeTypes };
 Object.keys(NODE_TYPE_REGISTRY).forEach((typeId) => {
   if (dynamicNodeTypes[typeId]) return;
 
@@ -1876,15 +1883,18 @@ class ConfigPanelErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
 > {
-  state = { hasError: false, error: null };
-  
-  static getDerivedStateFromError(error: Error) {
+  state: { hasError: boolean; error: Error | null } = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error): { hasError: boolean; error: Error } {
     return { hasError: true, error };
   }
-  
+
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    logger.error('[Config Panel] Error caught:', error, errorInfo);
-    
+    logger.error('[Config Panel] Error caught', {
+      component: 'ConfigPanelErrorBoundary',
+      metadata: { componentStack: errorInfo.componentStack },
+    }, error);
+
     // Send to Sentry for monitoring
     Sentry.captureException(error, {
       extra: {
@@ -1894,8 +1904,8 @@ class ConfigPanelErrorBoundary extends React.Component<
       },
     });
   }
-  
-  render() {
+
+  render() { 
     if (this.state.hasError) {
       return (
         <div style={{
@@ -1955,8 +1965,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Normalize nodes to ensure all have required properties (maxInputs, maxOutputs)
   const normalizedInitialNodes = useMemo(() => normalizeNodes(initialNodes), [initialNodes]);
   
-  const [nodes, setNodes, onNodesChangeBase] = useNodesState(normalizedInitialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState<Node<any>>(
+    normalizedInitialNodes as unknown as Node<any>[]
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<any>>(initialEdges as unknown as Edge<any>[]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const generateNodeId = useCallback(() => {
@@ -2275,9 +2287,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const containerIds = new Set(containerNodes.map(c => c.id));
       
       // Check for orphaned nodes (containerNodeId pointing to non-existent container)
-      const orphanedNodes = normalizedInitialNodes.filter(
-        n => n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)
-      );
+      const orphanedNodes = normalizedInitialNodes.filter((n) => {
+        const containerNodeId = (n.data as any)?.containerNodeId;
+        return typeof containerNodeId === 'string' && !containerIds.has(containerNodeId);
+      });
       
       if (orphanedNodes.length > 0) {
         logger.warn(
@@ -2286,15 +2299,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         );
         
         // Clean up orphaned nodes by removing their containerNodeId
-        setNodes((nds) => nds.map(n => {
-          if (n.data?.containerNodeId && !containerIds.has(n.data.containerNodeId)) {
-            const cleanedData = { ...n.data };
-            delete cleanedData.containerNodeId;
-            logger.debug(`[Container Restore] Cleaned orphaned node ${n.id}`);
-            return { ...n, data: cleanedData };
-          }
-          return n;
-        }));
+        setNodes((nds) =>
+          nds.map((n) => {
+            const containerNodeId = (n.data as any)?.containerNodeId;
+            if (typeof containerNodeId === 'string' && !containerIds.has(containerNodeId)) {
+              const cleanedData = { ...(n.data as any) };
+              delete cleanedData.containerNodeId;
+              logger.debug(`[Container Restore] Cleaned orphaned node ${n.id}`);
+              return { ...n, data: cleanedData };
+            }
+            return n;
+          })
+        );
       }
       
       if (containerNodes.length > 0) {
@@ -2315,11 +2331,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             nodeTypeBreakdown[nodeType] = (nodeTypeBreakdown[nodeType] || 0) + 1;
             
             // Collect form references
-            if (node.data?.formId) {
-              formReferences.push(node.data.formId);
+            const formId = (node.data as any)?.formId;
+            if (typeof formId === 'string') {
+              formReferences.push(formId);
             }
-            if (node.data?.tenantFormId) {
-              formReferences.push(node.data.tenantFormId);
+            const tenantFormId = (node.data as any)?.tenantFormId;
+            if (typeof tenantFormId === 'string') {
+              formReferences.push(tenantFormId);
             }
           });
           
@@ -2363,7 +2381,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       const uniqueTypes = [...new Set(foundDeprecated.map(n => n.type))];
       setHasDeprecatedNodes(true);
       setDeprecatedNodeTypes(uniqueTypes as string[]);
-      logger.debug('[Phase 6] Deprecated nodes detected:', uniqueTypes, foundDeprecated.length);
+      logger.debug('[Phase 6] Deprecated nodes detected', {
+        types: uniqueTypes,
+        count: foundDeprecated.length,
+      });
     } else {
       setHasDeprecatedNodes(false);
       setDeprecatedNodeTypes([]);
@@ -2842,12 +2863,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // NOTE: selectedNode and selectedNodeId moved to top of component to fix TDZ
   
   // FormStep specialized configuration (Phase 4.2.B Integration) - For nested field editing
-  const [selectedFormStep, setSelectedFormStep] = useState<Node | null>(null);
+  const [selectedFormStep, setSelectedFormStep] = useState<Node<any> | null>(null);
+  const [formStepModalOpen, setFormStepModalOpen] = useState(false);
   const [editingField, setEditingField] = useState<any | null>(null);
   
   // Container configuration (Phase 4.3) - FormProcess special handling
   const [containerModalOpen, setContainerModalOpen] = useState(false);
-  const [selectedContainer, setSelectedContainer] = useState<Node | null>(null);
+  const [selectedContainer, setSelectedContainer] = useState<Node<any> | null>(null);
   
   // Preview panel (Phase 5.1)
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
@@ -3112,7 +3134,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         id: newNodeId,
         type: nodeType,
         position: { x: 250 + wizardState.addedNodeCount * 200, y: 100 },
-        data: { label: NODE_TYPE_REGISTRY[nodeType]?.label || 'New Node' },
+        data: { label: NODE_TYPE_REGISTRY[nodeType]?.name || 'New Node' },
       };
 
       setNodes((nds) => [...nds, newNode]);
@@ -3333,12 +3355,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
   
   // Helper function to safely get max connections from node data or type definition
-  const getNodeMaxConnections = useCallback((node: Node): { maxInputs: number; maxOutputs: number } => {
+  const getNodeMaxConnections = useCallback((node: Node<any>): { maxInputs: number; maxOutputs: number } => {
     // First try to get from node data
-    if (node.data && typeof node.data.maxInputs !== 'undefined' && typeof node.data.maxOutputs !== 'undefined') {
+    const data = node.data as any;
+    if (data && typeof data.maxInputs === 'number' && typeof data.maxOutputs === 'number') {
       return {
-        maxInputs: node.data.maxInputs,
-        maxOutputs: node.data.maxOutputs,
+        maxInputs: data.maxInputs,
+        maxOutputs: data.maxOutputs,
       };
     }
     
@@ -3361,7 +3384,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, []);
   
   // Real-time connection validation for React Flow
-  const isValidConnection = useCallback((connection: Connection) => {
+  const isValidConnection = useCallback((connection: Connection | Edge) => {
     const sourceNode = nodes.find(n => n.id === connection.source);
     const targetNode = nodes.find(n => n.id === connection.target);
     
@@ -3485,9 +3508,10 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     // Ghost cleanup
     for (const node of deletedNodes) {
-      if (node.type === 'formMultiStepContainer' && node.data.tenantFormId) {
+      const tenantFormId = node.data?.tenantFormId;
+      if (node.type === 'formMultiStepContainer' && typeof tenantFormId === 'string' && tenantFormId.length > 0) {
         try {
-          const result = await workformsApi.decrementFormUsage(node.data.tenantFormId);
+          const result = await workformsApi.decrementFormUsage(tenantFormId);
           logger.debug(`[Ghost Cleanup] ✅ Decremented usage for container: ${result.usage_count} remaining`);
 
           if (result.can_delete) {
@@ -4512,8 +4536,18 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         setNodes(sortedNodes);
         
         // Update container dimensions if needed
-        if (layoutResult.containerWidth > (container.style?.width || 400) || 
-            layoutResult.containerHeight > (container.style?.height || 300)) {
+        const currentWidth = typeof container.style?.width === 'number'
+          ? container.style.width
+          : typeof container.style?.width === 'string'
+            ? Number(container.style.width) || 400
+            : 400;
+        const currentHeight = typeof container.style?.height === 'number'
+          ? container.style.height
+          : typeof container.style?.height === 'string'
+            ? Number(container.style.height) || 300
+            : 300;
+
+        if (layoutResult.containerWidth > currentWidth || layoutResult.containerHeight > currentHeight) {
           setNodes((nds) =>
             nds.map((n) => {
               if (n.id === container.id) {
@@ -4521,8 +4555,22 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                   ...n,
                   style: {
                     ...n.style,
-                    width: Math.max(layoutResult.containerWidth, n.style?.width || 400),
-                    height: Math.max(layoutResult.containerHeight, n.style?.height || 300),
+                    width: Math.max(
+                      layoutResult.containerWidth,
+                      typeof n.style?.width === 'number'
+                        ? n.style.width
+                        : typeof n.style?.width === 'string'
+                          ? Number(n.style.width) || 400
+                          : 400
+                    ),
+                    height: Math.max(
+                      layoutResult.containerHeight,
+                      typeof n.style?.height === 'number'
+                        ? n.style.height
+                        : typeof n.style?.height === 'string'
+                          ? Number(n.style.height) || 300
+                          : 300
+                    ),
                   },
                 };
               }
@@ -5184,7 +5232,13 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       }
     };
 
-    const createId = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : uuidv4());
+    const createId = () => {
+      const cryptoObj = globalThis.crypto;
+      if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+        return cryptoObj.randomUUID();
+      }
+      return uuidv4();
+    };
     const idMap = new Map<string, string>();
 
     for (const n of clipboardData) {
@@ -5821,7 +5875,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const selectedNodes = params.nodes || [];
     if (selectedNodes.length === 1) {
       const node = selectedNodes[0];
-      logger.debug('[Selection] Node selected (border highlight only):', node.type, node.id);
+      logger.debug('[Selection] Node selected (border highlight only)', { nodeType: node.type, nodeId: node.id });
       
       // Track selected node ID for keyboard shortcuts and debugging
       setSelectedNodeId(node.id);
@@ -5854,7 +5908,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     
-    logger.debug('✏️ [EDIT BUTTON] Opening config panel for:', node.type, nodeId);
+    logger.debug('✏️ [EDIT BUTTON] Opening config panel for', { nodeType: node.type, nodeId });
     
     // Close container modal (only legacy modal remaining)
     setContainerModalOpen(false);
@@ -5977,7 +6031,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
     const nodeToDelete = nodes.find((n) => n.id === nodeId);
     if (!nodeToDelete) {
-      toast.warning('Node not found');
+      toast.error('Node not found');
       return;
     }
 
@@ -6000,7 +6054,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       if (nodeToDelete.type === 'formProcess' || nodeToDelete.type === 'formMultiStepContainer') {
         const tenantFormId = nodeToDelete.data?.tenantFormId;
 
-        if (tenantFormId) {
+        if (typeof tenantFormId === 'string' && tenantFormId.length > 0) {
           try {
             await adminClient.post(`/api/system/forms/${tenantFormId}/decrement-usage/`);
           } catch (error) {
@@ -6032,7 +6086,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   
   // Batch 4: Handler to update node title
   const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
-    logger.debug('[UnifiedFlowEditor] Updating node title:', nodeId, newTitle);
+    logger.debug('[UnifiedFlowEditor] Updating node title', { nodeId, newTitle });
     
     setNodes(nds => 
       nds.map(node => {
@@ -6204,13 +6258,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // Convert node data to EntityFormStepModal format (Phase 3 - WF-ENH-2026-Q1)
   const convertNodeDataToFormStepData = useCallback((node: Node): FormStepData | undefined => {
     if (!node.data) return undefined;
-    
+
+    const data = node.data as any;
+
+    const formId: string | undefined = typeof data.formId === 'string' ? data.formId : undefined;
+
     return {
-      formId: node.data.formId,
-      formName: node.data.formName || node.data.stepTitle || node.data.label || 'Untitled Form',
-      entityType: node.data.entityType || 'supplier',
-      fields: node.data.fields || [],
-      mode: node.data.formId ? 'existing' : 'new',
+      formId,
+      formName: String(data.formName || data.stepTitle || data.label || 'Untitled Form'),
+      entityType: String(data.entityType || 'supplier'),
+      fields: Array.isArray(data.fields) ? data.fields : [],
+      mode: formId ? 'existing' : 'new',
     };
   }, []);
   
@@ -6241,19 +6299,23 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   }, [selectedFormStep, handleNodeUpdate]);
   
   // Convert node data to ContainerData format (Phase 4.3)
-  const convertNodeDataToContainerData = useCallback((node: Node): ContainerData | undefined => {
+  const convertNodeDataToContainerData = useCallback((node: Node<any>): ContainerData | undefined => {
     if (!node.data) return undefined;
-    
+
+    const data = node.data as any;
+    const workflowId: string | undefined = typeof data.tenantWorkFormId === 'string' ? data.tenantWorkFormId : undefined;
+
     return {
-      workflowId: node.data.tenantWorkFormId,
-      containerName: node.data.containerName || node.data.label || 'Unnamed Container',
-      containerDescription: node.data.containerDescription,
-      mode: node.data.tenantWorkFormId ? 'existing' : 'new',
-      showProgressIndicator: node.data.showProgressIndicator ?? true,
-      allowBackNavigation: node.data.allowBackNavigation ?? true,
-      allowSkipSteps: node.data.allowSkipSteps ?? false,
-      autoAdvance: node.data.autoAdvance ?? false,
-      confirmOnExit: node.data.confirmOnExit ?? true,
+      workflowId,
+      containerName: String(data.containerName || data.label || 'Unnamed Container'),
+      containerDescription:
+        typeof data.containerDescription === 'string' ? data.containerDescription : undefined,
+      mode: workflowId ? 'existing' : 'new',
+      showProgressIndicator: typeof data.showProgressIndicator === 'boolean' ? data.showProgressIndicator : true,
+      allowBackNavigation: typeof data.allowBackNavigation === 'boolean' ? data.allowBackNavigation : true,
+      allowSkipSteps: typeof data.allowSkipSteps === 'boolean' ? data.allowSkipSteps : false,
+      autoAdvance: typeof data.autoAdvance === 'boolean' ? data.autoAdvance : false,
+      confirmOnExit: typeof data.confirmOnExit === 'boolean' ? data.confirmOnExit : true,
     };
   }, []);
   
@@ -6319,7 +6381,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     );
 
     upstreamFormNodes.forEach((node) => {
-      const fields = node.data?.fields || [];
+      const fields = Array.isArray((node.data as any)?.fields) ? (node.data as any).fields : [];
       fields.forEach((field: any) => {
         allFields.push({
           ...field,
@@ -6392,13 +6454,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     // Map template nodes to proper React Flow node types with full metadata
     const mappedNodes = template.nodes.map(node => {
       // Get node definition from registry for metadata (color, icon, etc.)
-      const nodeDef = getNodeTypeDefinition(node.type);
-      
+      const rawType = node.type ?? '';
+
+      const nodeDef = getNodeTypeDefinition(rawType);
+
       // Ensure node has proper type mapping
-      const reactFlowType = getReactFlowNodeType(node.type);
-      
+      const reactFlowType = getReactFlowNodeType(rawType);
+
       // Merge default data + template data + registry metadata
-      const defaultData = getDefaultNodeData(node.type);
+      const defaultData = getDefaultNodeData(rawType);
       
       return {
         ...node,
@@ -7298,7 +7362,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           <Settings />
         </ViewportButton>
         <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
-        <ViewportButton onClick={fitView} title="Fit to View (F)">
+        <ViewportButton onClick={() => fitView({ padding: 0.2, duration: 300 })} title="Fit to View (F)">
           <Maximize2 />
         </ViewportButton>
         <ViewportButton onClick={zoomIn} title="Zoom In">
@@ -7360,7 +7424,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onConnect={onConnect}
         onNodesDelete={onNodesDelete}
         nodesDraggable={true}
-        nodeDragHandle=".custom-drag-handle"
         nodesConnectable={false}
         isValidConnection={isValidConnection}
         onDrop={onDrop}
@@ -7375,15 +7438,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           if (!reactFlowInstance?.screenToFlowPosition) return;
 
           const pos = reactFlowInstance.screenToFlowPosition({
-            x: (event as MouseEvent).clientX,
-            y: (event as MouseEvent).clientY,
+            x: event.clientX,
+            y: event.clientY,
           });
 
           collabSendCursorDebounced(pos);
         }}
         onSelectionChange={handleSelectionChange}
-        nodeTypes={dynamicNodeTypes}
-        edgeTypes={staticEdgeTypes}
+        nodeTypes={dynamicNodeTypes as unknown as NodeTypes}
+        edgeTypes={staticEdgeTypes as unknown as EdgeTypes}
         // Phase 7.5/9: Always render only visible elements for large-editor performance
         onlyRenderVisibleElements={true}
         elevateNodesOnSelect={nodes.length < 200}
@@ -7409,7 +7472,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           strokeDasharray: '5,5',
           animation: 'dash 0.5s linear infinite',
         }}
-        connectionLineType="step"
+        connectionLineType={ConnectionLineType.SmoothStep}
         snapToGrid={snapToGrid}
         snapGrid={[gridSize, gridSize]}
         connectionRadius={20}
@@ -7474,8 +7537,9 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         {isMinimapVisible && (
           <MiniMap 
             nodeColor={(node) => {
-              const registry = NODE_TYPE_REGISTRY[node.type];
-              return registry?.color || '#94a3b8';
+              const type = node.type;
+              const registry = type ? NODE_TYPE_REGISTRY[type] : undefined;
+              return registry?.color || 'rgb(var(--color-text-tertiary))';
             }}
             maskColor="rgba(0, 0, 0, 0.1)"
             style={{
@@ -7774,7 +7838,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
                           {nodeConfig.icon}
                         </NodeIconCircle>
                         <WizardNodeInfo>
-                          <WizardNodeLabel>{nodeConfig.label}</WizardNodeLabel>
+                          <WizardNodeLabel>{nodeConfig.name}</WizardNodeLabel>
                           <WizardNodeDesc>{nodeConfig.description?.slice(0, 40)}...</WizardNodeDesc>
                         </WizardNodeInfo>
                         <Plus size={16} />
@@ -8197,7 +8261,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
 
       {/* Help Modal (Workform Batch 2) */}
       {isHelpModalOpen && (
-        <HelpModal onClose={() => setIsHelpModalOpen(false)} />
+        <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
       )}
 
       {/* FormBuilder Modal (Phase 6) */}

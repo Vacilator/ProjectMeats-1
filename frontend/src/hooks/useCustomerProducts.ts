@@ -107,14 +107,14 @@ export function useCustomerProducts(
         .map((t) => String(t).toLowerCase().trim())
         .filter(Boolean);
 
-      const response = await businessApi.get<Product[]>('system/products/', {
+      const response = await businessApi.get<{ results?: Product[] } | Product[]>('system/products/', {
         params: {
           is_active: true,
           protein: normalizedProteins,
           page_size: 500,
         },
       });
-      const data = response.data.results || response.data;
+      const data = Array.isArray(response.data) ? response.data : response.data.results;
       return Array.isArray(data) ? data : [];
     } catch (err: any) {
       console.error('Failed to fetch products by protein types:', err);
@@ -136,8 +136,10 @@ export function useCustomerProducts(
       setCustomerPreferences(preferences);
 
       // Fetch associated products
-      const associatedResponse = await businessApi.get<Product[]>(`customers/${custId}/products/`);
-      const associatedData = associatedResponse.data.results || associatedResponse.data;
+      const associatedResponse = await businessApi.get<{ results?: Product[] } | Product[]>(`customers/${custId}/products/`);
+      const associatedData = Array.isArray(associatedResponse.data)
+        ? associatedResponse.data
+        : associatedResponse.data.results;
       const associated = Array.isArray(associatedData) ? associatedData : [];
       setAssociatedProducts(associated);
 
@@ -168,10 +170,10 @@ export function useCustomerProducts(
     }
 
     try {
-      const response = await businessApi.get<Product[]>('system/products/', {
+      const response = await businessApi.get<{ results?: Product[] } | Product[]>('system/products/', {
         params: { search: query, is_active: true, page_size: 50 },
       });
-      const data = response.data.results || response.data;
+      const data = Array.isArray(response.data) ? response.data : response.data.results;
       return Array.isArray(data) ? data : [];
     } catch (err: any) {
       console.error('Failed to search products:', err);

@@ -63,7 +63,7 @@ export function normalizeNodeData(node: Node): Node {
   }
 
   // Get node type definition
-  const nodeTypeDef = NODE_TYPE_REGISTRY[node.type];
+  const nodeTypeDef = NODE_TYPE_REGISTRY[node.type ?? ''];
 
   // If unknown type, return as-is
   if (!nodeTypeDef) {

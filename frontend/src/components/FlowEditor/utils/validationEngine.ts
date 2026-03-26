@@ -147,7 +147,7 @@ export function validateNodeConfig(node: Node): ValidationIssue[] {
   // Basic validation without schema dependency
   // Type-specific validations
   if (node.type === 'form' || node.type === 'formProcessGroup' || node.type === 'formBook') {
-    const fields = node.data.fields || [];
+    const fields = Array.isArray((node.data as any)?.fields) ? (node.data as any).fields : [];
     if (fields.length === 0) {
       issues.push({
         id: `no-fields-${node.id}`,
@@ -161,7 +161,7 @@ export function validateNodeConfig(node: Node): ValidationIssue[] {
   }
   
   if (node.type === 'conditionIf') {
-    const rules = node.data.rules || [];
+    const rules = Array.isArray((node.data as any)?.rules) ? (node.data as any).rules : [];
     if (rules.length === 0) {
       issues.push({
         id: `no-rules-${node.id}`,

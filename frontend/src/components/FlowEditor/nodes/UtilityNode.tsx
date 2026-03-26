@@ -16,7 +16,7 @@
  * Created: 2026-02-04 - Phase 2.1 Batch 2
  */
 import React from 'react';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import styled from 'styled-components';
 import { Shuffle, Search, GitMerge, MessageCircle, Code, Database } from 'lucide-react';
 import { BaseNode, BaseNodeData } from './BaseNode';
@@ -144,7 +144,7 @@ const getUtilityTypeInfo = (utilityType: UtilityType) => {
 // Component
 // ============================================================================
 
-export const UtilityNode = React.memo<NodeProps<UtilityNodeData>>(({ data, id, selected }) => {
+export const UtilityNode = React.memo<NodeProps<Node<UtilityNodeData>>>(({ data, id, selected }) => {
   const { utilityType, transformRules, lookupConfig, mergeStrategy, commentText, code } = data;
 
   const typeInfo = getUtilityTypeInfo(utilityType);
@@ -216,12 +216,12 @@ export const UtilityNode = React.memo<NodeProps<UtilityNodeData>>(({ data, id, s
       nodeType={{
         id: 'utility',
         name: typeInfo.label,
-        category: 'logic',
+        category: 'utility',
         color: typeInfo.color,
-        icon: 'Code',
+        icon: '🛠️',
+        description: typeInfo.label,
         maxInputs: 1,
         maxOutputs: 1,
-        config: {},
       }}
     />
   );

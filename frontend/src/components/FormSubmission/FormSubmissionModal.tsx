@@ -1023,8 +1023,12 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
           try {
             const res = await entityOptionsService.getOptions(type);
             setEntityOptions(prev => ({ ...prev, [type]: res.options || [] }));
-          } catch (e) { 
-            logger.error('Failed to load options for', type, e); 
+          } catch (e) {
+            logger.error(
+              'Failed to load options for entity type',
+              { component: 'FormSubmissionModal', metadata: { entityType: type } },
+              e
+            );
           }
         }
       }
@@ -1325,7 +1329,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
       return;
     }
     
-    logger.debug('[SaveAndExit] Saving', fieldsToSave.length, 'fields');
+    logger.debug('[SaveAndExit] Saving fields', { fieldCount: fieldsToSave.length });
     
     // Create promises for each field
     fieldsToSave.forEach(({ stepId, fieldKey, value }) => {

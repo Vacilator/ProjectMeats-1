@@ -32,7 +32,7 @@ export interface WidgetCardProps {
   actions?: ReactNode;
   className?: string;
   noPadding?: boolean;
-  badge?: string;
+  badge?: string | number;
   badgeVariant?: 'default' | 'danger' | 'warning' | 'success';
 }
 

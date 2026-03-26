@@ -552,9 +552,11 @@ const AdminProfilePage: React.FC = () => {
                     accept="image/*"
                     onChange={handleLogoChange}
                   />
-                  <Button as="label" htmlFor="logo" variant="outline" size="sm">
-                    Upload Logo
-                  </Button>
+                  <label htmlFor="logo">
+                    <Button type="button" variant="outline" size="sm">
+                      Upload Logo
+                    </Button>
+                  </label>
                   <Hint>PNG/JPG/WebP up to 5MB.</Hint>
                 </div>
               </LogoBlock>

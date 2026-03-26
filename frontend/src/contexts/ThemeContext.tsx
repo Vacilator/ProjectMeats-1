@@ -244,7 +244,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
     return {
       algorithm: isDarkMode ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-      cssVar: true,
+      cssVar: { prefix: 'pm' },
       token: hasValidPrimary ? { colorPrimary: primary } : {},
       // Do NOT override colorBgBase/colorBgContainer/colorBgLayout/colorText here.
       // Those overrides can corrupt surfaces and render components pure black.

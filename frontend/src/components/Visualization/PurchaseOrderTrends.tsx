@@ -42,14 +42,18 @@ const PurchaseOrderTrends: React.FC<PurchaseOrderTrendsProps> = ({ data, height 
           <YAxis yAxisId="left" />
           <YAxis yAxisId="right" orientation="right" />
           <Tooltip
-            formatter={(value: number, name: string) => {
-              if (name === 'value' || name === 'averageValue') {
+            formatter={(value, name) => {
+              const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+              const label = typeof name === 'string' ? name : String(name ?? '');
+
+              if (label === 'value' || label === 'averageValue') {
                 return [
-                  `$${value.toLocaleString()}`,
-                  name === 'value' ? 'Total Value' : 'Average Value',
+                  `$${numericValue.toLocaleString()}`,
+                  label === 'value' ? 'Total Value' : 'Average Value',
                 ];
               }
-              return [value, 'Orders'];
+
+              return [numericValue, 'Orders'];
             }}
           />
           <Legend />

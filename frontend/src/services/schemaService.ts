@@ -92,7 +92,11 @@ export const getEntityFields = async (entityId: string): Promise<EntityField[]> 
     
     return normalizedFields;
   } catch (error) {
-    logger.error('[SchemaService] Failed to fetch fields for entity:', entityId, error);
+    logger.error(
+      '[SchemaService] Failed to fetch fields for entity',
+      { component: 'SchemaService', metadata: { entityId } },
+      error
+    );
     // Return empty array instead of throwing to prevent UI crashes
     return [];
   }

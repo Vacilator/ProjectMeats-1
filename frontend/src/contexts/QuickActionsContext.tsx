@@ -30,6 +30,7 @@ interface QuickActionsContextType {
   // Form Submission
   activeSubmission: FormSubmission | null;
   startFormSubmission: (formId: string) => Promise<FormSubmission>;
+  resumeSubmission: (submissionId: string) => Promise<void>;
   closeSubmission: () => void;
   
   // UI State
@@ -143,6 +144,12 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
     return submission;
   }, []);
 
+  const resumeSubmission = useCallback(async (submissionId: string): Promise<void> => {
+    const submission = await formSubmissionService.get(submissionId);
+    setActiveSubmission(submission);
+    setIsFormModalOpen(true);
+  }, []);
+
   const closeSubmission = useCallback(() => {
     setActiveSubmission(null);
   }, []);
@@ -187,6 +194,7 @@ export const QuickActionsProvider: React.FC<QuickActionsProviderProps> = ({ chil
     reorderQuickActions,
     activeSubmission,
     startFormSubmission,
+    resumeSubmission,
     closeSubmission,
     isEditorOpen,
     openEditor,

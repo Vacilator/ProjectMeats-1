@@ -29,7 +29,7 @@ const CurrentTenantButton = styled.button<{ $theme: Theme }>`
   border: 1px solid ${props => props.$theme.colors.border};
   border-radius: 6px;
   background: ${props => props.$theme.colors.surface};
-  color: ${props => props.$theme.colors.text};
+  color: ${props => props.$theme.colors.textPrimary};
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -38,7 +38,7 @@ const CurrentTenantButton = styled.button<{ $theme: Theme }>`
   
   &:hover {
     border-color: ${props => props.$theme.colors.primary};
-    background: ${props => props.$theme.colors.backgroundAlt};
+    background: ${props => props.$theme.colors.surfaceHover};
   }
   
   span {
@@ -88,8 +88,8 @@ const TenantOption = styled.button<{ $theme: Theme; $isActive: boolean }>`
   width: 100%;
   padding: 10px 12px;
   border: none;
-  background: ${props => props.$isActive ? props.$theme.colors.primary + '15' : 'transparent'};
-  color: ${props => props.$theme.colors.text};
+  background: ${props => (props.$isActive ? 'rgba(var(--color-primary), 0.08)' : 'transparent')};
+  color: ${props => props.$theme.colors.textPrimary};
   font-size: 13px;
   text-align: left;
   cursor: pointer;
@@ -97,7 +97,7 @@ const TenantOption = styled.button<{ $theme: Theme; $isActive: boolean }>`
   gap: 10px;
   
   &:hover {
-    background: ${props => props.$theme.colors.backgroundAlt};
+    background: ${props => props.$theme.colors.surfaceHover};
   }
   
   span.name {

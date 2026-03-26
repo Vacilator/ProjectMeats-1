@@ -23,7 +23,7 @@ const HEARTBEAT_INTERVAL = 30000; // 30 seconds (half of TTL)
 export const useNodeLocking = (workflowId: string, nodeId: string) => {
   const [lockState, setLockState] = useState<NodeLock | null>(null);
   const [loading, setLoading] = useState(false);
-  const heartbeatRef = useRef<NodeJS.Timeout>();
+  const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
 
   const acquireLock = useCallback(async () => {
     if (!workflowId || !nodeId) return;

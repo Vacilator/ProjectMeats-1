@@ -3,7 +3,7 @@
  * Phase 6.5: Frontend Optimization
  */
 
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 /**
  * Hook to measure component render performance.
@@ -48,7 +48,7 @@ export function useDebounce<T extends (...args: any[]) => any>(
   callback: T,
   delay: number
 ): T {
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return () => {
@@ -119,8 +119,10 @@ export class MemoCache<K, V> {
   set(key: K, value: V): void {
     if (this.cache.size >= this.maxSize) {
       // Remove oldest entry (first key)
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      const firstKey = this.cache.keys().next().value as K | undefined;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
     }
     this.cache.set(key, value);
   }

@@ -152,7 +152,7 @@ describe('Tenant Context', () => {
     });
     
     it('should log in development mode', () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       
       // Set NODE_ENV to development
       const originalNodeEnv = process.env.NODE_ENV;

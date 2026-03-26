@@ -8,7 +8,7 @@
  * Phase: Agent B - Persistence
  */
 
-import { Node, Edge } from '@xyflow/react';
+import type { Edge, Node } from '@xyflow/react';
 import { logger } from '@/utils/logger';
 
 import { adminClient } from './apiService';
@@ -81,7 +81,7 @@ export interface SaveFormResult {
  * Note: xyflow uses `parentId` for grouping, but some older code paths still
  * write `parentNode`. We support both to avoid false "0 children" saves.
  */
-function getChildNodes(groupNode: Node<FormProcessGroupData> | string, allNodes: Node[]): Node[] {
+function getChildNodes(groupNode: Node<any> | string, allNodes: Node<any>[]): Node<any>[] {
   const groupNodeId = typeof groupNode === 'string' ? groupNode : groupNode.id;
   const pageOrder =
     typeof groupNode === 'string'
@@ -90,7 +90,7 @@ function getChildNodes(groupNode: Node<FormProcessGroupData> | string, allNodes:
         ? groupNode.data.pageOrder
         : null;
 
-  const isChild = (node: Node): boolean => {
+  const isChild = (node: Node<any>): boolean => {
     const anyNode = node as any;
     const parent =
       anyNode.parentId ??
@@ -109,7 +109,7 @@ function getChildNodes(groupNode: Node<FormProcessGroupData> | string, allNodes:
 
   // Prefer stable ordering if the container has an explicit pageOrder.
   if (pageOrder?.length) {
-    const index = new Map(pageOrder.map((id, i) => [id, i]));
+    const index = new Map(pageOrder.map((id: string, i: number) => [id, i]));
     return [...children].sort((a, b) => {
       const ai = index.has(a.id) ? (index.get(a.id) as number) : Number.MAX_SAFE_INTEGER;
       const bi = index.has(b.id) ? (index.get(b.id) as number) : Number.MAX_SAFE_INTEGER;
@@ -127,18 +127,18 @@ function getChildNodes(groupNode: Node<FormProcessGroupData> | string, allNodes:
 /**
  * Convert React Flow node to FormStep format
  */
-function convertNodeToFormStep(node: Node, index: number): FormStep {
-  const data = node.data;
-  
+function convertNodeToFormStep(node: Node<any>, index: number): FormStep {
+  const data = (node.data ?? {}) as any;
+
   return {
     name: data.name || data.label || `Step ${index + 1}`,
     description: data.description || '',
     entity_type: data.entityType || data.entity_type,
-    entity_action: data.entityAction || data.entity_action || 'create',
-    fields: convertFieldsToFormFields(data.fields || []),
-    validation_rules: data.validationRules || [],
+    entity_action: (data.entityAction || data.entity_action || 'create') as FormStep['entity_action'],
+    fields: convertFieldsToFormFields(Array.isArray(data.fields) ? data.fields : []),
+    validation_rules: Array.isArray(data.validationRules) ? data.validationRules : [],
     order: index,
-    node_id: node.id
+    node_id: node.id,
   };
 }
 
@@ -185,9 +185,9 @@ async function generateDefinitionHash(definition: any): Promise<string> {
  * @returns SaveFormResult with tenantFormId and version
  */
 export async function saveFormProcessGroup(
-  groupNode: Node<FormProcessGroupData>,
-  allNodes: Node[],
-  allEdges: Edge[]
+  groupNode: Node<any>,
+  allNodes: Node<any>[],
+  allEdges: Edge<any>[]
 ): Promise<SaveFormResult> {
   // Deprecated: All saving now goes through the TenantWorkForm endpoints.
   // Backend now snapshots nested `container.data.steps` during TenantWorkForm save.

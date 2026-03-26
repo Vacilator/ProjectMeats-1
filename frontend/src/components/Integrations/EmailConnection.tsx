@@ -48,9 +48,10 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const config = providerConfig[provider];
+  const isComingSoon = 'comingSoon' in config && Boolean((config as any).comingSoon);
 
   const handleConnect = async () => {
-    if (config.comingSoon) {
+    if (isComingSoon) {
       toast.error('Gmail integration coming soon!');
       return;
     }
@@ -115,7 +116,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
           </ConnectionInfo>
 
           {isExpired && (
-            <ReconnectButton onClick={handleConnect} disabled={isConnecting}>
+            <ReconnectButton onClick={handleConnect} disabled={isConnecting} color={config.color}>
               {isConnecting ? 'Reconnecting...' : 'Reconnect'}
             </ReconnectButton>
           )}
@@ -132,7 +133,7 @@ export const EmailConnection: React.FC<EmailConnectionProps> = ({
             the connected account.
           </HelpCopy>
 
-          {config.comingSoon ? (
+          {isComingSoon ? (
             <ComingSoonBadge>Coming Soon</ComingSoonBadge>
           ) : (
             <ConnectButton 
