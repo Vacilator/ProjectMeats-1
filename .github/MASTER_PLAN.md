@@ -68,6 +68,7 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-26 — Fix Admin Invitations 500 when email fails — PR: #3970.
 - 2026-03-26 — Reports: use tenant-aware service + show warnings — PR: #3972.
 - 2026-03-26 — WorkForms Catalog: fix Quick Run + Templates tab rendering — PR: #3978.
+- 2026-03-26 — Quick Actions: use shared JWT-aware apiClient (fix quick-create auth drift) — PR: #3980.
 
 - 2026-03-24 — Fixed global Ant Design theme corruption (Sanitized background tokens causing pure black component rendering) — PR: #3925.
 - 2026-03-24 — Admin Workspace: Organization Profile save hardened (avoid multipart PATCH 502s) — PR: #3924.

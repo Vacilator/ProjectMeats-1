@@ -29,6 +29,7 @@ This file is the **canonical plan + current truth snapshot**.
 - Admin Invitations: avoid 500 when email fails — PR #3970
 - Reports: use tenant-aware service + show warnings — PR #3972
 - WorkForms Catalog: Quick Run uses /workflows/form-submissions + Templates tab renders FLOW_TEMPLATES — PR #3978
+- Quick Actions: use shared JWT-aware apiClient (fixes flaky quick create/quick actions auth) — PR #3980
 
 ### Current blockers / external dependencies
 - Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
