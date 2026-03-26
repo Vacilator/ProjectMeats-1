@@ -12,7 +12,7 @@
  */
 import React from 'react';
 import styled from 'styled-components';
-import { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { getNodeTypeDefinition } from '../nodeTypes';
 
@@ -101,7 +101,7 @@ const TriggerBadge = styled.span<{ $type: string }>`
 // Component
 // ============================================================================
 
-export const TriggerNode = React.memo<NodeProps<TriggerNodeData>>((props) => {
+export const TriggerNode = React.memo<NodeProps<Node<TriggerNodeData>>>((props) => {
   const { data, selected, id } = props;
   const {
     triggerType,
@@ -129,10 +129,10 @@ export const TriggerNode = React.memo<NodeProps<TriggerNodeData>>((props) => {
     name: 'Manual Trigger',
     category: 'trigger' as const,
     color: 'rgb(34, 197, 94)',
-    icon: 'Play',
+    icon: '▶️',
+    description: 'User starts the workflow manually',
     maxInputs: 0,
     maxOutputs: 1,
-    config: {},
   };
 
   return (

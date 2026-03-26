@@ -105,7 +105,6 @@ export const highContrastTheme: ThemeConfig = {
     Input: {
       controlHeight: 44,
       borderRadius: 2,
-      fontWeight: 600,
     },
     Card: {
       borderRadius: 4,

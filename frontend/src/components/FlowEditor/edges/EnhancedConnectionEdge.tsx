@@ -14,6 +14,7 @@
 
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
+  type Edge,
   EdgeProps,
   getSmoothStepPath,
   EdgeLabelRenderer,
@@ -30,7 +31,7 @@ import { CheckCircle, AlertCircle, XCircle, Info, Pencil, Trash2, Plus, AlertTri
 
 export type ConnectionStatus = 'valid' | 'invalid' | 'warning' | 'info' | 'default';
 
-export interface EnhancedEdgeData {
+export interface EnhancedEdgeData extends Record<string, unknown> {
   /** Connection validation status */
   status?: ConnectionStatus;
   /** Label text */
@@ -311,7 +312,7 @@ function getStatusIcon(status: ConnectionStatus): React.ReactNode {
  * };
  * ```
  */
-export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = memo(
+export const EnhancedConnectionEdge: React.FC<EdgeProps<Edge<EnhancedEdgeData>>> = memo(
   ({
     id,
     source,
@@ -459,7 +460,8 @@ export const EnhancedConnectionEdge: React.FC<EdgeProps<EnhancedEdgeData>> = mem
       const sourceNode = source ? getNode(source) : undefined;
       const keys: string[] = [];
 
-      const outputFields = sourceNode?.data?.outputSchema?.outputFields;
+      const sourceData = (sourceNode?.data ?? {}) as any;
+      const outputFields = sourceData?.outputSchema?.outputFields;
       if (Array.isArray(outputFields)) {
         for (const f of outputFields) {
           const key = f?.fieldName || f?.fieldId;

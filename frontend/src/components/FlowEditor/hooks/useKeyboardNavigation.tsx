@@ -84,9 +84,10 @@ export const useKeyboardNavigation = (
             ]);
             
             // Focus and scroll into view
+            const nextNodeId = nextNode.id;
             setTimeout(() => {
               const nodeElement = document.querySelector(
-                `[data-id="${nextNode.id}"]`
+                `[data-id="${nextNodeId}"]`
               ) as HTMLElement;
               if (nodeElement) {
                 nodeElement.focus();

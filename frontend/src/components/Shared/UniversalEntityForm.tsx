@@ -443,7 +443,7 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
             )}
 
             <DynamicFormEngine
-              schema={dynamicSchema}
+              schema={dynamicSchema as any}
               initialValues={initialValues || {}}
               onSubmit={(data) => {
                 void submit(data);

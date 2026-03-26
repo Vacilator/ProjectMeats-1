@@ -9,6 +9,7 @@ import QuickActionsEditor from '../QuickActions/QuickActionsEditor';
 import { Icon } from '../ui';
 import TenantSelector from './TenantSelector';
 import { authService } from '../../services/authService';
+import { UserProfile } from '../../types';
 import { NotificationBell } from '../Notifications';
 import debounce from 'lodash/debounce';
 
@@ -45,7 +46,12 @@ const Header: React.FC<HeaderProps> = () => {
   const quickMenuRef = useRef<HTMLDivElement>(null);
   
   // Get current user info
-  const user = authService.getCurrentUser();
+  const [user, setUser] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    void Promise.resolve(authService.getCurrentUser()).then(setUser).catch(() => setUser(null));
+  }, []);
+
   const isSuperuser = user?.is_superuser || false;
   
   // Quick Actions context

@@ -189,7 +189,10 @@ async function validateValue(
   
   // Pattern
   if (rule.pattern) {
-    const pattern = typeof rule.pattern === 'object' ? rule.pattern.value : rule.pattern;
+    const pattern =
+      typeof rule.pattern === 'object' && rule.pattern !== null && 'value' in rule.pattern
+        ? rule.pattern.value
+        : rule.pattern;
     if (!pattern.test(String(value))) {
       return getErrorMessage(
         rule.pattern,

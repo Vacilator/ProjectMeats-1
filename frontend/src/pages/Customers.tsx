@@ -81,7 +81,7 @@ const Customers: React.FC = () => {
     country: '',
     industry_array: [] as string[], // Phase 4: ArrayField integration
     preferred_protein_types: [] as string[], // Phase 4: ArrayField integration
-    products: [] as string[], // Product UUIDs for M2M
+    products: [] as string[], // Product IDs for M2M
   });
 
   // Auto-open form if ?action=create in URL
@@ -277,9 +277,15 @@ const Customers: React.FC = () => {
     e.preventDefault();
     try {
       if (editingCustomer) {
-        await apiService.updateCustomer(editingCustomer.id, formData);
+        await apiService.updateCustomer(editingCustomer.id, {
+          ...formData,
+          products: formData.products.map((v) => Number(v)),
+        });
       } else {
-        await apiService.createCustomer(formData);
+        await apiService.createCustomer({
+          ...formData,
+          products: formData.products.map((v) => Number(v)),
+        });
       }
       setShowEditForm(false);
       setEditingCustomer(null);
@@ -315,7 +321,7 @@ const Customers: React.FC = () => {
       country: customer.country || '',
       industry_array: customer.industry_array || [], // Phase 4: Populate array
       preferred_protein_types: customer.preferred_protein_types || [], // Phase 4: Populate array
-      products: customer.products || [], // Populate product IDs
+      products: (customer.products || []).map(String), // Populate product IDs
     });
     setShowEditForm(true);
   };
@@ -514,7 +520,7 @@ const Customers: React.FC = () => {
                   <MultiSelect
                     value={formData.products}
                     onChange={(values) => setFormData({ ...formData, products: values })}
-                    options={products.map(p => ({ value: p.id, label: `${p.product_code}${p.name ? ' - ' + p.name : ''}` }))}
+                    options={products.map(p => ({ value: String(p.id), label: `${p.product_code}${p.name ? ' - ' + p.name : ''}` }))}
                     label="Preferred Products"
                     placeholder="Select preferred products (hold Ctrl/Cmd for multiple)"
                   />

@@ -85,7 +85,12 @@ export const useFavorites = () => {
   });
 
   // Mutation for toggling favorites
-  const toggleMutation = useMutation<ToggleFavoriteResponse, Error, ToggleFavoriteParams>({
+  const toggleMutation = useMutation<
+    ToggleFavoriteResponse,
+    Error,
+    ToggleFavoriteParams,
+    { previousFavorites?: Favorite[] }
+  >({
     mutationFn: toggleFavorite,
     
     // Optimistic update

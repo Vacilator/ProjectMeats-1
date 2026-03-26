@@ -66,6 +66,8 @@ export interface UpstreamVariable {
   required?: boolean;
 }
 
+export type FieldType = UpstreamVariable['fieldType'];
+
 export interface UseUpstreamVariablesParams {
   /** Current node ID to find upstream variables for */
   currentNodeId: string;
@@ -299,7 +301,7 @@ export function useUpstreamVariables({
         if (!node) continue;
         
         // Get node name (fallback to ID if no label)
-        const nodeName = node.data?.label || node.data?.name || nodeId;
+        const nodeName = String((node.data as any)?.label ?? (node.data as any)?.name ?? nodeId);
         
         // Extract fields from this node
         const fields = extractFieldsFromFormStep(node);

@@ -31,7 +31,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-import { businessApi } from '../../../services/businessApi';
+import { businessApi } from '@/services/businessApi';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;

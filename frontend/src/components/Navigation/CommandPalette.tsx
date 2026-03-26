@@ -474,8 +474,12 @@ const getCachedResults = (query: string): SearchResult[] | null => {
 const setCachedResults = (query: string, results: SearchResult[]): void => {
   // Limit cache size to prevent memory bloat
   if (searchCache.size > 100) {
-    const oldestKey = searchCache.keys().next().value;
-    searchCache.delete(oldestKey);
+    const oldestKey = searchCache.keys().next().value as string | undefined;
+    if (oldestKey) {
+      searchCache.delete(oldestKey);
+    } else {
+      searchCache.clear();
+    }
   }
   
   searchCache.set(query, {

@@ -171,34 +171,32 @@ export function findFieldMatches(
   targetFieldTypes?: Record<string, string> // Optional: field name -> type
 ): FieldMatch[] {
   const matches: FieldMatch[] = [];
-  
-  targetFieldNames.forEach(targetFieldName => {
+
+  for (const targetFieldName of targetFieldNames) {
     let bestMatch: FieldMatch | null = null;
-    
-    sourceFields.forEach(sourceField => {
+
+    for (const sourceField of sourceFields) {
       // Calculate name similarity
       const nameSimilarity = calculateNameSimilarity(sourceField.fieldName, targetFieldName);
-      
+
       if (nameSimilarity === 0) {
-        return; // No similarity, skip
+        continue; // No similarity, skip
       }
-      
+
       // Check type compatibility if target type is known
-      let typeCompatible = true;
       let matchReason: FieldMatch['matchReason'] = 'exact_name';
-      
+
       if (targetFieldTypes && targetFieldTypes[targetFieldName]) {
         const targetType = targetFieldTypes[targetFieldName];
-        typeCompatible = areTypesCompatible(sourceField.fieldType, targetType);
-        
-        // Lower score if types are incompatible
+        const typeCompatible = areTypesCompatible(sourceField.fieldType, targetType);
+
         if (!typeCompatible) {
-          return; // Skip incompatible types
+          continue; // Skip incompatible types
         }
-        
+
         matchReason = 'type_compatible';
       }
-      
+
       // Determine match reason
       if (nameSimilarity === 1.0) {
         matchReason = 'exact_name';
@@ -207,7 +205,7 @@ export function findFieldMatches(
       } else {
         matchReason = 'fuzzy_name';
       }
-      
+
       const match: FieldMatch = {
         sourceNodeId,
         sourceField,
@@ -215,19 +213,19 @@ export function findFieldMatches(
         matchScore: nameSimilarity,
         matchReason,
       };
-      
+
       // Keep best match for this target field
       if (!bestMatch || match.matchScore > bestMatch.matchScore) {
         bestMatch = match;
       }
-    });
-    
+    }
+
     // Add best match if score is above threshold
     if (bestMatch && bestMatch.matchScore >= 0.6) {
       matches.push(bestMatch);
     }
-  });
-  
+  }
+
   return matches;
 }
 

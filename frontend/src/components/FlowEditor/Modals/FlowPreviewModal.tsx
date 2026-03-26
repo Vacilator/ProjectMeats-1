@@ -385,7 +385,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
 
     addLog({
       nodeId: node.id,
-      nodeName: node.data?.label || node.type || 'Unknown',
+      nodeName: String((node.data as any)?.label ?? node.type ?? 'Unknown'),
       action: 'Executing node...',
       level: 'info',
     });
@@ -398,9 +398,9 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
     
     if (node.type?.includes('form')) {
       // Generate mock form data
-      const fields = node.data?.fields as FormField[] || [];
-      fields.forEach(field => {
-        mockData[field.name] = `Mock ${field.type} value`;
+      const fields = ((node.data as any)?.fields as FormField[] | undefined) || [];
+      fields.forEach((field) => {
+        mockData[field.id] = `Mock ${field.type} value`;
       });
     }
 
@@ -417,7 +417,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
 
     addLog({
       nodeId: node.id,
-      nodeName: node.data?.label || node.type || 'Unknown',
+      nodeName: String((node.data as any)?.label ?? node.type ?? 'Unknown'),
       action: 'Node completed successfully',
       data: mockData,
       level: 'success',
@@ -539,7 +539,7 @@ export const FlowPreviewModal: React.FC<FlowPreviewModalProps> = React.memo(({
                 return (
                   <PreviewNode key={node.id} status={state.status}>
                     <NodeHeader>
-                      <NodeName>{node.data?.label || node.type}</NodeName>
+                      <NodeName>{String((node.data as any)?.label ?? node.type ?? '')}</NodeName>
                       <StatusBadge status={state.status}>{state.status}</StatusBadge>
                     </NodeHeader>
                     {state.data && (

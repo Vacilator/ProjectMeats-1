@@ -333,16 +333,19 @@ export class AINodeSuggestionService {
     const triggerNode = nodes.find(n => n.type?.startsWith('trigger'));
     if (!triggerNode) return nodes.map(n => n.type || 'default');
     
-    let current = triggerNode;
+    let current: (typeof triggerNode) | undefined = triggerNode;
     while (current && !visited.has(current.id)) {
       visited.add(current.id);
       sequence.push(current.type || 'default');
       
       // Find next node via edge
-      const outgoingEdge = edges.find(e => e.source === current.id);
+      const currentId: string = current.id;
+      const outgoingEdge: Edge | undefined = edges.find((e) => e.source === currentId);
       if (!outgoingEdge) break;
-      
-      current = nodes.find(n => n.id === outgoingEdge.target) || null;
+
+      const next: Node | undefined = nodes.find((n) => n.id === outgoingEdge.target);
+      if (!next) break;
+      current = next;
     }
     
     return sequence;

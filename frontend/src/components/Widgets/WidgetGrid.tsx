@@ -14,7 +14,7 @@
  * - Uses CSS custom properties
  */
 import React, { useCallback } from 'react';
-import GridLayout, { LayoutItem } from 'react-grid-layout';
+import GridLayout, { LayoutItem, type Layout } from 'react-grid-layout';
 import styled from 'styled-components';
 import { X } from 'lucide-react';
 import 'react-grid-layout/css/styles.css';
@@ -161,8 +161,8 @@ export const WidgetGrid: React.FC<WidgetGridProps> = ({
   isEditing = false,
 }) => {
   const handleLayoutChange = useCallback(
-    (newLayout: LayoutItem[]) => {
-      onLayoutChange(newLayout as WidgetLayout[]);
+    (newLayout: Layout) => {
+      onLayoutChange([...newLayout] as WidgetLayout[]);
     },
     [onLayoutChange]
   );
@@ -183,15 +183,17 @@ export const WidgetGrid: React.FC<WidgetGridProps> = ({
       <GridLayout
         className="layout"
         layout={layout}
-        cols={cols}
-        rowHeight={rowHeight}
         width={width}
+        gridConfig={{
+          cols,
+          rowHeight,
+          margin: [16, 16] as const,
+          containerPadding: null,
+          maxRows: Infinity,
+        }}
+        dragConfig={{ enabled: isEditing }}
+        resizeConfig={{ enabled: isEditing }}
         onLayoutChange={handleLayoutChange}
-        isDraggable={isEditing}
-        isResizable={isEditing}
-        compactType="vertical"
-        preventCollision={false}
-        margin={[16, 16]}
       >
         {widgets.map(widget => (
           <WidgetWrapper key={widget.id} $isEditing={isEditing}>

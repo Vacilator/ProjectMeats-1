@@ -106,14 +106,16 @@ const evaluateCondition = (
   // Handle in_list
   if (operator === 'in_list') {
     const list = Array.isArray(conditionValue) ? conditionValue : [conditionValue];
+
     if (typeof fieldValue === 'string') {
-      return list.some(item => 
-        typeof item === 'string' 
-          ? item.toLowerCase() === fieldValue.toLowerCase()
-          : item === fieldValue
-      );
+      return list.some((item) => String(item).toLowerCase() === fieldValue.toLowerCase());
     }
-    return list.includes(fieldValue);
+
+    if (typeof fieldValue === 'number' || typeof fieldValue === 'boolean') {
+      return (list as Array<string | number | boolean>).includes(fieldValue);
+    }
+
+    return false;
   }
   
   return false;

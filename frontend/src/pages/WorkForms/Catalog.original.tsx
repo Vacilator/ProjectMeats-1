@@ -469,7 +469,7 @@ const FormsFlowsCatalog: React.FC = () => {
             variant="primary"
             onClick={() => setShowTemplateSelector(true)}
             disabled={!permissions.can_create || permissionsLoading}
-            title={!permissions.can_create ? getUpgradeMessage(permissions.role, 'create') : 'Create a new form or workflow'}
+            title={!permissions.can_create ? getUpgradeMessage('create', permissions.role) : 'Create a new form or workflow'}
           >
             {!permissions.can_create && <Lock size={16} style={{ marginRight: '0.5rem' }} />}
             <Plus size={18} />
@@ -642,8 +642,7 @@ const FormsFlowsCatalog: React.FC = () => {
         />
       )}
       
-      {/* Debug: Show preview state */}
-      {console.log('[Catalog] Current previewForm state:', previewForm)}
+
     </Container>
   );
 };

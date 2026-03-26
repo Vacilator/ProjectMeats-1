@@ -159,7 +159,8 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
 
   // Render a simple navigation link (no children)
   const renderNavLink = (item: NavigationItem, exactActive: boolean, active: boolean) => {
-    const badgeValue = item.badge ?? getBadgeValue(counts, item.badgeKey);
+    const badgeValueRaw = item.badge ?? getBadgeValue(counts, item.badgeKey);
+    const badgeValue = typeof badgeValueRaw === 'string' ? Number(badgeValueRaw) : badgeValueRaw;
     return (
       <StyledNavLink
         to={item.path!}
@@ -181,7 +182,8 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ items, isExpanded: side
   // Render accordion header content (icon and label)
   // Render accordion content - icon, label, badge
   const renderAccordionContent = (item: NavigationItem) => {
-    const badgeValue = item.badge ?? getBadgeValue(counts, item.badgeKey);
+    const badgeValueRaw = item.badge ?? getBadgeValue(counts, item.badgeKey);
+    const badgeValue = typeof badgeValueRaw === 'string' ? Number(badgeValueRaw) : badgeValueRaw;
     return (
       <>
         <NavIcon $color={item.color}>{item.icon}</NavIcon>

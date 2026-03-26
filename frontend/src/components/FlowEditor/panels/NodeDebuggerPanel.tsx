@@ -177,7 +177,7 @@ export const NodeDebuggerPanel: React.FC<NodeDebuggerPanelProps> = ({
       <NodeInfo>
         <NodeInfoLabel>Testing Node:</NodeInfoLabel>
         <NodeInfoValue>
-          <strong>{node.data?.label || node.id}</strong>
+          <strong>{String((node.data as any)?.label ?? node.id)}</strong>
           <small>({node.type})</small>
         </NodeInfoValue>
       </NodeInfo>
@@ -381,7 +381,7 @@ async function simulateNodeExecution(node: Node, context: any): Promise<any> {
           ...context.variables,
           submittedAt: new Date().toISOString(),
         },
-        _warnings: nodeData?.fields?.length === 0 ? ['No fields configured'] : [],
+        _warnings: Array.isArray((nodeData as any)?.fields) && (nodeData as any).fields.length === 0 ? ['No fields configured'] : [],
       };
       
     case 'condition':

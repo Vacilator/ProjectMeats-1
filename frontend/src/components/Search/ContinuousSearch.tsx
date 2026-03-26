@@ -68,12 +68,12 @@ export const ContinuousSearchInput: React.FC<{
         loading={loading}
       />
       {results.length > 0 && (
-        <div style={{ marginTop: 8, border: '1px solid #d9d9d9', borderRadius: 4 }}>
+        <div style={{ marginTop: 8, border: '1px solid rgb(var(--color-border))', borderRadius: 4 }}>
           {results.map(result => (
             <div
               key={result.id}
               onClick={() => onSelect(result)}
-              style={{ padding: 8, cursor: 'pointer', ':hover': { background: '#f5f5f5' } }}
+              style={{ padding: 8, cursor: 'pointer' }}
             >
               {result.label}
             </div>

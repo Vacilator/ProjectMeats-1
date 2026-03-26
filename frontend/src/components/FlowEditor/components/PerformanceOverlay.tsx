@@ -8,7 +8,7 @@
  * @see Phase 7.5: Performance Optimization
  */
 
-import React, { useState, useEffect } from 'styled';
+import React, { useEffect, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { usePerformanceMetrics } from '../hooks/useVirtualizedNodes';
 

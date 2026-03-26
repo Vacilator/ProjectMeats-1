@@ -9,7 +9,7 @@
 
 import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { BaseNode, BaseNodeData } from './BaseNode';
 import { GitBranch, Plus, Trash2 } from 'lucide-react';
 
@@ -77,7 +77,7 @@ export interface ConditionalBranchData extends BaseNodeData {
   onDelete?: () => void;
 }
 
-export interface ConditionalBranchNodeProps extends NodeProps<ConditionalBranchData> {}
+export interface ConditionalBranchNodeProps extends NodeProps<Node<ConditionalBranchData>> {}
 
 // ============================================================================
 // Styled Components

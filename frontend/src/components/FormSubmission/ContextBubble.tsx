@@ -510,7 +510,7 @@ export const ContextBubble: React.FC<ContextBubbleProps> = ({
           {inheritanceChain.map((step, index) => (
             <InheritanceStep key={step.id}>
               <InheritanceStepHeader>
-                <span>Step {index + 1}: {step.label}</span>
+                <span>Step {index + 1}: {String(step.label ?? step.id ?? '')}</span>
                 <small>({step.type})</small>
               </InheritanceStepHeader>
               <InheritanceStepData>

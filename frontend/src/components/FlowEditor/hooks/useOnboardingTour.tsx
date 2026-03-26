@@ -54,7 +54,7 @@ export const useOnboardingTour = (tourConfig: TourConfig) => {
     (data: EventData) => {
       const { status, index, type, action } = data;
 
-      if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
         // Mark tour as completed
         const completedTours = JSON.parse(
           localStorage.getItem(TOUR_STORAGE_KEY) || '[]'

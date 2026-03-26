@@ -128,7 +128,7 @@ interface ConfigCache {
 let memoryCache: ConfigCache = {};
 
 // Pending requests deduplication (prevent duplicate API calls)
-const pendingRequests: Record<string, Promise<unknown>> = {};
+const pendingRequests: Record<string, Promise<unknown> | undefined> = {};
 
 // Performance metrics tracking
 let cacheHits = 0;

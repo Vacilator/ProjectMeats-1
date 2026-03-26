@@ -567,7 +567,12 @@ const ConfigurationsPage: React.FC = () => {
             confirmVariant="danger"
           />
 
-          <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} maxWidth="720px">
+          <Modal
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            title="Add Configuration"
+            maxWidth="720px"
+          >
             <CreateModalContent>
               <CreateHeader>
                 <CreateTitle>Add Configuration</CreateTitle>

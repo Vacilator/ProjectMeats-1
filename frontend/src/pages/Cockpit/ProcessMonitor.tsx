@@ -570,10 +570,6 @@ const ProcessMonitor: React.FC = () => {
                   readOnly={true}
                   initialNodes={nodes as any}
                   initialEdges={edges as any}
-                  punchIn={{
-                    activeNodeId,
-                    centerOnActiveNode: true,
-                  }}
                 />
               )}
             </EditorPane>

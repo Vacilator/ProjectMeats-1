@@ -33,6 +33,13 @@ export function renderTextField(
 ): React.ReactNode {
   const { field, value, onChange, error } = props;
 
+  const placeholder =
+    typeof field.placeholder === 'string'
+      ? field.placeholder
+      : (field.placeholder && typeof field.placeholder === 'object' && 'value' in field.placeholder)
+        ? String((field.placeholder as any).value)
+        : undefined;
+
   return (
     <FormField key={field.id}>
       <Label>
@@ -43,7 +50,7 @@ export function renderTextField(
         <TextArea
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={field.placeholder}
+          placeholder={placeholder}
           disabled={field.disabled || props.disabled}
           rows={4}
         />
@@ -57,7 +64,7 @@ export function renderTextField(
           }
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={field.placeholder}
+          placeholder={placeholder}
           disabled={field.disabled || props.disabled}
         />
       )}

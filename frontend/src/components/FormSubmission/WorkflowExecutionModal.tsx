@@ -23,6 +23,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { X, ChevronLeft, ChevronRight, Save } from 'lucide-react';
+import type { Edge, Node } from '@xyflow/react';
 import { TaskRenderer } from './TaskRenderer';
 import { useWorkflowContext } from './hooks/useWorkflowContext';
 import { notify } from '../../utils/notify';
@@ -31,20 +32,7 @@ import { notify } from '../../utils/notify';
 // TypeScript Interfaces
 // ============================================================================
 
-export interface WorkflowNode {
-  id: string;
-  type: string;
-  data: {
-    label?: string;
-    config?: Record<string, any>;
-    fields?: any[];
-    entity_type?: string;
-    interactionType?: string;
-    [key: string]: any;
-  };
-  position?: { x: number; y: number };
-  parentId?: string;
-}
+export type WorkflowNode = Node<any>;
 
 export interface WorkflowExecutionProps {
   /** Workflow definition with nodes */
@@ -53,7 +41,7 @@ export interface WorkflowExecutionProps {
     name: string;
     description?: string;
     nodes: WorkflowNode[];
-    edges?: Array<{ id: string; source: string; target: string }>;
+    edges?: Edge<any>[];
   };
   
   /** Initial workflow execution data */
@@ -321,7 +309,7 @@ const EmptyState = styled.div`
 /**
  * Build execution order from workflow nodes and edges
  */
-function buildExecutionOrder(nodes: WorkflowNode[], edges?: Array<{ id: string; source: string; target: string }>): string[] {
+function buildExecutionOrder(nodes: WorkflowNode[], edges?: Edge<any>[]): string[] {
   // Simple linear order for now
   // TODO: Implement proper topological sort based on edges
   return nodes
@@ -398,7 +386,7 @@ export const WorkflowExecutionModal: React.FC<WorkflowExecutionProps> = ({
 
   // Auto-save state
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-save handler
   const triggerAutoSave = useCallback(() => {

@@ -298,7 +298,7 @@ const ToolbarButton = styled.button<{ $primary?: boolean }>`
 const isFormBookStepType = (type?: string) =>
   type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
 
-export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selected }) => {
+export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, selected }) => {
   const allNodes = useNodes();
   const allEdges = useEdges();
   const { setNodes, setEdges } = useReactFlow();
@@ -516,13 +516,13 @@ export const FormNode = React.memo<NodeProps<FormNodeData>>(({ id, data, selecte
 
           return {
             ...n,
-            extent: 'parent',
+            extent: 'parent' as const,
             expandParent: true,
             data: {
               ...(n.data || {}),
               order: desiredOrder,
             },
-          };
+          } as Node;
         }
 
         return n;

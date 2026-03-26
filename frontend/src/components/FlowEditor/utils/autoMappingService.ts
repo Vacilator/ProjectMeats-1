@@ -264,7 +264,8 @@ export class AutoMappingService {
    * Check if a node already has field mappings
    */
   static hasExistingMappings(node: Node): boolean {
-    return Boolean(node.data?.fieldMappings && node.data.fieldMappings.length > 0);
+    const mappings = (node.data as any)?.fieldMappings;
+    return Array.isArray(mappings) && mappings.length > 0;
   }
   
   /**
@@ -274,12 +275,11 @@ export class AutoMappingService {
     node: Node,
     targetFieldName: string
   ): any | null {
-    if (!node.data?.fieldMappings) {
+    const mappings = (node.data as any)?.fieldMappings;
+    if (!Array.isArray(mappings)) {
       return null;
     }
-    
-    return node.data.fieldMappings.find(
-      (m: any) => m.targetFieldName === targetFieldName
-    ) || null;
+
+    return mappings.find((m: any) => m?.targetFieldName === targetFieldName) || null;
   }
 }

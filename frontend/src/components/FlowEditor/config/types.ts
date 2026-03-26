@@ -399,6 +399,9 @@ export interface NodeConfigSchema {
   
   /** Human-readable name */
   displayName: string;
+
+  /** Optional category (used by schemaRegistry fallbacks + UI grouping) */
+  category?: string;
   
   /** Description of what this node does */
   description?: string;

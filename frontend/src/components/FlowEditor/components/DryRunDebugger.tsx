@@ -386,7 +386,7 @@ export const DryRunDebugger: React.FC<DryRunDebuggerProps> = ({
     <DebuggerContainer>
       <DebuggerHeader>
         <NodeInfo>
-          <NodeLabel>{selectedNode.data?.label || selectedNode.id}</NodeLabel>
+          <NodeLabel>{String((selectedNode.data as any)?.label ?? selectedNode.id)}</NodeLabel>
           <NodeType>{selectedNode.type}</NodeType>
         </NodeInfo>
         <ActionButtons>
