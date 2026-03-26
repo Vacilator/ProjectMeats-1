@@ -273,20 +273,20 @@ class TenantMiddleware:
         # only persists for the current transaction.
         rls_set = False
         if tenant:
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute("SET app.current_tenant_id = %s", [str(tenant.id)])
-                    cursor.execute("SET app.current_tenant = %s", [str(tenant.id)])
-                rls_set = True
+            from apps.tenants.rls import set_current_tenant
+
+            result = set_current_tenant(str(tenant.id))
+            rls_set = result.ok
+
+            if result.ok:
                 logger.debug(
                     f"RLS: Set current_tenant_id/current_tenant={tenant.id} for tenant={tenant.slug}"
                 )
-            except Exception as e:
+            else:
                 # Log but don't fail the request if RLS setup fails.
-                # Application-level filtering will still work.
+                # Application-level filtering will still work, but DB-level RLS writes may fail.
                 logger.warning(
-                    f"Failed to set RLS session variables for tenant={tenant.slug}: "
-                    f"{type(e).__name__}: {str(e)}"
+                    f"Failed to set RLS session variables for tenant={tenant.slug}: {result.error}"
                 )
         else:
             # Clear session variables if no tenant is resolved

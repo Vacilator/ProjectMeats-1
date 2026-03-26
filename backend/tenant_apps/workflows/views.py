@@ -853,6 +853,24 @@ class TenantFilteredModelViewSet(viewsets.ModelViewSet):
             return qs.filter(tenant=self.request.tenant)
         return qs.none()
 
+    def _ensure_rls_session_vars(self, tenant_id: str) -> None:
+        """Best-effort: (re)set Postgres session vars used by RLS.
+
+        TenantMiddleware normally sets these, but on write paths we re-assert
+        them to avoid "new row violates row-level security policy" 500s if the
+        middleware couldn't set them earlier.
+        """
+
+        from apps.tenants.rls import set_current_tenant
+
+        result = set_current_tenant(tenant_id)
+        if not result.ok:
+            logger.warning(
+                "RLS: failed to set session vars for tenant=%s: %s",
+                tenant_id,
+                result.error,
+            )
+
     def perform_create(self, serializer):
         """Set tenant and created_by on create.
 
@@ -863,12 +881,26 @@ class TenantFilteredModelViewSet(viewsets.ModelViewSet):
         if not tenant:
             raise ValidationError({"tenant": "Tenant context is required (X-Tenant-ID header)."})
 
+        self._ensure_rls_session_vars(str(tenant.id))
+
         save_kwargs = {"tenant": tenant}
 
         if hasattr(serializer.Meta.model, "created_by") and getattr(self.request, "user", None):
             save_kwargs["created_by"] = self.request.user
 
         serializer.save(**save_kwargs)
+
+    def perform_update(self, serializer):
+        tenant = getattr(self.request, "tenant", None)
+        if tenant:
+            self._ensure_rls_session_vars(str(tenant.id))
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        tenant = getattr(self.request, "tenant", None)
+        if tenant:
+            self._ensure_rls_session_vars(str(tenant.id))
+        instance.delete()
 
 
 # =============================================================================
