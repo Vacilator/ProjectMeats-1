@@ -1,96 +1,13 @@
 /**
- * API Service for ProjectMeats AI Assistant
+ * AI Assistant API (thin wrapper around businessApi)
  *
- * Handles communication with the Django REST API backend.
- * Includes fixed endpoints from PR #63.
+ * IMPORTANT:
+ * - Do NOT create a separate axios/fetch client here.
+ * - Use the shared apiService/businessApi so auth refresh + tenant headers are consistent.
  */
-import axios from 'axios';
-import { config } from '../config/runtime';
 
-// API Configuration
-const API_BASE_URL = config.API_BASE_URL;
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // Allow cookies for authentication
-  xsrfCookieName: 'csrftoken', // Django's CSRF cookie name
-  xsrfHeaderName: 'X-CSRFToken', // Django's expected CSRF header
-});
-
-// Request interceptor for authentication
-apiClient.interceptors.request.use(
-  (config) => {
-    // Add authentication token if available
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle authentication errors
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-// API helper function
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const config = {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  };
-
-  const response = await fetch(url, config);
-
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-// Type definitions
-export interface ChatSession {
-  id: string;
-  title?: string;
-  session_status: 'active' | 'completed' | 'archived';
-  context_data?: Record<string, unknown>;
-  last_activity: string;
-  created_on: string;
-  modified_on: string;
-  message_count: number;
-}
-
-export interface ChatMessage {
-  id: string;
-  session: string;
-  message_type: 'user' | 'assistant' | 'system' | 'document';
-  content: string;
-  metadata?: Record<string, unknown>;
-  is_processed: boolean;
-  created_on: string;
-  modified_on: string;
-}
+import { businessApi } from './businessApi';
+import type { ChatMessage, ChatSession, UploadedDocument } from '../types';
 
 export interface ChatRequest {
   message: string;
@@ -119,99 +36,65 @@ export interface DocumentProcessingResponse {
   message: string;
 }
 
-export interface DocumentUploadResponse {
-  id: string;
-  original_filename: string;
-  file_size: number;
-  file_type: string;
-  document_type: string;
-  processing_status: 'pending' | 'processing' | 'completed' | 'failed';
-  created_on: string;
-}
+export type DocumentUploadResponse = UploadedDocument;
+
+const unwrap = <T,>(res: { data: T }): T => res.data;
 
 // Chat API
 export const chatApi = {
   /**
-   * Send a message and get AI response
-   * Fixed endpoint: /ai-assistant/ai-chat/chat/ (from PR #63)
+   * Send a message and get AI response.
+   *
+   * Use the clean endpoint wrapper so server-side routing remains stable.
    */
   sendMessage: async (data: ChatRequest): Promise<ChatResponse> => {
-    return apiRequest<ChatResponse>('/ai-assistant/ai-chat/chat/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const res = await businessApi.post<ChatResponse>('/ai-assistant/chat/', data);
+    return unwrap(res);
   },
 
   /**
-   * Process a document with AI
-   * Fixed endpoint: /ai-assistant/ai-chat/process_document/ (from PR #63)
+   * Process a document with AI (compat endpoint).
    */
   processDocument: async (data: DocumentProcessingRequest): Promise<DocumentProcessingResponse> => {
-    return apiRequest<DocumentProcessingResponse>('/ai-assistant/ai-chat/process_document/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const res = await businessApi.post<DocumentProcessingResponse>('/ai-assistant/ai-chat/process_document/', data);
+    return unwrap(res);
   },
 };
 
 // Chat Sessions API
 export const chatSessionsApi = {
-  /**
-   * List all chat sessions for the current user
-   */
   list: async (): Promise<ChatSession[]> => {
-    return apiRequest<ChatSession[]>('/ai-assistant/ai-sessions/');
+    const res = await businessApi.get<ChatSession[]>('/ai-assistant/ai-sessions/');
+    return unwrap(res);
   },
 
-  /**
-   * Get a specific chat session
-   */
   get: async (sessionId: string): Promise<ChatSession> => {
-    return apiRequest<ChatSession>(`/ai-assistant/ai-sessions/${sessionId}/`);
+    const res = await businessApi.get<ChatSession>(`/ai-assistant/ai-sessions/${sessionId}/`);
+    return unwrap(res);
   },
 
-  /**
-   * Create a new chat session
-   */
   create: async (data: Partial<ChatSession>): Promise<ChatSession> => {
-    return apiRequest<ChatSession>('/ai-assistant/ai-sessions/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const res = await businessApi.post<ChatSession>('/ai-assistant/ai-sessions/', data);
+    return unwrap(res);
   },
 
-  /**
-   * Update a chat session
-   */
   update: async (sessionId: string, data: Partial<ChatSession>): Promise<ChatSession> => {
-    return apiRequest<ChatSession>(`/ai-assistant/ai-sessions/${sessionId}/`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
+    const res = await businessApi.patch<ChatSession>(`/ai-assistant/ai-sessions/${sessionId}/`, data);
+    return unwrap(res);
   },
 
-  /**
-   * Delete a chat session
-   */
   delete: async (sessionId: string): Promise<void> => {
-    return apiRequest<void>(`/ai-assistant/ai-sessions/${sessionId}/`, {
-      method: 'DELETE',
-    });
+    await businessApi.delete(`/ai-assistant/ai-sessions/${sessionId}/`);
   },
 
-  /**
-   * Get messages for a specific session
-   */
   getMessages: async (sessionId: string): Promise<ChatMessage[]> => {
-    return apiRequest<ChatMessage[]>(`/ai-assistant/ai-sessions/${sessionId}/messages/`);
+    const res = await businessApi.get<ChatMessage[]>(`/ai-assistant/ai-sessions/${sessionId}/messages/`);
+    return unwrap(res);
   },
 };
 
 // Documents API
 export const documentsApi = {
-  /**
-   * Upload a document
-   */
   upload: async (file: File, sessionId?: string): Promise<DocumentUploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -219,70 +102,17 @@ export const documentsApi = {
       formData.append('session_id', sessionId);
     }
 
-    return apiRequest<DocumentUploadResponse>('/ai-assistant/ai-documents/', {
-      method: 'POST',
-      body: formData,
-      headers: {}, // Remove Content-Type to let browser set it for FormData
-    });
+    const res = await businessApi.post<DocumentUploadResponse>('/ai-assistant/ai-documents/', formData);
+    return unwrap(res);
   },
 
-  /**
-   * List uploaded documents
-   */
   list: async (): Promise<DocumentUploadResponse[]> => {
-    return apiRequest<DocumentUploadResponse[]>('/ai-assistant/ai-documents/');
+    const res = await businessApi.get<DocumentUploadResponse[]>('/ai-assistant/ai-documents/');
+    return unwrap(res);
   },
 
-  /**
-   * Get document processing status
-   */
   get: async (documentId: string): Promise<DocumentUploadResponse> => {
-    return apiRequest<DocumentUploadResponse>(`/ai-assistant/ai-documents/${documentId}/`);
+    const res = await businessApi.get<DocumentUploadResponse>(`/ai-assistant/ai-documents/${documentId}/`);
+    return unwrap(res);
   },
 };
-
-// AI Utils
-export const aiUtils = {
-  /**
-   * Check if AI assistant is enabled
-   */
-  isEnabled: (): boolean => {
-    return config.AI_ASSISTANT_ENABLED;
-  },
-
-  /**
-   * Get AI assistant configuration
-   */
-  getConfig: () => ({
-    apiBaseUrl: API_BASE_URL,
-    enabled: aiUtils.isEnabled(),
-    features: {
-      chat: true,
-      documentProcessing: true,
-      entityExtraction: true,
-    },
-  }),
-
-  /**
-   * Format processing time for display
-   */
-  formatProcessingTime: (seconds: number): string => {
-    if (seconds < 1) {
-      return `${Math.round(seconds * 1000)}ms`;
-    }
-    return `${seconds.toFixed(1)}s`;
-  },
-
-  /**
-   * Generate session title from first message
-   */
-  generateSessionTitle: (message: string): string => {
-    const maxLength = 50;
-    if (message.length <= maxLength) {
-      return message;
-    }
-    return message.substring(0, maxLength - 3) + '...';
-  },
-};
-
-export default apiClient;
