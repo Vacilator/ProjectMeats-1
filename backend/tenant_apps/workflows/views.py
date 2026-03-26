@@ -842,9 +842,21 @@ class FormRuleDetailAPIView(APIView):
 
 
 class TenantFilteredModelViewSet(viewsets.ModelViewSet):
-    """Base ViewSet that filters by tenant."""
+    """Base ViewSet that filters by tenant.
+
+    Note: With PostgreSQL RLS enabled, many tenant-scoped tables rely on the
+    `app.current_tenant` session var. Middleware normally sets it, but we also
+    set it here (best-effort) to avoid 500s during serializer validation or
+    read paths when the session var isn't present.
+    """
 
     permission_classes = [IsAuthenticated]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        tenant = getattr(request, "tenant", None)
+        if tenant:
+            self._ensure_rls_session_vars(str(tenant.id))
 
     def get_queryset(self):
         """Filter queryset by current tenant."""
