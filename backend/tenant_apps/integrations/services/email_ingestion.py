@@ -207,19 +207,32 @@ class EmailIngestionService:
         since_str = since.strftime('%Y-%m-%dT%H:%M:%SZ')
         
         # IMPORTANT: Microsoft Graph does not support complex contains() filters reliably across tenants.
-        # Filter by date only at the API level, then do keyword filtering locally in Python.
-        filter_query = f"receivedDateTime ge {since_str}"
-        
+        # We prefer simple, reliable server-side filters, then do keyword filtering locally in Python.
+        #
+        # Heuristic improvement:
+        # - Many actionable order emails include attachments (POs, invoices, BOLs, packing lists).
+        # - In busy mailboxes, scanning only the most recent N messages can miss order emails.
+        #
+        # So we do a two-pass scan:
+        #  1) attachments-only (smaller set, higher signal)
+        #  2) date-only fallback (for order emails without attachments)
+        filter_query_attachments = f"receivedDateTime ge {since_str} and hasAttachments eq true"
+        filter_query_all = f"receivedDateTime ge {since_str}"
+
         # Microsoft Graph API endpoint with filters.
         # NOTE: We intentionally use /me/messages (not just Inbox) because many orgs
         # auto-file order emails into subfolders.
         url = f"{provider.GRAPH_API_BASE}/me/messages"
-        params = {
-            '$filter': filter_query,
-            '$select': 'id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId',
-            '$top': 100,
-            '$orderby': 'receivedDateTime desc'
-        }
+
+        def _build_params(filter_query: str) -> Dict[str, Any]:
+            return {
+                '$filter': filter_query,
+                '$select': 'id,subject,from,receivedDateTime,bodyPreview,body,hasAttachments,conversationId',
+                '$top': 100,
+                '$orderby': 'receivedDateTime desc',
+            }
+
+        params = _build_params(filter_query_attachments)
         
         headers = {
             'Authorization': f'Bearer {access_token}',
@@ -227,36 +240,50 @@ class EmailIngestionService:
         }
         
         try:
-            # Pull up to a few pages to avoid missing emails when the mailbox is busy.
-            all_messages: List[Dict[str, Any]] = []
-            next_url = url
-            next_params = params
-            page = 0
+            def _fetch_pages(initial_params: Dict[str, Any], max_pages: int) -> List[Dict[str, Any]]:
+                all_messages: List[Dict[str, Any]] = []
+                next_url = url
+                next_params = initial_params
+                page = 0
 
-            while next_url and page < 5 and len(all_messages) < 500:
-                response = requests.get(next_url, headers=headers, params=next_params, timeout=30)
-                response.raise_for_status()
-                data = response.json() or {}
+                while next_url and page < max_pages and len(all_messages) < 1500:
+                    response = requests.get(next_url, headers=headers, params=next_params, timeout=30)
+                    response.raise_for_status()
+                    data = response.json() or {}
 
-                batch = data.get('value', []) or []
-                all_messages.extend(batch)
+                    batch = data.get('value', []) or []
+                    all_messages.extend(batch)
 
-                next_url = data.get('@odata.nextLink')
-                next_params = None  # nextLink already contains query string
-                page += 1
+                    next_url = data.get('@odata.nextLink')
+                    next_params = None  # nextLink already contains query string
+                    page += 1
 
-            self.stats['emails_scanned'] += len(all_messages)
+                return all_messages
+
+            # Pass 1: attachments-only (scan deeper; higher signal)
+            scanned = _fetch_pages(params, max_pages=10)
+
+            # Pass 2: date-only fallback if we didn't scan much (helps mailboxes with few attachments)
+            if len(scanned) < 100:
+                scanned_ids = {m.get('id') for m in scanned if m.get('id')}
+                scanned_all = _fetch_pages(_build_params(filter_query_all), max_pages=5)
+                for m in scanned_all:
+                    mid = m.get('id')
+                    if mid and mid in scanned_ids:
+                        continue
+                    scanned.append(m)
+
+            self.stats['emails_scanned'] += len(scanned)
 
             # Local Python filtering (defensive against Graph filtering quirks)
             filtered_messages: List[Dict[str, Any]] = []
-            for msg in all_messages:
+            for msg in scanned:
                 subject = (msg.get('subject') or '').lower()
                 body_preview = (msg.get('bodyPreview') or '').lower()
                 has_attachments = bool(msg.get('hasAttachments', False))
 
                 haystack = f"{subject}\n{body_preview}"
 
-                # Check if order keywords exist in subject/body, OR if it has attachments
                 is_order_related = any(kw in haystack for kw in self.ORDER_KEYWORDS)
 
                 if is_order_related or has_attachments:
@@ -265,8 +292,8 @@ class EmailIngestionService:
             self.stats['emails_matched'] += len(filtered_messages)
 
             logger.info(
-                'Graph scan complete: total=%s matched=%s (since=%s)',
-                len(all_messages),
+                'Graph scan complete: scanned=%s matched=%s (since=%s)',
+                len(scanned),
                 len(filtered_messages),
                 since_str,
             )
