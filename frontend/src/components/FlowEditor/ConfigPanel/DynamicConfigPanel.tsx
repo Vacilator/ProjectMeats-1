@@ -407,8 +407,9 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const nextData = (updatedNode.data || {}) as Record<string, unknown>;
     setFormData(nextData);
 
-    // updateShadow expects a patch; keep this minimal so we reliably mark the panel dirty.
-    onUpdateNode(node.id, { fieldMappings: nextData.fieldMappings || [] });
+    // Stage the full updated node data into shadow state so dirty tracking is reliable
+    // and the outer Apply/Discard bar appears after applying suggestions.
+    onUpdateNode(node.id, nextData as Record<string, any>);
 
     // UX: hide applied suggestions so the user gets immediate feedback.
     setRejectedSuggestionIds((prev) => {
@@ -437,8 +438,9 @@ export const DynamicConfigPanel: React.FC<DynamicConfigPanelProps> = ({
     const nextData = (updatedNode.data || {}) as Record<string, unknown>;
     setFormData(nextData);
 
-    // updateShadow expects a patch; keep this minimal so we reliably mark the panel dirty.
-    onUpdateNode(node.id, { fieldMappings: nextData.fieldMappings || [] });
+    // Stage the full updated node data into shadow state so dirty tracking is reliable
+    // and the outer Apply/Discard bar appears after applying suggestions.
+    onUpdateNode(node.id, nextData as Record<string, any>);
 
     // UX: hide the auto-applied suggestions from the list.
     const autoAppliedIds = (autoMap.suggestions || []).filter((s) => s.autoApply).map((s) => s.id);
