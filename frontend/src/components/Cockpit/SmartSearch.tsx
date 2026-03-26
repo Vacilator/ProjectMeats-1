@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Tabs, Spin, Button, Dropdown, type MenuProps } from 'antd';
+import { Tabs, Spin, Button, Dropdown, message, type MenuProps } from 'antd';
 import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
@@ -1358,8 +1358,17 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
                   const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
 
-                  // If this was a top-level create (no active entity context), navigate directly to the new record.
-                  if (!activeEntity && createdId) {
+                  if (createdId) {
+                    message.success(`Created ${formatEntityLabel(createdType)}${createdName ? `: ${createdName}` : ''}`);
+                  }
+
+                  // Master data creates are not always a "relation" of the currently focused entity.
+                  // Navigate to the created record so the user can immediately see/confirm it exists.
+                  const shouldNavigateToCreated = Boolean(
+                    createdId && ['customer', 'supplier', 'contact', 'product', 'invoice'].includes(createdType)
+                  );
+
+                  if (shouldNavigateToCreated) {
                     handleSelectEntity({
                       id: createdId,
                       type: createdType,
