@@ -14,7 +14,7 @@ import styled from 'styled-components';
 import { ConfigField, FieldRenderProps } from '../types';
 import EntityFieldPicker, { SelectedField } from '../../ConfigPanel/EntityFieldPicker';
 import FieldMappingPanel from '../../ConfigPanel/FieldMappingPanel';
-import VariablePickerWithUpstream from '../../ConfigPanel/VariablePickerWithUpstream';
+import { VariablePicker, type Variable as VariableOption } from '../../components/VariablePicker';
 import ValidationRuleBuilder from '../../ConfigPanel/ValidationRuleBuilder';
 
 // ============================================================================
@@ -69,7 +69,7 @@ export function renderEntityFieldPicker(props: FieldRenderProps): React.ReactEle
         upstreamVariables={data?._upstreamVariables || []}
         entityType={entityType}
         hideEntitySelector
-        multiSelectMode={field.options?.multiSelect ?? true}
+        multiSelectMode={field.multiple ?? true}
       />
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </FieldContainer>
@@ -111,7 +111,7 @@ export function renderEntitySelector(props: FieldRenderProps): React.ReactElemen
         onFieldsChange={handleFieldsChange}
         initialEntityType={entityType}
         onEntityTypeChange={handleEntityTypeChange}
-        multiSelectMode={field.options?.multiSelect}
+        multiSelectMode={field.multiple}
       />
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </FieldContainer>
@@ -147,9 +147,11 @@ export function renderFieldMapping(props: FieldRenderProps): React.ReactElement 
     onChange(newMappings);
   };
   
+  const MappingPanel = FieldMappingPanel as any;
+
   return (
     <FieldContainer>
-      <FieldMappingPanel
+      <MappingPanel
         entity={entityType}
         upstreamVariables={data?._upstreamVariables || []}
         mappings={mappings}
@@ -170,20 +172,40 @@ export function renderFieldMapping(props: FieldRenderProps): React.ReactElement 
  */
 export function renderVariablePicker(props: FieldRenderProps): React.ReactElement {
   const { field, value, onChange, error, data } = props;
-  
-  const selectedVariable = value as string | undefined;
-  
-  const handleVariableSelect = (variablePath: string) => {
-    onChange(variablePath);
-  };
-  
+
+  const selectedTemplate = value as string | undefined;
+  const upstream = (data as any)?._upstreamVariables as any[] | undefined;
+
+  const variables: VariableOption[] = (upstream || []).map((v) => ({
+    id: String(v.template ?? `${v.nodeId}.${v.fieldName}`),
+    name: String(v.fieldName ?? ''),
+    displayName: String(v.fieldLabel ?? v.fieldName ?? ''),
+    type: String(v.fieldType ?? 'string'),
+    nodeId: String(v.nodeId ?? ''),
+    nodeName: String(v.nodeName ?? ''),
+    nodeType: String(v.nodeType ?? ''),
+    path: String(v.template ?? ''),
+    description: undefined,
+    sampleValue: undefined,
+  }));
+
+  const selectedVariables = selectedTemplate
+    ? variables.filter((v) => v.path === selectedTemplate)
+    : undefined;
+
+  const placeholder =
+    typeof field.placeholder === 'string'
+      ? field.placeholder
+      : field.placeholder?.value ?? 'Select a variable...';
+
   return (
     <FieldContainer>
-      <VariablePickerWithUpstream
-        selectedVariable={selectedVariable}
-        onSelect={handleVariableSelect}
-        upstreamVariables={data?._upstreamVariables || []}
-        placeholder={field.placeholder || 'Select a variable...'}
+      <VariablePicker
+        variables={variables}
+        selectedVariables={selectedVariables}
+        onSelect={(variable) => onChange(variable.path)}
+        placeholder={placeholder}
+        showSearch
       />
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </FieldContainer>

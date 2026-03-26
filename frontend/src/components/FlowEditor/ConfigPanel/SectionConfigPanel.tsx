@@ -25,7 +25,6 @@ import {
   TextArea,
   HelpText,
   PanelFooter,
-  Button,
 } from './shared/StyledComponents';
 
 // ============================================================================
@@ -497,8 +496,8 @@ export const SectionConfigPanel: React.FC<SectionConfigPanelProps> = ({
             <div style={{ marginTop: '16px' }}>
               <ConditionBuilder
                 conditions={formData.conditionalVisibility!.conditions || []}
-                logic={formData.conditionalVisibility!.logic || 'AND'}
-                availableFields={availableFields}
+                logic={formData.conditionalVisibility!.logic || 'and'}
+                availableFields={availableFields.map((f) => ({ key: f.id, label: f.label, type: f.type }))}
                 onChange={handleConditionsChange}
               />
             </div>

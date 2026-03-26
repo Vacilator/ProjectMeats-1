@@ -31,7 +31,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { Node, Edge } from '@xyflow/react';
+import type { Node as FlowNode, Edge as FlowEdge } from '@xyflow/react';
 import { 
   Search, 
   ChevronRight, 
@@ -64,10 +64,10 @@ interface VariablePickerWithUpstreamProps {
   currentNodeId: string;
   
   /** All nodes in workflow */
-  nodes: Node[];
+  nodes: FlowNode[];
   
   /** All edges in workflow */
-  edges: Edge[];
+  edges: FlowEdge[];
   
   /** Whether picker is visible */
   isOpen: boolean;
@@ -348,7 +348,7 @@ export const VariablePickerWithUpstream: React.FC<VariablePickerWithUpstreamProp
     if (!isOpen) return;
     
     const handleClickOutside = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as unknown as globalThis.Node)) {
         onClose();
       }
     };

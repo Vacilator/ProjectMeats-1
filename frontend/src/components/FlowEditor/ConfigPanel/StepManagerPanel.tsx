@@ -284,19 +284,21 @@ export const StepManagerPanel: React.FC<StepManagerPanelProps> = ({
   const childNodes = nodes.filter(n => n.parentId === containerId);
 
   // Calculate step order
-  const stepOrder = calculateStepOrder(nodes, edges, containerId);
+  const stepOrder = calculateStepOrder(containerId, nodes, edges);
 
   // Build step info list
   const steps: StepInfo[] = childNodes.map(node => {
     const stepNumber = stepOrder.get(node.id) || null;
-    
+    const selectedFields = (node.data as any)?.selectedFields;
+    const hasSelectedFields = Array.isArray(selectedFields) && selectedFields.length > 0;
+
     return {
       id: node.id,
       type: node.type || 'unknown',
-      label: node.data?.label || node.data?.name || `${node.type || 'Node'} ${node.id.slice(0, 8)}`,
+      label: String((node.data as any)?.label ?? (node.data as any)?.name ?? `${node.type || 'Node'} ${node.id.slice(0, 8)}`),
       stepNumber,
       hasErrors: false, // TODO: Add validation logic
-      isConfigured: !!(node.data?.entityType || node.data?.selectedFields?.length > 0),
+      isConfigured: Boolean((node.data as any)?.entityType) || hasSelectedFields,
     };
   }).sort((a, b) => {
     // Sort by step number (nulls at end)
