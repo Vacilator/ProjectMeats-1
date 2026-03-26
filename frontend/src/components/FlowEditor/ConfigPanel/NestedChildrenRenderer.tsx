@@ -322,7 +322,11 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
                                 type="text"
                                 value={child[childField.id] || ''}
                                 onChange={(e) => handleUpdateChild(index, { ...child, [childField.id]: e.target.value })}
-                                placeholder={childField.placeholder}
+                                placeholder={
+                                  typeof childField.placeholder === 'string'
+                                    ? childField.placeholder
+                                    : childField.placeholder?.value
+                                }
                                 style={{
                                   width: '100%',
                                   padding: '8px 12px',
@@ -336,7 +340,11 @@ export const NestedChildrenRenderer: React.FC<NestedChildrenRendererProps> = ({
                               <textarea
                                 value={child[childField.id] || ''}
                                 onChange={(e) => handleUpdateChild(index, { ...child, [childField.id]: e.target.value })}
-                                placeholder={childField.placeholder}
+                                placeholder={
+                                  typeof childField.placeholder === 'string'
+                                    ? childField.placeholder
+                                    : childField.placeholder?.value
+                                }
                                 rows={3}
                                 style={{
                                   width: '100%',
