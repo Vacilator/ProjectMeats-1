@@ -351,6 +351,8 @@ def sync_emails(request):
             )
 
         # If Graph/token/decrypt failed, do NOT report "no new emails".
+        # IMPORTANT: This is still an application-level failure, but not a server availability failure.
+        # Returning 503 here makes the UI look "broken" even though we have actionable diagnostics.
         if isinstance(stats, dict) and stats.get('errors', 0) and stats.get('emails_scanned', 0) == 0:
             detail = None
             try:
@@ -360,17 +362,21 @@ def sync_emails(request):
 
             return Response(
                 {
+                    "ok": False,
+                    "message": "Email sync completed with errors",
                     "error": detail or "Email sync failed. Outlook connection may be expired or misconfigured.",
                     "code": "sync_failed",
+                    "hint": "Try reconnecting Outlook in Settings → Integrations, then retry Sync Now.",
                     "tenant_id": tenant_id,
                     "provider_email": provider.connected_email,
                     "stats": stats,
                 },
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                status=status.HTTP_200_OK,
             )
 
         return Response(
             {
+                "ok": True,
                 "message": "Email sync completed",
                 "tenant_id": tenant_id,
                 "provider_email": provider.connected_email,
@@ -381,13 +387,19 @@ def sync_emails(request):
 
     except Exception as e:
         logger.error('Failed to sync emails for tenant %s: %s', tenant_id, str(e), exc_info=True)
+        # This is a user-triggered action. Prefer a 200 + structured failure payload so the UI
+        # can display actionable guidance instead of treating it as a hard outage.
         return Response(
             {
+                "ok": False,
+                "message": "Email sync failed",
                 "error": f"Failed to sync emails: {str(e)}",
                 "code": "sync_exception",
+                "hint": "If this persists, reconnect Outlook in Settings → Integrations and retry.",
                 "tenant_id": tenant_id,
+                "provider_email": provider.connected_email,
             },
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status=status.HTTP_200_OK,
         )
 
 

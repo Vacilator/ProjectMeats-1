@@ -88,7 +88,17 @@ export const IngestionMonitor: React.FC = () => {
         await new Promise((resolve) => setTimeout(resolve, 1500 - elapsedTime));
       }
 
+      const ok = response.data?.ok;
+      const hint = response.data?.hint;
       const stats = response.data?.stats;
+
+      // Soft-fail path: backend can return 200 with ok:false when Outlook/Graph is unhealthy.
+      if (ok === false) {
+        const err = response.data?.error || 'Email sync failed.';
+        message.error(hint ? `${err} ${hint}` : err);
+        await fetchEmailLogs();
+        return;
+      }
 
       if (stats) {
         const scanned = stats.emails_scanned ?? 0;
@@ -113,7 +123,7 @@ export const IngestionMonitor: React.FC = () => {
         message.success('Email sync completed.');
       }
 
-      fetchEmailLogs();
+      await fetchEmailLogs();
     } catch (error: any) {
       console.error('Failed to trigger sync:', error);
       message.error(error?.response?.data?.error || 'Failed to start email sync');
@@ -191,7 +201,7 @@ export const IngestionMonitor: React.FC = () => {
                   ].filter(Boolean)}
                 >
                   <List.Item.Meta
-                    avatar={<MailOutlined style={{ fontSize: '24px', color: '#1890ff' }} />}
+                    avatar={<MailOutlined style={{ fontSize: '24px', color: 'rgb(var(--color-primary))' }} />}
                     title={
                       <Space direction="vertical" size={0}>
                         <Text strong>{email.subject}</Text>
@@ -224,7 +234,14 @@ export const IngestionMonitor: React.FC = () => {
         </Spin>
 
         {/* Status Legend */}
-        <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}>
+        <div
+          style={{
+            padding: '12px',
+            background: 'rgb(var(--color-surface))',
+            border: '1px solid rgb(var(--color-border))',
+            borderRadius: 'var(--radius-sm)',
+          }}
+        >
           <Text type="secondary" strong>Status Legend:</Text>
           <div style={{ marginTop: '8px' }}>
             <Space wrap>
