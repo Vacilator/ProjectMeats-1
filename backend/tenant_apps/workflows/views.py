@@ -2624,10 +2624,31 @@ class QuickCreateEntityAPIView(APIView):
         required_fields = []
 
         # Optional quick-create fields we still want to expose for better UX.
+        # Keep this ordered (so forms feel consistent) and conservative (so quick create doesn't become overwhelming).
+        common_extra_keys = [
+            "name",
+            "title",
+            "company_name",
+            "contact_person",
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "address",
+            "city",
+            "state",
+            "zip_code",
+            "country",
+            "notes",
+            "description",
+        ]
+
+        # Entity-specific extras appended after the common set.
         # These are especially important for Master Product compliance.
         extra_fields_by_entity = {
-            "customer": {"preferred_protein_types", "products"},
-            "supplier": {"preferred_protein_types", "products"},
+            "customer": ["industry_array", "preferred_protein_types", "products"],
+            "supplier": ["departments_array", "preferred_protein_types", "products"],
+            "contact": ["position", "department"],
         }
         excluded = {
             "id",
@@ -2691,42 +2712,46 @@ class QuickCreateEntityAPIView(APIView):
         # Add a small allowlisted set of optional fields (non-breaking additive change).
         # These fields are not required but are critical for the create flow UX.
         extras = []
-        allow = extra_fields_by_entity.get(entity_type, set())
-        if allow:
-            already = {f["key"] for f in required_fields}
-            for field in model._meta.get_fields():
-                if not hasattr(field, "name"):
-                    continue
-                if field.name in excluded:
-                    continue
-                if field.name not in allow:
-                    continue
-                if field.name in already:
-                    continue
+        already = {f["key"] for f in required_fields}
 
-                field_type = type(field).__name__
-                form_type = "text"
-                if field_type in ("IntegerField", "DecimalField", "FloatField"):
-                    form_type = "number"
-                elif field_type == "EmailField":
-                    form_type = "email"
-                elif field_type == "BooleanField":
-                    form_type = "checkbox"
-                elif field_type == "DateField":
-                    form_type = "date"
-                elif field_type == "ArrayField":
-                    form_type = "multiselect"
-                elif getattr(field, "many_to_many", False):
-                    form_type = "multiselect"
+        # Build an ordered allowlist: common keys first, then entity-specific keys.
+        allow_order = list(common_extra_keys) + list(extra_fields_by_entity.get(entity_type, []))
 
-                extras.append(
-                    {
-                        "key": field.name,
-                        "label": str(getattr(field, "verbose_name", field.name)).replace("_", " ").title(),
-                        "type": form_type,
-                        "required": False,
-                    }
-                )
+        for key in allow_order:
+            if key in excluded or key in already:
+                continue
+
+            field = next((f for f in model._meta.get_fields() if hasattr(f, "name") and f.name == key), None)
+            if not field:
+                continue
+
+            # Skip reverse/auto-created relations.
+            if getattr(field, "auto_created", False) and not getattr(field, "concrete", False):
+                continue
+
+            field_type = type(field).__name__
+            form_type = "text"
+            if field_type in ("IntegerField", "DecimalField", "FloatField"):
+                form_type = "number"
+            elif field_type == "EmailField":
+                form_type = "email"
+            elif field_type == "BooleanField":
+                form_type = "checkbox"
+            elif field_type == "DateField":
+                form_type = "date"
+            elif field_type == "ArrayField":
+                form_type = "multiselect"
+            elif getattr(field, "many_to_many", False):
+                form_type = "multiselect"
+
+            extras.append(
+                {
+                    "key": field.name,
+                    "label": str(getattr(field, "verbose_name", field.name)).replace("_", " ").title(),
+                    "type": form_type,
+                    "required": False,
+                }
+            )
 
         return Response(
             {
