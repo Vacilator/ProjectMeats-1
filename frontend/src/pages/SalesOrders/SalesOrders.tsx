@@ -15,7 +15,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { ActivityFeed, UniversalEntityForm } from '../../components/Shared';
+import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
@@ -715,8 +715,9 @@ export const SalesOrdersPage: React.FC = () => {
         )}
       </ContentContainer>
 
-      <UniversalEntityForm
+      <EntityFormSurface
         entityType="sales-orders"
+        mode="create"
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => fetchOrders()}
