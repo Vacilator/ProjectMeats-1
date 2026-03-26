@@ -37,6 +37,9 @@ interface InquiryCallModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** Optional preselection when launched from an entity surface (e.g. Cockpit customer detail). */
+  initialEntityType?: EntityType;
+  initialEntityId?: string | number;
 }
 
 const Overlay = styled.div<{ $open: boolean }>`
@@ -331,7 +334,13 @@ const newLine = (): LineItem => ({
   notes: '',
 });
 
-export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialEntityType,
+  initialEntityId,
+}) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -371,6 +380,14 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({ isOpen, onCl
   useEffect(() => {
     if (!isOpen) return;
 
+    // Apply entity defaults when opened.
+    if (initialEntityType) {
+      setEntityType(initialEntityType);
+    }
+    if (initialEntityId !== undefined && initialEntityId !== null && String(initialEntityId).trim() !== '') {
+      setEntityId(String(initialEntityId));
+    }
+
     // Load weight unit choices (best-effort)
     void (async () => {
       try {
@@ -380,7 +397,7 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({ isOpen, onCl
         setUomOptions([]);
       }
     })();
-  }, [isOpen]);
+  }, [initialEntityId, initialEntityType, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
