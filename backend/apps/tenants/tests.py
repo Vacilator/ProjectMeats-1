@@ -5,6 +5,8 @@ from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 from rest_framework import status
+from unittest.mock import patch
+
 from .models import Tenant, TenantUser, TenantDomain
 import uuid
 import io
@@ -263,6 +265,42 @@ class TenantAPITests(APITestCase):
         self.assertEqual(theme['primary_color_dark'], '#33FF57')
         self.assertEqual(theme['name'], self.tenant.name)
         self.assertIsNone(theme['logo_url'])  # No logo uploaded yet
+
+
+class InvitationEmailFailureDoesNot500(APITestCase):
+    def setUp(self):
+        unique_id = str(uuid.uuid4())[:8]
+        self.user = User.objects.create_user(
+            username=f"invite_admin_{unique_id}",
+            email=f"invite_admin_{unique_id}@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(user=self.user)
+
+        self.tenant = Tenant.objects.create(
+            name=f"Invite Tenant {unique_id}",
+            slug=f"invite-tenant-{unique_id}",
+            contact_email=f"admin_{unique_id}@testcompany.com",
+            created_by=self.user,
+        )
+        TenantUser.objects.create(tenant=self.tenant, user=self.user, role="owner")
+
+    @patch('apps.tenants.signals.send_mail', side_effect=Exception('SMTP down'))
+    def test_invitation_create_succeeds_when_email_send_fails(self, _send_mail):
+        url = reverse('tenants:tenant-invitation-list')
+        payload = {
+            'email': 'newuser@example.com',
+            'role': 'user',
+            'message': 'Welcome!',
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('token', response.data)
+        self.assertTrue(response.data['token'])
+        self.assertTrue(_send_mail.called)
 
 
 class DomainModelTests(TestCase):

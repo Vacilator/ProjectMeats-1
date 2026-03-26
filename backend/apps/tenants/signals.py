@@ -10,6 +10,8 @@ from django.dispatch import receiver
 from django.core.mail import send_mail
 from django.core.cache import cache
 from django.conf import settings
+from django.db import transaction
+
 from .models import TenantInvitation, TenantUser, Tenant
 
 logger = logging.getLogger(__name__)
@@ -56,22 +58,25 @@ def send_invitation_email(sender, instance, created, **kwargs):
             f"The Meats Central Team"
         )
         
-        try:
-            logger.info(f"📤 Sending invitation email to {instance.email} via SendGrid Web API...")
-            result = send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[instance.email],
-                fail_silently=False,
-            )
-            logger.info(f"✅ Email sent successfully! (result={result})")
-        except Exception as e:
-            logger.exception(f"❌ Failed to send email to {instance.email}")
-            logger.error(f"Error type: {type(e).__name__}")
-            logger.error(f"Error message: {str(e)}")
-            # Re-raise to ensure error is visible
-            raise
+        def _send_invitation_email() -> None:
+            try:
+                logger.info(f"📤 Sending invitation email to {instance.email}...")
+                result = send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[instance.email],
+                    fail_silently=False,
+                )
+                logger.info(f"✅ Email sent successfully! (result={result})")
+            except Exception:
+                # Never fail invitation creation due to email configuration issues.
+                # The UI can still display/copy the invitation link (token).
+                logger.exception(f"❌ Failed to send invitation email to {instance.email}")
+
+        # Ensure invitation creation isn't rolled back if email fails.
+        # If we're inside a transaction, send after commit; otherwise runs immediately.
+        transaction.on_commit(_send_invitation_email)
 
 
 @receiver(post_save, sender=TenantUser, dispatch_uid="ensure_privileged_roles_have_staff_access")

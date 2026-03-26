@@ -10,6 +10,11 @@ from apps.tenants.models import Tenant, TenantUser, TenantInvitation
 class TenantInvitationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating tenant invitations."""
 
+    id = serializers.UUIDField(read_only=True)
+    token = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
     def _get_is_reusable(self) -> bool:
         """Parse the is_reusable flag from initial_data safely.
 
@@ -56,7 +61,18 @@ class TenantInvitationCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TenantInvitation
-        fields = ['email', 'role', 'message', 'expires_at', 'is_reusable', 'max_uses']
+        fields = [
+            'id',
+            'token',
+            'status',
+            'created_at',
+            'email',
+            'role',
+            'message',
+            'expires_at',
+            'is_reusable',
+            'max_uses',
+        ]
         extra_kwargs = {
             'expires_at': {'required': False},
             'message': {'required': False},
@@ -125,14 +141,14 @@ class TenantInvitationListSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantInvitation
         fields = [
-            'id', 'email', 'role', 'status', 'message',
+            'id', 'token', 'email', 'role', 'status', 'message',
             'created_at', 'expires_at', 'accepted_at',
             'tenant_name', 'invited_by_username',
             'is_expired_status', 'is_valid_status',
             'is_reusable', 'max_uses', 'usage_count'
         ]
         read_only_fields = (
-            'id', 'email', 'role', 'status', 'message',
+            'id', 'token', 'email', 'role', 'status', 'message',
             'created_at', 'expires_at', 'accepted_at',
             'tenant_name', 'invited_by_username',
             'is_expired_status', 'is_valid_status',
