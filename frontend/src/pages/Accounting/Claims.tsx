@@ -18,7 +18,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { ActivityFeed, UniversalEntityForm } from '../../components/Shared';
+import { ActivityFeed, EntityFormSurface } from '../../components/Shared';
 import { apiClient } from '../../services/apiService';
 import { formatCurrency } from '../../shared/utils';
 import { formatDateLocal, formatToLocal } from '../../utils/formatters';
@@ -753,8 +753,9 @@ export const Claims: React.FC = () => {
         )}
       </ContentContainer>
 
-      <UniversalEntityForm
+      <EntityFormSurface
         entityType="claims"
+        mode="create"
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => fetchClaims()}
