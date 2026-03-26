@@ -1,9 +1,11 @@
-import { apiClient } from './apiService';
+import { businessApi } from './businessApi';
 
 export type ReportsDateRange = {
   start: string; // YYYY-MM-DD
   end: string;   // YYYY-MM-DD
 };
+
+export type ReportsWarning = { section: string; message: string };
 
 export type ReportsSummaryResponse = {
   date_range: ReportsDateRange;
@@ -15,6 +17,7 @@ export type ReportsSummaryResponse = {
     workforms: { submissions_total: number; completed: number; in_progress: number; completion_rate: number };
     master_data: { suppliers: number; customers: number; contacts: number };
   };
+  warnings?: ReportsWarning[];
 };
 
 export type PurchaseOrderTrendPoint = {
@@ -43,17 +46,17 @@ export type TopSuppliersResponse = {
 
 export const reportsService = {
   async getSummary(range: ReportsDateRange): Promise<ReportsSummaryResponse> {
-    const resp = await apiClient.get('/reports/summary/', { params: range });
+    const resp = await businessApi.get('/reports/summary/', { params: range });
     return resp.data;
   },
 
   async getPurchaseOrderTrends(range: ReportsDateRange): Promise<PurchaseOrderTrendsResponse> {
-    const resp = await apiClient.get('/reports/trends/purchase-orders/', { params: range });
+    const resp = await businessApi.get('/reports/trends/purchase-orders/', { params: range });
     return resp.data;
   },
 
   async getTopSuppliers(range: ReportsDateRange, limit = 10): Promise<TopSuppliersResponse> {
-    const resp = await apiClient.get('/reports/top/suppliers/', { params: { ...range, limit } });
+    const resp = await businessApi.get('/reports/top/suppliers/', { params: { ...range, limit } });
     return resp.data;
   },
 

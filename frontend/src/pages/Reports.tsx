@@ -85,6 +85,17 @@ const Reports: React.FC = () => {
   }, [load]);
 
   const kpis = summary?.summary;
+  const warnings = summary?.warnings ?? [];
+
+  const currency = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0,
+      }),
+    []
+  );
 
   const items: TabsProps['items'] = [
     {
@@ -96,12 +107,12 @@ const Reports: React.FC = () => {
             <KpiCard>
               <KpiLabel>Purchase Orders</KpiLabel>
               <KpiValue>{kpis?.purchase_orders.count ?? 0}</KpiValue>
-              <KpiSub>${(kpis?.purchase_orders.total_amount ?? 0).toLocaleString()}</KpiSub>
+              <KpiSub>{currency.format(kpis?.purchase_orders.total_amount ?? 0)}</KpiSub>
             </KpiCard>
             <KpiCard>
               <KpiLabel>Sales Orders</KpiLabel>
               <KpiValue>{kpis?.sales_orders.count ?? 0}</KpiValue>
-              <KpiSub>${(kpis?.sales_orders.total_amount ?? 0).toLocaleString()}</KpiSub>
+              <KpiSub>{currency.format(kpis?.sales_orders.total_amount ?? 0)}</KpiSub>
             </KpiCard>
             <KpiCard>
               <KpiLabel>Inquiries (Win Rate)</KpiLabel>
@@ -201,6 +212,21 @@ const Reports: React.FC = () => {
       </Header>
 
       {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 12 }} />}
+      {!error && warnings.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Some metrics may be incomplete"
+          description={
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {warnings.map((w, idx) => (
+                <li key={`${w.section}-${idx}`}>{w.message}</li>
+              ))}
+            </ul>
+          }
+        />
+      )}
 
       {loading ? (
         <LoadingBlock>
