@@ -56,7 +56,12 @@ interface ScheduleCallModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  initialData?: ScheduledCallData | null;  // For editing
+  initialData?: ScheduledCallData | null; // For editing
+  /**
+   * Used by entry points that pre-select a purpose before opening the modal.
+   * Only applied in create mode.
+   */
+  defaultCallPurpose?: string;
 }
 
 // Restrict to only Supplier and Customer per requirements
@@ -316,6 +321,7 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
   onClose,
   onSuccess,
   initialData,
+  defaultCallPurpose,
 }) => {
   const isEditMode = !!initialData?.id;
   
@@ -346,22 +352,21 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
     if (initialData && isOpen) {
       setTitle(initialData.title || '');
       setDescription(initialData.description || '');
-      setEntityType(initialData.entity_type as EntityType || 'supplier');
+      setEntityType((initialData.entity_type as EntityType) || 'supplier');
       setEntityId(String(initialData.entity_id || ''));
-      
+
       // Format date for datetime-local input (remove Z and seconds for local timezone)
-      const formattedDate = initialData.scheduled_for 
-        ? new Date(initialData.scheduled_for).toISOString().slice(0, 16)
-        : '';
+      const formattedDate = initialData.scheduled_for ? new Date(initialData.scheduled_for).toISOString().slice(0, 16) : '';
       setScheduledFor(formattedDate);
-      
+
       setDurationMinutes(String(initialData.duration_minutes || 30));
       setCallPurpose(initialData.call_purpose || 'follow_up');
       setOutcome(initialData.outcome || '');
     } else if (isOpen) {
       resetForm();
+      setCallPurpose(defaultCallPurpose || 'follow_up');
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, defaultCallPurpose]);
 
   // Fetch entity options when entity type changes
   useEffect(() => {
@@ -654,9 +659,8 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
           entityType="inquiries"
           isOpen={showInquiryModal}
           onClose={() => setShowInquiryModal(false)}
-          onSuccess={(inquiry) => {
+          onSuccess={() => {
             setShowInquiryModal(false);
-            console.log('Inquiry created:', inquiry?.inquiry_number);
           }}
           initialValues={{
             source_type: 'scheduled_call',
