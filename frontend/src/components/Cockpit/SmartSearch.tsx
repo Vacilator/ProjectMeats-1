@@ -29,7 +29,7 @@ import { NotesAndCallsDrawer } from './NotesAndCallsDrawer';
 import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import UniversalEntityForm from '../Shared/UniversalEntityForm';
-import QuickCreateModal from '../FormSubmission/QuickCreateModal';
+import { EntityFormSurface } from '../Shared';
 import { InquiryCreateModal } from '../Inquiry';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
@@ -1329,23 +1329,41 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 }
               />
             ) : (
-              <QuickCreateModal
+              <EntityFormSurface
                 entityType={quickCreateConfig.type}
+                mode="create"
                 isOpen={true}
-                inline={true}
-                contextData={quickCreateConfig.context}
                 onClose={closeQuickCreate}
-                onCreated={(created) => {
-                  const createdId = String(created?.value ?? '').trim();
+                context={{
+                  customerId: quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id,
+                  supplierId: quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id,
+                  contactId: quickCreateConfig.context?.contact || quickCreateConfig.context?.contact_id,
+                }}
+                onSuccess={(created) => {
+                  const row = (created && typeof created === 'object' ? (created as any) : {}) as any;
+                  const createdId = String(row?.id ?? row?.uuid ?? row?.pk ?? '').trim();
                   const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
-                  const createdType = rawType === 'customers' ? 'customer' : rawType === 'suppliers' ? 'supplier' : rawType;
+                  const createdType =
+                    rawType === 'customers'
+                      ? 'customer'
+                      : rawType === 'suppliers'
+                        ? 'supplier'
+                        : rawType === 'contacts'
+                          ? 'contact'
+                          : rawType === 'products'
+                            ? 'product'
+                            : rawType === 'invoices'
+                              ? 'invoice'
+                              : rawType;
+
+                  const createdName = String(row?.name ?? row?.title ?? row?.code ?? '').trim();
 
                   // If this was a top-level create (no active entity context), navigate directly to the new record.
                   if (!activeEntity && createdId) {
                     handleSelectEntity({
                       id: createdId,
                       type: createdType,
-                      name: String(created?.label ?? `New ${formatEntityLabel(createdType)}`),
+                      name: createdName || `New ${formatEntityLabel(createdType)}`,
                     });
 
                     if (query?.trim()) {
@@ -1400,13 +1418,17 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 }
               />
             ) : (
-              <QuickCreateModal
+              <EntityFormSurface
                 entityType={inlineAction.entityType}
+                mode="create"
                 isOpen={true}
-                inline={true}
-                contextData={inlineAction.contextData}
                 onClose={() => onInlineCancel?.()}
-                onCreated={() => {
+                context={{
+                  customerId: inlineAction.contextData?.customer || inlineAction.contextData?.customer_id,
+                  supplierId: inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id,
+                  contactId: inlineAction.contextData?.contact || inlineAction.contextData?.contact_id,
+                }}
+                onSuccess={() => {
                   if (activeEntity) {
                     if (activeRelationTab !== 'more') {
                       void loadRelationshipTab(activeRelationTab, activeEntity);
