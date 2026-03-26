@@ -12,7 +12,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
-import { apiClient } from '@/services/apiService';
 import { businessApi } from '@/services/businessApi';
 import { getChoices, type ChoiceOption } from '@/services/choicesService';
 import { SmartProductAutocomplete } from './SmartProductAutocomplete';
@@ -365,8 +364,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
     void (async () => {
       setLoadingEntities(true);
       try {
-        const endpoint = entityType === 'supplier' ? 'suppliers/' : 'customers/';
-        const resp = await apiClient.get(endpoint, { params: { page_size: 500 } });
+        const endpoint = entityType === 'supplier' ? '/suppliers/' : '/customers/';
+        const resp = await businessApi.get(endpoint, { params: { page_size: 500 } });
         const rows = (resp.data?.results ?? resp.data) as any[];
         setEntityOptions(
           (Array.isArray(rows) ? rows : []).map((r: any) => ({

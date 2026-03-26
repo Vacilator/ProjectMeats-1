@@ -12,7 +12,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { apiClient } from '../../services/apiService';
 import { businessApi } from '../../services/businessApi';
 import { getChoices, type ChoiceOption } from '../../services/choicesService';
 import { SmartProductAutocomplete } from '../Inquiry/SmartProductAutocomplete';
@@ -405,8 +404,8 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
     void (async () => {
       setLoadingEntities(true);
       try {
-        const endpoint = entityType === 'supplier' ? 'suppliers/' : 'customers/';
-        const resp = await apiClient.get(endpoint, { params: { page_size: 500 } });
+        const endpoint = entityType === 'supplier' ? '/suppliers/' : '/customers/';
+        const resp = await businessApi.get(endpoint, { params: { page_size: 500 } });
         const rows = (resp.data?.results ?? resp.data) as any[];
         setEntityOptions(
           (Array.isArray(rows) ? rows : []).map((r: any) => ({
@@ -480,7 +479,7 @@ export const InquiryCallModal: React.FC<InquiryCallModalProps> = ({
         call_purpose: 'inquiry',
       };
 
-      const callResp = await apiClient.post('workspace/scheduled-calls/', callPayload);
+      const callResp = await businessApi.post('/workspace/scheduled-calls/', callPayload);
       const createdCall = callResp.data as { id: number };
 
       // 2) Prefill inquiry defaults from the call (backend builds contact snapshot fields)
