@@ -30,6 +30,7 @@ import { businessApi } from '../../services/businessApi';
 import { useCockpitNavigation } from '../../contexts/CockpitNavigationContext';
 import UniversalEntityForm from '../Shared/UniversalEntityForm';
 import QuickCreateModal from '../FormSubmission/QuickCreateModal';
+import { InquiryCreateModal } from '../Inquiry';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
 
@@ -1300,64 +1301,122 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
         {quickCreateConfig.isOpen && (
           <div style={{ marginTop: 12 }}>
-            <QuickCreateModal
-              entityType={quickCreateConfig.type}
-              isOpen={true}
-              inline={true}
-              contextData={quickCreateConfig.context}
-              onClose={closeQuickCreate}
-              onCreated={(created) => {
-                const createdId = String(created?.value ?? '').trim();
-                const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
-                const createdType = rawType === 'customers' ? 'customer' : rawType === 'suppliers' ? 'supplier' : rawType;
+            {String(quickCreateConfig.type).toLowerCase() === 'inquiry' ? (
+              <InquiryCreateModal
+                isOpen={true}
+                onClose={closeQuickCreate}
+                onSuccess={() => {
+                  if (activeEntity) {
+                    if (activeRelationTab !== 'more') {
+                      void loadRelationshipTab(activeRelationTab, activeEntity);
+                    }
+                    void loadRelationalChunks(activeEntity);
+                  }
+                  closeQuickCreate();
+                }}
+                initialEntityType={
+                  quickCreateConfig.context?.customer || quickCreateConfig.context?.customer_id
+                    ? 'customer'
+                    : quickCreateConfig.context?.supplier || quickCreateConfig.context?.supplier_id
+                      ? 'supplier'
+                      : undefined
+                }
+                initialEntityId={
+                  quickCreateConfig.context?.customer ||
+                  quickCreateConfig.context?.customer_id ||
+                  quickCreateConfig.context?.supplier ||
+                  quickCreateConfig.context?.supplier_id
+                }
+              />
+            ) : (
+              <QuickCreateModal
+                entityType={quickCreateConfig.type}
+                isOpen={true}
+                inline={true}
+                contextData={quickCreateConfig.context}
+                onClose={closeQuickCreate}
+                onCreated={(created) => {
+                  const createdId = String(created?.value ?? '').trim();
+                  const rawType = String(quickCreateConfig.type ?? '').toLowerCase();
+                  const createdType = rawType === 'customers' ? 'customer' : rawType === 'suppliers' ? 'supplier' : rawType;
 
-                // If this was a top-level create (no active entity context), navigate directly to the new record.
-                if (!activeEntity && createdId) {
-                  handleSelectEntity({
-                    id: createdId,
-                    type: createdType,
-                    name: String(created?.label ?? `New ${formatEntityLabel(createdType)}`),
-                  });
+                  // If this was a top-level create (no active entity context), navigate directly to the new record.
+                  if (!activeEntity && createdId) {
+                    handleSelectEntity({
+                      id: createdId,
+                      type: createdType,
+                      name: String(created?.label ?? `New ${formatEntityLabel(createdType)}`),
+                    });
 
-                  if (query?.trim()) {
-                    void searchEntities(query);
+                    if (query?.trim()) {
+                      void searchEntities(query);
+                    }
+
+                    closeQuickCreate();
+                    return;
+                  }
+
+                  if (activeEntity) {
+                    if (activeRelationTab !== 'more') {
+                      void loadRelationshipTab(activeRelationTab, activeEntity);
+                    }
+                    void loadRelationalChunks(activeEntity);
                   }
 
                   closeQuickCreate();
-                  return;
-                }
-
-                if (activeEntity) {
-                  if (activeRelationTab !== 'more') {
-                    void loadRelationshipTab(activeRelationTab, activeEntity);
-                  }
-                  void loadRelationalChunks(activeEntity);
-                }
-
-                closeQuickCreate();
-              }}
-            />
+                }}
+              />
+            )}
           </div>
         )}
 
         {inlineAction && activeEntity && (
           <div style={{ marginTop: 12 }}>
-            <QuickCreateModal
-              entityType={inlineAction.entityType}
-              isOpen={true}
-              inline={true}
-              contextData={inlineAction.contextData}
-              onClose={() => onInlineCancel?.()}
-              onCreated={() => {
-                if (activeEntity) {
-                  if (activeRelationTab !== 'more') {
-                    void loadRelationshipTab(activeRelationTab, activeEntity);
+            {String(inlineAction.entityType).toLowerCase() === 'inquiry' ? (
+              <InquiryCreateModal
+                isOpen={true}
+                onClose={() => onInlineCancel?.()}
+                onSuccess={() => {
+                  if (activeEntity) {
+                    if (activeRelationTab !== 'more') {
+                      void loadRelationshipTab(activeRelationTab, activeEntity);
+                    }
+                    void loadRelationalChunks(activeEntity);
                   }
-                  void loadRelationalChunks(activeEntity);
+                  onInlineSuccess?.();
+                }}
+                initialEntityType={
+                  inlineAction.contextData?.customer || inlineAction.contextData?.customer_id
+                    ? 'customer'
+                    : inlineAction.contextData?.supplier || inlineAction.contextData?.supplier_id
+                      ? 'supplier'
+                      : undefined
                 }
-                onInlineSuccess?.();
-              }}
-            />
+                initialEntityId={
+                  inlineAction.contextData?.customer ||
+                  inlineAction.contextData?.customer_id ||
+                  inlineAction.contextData?.supplier ||
+                  inlineAction.contextData?.supplier_id
+                }
+              />
+            ) : (
+              <QuickCreateModal
+                entityType={inlineAction.entityType}
+                isOpen={true}
+                inline={true}
+                contextData={inlineAction.contextData}
+                onClose={() => onInlineCancel?.()}
+                onCreated={() => {
+                  if (activeEntity) {
+                    if (activeRelationTab !== 'more') {
+                      void loadRelationshipTab(activeRelationTab, activeEntity);
+                    }
+                    void loadRelationalChunks(activeEntity);
+                  }
+                  onInlineSuccess?.();
+                }}
+              />
+            )}
           </div>
         )}
 
