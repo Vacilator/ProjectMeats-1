@@ -220,14 +220,14 @@ const ResultCard = styled.button`
   }
 `;
 
-const ResultIcon = styled.div<{ $color?: string }>`
+const ResultIcon = styled.div<{ $tone?: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: ${props => props.$color ? `${props.$color}15` : 'rgb(var(--color-background-primary))'};
-  color: ${props => props.$color || 'rgb(var(--color-primary))'};
+  background: ${props => props.$tone ? `rgba(${props.$tone}, 0.12)` : 'rgba(var(--color-primary), 0.12)'};
+  color: ${props => props.$tone ? `rgb(${props.$tone})` : 'rgb(var(--color-primary))'};
   border-radius: 6px;
   flex-shrink: 0;
 `;
@@ -331,15 +331,23 @@ const getEntityIcon = (type: SearchEntity['type'], size = 20) => {
   }
 };
 
-const getEntityColor = (type: SearchEntity['type']) => {
+const getEntityTone = (type: SearchEntity['type']) => {
+  // Return an RGB tuple CSS var (e.g. "var(--color-success)") so we can use rgb()/rgba() safely.
   switch (type) {
-    case 'customer': return 'rgb(34, 197, 94)';
-    case 'supplier': return 'rgb(168, 85, 247)';
-    case 'contact': return 'rgb(59, 130, 246)';
-    case 'product': return 'rgb(249, 115, 22)';
-    case 'order': return 'rgb(234, 179, 8)';
-    case 'inquiry': return 'rgb(239, 68, 68)';
-    default: return 'rgb(var(--color-primary))';
+    case 'customer':
+      return 'var(--color-success)';
+    case 'supplier':
+      return 'var(--color-primary)';
+    case 'contact':
+      return 'var(--color-info)';
+    case 'product':
+      return 'var(--color-warning)';
+    case 'order':
+      return 'var(--color-warning)';
+    case 'inquiry':
+      return 'var(--color-error)';
+    default:
+      return 'var(--color-primary)';
   }
 };
 
@@ -518,14 +526,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setIsSearching(true);
 
     try {
-      console.log('[SmartSearch] Searching for:', searchQuery);
       
       // Call universal search API (correct endpoint)
       const response = await businessApi.get('/search/universal/', {
         params: { q: searchQuery, limit: 5 },
       });
 
-      console.log('[SmartSearch] Search response:', response.data);
 
       // The API returns results already grouped by type
       // Format: { results: [{type, id, title, subtitle, metadata}], counts: {}, total: N }
@@ -547,7 +553,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         });
       }
 
-      console.log('[SmartSearch] Grouped results:', grouped);
       setResults(grouped);
     } catch (error: any) {
       console.error('[SmartSearch] Search failed:', error);
@@ -592,14 +597,12 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     setIsRelationsLoading(true);
 
     try {
-      console.log('[SmartSearch] Loading relationships for:', entity);
       
       // Use unified Entity Graph API
       const response = await businessApi.get(
         `/system/entities/${entity.type}/${entity.id}/relationships/`
       );
       
-      console.log('[SmartSearch] Entity relationships:', response.data);
       
       const chunks: RelationalChunk[] = [];
       const { relationships } = response.data;
@@ -631,7 +634,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
           { params: { max_results: 30 } }
         );
         
-        console.log('[SmartSearch] Fuzzy matches:', fuzzyResponse.data);
         
         if (fuzzyResponse.data.fuzzy_matches && fuzzyResponse.data.fuzzy_matches.length > 0) {
           // Group fuzzy matches by type
@@ -668,8 +670,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         }
       } catch (fuzzyError) {
         // Fuzzy discovery is optional - don't fail if it errors
-        console.warn('[SmartSearch] Fuzzy discovery failed (non-fatal):', fuzzyError);
-      }
+        }
 
       // Add Quick Actions chunk at the end
       const quickActions = getQuickActionsForEntity(entity);
@@ -680,7 +681,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       setRelationalChunks(chunks);
     } catch (error) {
       // Non-fatal: keep UI responsive even if relationships endpoint is temporarily unhealthy.
-      console.debug('[SmartSearch] Failed to load relational chunks (non-fatal):', error);
       setRelationalChunks([]);
     } finally {
       setIsRelationsLoading(false);
@@ -956,7 +956,6 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       }));
     } catch (error) {
       // Non-fatal: avoid noisy console errors for intermittent 5xxs.
-      console.debug('[SmartSearch] Failed to load relationship tab (non-fatal):', tabKey, error);
       setRelationTabData(prev => ({
         ...prev,
         [tabKey]: { items: [], count: 0 },
@@ -1028,7 +1027,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 key={entity.id}
                 onClick={() => handleSelectEntity(entity)}
               >
-                <ResultIcon $color={getEntityColor(entity.type)}>
+                <ResultIcon $tone={getEntityTone(entity.type)}>
                   {getEntityIcon(entity.type)}
                 </ResultIcon>
 
@@ -1093,7 +1092,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               onClick={() => chunk.type === 'actions' ? handleQuickAction(item) : handleSelectEntity(item)}
               style={chunk.type === 'actions' ? { cursor: 'pointer', borderStyle: 'dashed' } : {}}
             >
-              <ResultIcon $color={getEntityColor(item.type)}>
+              <ResultIcon $tone={getEntityTone(item.type)}>
                 {getEntityIcon(item.type)}
               </ResultIcon>
 
@@ -1501,7 +1500,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                     <ResultGrid>
                       {relationTabData.orders.items.map(item => (
                         <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
-                          <ResultIcon $color={getEntityColor(item.type)}>
+                          <ResultIcon $tone={getEntityTone(item.type)}>
                             {getEntityIcon(item.type)}
                           </ResultIcon>
                           <ResultContent>
@@ -1528,7 +1527,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                     <ResultGrid>
                       {relationTabData.invoices.items.map(item => (
                         <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
-                          <ResultIcon $color={getEntityColor(item.type)}>
+                          <ResultIcon $tone={getEntityTone(item.type)}>
                             {getEntityIcon(item.type)}
                           </ResultIcon>
                           <ResultContent>
@@ -1555,7 +1554,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                     <ResultGrid>
                       {relationTabData.contacts.items.map(item => (
                         <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
-                          <ResultIcon $color={getEntityColor(item.type)}>
+                          <ResultIcon $tone={getEntityTone(item.type)}>
                             {getEntityIcon(item.type)}
                           </ResultIcon>
                           <ResultContent>
@@ -1582,7 +1581,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                     <ResultGrid>
                       {relationTabData.inquiries.items.map(item => (
                         <ResultCard key={item.id} onClick={() => handleSelectEntity(item)}>
-                          <ResultIcon $color={getEntityColor(item.type)}>
+                          <ResultIcon $tone={getEntityTone(item.type)}>
                             {getEntityIcon(item.type)}
                           </ResultIcon>
                           <ResultContent>
