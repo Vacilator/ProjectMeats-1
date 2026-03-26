@@ -69,7 +69,7 @@ jobs:
 
       - name: Check for commits to promote
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PAT }}
           REPO: ${{ github.repository }}
           BASE: ${{ steps.branches.outputs.base }}
           HEAD: ${{ steps.branches.outputs.head }}
@@ -84,7 +84,7 @@ jobs:
 
       - name: Skip if PR already exists
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PAT }}
           REPO: ${{ github.repository }}
           BASE: ${{ steps.branches.outputs.base }}
           HEAD: ${{ steps.branches.outputs.head }}
@@ -99,7 +99,7 @@ jobs:
 
       - name: Create promotion PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PAT }}
           REPO: ${{ github.repository }}
           BASE: ${{ steps.branches.outputs.base }}
           HEAD: ${{ steps.branches.outputs.head }}
