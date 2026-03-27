@@ -43,6 +43,7 @@ const Suppliers: React.FC = () => {
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [products, setProducts] = useState<Array<{ id: string; product_code: string; effective_name?: string; name?: string; product_name?: string }>>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
+  const [searchText, setSearchText] = useState('');
   const [supplierPlants, setSupplierPlants] = useState<SupplierPlant[]>([]);
   const [plantsLoading, setPlantsLoading] = useState(false);
   const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
@@ -423,12 +424,44 @@ const Suppliers: React.FC = () => {
     return <LoadingContainer $theme={theme}>Loading suppliers...</LoadingContainer>;
   }
 
+  const visibleSuppliers = suppliers.filter((s) => {
+    if (!searchText.trim()) return true;
+    const haystack = [s.name, s.contact_person, s.email, s.phone, s.city, s.state]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(searchText.trim().toLowerCase());
+  });
+
   return (
-    <>
+    <PageContainer>
       <Header>
-        <Title $theme={theme}>Suppliers</Title>
-        <AddButton onClick={() => { setEditingSupplier(null); setShowForm(true); }}>+ Add Supplier</AddButton>
+        <HeaderText>
+          <Title $theme={theme}>Suppliers</Title>
+          <Subtitle>Manage supplier companies, plants, contacts, and available products</Subtitle>
+        </HeaderText>
+        <HeaderActions>
+          <SecondaryButton type="button" onClick={() => navigate('/suppliers/plants')}>
+            Plants
+          </SecondaryButton>
+          <SecondaryButton type="button" onClick={() => navigate('/suppliers/contacts')}>
+            Contacts
+          </SecondaryButton>
+          <AddButton onClick={() => { setEditingSupplier(null); setShowForm(true); }}>
+            + New Supplier
+          </AddButton>
+        </HeaderActions>
       </Header>
+
+      <TableControls>
+        <SearchInput
+          type="text"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search suppliers by name, contact, email, phone, city, or state…"
+          aria-label="Search suppliers"
+        />
+      </TableControls>
 
       {showForm && (
         <QuickCreateModal
@@ -710,7 +743,7 @@ const Suppliers: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {suppliers.map((supplier) => (
+              {visibleSuppliers.map((supplier) => (
                 <React.Fragment key={supplier.id}>
                 <TableRow key={supplier.id} $theme={theme}>
                   <TableCell $theme={theme}>
@@ -857,7 +890,7 @@ const Suppliers: React.FC = () => {
           </Table>
         )}
       </TableContainer>
-    </>
+    </PageContainer>
   );
 };
 
@@ -871,11 +904,25 @@ const LoadingContainer = styled.div<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.textSecondary};
 `;
 
+const PageContainer = styled.div`
+  padding: 1.5rem;
+  background: rgb(var(--color-background));
+  min-height: 100%;
+`;
+
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+`;
+
+const HeaderText = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 `;
 
 const Title = styled.h1<{ $theme: Theme }>`
@@ -885,21 +932,76 @@ const Title = styled.h1<{ $theme: Theme }>`
   margin: 0;
 `;
 
+const Subtitle = styled.p`
+  margin: 0;
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+`;
+
+const SecondaryButton = styled.button`
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--color-surface));
+    border-color: rgb(var(--color-primary) / 0.35);
+  }
+`;
+
 const AddButton = styled.button`
   background: rgb(var(--color-primary));
   color: white;
   border: none;
   border-radius: 8px;
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(var(--color-primary), 0.25);
+    box-shadow: 0 4px 15px rgb(var(--color-primary) / 0.25);
     filter: brightness(0.98);
+  }
+`;
+
+const TableControls = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+`;
+
+const SearchInput = styled.input`
+  width: min(520px, 100%);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+
+  &::placeholder {
+    color: rgb(var(--color-text-secondary));
+  }
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
   }
 `;
 
