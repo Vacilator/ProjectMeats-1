@@ -48,18 +48,19 @@ export interface ToggleFavoriteResponse {
 // ============================================================================
 
 const fetchFavorites = async (): Promise<Favorite[]> => {
-  const response = await apiClient.get<FavoritesResponse>('/api/v1/favorites/');
+  // apiClient.baseURL already includes /api/v1
+  const response = await apiClient.get<FavoritesResponse>('/favorites/');
   return response.data.results;
 };
 
 const toggleFavorite = async (params: ToggleFavoriteParams): Promise<ToggleFavoriteResponse> => {
-  const response = await apiClient.post<ToggleFavoriteResponse>('/api/v1/favorites/toggle/', params);
+  const response = await apiClient.post<ToggleFavoriteResponse>('/favorites/toggle/', params);
   return response.data;
 };
 
 const checkIsFavorited = async (entity_type: string, entity_id: number): Promise<boolean> => {
   const response = await apiClient.get<{ is_favorited: boolean }>(
-    `/api/v1/favorites/check/?entity_type=${entity_type}&entity_id=${entity_id}`
+    `/favorites/check/?entity_type=${encodeURIComponent(entity_type)}&entity_id=${encodeURIComponent(String(entity_id))}`
   );
   return response.data.is_favorited;
 };
@@ -70,6 +71,8 @@ const checkIsFavorited = async (entity_type: string, entity_id: number): Promise
 
 export const useFavorites = () => {
   const queryClient = useQueryClient();
+  const tenantId = localStorage.getItem('tenantId') ?? 'unknown-tenant';
+  const favoritesKey = ['favorites', tenantId] as const;
 
   // Query for fetching all favorites
   const {
@@ -78,7 +81,7 @@ export const useFavorites = () => {
     error,
     refetch
   } = useQuery<Favorite[]>({
-    queryKey: ['favorites'],
+    queryKey: favoritesKey,
     queryFn: fetchFavorites,
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
@@ -96,13 +99,13 @@ export const useFavorites = () => {
     // Optimistic update
     onMutate: async (params) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['favorites'] });
+      await queryClient.cancelQueries({ queryKey: favoritesKey });
       
       // Snapshot previous value
-      const previousFavorites = queryClient.getQueryData<Favorite[]>(['favorites']);
+      const previousFavorites = queryClient.getQueryData<Favorite[]>(favoritesKey);
       
       // Optimistically update cache
-      queryClient.setQueryData<Favorite[]>(['favorites'], (old = []) => {
+      queryClient.setQueryData<Favorite[]>(favoritesKey, (old = []) => {
         const exists = old.find(
           f => f.entity_type === params.entity_type && f.entity_id === params.entity_id
         );
@@ -133,13 +136,13 @@ export const useFavorites = () => {
     // Rollback on error
     onError: (err, variables, context) => {
       if (context?.previousFavorites) {
-        queryClient.setQueryData(['favorites'], context.previousFavorites);
+        queryClient.setQueryData(favoritesKey, context.previousFavorites);
       }
     },
     
     // Refetch after mutation settles
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+      queryClient.invalidateQueries({ queryKey: favoritesKey });
     },
   });
 

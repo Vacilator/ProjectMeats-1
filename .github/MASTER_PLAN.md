@@ -123,6 +123,10 @@ This file is the **append-only PR-referenceable execution log**.
 - Option Lists: "Master Products" entry now appears under the System Choice Lists tab; Tenant Overrides now use the same Card/Table layout as other admin screens.
 - Workflow Lists: tenant list create asserts RLS session vars before validation/save to prevent RLS-related write failures.
 
+### 2026-03-27 — Cockpit Favorites: Backend Persistence (Tenant-Safe)
+- SmartSearch + FavoritesWidget now use the backend favorites API (optimistic toggles; no localStorage dependence).
+- Favorites are tenant-scoped to prevent cross-tenant entity_id collisions; includes RLS policy on `core_userfavorite`.
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.

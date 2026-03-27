@@ -34,6 +34,7 @@ import { EntityFormSurface } from '../Shared';
 import { InquiryCreateModal } from '../Inquiry';
 import { EntityProfileHeader } from './EntityProfileHeader';
 import { AIOverviewCard } from './AIOverviewCard';
+import { useFavorites } from '../../hooks/useFavorites';
 
 // ============================================================================
 // TypeScript Interfaces
@@ -504,7 +505,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const query = controlledQuery ?? internalQuery;
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const { toggleFavorite: toggleFavoriteMutation, isFavorited, isLoading: isFavoritesLoading } = useFavorites();
+  const [hasMigratedLegacyFavorites, setHasMigratedLegacyFavorites] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isRelationsLoading, setIsRelationsLoading] = useState(false);
 
@@ -517,31 +519,49 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     { isOpen: false, type: '', context: {} }
   );
 
-  /**
-   * Load favorites from localStorage
-   */
+  // Legacy migration: older builds stored favorites in localStorage. Best-effort ingest typed keys.
   useEffect(() => {
+    if (hasMigratedLegacyFavorites) return;
+    if (isFavoritesLoading) return;
+
     const savedFavorites = localStorage.getItem('cockpit_favorites');
-    if (savedFavorites) {
-      try {
-        const raw = JSON.parse(savedFavorites) as unknown;
-        const ids = Array.isArray(raw) ? (raw as unknown[]) : [];
-        const normalized = ids.map((v) => String(v));
-        setFavorites(new Set(normalized));
-      } catch (error) {
-        console.error('[SmartSearch] Failed to load favorites:', error);
-      }
+    if (!savedFavorites) {
+      setHasMigratedLegacyFavorites(true);
+      return;
     }
-  }, []);
 
-  /**
-   * Save favorites to localStorage
-   */
-  const saveFavorites = useCallback((newFavorites: Set<string>) => {
-    localStorage.setItem('cockpit_favorites', JSON.stringify(Array.from(newFavorites)));
-    window.dispatchEvent(new Event('cockpit_favorites_updated'));
-  }, []);
+    try {
+      const raw = JSON.parse(savedFavorites) as unknown;
+      const ids = Array.isArray(raw) ? (raw as unknown[]) : [];
+      const normalized = ids.map((v) => String(v)).filter(Boolean);
 
+      const typed = normalized
+        .map((key) => {
+          if (!key.includes(':')) return null;
+          const [t, ...rest] = key.split(':');
+          const type = String(t || '').trim().toLowerCase();
+          const id = Number(rest.join(':'));
+          if (!type || !Number.isFinite(id)) return null;
+          return { type, id };
+        })
+        .filter((v): v is { type: string; id: number } => Boolean(v));
+
+      for (const f of typed.slice(0, 50)) {
+        if (!isFavorited(f.type, f.id)) {
+          toggleFavoriteMutation.mutate({ entity_type: f.type, entity_id: f.id, entity_title: '' });
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      try {
+        localStorage.removeItem('cockpit_favorites');
+      } catch {
+        // ignore
+      }
+      setHasMigratedLegacyFavorites(true);
+    }
+  }, [hasMigratedLegacyFavorites, isFavoritesLoading, isFavorited, toggleFavoriteMutation]);
   /**
    * Search entities with debouncing
    */
@@ -834,25 +854,19 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   /**
    * Toggle favorite
    */
-  const toggleFavorite = useCallback((entityType: string, entityId: string, e: React.MouseEvent) => {
+  const toggleFavorite = useCallback((entityType: string, entityId: string, entityTitle: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    const key = `${String(entityType).toLowerCase()}:${String(entityId)}`;
-    const legacyKey = String(entityId);
+    const type = String(entityType || '').toLowerCase();
+    const id = Number(entityId);
+    if (!type || !Number.isFinite(id)) return;
 
-    setFavorites((prev) => {
-      const newFavorites = new Set(prev);
-      const isFav = newFavorites.has(key) || newFavorites.has(legacyKey);
-      if (isFav) {
-        newFavorites.delete(key);
-        newFavorites.delete(legacyKey);
-      } else {
-        newFavorites.add(key);
-      }
-      saveFavorites(newFavorites);
-      return newFavorites;
+    toggleFavoriteMutation.mutate({
+      entity_type: type,
+      entity_id: id,
+      entity_title: entityTitle || '',
     });
-  }, [saveFavorites]);
+  }, [toggleFavoriteMutation]);
 
   /**
    * Clear search
@@ -1076,14 +1090,15 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 </ResultContent>
 
                 <FavoriteButton
-                  $isFavorite={
-                    favorites.has(`${String(entity.type).toLowerCase()}:${entity.id}`) ||
-                    favorites.has(String(entity.id))
-                  }
-                  onClick={(e) => toggleFavorite(entity.type, entity.id, e)}
+                  $isFavorite={isFavorited(String(entity.type).toLowerCase(), Number(entity.id))}
+                  onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
                   title={
-                    favorites.has(`${String(entity.type).toLowerCase()}:${entity.id}`) ||
-                    favorites.has(String(entity.id))
+                    isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
+                      ? 'Remove from favorites'
+                      : 'Add to favorites'
+                  }
+                  aria-label={
+                    isFavorited(String(entity.type).toLowerCase(), Number(entity.id))
                       ? 'Remove from favorites'
                       : 'Add to favorites'
                   }
@@ -1146,14 +1161,15 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
               {chunk.type !== 'actions' && (
                 <FavoriteButton
-                  $isFavorite={
-                    favorites.has(`${String(item.type).toLowerCase()}:${item.id}`) ||
-                    favorites.has(String(item.id))
-                  }
-                  onClick={(e) => toggleFavorite(item.type, item.id, e)}
+                  $isFavorite={isFavorited(String(item.type).toLowerCase(), Number(item.id))}
+                  onClick={(e) => toggleFavorite(item.type, item.id, item.name, e)}
                   title={
-                    favorites.has(`${String(item.type).toLowerCase()}:${item.id}`) ||
-                    favorites.has(String(item.id))
+                    isFavorited(String(item.type).toLowerCase(), Number(item.id))
+                      ? 'Remove from favorites'
+                      : 'Add to favorites'
+                  }
+                  aria-label={
+                    isFavorited(String(item.type).toLowerCase(), Number(item.id))
                       ? 'Remove from favorites'
                       : 'Add to favorites'
                   }

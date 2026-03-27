@@ -1019,24 +1019,41 @@ class FavoritesViewSet(viewsets.ModelViewSet):
     """ViewSet for managing user favorites."""
     serializer_class = UserFavoriteSerializer
     permission_classes = [IsAuthenticated]
-    
+
+    def _get_tenant(self):
+        tenant = getattr(self.request, 'tenant', None)
+        return tenant
+
     def get_queryset(self):
-        return UserFavorite.objects.filter(user=self.request.user)
-    
+        tenant = self._get_tenant()
+        if not tenant:
+            return UserFavorite.objects.none()
+        return UserFavorite.objects.filter(user=self.request.user, tenant=tenant)
+
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        tenant = self._get_tenant()
+        serializer.save(user=self.request.user, tenant=tenant)
     
     @action(detail=False, methods=['post'])
     def toggle(self, request):
+        tenant = getattr(request, 'tenant', None)
         entity_type = request.data.get('entity_type')
         entity_id = request.data.get('entity_id')
         entity_title = request.data.get('entity_title', '')
-        
-        if not entity_type or not entity_id:
+
+        if not tenant:
+            return Response({'error': 'tenant required'}, status=400)
+
+        if not entity_type or entity_id is None:
             return Response({'error': 'entity_type and entity_id required'}, status=400)
-        
+
+        try:
+            entity_id = int(entity_id)
+        except (TypeError, ValueError):
+            return Response({'error': 'entity_id must be an integer'}, status=400)
+
         favorite = UserFavorite.objects.filter(
-            user=request.user, entity_type=entity_type, entity_id=entity_id
+            user=request.user, tenant=tenant, entity_type=entity_type, entity_id=entity_id
         ).first()
         
         if favorite:
@@ -1044,21 +1061,33 @@ class FavoritesViewSet(viewsets.ModelViewSet):
             return Response({'action': 'removed', 'favorite': None})
         else:
             favorite = UserFavorite.objects.create(
-                user=request.user, entity_type=entity_type,
-                entity_id=entity_id, entity_title=entity_title
+                user=request.user,
+                tenant=tenant,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                entity_title=entity_title,
             )
             return Response({'action': 'added', 'favorite': UserFavoriteSerializer(favorite).data}, status=201)
     
     @action(detail=False, methods=['get'])
     def check(self, request):
+        tenant = getattr(request, 'tenant', None)
         entity_type = request.query_params.get('entity_type')
         entity_id = request.query_params.get('entity_id')
-        
-        if not entity_type or not entity_id:
+
+        if not tenant:
+            return Response({'error': 'tenant required'}, status=400)
+
+        if not entity_type or entity_id is None:
             return Response({'error': 'entity_type and entity_id required'}, status=400)
-        
+
+        try:
+            entity_id = int(entity_id)
+        except (TypeError, ValueError):
+            return Response({'error': 'entity_id must be an integer'}, status=400)
+
         is_favorited = UserFavorite.objects.filter(
-            user=request.user, entity_type=entity_type, entity_id=entity_id
+            user=request.user, tenant=tenant, entity_type=entity_type, entity_id=entity_id
         ).exists()
         
         return Response({'is_favorited': is_favorited})
