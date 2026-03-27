@@ -26,7 +26,7 @@ interface StepNotesProps {
 
 const NotesContainer = styled.div`
   margin-top: 1rem;
-  border-top: 1px solid var(--border-color, #dee2e6);
+  border-top: 1px solid var(--border-color, rgb(var(--color-border)));
   padding-top: 1rem;
 `;
 
@@ -47,15 +47,15 @@ const NotesTitle = styled.h4`
   margin: 0;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
   display: flex;
   align-items: center;
   gap: 0.5rem;
 `;
 
 const NotesCount = styled.span`
-  background: var(--bg-tertiary, #e9ecef);
-  color: var(--text-secondary, #6c757d);
+  background: var(--bg-tertiary, rgb(var(--color-border)));
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
   padding: 0.125rem 0.5rem;
   border-radius: 10px;
   font-size: 0.75rem;
@@ -84,14 +84,14 @@ const NotesList = styled.div`
 `;
 
 const NoteItem = styled.div<{ isPinned?: boolean }>`
-  background: var(--bg-secondary, #f8f9fa);
-  border: 1px solid var(--border-color, #dee2e6);
+  background: var(--bg-secondary, rgb(var(--color-surface)));
+  border: 1px solid var(--border-color, rgb(var(--color-border)));
   border-radius: 0.375rem;
   padding: 0.75rem;
   
   ${({ isPinned }) => isPinned && `
-    border-left: 3px solid var(--color-primary, #0d6efd);
-    background: var(--bg-primary-subtle, #e7f1ff);
+    border-left: 3px solid var(--color-primary, rgb(var(--color-primary)));
+    background: var(--bg-primary-subtle, rgba(var(--color-primary), 0.14));
   `}
 `;
 
@@ -105,18 +105,18 @@ const NoteHeader = styled.div`
 const NoteAuthor = styled.span`
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--text-primary, #1a1a2e);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
 `;
 
 const NoteTime = styled.span`
   font-size: 0.688rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
 `;
 
 const NoteText = styled.p`
   margin: 0;
   font-size: 0.875rem;
-  color: var(--text-primary, #1a1a2e);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
   white-space: pre-wrap;
   word-break: break-word;
 `;
@@ -127,33 +127,33 @@ const AddNoteForm = styled.form`
   gap: 0.5rem;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--border-color, #dee2e6);
+  border-top: 1px solid var(--border-color, rgb(var(--color-border)));
 `;
 
 const NoteTextarea = styled.textarea`
   width: 100%;
   min-height: 80px;
   padding: 0.625rem;
-  border: 1px solid var(--border-color, #dee2e6);
+  border: 1px solid var(--border-color, rgb(var(--color-border)));
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-family: inherit;
   resize: vertical;
-  background: var(--input-bg, #ffffff);
-  color: var(--text-primary, #1a1a2e);
+  background: var(--input-bg, rgb(var(--color-surface)));
+  color: var(--text-primary, rgb(var(--color-text-primary)));
   
   &:focus {
     outline: none;
-    border-color: var(--color-primary, #0d6efd);
+    border-color: var(--color-primary, rgb(var(--color-primary)));
     box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.1);
   }
   
   &::placeholder {
-    color: var(--text-tertiary, #adb5bd);
+    color: var(--text-tertiary, rgb(var(--color-text-muted)));
   }
   
   &:disabled {
-    background: var(--bg-tertiary, #e9ecef);
+    background: var(--bg-tertiary, rgb(var(--color-border)));
     cursor: not-allowed;
   }
 `;
@@ -174,17 +174,17 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   transition: all 0.15s ease;
   
   ${({ variant }) => variant === 'secondary' ? `
-    background: var(--bg-secondary, #f8f9fa);
-    color: var(--text-primary, #1a1a2e);
-    border-color: var(--border-color, #dee2e6);
+    background: var(--bg-secondary, rgb(var(--color-surface)));
+    color: var(--text-primary, rgb(var(--color-text-primary)));
+    border-color: var(--border-color, rgb(var(--color-border)));
     &:hover:not(:disabled) {
-      background: var(--bg-tertiary, #e9ecef);
+      background: var(--bg-tertiary, rgb(var(--color-border)));
     }
   ` : `
-    background: var(--color-primary, #0d6efd);
+    background: var(--color-primary, rgb(var(--color-primary)));
     color: white;
     &:hover:not(:disabled) {
-      background: var(--color-primary-dark, #0b5ed7);
+      background: var(--color-primary-dark, rgb(var(--color-primary)));
     }
   `}
   
@@ -195,7 +195,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 `;
 
 const EmptyNotes = styled.p`
-  color: var(--text-tertiary, #adb5bd);
+  color: var(--text-tertiary, rgb(var(--color-text-muted)));
   font-size: 0.875rem;
   text-align: center;
   padding: 1rem 0;
@@ -322,7 +322,7 @@ export const StepNotes: React.FC<StepNotesProps> = ({
             <LoadingSpinner>⏳</LoadingSpinner> Loading notes...
           </EmptyNotes>
         ) : error ? (
-          <EmptyNotes style={{ color: 'var(--color-error, #dc3545)' }}>
+          <EmptyNotes style={{ color: 'var(--color-error, rgb(var(--color-error)))' }}>
             {error}
             <Button variant="secondary" onClick={loadNotes} style={{ marginLeft: '0.5rem' }}>
               Retry

@@ -32,7 +32,7 @@ interface ConfigPreviewProps {
 // Sample data for preview
 const SAMPLE_ENTITIES = {
   supplier: { name: 'Tyson Foods', location: 'Chicago, IL', status: 'Active' },
-  customer: { name: 'Costco #405', location: 'Los Angeles, CA', status: 'Premium' },
+  customer: { name: 'Costco Store 405', location: 'Los Angeles, CA', status: 'Premium' },
   order: { number: 'PO-2026-0142', amount: 45230, date: '2026-02-03' },
 };
 
@@ -54,15 +54,15 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
   
   // UI Theme Preview
   const ThemePreview: React.FC = () => {
-    const primaryColor = getConfig<string>('ui.theme.primary_color', '#667eea');
-    const secondaryColor = getConfig<string>('ui.theme.secondary_color', '#764ba2');
+    const primaryColor = getConfig<string>('ui.theme.primary_color', 'rgb(var(--color-primary))');
+    const secondaryColor = getConfig<string>('ui.theme.secondary_color', 'rgb(var(--color-info))');
     const borderRadius = getConfig<number>('ui.theme.border_radius', 8);
     const fontFamily = getConfig<string>('ui.theme.font_family', 'Inter');
     const darkMode = getConfig<boolean>('ui.theme.dark_mode', false);
     
-    const bgColor = darkMode ? '#1a1a2e' : '#ffffff';
-    const textColor = darkMode ? '#e0e0e0' : '#1a1a2e';
-    const cardBg = darkMode ? '#2a2a3e' : '#f9fafb';
+    const bgColor = darkMode ? 'rgb(var(--color-background))' : 'rgb(var(--color-surface))fff';
+    const textColor = darkMode ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-background))';
+    const cardBg = darkMode ? 'rgb(var(--color-surface))' : 'rgb(var(--color-surface))';
     
     return (
       <div 
@@ -82,7 +82,7 @@ export const ConfigPreview: React.FC<ConfigPreviewProps> = ({
           style={{ 
             backgroundColor: cardBg, 
             borderRadius: `${borderRadius}px`,
-            border: `1px solid ${darkMode ? '#3a3a4e' : '#e5e7eb'}`,
+            border: `1px solid ${darkMode ? 'rgb(var(--color-border))' : 'rgb(var(--color-border))'}`,
           }}
         >
           <div className="flex items-center gap-2 mb-2">

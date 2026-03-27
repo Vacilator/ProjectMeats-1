@@ -128,7 +128,7 @@ const ProviderBadge = styled.span<{ $provider: string }>`
   display: inline-block;
   padding: 3px 8px;
   background: ${props => props.$provider === 'outlook' ? 'rgba(0, 120, 212, 0.1)' : 'rgba(234, 67, 53, 0.1)'};
-  color: ${props => props.$provider === 'outlook' ? '#0078d4' : '#ea4335'};
+  color: ${props => props.$provider === 'outlook' ? 'rgb(var(--color-info))' : 'rgb(var(--color-error))'};
   border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 600;

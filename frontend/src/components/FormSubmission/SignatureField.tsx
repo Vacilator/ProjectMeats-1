@@ -14,18 +14,18 @@ const SignatureContainer = styled.div`
 
 const CanvasWrapper = styled.div<{ $hasError?: boolean; $hasSignature: boolean }>`
   position: relative;
-  border: 2px ${props => props.$hasSignature ? 'solid' : 'dashed'} ${props => props.$hasError ? '#ef4444' : '#d1d5db'};
+  border: 2px ${props => props.$hasSignature ? 'solid' : 'dashed'} ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: 8px;
-  background: ${props => props.$hasSignature ? '#fff' : '#fafafa'};
+  background: ${props => props.$hasSignature ? 'rgb(var(--color-surface))' : 'rgb(var(--color-surface))'};
   overflow: hidden;
   transition: border-color 0.2s ease, background 0.2s ease;
   
   &:hover {
-    border-color: ${props => props.$hasError ? '#ef4444' : '#9ca3af'};
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-muted))'};
   }
   
   &:focus-within {
-    border-color: ${props => props.$hasError ? '#ef4444' : '#3b82f6'};
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
   }
 `;
@@ -43,7 +43,7 @@ const Placeholder = styled.div`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
   font-size: 14px;
   pointer-events: none;
   display: flex;
@@ -66,15 +66,15 @@ const ActionButton = styled.button`
   padding: 6px 12px;
   font-size: 13px;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
+  border: 1px solid rgb(var(--color-border));
   background: white;
-  color: #374151;
+  color: rgb(var(--color-text-secondary));
   cursor: pointer;
   transition: all 0.15s ease;
   
   &:hover:not(:disabled) {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: rgb(var(--color-surface-hover));
+    border-color: rgb(var(--color-text-muted));
   }
   
   &:disabled {
@@ -83,12 +83,12 @@ const ActionButton = styled.button`
   }
   
   &.primary {
-    background: #3b82f6;
-    border-color: #3b82f6;
+    background: rgb(var(--color-primary));
+    border-color: rgb(var(--color-primary));
     color: white;
     
     &:hover:not(:disabled) {
-      background: #2563eb;
+      background: rgb(var(--color-primary));
     }
   }
 `;
@@ -96,7 +96,7 @@ const ActionButton = styled.button`
 const PreviewImage = styled.img`
   max-width: 100%;
   max-height: 150px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
 `;
 
@@ -135,7 +135,7 @@ export const SignatureField: React.FC<SignatureFieldProps> = ({
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
     
     // Style
-    ctx.strokeStyle = '#1f2937';
+    ctx.strokeStyle = 'rgb(var(--color-text-primary))';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';

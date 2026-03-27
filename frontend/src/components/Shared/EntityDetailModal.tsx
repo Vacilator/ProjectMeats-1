@@ -96,7 +96,7 @@ const ENTITY_CONFIG: Record<string, {
 }> = {
   supplier: {
     icon: Building2,
-    color: '#3b82f6',
+    color: 'rgb(var(--color-primary))',
     apiPath: 'suppliers',
     displayName: 'Supplier',
     fields: [
@@ -111,7 +111,7 @@ const ENTITY_CONFIG: Record<string, {
   },
   customer: {
     icon: Users,
-    color: '#10b981',
+    color: 'rgb(var(--color-success))',
     apiPath: 'customers',
     displayName: 'Customer',
     fields: [
@@ -126,7 +126,7 @@ const ENTITY_CONFIG: Record<string, {
   },
   purchase_order: {
     icon: ShoppingCart,
-    color: '#f59e0b',
+    color: 'rgb(var(--color-warning))',
     apiPath: 'purchase-orders',
     displayName: 'Purchase Order',
     fields: [
@@ -140,7 +140,7 @@ const ENTITY_CONFIG: Record<string, {
   },
   sales_order: {
     icon: Receipt,
-    color: '#8b5cf6',
+    color: 'rgb(var(--color-info))',
     apiPath: 'sales-orders',
     displayName: 'Sales Order',
     fields: [
@@ -154,7 +154,7 @@ const ENTITY_CONFIG: Record<string, {
   },
   product: {
     icon: Package,
-    color: '#ec4899',
+    color: 'rgb(var(--color-info))',
     apiPath: 'products',
     displayName: 'Product',
     fields: [
@@ -168,7 +168,7 @@ const ENTITY_CONFIG: Record<string, {
   },
   carrier: {
     icon: Truck,
-    color: '#06b6d4',
+    color: 'rgb(var(--color-info))',
     apiPath: 'carriers',
     displayName: 'Carrier',
     fields: [
@@ -181,7 +181,7 @@ const ENTITY_CONFIG: Record<string, {
   },
   contact: {
     icon: User,
-    color: '#6366f1',
+    color: 'rgb(var(--color-info))',
     apiPath: 'contacts',
     displayName: 'Contact',
     fields: [
@@ -194,7 +194,7 @@ const ENTITY_CONFIG: Record<string, {
   },
   plant: {
     icon: Building2,
-    color: '#f97316',
+    color: 'rgb(var(--color-warning))',
     apiPath: 'plants',
     displayName: 'Plant',
     fields: [
@@ -206,7 +206,7 @@ const ENTITY_CONFIG: Record<string, {
   },
   invoice: {
     icon: FileText,
-    color: '#14b8a6',
+    color: 'rgb(var(--color-info))',
     apiPath: 'accounting/receivables/invoices',
     displayName: 'Invoice',
     fields: [

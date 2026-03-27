@@ -257,7 +257,7 @@ const EditorContainer = styled.div<{ $isFullscreen?: boolean }>`
   
   /* Phase 7.2: Smart Snapping - Visual Connection Indicators */
   .react-flow__connection-path {
-    stroke: #667eea !important;
+    stroke: rgb(var(--color-primary)) !important;
     stroke-width: 3 !important;
     stroke-dasharray: 5, 5;
     animation: dash 0.5s linear infinite;
@@ -2202,7 +2202,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
       width: min(450px, 100vw);
       height: 100vh;
       overflow-y: auto;
-      background: #fff;
+      background: rgb(var(--color-surface));
       /* Must sit above fullscreen canvas (EditorContainer uses z-index: 9990) */
       z-index: 10050;
       box-shadow: -4px 0 12px rgba(0,0,0,0.1);
@@ -2242,7 +2242,7 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           width: min(450px, 100vw);
           height: 100vh;
           overflow-y: auto;
-          background: #fff;
+          background: rgb(var(--color-surface));
           /* Must sit above fullscreen canvas (EditorContainer uses z-index: 9990) */
           z-index: 10050;
           box-shadow: -4px 0 12px rgba(0,0,0,0.1);
@@ -6960,14 +6960,14 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
               {CATEGORY_ORDER.filter((category) => paletteCategories.has(category)).map((category) => {
                 const isActive = activeFilters.has(category);
                 const categoryColor = {
-                  trigger: '#10b981',
-                  form: '#3b82f6',
-                  logic: '#f59e0b',
-                  action: '#8b5cf6',
-                  wait: '#ef4444',
-                  document: '#06b6d4',
-                  utility: '#64748b',
-                  terminal: '#059669',
+                  trigger: 'rgb(var(--color-success))',
+                  form: 'rgb(var(--color-primary))',
+                  logic: 'rgb(var(--color-warning))',
+                  action: 'rgb(var(--color-info))',
+                  wait: 'rgb(var(--color-error))',
+                  document: 'rgb(var(--color-info))',
+                  utility: 'rgb(var(--color-text-secondary))',
+                  terminal: 'rgb(var(--color-success))',
                 }[category];
 
                 return (

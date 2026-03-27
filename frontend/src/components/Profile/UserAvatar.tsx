@@ -109,7 +109,7 @@ const AvatarCircle = styled.div<{ $size: number; $theme: Theme; $hasImage: boole
   background: ${(props) =>
     props.$hasImage
       ? 'transparent'
-      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
+      : 'linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-info)) 100%)'};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,8 +144,8 @@ const UploadOverlay = styled.div<{ $size: number; $theme: Theme }>`
   border-radius: 50%;
   background: ${(props) =>
     props.$theme.name === 'dark'
-      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
+      ? 'linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-info)) 100%)'
+      : 'linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-info)) 100%)'};
   display: flex;
   align-items: center;
   justify-content: center;

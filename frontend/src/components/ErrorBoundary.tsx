@@ -254,7 +254,7 @@ const ErrorCard = styled.div`
 `;
 
 const ErrorIcon = styled.div`
-  color: #ef4444;
+  color: rgb(var(--color-error));
   margin-bottom: 1.5rem;
   
   svg {
@@ -285,7 +285,7 @@ const ErrorMessage = styled.p`
   margin: 0 0 2rem 0;
   
   strong {
-    color: #ef4444;
+    color: rgb(var(--color-error));
     font-weight: 600;
   }
 `;
@@ -309,7 +309,7 @@ const DetailsTitle = styled.div`
 const ErrorCode = styled.pre`
   font-family: 'Courier New', monospace;
   font-size: 0.8125rem;
-  color: #ef4444;
+  color: rgb(var(--color-error));
   margin: 0 0 0.5rem 0;
   white-space: pre-wrap;
   word-break: break-word;
@@ -340,7 +340,7 @@ const PrimaryButton = styled.button`
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   background: rgb(var(--color-primary));
-  color: #ffffff;
+  color: rgb(var(--color-surface))fff;
   border: none;
   border-radius: 0.5rem;
   font-size: 0.9375rem;

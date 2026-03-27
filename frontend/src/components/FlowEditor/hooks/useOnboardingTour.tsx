@@ -305,7 +305,7 @@ export const tourStyles: PartialDeep<Styles> = {
     fontSize: '14px',
     fontWeight: 500,
     padding: '8px 16px',
-    color: '#fff',
+    color: 'rgb(var(--color-surface))',
   },
   buttonBack: {
     color: 'rgb(var(--color-primary))',

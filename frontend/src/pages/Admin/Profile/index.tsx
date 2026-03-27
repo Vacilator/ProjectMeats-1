@@ -108,8 +108,8 @@ const AdminProfilePage: React.FC = () => {
 
   const defaults = useMemo(
     () => ({
-      light: getDefaultHexFromCssVar('--color-primary', '#3498db'),
-      dark: getDefaultHexFromCssVar('--color-primary', '#5dade2'),
+      light: getDefaultHexFromCssVar('--color-primary', rgbToHex(59, 130, 246)),
+      dark: getDefaultHexFromCssVar('--color-primary', rgbToHex(59, 130, 246)),
     }),
     []
   );
@@ -383,12 +383,12 @@ const AdminProfilePage: React.FC = () => {
   const colorErrors = useMemo(() => {
     const lightError =
       formData.primary_color_light && !isValidHexColor(formData.primary_color_light)
-        ? 'Use a valid hex color like #3498db'
+        ? 'Use a valid hex color like #RRGGBB'
         : null;
 
     const darkError =
       formData.primary_color_dark && !isValidHexColor(formData.primary_color_dark)
-        ? 'Use a valid hex color like #5dade2'
+        ? 'Use a valid hex color like #RRGGBB'
         : null;
 
     return { light: lightError, dark: darkError };

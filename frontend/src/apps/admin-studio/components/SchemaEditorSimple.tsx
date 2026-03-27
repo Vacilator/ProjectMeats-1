@@ -27,7 +27,7 @@ interface Props {
 
 const Container = styled.div`
   padding: 2rem;
-  background: #f8f9fa;
+  background: rgb(var(--color-surface));
   min-height: 100vh;
 `;
 
@@ -51,30 +51,30 @@ const Table = styled.table`
 `;
 
 const Th = styled.th`
-  background: #f1f3f5;
+  background: rgb(var(--color-surface-hover));
   padding: 12px 16px;
   text-align: left;
   font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #dee2e6;
+  color: rgb(var(--color-text-secondary));
+  border-bottom: 2px solid rgb(var(--color-border));
 `;
 
 const Td = styled.td`
   padding: 12px 16px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid rgb(var(--color-border));
 `;
 
 const Input = styled.input<{ hasError?: boolean }>`
   width: 100%;
   padding: 8px;
-  border: 1px solid ${props => props.hasError ? '#ef4444' : '#ced4da'};
+  border: 1px solid ${props => props.hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: 4px;
   font-size: 14px;
-  background: ${props => props.hasError ? '#fef2f2' : 'white'};
+  background: ${props => props.hasError ? 'rgba(var(--color-error), 0.14)' : 'white'};
 
   &:focus {
     outline: none;
-    border-color: ${props => props.hasError ? '#ef4444' : '#4dabf7'};
+    border-color: ${props => props.hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: ${props => props.hasError ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : 'none'};
   }
 `;
@@ -82,14 +82,14 @@ const Input = styled.input<{ hasError?: boolean }>`
 const Select = styled.select`
   width: 100%;
   padding: 8px;
-  border: 1px solid #ced4da;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 4px;
   font-size: 14px;
   background: white;
 
   &:focus {
     outline: none;
-    border-color: #4dabf7;
+    border-color: rgb(var(--color-primary));
   }
 `;
 
@@ -103,21 +103,21 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
   transition: all 0.2s;
 
   ${props => props.variant === 'primary' && `
-    background: #4dabf7;
+    background: rgb(var(--color-primary));
     color: white;
-    &:hover { background: #339af0; }
+    &:hover { background: rgba(var(--color-primary), 0.85); }
   `}
   
   ${props => props.variant === 'secondary' && `
-    background: #e9ecef;
-    color: #495057;
-    &:hover { background: #dee2e6; }
+    background: rgb(var(--color-border));
+    color: rgb(var(--color-text-secondary));
+    &:hover { background: rgb(var(--color-border)); }
   `}
   
   ${props => props.variant === 'danger' && `
-    background: #fa5252;
+    background: rgb(var(--color-error));
     color: white;
-    &:hover { background: #f03e3e; }
+    &:hover { background: rgba(var(--color-error), 0.85); }
   `}
 `;
 
@@ -128,15 +128,15 @@ const StatusMessage = styled.div<{ type: 'success' | 'error' }>`
   font-size: 14px;
   
   ${props => props.type === 'success' && `
-    background: #d3f9d8;
-    color: #2b8a3e;
-    border: 1px solid #8ce99a;
+    background: rgba(var(--color-success), 0.14);
+    color: rgb(var(--color-success));
+    border: 1px solid rgba(var(--color-success), 0.35);
   `}
   
   ${props => props.type === 'error' && `
-    background: #ffe0e0;
-    color: #c92a2a;
-    border: 1px solid #ffa8a8;
+    background: rgba(var(--color-error), 0.14);
+    color: rgb(var(--color-error));
+    border: 1px solid rgba(var(--color-error), 0.35);
   `}
 `;
 
@@ -150,34 +150,34 @@ const TypeBadge = styled.span<{ fieldType: string }>`
   
   ${props => {
     if (props.fieldType === 'reference') return `
-      background: #dbe4ff;
-      color: #3b5bdb;
+      background: rgba(var(--color-info), 0.14);
+      color: rgb(var(--color-info));
     `;
     if (props.fieldType === 'lookup') return `
-      background: #e5dbff;
-      color: #7048e8;
+      background: rgba(var(--color-info), 0.12);
+      color: rgb(var(--color-info));
     `;
     return `
-      background: #e9ecef;
-      color: #495057;
+      background: rgb(var(--color-border));
+      color: rgb(var(--color-text-secondary));
     `;
   }}
 `;
 
 const GhostRow = styled.tr`
-  background: #f8f9fa;
+  background: rgb(var(--color-surface));
   cursor: pointer;
   
   &:hover {
-    background: #e9ecef;
+    background: rgb(var(--color-border));
   }
   
   td {
     text-align: center;
-    color: #868e96;
+    color: rgb(var(--color-text-muted));
     font-style: italic;
     padding: 20px;
-    border: 2px dashed #ced4da;
+    border: 2px dashed rgb(var(--color-border));
   }
 `;
 
@@ -219,11 +219,11 @@ const QueryBuilderInput = styled(Input)`
 
 const OperatorBadge = styled.span`
   padding: 4px 8px;
-  background: #e9ecef;
+  background: rgb(var(--color-border));
   border-radius: 4px;
   font-weight: 600;
   font-size: 12px;
-  color: #495057;
+  color: rgb(var(--color-text-secondary));
   user-select: none;
 `;
 
@@ -515,7 +515,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                   hasError={fieldErrors[index]?.some(e => e.includes('Label'))}
                 />
                 {fieldErrors[index]?.filter(e => e.includes('Label')).map((err, i) => (
-                  <div key={i} style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{err}</div>
+                  <div key={i} style={{ color: 'rgb(var(--color-error))', fontSize: '11px', marginTop: '4px' }}>{err}</div>
                 ))}
               </Td>
               <Td>
@@ -526,7 +526,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                   hasError={fieldErrors[index]?.some(e => e.includes('key') || e.includes('Duplicate') || e.includes('Invalid'))}
                 />
                 {fieldErrors[index]?.filter(e => e.includes('key') || e.includes('Duplicate') || e.includes('Invalid')).map((err, i) => (
-                  <div key={i} style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{err}</div>
+                  <div key={i} style={{ color: 'rgb(var(--color-error))', fontSize: '11px', marginTop: '4px' }}>{err}</div>
                 ))}
               </Td>
               <Td>
@@ -563,7 +563,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                       hasError={fieldErrors[index]?.some(e => e.includes('Options'))}
                     />
                     {fieldErrors[index]?.filter(e => e.includes('Options')).map((err, i) => (
-                      <div key={i} style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{err}</div>
+                      <div key={i} style={{ color: 'rgb(var(--color-error))', fontSize: '11px', marginTop: '4px' }}>{err}</div>
                     ))}
                   </>
                 )}
@@ -600,7 +600,7 @@ const SchemaEditor: React.FC<Props> = ({ blueprintId, csrfToken }) => {
                     value=""
                     disabled
                     placeholder="—"
-                    style={{ background: '#f1f3f5', cursor: 'not-allowed' }}
+                    style={{ background: 'rgb(var(--color-surface-hover))', cursor: 'not-allowed' }}
                   />
                 )}
               </Td>

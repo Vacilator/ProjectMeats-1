@@ -22,8 +22,8 @@ const SliderHeader = styled.div`
 const SliderValue = styled.span`
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
-  background: #f3f4f6;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface-hover));
   padding: 4px 12px;
   border-radius: 6px;
   min-width: 60px;
@@ -33,7 +33,7 @@ const SliderValue = styled.span`
 const SliderTrack = styled.div`
   position: relative;
   height: 8px;
-  background: #e5e7eb;
+  background: rgb(var(--color-border));
   border-radius: 4px;
   overflow: visible;
 `;
@@ -41,7 +41,7 @@ const SliderTrack = styled.div`
 const SliderFill = styled.div<{ $percent: number }>`
   position: absolute;
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(90deg, rgb(var(--color-primary)), rgb(var(--color-info)));
   border-radius: 4px;
   width: ${props => props.$percent}%;
   transition: width 0.1s ease;
@@ -70,7 +70,7 @@ const SliderThumb = styled.div<{ $percent: number }>`
   width: 24px;
   height: 24px;
   background: white;
-  border: 3px solid #3b82f6;
+  border: 3px solid rgb(var(--color-primary));
   border-radius: 50%;
   pointer-events: none;
   transition: transform 0.1s ease, box-shadow 0.2s ease;
@@ -85,7 +85,7 @@ const SliderLabels = styled.div`
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
 `;
 
 interface SliderFieldProps {

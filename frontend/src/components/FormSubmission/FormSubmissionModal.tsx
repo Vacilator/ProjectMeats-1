@@ -137,8 +137,8 @@ const ModalContent = styled.div`
 
 const ModalHeader = styled.div`
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
-  background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: linear-gradient(to bottom, rgb(var(--color-surface)), rgb(var(--color-surface-hover)));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -154,7 +154,7 @@ const FormIcon = styled.div`
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary)));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,12 +168,12 @@ const HeaderTitle = styled.div`
     margin: 0;
     font-size: 20px;
     font-weight: 700;
-    color: #111827;
+    color: rgb(var(--color-text-primary));
   }
   p {
     margin: 4px 0 0;
     font-size: 13px;
-    color: #6b7280;
+    color: rgb(var(--color-text-muted));
   }
 `;
 
@@ -187,21 +187,21 @@ const CloseButton = styled.button`
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #6b7280;
+  color: rgb(var(--color-text-muted));
   font-size: 20px;
   transition: all 0.15s;
   
   &:hover {
-    background: #f3f4f6;
-    color: #111827;
+    background: rgb(var(--color-surface-hover));
+    color: rgb(var(--color-text-primary));
   }
 `;
 
 // Step Progress Indicator
 const ProgressContainer = styled.div`
   padding: 16px 24px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e5e7eb;
+  background: rgb(var(--color-surface));
+  border-bottom: 1px solid rgb(var(--color-border));
   display: flex;
   justify-content: center;
   gap: 8px;
@@ -216,11 +216,11 @@ const ProgressStep = styled.div<{ $active: boolean; $completed: boolean }>`
   border-radius: 24px;
   cursor: pointer;
   transition: all 0.2s;
-  background: ${p => p.$active ? '#3b82f6' : p.$completed ? '#dcfce7' : 'white'};
-  border: 2px solid ${p => p.$active ? '#3b82f6' : p.$completed ? '#22c55e' : '#e5e7eb'};
+  background: ${p => p.$active ? 'rgb(var(--color-primary))' : p.$completed ? 'rgba(var(--color-success), 0.14)' : 'white'};
+  border: 2px solid ${p => p.$active ? 'rgb(var(--color-primary))' : p.$completed ? 'rgb(var(--color-success))' : 'rgb(var(--color-border))'};
   
   &:hover {
-    border-color: ${p => p.$active ? '#3b82f6' : '#3b82f6'};
+    border-color: ${p => p.$active ? 'rgb(var(--color-primary))' : 'rgb(var(--color-primary))'};
     transform: translateY(-1px);
   }
 `;
@@ -234,14 +234,14 @@ const ProgressNumber = styled.span<{ $active: boolean; $completed: boolean }>`
   justify-content: center;
   font-size: 13px;
   font-weight: 600;
-  background: ${p => p.$active ? 'rgba(255,255,255,0.2)' : p.$completed ? '#22c55e' : '#f3f4f6'};
-  color: ${p => p.$active ? 'white' : p.$completed ? 'white' : '#6b7280'};
+  background: ${p => p.$active ? 'rgba(255,255,255,0.2)' : p.$completed ? 'rgb(var(--color-success))' : 'rgb(var(--color-surface-hover))'};
+  color: ${p => p.$active ? 'white' : p.$completed ? 'white' : 'rgb(var(--color-text-muted))'};
 `;
 
 const ProgressLabel = styled.span<{ $active: boolean; $completed: boolean }>`
   font-size: 14px;
   font-weight: 500;
-  color: ${p => p.$active ? 'white' : p.$completed ? '#166534' : '#374151'};
+  color: ${p => p.$active ? 'white' : p.$completed ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-secondary))'};
 `;
 
 // Step Content Area
@@ -257,13 +257,13 @@ const StepHeader = styled.div`
   justify-content: space-between;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 2px solid #f3f4f6;
+  border-bottom: 2px solid rgb(var(--color-surface-hover));
   
   h4 {
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: #111827;
+    color: rgb(var(--color-text-primary));
     display: flex;
     align-items: center;
     gap: 10px;
@@ -275,8 +275,8 @@ const EntityBadge = styled.span`
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
-  color: #4338ca;
+  background: linear-gradient(135deg, rgba(var(--color-primary), 0.10), rgba(var(--color-primary), 0.14));
+  color: rgb(var(--color-primary));
   font-size: 12px;
   font-weight: 600;
   border-radius: 20px;
@@ -299,19 +299,19 @@ const FieldWrapper = styled.div<{ $fullWidth?: boolean }>`
 `;
 
 const FieldCard = styled.div`
-  background: #fafafa;
-  border: 1px solid #e5e7eb;
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
   border-radius: 12px;
   padding: 16px;
   transition: all 0.2s;
   
   &:hover {
-    border-color: #d1d5db;
+    border-color: rgb(var(--color-border));
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   }
   
   &:focus-within {
-    border-color: #3b82f6;
+    border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 `;
@@ -327,7 +327,7 @@ const FieldIcon = styled.span`
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  background: #e0e7ff;
+  background: rgba(var(--color-primary), 0.14);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -338,14 +338,14 @@ const FieldLabel = styled.label`
   flex: 1;
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: rgb(var(--color-text-secondary));
   display: flex;
   align-items: center;
   gap: 6px;
 `;
 
 const RequiredStar = styled.span`
-  color: #ef4444;
+  color: rgb(var(--color-error));
   font-weight: 700;
 `;
 
@@ -354,15 +354,15 @@ const FieldTypeBadge = styled.span`
   font-weight: 600;
   text-transform: uppercase;
   padding: 3px 8px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: rgb(var(--color-surface-hover));
+  color: rgb(var(--color-text-muted));
   border-radius: 4px;
 `;
 
 const SaveIndicator = styled.span<{ $status: SaveStatus }>`
   font-size: 11px;
   font-weight: 500;
-  color: ${p => p.$status === 'saving' ? '#3b82f6' : p.$status === 'saved' ? '#22c55e' : p.$status === 'error' ? '#ef4444' : 'transparent'};
+  color: ${p => p.$status === 'saving' ? 'rgb(var(--color-primary))' : p.$status === 'saved' ? 'rgb(var(--color-success))' : p.$status === 'error' ? 'rgb(var(--color-error))' : 'transparent'};
   display: flex;
   align-items: center;
   gap: 4px;
@@ -372,29 +372,29 @@ const SaveIndicator = styled.span<{ $status: SaveStatus }>`
 const inputStyles = css<{ $hasError?: boolean }>`
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid ${p => p.$hasError ? '#ef4444' : '#d1d5db'};
+  border: 1px solid ${p => p.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: 8px;
   font-size: 14px;
-  color: #111827;
-  background: ${p => p.$hasError ? '#fef2f2' : 'white'};
+  color: rgb(var(--color-text-primary));
+  background: ${p => p.$hasError ? 'rgba(var(--color-error), 0.14)' : 'white'};
   transition: all 0.15s;
   
   &:hover {
-    border-color: ${p => p.$hasError ? '#dc2626' : '#9ca3af'};
+    border-color: ${p => p.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-text-muted))'};
   }
   
   &:focus {
     outline: none;
-    border-color: ${p => p.$hasError ? '#dc2626' : '#3b82f6'};
+    border-color: ${p => p.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: 0 0 0 3px ${p => p.$hasError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'};
   }
   
   &::placeholder {
-    color: #9ca3af;
+    color: rgb(var(--color-text-muted));
   }
   
   &:disabled {
-    background: #f9fafb;
+    background: rgb(var(--color-surface));
     cursor: not-allowed;
   }
 `;
@@ -440,7 +440,7 @@ const QuickAddButton = styled.button`
   gap: 4px;
   padding: 0 12px;
   min-width: 44px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, rgb(var(--color-success)) 0%, rgb(var(--color-success)) 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -451,7 +451,7 @@ const QuickAddButton = styled.button`
   white-space: nowrap;
   
   &:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    background: linear-gradient(135deg, rgb(var(--color-success)) 0%, rgb(var(--color-success)) 100%);
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
   }
@@ -477,14 +477,14 @@ const CheckboxWrapper = styled.label`
   gap: 12px;
   padding: 12px;
   background: white;
-  border: 1px solid #d1d5db;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s;
   
   &:hover {
-    border-color: #3b82f6;
-    background: #f8fafc;
+    border-color: rgb(var(--color-primary));
+    background: rgb(var(--color-surface));
   }
   
   input[type="checkbox"] {
@@ -492,18 +492,18 @@ const CheckboxWrapper = styled.label`
     height: 20px;
     border-radius: 4px;
     cursor: pointer;
-    accent-color: #3b82f6;
+    accent-color: rgb(var(--color-primary));
   }
   
   span {
     font-size: 14px;
-    color: #374151;
+    color: rgb(var(--color-text-secondary));
   }
 `;
 
 // Multi-select with search
 const MultiSelectContainer = styled.div`
-  border: 1px solid #d1d5db;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   background: white;
   overflow: hidden;
@@ -513,16 +513,16 @@ const MultiSelectSearch = styled.input`
   width: 100%;
   padding: 12px 14px;
   border: none;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgb(var(--color-border));
   font-size: 14px;
   
   &:focus {
     outline: none;
-    background: #f8fafc;
+    background: rgb(var(--color-surface));
   }
   
   &::placeholder {
-    color: #9ca3af;
+    color: rgb(var(--color-text-muted));
   }
 `;
 
@@ -540,31 +540,31 @@ const MultiSelectOption = styled.label<{ $selected: boolean }>`
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s;
-  background: ${p => p.$selected ? '#eff6ff' : 'transparent'};
+  background: ${p => p.$selected ? 'rgba(var(--color-primary), 0.10)' : 'transparent'};
   
   &:hover {
-    background: ${p => p.$selected ? '#dbeafe' : '#f3f4f6'};
+    background: ${p => p.$selected ? 'rgba(var(--color-primary), 0.16)' : 'rgb(var(--color-surface-hover))'};
   }
   
   input[type="checkbox"] {
     width: 18px;
     height: 18px;
     border-radius: 4px;
-    accent-color: #3b82f6;
+    accent-color: rgb(var(--color-primary));
   }
   
   span {
     font-size: 14px;
-    color: #374151;
+    color: rgb(var(--color-text-secondary));
   }
 `;
 
 const SelectedCount = styled.div`
   padding: 8px 14px;
-  background: #f3f4f6;
+  background: rgb(var(--color-surface-hover));
   font-size: 12px;
-  color: #6b7280;
-  border-top: 1px solid #e5e7eb;
+  color: rgb(var(--color-text-muted));
+  border-top: 1px solid rgb(var(--color-border));
 `;
 
 // Field Indicators
@@ -582,15 +582,15 @@ const Indicator = styled.span<{ $type: 'auto' | 'conditional' }>`
   font-size: 11px;
   font-weight: 500;
   border-radius: 12px;
-  background: ${p => p.$type === 'auto' ? '#fef3c7' : '#f3e8ff'};
-  color: ${p => p.$type === 'auto' ? '#92400e' : '#7c3aed'};
+  background: ${p => p.$type === 'auto' ? 'rgba(var(--color-warning), 0.20)' : 'rgba(var(--color-primary), 0.10)'};
+  color: ${p => p.$type === 'auto' ? 'rgb(var(--color-warning))' : 'rgb(var(--color-primary))'};
 `;
 
 // Error display
 const FieldError = styled.p`
   margin: 8px 0 0;
   font-size: 12px;
-  color: #ef4444;
+  color: rgb(var(--color-error));
   display: flex;
   align-items: center;
   gap: 4px;
@@ -599,7 +599,7 @@ const FieldError = styled.p`
 const HelpText = styled.p`
   margin: 8px 0 0;
   font-size: 12px;
-  color: #6b7280;
+  color: rgb(var(--color-text-muted));
 `;
 
 // Currency Input
@@ -611,7 +611,7 @@ const CurrencyInputWrapper = styled.div`
     left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: #6b7280;
+    color: rgb(var(--color-text-muted));
     font-weight: 500;
   }
   
@@ -623,8 +623,8 @@ const CurrencyInputWrapper = styled.div`
 // Navigation
 const NavigationContainer = styled.div`
   padding: 16px 24px;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border-top: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -638,15 +638,15 @@ const NavLeft = styled.div`
 
 const StepIndicator = styled.span`
   font-size: 13px;
-  color: #6b7280;
+  color: rgb(var(--color-text-muted));
   padding: 6px 14px;
-  background: #e5e7eb;
+  background: rgb(var(--color-border));
   border-radius: 20px;
 `;
 
 const AutoSaveStatus = styled.span`
   font-size: 12px;
-  color: #22c55e;
+  color: rgb(var(--color-success));
   display: flex;
   align-items: center;
   gap: 4px;
@@ -669,33 +669,33 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' }>
   gap: 6px;
   
   ${p => p.$variant === 'primary' && `
-    background: #3b82f6;
+    background: rgb(var(--color-primary));
     color: white;
     border: none;
     
     &:hover:not(:disabled) {
-      background: #2563eb;
+      background: rgb(var(--color-primary));
     }
   `}
   
   ${p => p.$variant === 'success' && `
-    background: #22c55e;
+    background: rgb(var(--color-success));
     color: white;
     border: none;
     
     &:hover:not(:disabled) {
-      background: #16a34a;
+      background: rgb(var(--color-success));
     }
   `}
   
   ${p => (!p.$variant || p.$variant === 'secondary') && `
     background: white;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    color: rgb(var(--color-text-secondary));
+    border: 1px solid rgb(var(--color-border));
     
     &:hover:not(:disabled) {
-      background: #f9fafb;
-      border-color: #9ca3af;
+      background: rgb(var(--color-surface));
+      border-color: rgb(var(--color-text-muted));
     }
   `}
   
@@ -718,12 +718,12 @@ const EmptyState = styled.div`
   h3 {
     font-size: 18px;
     font-weight: 600;
-    color: #374151;
+    color: rgb(var(--color-text-secondary));
     margin: 0 0 8px;
   }
   
   p {
-    color: #6b7280;
+    color: rgb(var(--color-text-muted));
     font-size: 14px;
   }
 `;
@@ -767,7 +767,7 @@ const ConfirmDialog = styled.div`
   
   p {
     margin: 0 0 24px;
-    color: #6b7280;
+    color: rgb(var(--color-text-muted));
     font-size: 14px;
     line-height: 1.5;
   }
@@ -1703,7 +1703,7 @@ const FormSubmissionModal: React.FC<FormSubmissionModalProps> = ({
             />
             <MultiSelectOptions role="listbox" aria-multiselectable="true">
               {filteredOpts.length === 0 ? (
-                <div style={{ padding: '12px', color: '#9ca3af', textAlign: 'center', fontSize: '14px' }}>
+                <div style={{ padding: '12px', color: 'rgb(var(--color-text-muted))', textAlign: 'center', fontSize: '14px' }}>
                   No options found
                 </div>
               ) : filteredOpts.map((opt, i) => (

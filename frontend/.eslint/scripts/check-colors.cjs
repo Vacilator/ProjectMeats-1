@@ -54,7 +54,17 @@ const STANDARDIZED_COLORS = {
   '#f8d7da': 'rgba(239, 68, 68, 0.15)'
 };
 
-const HEX_COLOR_REGEX = /#([0-9a-fA-F]{3}){1,2}([0-9a-fA-F]{2})?/g;
+// Match standard CSS hex colors only: #RGB, #RGBA, #RRGGBB, #RRGGBBAA
+// (Avoids false positives like order numbers "#12345".)
+const HEX_COLOR_REGEX = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g;
+
+function isNumericOnlyShortHex(color) {
+  // Heuristic: ignore short numeric-only tokens like "#405" in names (not actual colors).
+  // We still catch #000000/#111111 etc.
+  if (typeof color !== 'string') return false;
+  if (color.length !== 4 && color.length !== 5) return false; // #RGB or #RGBA
+  return !/[a-fA-F]/.test(color);
+}
 
 function getSuggestion(color) {
   const normalized = color.toLowerCase();
@@ -73,6 +83,10 @@ function checkFile(filePath) {
       const color = match[0];
       const columnIndex = match.index;
       
+      if (isNumericOnlyShortHex(color)) {
+        continue;
+      }
+
       violations.push({
         line: lineIndex + 1,
         column: columnIndex + 1,

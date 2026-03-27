@@ -207,7 +207,7 @@ export const FormStepSingleNode = React.memo<NodeProps<Node<FormStepNodeData>>>(
     id: 'formStepSingle',
     name: 'Form (Legacy)',  // Phase E Fix: Updated from 'Form Step Single'
     category: 'form' as const,
-    color: '#3b82f6',  // Match registry color
+    color: 'rgb(var(--color-primary))',  // Match registry color
     icon: '📋',  // Match registry icon
     description: 'Collect information from a user via a form step',
     maxInputs: 1,

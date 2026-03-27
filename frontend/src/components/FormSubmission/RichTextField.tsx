@@ -7,14 +7,14 @@ import React, { useState, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 
 const RichTextContainer = styled.div<{ $hasError?: boolean }>`
-  border: 1px solid ${props => props.$hasError ? '#ef4444' : '#d1d5db'};
+  border: 1px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: 8px;
   overflow: hidden;
   background: white;
   transition: border-color 0.2s ease;
   
   &:focus-within {
-    border-color: ${props => props.$hasError ? '#ef4444' : '#3b82f6'};
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
   }
 `;
@@ -24,8 +24,8 @@ const Toolbar = styled.div`
   flex-wrap: wrap;
   gap: 4px;
   padding: 8px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: rgb(var(--color-surface));
+  border-bottom: 1px solid rgb(var(--color-border));
 `;
 
 const ToolbarGroup = styled.div`
@@ -35,7 +35,7 @@ const ToolbarGroup = styled.div`
   &:not(:last-child)::after {
     content: '';
     width: 1px;
-    background: #d1d5db;
+    background: rgb(var(--color-border));
     margin: 0 6px;
   }
 `;
@@ -48,20 +48,20 @@ const ToolbarButton = styled.button<{ $active?: boolean }>`
   justify-content: center;
   border: none;
   border-radius: 4px;
-  background: ${props => props.$active ? '#e5e7eb' : 'transparent'};
-  color: ${props => props.$active ? '#1f2937' : '#4b5563'};
+  background: ${props => props.$active ? 'rgb(var(--color-border))' : 'transparent'};
+  color: ${props => props.$active ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-text-secondary))'};
   cursor: pointer;
   font-size: 14px;
   font-weight: ${props => props.$active ? '600' : '400'};
   transition: all 0.15s ease;
   
   &:hover {
-    background: #e5e7eb;
-    color: #1f2937;
+    background: rgb(var(--color-border));
+    color: rgb(var(--color-text-primary));
   }
   
   &:focus {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid rgb(var(--color-primary));
     outline-offset: 1px;
   }
 `;
@@ -73,7 +73,7 @@ const EditorArea = styled.div`
   padding: 12px;
   font-size: 14px;
   line-height: 1.6;
-  color: #1f2937;
+  color: rgb(var(--color-text-primary));
   
   &:focus {
     outline: none;
@@ -81,7 +81,7 @@ const EditorArea = styled.div`
   
   &[contenteditable="true"]:empty::before {
     content: attr(data-placeholder);
-    color: #9ca3af;
+    color: rgb(var(--color-text-muted));
     pointer-events: none;
   }
   
@@ -108,7 +108,7 @@ const EditorArea = styled.div`
   }
   
   a {
-    color: #3b82f6;
+    color: rgb(var(--color-primary));
     text-decoration: underline;
   }
 `;
@@ -116,9 +116,9 @@ const EditorArea = styled.div`
 const CharCount = styled.div`
   padding: 6px 12px;
   font-size: 12px;
-  color: #9ca3af;
-  background: #f9fafb;
-  border-top: 1px solid #e5e7eb;
+  color: rgb(var(--color-text-muted));
+  background: rgb(var(--color-surface));
+  border-top: 1px solid rgb(var(--color-border));
   text-align: right;
 `;
 

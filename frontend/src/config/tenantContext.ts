@@ -187,7 +187,7 @@ export function getTenantBranding(): {
   
   // Default branding
   const defaultBranding = {
-    primaryColor: '#1890ff', // Ant Design default blue
+    primaryColor: 'rgb(var(--color-primary))', // Ant Design default blue
     logoUrl: null,
   };
   

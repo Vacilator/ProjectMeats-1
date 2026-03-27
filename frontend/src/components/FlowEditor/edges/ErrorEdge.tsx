@@ -38,7 +38,7 @@ const dashMove = keyframes`
 const ErrorLabel = styled.div`
   position: absolute;
   background: rgb(254, 226, 226);
-  border: 2px solid #ef4444;
+  border: 2px solid rgb(var(--color-error));
   border-radius: var(--radius-md, 6px);
   padding: 4px 12px;
   font-size: 12px;
@@ -50,7 +50,7 @@ const ErrorLabel = styled.div`
   box-shadow: 0 2px 4px rgb(239 68 68 / 0.2);
 
   &:hover {
-    background: #ef4444;
+    background: rgb(var(--color-error));
     color: white;
     transform: scale(1.05);
     box-shadow: 0 4px 8px rgb(239 68 68 / 0.3);
@@ -65,7 +65,7 @@ const ErrorLabel = styled.div`
 `;
 
 const ErrorPath = styled.path<{ $animate: boolean }>`
-  stroke: #ef4444;
+  stroke: rgb(var(--color-error));
   stroke-width: 2.5;
   stroke-dasharray: 5 5;
   fill: none;
@@ -91,8 +91,8 @@ const ToolbarBtn = styled.button`
   cursor: pointer;
 
   &:hover {
-    border-color: #ef4444;
-    color: #ef4444;
+    border-color: rgb(var(--color-error));
+    color: rgb(var(--color-error));
   }
 `;
 const ErrorBadge = styled.div`

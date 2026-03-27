@@ -247,7 +247,7 @@ const SubmitButton = styled.button`
 `;
 
 const ErrorMessage = styled.div`
-  color: #dc2626;
+  color: rgb(var(--color-error));
   font-size: 0.875rem;
   margin-top: 0.5rem;
   padding: 0.5rem;
