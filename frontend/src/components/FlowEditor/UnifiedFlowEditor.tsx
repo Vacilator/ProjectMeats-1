@@ -130,6 +130,7 @@ import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, En
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
 import { ValidationDrawer } from './components/ValidationDrawer';
+import { AISuggestionsPanel } from './components/AISuggestionsPanel';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
 import type { FormStepData } from './Modals/EntityFormStepModal';
@@ -803,6 +804,7 @@ const EditorWrapper = styled.div`
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 `;
 
 const NodePalette = styled.div`
@@ -2586,6 +2588,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const [showDebugger, setShowDebugger] = useState(false);
+
+  const [isAISuggestionsVisible, setIsAISuggestionsVisible] = useState(() => {
+    try {
+      return localStorage.getItem('workforms_ai_suggestions_visible') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleAISuggestionsVisible = useCallback(() => {
+    setIsAISuggestionsVisible((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('workforms_ai_suggestions_visible', next ? 'true' : 'false');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
   const selectedNodeForDebug = useMemo(() => {
     const selected = nodes.find((n) => n.id === selectedNodeId) || null;
     if (selected) return selected;
@@ -3946,6 +3969,92 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug('[Container] ❌ No container matched at position');
     return null;
   }, [nodes]);
+
+  const handleAddNodeFromAISuggestion = useCallback(
+    (nodeTypeId: string, position?: { x: number; y: number }) => {
+      if (readOnly) return;
+
+      // Container creation is complex (pages, layout, etc.) — route through the existing click-to-add flow.
+      if (!position || isFormProcessContainerType(nodeTypeId)) {
+        handleClickToAddNode(nodeTypeId);
+        return;
+      }
+
+      const snapped = {
+        x: Math.round(position.x / 15) * 15,
+        y: Math.round(position.y / 15) * 15,
+      };
+
+      const newNodeId = generateNodeId();
+      const reactFlowType = getReactFlowNodeType(nodeTypeId);
+
+      const selected = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) || null : null;
+      const nearby = findNearbyNode(snapped);
+      const anchor = selected || nearby;
+
+      const newNode: Node = {
+        id: newNodeId,
+        type: reactFlowType,
+        position: snapped,
+        data: {
+          label: NODE_TYPE_REGISTRY[nodeTypeId]?.name || 'New Node',
+          status: 'draft',
+          ...getDefaultNodeData(nodeTypeId),
+        },
+        selected: true,
+      };
+
+      // Prefer the selected node's container context.
+      if (selected?.parentId) {
+        newNode.parentId = selected.parentId;
+        newNode.extent = 'parent';
+        newNode.expandParent = true;
+      } else {
+        const targetContainer = findContainerAtPosition(snapped);
+        if (targetContainer) {
+          newNode.parentId = targetContainer.id;
+          newNode.extent = 'parent';
+          newNode.expandParent = true;
+        }
+      }
+
+      const selectOnly = (ns: Node[], id: string) => ns.map((n) => ({ ...n, selected: n.id === id }));
+
+      const nextNodes = selectOnly([...nodes, newNode], newNodeId);
+      const nextEdges: Edge[] = anchor
+        ? [
+            ...edges,
+            {
+              id: `edge-${anchor.id}-${newNodeId}`,
+              source: anchor.id,
+              target: newNodeId,
+              type: 'insert',
+            },
+          ]
+        : [...edges];
+
+      setSelectedNodeId(newNodeId);
+      setSelectedNode(null);
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      setHasUnsavedChanges(true);
+    },
+    [
+      readOnly,
+      edges,
+      nodes,
+      selectedNodeId,
+      generateNodeId,
+      handleClickToAddNode,
+      findNearbyNode,
+      findContainerAtPosition,
+      setEdges,
+      setNodes,
+      setSelectedNodeId,
+      setSelectedNode,
+      setHasUnsavedChanges,
+    ]
+  );
   
   const onDrag = useCallback((event: React.DragEvent) => {
     if (event.clientX === 0 && event.clientY === 0) return; // Ignore end event
@@ -7347,6 +7456,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             >
               <Plus />
             </ViewportButton>
+            <ViewportButton
+              onClick={toggleAISuggestionsVisible}
+              title={isAISuggestionsVisible ? 'Hide AI Suggestions' : 'Show AI Suggestions'}
+              style={isAISuggestionsVisible ? {
+                background: 'rgb(var(--color-primary))',
+                color: 'white',
+                borderColor: 'rgb(var(--color-primary))'
+              } : {}}
+            >
+              <Sparkles />
+            </ViewportButton>
             <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
           </>
         )}
@@ -7905,6 +8025,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           </WizardCard>
         </WizardContainer>
       )}
+
+      {!readOnly && normalizedEditorMode === 'visual' && (
+        <AISuggestionsPanel
+          nodes={nodes}
+          edges={edges}
+          selectedNodeId={selectedNodeId ?? undefined}
+          onAddNode={handleAddNodeFromAISuggestion}
+          isVisible={isAISuggestionsVisible}
+        />
+      )}
+
       </EditorWrapper>
 
       {/* Drag Ghost Preview */}
