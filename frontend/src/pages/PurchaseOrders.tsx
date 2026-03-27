@@ -492,6 +492,10 @@ const PurchaseOrders: React.FC = () => {
         total_amount: parseFloat(formData.total_amount),
         supplier: parseInt(formData.supplier),
       };
+
+      // Location fields are optional; omit when unset to avoid backend validation surprises.
+      if (!purchaseOrderData.pick_up_location) purchaseOrderData.pick_up_location = undefined;
+      if (!purchaseOrderData.delivery_location) purchaseOrderData.delivery_location = undefined;
       
       // Remove order_number if empty - let backend auto-generate
       if (!purchaseOrderData.order_number || purchaseOrderData.order_number.trim() === '') {
