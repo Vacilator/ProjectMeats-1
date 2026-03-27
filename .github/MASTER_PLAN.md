@@ -113,6 +113,7 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-27 — Fix: plant available products save — PR: #3996.
 - 2026-03-27 — UI: facelift customer + supplier pages — PR: #3997.
 - 2026-03-27 — FlowEditor: wire AI Suggestions panel (toggle + backend suggest-nodes + local fallback) — PR: #3998.
+- 2026-03-27 — FlowEditor: unify Form Step normalization (explicit legacy→canonical map in nodeNormalization) — PR: #4013.
 - 2026-03-27 — FlowEditor: canonicalize AI node suggestions to match NODE_TYPE_REGISTRY IDs (so suggested nodes always add successfully) — PR: #4014.
 
 - 2026-03-24 — Fixed global Ant Design theme corruption (Sanitized background tokens causing pure black component rendering) — PR: #3925.
