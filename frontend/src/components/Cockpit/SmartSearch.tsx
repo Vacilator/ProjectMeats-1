@@ -322,13 +322,28 @@ const EmptyMessage = styled.div`
 
 const getEntityIcon = (type: SearchEntity['type'], size = 20) => {
   switch (type) {
-    case 'customer': return <Users size={size} />;
-    case 'supplier': return <Building2 size={size} />;
-    case 'contact': return <Users size={size} />;
-    case 'product': return <Package size={size} />;
-    case 'order': return <FileText size={size} />;
-    case 'inquiry': return <FileText size={size} />;
-    default: return <FileText size={size} />;
+    case 'customer':
+      return <Users size={size} />;
+    case 'supplier':
+      return <Building2 size={size} />;
+    case 'contact':
+      return <Users size={size} />;
+    case 'product':
+      return <Package size={size} />;
+    case 'purchase_order':
+    case 'sales_order':
+    case 'invoice':
+      return <FileText size={size} />;
+    case 'inquiry':
+      return <FileText size={size} />;
+    case 'claim':
+      return <FileText size={size} />;
+    case 'call':
+      return <Clock size={size} />;
+    case 'tenant_user':
+      return <Users size={size} />;
+    default:
+      return <FileText size={size} />;
   }
 };
 
@@ -343,10 +358,18 @@ const getEntityTone = (type: SearchEntity['type']) => {
       return 'var(--color-info)';
     case 'product':
       return 'var(--color-warning)';
-    case 'order':
+    case 'purchase_order':
+    case 'sales_order':
+    case 'invoice':
       return 'var(--color-warning)';
     case 'inquiry':
       return 'var(--color-error)';
+    case 'claim':
+      return 'var(--color-error)';
+    case 'call':
+      return 'var(--color-info)';
+    case 'tenant_user':
+      return 'var(--color-primary)';
     default:
       return 'var(--color-primary)';
   }
@@ -588,7 +611,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
   const debouncedSearch = useMemo(() => debounce((q: string) => {
     searchEntities(q);
-  }, 300), [searchEntities]);
+  }, 120), [searchEntities]);
 
   useEffect(() => {
     debouncedSearch(query);

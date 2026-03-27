@@ -8,7 +8,7 @@
  * - Loading states and "no results" handling
  * - Keyboard navigation support
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useId, useState, useEffect, useRef, useCallback } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { entityOptionsService } from '../../services/quickActionsService';
 
@@ -28,6 +28,12 @@ interface SearchableSelectProps {
   initialOptions?: Option[];
   threshold?: number; // Number of options before switching to search mode
   filterParams?: Record<string, any>;
+
+  /** Force API-backed search mode even for small option sets. */
+  forceSearch?: boolean;
+
+  /** Debounce delay for server-side search, in ms. Set to 0 for per-keystroke. */
+  debounceMs?: number;
 }
 
 const spin = keyframes`
@@ -206,14 +212,18 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   initialOptions = [],
   threshold = 50,
   filterParams,
+  forceSearch = false,
+  debounceMs = 150,
 }) => {
+  const instanceId = useId();
+
   const [isOpen, setIsOpen] = useState(false);
   const [options, setOptions] = useState<Option[]>(initialOptions);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [isSearchMode, setIsSearchMode] = useState(forceSearch);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -221,10 +231,15 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   // Determine if we should use search mode
   useEffect(() => {
+    if (forceSearch) {
+      setIsSearchMode(true);
+      return;
+    }
+
     if (initialOptions.length >= threshold || totalCount >= threshold) {
       setIsSearchMode(true);
     }
-  }, [initialOptions.length, totalCount, threshold]);
+  }, [forceSearch, initialOptions.length, totalCount, threshold]);
 
   // Load initial options if not provided
   useEffect(() => {
@@ -258,12 +273,13 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const loadOptions = async (query: string = '') => {
     setIsLoading(true);
     try {
-      const cancelKey = `search-${entityType}-${Date.now()}`;
+      // Stable cancel key so in-flight requests are cancelled when the user types.
+      const cancelKey = `entity-options:${instanceId}:${entityType}`;
       const response = await entityOptionsService.searchOptions(entityType, query, cancelKey, filterParams);
       setOptions(response.options);
       setTotalCount(response.total_count);
-      
-      if (response.total_count >= threshold) {
+
+      if (forceSearch || response.total_count >= threshold) {
         setIsSearchMode(true);
       }
     } catch (err) {
@@ -277,16 +293,16 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     const query = e.target.value;
     setSearchQuery(query);
     setHighlightedIndex(-1);
-    
+
     // Debounce search
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
+
     searchTimeoutRef.current = setTimeout(() => {
-      loadOptions(query);
-    }, 300);
-  }, [entityType, filterParams]);
+      void loadOptions(query);
+    }, Math.max(0, debounceMs));
+  }, [debounceMs, loadOptions]);
 
   const handleToggle = () => {
     if (disabled) return;

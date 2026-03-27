@@ -39,6 +39,11 @@ class EntityViewSet(viewsets.ViewSet):
         'purchase_order': ('purchase_orders', 'PurchaseOrder'),
         'sales_order': ('sales_orders', 'SalesOrder'),
         'invoice': ('invoices', 'Invoice'),
+        # Additional Cockpit-searchable entities
+        'inquiry': ('inquiries', 'Inquiry'),
+        'claim': ('invoices', 'Claim'),
+        'call': ('cockpit', 'ScheduledCall'),
+        'tenant_user': ('tenants', 'TenantUser'),
     }
     
     @action(detail=True, methods=['get'], url_path='relationships')

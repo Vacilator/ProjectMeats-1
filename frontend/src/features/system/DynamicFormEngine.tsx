@@ -6,7 +6,7 @@
  * 
  * Wave 4 - Task 4.12: Integrated with ConfigResolver for dynamic settings.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -40,6 +40,19 @@ interface DynamicFormEngineProps {
   onSubmit: (data: Record<string, any>) => void;
   onCancel?: () => void;
   isSubmitting?: boolean;
+
+  /** Prefer showing these keys first, and collapse the rest behind an expand toggle. */
+  keyFieldKeys?: string[];
+
+  /** Controlled show-all-fields state (used when a parent needs to expand multiple sections). */
+  showAllFields?: boolean;
+  onShowAllFieldsChange?: (next: boolean) => void;
+
+  /** When false, hides the expand/collapse toggle UI (still respects showAllFields). */
+  showAllFieldsToggle?: boolean;
+
+  /** Override submit button label (e.g. "Create" vs "Save"). */
+  submitLabel?: string;
 }
 
 const FormContainer = styled.form`
@@ -222,8 +235,17 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
   onSubmit,
   onCancel,
   isSubmitting = false,
+  keyFieldKeys,
+  showAllFields,
+  onShowAllFieldsChange,
+  showAllFieldsToggle = true,
+  submitLabel,
 }) => {
   const validationSchema = buildValidationSchema(schema.fields);
+
+  const [internalShowAllFields, setInternalShowAllFields] = useState(false);
+  const effectiveShowAllFields = showAllFields ?? internalShowAllFields;
+  const setEffectiveShowAllFields = onShowAllFieldsChange ?? setInternalShowAllFields;
   
   // Form-level config from ConfigResolver (Wave 4 - Task 4.12)
   const [formConfig, setFormConfig] = useState({
@@ -291,13 +313,28 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     mode: formConfig.validateOnChange ? 'onChange' : 'onSubmit',
   });
   
+  const keySet = useMemo(() => {
+    const keys = (keyFieldKeys || []).map((k) => String(k).toLowerCase());
+    return new Set(keys);
+  }, [keyFieldKeys]);
+
+  const hasKeySplit = Boolean(keyFieldKeys && keyFieldKeys.length);
+
+  const keyFields = useMemo(() => {
+    if (!hasKeySplit) return schema.fields;
+    return schema.fields.filter((f) => keySet.has(String(f.key).toLowerCase()));
+  }, [hasKeySplit, keySet, schema.fields]);
+
+  const otherFields = useMemo(() => {
+    if (!hasKeySplit) return [] as FieldDefinition[];
+    return schema.fields.filter((f) => !keySet.has(String(f.key).toLowerCase()));
+  }, [hasKeySplit, keySet, schema.fields]);
+
   // Get options for a select field (static or dynamic)
   const getFieldOptions = (field: FieldDefinition): { value: string; label: string }[] => {
     // Use provided options first
     if (field.options?.length) {
-      return field.options.map(opt => 
-        typeof opt === 'string' ? { value: opt, label: opt } : opt
-      );
+      return field.options.map((opt) => (typeof opt === 'string' ? { value: opt, label: opt } : opt));
     }
     // Fall back to dynamically loaded options
     return dynamicOptions[field.key] || [];
@@ -414,30 +451,56 @@ export const DynamicFormEngine: React.FC<DynamicFormEngineProps> = ({
     }
   };
 
+  const resolvedSubmitLabel =
+    (typeof submitLabel === 'string' && submitLabel.trim()) ||
+    (typeof formConfig.submitButtonText === 'string' && formConfig.submitButtonText.trim()) ||
+    'Save';
+
+  const onInvalid = (errs: Record<string, any>) => {
+    if (!hasKeySplit) return;
+    const errorKeys = Object.keys(errs || {});
+    const hasHiddenError = errorKeys.some((k) => !keySet.has(String(k).toLowerCase()));
+    if (hasHiddenError) {
+      setEffectiveShowAllFields(true);
+    }
+  };
+
   return (
-    <FormContainer onSubmit={handleSubmit(onSubmit)}>
+    <FormContainer onSubmit={handleSubmit(onSubmit, onInvalid)}>
       <FormHeader>
         <FormTitle>{schema.name}</FormTitle>
-        {schema.description && (
-          <FormDescription>{schema.description}</FormDescription>
-        )}
+        {schema.description && <FormDescription>{schema.description}</FormDescription>}
       </FormHeader>
 
-      {schema.fields.map((field) => renderField(field))}
+      {(hasKeySplit ? keyFields : schema.fields).map((field) => renderField(field))}
 
-      <FormActions>
-        {onCancel && (
+      {hasKeySplit && otherFields.length > 0 && showAllFieldsToggle && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
           <Button
             type="button"
             variant="outline"
-            onClick={onCancel}
+            onClick={() => setEffectiveShowAllFields(!effectiveShowAllFields)}
             disabled={isSubmitting}
           >
+            {effectiveShowAllFields ? 'Hide remaining fields' : 'Show all fields'}
+          </Button>
+        </div>
+      )}
+
+      {hasKeySplit && otherFields.length > 0 && (
+        <div style={{ display: effectiveShowAllFields ? 'block' : 'none' }}>
+          {otherFields.map((field) => renderField(field))}
+        </div>
+      )}
+
+      <FormActions>
+        {onCancel && (
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             Cancel
           </Button>
         )}
         <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Submitting...' : formConfig.submitButtonText}
+          {isSubmitting ? 'Submitting...' : resolvedSubmitLabel}
         </Button>
       </FormActions>
     </FormContainer>
