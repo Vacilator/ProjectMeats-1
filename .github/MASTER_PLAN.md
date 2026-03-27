@@ -12,7 +12,8 @@ This file is the **append-only PR-referenceable execution log**.
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
 ### 2026-03-27T17:03Z — Recovery Execution Plan (Last ~25 prompts)
-- Merging a comprehensive recovery plan into `MASTER_PLAN.md` (canonical snapshot) and executing remaining work **only via**: branch → PR → merge to `development`.
+- Merged recovery plan into `MASTER_PLAN.md` (canonical snapshot). PR: #4036.
+- Execution policy: all remaining work ships **only via**: branch → PR → merge to `development`.
 - P0 execution order:
   1) Cockpit Favorites (backend persistence + optimistic UX, tenant-safe, RLS-backed)
   2) Email Ingestion Monitor “Sync Now” decrypt error surfacing (stable codes + reconnect CTA)
@@ -65,7 +66,7 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-27 — Phase 9.5: AI Document Stability
 - AI Assistant documents: updated `AIDocument.file.upload_to` to include tenant UUID + unique prefix to prevent naming collisions.
 - Upload hardening follow-up: switched to a flat tenant+UUID filename (avoids deep mkdir permission issues on mounted media volumes) and assert RLS session vars right before saving.
-- Error hardening follow-up: database exceptions now map to actionable 400s (e.g., missing migrations/table) instead of misleading RLS messages or 500s.
+- Error hardening follow-up: database exceptions now map to actionable 400s (e.g., missing migrations/table) instead of misleading RLS messages or 500s. PR: #4039.
 - Added diagnostic command to reproduce uploads and capture tracebacks without needing the frontend:
   - `python manage.py test_document_upload --tenant-id 0f024884-b9ef-4e50-8fc0-89b2eb7c8c69`
   - Safe default: temp `MEDIA_ROOT` (no persistent artifacts)
@@ -127,6 +128,7 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-27 — Cockpit Favorites: Backend Persistence (Tenant-Safe)
 - SmartSearch + FavoritesWidget now use the backend favorites API (optimistic toggles; no localStorage dependence).
 - Favorites are tenant-scoped to prevent cross-tenant entity_id collisions; includes RLS policy on `core_userfavorite`.
+- PR: #4037.
 
 ### PR Log (append-only)
 
@@ -161,7 +163,7 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-27 — Fix: cockpit favorites + inquiry create — PR: #3993.
 - 2026-03-27 — Fix: product associations persist — PR: #3994.
 - 2026-03-27 — Fix: Email Sync Now avoids timeouts — PR: #3995.
-- 2026-03-27 — Fix: Email Sync Now decryption failures always return stable `code=decryption_failed` (UI shows reconnect CTA) — PR: #TBD.
+- 2026-03-27 — Fix: Email Sync Now decryption failures always return stable `code=decryption_failed` (UI shows reconnect CTA) — PR: #4038.
 - 2026-03-27 — Hotfix: restore development deployments (main-pipeline workflow file issue) — PR: #4011.
 - 2026-03-27 — Fix: plant available products save — PR: #3996.
 - 2026-03-27 — UI: facelift customer + supplier pages — PR: #3997.
