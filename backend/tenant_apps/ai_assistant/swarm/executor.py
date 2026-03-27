@@ -590,7 +590,7 @@ class ToolExecutor:
         from tenant_apps.ai_assistant.services.sentry_issues import fetch_recent_sentry_issues_for_tenant
 
         token = os.environ.get('SENTRY_AUTH_TOKEN')
-        org = os.environ.get('SENTRY_ORG_SLUG') or os.environ.get('SENTRY_ORG')
+        org = os.environ.get('SENTRY_ORG_SLUG') or os.environ.get('SENTRY_ORG') or 'meats-central'
         base_url = os.environ.get('SENTRY_BASE_URL') or 'https://sentry.io'
 
         return fetch_recent_sentry_issues_for_tenant(

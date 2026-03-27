@@ -39,7 +39,8 @@ def fetch_recent_sentry_issues_for_tenant(
     if not token:
         return {"ok": False, "error": "SENTRY_AUTH_TOKEN not configured"}
     if not org_slug:
-        return {"ok": False, "error": "SENTRY_ORG_SLUG not configured"}
+        # Default to the org slug used by this repository's production Sentry org.
+        org_slug = "meats-central"
 
     try:
         import requests
