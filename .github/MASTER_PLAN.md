@@ -146,6 +146,10 @@ This file is the **append-only PR-referenceable execution log**.
 - Result cards now render as accessible div-buttons with keyboard activation; favorite toggle surfaces errors.
 - PR: #4044.
 
+### 2026-03-27 — AI Chat: Lessons Block NameError
+- Fixed AI chat failing with `NameError: lessons_block is not defined` by defining lessons_block in SwarmOrchestrator.run_tool_loop via memory_service (safe fallback when memory fails).
+- PR: #4045.
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
