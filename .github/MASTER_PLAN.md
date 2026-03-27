@@ -14,7 +14,7 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-27 — Emergency Fix - OAuth Decryption
 - Verified Microsoft OAuth encryption salt remains `projectmeats_oauth_encryption_v1` (no drift).
 - Added management command: `python manage.py diagnose_oauth_encryption --tenant-id <uuid>` to distinguish `InvalidToken` (key mismatch) vs missing data.
-- Email Sync Now: backend now detects `InvalidToken` and returns `code=decryption_failed` with a stable reconnect hint (UI can show a deterministic CTA).
+- Email Sync Now: backend now detects decrypt failures and returns `code=decryption_failed` with a stable reconnect hint (UI can show a deterministic CTA).
 - AI Swarm: Microsoft Graph tools now catch token decryption failures and return structured payload:
   `{ "status": "error", "error_code": "DECRYPTION_FAILED", "message": "Your Outlook connection needs to be refreshed for security reasons." }`
 

@@ -364,8 +364,9 @@ def sync_emails(request):
 
             # Normalize error codes so the frontend can provide a deterministic CTA.
             error_code = str((stats or {}).get('error_code') or '').strip().lower()
-            if not error_code and isinstance(detail, str) and detail.startswith('DECRYPTION_FAILED'):
-                error_code = 'decryption_failed'
+            if not error_code and isinstance(detail, str):
+                if detail.startswith('DECRYPTION_FAILED') or 'Failed to decrypt Microsoft access token' in detail:
+                    error_code = 'decryption_failed'
 
             if error_code == 'decryption_failed':
                 return Response(
