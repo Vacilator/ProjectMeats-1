@@ -576,7 +576,6 @@ class ToolExecutor:
     def _get_recent_errors(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Fetch recent Sentry issues tagged with the active tenant_id."""
         import os
-        import requests
 
         tenant_id_arg = str(arguments.get('tenant_id') or '').strip()
         active_tenant_id = str(getattr(tenant, 'id', '') or '')
@@ -588,56 +587,20 @@ class ToolExecutor:
         if tenant_id_arg != active_tenant_id:
             raise ValueError('tenant_id must match the active tenant')
 
+        from tenant_apps.ai_assistant.services.sentry_issues import fetch_recent_sentry_issues_for_tenant
+
         token = os.environ.get('SENTRY_AUTH_TOKEN')
         org = os.environ.get('SENTRY_ORG_SLUG') or os.environ.get('SENTRY_ORG')
-        base_url = (os.environ.get('SENTRY_BASE_URL') or 'https://sentry.io').rstrip('/')
+        base_url = os.environ.get('SENTRY_BASE_URL') or 'https://sentry.io'
 
-        if not token:
-            return {'ok': False, 'error': 'SENTRY_AUTH_TOKEN not configured'}
-        if not org:
-            return {'ok': False, 'error': 'SENTRY_ORG_SLUG not configured'}
-
-        url = f"{base_url}/api/0/organizations/{org}/issues/"
-        params = {
-            'query': f"tenant_id:{active_tenant_id}",
-            'limit': 5,
-            'sort': 'date',
-        }
-
-        resp = requests.get(
-            url,
-            headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'},
-            params=params,
-            timeout=10,
+        return fetch_recent_sentry_issues_for_tenant(
+            tenant_id=active_tenant_id,
+            token=token,
+            org_slug=org,
+            base_url=base_url,
+            limit=5,
+            timeout_seconds=10,
         )
-
-        if resp.status_code >= 400:
-            return {
-                'ok': False,
-                'status': resp.status_code,
-                'error': 'Sentry API request failed',
-                'detail': (resp.text or '')[:300],
-            }
-
-        issues = resp.json() if resp.content else []
-        out = []
-        for it in (issues or [])[:5]:
-            out.append(
-                {
-                    'id': it.get('id'),
-                    'shortId': it.get('shortId') or it.get('short_id'),
-                    'title': it.get('title'),
-                    'permalink': it.get('permalink'),
-                    'culprit': it.get('culprit'),
-                    'level': it.get('level'),
-                    'status': it.get('status'),
-                    'firstSeen': it.get('firstSeen'),
-                    'lastSeen': it.get('lastSeen'),
-                    'count': it.get('count'),
-                }
-            )
-
-        return {'ok': True, 'tenant_id': active_tenant_id, 'issues': out}
 
     def _search_entities(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Backward-compatible alias for older tool name."""
