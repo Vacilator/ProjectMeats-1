@@ -30,6 +30,10 @@ This file is the **append-only PR-referenceable execution log**.
 - UX: wired `AIAgentWidget` to backend chat endpoint (`/api/v1/ai-assistant/ai-chat/chat/`) via `businessApi` (PR #3687).
 - UX: added a Tools button in `AIAgentWidget` to list tool operationIds via `GET /api/v1/ai-assistant/tools/openapi/` (PR #3691).
 
+### 2026-03-27 — AI Assistant Restoration
+- Context awareness: Omnibox + AIAgentWidget + ChatWindow include `currentPath`, `activeEntityId`, `activeEntityType` in every chat message; Omnibox routes into the widget via `pm:ai-send` — PR #4000.
+- Action capability: backend function-calling tools (`create_record`, `search_entities`, `get_recent_activity`) + RLS session var assertion (`app.current_tenant`) for defense-in-depth — PR #4001.
+
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 
 ### 2026-03-20 — Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF
