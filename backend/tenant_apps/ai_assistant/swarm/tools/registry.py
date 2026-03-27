@@ -144,15 +144,33 @@ def update_claim_status(claim_id: str, status: str) -> Dict[str, Any]:
 
 
 @registry.register
-def search_vector_memory(embedding: List[float], top_k: int = 5) -> Dict[str, Any]:
-    """Search tenant VectorMemory by embedding.
+def search_records(query: str, entity_types: List[str] | None = None, limit: int = 5) -> Dict[str, Any]:
+    """Search tenant records using Universal Search.
 
-    NOTE: This is schema-only for agent discovery. Actual execution is
-    performed via the staff-only API endpoint:
-    POST /api/v1/ai-assistant/memory/search/ (expects 1536-dim embedding).
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
     """
 
-    return {"status": "use_api_endpoint", "top_k": top_k}
+    return {"status": "available_via_chat", "query": query, "limit": limit}
+
+
+@registry.register
+def get_record_detail(entity_type: str, entity_id: str) -> Dict[str, Any]:
+    """Fetch a single record detail payload.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity_type": entity_type, "entity_id": entity_id}
+
+
+@registry.register
+def create_task(title: str, message: str, entity_type: str | None = None, entity_id: str | None = None) -> Dict[str, Any]:
+    """Create a user-visible task (implemented as an in-app notification).
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "title": title}
 
 
 @registry.register

@@ -67,6 +67,58 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'search_records',
+            'description': 'Search tenant records using Universal Search (unified search standard).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'query': {'type': 'string', 'description': 'Free-text search query (operators supported, e.g. supplier:ABC)'},
+                    'entity_types': {
+                        'type': 'array',
+                        'items': {'type': 'string'},
+                        'description': 'Optional entity types to include (supplier, customer, purchase_order, product, ...)',
+                    },
+                    'limit': {'type': 'integer', 'description': 'Limit per entity type (default 5)'},
+                },
+                'required': ['query'],
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'get_record_detail',
+            'description': 'Fetch a single record detail payload (tenant-scoped).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'entity_type': {'type': 'string', 'description': 'Entity type (supplier, customer, purchase_order, ...)'},
+                    'entity_id': {'type': 'string', 'description': 'Primary key value (uuid/int accepted as string)'},
+                },
+                'required': ['entity_type', 'entity_id'],
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'create_task',
+            'description': 'Create a task for the current user (implemented as an in-app notification).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'title': {'type': 'string', 'description': 'Short task title'},
+                    'message': {'type': 'string', 'description': 'Task description/message'},
+                    'entity_type': {'type': 'string', 'description': 'Optional related entity type'},
+                    'entity_id': {'type': 'string', 'description': 'Optional related entity id'},
+                },
+                'required': ['title', 'message'],
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'create_record',
             'description': 'Create a tenant-scoped record (limited to safe entity types).',
             'parameters': {
@@ -126,8 +178,11 @@ class ToolExecutor:
             'check_unread_emails': self._check_unread_emails,
             'draft_outlook_email': self._draft_outlook_email,
             'search_cockpit_records': self._search_cockpit_records,
+            'search_records': self._search_records,
+            'get_record_detail': self._get_record_detail,
+            'create_task': self._create_task,
             'create_record': self._create_record,
-            'search_entities': self._search_entities,
+            'search_entities': self._search_entities,  # Backward-compatible alias
             'get_recent_activity': self._get_recent_activity,
         }
 
@@ -246,7 +301,7 @@ class ToolExecutor:
         if not entity_type or not search_term:
             raise ValueError('Missing required parameters: entity_type, search_term')
 
-        return self._search_entities(
+        return self._search_records(
             {'query': search_term, 'entity_types': [entity_type], 'limit': 10},
             tenant,
             user,
@@ -370,15 +425,15 @@ class ToolExecutor:
 
         raise ValueError(f"Unsupported entity for create_record: {entity}")
 
-    def _search_entities(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
-        """Search common entities with strict tenant filtering."""
+    def _search_records(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Search tenant records using UniversalSearchService."""
         query = (arguments.get('query') or '').strip()
         if not query:
             raise ValueError('Missing required parameters: query')
 
         entity_types = arguments.get('entity_types')
         if not isinstance(entity_types, list) or not entity_types:
-            entity_types = ['customer', 'supplier', 'contact', 'purchase_order', 'sales_order']
+            entity_types = None
 
         limit = arguments.get('limit')
         try:
@@ -387,105 +442,86 @@ class ToolExecutor:
             limit_int = 5
         limit_int = max(1, min(25, limit_int))
 
-        results: Dict[str, Any] = {
-            'query': query,
-            'results': [],
-            'counts': {},
+        from apps.core.services.universal_search import UniversalSearchService
+
+        service = UniversalSearchService(tenant=tenant)
+        return service.search(query, limit_per_type=limit_int, entity_types=entity_types)
+
+    def _get_record_detail(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        entity_type = (arguments.get('entity_type') or '').strip().lower()
+        entity_id = (arguments.get('entity_id') or '').strip()
+        if not entity_type or not entity_id:
+            raise ValueError('Missing required parameters: entity_type, entity_id')
+
+        from apps.core.services.universal_search import UniversalSearchService
+
+        service = UniversalSearchService(tenant=tenant)
+        detail = service.get_record_detail(entity_type, entity_id)
+        if not detail:
+            return {'found': False, 'entity_type': entity_type, 'entity_id': entity_id}
+        return {'found': True, 'record': detail}
+
+    def _create_task(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Create a task for the current user (implemented as an in-app notification)."""
+        if not user or not getattr(user, 'is_authenticated', False):
+            raise ValueError('Authenticated user is required to create tasks')
+
+        title = (arguments.get('title') or '').strip()
+        message = (arguments.get('message') or '').strip()
+        if not title or not message:
+            raise ValueError('Missing required parameters: title, message')
+
+        entity_type = (arguments.get('entity_type') or '').strip().lower() or None
+        entity_id = (arguments.get('entity_id') or '').strip() or None
+
+        action_url = ''
+        metadata: Dict[str, Any] = {}
+
+        if entity_type and entity_id:
+            try:
+                from apps.core.services.universal_search import UniversalSearchService
+
+                svc = UniversalSearchService(tenant=tenant)
+                detail = svc.get_record_detail(entity_type, entity_id)
+                if detail and detail.get('route'):
+                    action_url = str(detail.get('route') or '')
+            except Exception:
+                pass
+
+        entity_uuid = None
+        if entity_id:
+            try:
+                from uuid import UUID
+
+                entity_uuid = UUID(str(entity_id))
+            except Exception:
+                metadata['entity_id'] = str(entity_id)
+
+        from tenant_apps.workflows.models import NotificationType, NotificationPriority, UserNotification
+
+        row = UserNotification.objects.create(
+            user=user,
+            tenant=tenant,
+            notification_type=NotificationType.TASK_ASSIGNED,
+            title=title,
+            message=message,
+            priority=NotificationPriority.NORMAL,
+            entity_type=entity_type or '',
+            entity_id=entity_uuid,
+            action_url=action_url,
+            metadata=metadata,
+        )
+
+        return {
+            'id': str(row.id),
+            'title': row.title,
+            'message': row.message,
+            'action_url': row.action_url,
         }
 
-        for et in [str(x).strip().lower() for x in entity_types if str(x).strip()]:
-            if et == 'customer':
-                from tenant_apps.customers.models import Customer
-
-                qs = Customer.objects.filter(tenant=tenant, name__icontains=query).order_by('name')
-                results['counts'][et] = qs.count()
-                results['results'].append(
-                    {
-                        'entity_type': et,
-                        'items': [
-                            {'id': str(c.id), 'title': c.name, 'route': f'/cockpit?type=customer&id={c.id}'}
-                            for c in qs[:limit_int]
-                        ],
-                    }
-                )
-                continue
-
-            if et == 'supplier':
-                from tenant_apps.suppliers.models import Supplier
-
-                qs = Supplier.objects.filter(tenant=tenant, name__icontains=query).order_by('name')
-                results['counts'][et] = qs.count()
-                results['results'].append(
-                    {
-                        'entity_type': et,
-                        'items': [
-                            {'id': str(s.id), 'title': s.name, 'route': f'/cockpit?type=supplier&id={s.id}'}
-                            for s in qs[:limit_int]
-                        ],
-                    }
-                )
-                continue
-
-            if et == 'contact':
-                from tenant_apps.contacts.models import Contact
-
-                qs = Contact.objects.filter(tenant=tenant, last_name__icontains=query).order_by('last_name')
-                results['counts'][et] = qs.count()
-                results['results'].append(
-                    {
-                        'entity_type': et,
-                        'items': [
-                            {'id': str(c.id), 'title': str(c), 'route': f'/contacts/{c.id}'}
-                            for c in qs[:limit_int]
-                        ],
-                    }
-                )
-                continue
-
-            if et in {'purchase_order', 'purchaseorder', 'po'}:
-                from tenant_apps.purchase_orders.models import PurchaseOrder
-
-                qs = PurchaseOrder.objects.filter(tenant=tenant, order_number__icontains=query).order_by('-created_on')
-                results['counts'][et] = qs.count()
-                results['results'].append(
-                    {
-                        'entity_type': 'purchase_order',
-                        'items': [
-                            {
-                                'id': str(po.id),
-                                'title': getattr(po, 'order_number', '') or f'PO {po.id}',
-                                'route': f'/cockpit?type=purchase_order&id={po.id}',
-                            }
-                            for po in qs[:limit_int]
-                        ],
-                    }
-                )
-                continue
-
-            if et in {'sales_order', 'salesorder', 'so'}:
-                from tenant_apps.sales_orders.models import SalesOrder
-
-                qs = SalesOrder.objects.filter(tenant=tenant, our_sales_order_num__icontains=query).order_by('-created_on')
-                results['counts'][et] = qs.count()
-                results['results'].append(
-                    {
-                        'entity_type': 'sales_order',
-                        'items': [
-                            {
-                                'id': str(so.id),
-                                'title': getattr(so, 'our_sales_order_num', '') or f'SO {so.id}',
-                                'route': f'/cockpit?type=sales_order&id={so.id}',
-                            }
-                            for so in qs[:limit_int]
-                        ],
-                    }
-                )
-                continue
-
-            results['counts'][et] = 0
-            results['results'].append({'entity_type': et, 'items': [], 'note': 'unsupported entity type'})
-
-        return results
+    def _search_entities(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Backward-compatible alias for older tool name."""
+        return self._search_records(arguments, tenant, user)
 
     def _get_recent_activity(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         from tenant_apps.cockpit.models import ActivityLog
