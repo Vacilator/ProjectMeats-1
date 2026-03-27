@@ -137,6 +137,10 @@ This file is the **append-only PR-referenceable execution log**.
 - Favorites are tenant-scoped to prevent cross-tenant entity_id collisions; includes RLS policy on `core_userfavorite`.
 - PR: #4037.
 
+### 2026-03-27 — Cockpit Reports: Metrics Available
+- Fixed Reports Summary API incorrectly marking purchase_orders/sales_orders/workforms as “metrics unavailable” due to Django `aggregate()` alias collisions (e.g. `total_amount=Sum('total_amount')` shadowing the field name used by `Avg('total_amount')`, raising FieldError).
+- PR: #4043.
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
