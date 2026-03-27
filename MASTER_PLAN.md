@@ -30,6 +30,7 @@ This file is the **canonical plan + current truth snapshot**.
 - Reports: use tenant-aware service + show warnings — PR #3972
 - WorkForms Catalog: Quick Run uses /workflows/form-submissions + Templates tab renders FLOW_TEMPLATES — PR #3978
 - Quick Actions: use shared JWT-aware apiClient (fixes flaky quick create/quick actions auth) — PR #3980
+- Frontend standards: remove remaining hardcoded hex colors; `npm -C frontend run verify-standards` passes — PR #3982
 
 ### Current blockers / external dependencies
 - Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
