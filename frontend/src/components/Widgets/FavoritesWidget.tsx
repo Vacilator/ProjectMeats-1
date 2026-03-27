@@ -188,6 +188,15 @@ export const FavoritesWidget: React.FC<FavoritesWidgetProps> = ({
   const [favorites, setFavorites] = useState<FavoriteEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const parseKey = (raw: string): { type: string | null; id: string } => {
+    const s = String(raw);
+    if (s.includes(':')) {
+      const [t, ...rest] = s.split(':');
+      return { type: (t || '').trim() || null, id: rest.join(':') };
+    }
+    return { type: null, id: s };
+  };
+
   /**
    * Load favorites from localStorage and hydrate with API data
    */
@@ -213,23 +222,55 @@ export const FavoritesWidget: React.FC<FavoritesWidgetProps> = ({
       // Fetch entity details for each favorite
       // In a real implementation, this would be a batch API call
       const favoriteEntities: FavoriteEntity[] = [];
+      const migratedKeys: string[] = [];
 
-      for (const id of favoriteIds.slice(0, maxItems)) {
-        try {
-          // This is a simplified example - you'd need to determine entity type
-          // and call the appropriate API endpoint
-          const response = await apiClient.get(`/entities/${id}/`);
-          favoriteEntities.push({
-            id: response.data.id,
-            type: response.data.type,
-            name: response.data.name || response.data.title,
-            subtitle: response.data.subtitle || response.data.status,
-            color: getEntityColor(response.data.type),
-          });
-        } catch (error) {
-          console.warn(`[FavoritesWidget] Failed to load favorite ${id}:`, error);
-          // Skip this favorite if it fails to load
+      for (const rawKey of favoriteIds.slice(0, maxItems)) {
+        const parsed = parseKey(rawKey);
+        const candidates = parsed.type
+          ? [{ type: parsed.type, id: parsed.id }]
+          : [
+              { type: 'customer', id: parsed.id },
+              { type: 'supplier', id: parsed.id },
+              { type: 'contact', id: parsed.id },
+              { type: 'invoice', id: parsed.id },
+              { type: 'purchase_order', id: parsed.id },
+              { type: 'sales_order', id: parsed.id },
+            ];
+
+        let loaded = false;
+        for (const c of candidates) {
+          try {
+            const response = await apiClient.get(`/system/entities/${c.type}/${c.id}/`);
+            const compositeId = `${c.type}:${String(response.data.id ?? c.id)}`;
+            favoriteEntities.push({
+              id: compositeId,
+              type: String(response.data.type ?? c.type),
+              name: response.data.title || response.data.name || 'Unnamed',
+              subtitle: response.data.subtitle || response.data.status || '',
+              color: getEntityColor(String(response.data.type ?? c.type)),
+            });
+            migratedKeys.push(compositeId);
+            loaded = true;
+            break;
+          } catch {
+            // try next candidate
+          }
         }
+
+        if (!loaded) {
+          migratedKeys.push(String(rawKey));
+          console.warn(`[FavoritesWidget] Failed to load favorite ${rawKey}`);
+        }
+      }
+
+      // Best-effort migrate legacy favorites (raw IDs) to composite keys.
+      try {
+        const next = JSON.stringify(migratedKeys);
+        if (next !== savedFavorites) {
+          localStorage.setItem('cockpit_favorites', next);
+        }
+      } catch {
+        // ignore
       }
 
       setFavorites(favoriteEntities);
@@ -251,8 +292,14 @@ export const FavoritesWidget: React.FC<FavoritesWidgetProps> = ({
       }
     };
 
+    const handleLocalUpdate = () => loadFavorites();
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('cockpit_favorites_updated', handleLocalUpdate);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('cockpit_favorites_updated', handleLocalUpdate);
+    };
   }, [loadFavorites]);
 
   /**
