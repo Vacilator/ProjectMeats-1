@@ -509,6 +509,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const [internalQuery, setInternalQuery] = useState(initialQuery);
   const query = controlledQuery ?? internalQuery;
   const [results, setResults] = useState<Record<string, SearchEntity[]>>({});
+  const [resultCounts, setResultCounts] = useState<Record<string, number>>({});
   const [relationalChunks, setRelationalChunks] = useState<RelationalChunk[]>([]);
   const { toggleFavorite: toggleFavoriteMutation, isFavorited, isLoading: isFavoritesLoading } = useFavorites();
   const [hasMigratedLegacyFavorites, setHasMigratedLegacyFavorites] = useState(false);
@@ -573,6 +574,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   const searchEntities = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults({});
+      setResultCounts({});
       return;
     }
 
@@ -586,16 +588,14 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
       });
 
 
-      // The API returns results already grouped by type
-      // Format: { results: [{type, id, title, subtitle, metadata}], counts: {}, total: N }
+      // The API returns flat results + counts per entity type.
+      // Format: { results: [{type, id, title, subtitle, metadata}], counts: {type: count}, total: N }
       const grouped: Record<string, SearchEntity[]> = {};
-      
+
       if (response.data.results && Array.isArray(response.data.results)) {
         response.data.results.forEach((item: any) => {
           const type = String(item.type ?? 'unknown');
-          if (!grouped[type]) {
-            grouped[type] = [];
-          }
+          if (!grouped[type]) grouped[type] = [];
           grouped[type].push({
             id: String(item.id ?? ''),
             type,
@@ -606,7 +606,17 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         });
       }
 
+      const countsObj = response.data?.counts && typeof response.data.counts === 'object'
+        ? (response.data.counts as Record<string, unknown>)
+        : {};
+      const normalizedCounts: Record<string, number> = {};
+      for (const [k, v] of Object.entries(countsObj)) {
+        const n = typeof v === 'number' ? v : Number(v ?? 0);
+        normalizedCounts[String(k)] = Number.isFinite(n) ? n : 0;
+      }
+
       setResults(grouped);
+      setResultCounts(normalizedCounts);
     } catch (error: any) {
       console.error('[SmartSearch] Search failed:', error);
       console.error('[SmartSearch] Error details:', {
@@ -615,7 +625,8 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
         status: error.response?.status
       });
       setResults({});
-    } finally {
+      setResultCounts({});
+    } finally {"}}]}
       setIsSearching(false);
     }
   }, []);
@@ -891,6 +902,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     }
 
     setResults({});
+    setResultCounts({});
     setRelationalChunks([]);
     navigation.clearPath();
     onClose?.();
@@ -992,6 +1004,31 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     return cleaned.split(' ').map((w) => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
   }, []);
 
+  const formatEntityTypePluralLabel = useCallback((raw: string) => {
+    const type = String(raw || '').toLowerCase();
+    const overrides: Record<string, string> = {
+      purchase_order: 'Purchase Orders',
+      sales_order: 'Sales Orders',
+      tenant_user: 'Tenant Users',
+      inquiry: 'Inquiries',
+      claim: 'Claims',
+      call: 'Calls',
+      invoice: 'Invoices',
+      customer: 'Customers',
+      supplier: 'Suppliers',
+      contact: 'Contacts',
+      product: 'Products',
+      plant: 'Plants',
+      carrier: 'Carriers',
+    };
+    if (overrides[type]) return overrides[type];
+
+    const base = formatEntityLabel(type);
+    if (!base) return 'Records';
+    if (base.endsWith('s')) return base;
+    return `${base}s`;
+  }, [formatEntityLabel]);
+
   const loadRelationshipTab = useCallback(async (tabKey: 'orders' | 'invoices' | 'contacts' | 'inquiries', entity: SearchEntity) => {
     const relationshipType = tabKey === 'orders'
       ? 'recent_orders'
@@ -1056,7 +1093,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    * Render search results (top-5 per type)
    */
   const renderSearchResults = () => {
-    const types = Object.keys(results);
+    const types = Object.keys(resultCounts).length ? Object.keys(resultCounts) : Object.keys(results);
 
     if (types.length === 0) {
       return (
@@ -1073,8 +1110,9 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     }
 
     return types.map(type => {
-      const entities = results[type];
-      const typeLabel = type.charAt(0).toUpperCase() + type.slice(1) + 's';
+      const entities = results[type] ?? [];
+      const count = resultCounts[type] ?? entities.length;
+      const typeLabel = formatEntityTypePluralLabel(type);
 
       return (
         <Section key={type}>
@@ -1082,7 +1120,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
             <SectionTitle>
               {getEntityIcon(type as SearchEntity['type'], 16)}
               {typeLabel}
-              <SectionCount>({entities.length})</SectionCount>
+              <SectionCount>({count})</SectionCount>
             </SectionTitle>
             <Button size="small" type="primary" onClick={() => openQuickCreate(type)}>
               + New {formatEntityLabel(type)}
