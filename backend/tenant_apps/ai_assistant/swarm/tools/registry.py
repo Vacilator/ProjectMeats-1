@@ -144,16 +144,6 @@ def update_claim_status(claim_id: str, status: str) -> Dict[str, Any]:
 
 
 @registry.register
-def search_records(query: str, entity_types: List[str] | None = None, limit: int = 5) -> Dict[str, Any]:
-    """Search tenant records using Universal Search.
-
-    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
-    """
-
-    return {"status": "available_via_chat", "query": query, "limit": limit}
-
-
-@registry.register
 def get_record_detail(entity_type: str, entity_id: str) -> Dict[str, Any]:
     """Fetch a lightweight record detail payload.
 
@@ -199,12 +189,16 @@ def create_record(entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
 
 @registry.register
 def search_entities(query: str, entity_types: List[str] | None = None, limit: int = 5) -> Dict[str, Any]:
-    """Search tenant entities.
+    """Search tenant entities via Universal Search (unified search standard)."""
 
-    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
-    """
+    return {"status": "available_via_chat", "query": query, "entity_types": entity_types, "limit": limit}
 
-    return {"status": "available_via_chat", "query": query, "limit": limit}
+
+@registry.register
+def get_entity_analytics(entity_type: str, metric: str, days: int | None = None, limit: int | None = None) -> Dict[str, Any]:
+    """Run a tenant-scoped analytics aggregation (see get_entity_analytics tool in chat)."""
+
+    return {"status": "available_via_chat", "entity_type": entity_type, "metric": metric, "days": days, "limit": limit}
 
 
 @registry.register

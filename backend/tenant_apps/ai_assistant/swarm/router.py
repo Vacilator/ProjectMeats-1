@@ -40,6 +40,7 @@ def build_swarm_system_prompt(*, outlook_connected: bool, outlook_email: str | N
         "\n\nAvailable tools (use when it reduces user effort): "
         "- search_entities(query[, entity_types, limit]) to find records via Universal Search. "
         "- get_entity_details(type, id) to load a full record profile payload for a specific entity. "
+        "- get_entity_analytics(entity_type, metric[, days, limit]) for aggregated metrics (e.g., revenue by customer). "
         "- create_task(title, message[, entity_type, entity_id]) to create an in-app task notification for the current user. "
         "- get_recent_errors(tenant_id) to fetch the most recent Sentry issues tagged with the active tenant_id. "
     )
@@ -238,13 +239,15 @@ class SwarmOrchestrator:
         outlook_expired = bool(provider.is_token_expired()) if provider else False
         outlook_connected = bool(provider and not outlook_expired)
 
-        # Always allow safe internal search tools; only advertise Outlook tools when connected.
+        # Always allow safe internal tools; only advertise Outlook tools when connected.
+        email_tools = {'check_unread_emails', 'draft_outlook_email'}
         if outlook_connected:
             tools = DEFAULT_OPENAI_TOOLS
         else:
             tools = [
-                t for t in DEFAULT_OPENAI_TOOLS
-                if t.get('function', {}).get('name') == 'search_cockpit_records'
+                t
+                for t in DEFAULT_OPENAI_TOOLS
+                if t.get('function', {}).get('name') not in email_tools
             ]
 
         messages: List[Dict[str, Any]] = [

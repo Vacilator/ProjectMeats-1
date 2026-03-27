@@ -43,8 +43,13 @@ This file is the **append-only PR-referenceable execution log**.
 - UX: added a Tools button in `AIAgentWidget` to list tool operationIds via `GET /api/v1/ai-assistant/tools/openapi/` (PR #3691).
 
 ### 2026-03-27 — AI Assistant Restoration
-- Context awareness: Omnibox + AIAgentWidget + ChatWindow include `currentPath`, `activeEntityId`, `activeEntityType` in every chat message; Omnibox routes into the widget via `pm:ai-send` — PR #4000.
-- Action capability: backend function-calling tools (`create_record`, `search_entities`, `get_recent_activity`) + RLS session var assertion (`app.current_tenant`) for defense-in-depth — PR #4001.
+- Context awareness: Omnibox + AIAgentWidget + ChatWindow include `currentPath`, `activeEntityId`, `activeEntityType` (and explicit `activeEntity`) in every chat message; Omnibox routes into the widget via `pm:ai-send` — PR #4000.
+- Orchestrated AI Action Tools (tenant-safe):
+  - RLS: Tool executor asserts `SET app.current_tenant` **before every tool execution** (defense-in-depth with TenantMiddleware).
+  - Tool consolidation: removed redundant `search_records` / `search_cockpit_records`; `search_entities` is the single search entrypoint and is backed exclusively by `apps.core.services.universal_search.UniversalSearchService`.
+  - Analytics: added `get_entity_analytics(entity_type, metric[, days, limit])` for safe aggregations (top purchased products, revenue by customer, etc.).
+  - Tool feedback loop: empty results now return descriptive messages including tenant id (helps explain “0 results” vs RLS constraints).
+- PR: #4020
 
 ### 2026-03-27 — Emergency Stabilization - Node & API Harmony
 - FlowEditor: unify “Form Step” architecture — canonical node type `form` with display name “Form Step”; normalize legacy form step node types (`formStep`, `formStepSingle`, `formStepSingleNode`) to canonical `form`; sync parentId (`node.parentId` ↔ `node.data.parentId`); un-parent nodes with missing containers; clear `hidden` when parent is expanded.
@@ -53,10 +58,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Theme hardening: define `--color-surface`/`--color-background` tokens for `[data-theme="high-contrast"]`; add BaseNode background fallback.
 - PR: #4003.
 
-### 2026-03-27 — Decommission VectorMemory (UniversalSearchService Standard) — COMPLETE
-- Removed VectorMemory API endpoints (`/ai-assistant/memory/search/`, `/ai-assistant/memory/upsert/`) and pgvector-based retrieval from the AI assistant surface.
-- Promoted `apps.core.services.universal_search.UniversalSearchService` as the unified search standard for AI tools + SME grounding context.
-- Added tool schemas + executor implementations: `search_records`, `get_record_detail`, `create_task` (in-app task notification) — PR: #4004.
+### 2026-03-27 — VectorMemory Deprecated (UniversalSearchService Standard)
+- VectorMemory is deprecated/removed: endpoints (`/ai-assistant/memory/search/`, `/ai-assistant/memory/upsert/`) and pgvector retrieval are no longer used.
+- `apps.core.services.universal_search.UniversalSearchService` is the unified search standard for AI tools + SME grounding.
+- Note: legacy `search_records` tooling has been removed in favor of `search_entities` (single entrypoint).
+- PR: #4004.
 
 ### 2026-03-27 — Omnibox Context Bridge — COMPLETE
 - Verified Omnibox + AIAgentWidget + ChatWindow include `currentPath` and active entity context on every send.

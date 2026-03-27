@@ -11,6 +11,14 @@ export type AIPageContext = {
   current_entity_id: string | null;
   current_entity_type: string | null;
 
+  // Explicit active entity payload (requested by Omnibox/assistant tooling)
+  activeEntity?: {
+    id: string;
+    type: string;
+    label: string;
+    subtitle?: string;
+  } | null;
+
   cockpitPath?: Array<{
     id: string;
     type: string;
@@ -36,6 +44,15 @@ export function buildAIPageContext(
     // Canonical keys (snake_case)
     current_entity_id: active?.id ?? null,
     current_entity_type: active?.type ?? null,
+
+    activeEntity: active
+      ? {
+          id: String(active.id),
+          type: String(active.type),
+          label: String(active.label),
+          subtitle: typeof active.subtitle === 'string' ? active.subtitle : undefined,
+        }
+      : null,
 
     cockpitPath: cockpitPath.length
       ? cockpitPath.map((s) => ({
