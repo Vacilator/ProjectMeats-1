@@ -305,11 +305,10 @@ def aidocument_upload_to(instance: "AIDocument", filename: str) -> str:
     now = timezone.now()
     unique = uuid.uuid4().hex
 
-    return (
-        f"ai_assistant/documents/{tenant_part}/"
-        f"{now:%Y/%m/%d}/"
-        f"{unique}_{safe_name}"
-    )
+    # Keep a flat-ish structure to avoid permission issues on hosts where the
+    # mounted media volume is writable but does not allow creating deep directory trees.
+    # Still includes tenant + UUID to prevent naming collisions.
+    return f"ai_assistant/documents/{tenant_part}_{unique}_{safe_name}"
 
 
 class AIDocument(TenantAwareModel):
