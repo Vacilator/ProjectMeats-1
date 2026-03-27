@@ -1144,6 +1144,8 @@ jobs:
           export BACKEND_HOST="${{ secrets.BACKEND_HOST }}"
           export DO_TOKEN="${{ secrets.DO_ACCESS_TOKEN }}"
           export API_BASE_URL="${{ secrets.REACT_APP_API_BASE_URL }}"
+          export SENTRY_DSN="${{ secrets.SENTRY_DSN }}"
+          export SENTRY_ENABLED="${{ secrets.SENTRY_ENABLED }}"
           export ENVIRONMENT="${{ inputs.environment }}"
           export IMAGE_TAG="${{ inputs.environment }}-${{ github.sha }}"
           export REG="${{ env.REGISTRY }}"
@@ -1166,6 +1168,8 @@ jobs:
             "BACKEND_HOST='${BACKEND_HOST}' \
              DO_TOKEN='${DO_TOKEN}' \
              API_BASE_URL='${API_BASE_URL}' \
+             SENTRY_DSN='${SENTRY_DSN}' \
+             SENTRY_ENABLED='${SENTRY_ENABLED}' \
              ENVIRONMENT='${ENVIRONMENT}' \
              IMAGE_TAG='${IMAGE_TAG}' \
              REG='${REG}' \
@@ -1231,6 +1235,7 @@ jobs:
             --restart unless-stopped \
             -p 127.0.0.1:8080:80 \
             -e REACT_APP_API_BASE_URL="${API_BASE_URL}" \
+            -e REACT_APP_SENTRY_DSN="${SENTRY_DSN:-}" \
             -e BACKEND_HOST="${BACKEND_HOST}" \
             -e DOMAIN_NAME="${DOMAIN_NAME}" \
             -e ENVIRONMENT="${ENVIRONMENT}" \

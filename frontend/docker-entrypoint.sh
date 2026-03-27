@@ -30,6 +30,35 @@ fi
 echo "→ Cleaning existing nginx configs"
 rm -f /etc/nginx/conf.d/*.conf
 
+# -----------------------------------------------------------------------------
+# Runtime env-config.js generation
+# -----------------------------------------------------------------------------
+# Deployments may pass runtime env vars into the container. We generate a small
+# /usr/share/nginx/html/env-config.js file to expose them to the React app.
+# If a file is already mounted at that path (recommended), we leave it unchanged.
+ENV_CONFIG_PATH="/usr/share/nginx/html/env-config.js"
+
+if [ ! -e "${ENV_CONFIG_PATH}" ] || [ -w "${ENV_CONFIG_PATH}" ]; then
+    echo "→ Generating runtime env-config.js"
+    API_BASE_URL_VALUE="${API_BASE_URL:-${REACT_APP_API_BASE_URL:-}}"
+    ENVIRONMENT_VALUE="${ENVIRONMENT:-${REACT_APP_ENVIRONMENT:-development}}"
+    SENTRY_DSN_VALUE="${SENTRY_DSN:-${REACT_APP_SENTRY_DSN:-}}"
+    SENTRY_ENABLED_VALUE="${SENTRY_ENABLED:-false}"
+
+    cat > "${ENV_CONFIG_PATH}" << ENVJS
+window.ENV = {
+  API_BASE_URL: "${API_BASE_URL_VALUE}",
+  ENVIRONMENT: "${ENVIRONMENT_VALUE}",
+  SENTRY_DSN: "${SENTRY_DSN_VALUE}",
+  SENTRY_ENABLED: "${SENTRY_ENABLED_VALUE}"
+};
+ENVJS
+
+    echo "✓ Runtime env-config.js generated"
+else
+    echo "→ env-config.js not writable (likely mounted read-only); leaving as-is"
+fi
+
 echo "→ Using backend host: $BACKEND_HOST"
 echo "→ Using domain: $DOMAIN_NAME"
 
