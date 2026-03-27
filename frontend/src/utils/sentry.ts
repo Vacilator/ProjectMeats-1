@@ -32,9 +32,24 @@ interface SentryConfig {
  */
 export const initSentry = (config?: SentryConfig): void => {
   // Get configuration from environment or window.ENV
-  const sentryDsn = config?.dsn || (window as any).ENV?.SENTRY_DSN;
-  const environment = config?.environment || (window as any).ENV?.ENVIRONMENT || 'development';
-  const release = config?.release || (window as any).ENV?.GIT_COMMIT_SHA || 'unknown';
+  const sentryDsn =
+    config?.dsn ||
+    (window as any).ENV?.SENTRY_DSN ||
+    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_SENTRY_DSN : undefined);
+
+  const environment =
+    config?.environment ||
+    (window as any).ENV?.ENVIRONMENT ||
+    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_ENVIRONMENT : undefined) ||
+    'development';
+
+  const release =
+    config?.release ||
+    (window as any).ENV?.GIT_COMMIT_SHA ||
+    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_GIT_COMMIT_SHA : undefined) ||
+    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_COMMIT_SHA : undefined) ||
+    'unknown';
+
   const enabled = config?.enabled ?? (window as any).ENV?.SENTRY_ENABLED === 'true';
   
   // Don't initialize in development unless explicitly enabled

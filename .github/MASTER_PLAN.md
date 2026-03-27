@@ -16,8 +16,11 @@ This file is the **append-only PR-referenceable execution log**.
 - AI Assistant Sentry Bridge — **STABILIZED** (tenant-scoped `get_recent_errors` tool + admin diagnostics endpoint; uses GitHub Environment secret injection for `SENTRY_AUTH_TOKEN` and defaults org slug to `meats-central` if unset).
   - PR: #4007
   - Follow-up PR: #4008
-- Sentry as Active Orchestrator (Seer) — **STABILIZING** (sendDefaultPii enabled; in_app_include set for CODEOWNERS mapping; CI creates releases via getsentry/action-release for Suspect Commits).
-  - PR: #4009
+- Environment-based Sentry Orchestration (Seer) — **VERIFIED & ACTIVE**
+  - SDK hardening: sendDefaultPii enabled (frontend+backend); backend in_app_include set for CODEOWNERS mapping — PR: #4009.
+  - Runtime wiring: frontend supports DSN fallback (window.ENV.SENTRY_DSN → REACT_APP_SENTRY_DSN), deploy passes SENTRY_DSN into env-config.js and REACT_APP_SENTRY_DSN, plus Admin→Configurations includes a "Sentry Test" button.
+  - AI SRE prompt: explicitly calls get_recent_errors(tenant_id) before asking for clarification.
+  - PR: #4010
 
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
 

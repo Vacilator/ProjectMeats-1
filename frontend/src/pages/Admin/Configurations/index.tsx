@@ -13,6 +13,7 @@ import { AdminGuard, AdminPage, AdminSection, ConfirmDialog, EmptyState, Loading
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAdminPermissions } from '@/hooks/useAdminPermissions';
+import { captureSentryException } from '@/utils/sentry';
 
 interface Configuration {
   id: string;
@@ -184,6 +185,21 @@ const ConfigurationsPage: React.FC = () => {
     }));
   };
 
+  const handleSentryTest = () => {
+    const timestamp = new Date().toISOString();
+    const err = new Error(`Sentry Orchestration Verified - ${timestamp}`);
+
+    try {
+      throw err;
+    } catch (caught) {
+      captureSentryException(caught as Error, {
+        component: 'Admin/Configurations',
+        metadata: { timestamp },
+      });
+      toast.success('Sent test error to Sentry');
+    }
+  };
+
   const handleSave = async () => {
     if (!hasChanges) {
       toast.info('No changes to save');
@@ -349,6 +365,15 @@ const ConfigurationsPage: React.FC = () => {
       actions={
         canManage ? (
           <Actions>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSentryTest}
+              disabled={saving || currentTenantQuery.isLoading}
+              title="Send a manual test error to Sentry"
+            >
+              Sentry Test
+            </Button>
             <Button
               variant="outline"
               size="sm"
