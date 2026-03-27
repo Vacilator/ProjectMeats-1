@@ -366,25 +366,34 @@ const OptionListsPage: React.FC = () => {
                 {
                   key: 'system',
                   label: 'System Choice Lists',
-                  children:
-                    filteredSystemLists.length === 0 ? (
-                      <EmptyState
-                        icon="📋"
-                        title={searchQuery ? 'No matches' : 'No option lists'}
-                        message={
-                          searchQuery
-                            ? 'No system choice lists match your search.'
-                            : 'No system choice lists were returned.'
-                        }
-                      />
-                    ) : (
-                      <Table
-                        rowKey="id"
-                        columns={systemColumns}
-                        dataSource={filteredSystemLists}
-                        pagination={{ pageSize: 10, showSizeChanger: true }}
-                      />
-                    ),
+                  children: (
+                    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                      <Card size="small" title="Master Products">
+                        <Text type="secondary">
+                          Tier 1 system catalog used across product selectors. This is seeded and maintained centrally.
+                        </Text>
+                      </Card>
+
+                      {filteredSystemLists.length === 0 ? (
+                        <EmptyState
+                          icon="📋"
+                          title={searchQuery ? 'No matches' : 'No option lists'}
+                          message={
+                            searchQuery
+                              ? 'No system choice lists match your search.'
+                              : 'No system choice lists were returned.'
+                          }
+                        />
+                      ) : (
+                        <Table
+                          rowKey="id"
+                          columns={systemColumns}
+                          dataSource={filteredSystemLists}
+                          pagination={{ pageSize: 10, showSizeChanger: true }}
+                        />
+                      )}
+                    </Space>
+                  ),
                 },
                 {
                   key: 'custom',

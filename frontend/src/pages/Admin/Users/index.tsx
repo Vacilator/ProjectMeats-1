@@ -66,6 +66,7 @@ const UsersPage: React.FC = () => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [selectedUser, setSelectedUser] = useState<TenantUser | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>('user');
@@ -195,6 +196,19 @@ const UsersPage: React.FC = () => {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => apiClient.delete(`/tenant-users/${id}/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+      toast.success('User removed');
+      setShowRemoveConfirm(false);
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || error.response?.data?.detail || 'Failed to remove user');
+    },
+  });
+
   const revokeMutation = useMutation({
     mutationFn: async (id: number) => apiClient.post(`/invitations/${id}/revoke/`),
     onSuccess: () => {
@@ -292,19 +306,42 @@ const UsersPage: React.FC = () => {
         onClick: (user: TenantUser) => reactivateMutation.mutate(user.id),
         hidden: (row: TenantUser) => !permissions.can_manage_users || row.is_active,
       },
+      {
+        label: 'Remove',
+        icon: '🗑️',
+        variant: 'danger' as const,
+        onClick: (user: TenantUser) => {
+          const targetUserId = getUserId(user);
+          if (currentUser?.id && targetUserId && targetUserId === currentUser.id) {
+            toast.error('You cannot remove yourself');
+            return;
+          }
+          setSelectedUser(user);
+          setShowRemoveConfirm(true);
+        },
+        hidden: (row: TenantUser) => {
+          const targetUserId = getUserId(row);
+          return (
+            !permissions.can_manage_users ||
+            row.role === 'owner' ||
+            (currentUser?.id && targetUserId ? targetUserId === currentUser.id : false)
+          );
+        },
+      },
     ],
     [
       permissions.can_change_roles,
       permissions.can_manage_users,
       currentUser?.id,
       reactivateMutation,
+      deleteMutation,
       toast,
     ]
   );
 
   return (
     <AdminPage
-      title="Users & Invitations"
+      title="User Management"
       description="Invite users, manage roles, and control access for your tenant."
       icon="👥"
       actions={
@@ -536,6 +573,25 @@ const UsersPage: React.FC = () => {
         title="Deactivate User"
         message={`Deactivate ${selectedUser ? getDisplayName(selectedUser) : 'this user'}? They will lose access.`}
         confirmText="Deactivate"
+        confirmVariant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={showRemoveConfirm}
+        onClose={() => setShowRemoveConfirm(false)}
+        onConfirm={() => {
+          if (!selectedUser) return;
+          const targetUserId = getUserId(selectedUser);
+          if (currentUser?.id && targetUserId && targetUserId === currentUser.id) {
+            toast.error('You cannot remove yourself');
+            setShowRemoveConfirm(false);
+            return;
+          }
+          deleteMutation.mutate(selectedUser.id);
+        }}
+        title="Remove User"
+        message={`Remove ${selectedUser ? getDisplayName(selectedUser) : 'this user'} from this tenant?`}
+        confirmText={deleteMutation.isPending ? 'Removing…' : 'Remove'}
         confirmVariant="danger"
       />
     </AdminPage>

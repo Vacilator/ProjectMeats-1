@@ -108,6 +108,12 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Phase 9.5: Preemptive Hardening & Advanced UX (Workforms Editor)
 
+### 2026-03-27 — Phase 9.5: Admin Workspace Hardening
+- Invitations: resend action now uses the shared invitation email helper (extracted from `signals.py`), and create prefers the current request tenant.
+- Tenant Users: admins can remove a user (hard delete) as long as the role is not `owner`.
+- Option Lists: "Master Products" entry now appears under the System Choice Lists tab; Tenant Overrides now use the same Card/Table layout as other admin screens.
+- Workflow Lists: tenant list create asserts RLS session vars before validation/save to prevent RLS-related write failures.
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.

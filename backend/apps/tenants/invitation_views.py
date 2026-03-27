@@ -13,6 +13,7 @@ from django.db.models import QuerySet
 import logging
 
 from apps.tenants.models import Tenant, TenantUser, TenantInvitation
+from apps.tenants.invitation_email import schedule_invitation_email
 from apps.tenants.invitation_serializers import (
     TenantInvitationCreateSerializer,
     TenantInvitationListSerializer,
@@ -66,20 +67,22 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self) -> dict[str, Any]:
         """Add tenant to serializer context."""
         context = super().get_serializer_context()
-        
-        # Try to get tenant from request (added by middleware)
-        if hasattr(self.request, 'tenant') and getattr(self.request, 'tenant', None):  # type: ignore
-            context['tenant'] = getattr(self.request, 'tenant')  # type: ignore
-        # Or from user's default tenant (first admin/owner tenant)
-        else:
-            tenant_user = TenantUser.objects.filter(
-                user=self.request.user,
-                role__in=['admin', 'owner'],
-                is_active=True
-            ).select_related('tenant').first()
-            if tenant_user:
-                context['tenant'] = tenant_user.tenant
-        
+
+        # Prefer the request tenant (TenantMiddleware + domain/header resolution).
+        tenant = getattr(self.request, 'tenant', None)
+        if tenant:
+            context['tenant'] = tenant
+            return context
+
+        # Fallback: first admin/owner tenant membership.
+        tenant_user = TenantUser.objects.filter(
+            user=self.request.user,
+            role__in=['admin', 'owner'],
+            is_active=True
+        ).select_related('tenant').first()
+        if tenant_user:
+            context['tenant'] = tenant_user.tenant
+
         return context
     
     def create(self, request, *args, **kwargs):
@@ -88,11 +91,11 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
         
         Only admins/owners can create invitations.
         """
-        # Check if user is admin/owner of any tenant
-        tenant = self.get_serializer_context().get('tenant')
+        # Prefer current request tenant.
+        tenant = getattr(request, 'tenant', None) or self.get_serializer_context().get('tenant')
         if not tenant:
             return Response(
-                {'error': 'You must be an admin or owner of a tenant to invite users'},
+                {'error': 'Tenant context is required to invite users (X-Tenant-ID header or tenant domain).'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -147,13 +150,15 @@ class TenantInvitationViewSet(viewsets.ModelViewSet):
         
         # Extend expiration by 7 days
         from django.utils import timezone
+
         invitation.expires_at = timezone.now() + timezone.timedelta(days=7)
         invitation.save()
-        
-        # Note: Email notification planned for Wave I (Infrastructure)
-        # Task I3.2: Email sending (async)
-        logger.info(f"Resent invitation {invitation.id} to {invitation.email}")
-        
+
+        # Best-effort: resend email using the same helper as the post_save signal.
+        schedule_invitation_email(invitation)
+
+        logger.info("Resent invitation %s to %s", invitation.id, invitation.email)
+
         serializer = self.get_serializer(invitation)
         return Response(serializer.data)
     

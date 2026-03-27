@@ -7,11 +7,11 @@ Clears branding cache on tenant updates.
 import logging
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.core.mail import send_mail
 from django.core.cache import cache
 from django.conf import settings
 from django.db import transaction
 
+from .invitation_email import schedule_invitation_email
 from .models import TenantInvitation, TenantUser, Tenant
 
 logger = logging.getLogger(__name__)
@@ -41,42 +41,8 @@ def send_invitation_email(sender, instance, created, **kwargs):
         logger.info(f"SENDGRID_API_KEY: {'✅ SET' if getattr(settings, 'SENDGRID_API_KEY', '') else '❌ NOT SET'}")
         logger.info("=" * 60)
         
-        # Construct the invite link
-        base_url = getattr(settings, 'FRONTEND_URL', 'https://meatscentral.com')
-        invite_url = f"{base_url}/signup?token={instance.token}"
-        
-        subject = f"You've been invited to join {instance.tenant.name} on Meats Central"
-        
-        message = (
-            f"Hello,\n\n\n"
-            f"You have been invited to join '{instance.tenant.name}' as a {instance.role}. "
-            f"Join us on Meats Central!\n\n\n"
-            f"Click the link below to accept the invitation and set up your account:\n"
-            f"{invite_url}\n\n"
-            f"This link expires on {instance.expires_at.strftime('%Y-%m-%d')}.\n\n\n"
-            f"Welcome to easy,\n\n"
-            f"The Meats Central Team"
-        )
-        
-        def _send_invitation_email() -> None:
-            try:
-                logger.info(f"📤 Sending invitation email to {instance.email}...")
-                result = send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[instance.email],
-                    fail_silently=False,
-                )
-                logger.info(f"✅ Email sent successfully! (result={result})")
-            except Exception:
-                # Never fail invitation creation due to email configuration issues.
-                # The UI can still display/copy the invitation link (token).
-                logger.exception(f"❌ Failed to send invitation email to {instance.email}")
-
         # Ensure invitation creation isn't rolled back if email fails.
-        # If we're inside a transaction, send after commit; otherwise runs immediately.
-        transaction.on_commit(_send_invitation_email)
+        schedule_invitation_email(instance)
 
 
 @receiver(post_save, sender=TenantUser, dispatch_uid="ensure_privileged_roles_have_staff_access")
