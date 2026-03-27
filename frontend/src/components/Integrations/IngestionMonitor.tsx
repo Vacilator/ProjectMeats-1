@@ -94,6 +94,13 @@ export const IngestionMonitor: React.FC = () => {
 
       // Soft-fail path: backend can return 200 with ok:false when Outlook/Graph is unhealthy.
       if (ok === false) {
+        const code = String(response.data?.code || '');
+        if (code === 'decryption_failed') {
+          message.error('Outlook needs to be reconnected. Go to Settings → Email Integrations (/settings/email-integrations) and reconnect, then retry Sync Now.');
+          await fetchEmailLogs();
+          return;
+        }
+
         const err = response.data?.error || 'Email sync failed.';
         message.error(hint ? `${err} ${hint}` : err);
         await fetchEmailLogs();

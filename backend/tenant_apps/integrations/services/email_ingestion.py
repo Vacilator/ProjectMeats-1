@@ -142,6 +142,8 @@ class EmailIngestionService:
         try:
             access_token = provider.get_decrypted_token('access')
         except Exception as e:
+            from cryptography.fernet import InvalidToken
+
             logger.error(
                 'Failed to decrypt access token tenant=%s provider_id=%s: %s',
                 tenant.id,
@@ -150,7 +152,17 @@ class EmailIngestionService:
                 exc_info=True,
             )
             self.stats['errors'] += 1
-            self.stats.setdefault('errors_detail', []).append('Failed to decrypt Microsoft access token. Check OAUTH_ENCRYPTION_KEY / reconnect Outlook.')
+
+            if isinstance(e, InvalidToken):
+                # Common after OAUTH_ENCRYPTION_KEY rotation/mismatch.
+                self.stats['error_code'] = 'decryption_failed'
+                self.stats.setdefault('errors_detail', []).append(
+                    'DECRYPTION_FAILED: Your Outlook connection needs to be refreshed for security reasons.'
+                )
+            else:
+                self.stats.setdefault('errors_detail', []).append(
+                    'Failed to decrypt Microsoft access token. Check OAUTH_ENCRYPTION_KEY / reconnect Outlook.'
+                )
             return
 
         if not access_token:

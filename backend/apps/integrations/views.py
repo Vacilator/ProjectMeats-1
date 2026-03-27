@@ -362,6 +362,26 @@ def sync_emails(request):
             except Exception:
                 detail = None
 
+            # Normalize error codes so the frontend can provide a deterministic CTA.
+            error_code = str((stats or {}).get('error_code') or '').strip().lower()
+            if not error_code and isinstance(detail, str) and detail.startswith('DECRYPTION_FAILED'):
+                error_code = 'decryption_failed'
+
+            if error_code == 'decryption_failed':
+                return Response(
+                    {
+                        "ok": False,
+                        "message": "Email sync requires reconnect",
+                        "error": "Your Outlook connection needs to be refreshed for security reasons.",
+                        "code": "decryption_failed",
+                        "hint": "Reconnect Outlook in Settings → Email Integrations, then retry Sync Now.",
+                        "tenant_id": tenant_id,
+                        "provider_email": provider.connected_email,
+                        "stats": stats,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
             return Response(
                 {
                     "ok": False,

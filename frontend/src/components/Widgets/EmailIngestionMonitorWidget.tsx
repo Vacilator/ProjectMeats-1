@@ -273,6 +273,13 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
       const stats = response.data?.stats;
 
       if (ok === false) {
+        const code = String(response.data?.code || '');
+        if (code === 'decryption_failed') {
+          message.error('Outlook needs to be reconnected. Open /settings/email-integrations and reconnect, then retry Sync.');
+          await fetchEmailLogs();
+          return;
+        }
+
         const err = response.data?.error || 'Email sync failed.';
         message.error(hint ? `${err} ${hint}` : err);
         await fetchEmailLogs();
