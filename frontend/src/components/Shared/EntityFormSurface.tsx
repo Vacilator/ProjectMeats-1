@@ -82,6 +82,7 @@ export const EntityFormSurface: React.FC<EntityFormSurfaceProps> = ({
         onSuccess={(created) => onSuccess?.(created)}
         initialEntityType={initialEntityType}
         initialEntityId={initialEntityId}
+        sourceCallId={context?.sourceCallId}
       />
     );
   }
