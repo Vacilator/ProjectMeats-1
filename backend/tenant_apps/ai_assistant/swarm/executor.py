@@ -88,7 +88,7 @@ DEFAULT_OPENAI_TOOLS = [
         'type': 'function',
         'function': {
             'name': 'get_record_detail',
-            'description': 'Fetch a single record detail payload (tenant-scoped).',
+            'description': 'Fetch a lightweight record detail payload (tenant-scoped).',
             'parameters': {
                 'type': 'object',
                 'properties': {
@@ -96,6 +96,21 @@ DEFAULT_OPENAI_TOOLS = [
                     'entity_id': {'type': 'string', 'description': 'Primary key value (uuid/int accepted as string)'},
                 },
                 'required': ['entity_type', 'entity_id'],
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
+            'name': 'get_entity_details',
+            'description': 'Fetch full entity details payload (maps to system EntityViewSet.retrieve).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'type': {'type': 'string', 'description': 'Entity type (supplier, customer, product, purchase_order, ...)'} ,
+                    'id': {'type': 'string', 'description': 'Entity primary key value'}
+                },
+                'required': ['type', 'id'],
             },
         },
     },
@@ -180,6 +195,7 @@ class ToolExecutor:
             'search_cockpit_records': self._search_cockpit_records,
             'search_records': self._search_records,
             'get_record_detail': self._get_record_detail,
+            'get_entity_details': self._get_entity_details,
             'create_task': self._create_task,
             'create_record': self._create_record,
             'search_entities': self._search_entities,  # Backward-compatible alias
@@ -460,6 +476,29 @@ class ToolExecutor:
         if not detail:
             return {'found': False, 'entity_type': entity_type, 'entity_id': entity_id}
         return {'found': True, 'record': detail}
+
+    def _get_entity_details(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Return the same payload as GET /api/v1/system/entities/{type}/{id}/."""
+        entity_type = (arguments.get('type') or '').strip().lower()
+        entity_id = (arguments.get('id') or '').strip()
+        if not entity_type or not entity_id:
+            raise ValueError('Missing required parameters: type, id')
+
+        # Call the same serializer logic as EntityViewSet.retrieve without making HTTP requests.
+        from apps.system.views.entity_viewset import EntityViewSet
+
+        class _ToolRequest:
+            def __init__(self, tenant, user):
+                self.tenant = tenant
+                self.user = user
+                self.query_params = {}
+
+        req = _ToolRequest(tenant=tenant, user=user)
+        view = EntityViewSet()
+
+        entity, resolved_type, _Model = view._get_entity_or_404(req, type=entity_type, pk=entity_id)
+        can_edit = bool(getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False))
+        return view._serialize_entity_detail(entity, resolved_type, can_edit=can_edit)
 
     def _create_task(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Create a task for the current user (implemented as an in-app notification)."""

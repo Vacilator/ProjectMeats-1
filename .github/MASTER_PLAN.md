@@ -41,12 +41,15 @@ This file is the **append-only PR-referenceable execution log**.
 - Theme hardening: define `--color-surface`/`--color-background` tokens for `[data-theme="high-contrast"]`; add BaseNode background fallback.
 - PR: #4003.
 
-### 2026-03-27 — Decommission VectorMemory (UniversalSearchService Standard)
+### 2026-03-27 — Decommission VectorMemory (UniversalSearchService Standard) — COMPLETE
 - Removed VectorMemory API endpoints (`/ai-assistant/memory/search/`, `/ai-assistant/memory/upsert/`) and pgvector-based retrieval from the AI assistant surface.
 - Promoted `apps.core.services.universal_search.UniversalSearchService` as the unified search standard for AI tools + SME grounding context.
-- AI context payloads now include canonical `current_entity_type` + `current_entity_id` keys (kept legacy camelCase keys for compatibility).
-- Added tool schemas + executor implementations: `search_records`, `get_record_detail`, `create_task` (in-app task notification).
-- PR: #4004.
+- Added tool schemas + executor implementations: `search_records`, `get_record_detail`, `create_task` (in-app task notification) — PR: #4004.
+
+### 2026-03-27 — Omnibox Context Bridge — IN-PROGRESS
+- Ensure Omnibox/AI widget payloads consistently include `currentPath` + active entity context (`current_entity_type`, `current_entity_id`) across all message entrypoints.
+- PR: #4004 (initial wiring shipped; verify + extend as needed)
+- PR: #4005 (schema-aware prompt + get_entity_details tool)
 
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 

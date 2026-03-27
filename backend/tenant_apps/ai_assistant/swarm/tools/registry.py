@@ -155,12 +155,19 @@ def search_records(query: str, entity_types: List[str] | None = None, limit: int
 
 @registry.register
 def get_record_detail(entity_type: str, entity_id: str) -> Dict[str, Any]:
-    """Fetch a single record detail payload.
+    """Fetch a lightweight record detail payload.
 
     Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
     """
 
     return {"status": "available_via_chat", "entity_type": entity_type, "entity_id": entity_id}
+
+
+@registry.register
+def get_entity_details(type: str, id: str) -> Dict[str, Any]:
+    """Fetch full entity details payload (maps to EntityViewSet.retrieve)."""
+
+    return {"status": "available_via_chat", "type": type, "id": id}
 
 
 @registry.register
