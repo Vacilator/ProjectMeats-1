@@ -161,6 +161,10 @@ This file is the **append-only PR-referenceable execution log**.
 - Fixed 404s for Workforms AI Suggestions by routing `SuggestNodesView` under `/api/v1/workflows/suggest-nodes/` and updating the frontend to call `/workflows/suggest-nodes/`.
 - PR: #4047.
 
+### 2026-03-27 — Charts: ResponsiveContainer Sizing Warning Reduced
+- Added explicit width/height and min dimensions for `ResponsiveContainer` in AI Learning Metrics widget to reduce `width(-1)/height(-1)` console warnings.
+- PR: #4048.
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
