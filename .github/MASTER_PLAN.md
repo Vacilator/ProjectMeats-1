@@ -20,7 +20,7 @@ This file is the **append-only PR-referenceable execution log**.
   - SDK hardening: sendDefaultPii enabled (frontend+backend); backend in_app_include set for CODEOWNERS mapping — PR: #4009.
   - Runtime wiring: frontend supports DSN fallback (window.ENV.SENTRY_DSN → REACT_APP_SENTRY_DSN), deploy passes SENTRY_DSN into env-config.js and REACT_APP_SENTRY_DSN, plus Admin→Configurations includes a "Sentry Test" button.
   - AI SRE prompt: explicitly calls get_recent_errors(tenant_id) before asking for clarification.
-  - PR: (fill after merge)
+  - PR: #4010
 
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
 
