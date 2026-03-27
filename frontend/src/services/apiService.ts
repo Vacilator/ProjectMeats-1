@@ -431,7 +431,6 @@ export interface Supplier {
   country?: string;
   departments_array?: string[]; // Phase 4: ArrayField
   preferred_protein_types?: string[]; // NEW: Protein filtering
-  products?: number[]; // Product IDs for M2M relationship
   created_at: string;
   updated_at: string;
 }
@@ -449,7 +448,7 @@ export interface Customer {
   country?: string;
   industry_array?: string[]; // Phase 4: ArrayField
   preferred_protein_types?: string[]; // Phase 4: ArrayField
-  products?: number[]; // Product IDs for M2M relationship
+  products?: string[]; // system.Product UUIDs
   created_at: string;
   updated_at: string;
 }

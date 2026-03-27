@@ -279,12 +279,12 @@ const Customers: React.FC = () => {
       if (editingCustomer) {
         await apiService.updateCustomer(editingCustomer.id, {
           ...formData,
-          products: formData.products.map((v) => Number(v)),
+          products: formData.products,
         });
       } else {
         await apiService.createCustomer({
           ...formData,
-          products: formData.products.map((v) => Number(v)),
+          products: formData.products,
         });
       }
       setShowEditForm(false);
