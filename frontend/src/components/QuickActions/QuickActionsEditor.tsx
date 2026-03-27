@@ -332,7 +332,7 @@ const ControlButton = styled.button<{ $theme: Theme }>`
 `;
 
 const RemoveButton = styled(ControlButton)`
-  color: #dc3545;
+  color: rgb(var(--color-error));
   
   &:not(:disabled):hover {
     background: rgba(220, 53, 69, 0.1);
@@ -399,8 +399,8 @@ const EmptyMessage = styled.div<{ $theme: Theme }>`
 
 const ErrorMessage = styled.div`
   background: rgba(220, 53, 69, 0.1);
-  border: 1px solid #dc3545;
-  color: #dc3545;
+  border: 1px solid rgb(var(--color-error));
+  color: rgb(var(--color-error));
   padding: 12px;
   border-radius: 8px;
   margin-bottom: 16px;

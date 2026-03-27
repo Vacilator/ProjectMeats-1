@@ -112,20 +112,20 @@ function getTypeIcon(type: UpstreamVariable['fieldType']): React.ReactNode {
 
 function getTypeColor(type: UpstreamVariable['fieldType']): string {
   const colorMap: Record<UpstreamVariable['fieldType'], string> = {
-    string: '#6366f1',
-    number: '#10b981',
-    date: '#f59e0b',
-    boolean: '#8b5cf6',
-    select: '#3b82f6',
-    file: '#ef4444',
-    textarea: '#6366f1',
-    email: '#06b6d4',
-    phone: '#14b8a6',
-    url: '#3b82f6',
-    json: '#84cc16',
+    string: 'rgb(var(--color-info))',
+    number: 'rgb(var(--color-success))',
+    date: 'rgb(var(--color-warning))',
+    boolean: 'rgb(var(--color-info))',
+    select: 'rgb(var(--color-primary))',
+    file: 'rgb(var(--color-error))',
+    textarea: 'rgb(var(--color-info))',
+    email: 'rgb(var(--color-info))',
+    phone: 'rgb(var(--color-info))',
+    url: 'rgb(var(--color-primary))',
+    json: 'rgb(var(--color-success))',
   };
   
-  return colorMap[type] || '#6366f1';
+  return colorMap[type] || 'rgb(var(--color-info))';
 }
 
 // ============================================================================

@@ -227,7 +227,7 @@ const NodeCount = styled.div`
  *     description: 'User login and session management',
  *     childNodeIds: ['node-1', 'node-2', 'node-3'],
  *     backgroundColor: 'rgba(103, 126, 234, 0.05)',
- *     borderColor: '#667eea',
+ *     borderColor: 'rgb(var(--color-primary))',
  *   },
  * };
  * ```

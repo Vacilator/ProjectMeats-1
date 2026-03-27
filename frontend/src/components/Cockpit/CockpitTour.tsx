@@ -226,7 +226,7 @@ export const CockpitTour: React.FC<CockpitTourProps> = ({
     },
     buttonPrimary: {
       backgroundColor: 'rgb(var(--color-primary))',
-      color: '#fff',
+      color: 'rgb(var(--color-surface))',
       borderRadius: '4px',
       padding: '0.5rem 1rem',
       fontSize: '0.875rem',

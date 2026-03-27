@@ -63,8 +63,8 @@ const Settings: React.FC = () => {
   } | null>(null);
   
   // Theme color picker state
-  const [primaryColor, setPrimaryColor] = useState<string>('#DC2626');
-  const [secondaryColor, setSecondaryColor] = useState<string>('#F59E0B');
+  const [primaryColor, setPrimaryColor] = useState<string>(() => rgbToHex(239, 68, 68));
+  const [secondaryColor, setSecondaryColor] = useState<string>(() => rgbToHex(234, 179, 8));
   const [showPrimaryPicker, setShowPrimaryPicker] = useState(false);
   const [showSecondaryPicker, setShowSecondaryPicker] = useState(false);
   const [extractingColors, setExtractingColors] = useState(false);

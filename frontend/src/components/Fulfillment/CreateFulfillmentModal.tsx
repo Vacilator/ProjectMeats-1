@@ -298,7 +298,7 @@ const ProductInput = styled(Input)`
 `;
 
 const QuantityWarning = styled.span`
-  color: #f59e0b;
+  color: rgb(var(--color-warning));
   font-size: 0.75rem;
   margin-left: 0.25rem;
 `;
@@ -368,7 +368,7 @@ const SubmitButton = styled.button`
 `;
 
 const ErrorMessage = styled.div`
-  color: #dc2626;
+  color: rgb(var(--color-error));
   font-size: 0.875rem;
   padding: 0.75rem;
   background: rgba(220, 38, 38, 0.1);

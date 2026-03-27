@@ -333,10 +333,10 @@ const ErrorBanner = styled.div`
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: rgba(var(--color-error), 0.14);
+  border: 1px solid rgba(var(--color-error), 0.20);
   border-radius: 6px;
-  color: #dc2626;
+  color: rgb(var(--color-error));
   font-size: 12px;
   animation: slideDown 0.2s ease-out;
 
@@ -363,7 +363,7 @@ const ErrorText = styled.span`
 const ErrorClose = styled.button`
   background: none;
   border: none;
-  color: #dc2626;
+  color: rgb(var(--color-error));
   cursor: pointer;
   font-size: 16px;
   padding: 0;
@@ -411,7 +411,7 @@ const DragText = styled.div`
 
 const SuggestionsContainer = styled.div`
   background: rgb(var(--color-surface));
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   padding: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -432,7 +432,7 @@ const SuggestionsContainer = styled.div`
 const SuggestionsTitle = styled.div`
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
+  color: rgb(var(--color-text-muted));
   margin-bottom: 8px;
 `;
 
@@ -445,17 +445,17 @@ const SuggestionsGrid = styled.div`
 const SuggestionItem = styled.button`
   padding: 8px 12px;
   text-align: left;
-  border: 1px solid #d1d5db;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 6px;
   background: rgb(var(--color-surface));
-  color: #374151;
+  color: rgb(var(--color-text-secondary));
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: #e5e7eb;
-    border-color: #d1d5db;
+    background: rgb(var(--color-border));
+    border-color: rgb(var(--color-border));
     transform: translateY(-1px);
   }
 
@@ -476,13 +476,13 @@ const InputWrapper = styled.div<{ $isDragOver?: boolean }>`
   gap: 12px;
   padding: 12px;
   background: rgb(var(--color-surface));
-  border: 2px solid ${(props) => (props.$isDragOver ? '#667eea' : '#e5e7eb')};
+  border: 2px solid ${(props) => (props.$isDragOver ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))')};
   border-radius: 12px;
   transition: all 0.2s ease;
   position: relative;
 
   &:focus-within {
-    border-color: #667eea;
+    border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   }
 
@@ -498,8 +498,8 @@ const AttachmentButton = styled.button`
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: rgb(var(--color-surface-hover));
+  color: rgb(var(--color-text-muted));
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -508,8 +508,8 @@ const AttachmentButton = styled.button`
   flex-shrink: 0;
 
   &:hover:not(:disabled) {
-    background: #e5e7eb;
-    color: #374151;
+    background: rgb(var(--color-border));
+    color: rgb(var(--color-text-secondary));
     transform: translateY(-1px);
   }
 
@@ -541,7 +541,7 @@ const TextArea = styled.textarea`
   max-height: 200px;
 
   &::placeholder {
-    color: #9ca3af;
+    color: rgb(var(--color-text-muted));
   }
 
   &:disabled {
@@ -559,7 +559,7 @@ const ButtonGroup = styled.div`
 
 const CharacterCount = styled.span`
   font-size: 11px;
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
 `;
 
 const SendButton = styled.button`
@@ -567,7 +567,7 @@ const SendButton = styled.button`
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: #667eea;
+  background: rgb(var(--color-primary));
   color: white;
   cursor: pointer;
   display: flex;
@@ -576,7 +576,7 @@ const SendButton = styled.button`
   transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: #5a67d8;
+    background: rgb(var(--color-primary));
     transform: translateY(-1px);
   }
 
@@ -587,7 +587,7 @@ const SendButton = styled.button`
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    background: #d1d5db;
+    background: rgb(var(--color-border));
     transform: none;
   }
 `;
@@ -613,7 +613,7 @@ const LoadingSpinner = styled.div`
 
 const InputHint = styled.div`
   font-size: 11px;
-  color: #6b7280;
+  color: rgb(var(--color-text-muted));
   display: flex;
   align-items: center;
   gap: 4px;
@@ -622,8 +622,8 @@ const InputHint = styled.div`
 
 const Kbd = styled.kbd`
   padding: 2px 4px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
+  background: rgb(var(--color-surface-hover));
+  border: 1px solid rgb(var(--color-border));
   border-radius: 3px;
   font-size: 10px;
   font-family: monospace;

@@ -25,13 +25,13 @@ const providerConfig = {
   microsoft: {
     name: 'Outlook',
     displayName: 'Microsoft Outlook',
-    color: '#0078d4',
+    color: 'rgb(var(--color-info))',
     description: 'Connect your Microsoft 365 or Outlook.com account',
   },
   google: {
     name: 'Gmail',
     displayName: 'Google Gmail',
-    color: '#ea4335',
+    color: 'rgb(var(--color-error))',
     description: 'Connect your Gmail account',
     comingSoon: true,
   },
@@ -321,7 +321,7 @@ const ConnectButton = styled.button<{ color: string }>`
   }
 `;
 
-const ReconnectButton = styled(ConnectButton).attrs({ color: '#667eea' })``;
+const ReconnectButton = styled(ConnectButton).attrs({ color: 'rgb(var(--color-primary))' })``;
 
 const ComingSoonBadge = styled.div`
   display: inline-flex;

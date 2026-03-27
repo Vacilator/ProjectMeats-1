@@ -132,7 +132,7 @@ export const themes = {
 
 /**
  * Utility: Convert hex color to RGB format for CSS variables
- * @param hex - Hex color code (e.g., '#DC2626')
+ * @param hex - Hex color code (e.g., '#RRGGBB')
  * @returns RGB values as string (e.g., '220, 38, 38')
  */
 export const hexToRgb = (hex: string): string => {

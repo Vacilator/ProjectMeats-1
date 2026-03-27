@@ -128,7 +128,7 @@ const OmniboxContainer = styled.div`
 const CommandInput = styled.input`
   width: 100%;
   padding: 16px 20px;
-  border: 2px solid #e9ecef;
+  border: 2px solid rgb(var(--color-border));
   border-radius: 12px;
   font-size: 16px;
   font-family: inherit;
@@ -137,18 +137,18 @@ const CommandInput = styled.input`
 
   &:focus {
     outline: none;
-    border-color: #3498db;
+    border-color: rgb(var(--color-info));
     background: rgb(var(--color-surface));
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
   }
 
   &::placeholder {
-    color: #6c757d;
+    color: rgb(var(--color-text-muted));
   }
 `;
 
 const SuggestionsList = styled.div`
-  border: 1px solid #e9ecef;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   background: rgb(var(--color-surface));
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -161,8 +161,8 @@ const SuggestionItem = styled.div<{ isSelected: boolean }>`
   gap: 12px;
   padding: 12px 16px;
   cursor: pointer;
-  background: ${(props) => (props.isSelected ? '#e3f2fd' : 'white')};
-  border-bottom: 1px solid #f1f3f4;
+  background: ${(props) => (props.isSelected ? 'rgba(var(--color-primary), 0.10)' : 'white')};
+  border-bottom: 1px solid rgb(var(--color-border));
   transition: background-color 0.2s;
 
   &:last-child {
@@ -181,7 +181,7 @@ const SuggestionIcon = styled.span`
 
 const SuggestionText = styled.span`
   font-size: 14px;
-  color: #2c3e50;
+  color: rgb(var(--color-text-primary));
 `;
 
 const HelpText = styled.div`
@@ -194,7 +194,7 @@ const HelpText = styled.div`
 const HelpTitle = styled.h3`
   margin: 0 0 16px 0;
   font-size: 18px;
-  color: #2c3e50;
+  color: rgb(var(--color-text-primary));
 `;
 
 const HelpSection = styled.div`
@@ -205,7 +205,7 @@ const HelpSubtitle = styled.h4`
   margin: 0 0 8px 0;
   font-size: 14px;
   font-weight: 600;
-  color: #495057;
+  color: rgb(var(--color-text-secondary));
 `;
 
 const HelpList = styled.ul`
@@ -215,19 +215,19 @@ const HelpList = styled.ul`
 
 const HelpItem = styled.li`
   font-size: 13px;
-  color: #6c757d;
+  color: rgb(var(--color-text-muted));
   margin-bottom: 4px;
   font-family: 'Consolas', 'Monaco', monospace;
 `;
 
 const TipText = styled.div`
   font-size: 13px;
-  color: #6c757d;
+  color: rgb(var(--color-text-muted));
   font-style: italic;
   padding: 12px;
   background: rgba(52, 152, 219, 0.1);
   border-radius: 6px;
-  border-left: 3px solid #3498db;
+  border-left: 3px solid rgb(var(--color-info));
 `;
 
 export default Omnibox;

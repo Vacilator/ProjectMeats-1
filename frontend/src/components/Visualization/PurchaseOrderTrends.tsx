@@ -98,7 +98,7 @@ const ChartContainer = styled.div`
 
 const ChartTitle = styled.h3`
   margin: 0 0 20px 0;
-  color: #2c3e50;
+  color: rgb(var(--color-text-primary));
   font-size: 18px;
   font-weight: 600;
 `;

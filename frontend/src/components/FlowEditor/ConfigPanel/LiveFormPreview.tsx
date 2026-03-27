@@ -74,7 +74,7 @@ const PreviewCard = styled.div`
 const FormTitle = styled.h2`
   font-size: 24px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: rgb(var(--color-text-primary));
   margin: 0 0 8px 0;
 `;
 
@@ -105,14 +105,14 @@ const FieldWrapper = styled.div<{ width?: string }>`
 const FieldLabel = styled.label`
   font-size: 14px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: rgb(var(--color-text-primary));
   display: flex;
   align-items: center;
   gap: 6px;
 `;
 
 const RequiredStar = styled.span`
-  color: #ef4444;
+  color: rgb(var(--color-error));
 `;
 
 const HelpText = styled.span`
@@ -127,30 +127,30 @@ const HelpText = styled.span`
 const Input = styled.input`
   padding: 10px 12px;
   background: white;
-  border: 2px solid #e5e7eb;
+  border: 2px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
-  color: #1a1a1a;
+  color: rgb(var(--color-text-primary));
   transition: all 0.2s;
   
   &:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: rgb(var(--color-info));
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
   
   &::placeholder {
-    color: #9ca3af;
+    color: rgb(var(--color-text-muted));
   }
 `;
 
 const Textarea = styled.textarea`
   padding: 10px 12px;
   background: white;
-  border: 2px solid #e5e7eb;
+  border: 2px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
-  color: #1a1a1a;
+  color: rgb(var(--color-text-primary));
   min-height: 100px;
   resize: vertical;
   font-family: inherit;
@@ -158,28 +158,28 @@ const Textarea = styled.textarea`
   
   &:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: rgb(var(--color-info));
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
   
   &::placeholder {
-    color: #9ca3af;
+    color: rgb(var(--color-text-muted));
   }
 `;
 
 const Select = styled.select`
   padding: 10px 12px;
   background: white;
-  border: 2px solid #e5e7eb;
+  border: 2px solid rgb(var(--color-border));
   border-radius: 8px;
   font-size: 14px;
-  color: #1a1a1a;
+  color: rgb(var(--color-text-primary));
   cursor: pointer;
   transition: all 0.2s;
   
   &:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: rgb(var(--color-info));
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
 `;
@@ -202,7 +202,7 @@ const CheckboxLabel = styled.label`
   gap: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: #1a1a1a;
+  color: rgb(var(--color-text-primary));
   
   input {
     width: 18px;
@@ -217,7 +217,7 @@ const RadioLabel = styled.label`
   gap: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: #1a1a1a;
+  color: rgb(var(--color-text-primary));
   
   input {
     width: 18px;
@@ -228,21 +228,21 @@ const RadioLabel = styled.label`
 
 const FileInput = styled.div`
   padding: 32px;
-  border: 2px dashed #e5e7eb;
+  border: 2px dashed rgb(var(--color-border));
   border-radius: 8px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
   
   &:hover {
-    border-color: #6366f1;
+    border-color: rgb(var(--color-info));
     background: rgba(99, 102, 241, 0.05);
   }
 `;
 
 const ValidationHint = styled.div<{ type: 'error' | 'info' }>`
   font-size: 12px;
-  color: ${props => props.type === 'error' ? '#ef4444' : '#6366f1'};
+  color: ${props => props.type === 'error' ? 'rgb(var(--color-error))' : 'rgb(var(--color-info))'};
   display: flex;
   align-items: center;
   gap: 4px;
@@ -252,7 +252,7 @@ const ValidationHint = styled.div<{ type: 'error' | 'info' }>`
 const EmptyState = styled.div`
   text-align: center;
   padding: 48px 24px;
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
   
   svg {
     width: 48px;
@@ -348,11 +348,11 @@ const renderFieldInput = (field: FormField): React.ReactNode => {
     case 'signature':
       return (
         <div style={{ 
-          border: '2px solid #e5e7eb', 
+          border: '2px solid rgb(var(--color-border))', 
           borderRadius: '8px', 
           padding: '24px', 
           textAlign: 'center',
-          background: '#f9fafb'
+          background: 'rgb(var(--color-surface))'
         }}>
           ✍️ Signature pad will appear here
         </div>

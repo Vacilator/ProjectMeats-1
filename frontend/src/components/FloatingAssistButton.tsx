@@ -116,8 +116,8 @@ const FAB = styled.button<{ $theme: Theme; $isOpen: boolean }>`
   border-radius: 50%;
   background: ${(props) =>
     props.$theme.name === 'dark'
-      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
+      ? 'linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-primary)) 100%)'
+      : 'linear-gradient(135deg, rgb(var(--color-primary)) 0%, rgb(var(--color-primary)) 100%)'};
   color: white;
   border: none;
   font-size: 24px;
@@ -139,7 +139,7 @@ const FAB = styled.button<{ $theme: Theme; $isOpen: boolean }>`
   }
 
   &:focus {
-    outline: 2px solid ${(props) => (props.$theme.name === 'dark' ? '#fff' : '#667eea')};
+    outline: 2px solid ${(props) => (props.$theme.name === 'dark' ? 'rgb(var(--color-surface))' : 'rgb(var(--color-primary))')};
     outline-offset: 2px;
   }
 
@@ -154,7 +154,7 @@ const Menu = styled.div<{ $theme: Theme }>`
   position: absolute;
   bottom: 70px;
   right: 0;
-  background: ${(props) => (props.$theme.name === 'dark' ? '#2d2d2d' : '#ffffff')};
+  background: ${(props) => (props.$theme.name === 'dark' ? 'rgb(var(--color-text-primary))' : 'rgb(var(--color-surface))')};
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   min-width: 240px;
@@ -182,11 +182,11 @@ const MenuItem = styled.div<{ $theme: Theme }>`
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  color: ${(props) => (props.$theme.name === 'dark' ? '#e0e0e0' : '#333333')};
+  color: ${(props) => (props.$theme.name === 'dark' ? 'rgb(var(--color-text-muted))' : 'rgb(var(--color-border))')};
   cursor: pointer;
   transition: background-color 0.2s ease;
   border-bottom: 1px solid
-    ${(props) => (props.$theme.name === 'dark' ? '#404040' : '#e0e0e0')};
+    ${(props) => (props.$theme.name === 'dark' ? 'rgb(var(--color-border))' : 'rgb(var(--color-text-muted))')};
 
   &:last-child {
     border-bottom: none;
@@ -194,15 +194,15 @@ const MenuItem = styled.div<{ $theme: Theme }>`
 
   &:hover {
     background-color: ${(props) =>
-      props.$theme.name === 'dark' ? '#404040' : '#f5f5f5'};
+      props.$theme.name === 'dark' ? 'rgb(var(--color-border))' : 'rgb(var(--color-surface))'};
   }
 
   &:focus {
     outline: none;
     background-color: ${(props) =>
-      props.$theme.name === 'dark' ? '#404040' : '#f5f5f5'};
+      props.$theme.name === 'dark' ? 'rgb(var(--color-border))' : 'rgb(var(--color-surface))'};
     box-shadow: inset 0 0 0 2px
-      ${(props) => (props.$theme.name === 'dark' ? '#667eea' : '#667eea')};
+      ${(props) => (props.$theme.name === 'dark' ? 'rgb(var(--color-primary))' : 'rgb(var(--color-primary))')};
   }
 `;
 

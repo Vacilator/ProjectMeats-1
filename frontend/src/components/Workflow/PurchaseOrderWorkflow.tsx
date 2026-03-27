@@ -54,7 +54,7 @@ const PurchaseOrderWorkflow: React.FC<PurchaseOrderWorkflowProps> = ({ stages, h
     source: stage.id,
     target: stages[index + 1].id,
     animated: stages[index + 1].status === 'active',
-    style: { stroke: '#6c757d' },
+    style: { stroke: 'rgb(var(--color-text-muted))' },
   }));
 
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
@@ -105,26 +105,26 @@ const getStatusIcon = (status: string) => {
 const getNodeColor = (status: string) => {
   switch (status) {
     case 'completed':
-      return '#d4edda';
+      return 'rgba(var(--color-success), 0.14)';
     case 'active':
-      return '#fff3cd';
+      return 'rgb(var(--color-surface))3cd';
     case 'exception':
-      return '#f8d7da';
+      return 'rgba(var(--color-error), 0.14)';
     default:
-      return '#e2e3e5';
+      return 'rgb(var(--color-surface))';
   }
 };
 
 const getBorderColor = (status: string) => {
   switch (status) {
     case 'completed':
-      return '#28a745';
+      return 'rgb(var(--color-success))';
     case 'active':
-      return '#ffc107';
+      return 'rgb(var(--color-warning))';
     case 'exception':
-      return '#dc3545';
+      return 'rgb(var(--color-error))';
     default:
-      return '#6c757d';
+      return 'rgb(var(--color-text-muted))';
   }
 };
 
@@ -138,13 +138,13 @@ const WorkflowContainer = styled.div`
 
 const WorkflowTitle = styled.h3`
   margin: 0 0 20px 0;
-  color: #2c3e50;
+  color: rgb(var(--color-text-primary));
   font-size: 18px;
   font-weight: 600;
 `;
 
 const ReactFlowContainer = styled.div`
-  border: 1px solid #dee2e6;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 4px;
 `;
 
@@ -160,12 +160,12 @@ const StageName = styled.div`
   font-weight: 600;
   font-size: 14px;
   margin-bottom: 4px;
-  color: #2c3e50;
+  color: rgb(var(--color-text-primary));
 `;
 
 const StageDescription = styled.div`
   font-size: 12px;
-  color: #6c757d;
+  color: rgb(var(--color-text-muted));
   margin-bottom: 8px;
 `;
 
@@ -174,13 +174,13 @@ const StageStatus = styled.div<{ status: string }>`
   color: ${(props) => {
     switch (props.status) {
       case 'completed':
-        return '#28a745';
+        return 'rgb(var(--color-success))';
       case 'active':
-        return '#ffc107';
+        return 'rgb(var(--color-warning))';
       case 'exception':
-        return '#dc3545';
+        return 'rgb(var(--color-error))';
       default:
-        return '#6c757d';
+        return 'rgb(var(--color-text-muted))';
     }
   }};
 `;

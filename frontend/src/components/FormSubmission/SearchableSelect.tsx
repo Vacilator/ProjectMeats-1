@@ -45,30 +45,30 @@ const SelectTrigger = styled.button<{ $hasError?: boolean; $isOpen?: boolean }>`
   padding: 10px 40px 10px 14px;
   font-size: 14px;
   line-height: 1.5;
-  color: #1f2937;
+  color: rgb(var(--color-text-primary));
   text-align: left;
   background: white;
-  border: 1.5px solid ${props => props.$hasError ? '#ef4444' : props.$isOpen ? '#3b82f6' : '#d1d5db'};
+  border: 1.5px solid ${props => props.$hasError ? 'rgb(var(--color-error))' : props.$isOpen ? 'rgb(var(--color-primary))' : 'rgb(var(--color-border))'};
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s;
   
   ${props => props.$hasError && css`
-    background: #fef2f2;
+    background: rgba(var(--color-error), 0.14);
   `}
   
   &:hover:not(:disabled) {
-    border-color: ${props => props.$hasError ? '#dc2626' : '#3b82f6'};
+    border-color: ${props => props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-primary))'};
   }
   
   &:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
   }
   
   &:disabled {
-    background: #f3f4f6;
+    background: rgb(var(--color-surface-hover));
     cursor: not-allowed;
     opacity: 0.7;
   }
@@ -80,7 +80,7 @@ const ChevronIcon = styled.span<{ $isOpen?: boolean }>`
   top: 50%;
   transform: translateY(-50%) ${props => props.$isOpen ? 'rotate(180deg)' : 'rotate(0)'};
   transition: transform 0.2s;
-  color: #6b7280;
+  color: rgb(var(--color-text-muted));
   pointer-events: none;
 `;
 
@@ -90,7 +90,7 @@ const Dropdown = styled.div<{ $isOpen: boolean }>`
   left: 0;
   right: 0;
   background: white;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   z-index: 1000;
@@ -105,8 +105,8 @@ const SearchInput = styled.input`
   padding: 12px 14px;
   font-size: 14px;
   border: none;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border-bottom: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
   
   &:focus {
     outline: none;
@@ -114,7 +114,7 @@ const SearchInput = styled.input`
   }
   
   &::placeholder {
-    color: #9ca3af;
+    color: rgb(var(--color-text-muted));
   }
 `;
 
@@ -131,11 +131,11 @@ const OptionItem = styled.button<{ $isHighlighted?: boolean; $isSelected?: boole
   text-align: left;
   border: none;
   background: ${props => 
-    props.$isHighlighted ? '#eff6ff' : 
-    props.$isSelected ? '#f0fdf4' : 
+    props.$isHighlighted ? 'rgba(var(--color-primary), 0.10)' : 
+    props.$isSelected ? 'rgba(var(--color-success), 0.12)' : 
     'white'
   };
-  color: ${props => props.$isSelected ? '#15803d' : '#1f2937'};
+  color: ${props => props.$isSelected ? 'rgb(var(--color-success))' : 'rgb(var(--color-text-primary))'};
   cursor: pointer;
   transition: background 0.1s;
   display: flex;
@@ -143,7 +143,7 @@ const OptionItem = styled.button<{ $isHighlighted?: boolean; $isSelected?: boole
   gap: 8px;
   
   &:hover {
-    background: #eff6ff;
+    background: rgba(var(--color-primary), 0.10);
   }
   
   ${props => props.$isSelected && css`
@@ -152,7 +152,7 @@ const OptionItem = styled.button<{ $isHighlighted?: boolean; $isSelected?: boole
     &::after {
       content: '✓';
       margin-left: auto;
-      color: #22c55e;
+      color: rgb(var(--color-success));
     }
   `}
 `;
@@ -163,15 +163,15 @@ const LoadingState = styled.div`
   justify-content: center;
   gap: 8px;
   padding: 20px;
-  color: #6b7280;
+  color: rgb(var(--color-text-muted));
   font-size: 14px;
 `;
 
 const Spinner = styled.span`
   width: 16px;
   height: 16px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #3b82f6;
+  border: 2px solid rgb(var(--color-border));
+  border-top-color: rgb(var(--color-primary));
   border-radius: 50%;
   animation: ${spin} 0.6s linear infinite;
 `;
@@ -179,20 +179,20 @@ const Spinner = styled.span`
 const NoResults = styled.div`
   padding: 20px;
   text-align: center;
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
   font-size: 14px;
 `;
 
 const InfoBar = styled.div`
   padding: 8px 14px;
   font-size: 12px;
-  color: #6b7280;
-  background: #f9fafb;
-  border-top: 1px solid #e5e7eb;
+  color: rgb(var(--color-text-muted));
+  background: rgb(var(--color-surface));
+  border-top: 1px solid rgb(var(--color-border));
 `;
 
 const PlaceholderText = styled.span`
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
 `;
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({

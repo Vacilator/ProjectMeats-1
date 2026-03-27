@@ -83,8 +83,8 @@ const ApiTestComponent: React.FC = () => {
       {error && (
         <div
           style={{
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
+            backgroundColor: 'rgba(var(--color-error), 0.14)',
+            color: 'rgb(var(--color-error))',
             padding: '10px',
             borderRadius: '4px',
             marginBottom: '10px',
@@ -97,8 +97,8 @@ const ApiTestComponent: React.FC = () => {
       {success && (
         <div
           style={{
-            backgroundColor: '#d1edff',
-            color: '#155724',
+            backgroundColor: 'rgba(var(--color-info), 0.12)',
+            color: 'rgb(var(--color-success))',
             padding: '10px',
             borderRadius: '4px',
             marginBottom: '10px',
@@ -114,11 +114,11 @@ const ApiTestComponent: React.FC = () => {
           <div
             key={supplier.id}
             style={{
-              border: '1px solid #dee2e6',
+              border: '1px solid rgb(var(--color-border))',
               padding: '10px',
               marginBottom: '5px',
               borderRadius: '4px',
-              backgroundColor: '#f8f9fa',
+              backgroundColor: 'rgb(var(--color-surface))',
             }}
           >
             <strong>

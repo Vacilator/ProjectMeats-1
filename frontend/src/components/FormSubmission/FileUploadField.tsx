@@ -43,17 +43,17 @@ const Container = styled.div`
 `;
 
 const DropZone = styled.div<{ $isDragActive: boolean; $hasError?: boolean }>`
-  border: 2px dashed ${props => props.$isDragActive ? '#3b82f6' : props.$hasError ? '#ef4444' : '#d1d5db'};
+  border: 2px dashed ${props => props.$isDragActive ? 'rgb(var(--color-primary))' : props.$hasError ? 'rgb(var(--color-error))' : 'rgb(var(--color-border))'};
   border-radius: 12px;
   padding: 24px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-  background: ${props => props.$isDragActive ? '#eff6ff' : props.$hasError ? '#fef2f2' : '#fafafa'};
+  background: ${props => props.$isDragActive ? 'rgba(var(--color-primary), 0.10)' : props.$hasError ? 'rgba(var(--color-error), 0.14)' : 'rgb(var(--color-surface))'};
   
   &:hover {
-    border-color: #3b82f6;
-    background: #f8fafc;
+    border-color: rgb(var(--color-primary));
+    background: rgb(var(--color-surface));
   }
 `;
 
@@ -66,23 +66,23 @@ const DropZoneContent = styled.div`
 
 const DropIcon = styled.div<{ $isImage?: boolean }>`
   font-size: 40px;
-  color: ${props => props.$isImage ? '#3b82f6' : '#6b7280'};
+  color: ${props => props.$isImage ? 'rgb(var(--color-primary))' : 'rgb(var(--color-text-muted))'};
 `;
 
 const DropText = styled.p`
   margin: 0;
   font-size: 14px;
-  color: #374151;
+  color: rgb(var(--color-text-secondary));
   
   strong {
-    color: #3b82f6;
+    color: rgb(var(--color-primary));
   }
 `;
 
 const DropHint = styled.p`
   margin: 0;
   font-size: 12px;
-  color: #9ca3af;
+  color: rgb(var(--color-text-muted));
 `;
 
 const FileInput = styled.input`
@@ -102,12 +102,12 @@ const FileItem = styled.div<{ $isUploading?: boolean }>`
   gap: 12px;
   padding: 12px;
   background: white;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgb(var(--color-border));
   border-radius: 8px;
   
   ${props => props.$isUploading && css`
     animation: ${pulse} 1.5s ease-in-out infinite;
-    border-color: #3b82f6;
+    border-color: rgb(var(--color-primary));
   `}
 `;
 
@@ -116,7 +116,7 @@ const FileThumbnail = styled.div`
   height: 48px;
   border-radius: 6px;
   overflow: hidden;
-  background: #f3f4f6;
+  background: rgb(var(--color-surface-hover));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -142,7 +142,7 @@ const FileName = styled.p`
   margin: 0;
   font-size: 14px;
   font-weight: 500;
-  color: #1f2937;
+  color: rgb(var(--color-text-primary));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -151,13 +151,13 @@ const FileName = styled.p`
 const FileSize = styled.p`
   margin: 0;
   font-size: 12px;
-  color: #6b7280;
+  color: rgb(var(--color-text-muted));
 `;
 
 const ProgressBar = styled.div`
   width: 100%;
   height: 4px;
-  background: #e5e7eb;
+  background: rgb(var(--color-border));
   border-radius: 2px;
   margin-top: 4px;
   overflow: hidden;
@@ -166,7 +166,7 @@ const ProgressBar = styled.div`
 const ProgressFill = styled.div<{ $progress: number }>`
   height: 100%;
   width: ${props => props.$progress}%;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(90deg, rgb(var(--color-primary)), rgb(var(--color-info)));
   transition: width 0.3s ease;
 `;
 
@@ -174,22 +174,22 @@ const RemoveButton = styled.button`
   width: 32px;
   height: 32px;
   border: none;
-  background: #fee2e2;
-  color: #dc2626;
+  background: rgba(var(--color-error), 0.14);
+  color: rgb(var(--color-error));
   border-radius: 6px;
   cursor: pointer;
   font-size: 16px;
   transition: all 0.15s;
   
   &:hover {
-    background: #fecaca;
+    background: rgba(var(--color-error), 0.20);
   }
 `;
 
 const ErrorText = styled.p`
   margin: 8px 0 0;
   font-size: 12px;
-  color: #dc2626;
+  color: rgb(var(--color-error));
 `;
 
 const formatFileSize = (bytes: number): string => {

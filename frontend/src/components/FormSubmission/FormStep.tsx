@@ -34,15 +34,15 @@ interface FormStepProps {
 }
 
 const StepContainer = styled.div<{ isActive?: boolean }>`
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #dee2e6);
+  background: var(--card-bg, rgb(var(--color-surface)));
+  border: 1px solid var(--border-color, rgb(var(--color-border)));
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin-bottom: 1rem;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 
   ${({ isActive }) => isActive && `
-    border-color: var(--color-primary, #0d6efd);
+    border-color: var(--color-primary, rgb(var(--color-primary)));
     box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
   `}
 `;
@@ -53,14 +53,14 @@ const StepHeader = styled.div`
   justify-content: space-between;
   margin-bottom: 1.25rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-color, #dee2e6);
+  border-bottom: 1px solid var(--border-color, rgb(var(--color-border)));
 `;
 
 const StepTitle = styled.h3`
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary, #1a1a2e);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -80,23 +80,23 @@ const StepNumber = styled.span<{ status: string }>`
     switch (status) {
       case 'completed':
         return `
-          background: var(--color-success, #198754);
+          background: var(--color-success, rgb(var(--color-success)));
           color: white;
         `;
       case 'in_progress':
         return `
-          background: var(--color-primary, #0d6efd);
+          background: var(--color-primary, rgb(var(--color-primary)));
           color: white;
         `;
       case 'action_needed':
         return `
-          background: var(--color-warning, #ffc107);
-          color: #212529;
+          background: var(--color-warning, rgb(var(--color-warning)));
+          color: rgb(var(--color-text-primary));
         `;
       default:
         return `
-          background: var(--bg-secondary, #e9ecef);
-          color: var(--text-secondary, #6c757d);
+          background: var(--bg-secondary, rgb(var(--color-border)));
+          color: var(--text-secondary, rgb(var(--color-text-muted)));
         `;
     }
   }}
@@ -105,8 +105,8 @@ const StepNumber = styled.span<{ status: string }>`
 const EntityBadge = styled.span`
   font-size: 0.75rem;
   padding: 0.25rem 0.5rem;
-  background: var(--bg-secondary, #f8f9fa);
-  color: var(--text-secondary, #6c757d);
+  background: var(--bg-secondary, rgb(var(--color-surface)));
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
   border-radius: 0.25rem;
   text-transform: capitalize;
 `;
@@ -121,28 +121,28 @@ const StatusBadge = styled.span<{ status: string }>`
     switch (status) {
       case 'completed':
         return `
-          background: var(--color-success-light, #d1e7dd);
-          color: var(--color-success, #198754);
+          background: var(--color-success-light, rgba(var(--color-success), 0.14));
+          color: var(--color-success, rgb(var(--color-success)));
         `;
       case 'in_progress':
         return `
-          background: var(--color-primary-light, #cfe2ff);
-          color: var(--color-primary, #0d6efd);
+          background: var(--color-primary-light, rgba(var(--color-primary), 0.14));
+          color: var(--color-primary, rgb(var(--color-primary)));
         `;
       case 'action_needed':
         return `
-          background: var(--color-warning-light, #fff3cd);
-          color: #997404;
+          background: var(--color-warning-light, rgb(var(--color-surface))3cd);
+          color: rgb(var(--color-warning));
         `;
       case 'skipped':
         return `
-          background: var(--bg-secondary, #e9ecef);
-          color: var(--text-secondary, #6c757d);
+          background: var(--bg-secondary, rgb(var(--color-border)));
+          color: var(--text-secondary, rgb(var(--color-text-muted)));
         `;
       default:
         return `
-          background: var(--bg-secondary, #e9ecef);
-          color: var(--text-secondary, #6c757d);
+          background: var(--bg-secondary, rgb(var(--color-border)));
+          color: var(--text-secondary, rgb(var(--color-text-muted)));
         `;
     }
   }}
@@ -157,7 +157,7 @@ const FieldsList = styled.div`
 `;
 
 const NoFieldsMessage = styled.p`
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
   text-align: center;
   padding: 1rem;
   margin: 0;
@@ -170,7 +170,7 @@ const StepFooter = styled.div`
   gap: 0.75rem;
   margin-top: 1.5rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--border-color, #dee2e6);
+  border-top: 1px solid var(--border-color, rgb(var(--color-border)));
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'success' }>`
@@ -186,27 +186,27 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'success' }>`
     switch (variant) {
       case 'success':
         return `
-          background: var(--color-success, #198754);
+          background: var(--color-success, rgb(var(--color-success)));
           color: white;
           &:hover:not(:disabled) {
-            background: var(--color-success-dark, #157347);
+            background: var(--color-success-dark, rgb(var(--color-success)));
           }
         `;
       case 'secondary':
         return `
-          background: var(--bg-secondary, #f8f9fa);
-          color: var(--text-primary, #1a1a2e);
-          border-color: var(--border-color, #dee2e6);
+          background: var(--bg-secondary, rgb(var(--color-surface)));
+          color: var(--text-primary, rgb(var(--color-text-primary)));
+          border-color: var(--border-color, rgb(var(--color-border)));
           &:hover:not(:disabled) {
-            background: var(--bg-tertiary, #e9ecef);
+            background: var(--bg-tertiary, rgb(var(--color-border)));
           }
         `;
       default:
         return `
-          background: var(--color-primary, #0d6efd);
+          background: var(--color-primary, rgb(var(--color-primary)));
           color: white;
           &:hover:not(:disabled) {
-            background: var(--color-primary-dark, #0b5ed7);
+            background: var(--color-primary-dark, rgb(var(--color-primary)));
           }
         `;
     }

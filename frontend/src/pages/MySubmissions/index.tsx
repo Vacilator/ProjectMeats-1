@@ -24,7 +24,7 @@ const PageHeader = styled.div`
 const Title = styled.h1`
   font-size: 1.75rem;
   font-weight: 600;
-  color: var(--text-primary, #1a1a2e);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
   margin: 0;
   display: flex;
   align-items: center;
@@ -35,7 +35,7 @@ const FilterTabs = styled.div`
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border-color, #dee2e6);
+  border-bottom: 1px solid var(--border-color, rgb(var(--color-border)));
   padding-bottom: 0.5rem;
 `;
 
@@ -47,11 +47,11 @@ const FilterTab = styled.button<{ active?: boolean }>`
   border-radius: 0.375rem;
   cursor: pointer;
   transition: all 0.15s ease;
-  background: ${({ active }) => active ? 'var(--color-primary, #0d6efd)' : 'transparent'};
-  color: ${({ active }) => active ? 'white' : 'var(--text-secondary, #6c757d)'};
+  background: ${({ active }) => active ? 'var(--color-primary, rgb(var(--color-primary)))' : 'transparent'};
+  color: ${({ active }) => active ? 'white' : 'var(--text-secondary, rgb(var(--color-text-muted)))'};
 
   &:hover {
-    background: ${({ active }) => active ? 'var(--color-primary-dark, #0b5ed7)' : 'var(--bg-secondary, #f8f9fa)'};
+    background: ${({ active }) => active ? 'var(--color-primary-dark, rgb(var(--color-primary)))' : 'var(--bg-secondary, rgb(var(--color-surface)))'};
   }
 `;
 
@@ -62,8 +62,8 @@ const SubmissionsList = styled.div`
 `;
 
 const SubmissionCard = styled.div`
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #dee2e6);
+  background: var(--card-bg, rgb(var(--color-surface)));
+  border: 1px solid var(--border-color, rgb(var(--color-border)));
   border-radius: 0.5rem;
   padding: 1.25rem;
   display: grid;
@@ -92,13 +92,13 @@ const FormName = styled.h3`
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary, #1a1a2e);
+  color: var(--text-primary, rgb(var(--color-text-primary)));
 `;
 
 const SubmissionMeta = styled.p`
   margin: 0.25rem 0 0;
   font-size: 0.8125rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
 `;
 
 const ProgressContainer = styled.div`
@@ -107,7 +107,7 @@ const ProgressContainer = styled.div`
 
 const ProgressBar = styled.div`
   height: 0.5rem;
-  background: var(--bg-tertiary, #e9ecef);
+  background: var(--bg-tertiary, rgb(var(--color-border)));
   border-radius: 0.25rem;
   overflow: hidden;
 `;
@@ -118,11 +118,11 @@ const ProgressFill = styled.div<{ percent: number; status: string }>`
   background: ${({ status }) => {
     switch (status) {
       case 'completed':
-        return 'var(--color-success, #198754)';
+        return 'var(--color-success, rgb(var(--color-success)))';
       case 'cancelled':
-        return 'var(--color-error, #dc3545)';
+        return 'var(--color-error, rgb(var(--color-error)))';
       default:
-        return 'var(--color-primary, #0d6efd)';
+        return 'var(--color-primary, rgb(var(--color-primary)))';
     }
   }};
   border-radius: 0.25rem;
@@ -131,7 +131,7 @@ const ProgressFill = styled.div<{ percent: number; status: string }>`
 
 const ProgressText = styled.span`
   font-size: 0.75rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
   display: block;
   margin-top: 0.25rem;
   text-align: center;
@@ -147,23 +147,23 @@ const StatusBadge = styled.span<{ status: string }>`
     switch (status) {
       case 'completed':
         return `
-          background: var(--color-success-light, #d1e7dd);
-          color: var(--color-success, #198754);
+          background: var(--color-success-light, rgba(var(--color-success), 0.14));
+          color: var(--color-success, rgb(var(--color-success)));
         `;
       case 'cancelled':
         return `
-          background: var(--color-error-light, #f8d7da);
-          color: var(--color-error, #dc3545);
+          background: var(--color-error-light, rgba(var(--color-error), 0.14));
+          color: var(--color-error, rgb(var(--color-error)));
         `;
       case 'in_progress':
         return `
-          background: var(--color-primary-light, #cfe2ff);
-          color: var(--color-primary, #0d6efd);
+          background: var(--color-primary-light, rgba(var(--color-primary), 0.14));
+          color: var(--color-primary, rgb(var(--color-primary)));
         `;
       default:
         return `
-          background: var(--bg-secondary, #e9ecef);
-          color: var(--text-secondary, #6c757d);
+          background: var(--bg-secondary, rgb(var(--color-border)));
+          color: var(--text-secondary, rgb(var(--color-text-muted)));
         `;
     }
   }}
@@ -188,28 +188,28 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'danger
       case 'danger':
         return `
           background: transparent;
-          color: var(--color-error, #dc3545);
-          border-color: var(--color-error, #dc3545);
+          color: var(--color-error, rgb(var(--color-error)));
+          border-color: var(--color-error, rgb(var(--color-error)));
           &:hover {
-            background: var(--color-error, #dc3545);
+            background: var(--color-error, rgb(var(--color-error)));
             color: white;
           }
         `;
       case 'secondary':
         return `
-          background: var(--bg-secondary, #f8f9fa);
-          color: var(--text-primary, #1a1a2e);
-          border-color: var(--border-color, #dee2e6);
+          background: var(--bg-secondary, rgb(var(--color-surface)));
+          color: var(--text-primary, rgb(var(--color-text-primary)));
+          border-color: var(--border-color, rgb(var(--color-border)));
           &:hover {
-            background: var(--bg-tertiary, #e9ecef);
+            background: var(--bg-tertiary, rgb(var(--color-border)));
           }
         `;
       default:
         return `
-          background: var(--color-primary, #0d6efd);
+          background: var(--color-primary, rgb(var(--color-primary)));
           color: white;
           &:hover {
-            background: var(--color-primary-dark, #0b5ed7);
+            background: var(--color-primary-dark, rgb(var(--color-primary)));
           }
         `;
     }
@@ -224,7 +224,7 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'danger
 const EmptyState = styled.div`
   text-align: center;
   padding: 4rem 2rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
 `;
 
 const EmptyIcon = styled.span`
@@ -236,7 +236,7 @@ const EmptyIcon = styled.span`
 const LoadingState = styled.div`
   text-align: center;
   padding: 4rem 2rem;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary, rgb(var(--color-text-muted)));
 `;
 
 const statusFilters = [

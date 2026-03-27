@@ -112,7 +112,7 @@ const StatusBadge = styled.span<{ $active: boolean }>`
     ? 'rgba(34, 197, 94, 0.1)' 
     : 'rgba(var(--color-border), 0.5)'};
   color: ${props => props.$active 
-    ? '#22c55e' 
+    ? 'rgb(var(--color-success))' 
     : 'rgb(var(--color-text-secondary))'};
 `;
 
@@ -125,8 +125,8 @@ const EntityTypeBadge = styled.span<{ $type: InquiryEntityType }>`
     ? 'rgba(59, 130, 246, 0.1)' 
     : 'rgba(245, 158, 11, 0.1)'};
   color: ${props => props.$type === 'customer' 
-    ? '#3b82f6' 
-    : '#f59e0b'};
+    ? 'rgb(var(--color-primary))' 
+    : 'rgb(var(--color-warning))'};
 `;
 
 const CardDescription = styled.p`
@@ -202,8 +202,8 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' }>`
     }
   ` : props.$variant === 'danger' ? `
     background: transparent;
-    color: #ef4444;
-    border: 1px solid #ef4444;
+    color: rgb(var(--color-error));
+    border: 1px solid rgb(var(--color-error));
     
     &:hover {
       background: rgba(239, 68, 68, 0.1);

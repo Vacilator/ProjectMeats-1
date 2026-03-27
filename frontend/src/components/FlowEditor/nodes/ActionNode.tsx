@@ -195,7 +195,7 @@ export const ActionNode = React.memo<NodeProps<Node<ActionNodeData>>>((props) =>
     id: 'actionEmail',
     name: 'Send Email',
     category: 'action' as const,
-    color: '#3b82f6',
+    color: 'rgb(var(--color-primary))',
     icon: '✉️',
     description: 'Send an email',
     maxInputs: 1,
