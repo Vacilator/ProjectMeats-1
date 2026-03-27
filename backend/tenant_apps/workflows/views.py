@@ -933,6 +933,12 @@ class TenantListViewSet(TenantFilteredModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create list with a friendly error instead of 500 on IntegrityError."""
+
+        tenant = getattr(request, 'tenant', None)
+        if tenant:
+            # Assert RLS vars before DRF validation/save (defense-in-depth).
+            self._ensure_rls_session_vars(str(tenant.id))
+
         try:
             return super().create(request, *args, **kwargs)
         except IntegrityError:
