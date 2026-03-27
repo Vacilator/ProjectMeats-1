@@ -32,9 +32,24 @@ interface SentryConfig {
  */
 export const initSentry = (config?: SentryConfig): void => {
   // Get configuration from environment or window.ENV
-  const sentryDsn = config?.dsn || (window as any).ENV?.SENTRY_DSN;
-  const environment = config?.environment || (window as any).ENV?.ENVIRONMENT || 'development';
-  const release = config?.release || (window as any).ENV?.GIT_COMMIT_SHA || 'unknown';
+  const sentryDsn =
+    config?.dsn ||
+    (window as any).ENV?.SENTRY_DSN ||
+    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_SENTRY_DSN : undefined);
+
+  const environment =
+    config?.environment ||
+    (window as any).ENV?.ENVIRONMENT ||
+    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_ENVIRONMENT : undefined) ||
+    'development';
+
+  const release =
+    config?.release ||
+    (window as any).ENV?.GIT_COMMIT_SHA ||
+    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_GIT_COMMIT_SHA : undefined) ||
+    (typeof process !== 'undefined' ? (process as any).env?.REACT_APP_COMMIT_SHA : undefined) ||
+    'unknown';
+
   const enabled = config?.enabled ?? (window as any).ENV?.SENTRY_ENABLED === 'true';
   
   // Don't initialize in development unless explicitly enabled
@@ -112,11 +127,31 @@ export const initSentry = (config?: SentryConfig): void => {
         return null;
       }
       
+      // Mark repo frames as "in-app" so stack traces are easier to route via CODEOWNERS.
+      // Note: Sentry JS SDK v10 types don't expose inAppInclude; we tag frames directly.
+      try {
+        const exceptions = event.exception?.values || [];
+        for (const ex of exceptions) {
+          const frames = ex.stacktrace?.frames || [];
+          for (const frame of frames) {
+            const filename = (frame as any).filename;
+            if (typeof filename === 'string') {
+              if (filename.includes('/backend/') || filename.includes('/tenant_apps/')) {
+                (frame as any).in_app = true;
+              }
+            }
+          }
+        }
+      } catch {
+        // best-effort
+      }
+
       return event;
     },
     
     // Privacy
-    sendDefaultPii: false, // Don't send PII by default (GDPR)
+    // Required for Seer (user-impact analysis) + richer debugging context.
+    sendDefaultPii: true,
     
     // Context
     initialScope: {

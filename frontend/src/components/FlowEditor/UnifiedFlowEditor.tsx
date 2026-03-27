@@ -112,7 +112,6 @@ import {
   FormNode,
   FormProcessNode,
   FormProcessContainerNode,
-  FormProcessAddButtonNode,
   FormStepNode,
   FormStepSingleNode,
   FormReferenceNode,
@@ -130,6 +129,7 @@ import { CustomEdge, ConditionalEdge, ErrorEdge, SuccessEdge, InsertNodeEdge, En
 import { FormBuilder } from '../form-builder';
 import { useFormBuilder } from './hooks/useFormBuilder';
 import { ValidationDrawer } from './components/ValidationDrawer';
+import { AISuggestionsPanel } from './components/AISuggestionsPanel';
 import { validateWorkflow, type ValidationResult } from './utils/validationEngine';
 import { NODE_TYPE_REGISTRY, NodeCategory, CATEGORY_LABELS, CATEGORY_ORDER, getNodeTypeDefinition } from './nodeTypes';
 import type { FormStepData } from './Modals/EntityFormStepModal';
@@ -803,6 +803,7 @@ const EditorWrapper = styled.div`
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 `;
 
 const NodePalette = styled.div`
@@ -1748,7 +1749,6 @@ const staticNodeTypes: Record<string, AnyNodeComponent> = {
   formProcessContainer: FormProcessContainerNode,
 
   // Render-time "+" button node for Form Process containers
-  formProcessAddButton: FormProcessAddButtonNode,
 
   smartWorkForm: SmartWorkFormNode,
 
@@ -2586,6 +2586,27 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
   // ============================================================================
   
   const [showDebugger, setShowDebugger] = useState(false);
+
+  const [isAISuggestionsVisible, setIsAISuggestionsVisible] = useState(() => {
+    try {
+      return localStorage.getItem('workforms_ai_suggestions_visible') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleAISuggestionsVisible = useCallback(() => {
+    setIsAISuggestionsVisible((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('workforms_ai_suggestions_visible', next ? 'true' : 'false');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
   const selectedNodeForDebug = useMemo(() => {
     const selected = nodes.find((n) => n.id === selectedNodeId) || null;
     if (selected) return selected;
@@ -3946,6 +3967,92 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     logger.debug('[Container] ❌ No container matched at position');
     return null;
   }, [nodes]);
+
+  const handleAddNodeFromAISuggestion = useCallback(
+    (nodeTypeId: string, position?: { x: number; y: number }) => {
+      if (readOnly) return;
+
+      // Container creation is complex (pages, layout, etc.) — route through the existing click-to-add flow.
+      if (!position || isFormProcessContainerType(nodeTypeId)) {
+        handleClickToAddNode(nodeTypeId);
+        return;
+      }
+
+      const snapped = {
+        x: Math.round(position.x / 15) * 15,
+        y: Math.round(position.y / 15) * 15,
+      };
+
+      const newNodeId = generateNodeId();
+      const reactFlowType = getReactFlowNodeType(nodeTypeId);
+
+      const selected = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) || null : null;
+      const nearby = findNearbyNode(snapped);
+      const anchor = selected || nearby;
+
+      const newNode: Node = {
+        id: newNodeId,
+        type: reactFlowType,
+        position: snapped,
+        data: {
+          label: NODE_TYPE_REGISTRY[nodeTypeId]?.name || 'New Node',
+          status: 'draft',
+          ...getDefaultNodeData(nodeTypeId),
+        },
+        selected: true,
+      };
+
+      // Prefer the selected node's container context.
+      if (selected?.parentId) {
+        newNode.parentId = selected.parentId;
+        newNode.extent = 'parent';
+        newNode.expandParent = true;
+      } else {
+        const targetContainer = findContainerAtPosition(snapped);
+        if (targetContainer) {
+          newNode.parentId = targetContainer.id;
+          newNode.extent = 'parent';
+          newNode.expandParent = true;
+        }
+      }
+
+      const selectOnly = (ns: Node[], id: string) => ns.map((n) => ({ ...n, selected: n.id === id }));
+
+      const nextNodes = selectOnly([...nodes, newNode], newNodeId);
+      const nextEdges: Edge[] = anchor
+        ? [
+            ...edges,
+            {
+              id: `edge-${anchor.id}-${newNodeId}`,
+              source: anchor.id,
+              target: newNodeId,
+              type: 'insert',
+            },
+          ]
+        : [...edges];
+
+      setSelectedNodeId(newNodeId);
+      setSelectedNode(null);
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      setHasUnsavedChanges(true);
+    },
+    [
+      readOnly,
+      edges,
+      nodes,
+      selectedNodeId,
+      generateNodeId,
+      handleClickToAddNode,
+      findNearbyNode,
+      findContainerAtPosition,
+      setEdges,
+      setNodes,
+      setSelectedNodeId,
+      setSelectedNode,
+      setHasUnsavedChanges,
+    ]
+  );
   
   const onDrag = useCallback((event: React.DragEvent) => {
     if (event.clientX === 0 && event.clientY === 0) return; // Ignore end event
@@ -6004,22 +6111,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
   }, [selectedNode]);
   
-  // Handler for direct node clicks (opens config panel) - debounced to prevent double-triggers
-  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    event.stopPropagation();
-    event.preventDefault();
-    
-    logger.debug('[handleNodeClick] Node clicked, opening config:', {
-      nodeType: node.type,
-      nodeId: node.id,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Short timeout to prevent double-triggers and allow event to fully propagate
-    setTimeout(() => {
-      handleNodeEdit(node.id);
-    }, 50);
-  }, [handleNodeEdit]);
   
   // Batch 3: Handler to delete node from Delete button
   const handleNodeDeleteImpl = useCallback(async (nodeId: string) => {
@@ -6721,6 +6812,65 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     [setNodes]
   );
   
+  const handleMoveNode = useCallback(
+    (nodeId: string, direction: -1 | 1) => {
+      if (readOnly) return;
+
+      setHasUnsavedChanges(true);
+
+      setNodes((prev) => {
+        const current = prev.find((n) => n.id === nodeId);
+        if (!current) return prev;
+
+        const currentY = current.position?.y ?? 0;
+        const parentKey = current.parentId ?? null;
+
+        const siblings = prev.filter((n) => {
+          if (n.id === nodeId) return false;
+          if (String(n.id).startsWith('__virtual:')) return false;
+          return (n.parentId ?? null) === parentKey;
+        });
+
+        const candidates = siblings.filter((n) => {
+          const dy = n.position?.y ?? 0;
+          return direction === -1 ? dy < currentY : dy > currentY;
+        });
+
+        if (candidates.length === 0) return prev;
+
+        const target =
+          direction === -1
+            ? candidates.reduce((best, n) => ((n.position?.y ?? 0) > (best.position?.y ?? 0) ? n : best))
+            : candidates.reduce((best, n) => ((n.position?.y ?? 0) < (best.position?.y ?? 0) ? n : best));
+
+        const targetY = target.position?.y ?? 0;
+
+        return prev.map((n) => {
+          if (n.id === current.id) {
+            return {
+              ...n,
+              position: {
+                ...(n.position || { x: 0, y: 0 }),
+                y: targetY,
+              },
+            } as Node;
+          }
+          if (n.id === target.id) {
+            return {
+              ...n,
+              position: {
+                ...(n.position || { x: 0, y: 0 }),
+                y: currentY,
+              },
+            } as Node;
+          }
+          return n;
+        });
+      });
+    },
+    [readOnly, setHasUnsavedChanges, setNodes]
+  );
+
   // Batch 3: Inject edit/delete handlers into node data
   // Batch 4: Also inject title change handler
   const nodesWithHandlers = useMemo(() => {
@@ -6792,6 +6942,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           onTitleChange,
           onInsertAfter,
           onAddStepInsideForm,
+          onMoveUp: () => handleMoveNode(node.id, -1),
+          onMoveDown: () => handleMoveNode(node.id, 1),
           isLastInWorkflow: lastNodeIdSet.has(node.id),
         },
       };
@@ -6861,50 +7013,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     return derived;
   }, [edges, nodesWithHandlers]);
 
-  // Render-time "+" button beneath the last form step inside each expanded FormProcess container.
-  // This node is virtual (not persisted) and triggers creation of the next Form step.
-  const nodesForCanvas = useMemo(() => {
-    const isPageNodeType = (type?: string) =>
-      type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
-
-    const virtualNodes: Node[] = [];
-
-    nodesWithHandlers.forEach((n) => {
-      const containerType = ((n.data as any)?.nodeType as string | undefined) || n.type;
-      if (!isFormProcessContainerType(containerType)) return;
-      if ((n.data as any)?.isExpanded === false) return;
-
-      const pages = nodesWithHandlers
-        .filter((c) => c.parentId === n.id && isPageNodeType(c.type) && !c.hidden)
-        .sort((a, b) => (a.position?.y || 0) - (b.position?.y || 0));
-
-      const last = pages[pages.length - 1];
-      const anchorY = last ? last.position.y + LAYOUT_CONSTANTS.STEP_H : LAYOUT_CONSTANTS.STEP_Y;
-
-      const x = LAYOUT_CONSTANTS.START_X + (LAYOUT_CONSTANTS.STEP_W / 2 - LAYOUT_CONSTANTS.ADD_BUTTON_D / 2);
-      const y = anchorY + LAYOUT_CONSTANTS.ADD_BUTTON_MARGIN_Y;
-
-      virtualNodes.push({
-        id: `__virtual:add:${n.id}`,
-        type: 'formProcessAddButton',
-        parentId: n.id,
-        extent: 'parent',
-        position: { x, y },
-        draggable: false,
-        selectable: false,
-        connectable: false,
-        focusable: false,
-        deletable: false,
-        style: { width: LAYOUT_CONSTANTS.ADD_BUTTON_D, height: LAYOUT_CONSTANTS.ADD_BUTTON_D },
-        data: {
-          containerId: n.id,
-          onAddStepInsideForm: (n.data as any)?.onAddStepInsideForm,
-        },
-      });
-    });
-
-    return virtualNodes.length ? [...nodesWithHandlers, ...virtualNodes] : nodesWithHandlers;
-  }, [nodesWithHandlers]);
+  // Add-from-palette only: no in-canvas "+" nodes.
+  const nodesForCanvas = useMemo(() => nodesWithHandlers, [nodesWithHandlers]);
 
   return (
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
@@ -7347,6 +7457,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             >
               <Plus />
             </ViewportButton>
+            <ViewportButton
+              onClick={toggleAISuggestionsVisible}
+              title={isAISuggestionsVisible ? 'Hide AI Suggestions' : 'Show AI Suggestions'}
+              style={isAISuggestionsVisible ? {
+                background: 'rgb(var(--color-primary))',
+                color: 'white',
+                borderColor: 'rgb(var(--color-primary))'
+              } : {}}
+            >
+              <Sparkles />
+            </ViewportButton>
             <div style={{ width: '1px', height: '20px', background: 'rgb(var(--color-border))' }} />
           </>
         )}
@@ -7430,7 +7551,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onDragOver={onDragOver}
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
-        onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
         onPaneClick={handleCloseMenu}
         onPaneMouseMove={(event) => {
@@ -7905,6 +8025,17 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           </WizardCard>
         </WizardContainer>
       )}
+
+      {!readOnly && normalizedEditorMode === 'visual' && (
+        <AISuggestionsPanel
+          nodes={nodes}
+          edges={edges}
+          selectedNodeId={selectedNodeId ?? undefined}
+          onAddNode={handleAddNodeFromAISuggestion}
+          isVisible={isAISuggestionsVisible}
+        />
+      )}
+
       </EditorWrapper>
 
       {/* Drag Ghost Preview */}

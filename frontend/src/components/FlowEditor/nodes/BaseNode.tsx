@@ -12,7 +12,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Handle, Position, NodeToolbar, useStore } from '@xyflow/react';
-import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock, Plus } from 'lucide-react';
+import { Edit2, Trash2, ChevronDown, ChevronUp, Lock, Unlock, ArrowUp, ArrowDown } from 'lucide-react';
 import { NodeTypeDefinition } from '../nodeTypes';
 import type { NodeBadgeStatus } from '../components/NodeBadge';
 import { NodeIcon, NodeIconType } from '../components/NodeIcons';
@@ -36,6 +36,10 @@ export interface BaseNodeData extends Record<string, unknown> {
   onInsertAfter?: () => void;
   /** Add a step/page inside the nearest Form container (Book) */
   onAddStepInsideForm?: () => void;
+  /** Move this node up among siblings (same parentId) */
+  onMoveUp?: () => void;
+  /** Move this node down among siblings (same parentId) */
+  onMoveDown?: () => void;
   /** Whether this node is considered a "sink" in its scope (root or container sub-flow) */
   isLastInWorkflow?: boolean;
   // Phase 9.4: Breakpoints
@@ -74,7 +78,7 @@ const NodeContainer = styled.div<{
 }>`
   position: relative;
   min-width: 180px;
-  background: rgb(var(--color-surface));
+  background: rgb(var(--color-surface, 255, 255, 255));
   border: 2px solid ${props => {
     if (props.$isDirty) return 'rgb(234, 179, 8)'; // Yellow for dirty (Phase 2)
     if (props.$selected) return props.$color;
@@ -501,16 +505,27 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
             transition: 'opacity 0.15s ease, transform 0.15s ease',
           }}
         >
-          {(data.onAddStepInsideForm || data.onInsertAfter) && (
-            <ToolbarBtn
-              onClick={(e) => {
-                e.stopPropagation();
-                (data.onAddStepInsideForm || data.onInsertAfter)?.();
-              }}
-              title={data.onAddStepInsideForm ? 'Add step inside Form' : 'Add next node'}
-            >
-              <Plus size={16} />
-            </ToolbarBtn>
+          {(data.onMoveUp || data.onMoveDown) && (
+            <>
+              <ToolbarBtn
+                onClick={(e) => {
+                  e.stopPropagation();
+                  data.onMoveUp?.();
+                }}
+                title="Move up"
+              >
+                <ArrowUp size={16} />
+              </ToolbarBtn>
+              <ToolbarBtn
+                onClick={(e) => {
+                  e.stopPropagation();
+                  data.onMoveDown?.();
+                }}
+                title="Move down"
+              >
+                <ArrowDown size={16} />
+              </ToolbarBtn>
+            </>
           )}
           {data.onEdit && (
             <ToolbarBtn

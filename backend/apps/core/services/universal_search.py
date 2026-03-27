@@ -265,7 +265,50 @@ class UniversalSearchService:
         except Exception as e:
             logger.error(f"Search error for {entity_type}: {e}")
             return []
-    
+
+    def get_record_detail(self, entity_type: str, entity_id: str | int) -> Optional[Dict[str, Any]]:
+        """Fetch a single record detail payload for a given entity type.
+
+        This is intentionally lightweight and uses the same entity config and tenant
+        filtering rules as universal search.
+        """
+        config = SEARCHABLE_ENTITIES.get(entity_type)
+        if not config:
+            return None
+
+        Model = self._get_model(entity_type)
+        if not Model:
+            return None
+
+        try:
+            base_qs = Model.objects.all()
+            if hasattr(Model, 'tenant'):
+                base_qs = base_qs.filter(tenant=self.tenant)
+
+            if entity_type == 'product':
+                from apps.system.services.product_visibility import visible_products_qs
+
+                base_qs = visible_products_qs(tenant=self.tenant, qs=base_qs)
+
+            obj = base_qs.filter(id=entity_id).first()
+            if not obj:
+                return None
+
+            display_value = self._get_display_value(obj, config)
+            subtitle = self._get_subtitle(obj, config)
+
+            return {
+                'id': obj.id,
+                'type': entity_type,
+                'title': display_value,
+                'subtitle': subtitle,
+                'route': config['route'].format(id=obj.id),
+            }
+
+        except Exception as e:
+            logger.error(f"Record detail error for {entity_type}/{entity_id}: {e}")
+            return None
+
     def _get_display_value(self, obj, config: Dict) -> str:
         """Get the display value for an object."""
         display_field = config['display_field']

@@ -212,14 +212,27 @@ const PlantProducts: React.FC = () => {
     }
     setAddingProducts(true);
     try {
-      await Promise.all(
-        selectedProductIds.map(productId =>
+      const results = await Promise.allSettled(
+        selectedProductIds.map((productId) =>
           apiClient.post(`/plants/${id}/available-products/`, { product: productId })
         )
       );
-      message.success(`Added ${selectedProductIds.length} product(s) successfully`);
-      setAddModalVisible(false);
-      setSelectedProductIds([]);
+
+      const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+      const failed = results.length - succeeded;
+
+      if (succeeded > 0) {
+        message.success(`Added ${succeeded} product(s) successfully`);
+      }
+      if (failed > 0) {
+        message.warning(`Some products could not be added (${failed} failed).`);
+      }
+
+      if (failed === 0) {
+        setAddModalVisible(false);
+        setSelectedProductIds([]);
+      }
+
       fetchProducts();
     } catch (error) {
       console.error('Error adding products:', error);

@@ -5,33 +5,6 @@ from rest_framework import serializers
 from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession
 
 
-class VectorMemorySearchRequestSerializer(serializers.Serializer):
-    embedding = serializers.ListField(child=serializers.FloatField(), allow_empty=False)
-    top_k = serializers.IntegerField(required=False, default=5, min_value=1, max_value=50)
-
-    def validate_embedding(self, value):
-        if len(value) != 1536:
-            raise serializers.ValidationError('embedding must be a 1536-length float array')
-        return value
-
-
-class VectorMemoryUpsertRequestSerializer(serializers.Serializer):
-    embedding = serializers.ListField(child=serializers.FloatField(), allow_empty=False)
-    source_type = serializers.CharField(required=False, default='context', max_length=64)
-    document_id = serializers.UUIDField(required=False, allow_null=True)
-    content = serializers.CharField(required=False, allow_blank=True, default='')
-    metadata = serializers.JSONField(required=False, default=dict)
-
-    def validate_embedding(self, value):
-        if len(value) != 1536:
-            raise serializers.ValidationError('embedding must be a 1536-length float array')
-        return value
-
-    def validate_metadata(self, value):
-        if not isinstance(value, dict):
-            raise serializers.ValidationError('metadata must be an object')
-        return value
-
 
 class PendingReviewResolveRequestSerializer(serializers.Serializer):
     user_corrected_data = serializers.JSONField(required=False, allow_null=True)
@@ -193,14 +166,6 @@ class AIConfigurationSerializer(serializers.ModelSerializer):
         model = AIConfiguration
         fields = ["id", "name", "provider", "model_name", "is_default"]
 
-
-class VectorMemorySearchResultSerializer(serializers.Serializer):
-    id = serializers.UUIDField()
-    source_type = serializers.CharField()
-    document_id = serializers.UUIDField(allow_null=True, required=False)
-    distance = serializers.FloatField()
-    content_preview = serializers.CharField()
-    metadata = serializers.JSONField()
 
 
 class SwarmInvokeRequestSerializer(serializers.Serializer):

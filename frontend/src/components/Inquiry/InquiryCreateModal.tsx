@@ -469,8 +469,19 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
       onSuccess(resp.data);
       onClose();
     } catch (err: any) {
-      const apiMsg = err?.response?.data?.detail || err?.response?.data?.error || err?.message;
-      setError(typeof apiMsg === 'string' ? apiMsg : 'Failed to create inquiry. Please try again.');
+      const data = err?.response?.data;
+      const apiMsg =
+        (typeof data?.detail === 'string' && data.detail) ||
+        (typeof data?.error === 'string' && data.error) ||
+        (data && typeof data === 'object'
+          ? (() => {
+              const first = Object.entries(data).find(([, v]) => Array.isArray(v) || typeof v === 'string');
+              if (!first) return null;
+              return Array.isArray(first[1]) ? String(first[1][0] ?? 'Invalid value') : String(first[1]);
+            })()
+          : null) ||
+        err?.message;
+      setError(typeof apiMsg === 'string' && apiMsg ? apiMsg : 'Failed to create inquiry. Please try again.');
     } finally {
       setSubmitting(false);
     }

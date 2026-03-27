@@ -43,6 +43,7 @@ const Suppliers: React.FC = () => {
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [products, setProducts] = useState<Array<{ id: string; product_code: string; effective_name?: string; name?: string; product_name?: string }>>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
+  const [searchText, setSearchText] = useState('');
   const [supplierPlants, setSupplierPlants] = useState<SupplierPlant[]>([]);
   const [plantsLoading, setPlantsLoading] = useState(false);
   const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
@@ -74,8 +75,10 @@ const Suppliers: React.FC = () => {
     country: '',
     departments_array: [] as string[], // Phase 4: ArrayField integration
     preferred_protein_types: [] as string[], // NEW: Protein filtering
-    products: [] as number[], // Product IDs for M2M
   });
+
+  const [availableProductIds, setAvailableProductIds] = useState<string[]>([]);
+  const [initialAvailableProductIds, setInitialAvailableProductIds] = useState<string[]>([]);
 
   // Auto-open form if ?action=create in URL
   useEffect(() => {
@@ -278,31 +281,74 @@ const Suppliers: React.FC = () => {
     void loadPlantContacts(selectedPlantId);
   }, [selectedPlantId]);
 
+  const loadSupplierAvailableProductIds = async (supplierId: number) => {
+    try {
+      const response = await apiClient.get(`/suppliers/${supplierId}/products/`);
+      const items = Array.isArray(response.data) ? response.data : [];
+      const activeIds = items
+        .filter((it) => it && it.is_active !== false)
+        .map((it) => String(it.product))
+        .filter(Boolean);
+      setAvailableProductIds(activeIds);
+      setInitialAvailableProductIds(activeIds);
+    } catch (error) {
+      logger.error('[Suppliers] Failed to load supplier available products:', error);
+      setAvailableProductIds([]);
+      setInitialAvailableProductIds([]);
+    }
+  };
+
+  const syncSupplierAvailableProducts = async (supplierId: number, desiredProductIds: string[]) => {
+    const desired = new Set(desiredProductIds.map(String));
+    const initial = new Set(initialAvailableProductIds.map(String));
+
+    const toAdd = [...desired].filter((id) => !initial.has(id));
+    const toRemove = [...initial].filter((id) => !desired.has(id));
+
+    if (!toAdd.length && !toRemove.length) return;
+
+    await Promise.all([
+      ...toAdd.map((productId) => apiClient.post(`/suppliers/${supplierId}/available-products/`, { product: productId })),
+      ...toRemove.map((productId) => apiClient.delete(`/suppliers/${supplierId}/available-products/${productId}/`)),
+    ]);
+
+    setInitialAvailableProductIds(desiredProductIds);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let supplierId: number;
+
       if (editingSupplier) {
-        await apiService.updateSupplier(editingSupplier.id, formData);
+        const updated = await apiService.updateSupplier(editingSupplier.id, formData);
+        supplierId = updated.id;
       } else {
-        await apiService.createSupplier(formData);
+        const created = await apiService.createSupplier(formData);
+        supplierId = created.id;
       }
+
+      try {
+        await syncSupplierAvailableProducts(supplierId, availableProductIds);
+      } catch (error) {
+        logger.error('[Suppliers] Supplier saved but product sync failed:', error);
+        alert('Supplier saved, but products could not be updated. Please try again from the supplier Products page.');
+      }
+
       setShowEditForm(false);
       setEditingSupplier(null);
       resetForm();
       fetchSuppliers();
     } catch (error: unknown) {
-      // Extract error message
       const err = error as Error;
       const errorMessage = err.message || 'An unexpected error occurred. Please try again.';
-      
-      // Log detailed error information for debugging
+
       logger.error('[Suppliers] Error saving supplier:', {
         message: errorMessage,
         error: err,
         action: editingSupplier ? 'update' : 'create',
       });
-      
-      // Display user-friendly error to the UI
+
       alert(errorMessage);
     }
   };
@@ -321,9 +367,12 @@ const Suppliers: React.FC = () => {
       country: supplier.country || '',
       departments_array: supplier.departments_array || [], // Phase 4: Populate array
       preferred_protein_types: supplier.preferred_protein_types || [], // NEW: Populate protein types
-      products: supplier.products || [], // Populate product IDs
     });
+
+    setAvailableProductIds([]);
+    setInitialAvailableProductIds([]);
     setShowEditForm(true);
+    void loadSupplierAvailableProductIds(supplier.id);
   };
 
   const handleDelete = async (id: number) => {
@@ -359,8 +408,9 @@ const Suppliers: React.FC = () => {
       country: '',
       departments_array: [], // Phase 4: Reset array
       preferred_protein_types: [], // NEW: Reset protein types
-      products: [], // Reset products
     });
+    setAvailableProductIds([]);
+    setInitialAvailableProductIds([]);
   };
 
   const handleCancel = () => {
@@ -374,12 +424,44 @@ const Suppliers: React.FC = () => {
     return <LoadingContainer $theme={theme}>Loading suppliers...</LoadingContainer>;
   }
 
+  const visibleSuppliers = suppliers.filter((s) => {
+    if (!searchText.trim()) return true;
+    const haystack = [s.name, s.contact_person, s.email, s.phone, s.city, s.state]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(searchText.trim().toLowerCase());
+  });
+
   return (
-    <>
+    <PageContainer>
       <Header>
-        <Title $theme={theme}>Suppliers</Title>
-        <AddButton onClick={() => { setEditingSupplier(null); setShowForm(true); }}>+ Add Supplier</AddButton>
+        <HeaderText>
+          <Title $theme={theme}>Suppliers</Title>
+          <Subtitle>Manage supplier companies, plants, contacts, and available products</Subtitle>
+        </HeaderText>
+        <HeaderActions>
+          <SecondaryButton type="button" onClick={() => navigate('/suppliers/plants')}>
+            Plants
+          </SecondaryButton>
+          <SecondaryButton type="button" onClick={() => navigate('/suppliers/contacts')}>
+            Contacts
+          </SecondaryButton>
+          <AddButton onClick={() => { setEditingSupplier(null); setShowForm(true); }}>
+            + New Supplier
+          </AddButton>
+        </HeaderActions>
       </Header>
+
+      <TableControls>
+        <SearchInput
+          type="text"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search suppliers by name, contact, email, phone, city, or state…"
+          aria-label="Search suppliers"
+        />
+      </TableControls>
 
       {showForm && (
         <QuickCreateModal
@@ -525,14 +607,14 @@ const Suppliers: React.FC = () => {
 
                 <FormGroup $fullWidth>
                   <MultiSelect
-                    value={formData.products.map(String)}
-                    onChange={(values) => setFormData({ ...formData, products: values.map(Number) })}
-                    options={Array.isArray(products) ? products.map(p => ({ 
-                      value: String(p.id), 
-                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}` 
+                    value={availableProductIds}
+                    onChange={(values) => setAvailableProductIds(values.map(String))}
+                    options={Array.isArray(products) ? products.map(p => ({
+                      value: String(p.id),
+                      label: `${p.product_code} - ${p.effective_name || p.product_name || p.name || 'Unknown'}`
                     })) : []}
-                    label="Products"
-                    placeholder="Select products to associate (hold Ctrl/Cmd for multiple)"
+                    label="Available Products"
+                    placeholder="Select products this supplier can provide"
                   />
                 </FormGroup>
               </FormGrid>
@@ -661,7 +743,7 @@ const Suppliers: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {suppliers.map((supplier) => (
+              {visibleSuppliers.map((supplier) => (
                 <React.Fragment key={supplier.id}>
                 <TableRow key={supplier.id} $theme={theme}>
                   <TableCell $theme={theme}>
@@ -808,7 +890,7 @@ const Suppliers: React.FC = () => {
           </Table>
         )}
       </TableContainer>
-    </>
+    </PageContainer>
   );
 };
 
@@ -822,11 +904,25 @@ const LoadingContainer = styled.div<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.textSecondary};
 `;
 
+const PageContainer = styled.div`
+  padding: 1.5rem;
+  background: rgb(var(--color-background));
+  min-height: 100%;
+`;
+
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+`;
+
+const HeaderText = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 `;
 
 const Title = styled.h1<{ $theme: Theme }>`
@@ -836,21 +932,76 @@ const Title = styled.h1<{ $theme: Theme }>`
   margin: 0;
 `;
 
+const Subtitle = styled.p`
+  margin: 0;
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+`;
+
+const SecondaryButton = styled.button`
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--color-surface));
+    border-color: rgb(var(--color-primary) / 0.35);
+  }
+`;
+
 const AddButton = styled.button`
   background: rgb(var(--color-primary));
   color: white;
   border: none;
   border-radius: 8px;
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(var(--color-primary), 0.25);
+    box-shadow: 0 4px 15px rgb(var(--color-primary) / 0.25);
     filter: brightness(0.98);
+  }
+`;
+
+const TableControls = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+`;
+
+const SearchInput = styled.input`
+  width: min(520px, 100%);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+
+  &::placeholder {
+    color: rgb(var(--color-text-secondary));
+  }
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
   }
 `;
 

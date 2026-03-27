@@ -144,12 +144,74 @@ def update_claim_status(claim_id: str, status: str) -> Dict[str, Any]:
 
 
 @registry.register
-def search_vector_memory(embedding: List[float], top_k: int = 5) -> Dict[str, Any]:
-    """Search tenant VectorMemory by embedding.
+def search_records(query: str, entity_types: List[str] | None = None, limit: int = 5) -> Dict[str, Any]:
+    """Search tenant records using Universal Search.
 
-    NOTE: This is schema-only for agent discovery. Actual execution is
-    performed via the staff-only API endpoint:
-    POST /api/v1/ai-assistant/memory/search/ (expects 1536-dim embedding).
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
     """
 
-    return {"status": "use_api_endpoint", "top_k": top_k}
+    return {"status": "available_via_chat", "query": query, "limit": limit}
+
+
+@registry.register
+def get_record_detail(entity_type: str, entity_id: str) -> Dict[str, Any]:
+    """Fetch a lightweight record detail payload.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity_type": entity_type, "entity_id": entity_id}
+
+
+@registry.register
+def get_entity_details(type: str, id: str) -> Dict[str, Any]:
+    """Fetch full entity details payload (maps to EntityViewSet.retrieve)."""
+
+    return {"status": "available_via_chat", "type": type, "id": id}
+
+
+@registry.register
+def create_task(title: str, message: str, entity_type: str | None = None, entity_id: str | None = None) -> Dict[str, Any]:
+    """Create a user-visible task (implemented as an in-app notification).
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "title": title}
+
+
+@registry.register
+def get_recent_errors(tenant_id: str) -> Dict[str, Any]:
+    """Fetch recent Sentry issues for a tenant (last 5)."""
+
+    return {"status": "available_via_chat", "tenant_id": tenant_id}
+
+
+@registry.register
+def create_record(entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a tenant-scoped record.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity": entity}
+
+
+@registry.register
+def search_entities(query: str, entity_types: List[str] | None = None, limit: int = 5) -> Dict[str, Any]:
+    """Search tenant entities.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "query": query, "limit": limit}
+
+
+@registry.register
+def get_recent_activity(entity_type: str, entity_id: str, limit: int = 10) -> Dict[str, Any]:
+    """Fetch recent ActivityLog entries for an entity.
+
+    Executed via the Swarm tool loop in /api/v1/ai-assistant/chat/.
+    """
+
+    return {"status": "available_via_chat", "entity_type": entity_type, "entity_id": entity_id, "limit": limit}

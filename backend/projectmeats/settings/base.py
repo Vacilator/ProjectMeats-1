@@ -568,6 +568,11 @@ SENTRY_ENABLED = os.environ.get("SENTRY_ENABLED", "").lower() in ("true", "1", "
 SENTRY_DSN = os.environ.get("SENTRY_DSN")
 SENTRY_ENVIRONMENT = os.environ.get("SENTRY_ENVIRONMENT", "development")
 
+# Used by the AI assistant "get_recent_errors" tool (Phase 7: Sentry-GitHub-Copilot loop)
+SENTRY_AUTH_TOKEN = os.environ.get("SENTRY_AUTH_TOKEN")
+SENTRY_ORG_SLUG = os.environ.get("SENTRY_ORG_SLUG")
+SENTRY_BASE_URL = os.environ.get("SENTRY_BASE_URL", "https://sentry.io")
+
 if SENTRY_ENABLED and SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
@@ -604,7 +609,9 @@ if SENTRY_ENABLED and SENTRY_DSN:
         release=os.environ.get("GIT_COMMIT_SHA", "unknown"),  # Set by CI/CD
         
         # Additional Options
-        send_default_pii=False,  # Don't send PII by default (GDPR compliance)
+        # Required for Seer (user-impact analysis) + richer debugging context.
+        send_default_pii=True,
+        in_app_include=["backend", "tenant_apps"],
         attach_stacktrace=True,   # Always include stacktraces
         max_breadcrumbs=50,       # Keep more breadcrumbs for context
     )

@@ -1,0 +1,10 @@
+# Sentry Issue Ownership Map
+#
+# Purpose: map code paths to GitHub teams for automated routing/assignment.
+# This is used by the Sentry-GitHub-Copilot Loop initiative.
+#
+# Format:
+# <path-prefix> <github-team>
+
+backend/tenant_apps/workflows/ @ProjectMeats/workflow-engine
+backend/tenant_apps/invoices/ @ProjectMeats/fintech-team

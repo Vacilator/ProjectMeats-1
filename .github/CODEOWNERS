@@ -16,6 +16,10 @@
 /backend/apps/ @Meats-Central/backend-team
 /backend/config/ @Meats-Central/backend-team
 
+# Critical tenant-app ownership (path-specific overrides)
+/backend/tenant_apps/workflows/ @Meats-Central/workflow-engine
+/backend/tenant_apps/invoices/ @Meats-Central/fintech-team
+
 # Frontend React/TypeScript code  
 /frontend/ @Meats-Central/frontend-team
 /frontend/src/ @Meats-Central/frontend-team

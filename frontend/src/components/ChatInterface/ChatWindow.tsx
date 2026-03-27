@@ -4,10 +4,13 @@
  * Main chat interface for the AI assistant.
  * Enhanced from PR #63 to integrate file upload into MessageInput and remove separate DocumentUpload component.
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
+import { useLocation } from 'react-router-dom';
 import { ChatSession, ChatMessage } from '../../types';
 import { chatApi, chatSessionsApi, documentsApi } from '../../services/aiService';
+import { useCockpitNavigation } from '@/contexts/CockpitNavigationContext';
+import { buildAIPageContext } from '@/services/aiContext';
 import { logger } from '../../utils/logger';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
@@ -18,6 +21,14 @@ interface ChatWindowProps {
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) => {
+  const location = useLocation();
+  const cockpitNav = useCockpitNavigation();
+
+  const pageContext = useMemo(
+    () => buildAIPageContext({ pathname: location.pathname, search: location.search }, cockpitNav.path),
+    [location.pathname, location.search, cockpitNav.path]
+  );
+
   const [session, setSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,7 +89,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, onSessionChange }) =
       const response = await chatApi.sendMessage({
         message: messageContent,
         session_id: session?.id,
-        context: {},
+        context: {
+          ui_source: 'ChatWindow',
+          ...pageContext,
+        },
       });
 
       // If no session existed, we now have one

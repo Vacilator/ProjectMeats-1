@@ -13,7 +13,6 @@ from django.db.models import Avg
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from openai import OpenAI
-from pgvector.django import CosineDistance
 from rest_framework import filters, mixins, permissions, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.decorators import action
@@ -22,7 +21,7 @@ from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, User
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession, MessageTypeChoices, VectorMemory
+from .models import AIDocument, AIFeedbackLog, AIConfiguration, ChatMessage, ChatSession, MessageTypeChoices
 from .serializers import (
     AIDocumentSerializer,
     AIFeedbackLogSerializer,
@@ -38,8 +37,6 @@ from .serializers import (
     PendingReviewItemSerializer,
     PendingReviewResolveRequestSerializer,
     SwarmInvokeRequestSerializer,
-    VectorMemorySearchRequestSerializer,
-    VectorMemoryUpsertRequestSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -170,6 +167,15 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             tenant = getattr(request, 'tenant', None)
             if not tenant:
                 return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Defense-in-depth: ensure RLS session vars are asserted on this DB connection
+            # before any Swarm tool executes queries.
+            try:
+                from apps.tenants.rls import set_current_tenant
+
+                set_current_tenant(str(getattr(tenant, 'id', '') or ''))
+            except Exception:
+                pass
 
             openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
             if not openai_api_key:
@@ -479,12 +485,16 @@ class SwarmToolsOpenAPIView(APIView):
         except Exception:
             logger.warning('tools/openapi: failed to load outlook connection status', exc_info=True)
 
+        email_tools = {'check_unread_emails', 'draft_outlook_email'}
+
         if outlook['connected']:
             tools = DEFAULT_OPENAI_TOOLS
         else:
+            # Always allow safe internal tools; only hide Outlook tools when not connected.
             tools = [
-                t for t in DEFAULT_OPENAI_TOOLS
-                if t.get('function', {}).get('name') == 'search_cockpit_records'
+                t
+                for t in DEFAULT_OPENAI_TOOLS
+                if t.get('function', {}).get('name') not in email_tools
             ]
 
         payload = {
@@ -545,106 +555,6 @@ class SwarmInvokeAPIView(APIView):
         )
 
 
-class VectorMemorySearchAPIView(APIView):
-    """Staff-only vector similarity search over tenant VectorMemory.
-
-    Read-only: this endpoint performs a nearest-neighbor query and returns
-    matching records with their distance score.
-    """
-
-    permission_classes = [IsAdminUser]
-
-    def post(self, request):
-        serializer = VectorMemorySearchRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        tenant = getattr(request, 'tenant', None)
-        tenant_id = str(getattr(tenant, 'id', '') or '')
-        if not tenant_id:
-            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
-
-        embedding = serializer.validated_data['embedding']
-        top_k = serializer.validated_data['top_k']
-
-        qs = (
-            VectorMemory.objects.filter(tenant_id=tenant_id)
-            .annotate(distance=CosineDistance('embedding', embedding))
-            .order_by('distance')
-        )
-        results = []
-        for row in qs[:top_k]:
-            content = row.content or ''
-            results.append(
-                {
-                    'id': row.id,
-                    'source_type': row.source_type,
-                    'document_id': row.document_id,
-                    'distance': float(getattr(row, 'distance', 0.0) or 0.0),
-                    'content_preview': content[:500],
-                    'metadata': row.metadata or {},
-                }
-            )
-
-        return Response({'results': results}, status=status.HTTP_200_OK)
-
-
-class VectorMemoryUpsertAPIView(APIView):
-    """Staff-only ingestion endpoint for VectorMemory.
-
-    Caller must supply a 1536-dim embedding (no OpenAI dependency here).
-    If document_id is provided, best-effort upsert keyed by (tenant, source_type, document_id).
-    """
-
-    permission_classes = [IsAdminUser]
-
-    def post(self, request):
-        serializer = VectorMemoryUpsertRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        tenant = getattr(request, 'tenant', None)
-        tenant_id = str(getattr(tenant, 'id', '') or '')
-        if not tenant_id:
-            return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
-
-        embedding = serializer.validated_data['embedding']
-        source_type = serializer.validated_data['source_type']
-        document_id = serializer.validated_data.get('document_id')
-        content = serializer.validated_data.get('content', '')
-        metadata = serializer.validated_data.get('metadata', {})
-
-        if document_id:
-            obj, created = VectorMemory.objects.update_or_create(
-                tenant_id=tenant_id,
-                source_type=source_type,
-                document_id=document_id,
-                defaults={
-                    'content': content,
-                    'metadata': metadata,
-                    'embedding': embedding,
-                },
-            )
-        else:
-            obj = VectorMemory.objects.create(
-                tenant_id=tenant_id,
-                source_type=source_type,
-                document_id=None,
-                content=content,
-                metadata=metadata,
-                embedding=embedding,
-            )
-            created = True
-
-        return Response(
-            {
-                'id': str(obj.id),
-                'created': created,
-                'source_type': obj.source_type,
-                'document_id': str(obj.document_id) if obj.document_id else None,
-            },
-            status=status.HTTP_200_OK,
-        )
 
 
 class PendingReviewAPIView(APIView):
@@ -775,6 +685,51 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
         return Response(payload, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
+class RecentErrorsAPIView(APIView):
+    """Admin-only diagnostics endpoint for tenant-scoped Sentry issues.
+
+    This mirrors the Swarm tool behavior (get_recent_errors) and is useful for
+    debugging the Sentry bridge without involving an LLM call.
+
+    Safety:
+    - Enforces active tenant context.
+    - If a tenant_id is provided, it must match the active tenant.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        import os
+
+        tenant = getattr(request, 'tenant', None)
+        active_tenant_id = str(getattr(tenant, 'id', '') or '')
+        if not active_tenant_id:
+            return Response({'ok': False, 'error': 'Tenant context missing', 'issues': []}, status=status.HTTP_200_OK)
+
+        tenant_id_arg = str(request.query_params.get('tenant_id') or '').strip()
+        if tenant_id_arg and tenant_id_arg != active_tenant_id:
+            return Response(
+                {'ok': False, 'error': 'tenant_id must match the active tenant', 'issues': []},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from tenant_apps.ai_assistant.services.sentry_issues import fetch_recent_sentry_issues_for_tenant
+
+        token = os.environ.get('SENTRY_AUTH_TOKEN')
+        org = os.environ.get('SENTRY_ORG_SLUG') or os.environ.get('SENTRY_ORG') or 'meats-central'
+        base_url = os.environ.get('SENTRY_BASE_URL') or 'https://sentry.io'
+
+        payload = fetch_recent_sentry_issues_for_tenant(
+            tenant_id=active_tenant_id,
+            token=token,
+            org_slug=org,
+            base_url=base_url,
+            limit=5,
+            timeout_seconds=10,
+        )
+        return Response(payload, status=status.HTTP_200_OK)
+
+
 class ToolsOpenAPIView(APIView):
     """Compatibility endpoint for the frontend widget.
 
@@ -809,12 +764,15 @@ class ToolsOpenAPIView(APIView):
         except Exception:
             outlook_connected = False
 
+        email_tools = {'check_unread_emails', 'draft_outlook_email'}
+
         if outlook_connected:
             tools = DEFAULT_OPENAI_TOOLS
         else:
             tools = [
-                t for t in DEFAULT_OPENAI_TOOLS
-                if t.get('function', {}).get('name') == 'search_cockpit_records'
+                t
+                for t in DEFAULT_OPENAI_TOOLS
+                if t.get('function', {}).get('name') not in email_tools
             ]
 
         return Response({'tools': tools}, status=status.HTTP_200_OK)

@@ -501,7 +501,10 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     const savedFavorites = localStorage.getItem('cockpit_favorites');
     if (savedFavorites) {
       try {
-        setFavorites(new Set(JSON.parse(savedFavorites)));
+        const raw = JSON.parse(savedFavorites) as unknown;
+        const ids = Array.isArray(raw) ? (raw as unknown[]) : [];
+        const normalized = ids.map((v) => String(v));
+        setFavorites(new Set(normalized));
       } catch (error) {
         console.error('[SmartSearch] Failed to load favorites:', error);
       }
@@ -513,6 +516,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
    */
   const saveFavorites = useCallback((newFavorites: Set<string>) => {
     localStorage.setItem('cockpit_favorites', JSON.stringify(Array.from(newFavorites)));
+    window.dispatchEvent(new Event('cockpit_favorites_updated'));
   }, []);
 
   /**
@@ -807,15 +811,20 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   /**
    * Toggle favorite
    */
-  const toggleFavorite = useCallback((entityId: string, e: React.MouseEvent) => {
+  const toggleFavorite = useCallback((entityType: string, entityId: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    setFavorites(prev => {
+    const key = `${String(entityType).toLowerCase()}:${String(entityId)}`;
+    const legacyKey = String(entityId);
+
+    setFavorites((prev) => {
       const newFavorites = new Set(prev);
-      if (newFavorites.has(entityId)) {
-        newFavorites.delete(entityId);
+      const isFav = newFavorites.has(key) || newFavorites.has(legacyKey);
+      if (isFav) {
+        newFavorites.delete(key);
+        newFavorites.delete(legacyKey);
       } else {
-        newFavorites.add(entityId);
+        newFavorites.add(key);
       }
       saveFavorites(newFavorites);
       return newFavorites;
@@ -1044,9 +1053,17 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 </ResultContent>
 
                 <FavoriteButton
-                  $isFavorite={favorites.has(entity.id)}
-                  onClick={(e) => toggleFavorite(entity.id, e)}
-                  title={favorites.has(entity.id) ? 'Remove from favorites' : 'Add to favorites'}
+                  $isFavorite={
+                    favorites.has(`${String(entity.type).toLowerCase()}:${entity.id}`) ||
+                    favorites.has(String(entity.id))
+                  }
+                  onClick={(e) => toggleFavorite(entity.type, entity.id, e)}
+                  title={
+                    favorites.has(`${String(entity.type).toLowerCase()}:${entity.id}`) ||
+                    favorites.has(String(entity.id))
+                      ? 'Remove from favorites'
+                      : 'Add to favorites'
+                  }
                 >
                   <Star size={16} />
                 </FavoriteButton>
@@ -1106,9 +1123,17 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
               {chunk.type !== 'actions' && (
                 <FavoriteButton
-                  $isFavorite={favorites.has(item.id)}
-                  onClick={(e) => toggleFavorite(item.id, e)}
-                  title={favorites.has(item.id) ? 'Remove from favorites' : 'Add to favorites'}
+                  $isFavorite={
+                    favorites.has(`${String(item.type).toLowerCase()}:${item.id}`) ||
+                    favorites.has(String(item.id))
+                  }
+                  onClick={(e) => toggleFavorite(item.type, item.id, e)}
+                  title={
+                    favorites.has(`${String(item.type).toLowerCase()}:${item.id}`) ||
+                    favorites.has(String(item.id))
+                      ? 'Remove from favorites'
+                      : 'Add to favorites'
+                  }
                 >
                   <Star size={16} />
                 </FavoriteButton>

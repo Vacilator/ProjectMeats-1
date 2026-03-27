@@ -137,6 +137,56 @@ describe('Node Normalization', () => {
       // Other properties should be preserved
       expect(normalized.data.label).toBe('Original');
     });
+
+    it('should canonicalize legacy form step types to form', () => {
+      const node: Node = {
+        id: '1',
+        type: 'formStepSingleNode',
+        position: { x: 0, y: 0 },
+        data: { label: 'Legacy Form Step' },
+      } as Node;
+
+      const normalized = normalizeNodeData(node);
+
+      expect(normalized.type).toBe('form');
+      expect((normalized.data as any).nodeType).toBe('form');
+      expect(normalized.data.maxInputs).toBe(1);
+      expect(normalized.data.maxOutputs).toBe(1);
+      expect((normalized.data as any).label).toBe('Legacy Form Step');
+    });
+
+    it('should sync parentId into node.data.parentId', () => {
+      const node: Node = {
+        id: '1',
+        type: 'actionEmail',
+        parentId: 'container-1',
+        position: { x: 0, y: 0 },
+        data: {},
+      } as Node;
+
+      const normalized = normalizeNodeData(node);
+
+      expect(normalized.parentId).toBe('container-1');
+      expect((normalized.data as any).parentId).toBe('container-1');
+      expect(normalized.extent).toBe('parent');
+      expect(normalized.expandParent).toBe(true);
+    });
+
+    it('should hydrate node.parentId from node.data.parentId', () => {
+      const node: Node = {
+        id: '1',
+        type: 'actionEmail',
+        position: { x: 0, y: 0 },
+        data: { parentId: 'container-2' },
+      } as Node;
+
+      const normalized = normalizeNodeData(node);
+
+      expect(normalized.parentId).toBe('container-2');
+      expect((normalized.data as any).parentId).toBe('container-2');
+      expect(normalized.extent).toBe('parent');
+      expect(normalized.expandParent).toBe(true);
+    });
   });
   
   describe('normalizeNodes', () => {
@@ -212,6 +262,50 @@ describe('Node Normalization', () => {
       
       // Normalized nodes should have the properties
       expect(normalized[0].data.maxInputs).toBe(1);
+    });
+
+    it('should un-parent nodes with missing parent containers', () => {
+      const nodes: Node[] = [
+        {
+          id: 'child-1',
+          type: 'form',
+          parentId: 'missing-parent',
+          hidden: true,
+          position: { x: 0, y: 0 },
+          data: { parentId: 'missing-parent' },
+        } as Node,
+      ];
+
+      const normalized = normalizeNodes(nodes);
+
+      expect(normalized[0].parentId).toBeUndefined();
+      expect((normalized[0].data as any).parentId).toBeUndefined();
+      expect(normalized[0].hidden).toBe(false);
+    });
+
+    it('should clear hidden on children when parent is expanded', () => {
+      const nodes: Node[] = [
+        {
+          id: 'parent-1',
+          type: 'formProcess',
+          position: { x: 0, y: 0 },
+          data: { isExpanded: true, containerName: 'Form Process' },
+        } as Node,
+        {
+          id: 'child-1',
+          type: 'formStep',
+          parentId: 'parent-1',
+          hidden: true,
+          position: { x: 10, y: 10 },
+          data: { parentId: 'parent-1' },
+        } as Node,
+      ];
+
+      const normalized = normalizeNodes(nodes);
+      const child = normalized.find((n) => n.id === 'child-1')!;
+
+      expect(child.type).toBe('form');
+      expect(child.hidden).toBe(false);
     });
   });
   

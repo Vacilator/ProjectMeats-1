@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models import F, Count, Sum, Q, Avg
 from django.db.models.functions import TruncMonth, TruncWeek
@@ -28,12 +29,16 @@ class InquiryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Filter by tenant."""
-        return Inquiry.objects.filter(
-            tenant=self.request.tenant
-        ).select_related(
-            'supplier', 'customer', 'contact', 'source_call', 'created_by'
-        ).prefetch_related('products')
+        """Filter by tenant (avoid 500s if tenant context is missing)."""
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            return Inquiry.objects.none()
+
+        return (
+            Inquiry.objects.filter(tenant=tenant)
+            .select_related('supplier', 'customer', 'contact', 'source_call', 'created_by')
+            .prefetch_related('products')
+        )
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
@@ -45,10 +50,11 @@ class InquiryViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Set tenant and created_by on create."""
-        serializer.save(
-            tenant=self.request.tenant,
-            created_by=self.request.user
-        )
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant:
+            raise ValidationError({'error': 'Tenant context is required'})
+
+        serializer.save(tenant=tenant, created_by=self.request.user)
     
     @action(detail=True, methods=['post'])
     def add_products(self, request, pk=None):

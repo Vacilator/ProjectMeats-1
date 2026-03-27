@@ -34,10 +34,9 @@ const Layout: React.FC = () => {
     onToggleAIAgentWidget: () => window.dispatchEvent(new CustomEvent('pm:ai-toggle')),
   });
 
-  const handleOmniboxSubmit = (command: string) => {
-    // For now, just log the command. In a real app, this would be sent to the AI service
-    console.warn('AI Command:', command);
-    // You could also show a notification or redirect to a specific page based on the command
+  const handleOmniboxSubmit = (_command: string) => {
+    // Omnibox now dispatches pm:ai-send directly so the global widget can send
+    // a context-aware message (path + active entity).
   };
 
   return (

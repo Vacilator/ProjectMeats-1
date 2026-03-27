@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework import status, viewsets
@@ -10,6 +12,8 @@ from apps.tenants.models import Tenant, TenantUser
 from apps.core.throttling import AuthRateThrottle
 from apps.core.models import UserFavorite
 from apps.core.serializers import UserFavoriteSerializer
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(["POST"])
@@ -1058,3 +1062,55 @@ class FavoritesViewSet(viewsets.ModelViewSet):
         ).exists()
         
         return Response({'is_favorited': is_favorited})
+
+
+# ==============================================================================
+# Sentry Webhooks (Sentry-GitHub-Copilot Loop)
+# ==============================================================================
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def sentry_issue_created_webhook(request):
+    """Stub receiver for Sentry "Issue Created" webhooks.
+
+    This is intentionally permissive (no signature validation yet) and exists
+    to establish the stable endpoint + contract for future automation.
+
+    Expected future flow:
+    - Sentry issue created -> webhook -> route/assign -> create GitHub issue/PR tasks -> Copilot triage
+    """
+    try:
+        resource = request.headers.get('Sentry-Hook-Resource') or request.headers.get('X-Sentry-Hook-Resource')
+        event = request.headers.get('Sentry-Hook-Event') or request.headers.get('X-Sentry-Hook-Event')
+        payload = request.data if isinstance(request.data, dict) else {}
+
+        issue = payload.get('data', {}).get('issue', {}) if isinstance(payload.get('data'), dict) else {}
+        issue_id = issue.get('id')
+        issue_title = issue.get('title')
+        issue_permalink = issue.get('permalink')
+
+        logger.info(
+            '[SentryWebhook] received resource=%s event=%s issue_id=%s title=%s',
+            resource,
+            event,
+            issue_id,
+            issue_title,
+        )
+
+        return Response(
+            {
+                'ok': True,
+                'resource': resource,
+                'event': event,
+                'issue': {
+                    'id': issue_id,
+                    'title': issue_title,
+                    'permalink': issue_permalink,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        logger.warning('[SentryWebhook] failed to process payload: %s', str(e), exc_info=True)
+        return Response({'ok': False}, status=status.HTTP_200_OK)

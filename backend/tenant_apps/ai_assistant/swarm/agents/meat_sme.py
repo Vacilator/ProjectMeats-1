@@ -1,6 +1,9 @@
 """Meat Subject Matter Expert (SME) agent.
 
-Phase 8.2: Tenant-isolated Vector RAG pipeline.
+VectorMemory has been decommissioned.
+
+We now use UniversalSearchService (keyword + operator search) to retrieve
+lightweight tenant context to ground responses.
 
 CRITICAL RULE:
 - Retrieval MUST be tenant-scoped.
@@ -9,24 +12,21 @@ CRITICAL RULE:
 from __future__ import annotations
 
 import logging
-from typing import Any, List
+from typing import List
 
 from django.conf import settings
-from pgvector.django import CosineDistance
-
-from tenant_apps.ai_assistant.models import VectorMemory
 
 logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = (
-    "You are the ProjectMeats Subject Matter Expert. Use the provided tenant history and industry context to answer the query accurately. "
+    "You are the ProjectMeats Subject Matter Expert. Use the provided tenant context to answer the query accurately. "
     "Do not hallucinate outside the provided context."
 )
 
 
 class MeatSMEAgent:
-    """Domain expert agent backed by strict tenant-scoped vector retrieval."""
+    """Domain expert agent backed by tenant-scoped Universal Search retrieval."""
 
     def analyze(self, query: str, tenant_id: str) -> str:
         if not tenant_id:
@@ -42,48 +42,46 @@ class MeatSMEAgent:
         except Exception as e:
             raise RuntimeError('OpenAI client not available on server') from e
 
+        from apps.tenants.models import Tenant
+        from apps.core.services.universal_search import UniversalSearchService
+
+        tenant = Tenant.objects.filter(id=tenant_id).first()
+        if not tenant:
+            raise ValueError('Tenant not found')
+
+        # Retrieve lightweight context via UniversalSearchService.
+        service = UniversalSearchService(tenant=tenant)
+        search_payload = service.search(query, limit_per_type=3)
+        results = (search_payload or {}).get('results') or []
+
+        context_blocks: List[str] = []
+        for r in results[:12]:
+            title = str(r.get('title') or '')
+            subtitle = str(r.get('subtitle') or '') if r.get('subtitle') else ''
+            route = str(r.get('route') or '')
+            etype = str(r.get('type') or '')
+            rid = str(r.get('id') or '')
+            bits = [f"{etype}:{rid}", title]
+            if subtitle:
+                bits.append(f"({subtitle})")
+            if route:
+                bits.append(f"route={route}")
+            context_blocks.append(" ".join(bits).strip())
+
+        context_text = "\n".join(context_blocks) if context_blocks else "(no universal search context found)"
+
         openai = OpenAI(
             api_key=settings.OPENAI_API_KEY,
             organization=getattr(settings, 'OPENAI_ORG_ID', None) or None,
         )
 
-        # Step 1: Embed the query
-        embedding_resp = openai.embeddings.create(
-            model="text-embedding-3-small",
-            input=query,
-        )
-        query_embedding: List[float] = embedding_resp.data[0].embedding  # 1536 dims
-
-        # Step 2: Retrieve tenant-scoped memory ordered by cosine distance
-        memories = list(
-            VectorMemory.objects.filter(tenant_id=tenant_id)
-            .annotate(distance=CosineDistance('embedding', query_embedding))
-            .order_by('distance')[:5]
-        )
-
-        context_blocks: List[str] = []
-        for m in memories:
-            meta = m.metadata or {}
-            header_bits = [str(m.source_type or 'context')]
-            if m.document_id:
-                header_bits.append(str(m.document_id))
-            header = " ".join(header_bits)
-            snippet = (m.content or '').strip()
-            if not snippet:
-                continue
-            # Keep context compact but useful
-            context_blocks.append(f"[{header}]\n{snippet}\nMetadata: {meta}")
-
-        context_text = "\n\n".join(context_blocks) if context_blocks else "(no tenant vector memory matches found)"
-
-        # Step 3: Answer with gpt-4o using ONLY the provided context
         user_payload = (
-            "Tenant history + industry context (authoritative):\n"
+            "Tenant context (authoritative):\n"
             f"{context_text}\n\n"
             "User query:\n"
             f"{query}\n\n"
-            "Instructions: Answer using ONLY the tenant history + context above. "
-            "If the context is insufficient, say what is missing and what to ingest into VectorMemory."
+            "Instructions: Answer using ONLY the tenant context above. "
+            "If the context is insufficient, say what is missing."
         )
 
         completion = openai.chat.completions.create(

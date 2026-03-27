@@ -11,6 +11,18 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
+### 2026-03-27 — Sentry-GitHub-Copilot Loop
+- Sentry Passthrough to GitHub — **ACTIVE** (webhook receiver + ownership routing groundwork).
+- AI Assistant Sentry Bridge — **STABILIZED** (tenant-scoped `get_recent_errors` tool + admin diagnostics endpoint; uses GitHub Environment secret injection for `SENTRY_AUTH_TOKEN` and defaults org slug to `meats-central` if unset).
+  - PR: #4007
+  - Follow-up PR: #4008
+- Environment-based Sentry Orchestration (Seer) — **STABILIZED**
+  - SDK hardening: sendDefaultPii enabled (frontend+backend); backend in_app_include set for CODEOWNERS mapping — PR: #4009.
+  - Runtime wiring + secret mapping: `SENTRY_DSN` (runtime env) → `/usr/share/nginx/html/env-config.js` → `window.ENV.SENTRY_DSN` (fallback: build-time `REACT_APP_SENTRY_DSN`), and deploy sets `REACT_APP_SENTRY_DSN` on `docker run`.
+  - Verification: Admin→Configurations "Sentry Test" emits `Error(\"Sentry Orchestration Handshake Verified\")`.
+  - AI SRE prompt: explicitly calls get_recent_errors(tenant_id) before asking for clarification.
+  - PR: #4010
+
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
 
 ### 2026-03-19 — Phase 6.5: AI Document Understanding
@@ -29,6 +41,31 @@ This file is the **append-only PR-referenceable execution log**.
 - UX: `AIAgentWidget` (bottom-right) can pulse/expand when `requires_human_review` is detected (websocket/polling hookup pending).
 - UX: wired `AIAgentWidget` to backend chat endpoint (`/api/v1/ai-assistant/ai-chat/chat/`) via `businessApi` (PR #3687).
 - UX: added a Tools button in `AIAgentWidget` to list tool operationIds via `GET /api/v1/ai-assistant/tools/openapi/` (PR #3691).
+
+### 2026-03-27 — AI Assistant Restoration
+- Context awareness: Omnibox + AIAgentWidget + ChatWindow include `currentPath`, `activeEntityId`, `activeEntityType` in every chat message; Omnibox routes into the widget via `pm:ai-send` — PR #4000.
+- Action capability: backend function-calling tools (`create_record`, `search_entities`, `get_recent_activity`) + RLS session var assertion (`app.current_tenant`) for defense-in-depth — PR #4001.
+
+### 2026-03-27 — Emergency Stabilization - Node & API Harmony
+- FlowEditor: unify “Form Step” architecture — canonical node type `form` with display name “Form Step”; normalize legacy form step node types (`formStep`, `formStepSingle`, `formStepSingleNode`) to canonical `form`; sync parentId (`node.parentId` ↔ `node.data.parentId`); un-parent nodes with missing containers; clear `hidden` when parent is expanded.
+- Product entity harmony: map workflow schema `product` → `system.Product`; alias legacy product entity IDs (`tenant_apps.products.product`, `products.product`) → `system.product`; update frontend fallback entity list to `system.product`.
+- Process Monitor hardening: early-return empty 200 when tenant context missing; wrap result building in try/except to prevent RLS/DB 500s.
+- Theme hardening: define `--color-surface`/`--color-background` tokens for `[data-theme="high-contrast"]`; add BaseNode background fallback.
+- PR: #4003.
+
+### 2026-03-27 — Decommission VectorMemory (UniversalSearchService Standard) — COMPLETE
+- Removed VectorMemory API endpoints (`/ai-assistant/memory/search/`, `/ai-assistant/memory/upsert/`) and pgvector-based retrieval from the AI assistant surface.
+- Promoted `apps.core.services.universal_search.UniversalSearchService` as the unified search standard for AI tools + SME grounding context.
+- Added tool schemas + executor implementations: `search_records`, `get_record_detail`, `create_task` (in-app task notification) — PR: #4004.
+
+### 2026-03-27 — Omnibox Context Bridge — COMPLETE
+- Verified Omnibox + AIAgentWidget + ChatWindow include `currentPath` and active entity context on every send.
+  - Canonical keys: `current_entity_type`, `current_entity_id`
+  - Legacy keys retained for compatibility: `activeEntityType`, `activeEntityId`
+- Omnibox routes into the global widget via `pm:ai-send`, preserving page context.
+- PR: #4000 (context injection + widget routing)
+- PR: #4005 (schema-aware prompt + get_entity_details tool)
+- Close-out PR: #4018
 
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 
@@ -71,6 +108,19 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-26 — Quick Actions: use shared JWT-aware apiClient (fix quick-create auth drift) — PR: #3980.
 - 2026-03-26 — Frontend standards: remove remaining hardcoded hex colors; verify-standards passes — PR: #3982.
 - 2026-03-26 — Forms: consolidate remaining create entrypoints via EntityFormSurface (schedule call → inquiry, SmartSearch → sales order) — PR: #3984.
+- 2026-03-27 — Plants: fix available-products endpoint routing so GET works (was 405) — PR: #3986.
+- 2026-03-27 — UniversalEntityForm: fix invoice schema 404 + required FK validation + better 400 error surfacing — PR: #3989.
+- 2026-03-27 — Inquiries: prevent 500 on /api/v1/inquiries/ when tenant context missing — PR: #3990.
+- 2026-03-27 — Fix: cockpit favorites + inquiry create — PR: #3993.
+- 2026-03-27 — Fix: product associations persist — PR: #3994.
+- 2026-03-27 — Fix: Email Sync Now avoids timeouts — PR: #3995.
+- 2026-03-27 — Hotfix: restore development deployments (main-pipeline workflow file issue) — PR: #4011.
+- 2026-03-27 — Fix: plant available products save — PR: #3996.
+- 2026-03-27 — UI: facelift customer + supplier pages — PR: #3997.
+- 2026-03-27 — FlowEditor: wire AI Suggestions panel (toggle + backend suggest-nodes + local fallback) — PR: #3998.
+- 2026-03-27 — FlowEditor: unify Form Step normalization (explicit legacy→canonical map in nodeNormalization) — PR: #4013.
+- 2026-03-27 — FlowEditor: canonicalize AI node suggestions to match NODE_TYPE_REGISTRY IDs (so suggested nodes always add successfully) — PR: #4014.
+- 2026-03-27 — FlowEditor: vertical reordering (Move Up/Down) + restore standard selection (remove click-to-edit onNodeClick override) — PR: #4016.
 
 - 2026-03-24 — Fixed global Ant Design theme corruption (Sanitized background tokens causing pure black component rendering) — PR: #3925.
 - 2026-03-24 — Admin Workspace: Organization Profile save hardened (avoid multipart PATCH 502s) — PR: #3924.
@@ -521,7 +571,7 @@ Execution rules:
 - No direct axios usage in frontend; BusinessApi/workformsApi only.
 - Maintain PostgreSQL RLS parity and tenant isolation in all backend changes.
 
-- 2026-03-18 — CRITICAL HOTFIX: WSOD Resolution (schemaRegistry TDZ) — Commit: [pending]
+- 2026-03-18 — CRITICAL HOTFIX: WSOD Resolution (schemaRegistry TDZ) — Evidence: PR #3460 (see section below)
   - Fixed "schemaRegistry is not defined" White Screen of Death on dev environment
   - Root cause: Vite/Rollup ES Module evaluation order caused Temporal Dead Zone
   - Solution: Wrapped all schemaRegistry initialization calls in setTimeout(..., 0) to defer to next macro-task
@@ -536,7 +586,7 @@ Execution rules:
 2. Emergency UI/UX + API restoration (NEXT)
 
 ### PR F — Emergency UI/UX + API restoration (Frontend + Backend)
-**Status:** PLANNED (second item after node configuration fixes)
+**Status:** COMPLETE (historical plan snapshot; executed in PRs listed in the reconciliation section below)
 
 Problem summary (from console logs / diagnostics):
 - Portal rendering race + schema fallback were the top blockers. These are now addressed by:

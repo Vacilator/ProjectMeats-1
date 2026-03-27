@@ -45,6 +45,7 @@ const Customers: React.FC = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { theme } = useTheme();
   const [products, setProducts] = useState<Array<{ id: string; product_code: string; name: string; protein_type: string }>>([]);
+  const [searchText, setSearchText] = useState('');
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [customerLocations, setCustomerLocations] = useState<CustomerLocation[]>([]);
@@ -279,12 +280,12 @@ const Customers: React.FC = () => {
       if (editingCustomer) {
         await apiService.updateCustomer(editingCustomer.id, {
           ...formData,
-          products: formData.products.map((v) => Number(v)),
+          products: formData.products,
         });
       } else {
         await apiService.createCustomer({
           ...formData,
-          products: formData.products.map((v) => Number(v)),
+          products: formData.products,
         });
       }
       setShowEditForm(false);
@@ -373,12 +374,44 @@ const Customers: React.FC = () => {
     return <LoadingContainer $theme={theme}>Loading customers...</LoadingContainer>;
   }
 
+  const visibleCustomers = customers.filter((c) => {
+    if (!searchText.trim()) return true;
+    const haystack = [c.name, c.contact_person, c.email, c.phone, c.city, c.state]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(searchText.trim().toLowerCase());
+  });
+
   return (
-    <>
+    <PageContainer>
       <Header>
-        <Title $theme={theme}>Customers</Title>
-        <AddButton onClick={() => { setEditingCustomer(null); setShowForm(true); }}>+ Add Customer</AddButton>
+        <HeaderText>
+          <Title $theme={theme}>Customers</Title>
+          <Subtitle>Manage customer companies, locations, contacts, and preferred products</Subtitle>
+        </HeaderText>
+        <HeaderActions>
+          <SecondaryButton type="button" onClick={() => navigate('/customers/locations')}>
+            Locations
+          </SecondaryButton>
+          <SecondaryButton type="button" onClick={() => navigate('/customers/contacts')}>
+            Contacts
+          </SecondaryButton>
+          <AddButton onClick={() => { setEditingCustomer(null); setShowForm(true); }}>
+            + New Customer
+          </AddButton>
+        </HeaderActions>
       </Header>
+
+      <TableControls>
+        <SearchInput
+          type="text"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search customers by name, contact, email, phone, city, or state…"
+          aria-label="Search customers"
+        />
+      </TableControls>
 
       {showForm && (
         <QuickCreateModal
@@ -696,7 +729,7 @@ const Customers: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
+              {visibleCustomers.map((customer) => (
                 <React.Fragment key={customer.id}>
                 <TableRow $theme={theme} key={customer.id}>
                   <TableCell $theme={theme}>
@@ -843,7 +876,7 @@ const Customers: React.FC = () => {
           </Table>
         )}
       </TableContainer>
-    </>
+    </PageContainer>
   );
 };
 
@@ -857,11 +890,25 @@ const LoadingContainer = styled.div<{ $theme: Theme }>`
   color: ${(props) => props.$theme.colors.textSecondary};
 `;
 
+const PageContainer = styled.div`
+  padding: 1.5rem;
+  background: rgb(var(--color-background));
+  min-height: 100%;
+`;
+
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+`;
+
+const HeaderText = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 `;
 
 const Title = styled.h1<{ $theme: Theme }>`
@@ -871,20 +918,76 @@ const Title = styled.h1<{ $theme: Theme }>`
   margin: 0;
 `;
 
+const Subtitle = styled.p`
+  margin: 0;
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary));
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+`;
+
+const SecondaryButton = styled.button`
+  background: transparent;
+  color: rgb(var(--color-text-primary));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--color-surface));
+    border-color: rgb(var(--color-primary) / 0.35);
+  }
+`;
+
 const AddButton = styled.button`
   background: rgb(var(--color-primary));
   color: white;
   border: none;
   border-radius: 8px;
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+    box-shadow: 0 4px 15px rgb(var(--color-primary) / 0.25);
+    filter: brightness(0.98);
+  }
+`;
+
+const TableControls = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+`;
+
+const SearchInput = styled.input`
+  width: min(520px, 100%);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+
+  &::placeholder {
+    color: rgb(var(--color-text-secondary));
+  }
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
   }
 `;
 
