@@ -47,10 +47,24 @@ class EmailIngestionService:
         'chicken',
     ]
     
-    def __init__(self, tenant: Tenant | None = None):
+    def __init__(
+        self,
+        tenant: Tenant | None = None,
+        *,
+        max_pages_attachments: int = 10,
+        max_pages_all: int = 5,
+        max_messages: int = 1500,
+    ):
         # Optional tenant scope (Phase 6.5). When provided, the service can be used
         # as a single-tenant ingestion unit (e.g., smart triggers).
         self.tenant = tenant
+
+        # Network/time safety:
+        # - Manual "Sync Now" should be fast enough for an HTTP request.
+        # - Scheduled/background polling can scan deeper.
+        self.max_pages_attachments = max_pages_attachments
+        self.max_pages_all = max_pages_all
+        self.max_messages = max_messages
 
         self.stats = {
             'tenants_processed': 0,
@@ -246,7 +260,7 @@ class EmailIngestionService:
                 next_params = initial_params
                 page = 0
 
-                while next_url and page < max_pages and len(all_messages) < 1500:
+                while next_url and page < max_pages and len(all_messages) < self.max_messages:
                     response = requests.get(next_url, headers=headers, params=next_params, timeout=30)
                     response.raise_for_status()
                     data = response.json() or {}
@@ -261,12 +275,12 @@ class EmailIngestionService:
                 return all_messages
 
             # Pass 1: attachments-only (scan deeper; higher signal)
-            scanned = _fetch_pages(params, max_pages=10)
+            scanned = _fetch_pages(params, max_pages=self.max_pages_attachments)
 
             # Pass 2: date-only fallback if we didn't scan much (helps mailboxes with few attachments)
             if len(scanned) < 100:
                 scanned_ids = {m.get('id') for m in scanned if m.get('id')}
-                scanned_all = _fetch_pages(_build_params(filter_query_all), max_pages=5)
+                scanned_all = _fetch_pages(_build_params(filter_query_all), max_pages=self.max_pages_all)
                 for m in scanned_all:
                     mid = m.get('id')
                     if mid and mid in scanned_ids:
@@ -322,7 +336,7 @@ class EmailIngestionService:
         message_id = email_data['id']
         
         # Check if already processed (prevent duplicates)
-        if EmailLog.objects.filter(message_id=message_id).exists():
+        if EmailLog.objects.filter(tenant=tenant, message_id=message_id).exists():
             logger.debug(f"Email {message_id} already logged, skipping")
             self.stats['emails_skipped'] += 1
             return
