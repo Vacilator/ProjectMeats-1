@@ -76,14 +76,15 @@ const ConfigLabel = styled.span`
   min-width: 50px;
 `;
 
-const ConfigValue = styled.span`
+const ConfigValue = styled.span<{ $empty?: boolean }>`
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  color: rgb(var(--color-text-secondary));
+  color: ${(p) => (p.$empty ? 'rgb(var(--color-text-tertiary))' : 'rgb(var(--color-text-secondary))')};
+  font-style: ${(p) => (p.$empty ? 'italic' : 'normal')};
   font-family: monospace;
   font-size: 10px;
   background: rgba(0, 0, 0, 0.05);
@@ -102,70 +103,70 @@ const ActionBadge = styled.span<{ $type: string }>`
   margin-bottom: 6px;
 `;
 
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 12px;
-  color: rgb(var(--color-text-tertiary));
-  font-size: 11px;
-  font-style: italic;
-`;
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
-function getActionDetails(data: ActionNodeData) {
+type ActionDetailItem = { label: string; value?: unknown };
+
+function getActionDetails(data: ActionNodeData): { mainItems: ActionDetailItem[]; extraItems: ActionDetailItem[] } {
   const { actionType } = data;
-  
+
+  const asList = (items: ActionDetailItem[]) => items.filter((i) => i.value !== undefined && i.value !== null && i.value !== '');
+
   switch (actionType) {
-    case 'email':
-      return {
-        items: [
-          { label: 'To', value: data.to },
-          { label: 'Subject', value: data.subject },
-          { label: 'Template', value: data.template },
-        ].filter(item => item.value),
-      };
-      
-    case 'notify':
-      return {
-        items: [
-          { label: 'User', value: data.userId },
-          { label: 'Message', value: data.message },
-          { label: 'Priority', value: data.priority },
-        ].filter(item => item.value),
-      };
-      
+    case 'email': {
+      const mainItems = [
+        { label: 'To', value: data.to },
+        { label: 'Subject', value: data.subject },
+        { label: 'Template', value: data.template },
+      ];
+      return { mainItems, extraItems: [] };
+    }
+
+    case 'notify': {
+      const mainItems = [
+        { label: 'User', value: data.userId },
+        { label: 'Message', value: data.message },
+        { label: 'Priority', value: data.priority },
+      ];
+      return { mainItems, extraItems: [] };
+    }
+
     case 'createRecord':
     case 'updateRecord':
-    case 'deleteRecord':
-      return {
-        items: [
-          { label: 'Entity', value: data.entity },
-          ...(data.recordId ? [{ label: 'Record ID', value: data.recordId }] : []),
-          ...(data.fields ? [{ label: 'Fields', value: Object.keys(data.fields).join(', ') }] : []),
-        ],
-      };
-      
-    case 'http':
-      return {
-        items: [
-          { label: 'Method', value: data.method },
-          { label: 'URL', value: data.url },
-          ...(data.headers ? [{ label: 'Headers', value: `${Object.keys(data.headers).length} header(s)` }] : []),
-        ].filter(item => item.value),
-      };
-      
-    case 'script':
-      return {
-        items: [
-          { label: 'Language', value: data.language },
-          ...(data.code ? [{ label: 'Lines', value: `${data.code.split('\n').length} lines` }] : []),
-        ].filter(item => item.value),
-      };
-      
+    case 'deleteRecord': {
+      const mainItems = [
+        { label: 'Entity', value: data.entity },
+        { label: 'Record ID', value: data.recordId },
+        { label: 'Fields', value: data.fields ? Object.keys(data.fields).join(', ') : undefined },
+      ];
+      return { mainItems, extraItems: [] };
+    }
+
+    case 'http': {
+      const mainItems = [
+        { label: 'Method', value: data.method },
+        { label: 'URL', value: data.url },
+        { label: 'Headers', value: data.headers ? `${Object.keys(data.headers).length} header(s)` : undefined },
+      ];
+      const extraItems = asList([
+        { label: 'Body', value: data.body ? 'Set' : undefined },
+      ]);
+      return { mainItems, extraItems };
+    }
+
+    case 'script': {
+      const mainItems = [
+        { label: 'Language', value: data.language },
+        { label: 'Lines', value: data.code ? `${data.code.split('\n').length} lines` : undefined },
+      ];
+      return { mainItems, extraItems: [] };
+    }
+
     default:
-      return { items: [] };
+      return { mainItems: [], extraItems: [] };
   }
 }
 
@@ -202,7 +203,7 @@ export const ActionNode = React.memo<NodeProps<Node<ActionNodeData>>>((props) =>
     maxOutputs: 1,
   };
   
-  const { items } = getActionDetails(data);
+  const { mainItems, extraItems } = getActionDetails(data);
 
   return (
     <BaseNode
@@ -216,31 +217,30 @@ export const ActionNode = React.memo<NodeProps<Node<ActionNodeData>>>((props) =>
           {(actionType || 'email').replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
         </ActionBadge>
         
-        {items.length === 0 ? (
-          <EmptyState>
-            Click to configure action
-          </EmptyState>
-        ) : (
-          <ActionConfig>
-            {items.slice(0, 3).map((item, index) => (
+        <ActionConfig>
+          {mainItems.slice(0, 3).map((item, index) => {
+            const empty = item.value === undefined || item.value === null || item.value === '';
+            return (
               <ConfigRow key={index}>
                 <ConfigLabel>{item.label}:</ConfigLabel>
-                <ConfigValue>{String(item.value)}</ConfigValue>
+                <ConfigValue $empty={empty}>{empty ? 'Not set' : String(item.value)}</ConfigValue>
               </ConfigRow>
-            ))}
-            {items.length > 3 && (
-              <ConfigRow>
-                <span style={{ 
-                  fontSize: 10, 
+            );
+          })}
+          {extraItems.length > 0 && (
+            <ConfigRow>
+              <span
+                style={{
+                  fontSize: 10,
                   color: 'rgb(var(--color-text-tertiary))',
                   fontStyle: 'italic',
-                }}>
-                  +{items.length - 3} more setting{items.length - 3 > 1 ? 's' : ''}
-                </span>
-              </ConfigRow>
-            )}
-          </ActionConfig>
-        )}
+                }}
+              >
+                +{extraItems.length} more setting{extraItems.length > 1 ? 's' : ''}
+              </span>
+            </ConfigRow>
+          )}
+        </ActionConfig>
       </div>
     </BaseNode>
   );
