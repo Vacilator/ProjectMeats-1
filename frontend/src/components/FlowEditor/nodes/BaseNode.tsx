@@ -74,7 +74,7 @@ const NodeContainer = styled.div<{
 }>`
   position: relative;
   min-width: 180px;
-  background: rgb(var(--color-surface));
+  background: rgb(var(--color-surface, 255, 255, 255));
   border: 2px solid ${props => {
     if (props.$isDirty) return 'rgb(234, 179, 8)'; // Yellow for dirty (Phase 2)
     if (props.$selected) return props.$color;
