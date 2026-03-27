@@ -46,7 +46,7 @@ This file is the **append-only PR-referenceable execution log**.
 - Action capability: backend function-calling tools (`create_record`, `search_entities`, `get_recent_activity`) + RLS session var assertion (`app.current_tenant`) for defense-in-depth — PR #4001.
 
 ### 2026-03-27 — Emergency Stabilization - Node & API Harmony
-- FlowEditor: normalize legacy form step node types (`formStep`, `formStepSingle`, `formStepSingleNode`) to canonical `form`; sync parentId (`node.parentId` ↔ `node.data.parentId`); un-parent nodes with missing containers; clear `hidden` when parent is expanded.
+- FlowEditor: unify “Form Step” architecture — canonical node type `form` with display name “Form Step”; normalize legacy form step node types (`formStep`, `formStepSingle`, `formStepSingleNode`) to canonical `form`; sync parentId (`node.parentId` ↔ `node.data.parentId`); un-parent nodes with missing containers; clear `hidden` when parent is expanded.
 - Product entity harmony: map workflow schema `product` → `system.Product`; alias legacy product entity IDs (`tenant_apps.products.product`, `products.product`) → `system.product`; update frontend fallback entity list to `system.product`.
 - Process Monitor hardening: early-return empty 200 when tenant context missing; wrap result building in try/except to prevent RLS/DB 500s.
 - Theme hardening: define `--color-surface`/`--color-background` tokens for `[data-theme="high-contrast"]`; add BaseNode background fallback.
