@@ -65,6 +65,7 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-27 — Phase 9.5: AI Document Stability
 - AI Assistant documents: updated `AIDocument.file.upload_to` to include tenant UUID + unique prefix to prevent naming collisions.
 - Upload hardening follow-up: switched to a flat tenant+UUID filename (avoids deep mkdir permission issues on mounted media volumes) and assert RLS session vars right before saving.
+- Error hardening follow-up: database exceptions now map to actionable 400s (e.g., missing migrations/table) instead of misleading RLS messages or 500s.
 - Added diagnostic command to reproduce uploads and capture tracebacks without needing the frontend:
   - `python manage.py test_document_upload --tenant-id 0f024884-b9ef-4e50-8fc0-89b2eb7c8c69`
   - Safe default: temp `MEDIA_ROOT` (no persistent artifacts)
