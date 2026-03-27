@@ -38,7 +38,7 @@ const Panel = styled.div<{ $isVisible: boolean }>`
   right: 24px;
   width: 320px;
   max-height: 400px;
-  background: white;
+  background: rgb(var(--color-surface));
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   border: 1px solid rgb(var(--color-border));
@@ -103,7 +103,7 @@ const SuggestionItem = styled.button`
   padding: 12px 16px;
   border: none;
   border-bottom: 1px solid rgb(var(--color-border-light));
-  background: white;
+  background: rgb(var(--color-surface));
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
