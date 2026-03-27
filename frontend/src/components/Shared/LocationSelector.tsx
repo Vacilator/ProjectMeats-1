@@ -16,8 +16,7 @@ import styled from 'styled-components';
 import { Theme } from '../../config/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Location } from '../../types/index';
-import axios from 'axios';
-import { config } from '../../config/runtime';
+import { apiClient } from '../../services/apiService';
 
 export interface LocationSelectorProps {
   value: string | null;
@@ -56,33 +55,16 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
       setLoading(true);
       setFetchError(null);
 
-      const token = localStorage.getItem('authToken');
-      const tenantId = localStorage.getItem('tenantId');
-
-      if (!token) {
-        setFetchError('Authentication required');
-        setLoading(false);
-        return;
-      }
-
-      // Build API URL with optional type filter
-      let url = `${config.API_BASE_URL}/locations/`;
-      if (type) {
-        url += `?type=${type}`;
-      }
-
-      const response = await axios.get<Location[]>(url, {
-        headers: {
-          Authorization: `Token ${token}`,
-          ...(tenantId && { 'X-Tenant-ID': tenantId }),
-        },
+      const response = await apiClient.get('/locations/', {
+        params: type ? { type } : undefined,
         timeout: 10000,
       });
 
       // Handle both paginated and non-paginated responses
-      const data = Array.isArray(response.data) 
-        ? response.data 
-        : (response.data as any).results || [];
+      const raw = response.data as unknown;
+      const data = Array.isArray(raw)
+        ? (raw as Location[])
+        : ((raw as any)?.results || []) as Location[];
 
       setLocations(data);
     } catch (err: any) {
@@ -91,13 +73,8 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
         setFetchError('Access denied - insufficient permissions');
         console.error('[LocationSelector] RLS policy rejected request:', err);
       } else if (err.response?.status === 401) {
-        setFetchError('Session expired - please log in again');
-        console.error('[LocationSelector] Token expired:', err);
-        // Optionally trigger logout
-        localStorage.removeItem('authToken');
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 2000);
+        setFetchError('Authentication required');
+        console.error('[LocationSelector] Not authenticated:', err);
       } else if (err.code === 'ECONNABORTED') {
         setFetchError('Request timeout - please try again');
       } else {
