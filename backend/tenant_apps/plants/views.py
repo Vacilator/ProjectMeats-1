@@ -141,7 +141,7 @@ class PlantViewSet(viewsets.ModelViewSet):
         serializer = SystemProductSerializer(products, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'], url_path='available-products')
+    @available_products.mapping.post
     def add_available_product(self, request, pk=None):
         """
         Add a system product to plant's available products.
