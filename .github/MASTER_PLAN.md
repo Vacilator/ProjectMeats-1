@@ -165,6 +165,10 @@ This file is the **append-only PR-referenceable execution log**.
 - Added explicit width/height and min dimensions for `ResponsiveContainer` in AI Learning Metrics widget to reduce `width(-1)/height(-1)` console warnings.
 - PR: #4048.
 
+### 2026-03-27 — Cockpit Search: Better Type Discoverability
+- SmartSearch now uses backend counts to render entity sections even when a type has 0 results and shows correct plural labels (Purchase Orders, Inquiries, Tenant Users, etc.).
+- PR: #4049.
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
