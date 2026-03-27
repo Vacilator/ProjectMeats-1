@@ -10,6 +10,26 @@ This file is the **canonical plan + current truth snapshot**.
 
 ---
 
+## Recovery Execution Plan (as of 2026-03-27T17:03Z)
+
+We are re-validating and completing the last ~25 prompts with **evidence-based acceptance criteria** and strict shipping discipline.
+
+**Shipping discipline (MANDATORY):** every batch is shipped via **new branch → PR → merge to `development`**.
+
+### Execution order (P0→P1)
+1. **Docs plan** (this section + PR log entry) — merge first.
+2. **Cockpit Favorites (industry-grade):** replace localStorage favorites with backend favorites API + optimistic UX, tenant-safe, RLS-backed.
+3. **Email Ingestion Monitor “Sync Now”:** ensure decrypt errors surface as stable structured codes and the UI shows a reconnect CTA (no raw string).
+4. **AI Document Upload:** reproduce via `test_document_upload` command and eliminate remaining 500s.
+5. **Verify prior batches:** Universal Forms, Cockpit Search relevance/entity coverage, Workform Editor UX.
+
+### Acceptance criteria (high signal)
+- Favorites persist across reload and do not collide across tenants.
+- Sync Now never emits raw decrypt error strings; always shows reconnect guidance.
+- PDF upload returns 201/400 only (no 500) with actionable error payloads.
+
+---
+
 ## Reality Snapshot (as of 2026-03-26)
 
 ### What is actively in progress

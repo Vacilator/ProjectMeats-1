@@ -11,6 +11,15 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
+### 2026-03-27T17:03Z — Recovery Execution Plan (Last ~25 prompts)
+- Merging a comprehensive recovery plan into `MASTER_PLAN.md` (canonical snapshot) and executing remaining work **only via**: branch → PR → merge to `development`.
+- P0 execution order:
+  1) Cockpit Favorites (backend persistence + optimistic UX, tenant-safe, RLS-backed)
+  2) Email Ingestion Monitor “Sync Now” decrypt error surfacing (stable codes + reconnect CTA)
+  3) AI Document Upload stability (no 500s; verify via `test_document_upload`)
+
+## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
+
 ### 2026-03-27 — Workform Editor: Node Opacity Fix
 - Fixed "all nodes semi-transparent" regression caused by debug session decorations being left active when the Dry Run Debugger panel was hidden.
 - Debugger panel now stops/resets debug session when closed and unmounts the debugger UI when not visible.
