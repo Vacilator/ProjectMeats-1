@@ -16,8 +16,8 @@ This file is the **append-only PR-referenceable execution log**.
 - AI Assistant Sentry Bridge — **STABILIZED** (tenant-scoped `get_recent_errors` tool + admin diagnostics endpoint; uses GitHub Environment secret injection for `SENTRY_AUTH_TOKEN` and defaults org slug to `meats-central` if unset).
   - PR: #4007
   - Follow-up PR: #4008
-- Sentry as Active Orchestrator (Seer) — **STABILIZING** (sendDefaultPii enabled; in_app_include/inAppInclude set for CODEOWNERS mapping; CI creates releases via getsentry/action-release for Suspect Commits).
-  - PR: (fill after merge)
+- Sentry as Active Orchestrator (Seer) — **STABILIZING** (sendDefaultPii enabled; in_app_include set for CODEOWNERS mapping; CI creates releases via getsentry/action-release for Suspect Commits).
+  - PR: #4009
 
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
 
