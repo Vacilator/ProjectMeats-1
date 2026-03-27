@@ -312,6 +312,21 @@ export const EmailIngestionMonitorWidget: React.FC<EmailIngestionMonitorWidgetPr
       await fetchEmailLogs();
     } catch (error: any) {
       console.error('Failed to trigger sync:', error);
+
+      const code = String(error?.response?.data?.code || '').toLowerCase();
+      const detail = String(error?.response?.data?.error || error?.message || '').toLowerCase();
+
+      if (
+        code === 'decryption_failed' ||
+        detail.includes('decrypt') ||
+        detail.includes('invalidtoken') ||
+        detail.includes('oauth_encryption_key')
+      ) {
+        message.error('Outlook needs to be reconnected. Open /settings/email-integrations and reconnect, then retry Sync.');
+        await fetchEmailLogs();
+        return;
+      }
+
       message.error(error?.response?.data?.error || 'Failed to start email sync');
     } finally {
       setSyncing(false);

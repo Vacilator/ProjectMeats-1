@@ -410,13 +410,44 @@ def sync_emails(request):
 
     except Exception as e:
         logger.error('Failed to sync emails for tenant %s: %s', tenant_id, str(e), exc_info=True)
+
+        # If this is an auth token decryption failure, always return a stable reconnect CTA.
+        # This protects the UX even if downstream code paths change.
+        try:
+            from cryptography.fernet import InvalidToken
+
+            is_decrypt = isinstance(e, InvalidToken) or any(
+                token in str(e).lower()
+                for token in [
+                    'decrypt',
+                    'invalidtoken',
+                    'oauth_encryption_key',
+                ]
+            )
+        except Exception:
+            is_decrypt = 'decrypt' in str(e).lower()
+
+        if is_decrypt:
+            return Response(
+                {
+                    "ok": False,
+                    "message": "Email sync requires reconnect",
+                    "error": "Your Outlook connection needs to be refreshed for security reasons.",
+                    "code": "decryption_failed",
+                    "hint": "Reconnect Outlook in Settings → Email Integrations, then retry Sync Now.",
+                    "tenant_id": tenant_id,
+                    "provider_email": provider.connected_email,
+                },
+                status=status.HTTP_200_OK,
+            )
+
         # This is a user-triggered action. Prefer a 200 + structured failure payload so the UI
         # can display actionable guidance instead of treating it as a hard outage.
         return Response(
             {
                 "ok": False,
                 "message": "Email sync failed",
-                "error": f"Failed to sync emails: {str(e)}",
+                "error": "Email sync failed. Outlook connection may be expired or misconfigured.",
                 "code": "sync_exception",
                 "hint": "If this persists, reconnect Outlook in Settings → Integrations and retry.",
                 "tenant_id": tenant_id,
