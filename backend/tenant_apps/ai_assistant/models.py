@@ -5,12 +5,14 @@ This module provides AI-powered chatbot functionality for meat market operations
 including document processing, entity extraction, and intelligent assistance
 for purchase orders, suppliers, customers, and other business entities.
 """
+import os
 import uuid
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.utils import timezone
 from apps.tenants.models import Tenant
 
 from pgvector.django import VectorField
@@ -290,6 +292,26 @@ class TenantKnowledgeFact(TenantAwareModel):
         ]
 
 
+def aidocument_upload_to(instance: "AIDocument", filename: str) -> str:
+    """Return a tenant-scoped upload path for AI document uploads.
+
+    Includes tenant UUID + date buckets + unique prefix to prevent naming collisions.
+    """
+
+    safe_name = os.path.basename(filename or "upload")
+    tenant_id = getattr(instance, "tenant_id", None) or getattr(getattr(instance, "tenant", None), "id", None)
+    tenant_part = str(tenant_id) if tenant_id else "unknown-tenant"
+
+    now = timezone.now()
+    unique = uuid.uuid4().hex
+
+    return (
+        f"ai_assistant/documents/{tenant_part}/"
+        f"{now:%Y/%m/%d}/"
+        f"{unique}_{safe_name}"
+    )
+
+
 class AIDocument(TenantAwareModel):
     """Tenant + user-scoped document uploads for the AI assistant."""
 
@@ -310,7 +332,7 @@ class AIDocument(TenantAwareModel):
     )
 
     file = models.FileField(
-        upload_to='ai_assistant/documents/%Y/%m/%d',
+        upload_to=aidocument_upload_to,
         validators=[
             FileExtensionValidator(
                 allowed_extensions=['pdf', 'txt', 'csv', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx']
