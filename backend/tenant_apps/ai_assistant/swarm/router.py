@@ -36,6 +36,7 @@ def build_swarm_system_prompt(*, outlook_connected: bool, outlook_email: str | N
         "\n\nDatabase schema (high level): "
         "Entities include Supplier, Customer, Product (system-wide catalog), Contact, PurchaseOrder, SalesOrder, Invoice, Plant, Carrier. "
         "Most business entities are tenant-scoped via a tenant_id (shared-schema multi-tenancy); Products are system-wide with tenant visibility rules. "
+        "\n\nYou have access to real-time error logs. If a user complains about a failure, check Sentry before asking for clarification. "
         "\n\nAvailable tools (use when it reduces user effort): "
         "- search_entities(query[, entity_types, limit]) to find records via Universal Search. "
         "- get_entity_details(type, id) to load a full record profile payload for a specific entity. "
