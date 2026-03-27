@@ -46,7 +46,7 @@ This file is the **append-only PR-referenceable execution log**.
 - Promoted `apps.core.services.universal_search.UniversalSearchService` as the unified search standard for AI tools + SME grounding context.
 - AI context payloads now include canonical `current_entity_type` + `current_entity_id` keys (kept legacy camelCase keys for compatibility).
 - Added tool schemas + executor implementations: `search_records`, `get_record_detail`, `create_task` (in-app task notification).
-- PR: (pending)
+- PR: #4004.
 
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 
