@@ -758,16 +758,32 @@ export const SmartWorkFormNode = React.memo<NodeProps<SmartWorkFormFlowNode>>(({
 
       <Handle
         type="target"
-        position={Position.Left}
+        position={Position.Top}
         id="in"
-        style={{ background: 'rgb(var(--color-primary))', width: 10, height: 10 }}
+        style={{
+          left: '50%',
+          width: 14,
+          height: 14,
+          background: 'rgb(var(--color-primary))',
+          border: '2px solid rgb(var(--color-surface))',
+          borderRadius: 6,
+          transform: 'translateX(-50%)',
+        }}
         aria-label="Smart WorkForm input"
       />
       <Handle
         type="source"
-        position={Position.Right}
+        position={Position.Bottom}
         id="out"
-        style={{ background: 'rgb(var(--color-primary))', width: 10, height: 10 }}
+        style={{
+          left: '50%',
+          width: 14,
+          height: 14,
+          background: 'rgb(var(--color-primary))',
+          border: '2px solid rgb(var(--color-surface))',
+          borderRadius: 6,
+          transform: 'translateX(-50%)',
+        }}
         aria-label="Smart WorkForm output"
       />
 
