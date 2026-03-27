@@ -268,23 +268,29 @@ export const ContainerNode: React.FC<NodeProps<Node<ContainerNodeData>>> = memo(
         {/* Connection Handles */}
         <Handle
           type="target"
-          position={Position.Left}
+          position={Position.Top}
           style={{
-            width: 12,
-            height: 12,
+            left: '50%',
+            width: 14,
+            height: 14,
             background: borderColor || 'rgb(var(--color-primary))',
-            border: '2px solid rgb(var(--color-background-primary))',
+            border: '2px solid rgb(var(--color-surface))',
+            borderRadius: 6,
+            transform: 'translateX(-50%)',
           }}
           aria-label="Container input"
         />
         <Handle
           type="source"
-          position={Position.Right}
+          position={Position.Bottom}
           style={{
-            width: 12,
-            height: 12,
+            left: '50%',
+            width: 14,
+            height: 14,
             background: borderColor || 'rgb(var(--color-primary))',
-            border: '2px solid rgb(var(--color-background-primary))',
+            border: '2px solid rgb(var(--color-surface))',
+            borderRadius: 6,
+            transform: 'translateX(-50%)',
           }}
           aria-label="Container output"
         />

@@ -69,6 +69,7 @@ export interface LoopNodeProps extends NodeProps<Node<LoopNodeData>> {}
 // ============================================================================
 
 const Wrapper = styled.div`
+  position: relative;
   min-width: 280px;
 `;
 
@@ -104,12 +105,13 @@ const Badge = styled.div`
   color: rgb(234, 179, 8);
 `;
 
-const HandleLabel = styled.div<{ $side: 'left' | 'right' }>`
+const HandleLabel = styled.div<{ $pos: 'top' | 'bottom'; $left: string }>`
   position: absolute;
-  ${p => (p.$side === 'left' ? 'left: -2px;' : 'right: -2px;')}
-  transform: translate(${p => (p.$side === 'left' ? '-100%' : '100%')}, -50%);
+  left: ${(p) => p.$left};
+  ${(p) => (p.$pos === 'top' ? 'top: -26px;' : 'bottom: -26px;')}
+  transform: translateX(-50%);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   color: rgb(var(--color-text-tertiary));
   white-space: nowrap;
   pointer-events: none;
@@ -214,16 +216,37 @@ export const LoopNode: React.FC<LoopNodeProps> = ({ data }) => {
 
   const loopTypeLabel = getLoopTypeLabel(data.loopType);
 
+  const handleStyle: React.CSSProperties = {
+    width: 14,
+    height: 14,
+    background: 'rgb(var(--color-primary))',
+    border: '2px solid rgb(var(--color-surface))',
+    borderRadius: 6,
+    cursor: 'crosshair',
+  };
+
   return (
     <Wrapper>
       {/* Target handles (2): Input Array + Trigger */}
-      <Handle type="target" position={Position.Left} id="input-array" style={{ top: '38%' }} />
-      <HandleLabel $side="left" style={{ top: '38%' }}>
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="input-array"
+        style={{ ...handleStyle, left: '35%', transform: 'translateX(-50%)' }}
+        aria-label="Loop input array"
+      />
+      <HandleLabel $pos="top" $left="35%">
         Input Array
       </HandleLabel>
 
-      <Handle type="target" position={Position.Left} id="trigger" style={{ top: '70%' }} />
-      <HandleLabel $side="left" style={{ top: '70%' }}>
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="trigger"
+        style={{ ...handleStyle, left: '65%', transform: 'translateX(-50%)' }}
+        aria-label="Loop trigger input"
+      />
+      <HandleLabel $pos="top" $left="65%">
         Trigger
       </HandleLabel>
 
@@ -279,13 +302,25 @@ export const LoopNode: React.FC<LoopNodeProps> = ({ data }) => {
       </Card>
 
       {/* Source handles (2): Loop Body + On Complete */}
-      <Handle type="source" position={Position.Right} id="loop-body" style={{ top: '45%' }} />
-      <HandleLabel $side="right" style={{ top: '45%' }}>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="loop-body"
+        style={{ ...handleStyle, left: '35%', transform: 'translateX(-50%)' }}
+        aria-label="Loop body output"
+      />
+      <HandleLabel $pos="bottom" $left="35%">
         Loop Body
       </HandleLabel>
 
-      <Handle type="source" position={Position.Right} id="on-complete" style={{ top: '78%' }} />
-      <HandleLabel $side="right" style={{ top: '78%' }}>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="on-complete"
+        style={{ ...handleStyle, left: '65%', transform: 'translateX(-50%)' }}
+        aria-label="Loop on complete output"
+      />
+      <HandleLabel $pos="bottom" $left="65%">
         On Complete
       </HandleLabel>
     </Wrapper>

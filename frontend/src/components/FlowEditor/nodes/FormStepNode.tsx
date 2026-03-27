@@ -245,8 +245,34 @@ export const FormStepNode = React.memo<NodeProps<Node<FormStepNodeData>>>(({ id,
       </ScrollBody>
 
       {/* Handles (kept for compatibility with existing edge patterns) */}
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{
+          left: '50%',
+          width: 14,
+          height: 14,
+          background: 'rgb(var(--color-primary))',
+          border: '2px solid rgb(var(--color-surface))',
+          borderRadius: 6,
+          transform: 'translateX(-50%)',
+        }}
+        aria-label="Form Step input"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{
+          left: '50%',
+          width: 14,
+          height: 14,
+          background: 'rgb(var(--color-primary))',
+          border: '2px solid rgb(var(--color-surface))',
+          borderRadius: 6,
+          transform: 'translateX(-50%)',
+        }}
+        aria-label="Form Step output"
+      />
     </Page>
   );
 });

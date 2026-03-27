@@ -734,8 +734,34 @@ export const FormNode = React.memo<NodeProps<Node<FormNodeData>>>(({ id, data, s
 
 
       {/* External connections in/out */}
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{
+          left: '50%',
+          width: 14,
+          height: 14,
+          background: 'rgb(var(--color-primary))',
+          border: '2px solid rgb(var(--color-surface))',
+          borderRadius: 6,
+          transform: 'translateX(-50%)',
+        }}
+        aria-label="Form input"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{
+          left: '50%',
+          width: 14,
+          height: 14,
+          background: 'rgb(var(--color-primary))',
+          border: '2px solid rgb(var(--color-surface))',
+          borderRadius: 6,
+          transform: 'translateX(-50%)',
+        }}
+        aria-label="Form output"
+      />
     </Container>
   );
 });

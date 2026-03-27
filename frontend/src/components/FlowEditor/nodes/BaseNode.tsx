@@ -300,8 +300,13 @@ const ButtonHandle = styled(Handle)`
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: 20;
   transition: transform 0.15s ease, background 0.15s ease;
+
+  &.react-flow__handle-bottom,
+  &[data-handlepos='bottom'] {
+    bottom: -14px;
+  }
 
   &::after {
     content: '+';
@@ -321,37 +326,28 @@ const ButtonHandle = styled(Handle)`
   }
 `;
 
-const ControlButton = styled.button`
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-border));
-  background: rgb(var(--color-surface));
-  color: rgb(var(--color-text-secondary));
+const HeaderToggleButton = styled.button`
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.16);
+  color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  opacity: 0.95;
   transition: all 0.15s ease;
 
   &:hover {
-    background: rgba(var(--color-primary), 0.08);
-    border-color: rgb(var(--color-primary));
-    color: rgb(var(--color-primary));
-  }
-`;
-
-const ExpandButton = styled(ControlButton)`
-  position: absolute;
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  opacity: 0.8;
-  
-  &:hover {
     opacity: 1;
-    transform: translateX(-50%) scale(1.05);
+    background: rgba(255, 255, 255, 0.22);
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.98);
   }
 `;
 
@@ -487,7 +483,7 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           $color={nodeType.color}
           aria-label="Input connection handle"
           style={{
-            left: '18px',
+            left: '50%',
           }}
         />
       )}
@@ -594,6 +590,16 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
           </NodeTitle>
         )}
         {stepNumber && <StepNumber>{stepNumber}</StepNumber>}
+        {(children || config || errorMessage) && (
+          <HeaderToggleButton
+            className="nodrag"
+            onClick={toggleExpand}
+            title={isExpanded ? 'Collapse' : 'Expand'}
+            aria-label={isExpanded ? 'Collapse node content' : 'Expand node content'}
+          >
+            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </HeaderToggleButton>
+        )}
       </NodeHeader>
 
       {/* Body (collapsible) */}
@@ -624,27 +630,17 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
         </NodeBody>
       )}
       
-      {/* Expand/Collapse Button (Batch 3) */}
-      {(children || config || errorMessage) && (
-        <ExpandButton
-          className="nodrag"
-          onClick={toggleExpand}
-          title={isExpanded ? "Collapse" : "Expand"}
-        >
-          {isExpanded ? <ChevronUp /> : <ChevronDown />}
-        </ExpandButton>
-      )}
-
       {/* Output Handle */}
       {showOutputHandle && (
         <ButtonHandle
           type="source"
-          position={Position.Right}
+          position={Position.Bottom}
           id="output"
           isConnectable={true}
           aria-label="Output connection handle"
           style={{
-            top: nodeType.hasErrorRoute ? '40%' : '50%',
+            left: '50%',
+            transform: 'translateX(-50%)',
             opacity: showButtonHandle ? 1 : 0,
             pointerEvents: showButtonHandle ? 'all' : 'none',
           }}
@@ -655,11 +651,12 @@ export const BaseNode: React.FC<BaseNodeProps & { children?: React.ReactNode }> 
       {nodeType.hasErrorRoute && (
         <StyledHandle
           type="source"
-          position={Position.Right}
+          position={Position.Bottom}
           id="error"
           $color="rgb(239, 68, 68)"
           style={{
-            top: '70%',
+            left: '82%',
+            transform: 'translateX(-50%)',
             width: '16px',
             height: '16px',
             cursor: 'crosshair',
