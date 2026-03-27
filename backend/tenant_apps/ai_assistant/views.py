@@ -685,6 +685,51 @@ class AIFeedbackViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.R
         return Response(payload, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
+class RecentErrorsAPIView(APIView):
+    """Admin-only diagnostics endpoint for tenant-scoped Sentry issues.
+
+    This mirrors the Swarm tool behavior (get_recent_errors) and is useful for
+    debugging the Sentry bridge without involving an LLM call.
+
+    Safety:
+    - Enforces active tenant context.
+    - If a tenant_id is provided, it must match the active tenant.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        import os
+
+        tenant = getattr(request, 'tenant', None)
+        active_tenant_id = str(getattr(tenant, 'id', '') or '')
+        if not active_tenant_id:
+            return Response({'ok': False, 'error': 'Tenant context missing', 'issues': []}, status=status.HTTP_200_OK)
+
+        tenant_id_arg = str(request.query_params.get('tenant_id') or '').strip()
+        if tenant_id_arg and tenant_id_arg != active_tenant_id:
+            return Response(
+                {'ok': False, 'error': 'tenant_id must match the active tenant', 'issues': []},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from tenant_apps.ai_assistant.services.sentry_issues import fetch_recent_sentry_issues_for_tenant
+
+        token = os.environ.get('SENTRY_AUTH_TOKEN')
+        org = os.environ.get('SENTRY_ORG_SLUG') or os.environ.get('SENTRY_ORG')
+        base_url = os.environ.get('SENTRY_BASE_URL') or 'https://sentry.io'
+
+        payload = fetch_recent_sentry_issues_for_tenant(
+            tenant_id=active_tenant_id,
+            token=token,
+            org_slug=org,
+            base_url=base_url,
+            limit=5,
+            timeout_seconds=10,
+        )
+        return Response(payload, status=status.HTTP_200_OK)
+
+
 class ToolsOpenAPIView(APIView):
     """Compatibility endpoint for the frontend widget.
 

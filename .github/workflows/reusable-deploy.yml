@@ -99,6 +99,15 @@ on:
       SENTRY_ENABLED:
         required: false
         description: "Enable/disable Sentry error tracking (from job environment)"
+      SENTRY_AUTH_TOKEN:
+        required: false
+        description: "Sentry auth token for Sentry API access (AI assistant tooling)"
+      SENTRY_ORG_SLUG:
+        required: false
+        description: "Sentry organization slug (AI assistant tooling)"
+      SENTRY_BASE_URL:
+        required: false
+        description: "Sentry base URL (optional; self-hosted Sentry)"
       OPENAI_API_KEY:
         required: false
         description: "OpenAI API key (optional; Phase 8 AI features)"
@@ -933,6 +942,9 @@ jobs:
           	DEFAULT_FROM_EMAIL=no-reply@meatscentral.com
           	SENTRY_DSN=${{ secrets.SENTRY_DSN }}
           	SENTRY_ENABLED=${{ secrets.SENTRY_ENABLED }}
+          	SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+          	SENTRY_ORG_SLUG=${{ secrets.SENTRY_ORG_SLUG }}
+          	SENTRY_BASE_URL=${{ secrets.SENTRY_BASE_URL }}
           	OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           	OPENAI_ORG_ID=${{ secrets.OPENAI_ORG_ID }}
           	OPENAI_MODEL=${{ secrets.OPENAI_MODEL }}

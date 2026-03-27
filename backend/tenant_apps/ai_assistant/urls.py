@@ -21,6 +21,7 @@ from .views import (
     PendingReviewView,
     SwarmInvokeAPIView,
     ToolsOpenAPIView,
+    RecentErrorsAPIView,
 )
 
 app_name = 'ai_assistant'
@@ -44,6 +45,7 @@ urlpatterns = [
     path('metrics/', AILearningMetricsAPIView.as_view(), name='ai-metrics'),
     path('review/pending/', PendingReviewView.as_view(), name='pending-review'),
     path('tools/openapi/', ToolsOpenAPIView.as_view(), name='tools-openapi'),
+    path('errors/recent/', RecentErrorsAPIView.as_view(), name='ai-recent-errors'),
 
     # Supporting endpoints
     path('review/<uuid:feedback_id>/resolve/', PendingReviewResolveAPIView.as_view(), name='ai-review-resolve'),
