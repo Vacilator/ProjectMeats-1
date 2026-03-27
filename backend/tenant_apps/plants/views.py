@@ -132,9 +132,13 @@ class PlantViewSet(viewsets.ModelViewSet):
         from tenant_apps.plants.models import PlantAssociatedProduct
         from apps.system.serializers import SystemProductSerializer
 
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
         plant = self.get_object()
         links = PlantAssociatedProduct.objects.filter(
-            tenant=request.tenant,
+            tenant=tenant,
             plant=plant,
         ).select_related('product')
         products = [link.product for link in links]
@@ -153,6 +157,10 @@ class PlantViewSet(viewsets.ModelViewSet):
         from apps.system.models import Product
         from apps.system.serializers import SystemProductSerializer
 
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
         plant = self.get_object()
         product_id = request.data.get('product')
         if not product_id:
@@ -165,7 +173,7 @@ class PlantViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
 
         _, created = PlantAssociatedProduct.objects.get_or_create(
-            tenant=request.tenant,
+            tenant=tenant,
             plant=plant,
             product=product,
         )
@@ -181,10 +189,14 @@ class PlantViewSet(viewsets.ModelViewSet):
         """
         from tenant_apps.plants.models import PlantAssociatedProduct
 
+        tenant = getattr(request, 'tenant', None)
+        if not tenant:
+            return Response({'error': 'Tenant not found'}, status=status.HTTP_400_BAD_REQUEST)
+
         plant = self.get_object()
         try:
             link = PlantAssociatedProduct.objects.get(
-                tenant=request.tenant,
+                tenant=tenant,
                 plant=plant,
                 product_id=product_id,
             )
