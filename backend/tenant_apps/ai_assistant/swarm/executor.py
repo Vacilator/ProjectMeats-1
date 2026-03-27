@@ -281,6 +281,7 @@ class ToolExecutor:
 
     def _check_unread_emails(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         from apps.integrations.models import ExternalAuthProvider
+        from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import decryption_failed_payload
         from tenant_apps.integrations.services.email_ingestion import EmailIngestionService
 
         tenant_id = getattr(tenant, 'id', None)
@@ -301,7 +302,18 @@ class ToolExecutor:
         if provider.is_token_expired():
             raise ValueError('Outlook connection expired. Reconnect in Settings → Email Integrations.')
 
-        return EmailIngestionService(tenant).fetch_unread_actionable_emails()
+        # Decryption errors can occur when OAUTH_ENCRYPTION_KEY has changed.
+        # In that case, return a stable payload so the AI can instruct the user to reconnect.
+        try:
+            return EmailIngestionService(tenant).fetch_unread_actionable_emails()
+        except Exception as e:
+            # EmailIngestionService uses ExternalAuthProvider.get_decrypted_token under the hood.
+            # When the underlying Fernet decrypt fails, the model raises InvalidToken.
+            from cryptography.fernet import InvalidToken
+
+            if isinstance(e, InvalidToken):
+                return decryption_failed_payload()
+            raise
 
     def _draft_outlook_email(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Send an email using the tenant's Microsoft Graph connection."""
@@ -340,7 +352,12 @@ class ToolExecutor:
         if provider_row.is_token_expired():
             raise ValueError('Outlook connection expired. Reconnect in Settings → Email Integrations.')
 
-        access_token = provider_row.get_decrypted_token('access')
+        from tenant_apps.ai_assistant.swarm.tools.microsoft_graph import decrypt_token_or_error
+
+        access_token, err = decrypt_token_or_error(provider_row=provider_row, token_type='access')
+        if err:
+            return err
+
         graph = MicrosoftGraphProvider(tenant.id)
 
         result = graph.send_email(
