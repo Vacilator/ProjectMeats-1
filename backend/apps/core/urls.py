@@ -70,6 +70,9 @@ urlpatterns = [
     path("tenant-forms/merge/", workform_views.merge_forms, name="tenant-forms-merge"),
     path("tenant-forms/split/", workform_views.split_form, name="tenant-forms-split"),
     
+    # Webhooks (Sentry-GitHub-Copilot Loop)
+    path('webhooks/sentry/issue-created/', views.sentry_issue_created_webhook, name='sentry-issue-created'),
+
     # Include router URLs
     path("", include(router.urls)),
     path("", include(workforms_router.urls)),

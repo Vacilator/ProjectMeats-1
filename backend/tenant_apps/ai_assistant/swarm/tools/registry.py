@@ -181,6 +181,13 @@ def create_task(title: str, message: str, entity_type: str | None = None, entity
 
 
 @registry.register
+def get_recent_errors(tenant_id: str) -> Dict[str, Any]:
+    """Fetch recent Sentry issues for a tenant (last 5)."""
+
+    return {"status": "available_via_chat", "tenant_id": tenant_id}
+
+
+@registry.register
 def create_record(entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a tenant-scoped record.
 

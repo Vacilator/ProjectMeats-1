@@ -11,6 +11,10 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
+### 2026-03-27 — Sentry-GitHub-Copilot Loop
+- Sentry Passthrough to GitHub — **ACTIVE** (webhook receiver + ownership routing groundwork).
+- AI Assistant Sentry Bridge — **IN-PROGRESS** (tooling to fetch tenant-scoped recent Sentry issues).
+
 **Phase 6.5: AI Document Understanding & Agentic Workflows**
 
 ### 2026-03-19 — Phase 6.5: AI Document Understanding

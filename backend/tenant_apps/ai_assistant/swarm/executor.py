@@ -134,6 +134,20 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'get_recent_errors',
+            'description': 'Fetch the most recent Sentry issues for the active tenant_id (last 5).',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'tenant_id': {'type': 'string', 'description': 'Tenant UUID (must match active tenant)'}
+                },
+                'required': ['tenant_id'],
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'create_record',
             'description': 'Create a tenant-scoped record (limited to safe entity types).',
             'parameters': {
@@ -197,6 +211,7 @@ class ToolExecutor:
             'get_record_detail': self._get_record_detail,
             'get_entity_details': self._get_entity_details,
             'create_task': self._create_task,
+            'get_recent_errors': self._get_recent_errors,
             'create_record': self._create_record,
             'search_entities': self._search_entities,  # Backward-compatible alias
             'get_recent_activity': self._get_recent_activity,
@@ -557,6 +572,72 @@ class ToolExecutor:
             'message': row.message,
             'action_url': row.action_url,
         }
+
+    def _get_recent_errors(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Fetch recent Sentry issues tagged with the active tenant_id."""
+        import os
+        import requests
+
+        tenant_id_arg = str(arguments.get('tenant_id') or '').strip()
+        active_tenant_id = str(getattr(tenant, 'id', '') or '')
+
+        if not active_tenant_id:
+            raise ValueError('Tenant context missing')
+        if not tenant_id_arg:
+            raise ValueError('Missing required parameter: tenant_id')
+        if tenant_id_arg != active_tenant_id:
+            raise ValueError('tenant_id must match the active tenant')
+
+        token = os.environ.get('SENTRY_AUTH_TOKEN')
+        org = os.environ.get('SENTRY_ORG_SLUG') or os.environ.get('SENTRY_ORG')
+        base_url = (os.environ.get('SENTRY_BASE_URL') or 'https://sentry.io').rstrip('/')
+
+        if not token:
+            return {'ok': False, 'error': 'SENTRY_AUTH_TOKEN not configured'}
+        if not org:
+            return {'ok': False, 'error': 'SENTRY_ORG_SLUG not configured'}
+
+        url = f"{base_url}/api/0/organizations/{org}/issues/"
+        params = {
+            'query': f"tenant_id:{active_tenant_id}",
+            'limit': 5,
+            'sort': 'date',
+        }
+
+        resp = requests.get(
+            url,
+            headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'},
+            params=params,
+            timeout=10,
+        )
+
+        if resp.status_code >= 400:
+            return {
+                'ok': False,
+                'status': resp.status_code,
+                'error': 'Sentry API request failed',
+                'detail': (resp.text or '')[:300],
+            }
+
+        issues = resp.json() if resp.content else []
+        out = []
+        for it in (issues or [])[:5]:
+            out.append(
+                {
+                    'id': it.get('id'),
+                    'shortId': it.get('shortId') or it.get('short_id'),
+                    'title': it.get('title'),
+                    'permalink': it.get('permalink'),
+                    'culprit': it.get('culprit'),
+                    'level': it.get('level'),
+                    'status': it.get('status'),
+                    'firstSeen': it.get('firstSeen'),
+                    'lastSeen': it.get('lastSeen'),
+                    'count': it.get('count'),
+                }
+            )
+
+        return {'ok': True, 'tenant_id': active_tenant_id, 'issues': out}
 
     def _search_entities(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Backward-compatible alias for older tool name."""
