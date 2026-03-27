@@ -571,7 +571,7 @@ Execution rules:
 - No direct axios usage in frontend; BusinessApi/workformsApi only.
 - Maintain PostgreSQL RLS parity and tenant isolation in all backend changes.
 
-- 2026-03-18 — CRITICAL HOTFIX: WSOD Resolution (schemaRegistry TDZ) — Commit: [pending]
+- 2026-03-18 — CRITICAL HOTFIX: WSOD Resolution (schemaRegistry TDZ) — Evidence: PR #3460 (see section below)
   - Fixed "schemaRegistry is not defined" White Screen of Death on dev environment
   - Root cause: Vite/Rollup ES Module evaluation order caused Temporal Dead Zone
   - Solution: Wrapped all schemaRegistry initialization calls in setTimeout(..., 0) to defer to next macro-task
@@ -586,7 +586,7 @@ Execution rules:
 2. Emergency UI/UX + API restoration (NEXT)
 
 ### PR F — Emergency UI/UX + API restoration (Frontend + Backend)
-**Status:** PLANNED (second item after node configuration fixes)
+**Status:** COMPLETE (historical plan snapshot; executed in PRs listed in the reconciliation section below)
 
 Problem summary (from console logs / diagnostics):
 - Portal rendering race + schema fallback were the top blockers. These are now addressed by:
