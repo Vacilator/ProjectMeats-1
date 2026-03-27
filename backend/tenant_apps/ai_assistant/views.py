@@ -171,6 +171,15 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             if not tenant:
                 return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Defense-in-depth: ensure RLS session vars are asserted on this DB connection
+            # before any Swarm tool executes queries.
+            try:
+                from apps.tenants.rls import set_current_tenant
+
+                set_current_tenant(str(getattr(tenant, 'id', '') or ''))
+            except Exception:
+                pass
+
             openai_api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY')
             if not openai_api_key:
                 return Response(
