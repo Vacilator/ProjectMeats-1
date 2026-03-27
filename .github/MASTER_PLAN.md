@@ -74,6 +74,11 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-27 — Plants: fix available-products endpoint routing so GET works (was 405) — PR: #3986.
 - 2026-03-27 — UniversalEntityForm: fix invoice schema 404 + required FK validation + better 400 error surfacing — PR: #3989.
 - 2026-03-27 — Inquiries: prevent 500 on /api/v1/inquiries/ when tenant context missing — PR: #3990.
+- 2026-03-27 — Fix: cockpit favorites + inquiry create — PR: #3993.
+- 2026-03-27 — Fix: product associations persist — PR: #3994.
+- 2026-03-27 — Fix: Email Sync Now avoids timeouts — PR: #3995.
+- 2026-03-27 — Fix: plant available products save — PR: #3996.
+- 2026-03-27 — UI: facelift customer + supplier pages — PR: #3997.
 - 2026-03-27 — FlowEditor: wire AI Suggestions panel (toggle + backend suggest-nodes + local fallback) — PR: #3998.
 
 - 2026-03-24 — Fixed global Ant Design theme corruption (Sanitized background tokens causing pure black component rendering) — PR: #3925.
