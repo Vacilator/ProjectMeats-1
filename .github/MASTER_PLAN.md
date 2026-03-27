@@ -150,6 +150,13 @@ This file is the **append-only PR-referenceable execution log**.
 - Fixed AI chat failing with `NameError: lessons_block is not defined` by defining lessons_block in SwarmOrchestrator.run_tool_loop via memory_service (safe fallback when memory fails).
 - PR: #4045.
 
+### 2026-03-27T18:47Z — State Audit (Remaining P0s)
+- Identified remaining gaps from runtime logs and repeated UX reports.
+- Next execution order:
+  1) Fix Workforms AI suggestions route drift (frontend currently calls /api/v1/suggest-nodes/ but backend suggests /api/v1/workflows/suggest-nodes/).
+  2) Universal Forms + Cockpit Search usability hardening (save/create CTA, key-fields-first + expand, searchable FK by name, per-keystroke refresh).
+  3) Workform Editor UX hardening (connectors top+bottom, remove conflicting collapse buttons, drag body, inline title, reorder swaps edges).
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.

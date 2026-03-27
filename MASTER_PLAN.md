@@ -14,6 +14,18 @@ This file is the **canonical plan + current truth snapshot**.
 
 We are re-validating and completing the last ~25 prompts with **evidence-based acceptance criteria** and strict shipping discipline.
 
+## State Audit & Remaining P0s (as of 2026-03-27T18:47Z)
+
+### Observed runtime issues
+- Workforms AI Suggestions: frontend calling `POST /api/v1/suggest-nodes/` gets 404; backend `SuggestNodesView` exists but is not routed. Align to `POST /api/v1/workflows/suggest-nodes/`.
+- AI Chat: lessons memory NameError fixed (PR #4045); remaining 400s should be treated as environment config issues (missing OPENAI_API_KEY) with graceful messaging.
+- Charts: Recharts `ResponsiveContainer` warnings (width/height -1) indicate parent container sizing gaps; fix to reduce noise.
+
+### Priority execution strategy
+1) Quick wins: fix suggest-nodes route drift; reduce chart sizing warnings.
+2) Universal Forms + Cockpit Search: make forms truly usable (save/create CTA, key-fields-first + expand-all, single edit toggle, searchable FK by name, per-keystroke refresh where required).
+3) Workform Editor UX: connectors top/bottom, remove conflicting collapse buttons, drag body, inline title edit, reorder arrows swap edges, show key config summary in-node.
+
 **Shipping discipline (MANDATORY):** every batch is shipped via **new branch → PR → merge to `development`**.
 
 ### Execution order (P0→P1)
