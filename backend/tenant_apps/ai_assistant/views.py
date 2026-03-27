@@ -431,13 +431,41 @@ class AIDocumentViewSet(viewsets.ModelViewSet):
 
             raise ValidationError('Tenant context required.')
 
-        instance = serializer.save(
-            tenant=tenant,
-            owner=self.request.user,
-            original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
-            content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
-            file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
-        )
+        tenant_id = str(getattr(tenant, 'id', '') or '')
+        if tenant_id:
+            # Defense-in-depth: assert RLS vars right before the write.
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SET app.current_tenant_id = %s", [tenant_id])
+                    cursor.execute("SET app.current_tenant = %s", [tenant_id])
+            except Exception:
+                logger.warning('AIDocument upload: failed to assert RLS session vars', exc_info=True)
+
+        try:
+            instance = serializer.save(
+                tenant=tenant,
+                owner=self.request.user,
+                original_filename=getattr(self.request.FILES.get('file'), 'name', ''),
+                content_type=getattr(self.request.FILES.get('file'), 'content_type', '') or '',
+                file_size=getattr(self.request.FILES.get('file'), 'size', 0) or 0,
+            )
+        except Exception as e:
+            from django.db.utils import DatabaseError
+            from rest_framework.exceptions import ValidationError
+
+            if isinstance(e, OSError):
+                logger.error('AIDocument upload: storage error: %s', str(e), exc_info=True)
+                raise ValidationError(
+                    'Upload failed: storage is not writable. Please contact an administrator.'
+                )
+
+            if isinstance(e, DatabaseError):
+                logger.error('AIDocument upload: database error: %s', str(e), exc_info=True)
+                raise ValidationError(
+                    'Upload failed: tenant context could not be asserted for RLS. Please reload and retry.'
+                )
+
+            raise
 
         # If the upload was tied to a session, also create a DOCUMENT message so UIs can show it inline.
         if instance.session_id:
