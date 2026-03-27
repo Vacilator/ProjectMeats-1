@@ -109,6 +109,7 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-27 — Fix: cockpit favorites + inquiry create — PR: #3993.
 - 2026-03-27 — Fix: product associations persist — PR: #3994.
 - 2026-03-27 — Fix: Email Sync Now avoids timeouts — PR: #3995.
+- 2026-03-27 — Hotfix: restore development deployments (main-pipeline workflow file issue) — PR: #4011.
 - 2026-03-27 — Fix: plant available products save — PR: #3996.
 - 2026-03-27 — UI: facelift customer + supplier pages — PR: #3997.
 - 2026-03-27 — FlowEditor: wire AI Suggestions panel (toggle + backend suggest-nodes + local fallback) — PR: #3998.
