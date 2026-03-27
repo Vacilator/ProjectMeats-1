@@ -209,6 +209,15 @@ class SwarmOrchestrator:
         if not openai_api_key:
             raise ValueError('OpenAI not configured (missing OPENAI_API_KEY)')
 
+        lessons_block = ''
+        try:
+            from tenant_apps.ai_assistant.services.memory_service import format_lessons_block, get_relevant_lessons
+
+            lessons = get_relevant_lessons(tenant=tenant, query=user_message, limit=8)
+            lessons_block = format_lessons_block(lessons)
+        except Exception as e:
+            logger.warning('[SwarmOrchestrator] Lessons lookup failed; continuing without lessons: %s', str(e))
+
         # Phase 8.2: intent classification → delegate deep meat/logistics questions to MeatSME RAG.
         # Reliability mandate: if RAG fails for any reason, fall back to the standard tool loop.
         if self._requires_meat_sme(user_message):
