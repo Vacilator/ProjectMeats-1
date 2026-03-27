@@ -9,8 +9,12 @@
  * - React to global UX shortcuts (e.g., Cmd/Ctrl+J) via window events
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
+import { useLocation } from 'react-router-dom';
+
+import { useCockpitNavigation } from '@/contexts/CockpitNavigationContext';
+import { buildAIPageContext } from '@/services/aiContext';
 import {
   FileText,
   GitBranch,
@@ -516,6 +520,13 @@ const hasHumanReviewMessage = (msgs: ChatMessage[]) =>
 
 export const AIAgentWidget: React.FC = () => {
   const toast = useToast();
+  const location = useLocation();
+  const cockpitNav = useCockpitNavigation();
+
+  const pageContext = useMemo(
+    () => buildAIPageContext({ pathname: location.pathname, search: location.search }, cockpitNav.path),
+    [location.pathname, location.search, cockpitNav.path]
+  );
 
   const [state, setState] = useState<AgentState>('idle');
   const [expanded, setExpanded] = useState(false);
@@ -550,6 +561,9 @@ export const AIAgentWidget: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const sendTextRef = useRef<
+    (text: string, contextOverride?: Record<string, unknown>) => Promise<void>
+  >(async () => {});
 
   const defaultActionMessage = useMemo(
     () => 'I just processed a Purchase Order from Sysco, but the delivery date is unclear. Can you verify?',
@@ -661,7 +675,18 @@ export const AIAgentWidget: React.FC = () => {
       setDetail({});
     };
 
+    const onSend = (event: Event) => {
+      const e = event as CustomEvent<{ message?: string; context?: Record<string, unknown> }>;
+      const msg = (e.detail?.message || '').toString().trim();
+      if (!msg) return;
+
+      setExpanded(true);
+      setMessages((m) => [...m, { id: newId(), role: 'user', content: msg, createdAt: Date.now() }]);
+      void sendTextRef.current(msg, e.detail?.context);
+    };
+
     window.addEventListener('pm:ai-toggle', onToggle as EventListener);
+    window.addEventListener('pm:ai-send', onSend as EventListener);
     window.addEventListener('pm:ai-review-required', onReviewRequired as EventListener);
     window.addEventListener('pm:ai-thinking', onThinking as EventListener);
     window.addEventListener('pm:ai-learning', onThinking as EventListener);
@@ -669,6 +694,7 @@ export const AIAgentWidget: React.FC = () => {
 
     return () => {
       window.removeEventListener('pm:ai-toggle', onToggle as EventListener);
+      window.removeEventListener('pm:ai-send', onSend as EventListener);
       window.removeEventListener('pm:ai-review-required', onReviewRequired as EventListener);
       window.removeEventListener('pm:ai-thinking', onThinking as EventListener);
       window.removeEventListener('pm:ai-learning', onThinking as EventListener);
@@ -983,6 +1009,53 @@ export const AIAgentWidget: React.FC = () => {
     }
   };
 
+  const sendText = useCallback(
+    async (text: string, contextOverride?: Record<string, unknown>) => {
+      if (!text) return;
+
+      setState('thinking');
+      try {
+        const sid = await ensureSession();
+
+        const res = await businessApi.post<{ response: string; session_id: string }>('/ai-assistant/chat/', {
+          message: text,
+          session_id: sid,
+          context: {
+            ui_source: 'AIAgentWidget',
+            ...pageContext,
+            ...(contextOverride || {}),
+          },
+        });
+
+        const responseText = res.data?.response ?? '—';
+        setMessages((m) => [...m, { id: newId(), role: 'assistant', content: responseText, createdAt: Date.now() }]);
+
+        await reloadSessions();
+        await loadSessionMessages(sid);
+        setAttachments([]);
+
+        setState('idle');
+      } catch (err: unknown) {
+        const errObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+        const response =
+          errObj?.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : null;
+        const data = response?.data && typeof response.data === 'object' ? (response.data as Record<string, unknown>) : null;
+        const serverError =
+          (typeof data?.error === 'string' ? data.error : null) ?? (typeof data?.detail === 'string' ? data.detail : null);
+        const message =
+          typeof serverError === 'string' && serverError.length
+            ? serverError
+            : "Sorry — I couldn't reach the AI service. Please try again.";
+
+        setMessages((m) => [...m, { id: newId(), role: 'assistant', content: message, createdAt: Date.now() }]);
+        setState('action_required');
+      }
+    },
+    [ensureSession, loadSessionMessages, pageContext, reloadSessions, setAttachments, setMessages, setState]
+  );
+
+  sendTextRef.current = sendText;
+
   const handleSend = async () => {
     const text = draft.trim();
     if (!text && attachments.length === 0) return;
@@ -1114,40 +1187,30 @@ export const AIAgentWidget: React.FC = () => {
       return;
     }
 
+    // Attachments are uploaded immediately on selection; clear pills after a send cycle.
+    if (text) {
+      await sendText(text);
+      return;
+    }
+
+    // Attachments-only: just refresh the server-backed history for this session.
     setState('thinking');
     try {
       const sid = await ensureSession();
-
-      // Attachments are uploaded immediately on selection; clear pills after a send cycle.
-
-      if (text) {
-        const res = await businessApi.post<{ response: string; session_id: string }>('/ai-assistant/chat/', {
-          message: text,
-          session_id: sid,
-          context: { ui_source: 'AIAgentWidget' },
-        });
-
-        const responseText = res.data?.response ?? '—';
-        setMessages((m) => [...m, { id: newId(), role: 'assistant', content: responseText, createdAt: Date.now() }]);
-      }
-
       await reloadSessions();
       await loadSessionMessages(sid);
       setAttachments([]);
-
       setState('idle');
-    } catch (err: unknown) {
-      const errObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
-      const response = errObj?.response && typeof errObj.response === 'object' ? (errObj.response as Record<string, unknown>) : null;
-      const data = response?.data && typeof response.data === 'object' ? (response.data as Record<string, unknown>) : null;
-      const serverError = (typeof data?.error === 'string' ? data.error : null) ??
-        (typeof data?.detail === 'string' ? data.detail : null);
-      const message =
-        typeof serverError === 'string' && serverError.length
-          ? serverError
-          : 'Sorry — I couldn\'t reach the AI service. Please try again.';
-
-      setMessages((m) => [...m, { id: newId(), role: 'assistant', content: message, createdAt: Date.now() }]);
+    } catch {
+      setMessages((m) => [
+        ...m,
+        {
+          id: newId(),
+          role: 'assistant',
+          content: 'Sorry — I could not refresh the session right now. Please try again.',
+          createdAt: Date.now(),
+        },
+      ]);
       setState('action_required');
     }
   };
