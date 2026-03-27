@@ -39,7 +39,7 @@ This file is the **append-only PR-referenceable execution log**.
 - Product entity harmony: map workflow schema `product` → `system.Product`; alias legacy product entity IDs (`tenant_apps.products.product`, `products.product`) → `system.product`; update frontend fallback entity list to `system.product`.
 - Process Monitor hardening: early-return empty 200 when tenant context missing; wrap result building in try/except to prevent RLS/DB 500s.
 - Theme hardening: define `--color-surface`/`--color-background` tokens for `[data-theme="high-contrast"]`; add BaseNode background fallback.
-- PR: (pending)
+- PR: #4003.
 
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 
