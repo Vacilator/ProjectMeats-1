@@ -32,6 +32,7 @@ This file is the **canonical plan + current truth snapshot**.
 - Quick Actions: use shared JWT-aware apiClient (fixes flaky quick create/quick actions auth) — PR #3980
 - Frontend standards: remove remaining hardcoded hex colors; `npm -C frontend run verify-standards` passes — PR #3982
 - Forms consolidation: route remaining create entrypoints through EntityFormSurface (schedule call → inquiry, SmartSearch → sales order) — PR #3984
+- Plants: fix available-products endpoint routing so GET /plants/{id}/available-products works (was 405) — PR #3986
 
 ### Current blockers / external dependencies
 - Some features require environment secrets/infra to activate fully (e.g., OpenAI key, OAuth credentials). Code must degrade gracefully when secrets are missing.
