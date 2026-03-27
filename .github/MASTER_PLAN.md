@@ -125,6 +125,9 @@ This file is the **append-only PR-referenceable execution log**.
 - Option Lists: "Master Products" entry now appears under the System Choice Lists tab; Tenant Overrides now use the same Card/Table layout as other admin screens.
 - Workflow Lists: tenant list create asserts RLS session vars before validation/save to prevent RLS-related write failures.
 
+### 2026-03-27 — Workform Editor: Initial Canvas Buttons Clickable
+- Fixed empty-canvas CTA buttons (Add Manual Trigger / Use Template / Browse Triggers) not being clickable due to ReactFlow pane overlay capturing pointer events.
+
 ### 2026-03-27 — Purchase Orders: Location Fields Auth Fix
 - LocationSelector now uses the standard JWT-aware apiClient (instead of raw axios + legacy Token auth), preventing spurious “Authentication required” errors on the New PO form.
 - Pick-up / Delivery locations are treated as optional (omitted from payload when unset).

@@ -1046,6 +1046,9 @@ const NodeDesc = styled.div`
 `;
 
 const EmptyState = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1054,6 +1057,14 @@ const EmptyState = styled.div`
   color: rgb(var(--color-text-tertiary));
   padding: 40px;
   text-align: center;
+
+  /* ReactFlow's pane can sit above generic children; keep the overlay visible,
+     but only make the content clickable (so canvas can still be panned). */
+  pointer-events: none;
+
+  & > * {
+    pointer-events: auto;
+  }
 `;
 
 const EmptyIcon = styled.div`
