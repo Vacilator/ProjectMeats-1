@@ -421,7 +421,19 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
 
   const submit = useCallback(
     async (data: Record<string, unknown>) => {
-      const payload = { ...data };
+      const payload: Record<string, unknown> = { ...data };
+
+      // Enforce required FK fields (they are rendered outside DynamicFormEngine).
+      const missingFk = fkFields
+        .filter((f) => Boolean(f.required))
+        .filter((f) => {
+          const v = fkValues[f.key] ?? initialValues?.[f.key];
+          return v === undefined || v === null || v === '';
+        });
+      if (missingFk.length) {
+        message.error(`Please select ${missingFk[0].label || missingFk[0].key}`);
+        return;
+      }
 
       // Merge FK values into payload.
       fkFields.forEach((f) => {
@@ -437,6 +449,30 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         });
       }
 
+      // Normalize payload (avoid sending empty strings that cause DRF validation errors).
+      const numberKeys = new Set(
+        (scalarFields || []).filter((f) => String(f.type).toLowerCase() === 'number').map((f) => f.key)
+      );
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v === '') {
+          delete payload[k];
+          return;
+        }
+        if (typeof v === 'string') {
+          const trimmed = v.trim();
+          if (!trimmed) {
+            delete payload[k];
+            return;
+          }
+          if (numberKeys.has(k)) {
+            const n = Number(trimmed);
+            if (Number.isFinite(n)) payload[k] = n;
+          } else {
+            payload[k] = trimmed;
+          }
+        }
+      });
+
       try {
         setSubmitting(true);
         const resp = entityId
@@ -447,10 +483,37 @@ export const UniversalEntityForm: React.FC<UniversalEntityFormProps> = ({
         onClose();
       } catch (err: unknown) {
         console.error('[UniversalEntityForm] Submit failed:', err);
-        const typed = err as { response?: { data?: { error?: string; detail?: string } } };
-        message.error(
-          typed?.response?.data?.error || typed?.response?.data?.detail || 'Failed to submit form'
-        );
+        const typed = err as {
+          response?: {
+            data?: unknown;
+          };
+          message?: string;
+        };
+
+        const data = typed?.response?.data;
+        if (data && typeof data === 'object') {
+          const obj = data as Record<string, unknown>;
+          const top =
+            (typeof obj.error === 'string' && obj.error) ||
+            (typeof obj.detail === 'string' && obj.detail) ||
+            null;
+
+          if (top) {
+            message.error(top);
+          } else {
+            const firstField = Object.entries(obj).find(([, v]) => Array.isArray(v) || typeof v === 'string');
+            const fieldMsg = firstField
+              ? Array.isArray(firstField[1])
+                ? String((firstField[1] as unknown[])[0] ?? 'Invalid value')
+                : String(firstField[1])
+              : null;
+            message.error(fieldMsg || 'Failed to submit form');
+          }
+        } else if (typeof data === 'string' && data) {
+          message.error(data);
+        } else {
+          message.error(typed?.message || 'Failed to submit form');
+        }
       } finally {
         setSubmitting(false);
       }
