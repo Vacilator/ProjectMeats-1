@@ -1,6 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
+import { useLocation } from 'react-router-dom';
 import Modal from '../Modal/Modal';
+import { useCockpitNavigation } from '@/contexts/CockpitNavigationContext';
+import { buildAIPageContext } from '@/services/aiContext';
 
 interface OmniboxProps {
   isOpen: boolean;
@@ -9,6 +12,14 @@ interface OmniboxProps {
 }
 
 const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
+  const location = useLocation();
+  const cockpitNav = useCockpitNavigation();
+
+  const pageContext = useMemo(
+    () => buildAIPageContext({ pathname: location.pathname, search: location.search }, cockpitNav.path),
+    [location.pathname, location.search, cockpitNav.path]
+  );
+
   const [command, setCommand] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
@@ -63,7 +74,24 @@ const Omnibox: React.FC<OmniboxProps> = ({ isOpen, onClose, onSubmit }) => {
   };
 
   const handleSubmit = (commandToSubmit: string) => {
+    // Always route Omnibox submissions into the global AI widget so it has
+    // consistent auth/tenant behavior and can render streaming responses.
+    window.dispatchEvent(new CustomEvent('pm:ai-toggle'));
+    window.dispatchEvent(
+      new CustomEvent('pm:ai-send', {
+        detail: {
+          message: commandToSubmit,
+          context: {
+            ui_source: 'Omnibox',
+            ...pageContext,
+          },
+        },
+      })
+    );
+
+    // Backward-compatible callback (legacy behavior).
     onSubmit(commandToSubmit);
+
     setCommand('');
     setSuggestions([]);
     setSelectedSuggestionIndex(-1);
@@ -161,7 +189,8 @@ const SuggestionItem = styled.div<{ isSelected: boolean }>`
   gap: 12px;
   padding: 12px 16px;
   cursor: pointer;
-  background: ${(props) => (props.isSelected ? 'rgba(var(--color-primary), 0.10)' : 'white')};
+  background: ${(props) =>
+    props.isSelected ? 'rgb(var(--color-primary) / 0.10)' : 'rgb(var(--color-surface))'};
   border-bottom: 1px solid rgb(var(--color-border));
   transition: background-color 0.2s;
 
