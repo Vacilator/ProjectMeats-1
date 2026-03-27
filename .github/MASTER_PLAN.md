@@ -157,6 +157,10 @@ This file is the **append-only PR-referenceable execution log**.
   2) Universal Forms + Cockpit Search usability hardening (save/create CTA, key-fields-first + expand, searchable FK by name, per-keystroke refresh).
   3) Workform Editor UX hardening (connectors top+bottom, remove conflicting collapse buttons, drag body, inline title, reorder swaps edges).
 
+### 2026-03-27 — Workforms: AI Suggestions Endpoint Routed
+- Fixed 404s for Workforms AI Suggestions by routing `SuggestNodesView` under `/api/v1/workflows/suggest-nodes/` and updating the frontend to call `/workflows/suggest-nodes/`.
+- PR: #4047.
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
