@@ -145,3 +145,113 @@ jobs:
       backend_environment: 'production-backend'
       frontend_environment: 'production-frontend'
       api_base_url: 'https://meatscentral.com'
+
+  # ==========================================
+  # Sentry Release Tracking (Seer "Suspect Commits")
+  # ==========================================
+  # Non-blocking: if Sentry secrets aren't configured, this job skips.
+
+  sentry-release-dev:
+    name: "Sentry Release: Development"
+    if: |
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/development') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'development'))
+    needs: [deploy-dev]
+    runs-on: ubuntu-latest
+    environment: dev-backend
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Create Sentry release (guarded)
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' && (secrets.SENTRY_PROJECT_SLUG != '' || secrets.SENTRY_PROJECT != '') }}
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG_SLUG || 'meats-central' }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_SLUG || secrets.SENTRY_PROJECT }}
+        with:
+          environment: development
+          version: ${{ github.sha }}
+          projects: ${{ secrets.SENTRY_PROJECT_SLUG || secrets.SENTRY_PROJECT }}
+          set_commits: auto
+          ignore_missing: true
+          ignore_empty: true
+
+      - name: Skip notice
+        if: ${{ !(secrets.SENTRY_AUTH_TOKEN != '' && (secrets.SENTRY_PROJECT_SLUG != '' || secrets.SENTRY_PROJECT != '')) }}
+        run: echo "Sentry release skipped (missing SENTRY_AUTH_TOKEN and/or SENTRY_PROJECT_SLUG)"
+
+  sentry-release-uat:
+    name: "Sentry Release: UAT"
+    if: |
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'uat'))
+    needs: [deploy-uat]
+    runs-on: ubuntu-latest
+    environment: uat-backend
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Create Sentry release (guarded)
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' && (secrets.SENTRY_PROJECT_SLUG != '' || secrets.SENTRY_PROJECT != '') }}
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG_SLUG || 'meats-central' }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_SLUG || secrets.SENTRY_PROJECT }}
+        with:
+          environment: uat
+          version: ${{ github.sha }}
+          projects: ${{ secrets.SENTRY_PROJECT_SLUG || secrets.SENTRY_PROJECT }}
+          set_commits: auto
+          ignore_missing: true
+          ignore_empty: true
+
+      - name: Skip notice
+        if: ${{ !(secrets.SENTRY_AUTH_TOKEN != '' && (secrets.SENTRY_PROJECT_SLUG != '' || secrets.SENTRY_PROJECT != '')) }}
+        run: echo "Sentry release skipped (missing SENTRY_AUTH_TOKEN and/or SENTRY_PROJECT_SLUG)"
+
+  sentry-release-prod:
+    name: "Sentry Release: Production"
+    if: |
+      needs.check-latest.outputs.should_deploy == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production'))
+    needs: [deploy-prod]
+    runs-on: ubuntu-latest
+    environment: production-backend
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Create Sentry release (guarded)
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' && (secrets.SENTRY_PROJECT_SLUG != '' || secrets.SENTRY_PROJECT != '') }}
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG_SLUG || 'meats-central' }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_SLUG || secrets.SENTRY_PROJECT }}
+        with:
+          environment: production
+          version: ${{ github.sha }}
+          projects: ${{ secrets.SENTRY_PROJECT_SLUG || secrets.SENTRY_PROJECT }}
+          set_commits: auto
+          ignore_missing: true
+          ignore_empty: true
+
+      - name: Skip notice
+        if: ${{ !(secrets.SENTRY_AUTH_TOKEN != '' && (secrets.SENTRY_PROJECT_SLUG != '' || secrets.SENTRY_PROJECT != '')) }}
+        run: echo "Sentry release skipped (missing SENTRY_AUTH_TOKEN and/or SENTRY_PROJECT_SLUG)"

@@ -609,7 +609,9 @@ if SENTRY_ENABLED and SENTRY_DSN:
         release=os.environ.get("GIT_COMMIT_SHA", "unknown"),  # Set by CI/CD
         
         # Additional Options
-        send_default_pii=False,  # Don't send PII by default (GDPR compliance)
+        # Required for Seer (user-impact analysis) + richer debugging context.
+        send_default_pii=True,
+        in_app_include=["backend", "tenant_apps"],
         attach_stacktrace=True,   # Always include stacktraces
         max_breadcrumbs=50,       # Keep more breadcrumbs for context
     )
