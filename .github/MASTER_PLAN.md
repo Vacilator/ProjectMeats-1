@@ -49,6 +49,7 @@ This file is the **append-only PR-referenceable execution log**.
 ### 2026-03-27 — Omnibox Context Bridge — IN-PROGRESS
 - Ensure Omnibox/AI widget payloads consistently include `currentPath` + active entity context (`current_entity_type`, `current_entity_id`) across all message entrypoints.
 - PR: #4004 (initial wiring shipped; verify + extend as needed)
+- PR: #4005 (schema-aware prompt + get_entity_details tool)
 
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 
