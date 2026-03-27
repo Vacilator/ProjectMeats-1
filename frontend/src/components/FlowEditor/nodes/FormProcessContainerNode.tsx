@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Handle, NodeToolbar, Position, useNodes } from '@xyflow/react';
-import { Plus, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import styled from 'styled-components';
 
 import type { ContainerNodeData } from './FormProcessNode';
@@ -92,16 +92,6 @@ export const FormProcessContainerNode = React.memo<Props>(({ id, data, selected 
     <>
       <NodeToolbar isVisible position={Position.Top}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <ToolbarButton
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              (data as any)?.onAddStepInsideForm?.();
-            }}
-            title="Add a form step"
-          >
-            <Plus size={14} /> Step
-          </ToolbarButton>
           <ToolbarButton
             type="button"
             onClick={(e) => {

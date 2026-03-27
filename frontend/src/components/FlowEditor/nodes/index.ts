@@ -31,8 +31,6 @@ export { FormProcessNode } from './FormProcessNode';
 export type { ContainerNodeData } from './FormProcessNode';
 
 export { FormProcessContainerNode } from './FormProcessContainerNode';
-export { FormProcessAddButtonNode } from './FormProcessAddButtonNode';
-export type { FormProcessAddButtonData } from './FormProcessAddButtonNode';
 
 export { TriggerNode } from './TriggerNode';
 export type { TriggerNodeData } from './TriggerNode';
