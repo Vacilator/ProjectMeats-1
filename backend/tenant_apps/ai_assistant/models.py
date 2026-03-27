@@ -200,6 +200,43 @@ class AIFeedbackLog(TenantAwareModel):
         super().save(*args, **kwargs)
 
 
+class AIFeedback(TenantAwareModel):
+    """Tenant-scoped conversational feedback.
+
+    Stores user-provided corrections as durable "lessons learned" that can be injected
+    into the assistant's system prompt on future conversations.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ai_feedback_items',
+    )
+
+    user_message = models.TextField(blank=True, default='')
+    assistant_message = models.TextField(blank=True, default='')
+
+    user_correction = models.TextField(help_text='User-provided correction')
+    lesson_text = models.TextField(help_text='Normalized lesson learned to apply in future responses')
+
+    entity_type = models.CharField(max_length=64, blank=True, default='')
+    entity_id = models.CharField(max_length=64, blank=True, default='')
+
+    tags = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'ai_assistant_feedback'
+        verbose_name = 'AI Feedback'
+        verbose_name_plural = 'AI Feedback'
+        indexes = [
+            models.Index(fields=['tenant', 'is_active', 'created_on'], name='ai_fb_item_queue_idx'),
+            models.Index(fields=['tenant', 'entity_type', 'created_on'], name='ai_fb_item_entity_idx'),
+        ]
+
+
 class VectorMemory(TenantAwareModel):
     """Tenant-scoped vector memory for PM-AS.
 

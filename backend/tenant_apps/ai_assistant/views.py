@@ -9,6 +9,7 @@ import time
 from datetime import timedelta
 
 from django.conf import settings
+from django.db import connection
 from django.db.models import Avg
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -46,7 +47,8 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 SWARM_SYSTEM_PROMPT = (
-    "You are the ProjectMeats Autonomous Swarm Orchestrator. "
+    "You are the ProjectMeats Intelligent Architect. "
+    "You have access to tenant data via RLS-safe tools and can learn from user feedback provided via the feedback tool. "
     "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
     "Use tools only when they are available for the tenant (e.g., Outlook connection). "
     "Be highly analytical, concise, and proactive."
@@ -168,12 +170,29 @@ class ChatBotAPIViewSet(viewsets.ViewSet):
             if not tenant:
                 return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
 
+            tenant_id = str(getattr(tenant, 'id', '') or '')
+            if not tenant_id:
+                return Response({'error': 'Tenant context missing'}, status=status.HTTP_400_BAD_REQUEST)
+
             # Defense-in-depth: ensure RLS session vars are asserted on this DB connection
             # before any Swarm tool executes queries.
+            #
+            # IMPORTANT: Per ops mandate, explicitly SET app.current_tenant via cursor.execute(f"...")
+            # right before tool execution to avoid "0 records found" due to missing RLS session vars.
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(f"SET app.current_tenant = '{tenant_id}'")
+            except Exception as e:
+                logger.warning('Failed to SET app.current_tenant=%s: %s', tenant_id, str(e), exc_info=True)
+                return Response(
+                    {'error': 'Failed to assert tenant context for RLS-safe tool execution'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             try:
                 from apps.tenants.rls import set_current_tenant
 
-                set_current_tenant(str(getattr(tenant, 'id', '') or ''))
+                set_current_tenant(tenant_id)
             except Exception:
                 pass
 

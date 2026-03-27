@@ -96,6 +96,26 @@ DEFAULT_OPENAI_TOOLS = [
     {
         'type': 'function',
         'function': {
+            'name': 'ingest_feedback',
+            'description': 'Save a user correction as a tenant-scoped lesson learned for future responses.',
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'user_message': {'type': 'string', 'description': 'The user message being corrected (optional but recommended).'},
+                    'assistant_message': {'type': 'string', 'description': 'The assistant message being corrected (optional but recommended).'},
+                    'user_correction': {'type': 'string', 'description': 'What the user says is the correct information.'},
+                    'lesson_text': {'type': 'string', 'description': 'Canonical lesson to remember and apply in future answers.'},
+                    'entity_type': {'type': 'string', 'description': 'Optional entity type the lesson applies to (purchase_order, supplier, customer, product, ...).'},
+                    'entity_id': {'type': 'string', 'description': 'Optional entity id the lesson applies to.'},
+                    'tags': {'type': 'object', 'description': 'Optional structured tags/metadata for the lesson.'},
+                },
+                'required': ['user_correction', 'lesson_text'],
+            },
+        },
+    },
+    {
+        'type': 'function',
+        'function': {
             'name': 'get_recent_errors',
             'description': 'Fetch the most recent Sentry issues for the active tenant_id (last 5).',
             'parameters': {
@@ -188,6 +208,7 @@ class ToolExecutor:
             'get_record_detail': self._get_record_detail,
             'get_entity_details': self._get_entity_details,
             'create_task': self._create_task,
+            'ingest_feedback': self._ingest_feedback,
             'get_recent_errors': self._get_recent_errors,
             'create_record': self._create_record,
             'search_entities': self._search_entities,
@@ -553,6 +574,34 @@ class ToolExecutor:
             'action_url': row.action_url,
         }
 
+    def _ingest_feedback(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
+        """Persist a tenant-scoped lesson learned from user feedback."""
+
+        user_correction = (arguments.get('user_correction') or '').strip()
+        lesson_text = (arguments.get('lesson_text') or '').strip()
+        if not user_correction or not lesson_text:
+            raise ValueError('Missing required parameters: user_correction, lesson_text')
+
+        from tenant_apps.ai_assistant.services.memory_service import ingest_feedback
+
+        row = ingest_feedback(
+            tenant=tenant,
+            user=user,
+            user_message=str(arguments.get('user_message') or ''),
+            assistant_message=str(arguments.get('assistant_message') or ''),
+            user_correction=user_correction,
+            lesson_text=lesson_text,
+            entity_type=str(arguments.get('entity_type') or ''),
+            entity_id=str(arguments.get('entity_id') or ''),
+            tags=arguments.get('tags') if isinstance(arguments.get('tags'), dict) else {},
+        )
+
+        return {
+            'id': str(row.id),
+            'created_on': getattr(row, 'created_on', None),
+            'lesson_text': row.lesson_text,
+        }
+
     def _get_recent_errors(self, arguments: Dict[str, Any], tenant: Any, user: Any = None) -> Any:
         """Fetch recent Sentry issues tagged with the active tenant_id."""
         import os
@@ -638,6 +687,28 @@ class ToolExecutor:
 
         entity_type = (arguments.get('entity_type') or '').strip().lower()
         metric = (arguments.get('metric') or '').strip().lower()
+
+        # Friendly metric/entity aliases so the LLM can answer natural questions like
+        # "most purchased" or "highest revenue" without knowing internal keys.
+        metric_aliases = {
+            'most_purchased': 'top_purchased_products',
+            'most_purchased_products': 'top_purchased_products',
+            'top_purchased': 'top_purchased_products',
+            'highest_revenue': 'revenue_by_customer',
+            'top_revenue': 'revenue_by_customer',
+            'highest_revenue_customers': 'revenue_by_customer',
+            'top_suppliers': 'top_suppliers_by_po_value',
+        }
+        metric = metric_aliases.get(metric, metric)
+
+        entity_aliases = {
+            'products': 'product',
+            'customers': 'customer',
+            'suppliers': 'supplier',
+            'purchase_orders': 'purchase_order',
+        }
+        entity_type = entity_aliases.get(entity_type, entity_type)
+
         if not entity_type or not metric:
             raise ValueError('Missing required parameters: entity_type, metric')
 
