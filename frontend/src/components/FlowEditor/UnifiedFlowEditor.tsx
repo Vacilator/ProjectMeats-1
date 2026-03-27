@@ -112,7 +112,6 @@ import {
   FormNode,
   FormProcessNode,
   FormProcessContainerNode,
-  FormProcessAddButtonNode,
   FormStepNode,
   FormStepSingleNode,
   FormReferenceNode,
@@ -1750,7 +1749,6 @@ const staticNodeTypes: Record<string, AnyNodeComponent> = {
   formProcessContainer: FormProcessContainerNode,
 
   // Render-time "+" button node for Form Process containers
-  formProcessAddButton: FormProcessAddButtonNode,
 
   smartWorkForm: SmartWorkFormNode,
 
@@ -6113,22 +6111,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     }
   }, [selectedNode]);
   
-  // Handler for direct node clicks (opens config panel) - debounced to prevent double-triggers
-  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    event.stopPropagation();
-    event.preventDefault();
-    
-    logger.debug('[handleNodeClick] Node clicked, opening config:', {
-      nodeType: node.type,
-      nodeId: node.id,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Short timeout to prevent double-triggers and allow event to fully propagate
-    setTimeout(() => {
-      handleNodeEdit(node.id);
-    }, 50);
-  }, [handleNodeEdit]);
   
   // Batch 3: Handler to delete node from Delete button
   const handleNodeDeleteImpl = useCallback(async (nodeId: string) => {
@@ -6830,6 +6812,65 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     [setNodes]
   );
   
+  const handleMoveNode = useCallback(
+    (nodeId: string, direction: -1 | 1) => {
+      if (readOnly) return;
+
+      setHasUnsavedChanges(true);
+
+      setNodes((prev) => {
+        const current = prev.find((n) => n.id === nodeId);
+        if (!current) return prev;
+
+        const currentY = current.position?.y ?? 0;
+        const parentKey = current.parentId ?? null;
+
+        const siblings = prev.filter((n) => {
+          if (n.id === nodeId) return false;
+          if (String(n.id).startsWith('__virtual:')) return false;
+          return (n.parentId ?? null) === parentKey;
+        });
+
+        const candidates = siblings.filter((n) => {
+          const dy = n.position?.y ?? 0;
+          return direction === -1 ? dy < currentY : dy > currentY;
+        });
+
+        if (candidates.length === 0) return prev;
+
+        const target =
+          direction === -1
+            ? candidates.reduce((best, n) => ((n.position?.y ?? 0) > (best.position?.y ?? 0) ? n : best))
+            : candidates.reduce((best, n) => ((n.position?.y ?? 0) < (best.position?.y ?? 0) ? n : best));
+
+        const targetY = target.position?.y ?? 0;
+
+        return prev.map((n) => {
+          if (n.id === current.id) {
+            return {
+              ...n,
+              position: {
+                ...(n.position || { x: 0, y: 0 }),
+                y: targetY,
+              },
+            } as Node;
+          }
+          if (n.id === target.id) {
+            return {
+              ...n,
+              position: {
+                ...(n.position || { x: 0, y: 0 }),
+                y: currentY,
+              },
+            } as Node;
+          }
+          return n;
+        });
+      });
+    },
+    [readOnly, setHasUnsavedChanges, setNodes]
+  );
+
   // Batch 3: Inject edit/delete handlers into node data
   // Batch 4: Also inject title change handler
   const nodesWithHandlers = useMemo(() => {
@@ -6901,6 +6942,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
           onTitleChange,
           onInsertAfter,
           onAddStepInsideForm,
+          onMoveUp: () => handleMoveNode(node.id, -1),
+          onMoveDown: () => handleMoveNode(node.id, 1),
           isLastInWorkflow: lastNodeIdSet.has(node.id),
         },
       };
@@ -6970,50 +7013,8 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     return derived;
   }, [edges, nodesWithHandlers]);
 
-  // Render-time "+" button beneath the last form step inside each expanded FormProcess container.
-  // This node is virtual (not persisted) and triggers creation of the next Form step.
-  const nodesForCanvas = useMemo(() => {
-    const isPageNodeType = (type?: string) =>
-      type === 'form' || type === 'formStepSingle' || type === 'formStep' || type === 'formReference';
-
-    const virtualNodes: Node[] = [];
-
-    nodesWithHandlers.forEach((n) => {
-      const containerType = ((n.data as any)?.nodeType as string | undefined) || n.type;
-      if (!isFormProcessContainerType(containerType)) return;
-      if ((n.data as any)?.isExpanded === false) return;
-
-      const pages = nodesWithHandlers
-        .filter((c) => c.parentId === n.id && isPageNodeType(c.type) && !c.hidden)
-        .sort((a, b) => (a.position?.y || 0) - (b.position?.y || 0));
-
-      const last = pages[pages.length - 1];
-      const anchorY = last ? last.position.y + LAYOUT_CONSTANTS.STEP_H : LAYOUT_CONSTANTS.STEP_Y;
-
-      const x = LAYOUT_CONSTANTS.START_X + (LAYOUT_CONSTANTS.STEP_W / 2 - LAYOUT_CONSTANTS.ADD_BUTTON_D / 2);
-      const y = anchorY + LAYOUT_CONSTANTS.ADD_BUTTON_MARGIN_Y;
-
-      virtualNodes.push({
-        id: `__virtual:add:${n.id}`,
-        type: 'formProcessAddButton',
-        parentId: n.id,
-        extent: 'parent',
-        position: { x, y },
-        draggable: false,
-        selectable: false,
-        connectable: false,
-        focusable: false,
-        deletable: false,
-        style: { width: LAYOUT_CONSTANTS.ADD_BUTTON_D, height: LAYOUT_CONSTANTS.ADD_BUTTON_D },
-        data: {
-          containerId: n.id,
-          onAddStepInsideForm: (n.data as any)?.onAddStepInsideForm,
-        },
-      });
-    });
-
-    return virtualNodes.length ? [...nodesWithHandlers, ...virtualNodes] : nodesWithHandlers;
-  }, [nodesWithHandlers]);
+  // Add-from-palette only: no in-canvas "+" nodes.
+  const nodesForCanvas = useMemo(() => nodesWithHandlers, [nodesWithHandlers]);
 
   return (
     <FormBuilderProvider onNodeDataUpdate={handleNodeDataUpdate}>
@@ -7550,7 +7551,6 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
         onDragOver={onDragOver}
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
-        onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
         onPaneClick={handleCloseMenu}
         onPaneMouseMove={(event) => {
