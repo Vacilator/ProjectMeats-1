@@ -58,10 +58,14 @@ This file is the **append-only PR-referenceable execution log**.
 - Promoted `apps.core.services.universal_search.UniversalSearchService` as the unified search standard for AI tools + SME grounding context.
 - Added tool schemas + executor implementations: `search_records`, `get_record_detail`, `create_task` (in-app task notification) — PR: #4004.
 
-### 2026-03-27 — Omnibox Context Bridge — IN-PROGRESS
-- Ensure Omnibox/AI widget payloads consistently include `currentPath` + active entity context (`current_entity_type`, `current_entity_id`) across all message entrypoints.
-- PR: #4004 (initial wiring shipped; verify + extend as needed)
+### 2026-03-27 — Omnibox Context Bridge — COMPLETE
+- Verified Omnibox + AIAgentWidget + ChatWindow include `currentPath` and active entity context on every send.
+  - Canonical keys: `current_entity_type`, `current_entity_id`
+  - Legacy keys retained for compatibility: `activeEntityType`, `activeEntityId`
+- Omnibox routes into the global widget via `pm:ai-send`, preserving page context.
+- PR: #4000 (context injection + widget routing)
 - PR: #4005 (schema-aware prompt + get_entity_details tool)
+- Close-out PR: #4018
 
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 
