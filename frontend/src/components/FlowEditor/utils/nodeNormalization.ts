@@ -12,7 +12,11 @@
 import { Node } from '@xyflow/react';
 import { NODE_TYPE_REGISTRY } from '../nodeTypes';
 
-const LEGACY_FORM_STEP_TYPES = new Set(['formStep', 'formStepSingle', 'formStepSingleNode']);
+const LEGACY_FORM_STEP_TYPE_MAP: Record<string, 'form'> = {
+  formStep: 'form',
+  formStepSingle: 'form',
+  formStepSingleNode: 'form',
+};
 
 function getDataParentId(node: Node): string | undefined {
   const raw = (node.data as any)?.parentId ?? (node.data as any)?.parent_id;
@@ -58,13 +62,14 @@ export function normalizeNodeData(node: Node): Node {
   // --------------------------------------------------------------------------
   // Normalize legacy form step node types to the unified 'form'
   // --------------------------------------------------------------------------
-  if (LEGACY_FORM_STEP_TYPES.has(next.type ?? '')) {
+  const canonicalFormType = LEGACY_FORM_STEP_TYPE_MAP[String(next.type ?? '')];
+  if (canonicalFormType) {
     next = {
       ...next,
-      type: 'form',
+      type: canonicalFormType,
       data: {
         ...(next.data || {}),
-        nodeType: 'form',
+        nodeType: canonicalFormType,
       },
     } as Node;
   }
