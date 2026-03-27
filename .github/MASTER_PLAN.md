@@ -72,6 +72,8 @@ This file is the **append-only PR-referenceable execution log**.
 - 2026-03-26 — Frontend standards: remove remaining hardcoded hex colors; verify-standards passes — PR: #3982.
 - 2026-03-26 — Forms: consolidate remaining create entrypoints via EntityFormSurface (schedule call → inquiry, SmartSearch → sales order) — PR: #3984.
 - 2026-03-27 — Plants: fix available-products endpoint routing so GET works (was 405) — PR: #3986.
+- 2026-03-27 — UniversalEntityForm: fix invoice schema 404 + required FK validation + better 400 error surfacing — PR: #3989.
+- 2026-03-27 — Inquiries: prevent 500 on /api/v1/inquiries/ when tenant context missing — PR: #3990.
 
 - 2026-03-24 — Fixed global Ant Design theme corruption (Sanitized background tokens causing pure black component rendering) — PR: #3925.
 - 2026-03-24 — Admin Workspace: Organization Profile save hardened (avoid multipart PATCH 502s) — PR: #3924.
