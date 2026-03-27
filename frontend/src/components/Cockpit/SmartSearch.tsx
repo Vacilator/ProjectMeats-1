@@ -203,7 +203,7 @@ const ResultGrid = styled.div`
   gap: 8px;
 `;
 
-const ResultCard = styled.button`
+const ResultCard = styled.div.attrs({ role: 'button', tabIndex: 0 })`
   display: flex;
   align-items: center;
   gap: 12px;
@@ -219,6 +219,11 @@ const ResultCard = styled.button`
     background: rgb(var(--color-background-tertiary));
     border-color: rgb(var(--color-primary));
     transform: translateX(4px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(var(--color-primary), 0.6);
+    outline-offset: 2px;
   }
 `;
 
@@ -861,11 +866,18 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
     const id = Number(entityId);
     if (!type || !Number.isFinite(id)) return;
 
-    toggleFavoriteMutation.mutate({
-      entity_type: type,
-      entity_id: id,
-      entity_title: entityTitle || '',
-    });
+    toggleFavoriteMutation.mutate(
+      {
+        entity_type: type,
+        entity_id: id,
+        entity_title: entityTitle || '',
+      },
+      {
+        onError: () => {
+          message.error('Failed to update favorite. Please try again.');
+        },
+      }
+    );
   }, [toggleFavoriteMutation]);
 
   /**
@@ -885,6 +897,15 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
   }, [controlledQuery, navigation, onQueryChange, onClose]);
 
   const activeStep = navigation.path[navigation.path.length - 1];
+
+  const handleCardKeyDown = useCallback((e: React.KeyboardEvent, onActivate: () => void) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      onActivate();
+    }
+  }, []);
+
 
   const handleNavigateToEntity = useCallback((nextType: string, nextId: string, label: string) => {
     navigation.addStep({
@@ -1073,6 +1094,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
               <ResultCard
                 key={entity.id}
                 onClick={() => handleSelectEntity(entity)}
+                onKeyDown={(e) => handleCardKeyDown(e, () => handleSelectEntity(entity))}
               >
                 <ResultIcon $tone={getEntityTone(entity.type)}>
                   {getEntityIcon(entity.type)}
@@ -1090,6 +1112,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
                 </ResultContent>
 
                 <FavoriteButton
+                  type="button"
                   $isFavorite={isFavorited(String(entity.type).toLowerCase(), Number(entity.id))}
                   onClick={(e) => toggleFavorite(entity.type, entity.id, entity.name, e)}
                   title={
@@ -1146,6 +1169,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
             <ResultCard
               key={item.id}
               onClick={() => chunk.type === 'actions' ? handleQuickAction(item) : handleSelectEntity(item)}
+              onKeyDown={(e) => handleCardKeyDown(e, () => chunk.type === 'actions' ? handleQuickAction(item) : handleSelectEntity(item))}
               style={chunk.type === 'actions' ? { cursor: 'pointer', borderStyle: 'dashed' } : {}}
             >
               <ResultIcon $tone={getEntityTone(item.type)}>
@@ -1161,6 +1185,7 @@ export const SmartSearch: React.FC<SmartSearchProps> = ({
 
               {chunk.type !== 'actions' && (
                 <FavoriteButton
+                  type="button"
                   $isFavorite={isFavorited(String(item.type).toLowerCase(), Number(item.id))}
                   onClick={(e) => toggleFavorite(item.type, item.id, item.name, e)}
                   title={
