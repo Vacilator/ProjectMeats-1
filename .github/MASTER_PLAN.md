@@ -41,6 +41,13 @@ This file is the **append-only PR-referenceable execution log**.
 - Theme hardening: define `--color-surface`/`--color-background` tokens for `[data-theme="high-contrast"]`; add BaseNode background fallback.
 - PR: #4003.
 
+### 2026-03-27 — Decommission VectorMemory (UniversalSearchService Standard)
+- Removed VectorMemory API endpoints (`/ai-assistant/memory/search/`, `/ai-assistant/memory/upsert/`) and pgvector-based retrieval from the AI assistant surface.
+- Promoted `apps.core.services.universal_search.UniversalSearchService` as the unified search standard for AI tools + SME grounding context.
+- AI context payloads now include canonical `current_entity_type` + `current_entity_id` keys (kept legacy camelCase keys for compatibility).
+- Added tool schemas + executor implementations: `search_records`, `get_record_detail`, `create_task` (in-app task notification).
+- PR: #4004.
+
 **Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF**
 
 ### 2026-03-20 — Phase 8.0: Autonomous Multi-Agent Swarm & Continuous RLHF

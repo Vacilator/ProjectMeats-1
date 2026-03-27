@@ -21,8 +21,6 @@ from .views import (
     PendingReviewView,
     SwarmInvokeAPIView,
     ToolsOpenAPIView,
-    VectorMemorySearchAPIView,
-    VectorMemoryUpsertAPIView,
 )
 
 app_name = 'ai_assistant'
@@ -50,6 +48,5 @@ urlpatterns = [
     # Supporting endpoints
     path('review/<uuid:feedback_id>/resolve/', PendingReviewResolveAPIView.as_view(), name='ai-review-resolve'),
     path('swarm/invoke/', SwarmInvokeAPIView.as_view(), name='ai-swarm-invoke'),
-    path('memory/search/', VectorMemorySearchAPIView.as_view(), name='ai-memory-search'),
-    path('memory/upsert/', VectorMemoryUpsertAPIView.as_view(), name='ai-memory-upsert'),
+
 ]
