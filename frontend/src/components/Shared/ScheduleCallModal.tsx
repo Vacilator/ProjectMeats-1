@@ -27,7 +27,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { businessApi } from '../../services/businessApi';
-import UniversalEntityForm from './UniversalEntityForm';
+import { EntityFormSurface } from './EntityFormSurface';
 import { CallTimer } from '../Calls';
 
 // ============================================================================
@@ -669,19 +669,20 @@ export const ScheduleCallModal: React.FC<ScheduleCallModalProps> = ({
 
       {/* Inquiry Modal */}
       {showInquiryModal && initialData?.id && (
-        <UniversalEntityForm
+        <EntityFormSurface
           entityType="inquiries"
+          mode="create"
           isOpen={showInquiryModal}
           onClose={() => setShowInquiryModal(false)}
           onSuccess={() => {
             setShowInquiryModal(false);
           }}
-          initialValues={{
-            source_type: 'scheduled_call',
-            source_call: String(initialData.id),
-            entity_type: entityType,
-            ...(String(entityType).toLowerCase() === 'supplier' ? { supplier: entityId } : { customer: entityId }),
-          } as any}
+          context={{
+            sourceCallId: initialData.id,
+            ...(String(entityType).toLowerCase() === 'supplier'
+              ? { supplierId: entityId }
+              : { customerId: entityId }),
+          }}
         />
       )}
     </Overlay>

@@ -36,6 +36,9 @@ export interface InquiryCreateModalProps {
   onSuccess: (created?: unknown) => void;
   initialEntityType?: EntityType;
   initialEntityId?: string | number;
+
+  /** Optional: link the inquiry to a scheduled call (e.g., created from ScheduleCallModal). */
+  sourceCallId?: string | number;
 }
 
 const Overlay = styled.div<{ $open: boolean }>`
@@ -319,6 +322,7 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
   onSuccess,
   initialEntityType,
   initialEntityId,
+  sourceCallId,
 }) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -450,7 +454,8 @@ export const InquiryCreateModal: React.FC<InquiryCreateModalProps> = ({
 
       const payload: Record<string, unknown> = {
         entity_type: entityType,
-        source_type: 'other',
+        source_type: sourceCallId ? 'scheduled_call' : 'other',
+        ...(sourceCallId ? { source_call: Number(sourceCallId) } : {}),
         valid_until: validUntil || undefined,
         notes: notes.trim() || undefined,
         products,
