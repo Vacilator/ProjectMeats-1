@@ -28,9 +28,16 @@ logger = logging.getLogger(__name__)
 
 EventType = Literal["email", "user_chat", "webhook"]
 
-def build_swarm_system_prompt(*, outlook_connected: bool, outlook_email: str | None, outlook_expired: bool) -> str:
+def build_swarm_system_prompt(
+    *,
+    outlook_connected: bool,
+    outlook_email: str | None,
+    outlook_expired: bool,
+    lessons_block: str = '',
+) -> str:
     base = (
-        "You are the ProjectMeats Autonomous Swarm Orchestrator. "
+        "You are the ProjectMeats Intelligent Architect. "
+        "You have access to tenant data via RLS-safe tools and can learn from user feedback provided via the feedback tool. "
         "You are an expert in wholesale meat logistics, purchase orders, cold storage, and supplier management. "
         "Be highly analytical, concise, and proactive. "
         "\n\nDatabase schema (high level): "
@@ -40,10 +47,16 @@ def build_swarm_system_prompt(*, outlook_connected: bool, outlook_email: str | N
         "\n\nAvailable tools (use when it reduces user effort): "
         "- search_entities(query[, entity_types, limit]) to find records via Universal Search. "
         "- get_entity_details(type, id) to load a full record profile payload for a specific entity. "
-        "- get_entity_analytics(entity_type, metric[, days, limit]) for aggregated metrics (e.g., revenue by customer). "
+        "- get_entity_analytics(entity_type, metric[, days, limit]) for annotated aggregations (e.g., most purchased, highest revenue). "
+        "- ingest_feedback(user_correction, lesson_text[, ...]) to save a lesson learned from user feedback. "
         "- create_task(title, message[, entity_type, entity_id]) to create an in-app task notification for the current user. "
         "- get_recent_errors(tenant_id) to fetch the most recent Sentry issues tagged with the active tenant_id. "
     )
+
+    if lessons_block:
+        base = base + str(lessons_block)
+
+    
 
     if outlook_connected:
         return base + f"Outlook: CONNECTED ({outlook_email or 'unknown'}). You may use email tools when relevant."
@@ -257,6 +270,7 @@ class SwarmOrchestrator:
                     outlook_connected=outlook_connected,
                     outlook_email=outlook_email,
                     outlook_expired=outlook_expired,
+                    lessons_block=lessons_block,
                 ),
             }
         ]

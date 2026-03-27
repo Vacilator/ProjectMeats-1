@@ -43,6 +43,8 @@ This file is the **append-only PR-referenceable execution log**.
 - UX: added a Tools button in `AIAgentWidget` to list tool operationIds via `GET /api/v1/ai-assistant/tools/openapi/` (PR #3691).
 
 ### 2026-03-27 — AI Assistant Restoration
+- **AI Assistant V2 — ACTIVE** (memory + analytics + RLS-hardened tools).
+- **RLS Tool Hardening — COMPLETE** (explicit `SET app.current_tenant` asserted at tool boundaries; defense-in-depth with TenantMiddleware + ToolExecutor).
 - Context awareness: Omnibox + AIAgentWidget + ChatWindow include `currentPath`, `activeEntityId`, `activeEntityType` (and explicit `activeEntity`) in every chat message; Omnibox routes into the widget via `pm:ai-send` — PR #4000.
 - Orchestrated AI Action Tools (tenant-safe):
   - RLS: Tool executor asserts `SET app.current_tenant` **before every tool execution** (defense-in-depth with TenantMiddleware).
