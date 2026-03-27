@@ -185,149 +185,70 @@ export const FavoritesWidget: React.FC<FavoritesWidgetProps> = ({
   maxItems = 10,
   onSelectFavorite,
 }) => {
-  const [favorites, setFavorites] = useState<FavoriteEntity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { favorites, isLoading: isFavoritesLoading, toggleFavorite } = useFavorites();
+  const [hydrated, setHydrated] = useState<FavoriteEntity[]>([]);
+  const [isHydrating, setIsHydrating] = useState(false);
 
-  const parseKey = (raw: string): { type: string | null; id: string } => {
-    const s = String(raw);
-    if (s.includes(':')) {
-      const [t, ...rest] = s.split(':');
-      return { type: (t || '').trim() || null, id: rest.join(':') };
-    }
-    return { type: null, id: s };
-  };
-
-  /**
-   * Load favorites from localStorage and hydrate with API data
-   */
-  const loadFavorites = useCallback(async () => {
-    setIsLoading(true);
+  const hydrateFavorites = useCallback(async () => {
+    setIsHydrating(true);
 
     try {
-      // Get favorite IDs from localStorage
-      const savedFavorites = localStorage.getItem('cockpit_favorites');
-      if (!savedFavorites) {
-        setFavorites([]);
-        setIsLoading(false);
-        return;
-      }
+      const rows = favorites.slice(0, maxItems);
 
-      const favoriteIds: string[] = JSON.parse(savedFavorites);
-      if (favoriteIds.length === 0) {
-        setFavorites([]);
-        setIsLoading(false);
-        return;
-      }
+      const entities = await Promise.all(rows.map(async (row) => {
+        const compositeId = `${row.entity_type}:${String(row.entity_id)}`;
 
-      // Fetch entity details for each favorite
-      // In a real implementation, this would be a batch API call
-      const favoriteEntities: FavoriteEntity[] = [];
-      const migratedKeys: string[] = [];
-
-      for (const rawKey of favoriteIds.slice(0, maxItems)) {
-        const parsed = parseKey(rawKey);
-        const candidates = parsed.type
-          ? [{ type: parsed.type, id: parsed.id }]
-          : [
-              { type: 'customer', id: parsed.id },
-              { type: 'supplier', id: parsed.id },
-              { type: 'contact', id: parsed.id },
-              { type: 'invoice', id: parsed.id },
-              { type: 'purchase_order', id: parsed.id },
-              { type: 'sales_order', id: parsed.id },
-            ];
-
-        let loaded = false;
-        for (const c of candidates) {
-          try {
-            const response = await apiClient.get(`/system/entities/${c.type}/${c.id}/`);
-            const compositeId = `${c.type}:${String(response.data.id ?? c.id)}`;
-            favoriteEntities.push({
-              id: compositeId,
-              type: String(response.data.type ?? c.type),
-              name: response.data.title || response.data.name || 'Unnamed',
-              subtitle: response.data.subtitle || response.data.status || '',
-              color: getEntityColor(String(response.data.type ?? c.type)),
-            });
-            migratedKeys.push(compositeId);
-            loaded = true;
-            break;
-          } catch {
-            // try next candidate
-          }
+        try {
+          const response = await apiClient.get(`/system/entities/${encodeURIComponent(row.entity_type)}/${encodeURIComponent(String(row.entity_id))}/`);
+          return {
+            id: compositeId,
+            type: String(response.data.type ?? row.entity_type),
+            name: response.data.title || response.data.name || row.entity_title || 'Unnamed',
+            subtitle: response.data.subtitle || response.data.status || '',
+            color: getEntityColor(String(response.data.type ?? row.entity_type)),
+          } satisfies FavoriteEntity;
+        } catch {
+          return {
+            id: compositeId,
+            type: row.entity_type,
+            name: row.entity_title || `${row.entity_type} #${row.entity_id}`,
+            subtitle: '',
+            color: getEntityColor(row.entity_type),
+          } satisfies FavoriteEntity;
         }
+      }));
 
-        if (!loaded) {
-          migratedKeys.push(String(rawKey));
-          console.warn(`[FavoritesWidget] Failed to load favorite ${rawKey}`);
-        }
-      }
-
-      // Best-effort migrate legacy favorites (raw IDs) to composite keys.
-      try {
-        const next = JSON.stringify(migratedKeys);
-        if (next !== savedFavorites) {
-          localStorage.setItem('cockpit_favorites', next);
-        }
-      } catch {
-        // ignore
-      }
-
-      setFavorites(favoriteEntities);
-    } catch (error) {
-      console.error('[FavoritesWidget] Failed to load favorites:', error);
-      setFavorites([]);
+      setHydrated(entities);
     } finally {
-      setIsLoading(false);
+      setIsHydrating(false);
     }
-  }, [maxItems]);
+  }, [favorites, maxItems]);
 
   useEffect(() => {
-    loadFavorites();
+    hydrateFavorites();
+  }, [hydrateFavorites]);
 
-    // Listen for storage changes (favorites updated in other components)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'cockpit_favorites') {
-        loadFavorites();
-      }
-    };
-
-    const handleLocalUpdate = () => loadFavorites();
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('cockpit_favorites_updated', handleLocalUpdate);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('cockpit_favorites_updated', handleLocalUpdate);
-    };
-  }, [loadFavorites]);
-
-  /**
-   * Remove favorite
-   */
   const handleRemove = useCallback((favoriteId: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // Remove from localStorage
-    const savedFavorites = localStorage.getItem('cockpit_favorites');
-    if (savedFavorites) {
-      const favoriteIds: string[] = JSON.parse(savedFavorites);
-      const updatedIds = favoriteIds.filter(id => id !== favoriteId);
-      localStorage.setItem('cockpit_favorites', JSON.stringify(updatedIds));
+    const [entity_type, rawId] = String(favoriteId).split(':');
+    const entity_id = Number(rawId);
+    if (!entity_type || !Number.isFinite(entity_id)) return;
 
-      // Update local state
-      setFavorites(prev => prev.filter(f => f.id !== favoriteId));
-    }
-  }, []);
+    const row = favorites.find((f) => f.entity_type === entity_type && f.entity_id === entity_id);
 
-  /**
-   * Handle favorite selection
-   */
+    toggleFavorite.mutate({
+      entity_type,
+      entity_id,
+      entity_title: row?.entity_title ?? '',
+    });
+  }, [favorites, toggleFavorite]);
+
   const handleSelect = useCallback((favorite: FavoriteEntity) => {
-    if (onSelectFavorite) {
-      onSelectFavorite(favorite);
-    }
+    onSelectFavorite?.(favorite);
   }, [onSelectFavorite]);
+
+  const isLoading = isFavoritesLoading || isHydrating;
 
   return (
     <Container>
@@ -346,7 +267,7 @@ export const FavoritesWidget: React.FC<FavoritesWidgetProps> = ({
             </EmptyIcon>
             <EmptyText>Loading favorites...</EmptyText>
           </EmptyState>
-        ) : favorites.length === 0 ? (
+        ) : hydrated.length === 0 ? (
           <EmptyState>
             <EmptyIcon>
               <Star size={32} />
@@ -359,7 +280,7 @@ export const FavoritesWidget: React.FC<FavoritesWidgetProps> = ({
           </EmptyState>
         ) : (
           <FavoritesList>
-            {favorites.map(favorite => (
+            {hydrated.map((favorite) => (
               <FavoriteItem
                 key={favorite.id}
                 onClick={() => handleSelect(favorite)}
@@ -378,6 +299,7 @@ export const FavoritesWidget: React.FC<FavoritesWidgetProps> = ({
                 <RemoveButton
                   onClick={(e) => handleRemove(favorite.id, e)}
                   title="Remove from favorites"
+                  aria-label="Remove from favorites"
                 >
                   <X size={14} />
                 </RemoveButton>
