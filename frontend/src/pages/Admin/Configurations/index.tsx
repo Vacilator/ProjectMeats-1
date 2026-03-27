@@ -187,10 +187,9 @@ const ConfigurationsPage: React.FC = () => {
 
   const handleSentryTest = () => {
     const timestamp = new Date().toISOString();
-    const err = new Error(`Sentry Orchestration Verified - ${timestamp}`);
 
     try {
-      throw err;
+      throw new Error('Sentry Orchestration Handshake Verified');
     } catch (caught) {
       captureSentryException(caught as Error, {
         component: 'Admin/Configurations',

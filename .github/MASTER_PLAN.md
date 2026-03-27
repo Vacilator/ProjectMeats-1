@@ -16,9 +16,10 @@ This file is the **append-only PR-referenceable execution log**.
 - AI Assistant Sentry Bridge — **STABILIZED** (tenant-scoped `get_recent_errors` tool + admin diagnostics endpoint; uses GitHub Environment secret injection for `SENTRY_AUTH_TOKEN` and defaults org slug to `meats-central` if unset).
   - PR: #4007
   - Follow-up PR: #4008
-- Environment-based Sentry Orchestration (Seer) — **VERIFIED & ACTIVE**
+- Environment-based Sentry Orchestration (Seer) — **STABILIZED**
   - SDK hardening: sendDefaultPii enabled (frontend+backend); backend in_app_include set for CODEOWNERS mapping — PR: #4009.
-  - Runtime wiring: frontend supports DSN fallback (window.ENV.SENTRY_DSN → REACT_APP_SENTRY_DSN), deploy passes SENTRY_DSN into env-config.js and REACT_APP_SENTRY_DSN, plus Admin→Configurations includes a "Sentry Test" button.
+  - Runtime wiring + secret mapping: `SENTRY_DSN` (runtime env) → `/usr/share/nginx/html/env-config.js` → `window.ENV.SENTRY_DSN` (fallback: build-time `REACT_APP_SENTRY_DSN`), and deploy sets `REACT_APP_SENTRY_DSN` on `docker run`.
+  - Verification: Admin→Configurations "Sentry Test" emits `Error(\"Sentry Orchestration Handshake Verified\")`.
   - AI SRE prompt: explicitly calls get_recent_errors(tenant_id) before asking for clarification.
   - PR: #4010
 
