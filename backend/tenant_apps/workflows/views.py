@@ -2055,119 +2055,121 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
         - assigned_to=me (supported; reuses get_queryset filtering)
         - status, form (supported; reuses get_queryset filtering)
         """
-        qs = self.get_queryset().order_by("-updated_at")
-
-        page = self.paginate_queryset(qs)
-        submissions = page if page is not None else qs
-
         tenant = getattr(request, "tenant", None)
         if not tenant:
-            # No tenant context -> no data
+            # No tenant context -> return empty 200 instead of triggering RLS/DB errors.
+            return Response({"count": 0, "results": []})
+
+        try:
+            qs = self.get_queryset().order_by("-updated_at")
+
+            page = self.paginate_queryset(qs)
+            submissions = page if page is not None else qs
+
+            # Collect keys for batch StepAssignment lookup
+            form_ids = {s.form_id for s in submissions}
+            step_ids = {s.current_step_id for s in submissions if s.current_step_id}
+
+            assignments_by_key = {}
+            if form_ids and step_ids:
+                assignments = (
+                    StepAssignment.objects.filter(tenant=tenant, form_id__in=form_ids, step_id__in=step_ids)
+                    .select_related("assigned_user", "step", "form")
+                    .order_by("id")
+                )
+
+                for a in assignments:
+                    key = (a.form_id, a.step_id)
+                    current = assignments_by_key.get(key)
+
+                    # Prefer a concrete user assignment over role/team.
+                    if not current or (not current.get("assigned_user_id") and a.assigned_user_id):
+                        assignments_by_key[key] = {
+                            "assignment_type": a.assignment_type,
+                            "assigned_user_id": a.assigned_user_id,
+                            "assigned_user_name": (
+                                a.assigned_user.get_full_name() or a.assigned_user.username
+                                if a.assigned_user
+                                else None
+                            ),
+                            "assigned_role": a.assigned_role,
+                            "due_days": a.due_days,
+                        }
+
+            now = timezone.now()
             results = []
-            if page is not None:
-                return self.get_paginated_response(results)
-            return Response({"count": 0, "results": results})
 
-        # Collect keys for batch StepAssignment lookup
-        form_ids = {s.form_id for s in submissions}
-        step_ids = {s.current_step_id for s in submissions if s.current_step_id}
+            for s in submissions:
+                step_sub = None
+                if s.current_step_id:
+                    # step_submissions are prefetched; match in memory.
+                    for ss in getattr(s, "step_submissions", []).all():
+                        if ss.step_id == s.current_step_id:
+                            step_sub = ss
+                            break
 
-        assignments_by_key = {}
-        if form_ids and step_ids:
-            assignments = (
-                StepAssignment.objects.filter(tenant=tenant, form_id__in=form_ids, step_id__in=step_ids)
-                .select_related("assigned_user", "step", "form")
-                .order_by("id")
-            )
+                assignment = None
+                if s.current_step_id:
+                    assignment = assignments_by_key.get((s.form_id, s.current_step_id))
 
-            for a in assignments:
-                key = (a.form_id, a.step_id)
-                current = assignments_by_key.get(key)
+                last_activity_at = step_sub.updated_at if step_sub else s.updated_at
+                time_in_step_seconds = None
+                if last_activity_at:
+                    time_in_step_seconds = int((now - last_activity_at).total_seconds())
 
-                # Prefer a concrete user assignment over role/team.
-                if not current or (not current.get("assigned_user_id") and a.assigned_user_id):
-                    assignments_by_key[key] = {
-                        "assignment_type": a.assignment_type,
-                        "assigned_user_id": a.assigned_user_id,
-                        "assigned_user_name": (
-                            a.assigned_user.get_full_name() or a.assigned_user.username
-                            if a.assigned_user
+                due_at = None
+                is_overdue = False
+                due_days = assignment.get("due_days") if assignment else None
+                if due_days is not None and last_activity_at:
+                    due_at_dt = last_activity_at + timedelta(days=due_days)
+                    due_at = due_at_dt.isoformat()
+                    is_overdue = now > due_at_dt
+
+                assigned_to_display = None
+                if assignment:
+                    if assignment.get("assigned_user_name"):
+                        assigned_to_display = assignment["assigned_user_name"]
+                    elif assignment.get("assigned_role"):
+                        assigned_to_display = assignment["assigned_role"]
+
+                results.append(
+                    {
+                        "id": str(s.id),
+                        "form_id": str(s.form_id),
+                        "form_name": getattr(s.form, "name", None),
+                        "status": s.status,
+                        "created_by": s.created_by_id,
+                        "created_by_name": (
+                            s.created_by.get_full_name() or s.created_by.username
+                            if s.created_by
                             else None
                         ),
-                        "assigned_role": a.assigned_role,
-                        "due_days": a.due_days,
+                        "created_at": s.created_at.isoformat() if s.created_at else None,
+                        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+                        "current_step_id": str(s.current_step_id) if s.current_step_id else None,
+                        "current_step_name": (
+                            s.current_step.step_name if s.current_step else None
+                        ),
+                        "current_step_order": (s.current_step.order if s.current_step else None),
+                        "current_step_entity_type": (s.current_step.entity_type if s.current_step else None),
+                        "current_step_status": (step_sub.status if step_sub else None),
+                        "current_step_updated_at": (last_activity_at.isoformat() if last_activity_at else None),
+                        "assigned_to": assignment,
+                        "assigned_to_display": assigned_to_display,
+                        "due_days": due_days,
+                        "due_at": due_at,
+                        "is_overdue": is_overdue,
+                        "time_in_current_step_seconds": time_in_step_seconds,
                     }
+                )
 
-        now = timezone.now()
-        results = []
+            if page is not None:
+                return self.get_paginated_response(results)
+            return Response({"count": len(results), "results": results})
 
-        for s in submissions:
-            step_sub = None
-            if s.current_step_id:
-                # step_submissions are prefetched; match in memory.
-                for ss in getattr(s, "step_submissions", []).all():
-                    if ss.step_id == s.current_step_id:
-                        step_sub = ss
-                        break
-
-            assignment = None
-            if s.current_step_id:
-                assignment = assignments_by_key.get((s.form_id, s.current_step_id))
-
-            last_activity_at = step_sub.updated_at if step_sub else s.updated_at
-            time_in_step_seconds = None
-            if last_activity_at:
-                time_in_step_seconds = int((now - last_activity_at).total_seconds())
-
-            due_at = None
-            is_overdue = False
-            due_days = assignment.get("due_days") if assignment else None
-            if due_days is not None and last_activity_at:
-                due_at_dt = last_activity_at + timedelta(days=due_days)
-                due_at = due_at_dt.isoformat()
-                is_overdue = now > due_at_dt
-
-            assigned_to_display = None
-            if assignment:
-                if assignment.get("assigned_user_name"):
-                    assigned_to_display = assignment["assigned_user_name"]
-                elif assignment.get("assigned_role"):
-                    assigned_to_display = assignment["assigned_role"]
-
-            results.append(
-                {
-                    "id": str(s.id),
-                    "form_id": str(s.form_id),
-                    "form_name": getattr(s.form, "name", None),
-                    "status": s.status,
-                    "created_by": s.created_by_id,
-                    "created_by_name": (
-                        s.created_by.get_full_name() or s.created_by.username
-                        if s.created_by
-                        else None
-                    ),
-                    "created_at": s.created_at.isoformat() if s.created_at else None,
-                    "updated_at": s.updated_at.isoformat() if s.updated_at else None,
-                    "current_step_id": str(s.current_step_id) if s.current_step_id else None,
-                    "current_step_name": (
-                        s.current_step.step_name if s.current_step else None
-                    ),
-                    "current_step_order": (s.current_step.order if s.current_step else None),
-                    "current_step_entity_type": (s.current_step.entity_type if s.current_step else None),
-                    "current_step_status": (step_sub.status if step_sub else None),
-                    "current_step_updated_at": (last_activity_at.isoformat() if last_activity_at else None),
-                    "assigned_to": assignment,
-                    "assigned_to_display": assigned_to_display,
-                    "due_days": due_days,
-                    "due_at": due_at,
-                    "is_overdue": is_overdue,
-                    "time_in_current_step_seconds": time_in_step_seconds,
-                }
-            )
-
-        if page is not None:
-            return self.get_paginated_response(results)
-        return Response({"count": len(results), "results": results})
+        except Exception:
+            logger.error('[process_monitor] Failed to build results', exc_info=True)
+            return Response({"count": 0, "results": []})
 
     @action(detail=True, methods=["post"])
     def auto_save(self, request, pk=None):

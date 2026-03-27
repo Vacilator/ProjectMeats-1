@@ -124,7 +124,7 @@ export const getEntityDisplayFields = async (entityId: string): Promise<string[]
 export const COMMON_ENTITY_TYPES: EntityType[] = [
   { id: 'tenant_apps.suppliers.supplier', app: 'tenant_apps.suppliers', model: 'supplier', label: 'Supplier', label_plural: 'Suppliers', description: 'Supplier entity', field_count: 0 },
   { id: 'tenant_apps.customers.customer', app: 'tenant_apps.customers', model: 'customer', label: 'Customer', label_plural: 'Customers', description: 'Customer entity', field_count: 0 },
-  { id: 'tenant_apps.products.product', app: 'tenant_apps.products', model: 'product', label: 'Product', label_plural: 'Products', description: 'Product entity', field_count: 0 },
+  { id: 'system.product', app: 'system', model: 'product', label: 'Product', label_plural: 'Products', description: 'Product entity', field_count: 0 },
   { id: 'tenant_apps.sales_orders.salesorder', app: 'tenant_apps.sales_orders', model: 'salesorder', label: 'Sales Order', label_plural: 'Sales Orders', description: 'Sales order entity', field_count: 0 },
   { id: 'tenant_apps.purchase_orders.purchaseorder', app: 'tenant_apps.purchase_orders', model: 'purchaseorder', label: 'Purchase Order', label_plural: 'Purchase Orders', description: 'Purchase order entity', field_count: 0 },
   { id: 'tenant_apps.invoices.invoice', app: 'tenant_apps.invoices', model: 'invoice', label: 'Invoice', label_plural: 'Invoices', description: 'Invoice entity', field_count: 0 },

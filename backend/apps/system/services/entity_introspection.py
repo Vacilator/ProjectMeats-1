@@ -19,6 +19,8 @@ ENTITY_ID_ALIASES = {
     'purchase_order': 'purchase_orders.purchaseorder',
     'sales_order': 'sales_orders.salesorder',
     'product': 'system.product',
+    'products.product': 'system.product',
+    'tenant_apps.products.product': 'system.product',
 
     # Common UI aliases (singular/plural)
     'invoice': 'invoices.invoice',

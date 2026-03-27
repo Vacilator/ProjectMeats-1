@@ -18,7 +18,7 @@ ENTITY_MODEL_MAP = {
     'customer': ('customers', 'Customer'),
     'contact': ('contacts', 'Contact'),
     'carrier': ('carriers', 'Carrier'),
-    'product': ('products', 'Product'),
+    'product': ('system', 'Product'),
     
     # Order management
     'purchase_order': ('purchase_orders', 'PurchaseOrder'),
