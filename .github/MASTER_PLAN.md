@@ -141,6 +141,11 @@ This file is the **append-only PR-referenceable execution log**.
 - Fixed Reports Summary API incorrectly marking purchase_orders/sales_orders/workforms as “metrics unavailable” due to Django `aggregate()` alias collisions (e.g. `total_amount=Sum('total_amount')` shadowing the field name used by `Avg('total_amount')`, raising FieldError).
 - PR: #4043.
 
+### 2026-03-27 — Cockpit Search: Favorites Icon Clickable
+- Fixed the SmartSearch results “favorite” (star) icon doing nothing. Root cause: nested <button> inside <button> (invalid HTML) prevented click events.
+- Result cards now render as accessible div-buttons with keyboard activation; favorite toggle surfaces errors.
+- PR: #4044.
+
 ### PR Log (append-only)
 
 - 2026-03-26 — Reports Summary 500 fixed — PR: #3949.
