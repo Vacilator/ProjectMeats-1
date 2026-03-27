@@ -112,11 +112,31 @@ export const initSentry = (config?: SentryConfig): void => {
         return null;
       }
       
+      // Mark repo frames as "in-app" so stack traces are easier to route via CODEOWNERS.
+      // Note: Sentry JS SDK v10 types don't expose inAppInclude; we tag frames directly.
+      try {
+        const exceptions = event.exception?.values || [];
+        for (const ex of exceptions) {
+          const frames = ex.stacktrace?.frames || [];
+          for (const frame of frames) {
+            const filename = (frame as any).filename;
+            if (typeof filename === 'string') {
+              if (filename.includes('/backend/') || filename.includes('/tenant_apps/')) {
+                (frame as any).in_app = true;
+              }
+            }
+          }
+        }
+      } catch {
+        // best-effort
+      }
+
       return event;
     },
     
     // Privacy
-    sendDefaultPii: false, // Don't send PII by default (GDPR)
+    // Required for Seer (user-impact analysis) + richer debugging context.
+    sendDefaultPii: true,
     
     // Context
     initialScope: {
