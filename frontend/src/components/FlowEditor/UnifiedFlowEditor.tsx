@@ -6816,36 +6816,72 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
     (nodeId: string, direction: -1 | 1) => {
       if (readOnly) return;
 
+      const current = nodes.find((n) => n.id === nodeId);
+      if (!current) return;
+
+      const currentY = current.position?.y ?? 0;
+      const parentKey = current.parentId ?? null;
+
+      const siblings = nodes.filter((n) => {
+        if (n.id === nodeId) return false;
+        if (String(n.id).startsWith('__virtual:')) return false;
+        return (n.parentId ?? null) === parentKey;
+      });
+
+      const candidates = siblings.filter((n) => {
+        const dy = n.position?.y ?? 0;
+        return direction === -1 ? dy < currentY : dy > currentY;
+      });
+
+      if (candidates.length === 0) return;
+
+      const target =
+        direction === -1
+          ? candidates.reduce((best, n) => ((n.position?.y ?? 0) > (best.position?.y ?? 0) ? n : best))
+          : candidates.reduce((best, n) => ((n.position?.y ?? 0) < (best.position?.y ?? 0) ? n : best));
+
+      const targetY = target.position?.y ?? 0;
+
+      const isPrimaryFlowEdge = (e: Edge): boolean => {
+        if (e.sourceHandle && e.sourceHandle !== 'output') return false;
+        if (e.targetHandle && e.targetHandle !== 'input') return false;
+        if (e.sourceHandle === 'error') return false;
+        if (e.type === 'errorEdge' || e.type === 'error') return false;
+        return true;
+      };
+
+      const rewireAdjacentSwap = (prevEdges: Edge[], aboveId: string, belowId: string): Edge[] => {
+        const link = prevEdges.find(
+          (e) => isPrimaryFlowEdge(e) && e.source === aboveId && e.target === belowId
+        );
+        if (!link) return prevEdges;
+
+        const incomingToAbove = prevEdges.find(
+          (e) => isPrimaryFlowEdge(e) && e.target === aboveId && e.source !== belowId
+        );
+
+        const outgoingFromBelow = prevEdges.find(
+          (e) => isPrimaryFlowEdge(e) && e.source === belowId && e.target !== aboveId
+        );
+
+        return prevEdges.map((e) => {
+          if (incomingToAbove && e.id === incomingToAbove.id) {
+            return { ...e, target: belowId };
+          }
+          if (e.id === link.id) {
+            return { ...e, source: belowId, target: aboveId };
+          }
+          if (outgoingFromBelow && e.id === outgoingFromBelow.id) {
+            return { ...e, source: aboveId };
+          }
+          return e;
+        });
+      };
+
       setHasUnsavedChanges(true);
 
-      setNodes((prev) => {
-        const current = prev.find((n) => n.id === nodeId);
-        if (!current) return prev;
-
-        const currentY = current.position?.y ?? 0;
-        const parentKey = current.parentId ?? null;
-
-        const siblings = prev.filter((n) => {
-          if (n.id === nodeId) return false;
-          if (String(n.id).startsWith('__virtual:')) return false;
-          return (n.parentId ?? null) === parentKey;
-        });
-
-        const candidates = siblings.filter((n) => {
-          const dy = n.position?.y ?? 0;
-          return direction === -1 ? dy < currentY : dy > currentY;
-        });
-
-        if (candidates.length === 0) return prev;
-
-        const target =
-          direction === -1
-            ? candidates.reduce((best, n) => ((n.position?.y ?? 0) > (best.position?.y ?? 0) ? n : best))
-            : candidates.reduce((best, n) => ((n.position?.y ?? 0) < (best.position?.y ?? 0) ? n : best));
-
-        const targetY = target.position?.y ?? 0;
-
-        return prev.map((n) => {
+      setNodes((prev) =>
+        prev.map((n) => {
           if (n.id === current.id) {
             return {
               ...n,
@@ -6865,10 +6901,15 @@ const UnifiedFlowEditorInner: React.FC<UnifiedFlowEditorProps> = ({
             } as Node;
           }
           return n;
-        });
-      });
+        })
+      );
+
+      const above = currentY < targetY ? current : target;
+      const below = currentY < targetY ? target : current;
+
+      setEdges((prevEdges) => rewireAdjacentSwap(prevEdges, String(above.id), String(below.id)));
     },
-    [readOnly, setHasUnsavedChanges, setNodes]
+    [readOnly, nodes, setHasUnsavedChanges, setNodes, setEdges]
   );
 
   // Batch 3: Inject edit/delete handlers into node data
