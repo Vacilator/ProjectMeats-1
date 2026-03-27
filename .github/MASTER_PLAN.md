@@ -11,6 +11,10 @@ This file is the **append-only PR-referenceable execution log**.
 
 ## Active Initiative: V3.0 Final Push (Consolidation + Scale + Polish)
 
+### 2026-03-27 — Workform Editor: Node Opacity Fix
+- Fixed "all nodes semi-transparent" regression caused by debug session decorations being left active when the Dry Run Debugger panel was hidden.
+- Debugger panel now stops/resets debug session when closed and unmounts the debugger UI when not visible.
+
 ### 2026-03-27 — Emergency Fix - OAuth Decryption
 - Verified Microsoft OAuth encryption salt remains `projectmeats_oauth_encryption_v1` (no drift).
 - Added management command: `python manage.py diagnose_oauth_encryption --tenant-id <uuid>` to distinguish `InvalidToken` (key mismatch) vs missing data.

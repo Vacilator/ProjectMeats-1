@@ -7,12 +7,13 @@
  * discoverable and usable without disturbing the canvas layout.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import styled from 'styled-components';
 import { X, Bug } from 'lucide-react';
 import type { Node } from '@xyflow/react';
 
 import { DryRunDebugger } from '../components/DryRunDebugger';
+import { useFlowEditor } from '../context';
 
 export interface DryRunDebuggerPanelProps {
   isVisible: boolean;
@@ -83,6 +84,15 @@ export const DryRunDebuggerPanel: React.FC<DryRunDebuggerPanelProps> = ({
   selectedNode,
   onClose,
 }) => {
+  const { stopDebugSession, resetDebugSession } = useFlowEditor();
+
+  useEffect(() => {
+    if (isVisible) return;
+    // If the panel is hidden, ensure we are not leaving debug decorations enabled.
+    stopDebugSession();
+    resetDebugSession();
+  }, [isVisible, resetDebugSession, stopDebugSession]);
+
   return (
     <PanelOverlay $isVisible={isVisible} aria-hidden={!isVisible}>
       <PanelHeader>
@@ -96,7 +106,7 @@ export const DryRunDebuggerPanel: React.FC<DryRunDebuggerPanelProps> = ({
       </PanelHeader>
 
       <PanelBody>
-        <DryRunDebugger selectedNode={selectedNode} onClose={onClose} />
+        {isVisible ? <DryRunDebugger selectedNode={selectedNode} onClose={onClose} /> : null}
       </PanelBody>
     </PanelOverlay>
   );
